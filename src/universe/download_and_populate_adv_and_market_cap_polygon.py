@@ -96,16 +96,30 @@ async def insert_adv_and_market_cap(prices, ticker, shares_outstanding, advs, po
     if not prices:
         return
     async with pool.acquire() as conn:
-        # Assumes daily_prices table already has columns adv and market_cap
+        # Update ADV in daily_prices
         await conn.executemany(
-            "UPDATE daily_prices SET adv=$1, market_cap=$2 WHERE date=$3 AND symbol=$4",
+            "UPDATE daily_prices SET adv=$1 WHERE date=$2 AND symbol=$3",
             [
                 (
                     advs[i],
-                    (row['c'] * shares_outstanding if shares_outstanding else None),
                     datetime.utcfromtimestamp(row['t']/1000).date(),
                     ticker
                 ) for i, row in enumerate(prices)
+            ]
+        )
+        # Upsert market_cap into fundamentals
+        await conn.executemany(
+            """
+            INSERT INTO fundamentals (ticker, date, market_cap)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (ticker, date) DO UPDATE SET market_cap = EXCLUDED.market_cap
+            """,
+            [
+                (
+                    ticker,
+                    datetime.utcfromtimestamp(row['t']/1000).date(),
+                    (row['c'] * shares_outstanding if shares_outstanding else None)
+                ) for row in prices
             ]
         )
 
