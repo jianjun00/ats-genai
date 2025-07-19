@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+alpaca-py
+pandas
+pandas_ta
+torch
+typing-extensions
+websockets
+python-dotenv
+asyncpg
+async-timeout
+pandas_market_calendars
