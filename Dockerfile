@@ -3,4 +3,6 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+
+# Entrypoint runs DB setup/migrations, then launches API
+CMD ["sh", "-c", "python src/db/setup_trading_db.py && uvicorn src.main:app --host 0.0.0.0 --port 8080"]
