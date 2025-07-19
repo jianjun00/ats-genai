@@ -84,3 +84,56 @@ class SecMaster:
             results[d] = set(membership)
             self._membership_cache[d] = set(membership)
         return results
+
+    async def get_last_close_price(self, ticker: str) -> float:
+        """
+        Return the last close price for ticker as of self.as_of_date.
+        """
+        if self.as_of_date is None:
+            raise ValueError("as_of_date must be set at initialization.")
+        pool = await asyncpg.create_pool(self.db_url)
+        async with pool.acquire() as conn:
+            price = await conn.fetchval(
+                """
+                SELECT close FROM daily_prices
+                WHERE ticker = $1 AND date <= $2
+                ORDER BY date DESC LIMIT 1
+                """, ticker, self.as_of_date)
+        await pool.close()
+        return price
+
+    async def get_average_dollar_volume(self, ticker: str, window: int = 30) -> float:
+        """
+        Return the average daily dollar volume (close * volume) over the past `window` days as of self.as_of_date.
+        """
+        if self.as_of_date is None:
+            raise ValueError("as_of_date must be set at initialization.")
+        pool = await asyncpg.create_pool(self.db_url)
+        async with pool.acquire() as conn:
+            avg_dv = await conn.fetchval(
+                """
+                SELECT AVG(close * volume) FROM (
+                    SELECT close, volume FROM daily_prices
+                    WHERE ticker = $1 AND date <= $2
+                    ORDER BY date DESC LIMIT $3
+                ) sub
+                """, ticker, self.as_of_date, window)
+        await pool.close()
+        return avg_dv
+
+    async def get_market_cap(self, ticker: str) -> float:
+        """
+        Return the latest market cap for ticker as of self.as_of_date, using fundamentals table.
+        """
+        if self.as_of_date is None:
+            raise ValueError("as_of_date must be set at initialization.")
+        pool = await asyncpg.create_pool(self.db_url)
+        async with pool.acquire() as conn:
+            mc = await conn.fetchval(
+                """
+                SELECT market_cap FROM fundamentals
+                WHERE ticker = $1 AND date <= $2
+                ORDER BY date DESC LIMIT 1
+                """, ticker, self.as_of_date)
+        await pool.close()
+        return mc
