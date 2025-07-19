@@ -28,8 +28,28 @@ CREATE TABLE IF NOT EXISTS daily_prices (
     low DOUBLE PRECISION,
     close DOUBLE PRECISION,
     volume BIGINT,
+    adjusted_price DOUBLE PRECISION, -- New column for adjusted close price
     PRIMARY KEY (date, symbol)
 );
+
+-- Table for stock splits
+CREATE TABLE IF NOT EXISTS stock_splits (
+    id SERIAL PRIMARY KEY,
+    symbol TEXT NOT NULL,
+    split_date DATE NOT NULL,
+    numerator DOUBLE PRECISION NOT NULL,  -- e.g., 2 for a 2-for-1 split
+    denominator DOUBLE PRECISION NOT NULL, -- e.g., 1 for a 2-for-1 split
+    split_ratio DOUBLE PRECISION GENERATED ALWAYS AS (numerator/denominator) STORED
+);
+
+-- Table for cash dividends
+CREATE TABLE IF NOT EXISTS dividends (
+    id SERIAL PRIMARY KEY,
+    symbol TEXT NOT NULL,
+    ex_date DATE NOT NULL,
+    amount DOUBLE PRECISION NOT NULL  -- dividend per share
+);
+
 """
 
 CREATE_HYPERTABLE_SQL = """
