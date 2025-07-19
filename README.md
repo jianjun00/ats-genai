@@ -1,33 +1,74 @@
 # Market Forecast App
 
-A server-side application that connects to Alpaca for real-time market data, computes technical signals, and uses a PyTorch deep learning time series model to forecast next hourly or daily returns.
+A server-side application for unified market data, event ingestion, signal computation, and deep learning-based forecasting. Modular, extensible, and production-ready.
 
 ## Features
-- Real-time market data subscription (Alpaca)
+- Real-time and historical market data ingestion (Alpaca, Polygon.io, Finnhub, FMP, IEX, Yahoo, Quandl, Investing.com, etc)
+- Unified event database with reconciliation from multiple sources
 - Technical indicator computation (pandas_ta)
 - Deep learning time series forecasting (PyTorch LSTM)
 - REST API (FastAPI)
+- Automated setup with Docker and .env
 - Kubernetes-ready deployment for GCP
 
-## Setup
+## Project Structure
+
+```
+src/
+  db/                # Database setup, migrations, and utilities
+  events/            # Event API, schemas, DB, and ingestion pipelines
+    ingest/          # Source-specific ingestion modules
+  market_data/       # Core market data logic
+  pipeline/          # Signal extraction, orchestration, etc.
+  universe/          # Universe management
+  main.py            # FastAPI app entrypoint
+```
+
+## Environment Variables
+- Copy `.env.example` to `.env` and fill in your API keys and DB URL.
+- All secrets/keys are loaded via environment variables for security.
+
+## Automated Setup (Recommended)
+
+### Docker Compose
+
+1. **Build and start the stack:**
+    ```bash
+    docker-compose up --build
+    ```
+2. **App and database will be ready on first run.**
+3. **To run migrations or setup scripts:**
+    - Use the provided entrypoint or run scripts inside the app container.
+
+### Manual (Local) Setup
 
 1. **Clone the repo**
-2. **Install dependencies:**
+2. **Install Python dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
-3. **Set Alpaca API keys:**
-    - Set environment variables `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY` (or use Kubernetes secrets)
-4. **Run the server:**
+3. **Install PostgreSQL and TimescaleDB** (see Timescale docs or use Homebrew)
+4. **Set up DB and tables:**
     ```bash
-    uvicorn main:app --reload
+    python src/db/setup_trading_db.py
     ```
-5. **Build & deploy with Docker/Kubernetes:**
-    See `Dockerfile` and `k8s/` directory for manifests.
+5. **Set environment variables:**
+    - Copy `.env.example` to `.env` and update values
+6. **Run the FastAPI server:**
+    ```bash
+    uvicorn src.main:app --reload
+    ```
 
 ## API Endpoints
 - `GET /forecast` — Get the latest forecast
 - `GET /health` — Health check
+- `GET/POST /events` — Query and add unified events
+
+## Advanced
+- Modular ingestion: add new event/data sources by dropping a new fetcher in `src/events/ingest/`
+- Unified reconciliation logic for multi-source event merging
+- Automated batch ingestion and orchestration
 
 ## Notes
-- This is a demo. For production, add error handling, persistent storage, and robust model retraining.
+- For production, add error handling, persistent storage, and robust model retraining.
+- See code for more details on extending ingestion and event reconciliation.
