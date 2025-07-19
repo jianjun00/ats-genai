@@ -73,3 +73,73 @@ async def test_membership_add_remove_logic(monkeypatch):
     members = await secm.get_spy_membership()
     assert 'TICK1' in members
     assert 'TICK2' not in members
+
+@pytest.mark.asyncio
+async def test_advance_membership_and_caches(monkeypatch):
+    # Simulate membership events for TICK1, TICK2
+    events = [
+        {'added': 'TICK1', 'removed': None, 'event_date': date(2020,1,1)},
+        {'added': None, 'removed': 'TICK1', 'event_date': date(2020,6,1)},
+        {'added': 'TICK1', 'removed': None, 'event_date': date(2021,1,1)},
+        {'added': 'TICK2', 'removed': None, 'event_date': date(2020,3,1)},
+    ]
+    # Simulate daily_prices rows for cache checks
+    daily_prices_rows = [
+        {'symbol': 'TICK1', 'close': 100, 'market_cap': 1000000, 'date': date(2020,3,1)},
+        {'symbol': 'TICK2', 'close': 50, 'market_cap': 500000, 'date': date(2020,3,1)},
+        {'symbol': 'TICK2', 'close': 60, 'market_cap': 600000, 'date': date(2021,2,1)},
+        {'symbol': 'TICK1', 'close': 110, 'market_cap': 1100000, 'date': date(2021,2,1)},
+    ]
+    adv_map = {
+        ('TICK1', 30): 1234.0,
+        ('TICK2', 30): 5678.0,
+    }
+
+    class DummyConnAdv(DummyConn):
+        async def fetch(self, query, *args, **kwargs):
+            if 'FROM daily_prices' in query and ('close' in query or 'market_cap' in query):
+                date_arg = args[0]
+                syms = set(args[1])
+                return [r for r in daily_prices_rows if r['date'] == date_arg and r['symbol'] in syms]
+            return []
+        async def fetchval(self, query, *args, **kwargs):
+            # For ADV
+            sym = args[0]
+            return adv_map.get((sym, 30), None)
+
+    class DummyPoolAdv:
+        def acquire(self):
+            return DummyConnAdv(daily_prices_rows)
+        async def close(self):
+            pass
+
+    async def dummy_create_pool(db_url):
+        return DummyPoolAdv()
+    monkeypatch.setattr('asyncpg.create_pool', dummy_create_pool)
+
+    # Patch membership fetch
+    async def dummy_load_events(self):
+        self._events = [dict(row) for row in events]
+    monkeypatch.setattr(SecMaster, 'load_all_membership_events', dummy_load_events)
+
+    secm = SecMaster('dummy', as_of_date=date(2020,2,1))
+    await secm.load_all_membership_events()
+    # Advance to 2020-03-01
+    members = await secm.advance(date(2020,3,1))
+    assert set(members) == {'TICK1', 'TICK2'}
+    assert secm._last_close_price_cache['TICK1'] == 100
+    assert secm._last_close_price_cache['TICK2'] == 50
+    assert secm._market_cap_cache['TICK1'] == 1000000
+    assert secm._market_cap_cache['TICK2'] == 500000
+    assert secm._adv_cache[('TICK1', 30)] == 1234.0
+    assert secm._adv_cache[('TICK2', 30)] == 5678.0
+
+    # Advance to 2021-02-01 (TICK1 re-added, TICK2 updated)
+    members = await secm.advance(date(2021,2,1))
+    assert set(members) == {'TICK1', 'TICK2'}
+    assert secm._last_close_price_cache['TICK1'] == 110
+    assert secm._last_close_price_cache['TICK2'] == 60
+    assert secm._market_cap_cache['TICK1'] == 1100000
+    assert secm._market_cap_cache['TICK2'] == 600000
+    assert secm._adv_cache[('TICK1', 30)] == 1234.0
+    assert secm._adv_cache[('TICK2', 30)] == 5678.0
