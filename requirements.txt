@@ -5,6 +5,7 @@ pandas
 pandas_ta
 torch
 typing-extensions
+httpx[http2]
 websockets
 python-dotenv
 asyncpg
