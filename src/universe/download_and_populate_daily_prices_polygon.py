@@ -33,13 +33,28 @@ def download_prices_polygon(ticker, start, end, api_key):
         return []
     return data['results']
 
+CREATE_DAILY_PRICES_POLYGON_SQL = """
+CREATE TABLE IF NOT EXISTS daily_prices_polygon (
+    date DATE NOT NULL,
+    symbol TEXT NOT NULL,
+    open DOUBLE PRECISION,
+    high DOUBLE PRECISION,
+    low DOUBLE PRECISION,
+    close DOUBLE PRECISION,
+    volume BIGINT,
+    market_cap DOUBLE PRECISION,
+    PRIMARY KEY (date, symbol)
+);
+"""
+
 async def insert_prices(prices, ticker, shares_outstanding):
     if not prices:
         return
     pool = await asyncpg.create_pool(TSDB_URL)
     async with pool.acquire() as conn:
+        await conn.execute(CREATE_DAILY_PRICES_POLYGON_SQL)
         await conn.executemany(
-            "INSERT INTO daily_prices (date, symbol, open, high, low, close, volume, market_cap) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT DO NOTHING",
+            "INSERT INTO daily_prices_polygon (date, symbol, open, high, low, close, volume, market_cap) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT DO NOTHING",
             [(
                 datetime.utcfromtimestamp(row['t']/1000).date(),
                 ticker,
