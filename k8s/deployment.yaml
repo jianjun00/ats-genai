@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: market-forecast-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: market-forecast-app
+  template:
+    metadata:
+      labels:
+        app: market-forecast-app
+    spec:
+      containers:
+      - name: market-forecast-app
+        image: gcr.io/YOUR_GCP_PROJECT/market-forecast-app:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: APCA_API_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: alpaca-secrets
+              key: APCA_API_KEY_ID
+        - name: APCA_API_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: alpaca-secrets
+              key: APCA_API_SECRET_KEY
