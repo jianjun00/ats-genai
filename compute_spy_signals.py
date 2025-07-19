@@ -1,4 +1,3 @@
-# moved from project root
 from datetime import datetime, timedelta
 from spy_universe import SPYUniverse
 from market_data_simulator import simulate_market_data

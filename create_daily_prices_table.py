@@ -1,4 +1,3 @@
-# moved from project root
 import asyncpg
 import asyncio
 import os

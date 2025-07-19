@@ -26,4 +26,3 @@ def simulate_market_data(symbol: str, start_time: datetime, num_ticks: int, inte
             'volume': volume
         })
     return ticks
-

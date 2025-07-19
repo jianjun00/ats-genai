@@ -1,4 +1,3 @@
-# moved from project root
 import psycopg2
 import os
 

@@ -1,4 +1,3 @@
-# moved from project root
 import pandas as pd
 from datetime import datetime, timedelta
 from concurrent.futures import ProcessPoolExecutor, as_completed
