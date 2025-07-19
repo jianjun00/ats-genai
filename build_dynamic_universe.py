@@ -4,7 +4,7 @@ import asyncio
 from datetime import datetime, timedelta
 import os
 
-TSDB_URL = os.getenv('TSDB_URL', 'postgresql://localhost:5432/yourdb')
+TSDB_URL = os.getenv('TSDB_URL', 'postgresql://localhost:5432/trading_db')
 ROLLING_DAYS = 30
 MIN_CLOSE = 5
 MIN_AVG_VOLUME = 50000000
