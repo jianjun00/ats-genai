@@ -145,10 +145,18 @@ async def process_ticker(ticker, client, semaphore, pool):
     except Exception as e:
         print(f"Error with {ticker}: {e}")
 
+import argparse
+
 async def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ticker', type=str, default=None, help='Process only this ticker (optional)')
+    args = parser.parse_args()
     if not POLYGON_API_KEY:
         raise Exception("Please set your POLYGON_API_KEY environment variable.")
-    tickers = await get_all_spy_tickers()
+    if args.ticker:
+        tickers = [args.ticker]
+    else:
+        tickers = await get_all_spy_tickers()
     semaphore = asyncio.Semaphore(RATE_LIMIT)
     pool = await asyncpg.create_pool(TSDB_URL)
     async with httpx.AsyncClient(timeout=30) as client:

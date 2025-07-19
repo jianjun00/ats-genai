@@ -49,10 +49,18 @@ async def insert_prices(prices, ticker, shares_outstanding):
         )
     await pool.close()
 
+import argparse
+
 async def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ticker', type=str, default=None, help='Process only this ticker (optional)')
+    args = parser.parse_args()
     if not POLYGON_API_KEY:
         raise Exception("Please set your POLYGON_API_KEY environment variable.")
-    tickers = await get_all_spy_tickers()
+    if args.ticker:
+        tickers = [args.ticker]
+    else:
+        tickers = await get_all_spy_tickers()
     for ticker in tickers:
         print(f"Downloading {ticker}...")
         try:
