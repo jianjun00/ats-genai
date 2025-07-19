@@ -26,4 +26,3 @@ def predict_return(model, signals: Dict):
     with torch.no_grad():
         pred = model(x)
     return float(pred.item())
-

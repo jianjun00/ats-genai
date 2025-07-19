@@ -1,4 +1,3 @@
-# moved from project root
 from typing import Dict, Any
 
 def extract_all_signals(tick_data: Dict[str, Any]) -> Dict[str, Any]:
