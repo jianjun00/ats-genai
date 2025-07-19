@@ -57,6 +57,15 @@ def create_database():
     conn.close()
     print(f"Database '{TRADING_DB}' created.")
 
+CREATE_FUNDAMENTALS = """
+CREATE TABLE IF NOT EXISTS fundamentals (
+    ticker TEXT NOT NULL,
+    date DATE NOT NULL,
+    market_cap DOUBLE PRECISION,
+    PRIMARY KEY (ticker, date)
+);
+"""
+
 def setup_tables():
     # Connect to trading_db
     db_url = os.getenv('TSDB_URL', f'postgresql://localhost:5432/{TRADING_DB}')
@@ -72,6 +81,7 @@ def setup_tables():
     cur.execute(CREATE_DAILY_PRICES)
     cur.execute(CREATE_DAILY_MARKET_CAP)
     cur.execute(CREATE_SIGNAL_TABLE)
+    cur.execute(CREATE_FUNDAMENTALS)
     # Convert to hypertables
     try:
         cur.execute(CREATE_HYPERTABLE_DAILY_PRICES)
