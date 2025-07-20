@@ -43,19 +43,24 @@ CREATE_HYPERTABLE_DAILY_PRICES = "SELECT create_hypertable('daily_prices', 'date
 CREATE_HYPERTABLE_MARKET_CAP = "SELECT create_hypertable('daily_market_cap', 'date', if_not_exists => TRUE);"
 
 
-def create_database():
+def create_database(force=False):
     # Connect to postgres maintenance DB as superuser
     conn = psycopg2.connect(PG_SUPER_URL)
     conn.autocommit = True
     cur = conn.cursor()
-    # Drop and recreate trading_db
     cur.execute(f"SELECT 1 FROM pg_database WHERE datname = '{TRADING_DB}'")
-    if cur.fetchone():
+    exists = cur.fetchone() is not None
+    if exists and force:
         cur.execute(f"DROP DATABASE {TRADING_DB}")
-    cur.execute(f"CREATE DATABASE {TRADING_DB}")
+        cur.execute(f"CREATE DATABASE {TRADING_DB}")
+        print(f"Database '{TRADING_DB}' dropped and recreated.")
+    elif not exists:
+        cur.execute(f"CREATE DATABASE {TRADING_DB}")
+        print(f"Database '{TRADING_DB}' created.")
+    else:
+        print(f"Database '{TRADING_DB}' already exists. Skipping drop/create.")
     cur.close()
     conn.close()
-    print(f"Database '{TRADING_DB}' created.")
 
 CREATE_FUNDAMENTALS = """
 CREATE TABLE IF NOT EXISTS fundamentals (
@@ -82,6 +87,114 @@ def setup_tables():
     cur.execute(CREATE_DAILY_MARKET_CAP)
     cur.execute(CREATE_SIGNAL_TABLE)
     cur.execute(CREATE_FUNDAMENTALS)
+
+    # --- Additional tables ---
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS daily_adjusted_prices (
+        date DATE NOT NULL,
+        symbol TEXT NOT NULL,
+        open DOUBLE PRECISION,
+        high DOUBLE PRECISION,
+        low DOUBLE PRECISION,
+        close DOUBLE PRECISION,
+        volume BIGINT,
+        market_cap DOUBLE PRECISION,
+        original_open DOUBLE PRECISION,
+        original_high DOUBLE PRECISION,
+        original_low DOUBLE PRECISION,
+        original_close DOUBLE PRECISION,
+        split_numerator DOUBLE PRECISION,
+        split_denominator DOUBLE PRECISION,
+        dividend_amount DOUBLE PRECISION,
+        adjustment_factor DOUBLE PRECISION,
+        PRIMARY KEY (date, symbol)
+    );
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS daily_prices_polygon (
+        date DATE NOT NULL,
+        symbol TEXT NOT NULL,
+        open DOUBLE PRECISION,
+        high DOUBLE PRECISION,
+        low DOUBLE PRECISION,
+        close DOUBLE PRECISION,
+        volume BIGINT,
+        market_cap DOUBLE PRECISION,
+        PRIMARY KEY (date, symbol)
+    );
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS daily_prices_norgate (
+        date DATE NOT NULL,
+        symbol TEXT NOT NULL,
+        open DOUBLE PRECISION,
+        high DOUBLE PRECISION,
+        low DOUBLE PRECISION,
+        close DOUBLE PRECISION,
+        volume BIGINT,
+        PRIMARY KEY (date, symbol)
+    );
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS daily_prices_quandl (
+        date DATE NOT NULL,
+        symbol TEXT NOT NULL,
+        open DOUBLE PRECISION,
+        high DOUBLE PRECISION,
+        low DOUBLE PRECISION,
+        close DOUBLE PRECISION,
+        volume BIGINT,
+        PRIMARY KEY (date, symbol)
+    );
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS spy_membership (
+        id SERIAL PRIMARY KEY,
+        symbol TEXT NOT NULL,
+        effective_date DATE NOT NULL,
+        removal_date DATE
+    );
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS spy_membership_change (
+        id SERIAL PRIMARY KEY,
+        change_date DATE NOT NULL,
+        added TEXT,
+        removed TEXT
+    );
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS events (
+        id SERIAL PRIMARY KEY,
+        event_type TEXT NOT NULL,
+        symbol TEXT,
+        event_time TIMESTAMPTZ NOT NULL,
+        reported_time TIMESTAMPTZ,
+        source TEXT,
+        data JSONB NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    );
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_events_symbol_time ON events(symbol, event_time);")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_events_type_time ON events(event_type, event_time);")
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS dividends (
+        id SERIAL PRIMARY KEY,
+        symbol TEXT NOT NULL,
+        ex_date DATE NOT NULL,
+        amount DOUBLE PRECISION NOT NULL
+    );
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS stock_splits (
+        id SERIAL PRIMARY KEY,
+        symbol TEXT NOT NULL,
+        split_date DATE NOT NULL,
+        numerator DOUBLE PRECISION NOT NULL,
+        denominator DOUBLE PRECISION NOT NULL,
+        split_ratio DOUBLE PRECISION GENERATED ALWAYS AS (numerator/denominator) STORED
+    );
+    """)
 
     # --- Universe tables ---
     cur.execute('''
@@ -135,5 +248,11 @@ def setup_tables():
     print("All tables created and hypertables set up (if TimescaleDB is enabled).")
 
 if __name__ == '__main__':
-    create_database()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--force', action='store_true', help='Drop and recreate trading_db')
+    args = parser.parse_args()
+    if args.force:
+        print('Dropping and recreating trading_db (--force specified)')
+    create_database(force=args.force)
     setup_tables()
