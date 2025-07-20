@@ -52,9 +52,10 @@ class SecurityMaster:
         pool = await asyncpg.create_pool(self.db_url)
         async with pool.acquire() as conn:
             row = await conn.fetchrow('''
-                SELECT close, adv, market_cap, adjusted_price
-                FROM daily_prices
-                WHERE symbol = $1 AND date = $2
+                SELECT dap.symbol, dap.close AS adjusted_price, dp.close, dp.adv, dp.market_cap
+                FROM daily_adjusted_prices dap
+                JOIN daily_prices dp ON dap.symbol = dp.symbol AND dap.date = dp.date
+                WHERE dap.symbol = $1 AND dap.date = $2
             ''', symbol, as_of_date)
         await pool.close()
         if row:
@@ -65,9 +66,10 @@ class SecurityMaster:
         pool = await asyncpg.create_pool(self.db_url)
         async with pool.acquire() as conn:
             rows = await conn.fetch('''
-                SELECT symbol, close, adv, market_cap, adjusted_price
-                FROM daily_prices
-                WHERE symbol = ANY($1::text[]) AND date = $2
+                SELECT dap.symbol, dap.close AS adjusted_price, dp.close, dp.adv, dp.market_cap
+                FROM daily_adjusted_prices dap
+                JOIN daily_prices dp ON dap.symbol = dp.symbol AND dap.date = dp.date
+                WHERE dap.symbol = ANY($1::text[]) AND dap.date = $2
             ''', symbols, as_of_date)
         await pool.close()
         return {row['symbol']: dict(row) for row in rows}
