@@ -2,7 +2,7 @@
 import unittest
 import pandas as pd
 from unittest.mock import MagicMock
-from market_calendar_utils import get_market_calendar, get_last_open_close, get_next_open_close
+from market_data.market_calendar_utils import get_market_calendar, get_last_open_close, get_next_open_close
 
 def make_mock_calendar():
     # Create a mock calendar with a known schedule including weekends and holidays
@@ -56,11 +56,11 @@ class TestMarketCalendarUtils(unittest.TestCase):
         last_open, last_close = get_last_open_close(self.cal, dt)
         self.assertEqual(last_open, pd.Timestamp('2025-07-18 08:00'))
         self.assertEqual(last_close, pd.Timestamp('2025-07-18 16:30'))
-        # Test during second session
+        # Test during weekend (Saturday), should return last open/close as Friday
         dt = pd.Timestamp('2025-07-19 09:00')
         last_open, last_close = get_last_open_close(self.cal, dt)
-        self.assertEqual(last_open, pd.Timestamp('2025-07-19 08:00'))
-        self.assertEqual(last_close, pd.Timestamp('2025-07-19 16:30'))
+        self.assertEqual(last_open, pd.Timestamp('2025-07-18 08:00'))
+        self.assertEqual(last_close, pd.Timestamp('2025-07-18 16:30'))
 
     def test_get_next_open_close(self):
         # Test before first open
@@ -71,13 +71,13 @@ class TestMarketCalendarUtils(unittest.TestCase):
         # Test after first close
         dt = pd.Timestamp('2025-07-18 20:00')
         next_open, next_close = get_next_open_close(self.cal, dt)
-        self.assertEqual(next_open, pd.Timestamp('2025-07-19 08:00'))
-        self.assertEqual(next_close, pd.Timestamp('2025-07-19 16:30'))
-        # Test after last close
+        self.assertEqual(next_open, pd.Timestamp('2025-07-21 08:00'))
+        self.assertEqual(next_close, pd.Timestamp('2025-07-21 16:30'))
+        # Test after last close before Monday open (Sunday night), should return Monday session
         dt = pd.Timestamp('2025-07-20 20:00')
         next_open, next_close = get_next_open_close(self.cal, dt)
-        self.assertIsNone(next_open)
-        self.assertIsNone(next_close)
+        self.assertEqual(next_open, pd.Timestamp('2025-07-21 08:00'))
+        self.assertEqual(next_close, pd.Timestamp('2025-07-21 16:30'))
 
     def test_weekend(self):
         # Friday after close, before Monday open

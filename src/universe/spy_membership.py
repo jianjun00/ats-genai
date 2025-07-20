@@ -113,7 +113,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-async def create_table_and_insert(rows):
-    pool = await asyncpg.create_pool(TSDB_URL, min_size=1, max_size=2)

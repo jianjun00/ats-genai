@@ -9,13 +9,6 @@ POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")  # Set this in your environment
 START_DATE = (datetime.now() - timedelta(days=365*10)).strftime("%Y-%m-%d")
 END_DATE = datetime.now().strftime("%Y-%m-%d")
 
-RATE_LIMIT = 5  # Polygon free tier: 5 req/sec
-
-TSDB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")
-POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")  # Set this in your environment
-START_DATE = (datetime.now() - timedelta(days=365*10)).strftime("%Y-%m-%d")
-END_DATE = datetime.now().strftime("%Y-%m-%d")
-
 from typing import List, Tuple, Set
 
 async def get_existing_dates(pool, ticker: str) -> Set[str]:

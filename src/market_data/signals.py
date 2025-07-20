@@ -5,7 +5,10 @@ def extract_all_signals(tick_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract and format all enriched signals from the tick data structure.
     Returns a flat dictionary with all time, calendar, and multi-interval signals.
+    Handles unexpected input types gracefully.
     """
+    if not isinstance(tick_data, dict):
+        return {}
     signals = {}
     # Tick-level signals
     for k in ['symbol', 'bid', 'ask', 'last', 'time', 'volume']:
@@ -21,9 +24,10 @@ def extract_all_signals(tick_data: Dict[str, Any]) -> Dict[str, Any]:
             signals[k] = tick_data[k]
     # Multi-interval signals
     interval_signals = tick_data.get('interval_signals', {})
-    for interval, vals in interval_signals.items():
-        for sig_name, sig_val in vals.items():
-            signals[f'{interval}_{sig_name}'] = sig_val
+    if isinstance(interval_signals, dict):
+        for interval, vals in interval_signals.items():
+            for sig_name, sig_val in vals.items():
+                signals[f'{interval}_{sig_name}'] = sig_val
     return signals
 
 # Optionally, you can add further signal processing utilities here, such as:

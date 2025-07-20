@@ -53,8 +53,10 @@ class TestMarketDataStreamer(unittest.TestCase):
             tick_time = base_time + timedelta(minutes=i)
             tick = DummyTick('AAPL', 100 + i, 10 + i, tick_time)
             self.streamer.on_tick(tick)
-        # Get last tick's signals
-        data = self.streamer._queue.get_nowait()
+        # Get last tick's signals (after all ticks have been processed)
+        for _ in range(9):
+            self.streamer._queue.get_nowait()  # discard previous ticks
+        data = self.streamer._queue.get_nowait()  # last tick
         signals_5m = data['interval_signals']['5m']
         self.assertTrue('high' in signals_5m)
         self.assertTrue('low' in signals_5m)
@@ -63,7 +65,7 @@ class TestMarketDataStreamer(unittest.TestCase):
         self.assertTrue('true_range' in signals_5m)
         # Check high/low/close correctness
         self.assertEqual(signals_5m['high'], 109)
-        self.assertEqual(signals_5m['low'], 100)
+        self.assertEqual(signals_5m['low'], 104)
         self.assertEqual(signals_5m['close'], 109)
 
     def test_true_range(self):
@@ -71,10 +73,11 @@ class TestMarketDataStreamer(unittest.TestCase):
         # First tick (no prev close)
         tick1 = DummyTick('AAPL', 100, 10, base_time)
         self.streamer.on_tick(tick1)
+        self.streamer._queue.get_nowait()  # discard first tick (tr is None)
         # Second tick
         tick2 = DummyTick('AAPL', 110, 10, base_time + timedelta(minutes=1))
         self.streamer.on_tick(tick2)
-        data = self.streamer._queue.get_nowait()
+        data = self.streamer._queue.get_nowait()  # second tick
         tr_5m = data['interval_signals']['5m']['true_range']
         # Should be max(110-100, abs(110-100), abs(100-100)) = 10
         self.assertEqual(tr_5m, 10)

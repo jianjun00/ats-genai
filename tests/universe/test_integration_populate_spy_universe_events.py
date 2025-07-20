@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 # Use the actual Wikipedia page for integration
 WIKI_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 DB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")
-SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/universe/populate_spy_universe_events_from_wikipedia.py"
+SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/universe/spy_events_wiki.py"
 
 @pytest.mark.asyncio
 async def test_populate_spy_universe_events(tmp_path):
