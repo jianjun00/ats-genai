@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 DB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")
-SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/universe/download_and_populate_daily_prices_tiingo.py"
+SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/universe/daily_tiingo.py"
 
 @pytest.mark.asyncio
 async def test_download_and_populate_daily_prices_tiingo(tmp_path):

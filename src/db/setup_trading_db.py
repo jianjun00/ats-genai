@@ -208,6 +208,27 @@ def setup_tables():
         split_ratio DOUBLE PRECISION GENERATED ALWAYS AS (numerator/denominator) STORED
     );
     """)
+    # --- Tiingo-specific tables ---
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS dividend_tiingo (
+        symbol TEXT NOT NULL,
+        ex_date DATE NOT NULL,
+        amount DOUBLE PRECISION,
+        pay_date DATE,
+        record_date DATE,
+        declared_date DATE,
+        PRIMARY KEY (symbol, ex_date)
+    );
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS stock_splits_tiingo (
+        symbol TEXT NOT NULL,
+        split_date DATE NOT NULL,
+        numerator DOUBLE PRECISION NOT NULL,
+        denominator DOUBLE PRECISION NOT NULL,
+        PRIMARY KEY (symbol, split_date)
+    );
+    """)
 
     # --- Universe tables ---
     cur.execute('''

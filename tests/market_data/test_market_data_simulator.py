@@ -1,8 +1,8 @@
 # moved from project root
 import unittest
 from datetime import datetime
-from market_data_simulator import simulate_market_data
-from signals import extract_all_signals
+from src.market_data.market_data_simulator import simulate_market_data
+from src.market_data.signals import extract_all_signals
 
 class TestMarketDataSimulatorWithSignals(unittest.TestCase):
     def test_simulator_and_signal_generation(self):

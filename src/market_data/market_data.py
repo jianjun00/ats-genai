@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 from collections import deque, defaultdict
-from market_calendar_utils import get_market_calendar, get_last_open_close
+from .market_calendar_utils import get_market_calendar, get_last_open_close
 from datetime import timedelta
 import pandas as pd
 
@@ -88,7 +88,7 @@ class MarketDataStreamer:
             low = min(prices) if prices else None
             close = prices[-1] if prices else None
             # VWAP
-            total_pv = sum(p * v for p, v in bar_deque)
+            total_pv = sum(p * v for _, p, v in bar_deque)
             total_vol = sum(volumes)
             vwap = total_pv / total_vol if total_vol > 0 else None
             # True Range
@@ -101,11 +101,11 @@ class MarketDataStreamer:
                 )
             else:
                 tr = None
-            # Store for next tick
-            self.previous_closes[symbol][interval] = close
             interval_signals[interval] = {
                 'high': high, 'low': low, 'close': close, 'vwap': vwap, 'true_range': tr
             }
+            # Store for next tick
+            self.previous_closes[symbol][interval] = close
 
         # Compose tick dict
         tick_data = {
