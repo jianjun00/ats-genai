@@ -97,19 +97,30 @@ def calculate_adjusted_prices(prices_df, splits_df, dividends_df):
         # Split adjustment
         if not splits.empty and date in splits.index:
             s = splits.loc[date]
-            adj_factor *= float(s['denominator']) / float(s['numerator'])
-            df.at[idx, 'split_numerator'] = s['numerator']
-            df.at[idx, 'split_denominator'] = s['denominator']
+            if isinstance(s, pd.DataFrame) or (isinstance(s, pd.Series) and hasattr(s, '__len__') and len(s.shape) > 0 and s.shape[0] > 1):
+                numerators = s['numerator'] if isinstance(s, pd.DataFrame) else s['numerator']
+                denominators = s['denominator'] if isinstance(s, pd.DataFrame) else s['denominator']
+                ratio = (denominators.astype(float) / numerators.astype(float)).prod()
+                numerator = numerators.prod()
+                denominator = denominators.prod()
+            else:
+                ratio = float(s['denominator']) / float(s['numerator'])
+                numerator = s['numerator'] if not isinstance(s, pd.DataFrame) else s['numerator'].iloc[0]
+                denominator = s['denominator'] if not isinstance(s, pd.DataFrame) else s['denominator'].iloc[0]
+            adj_factor *= ratio
+            df.at[idx, 'split_numerator'] = numerator
+            df.at[idx, 'split_denominator'] = denominator
         # Dividend adjustment
         if not dividends.empty and date in dividends.index:
             d = dividends.loc[date]
-            # Price adjustment for dividend (back-adjusted)
-            # Standard method: adjust prior prices by (Close_prev - Dividend)/Close_prev
-            # Here, we accumulate dividend adjustment multiplicatively
-            # This is a simplified approach and can be replaced by more precise logic if needed
+            # If multiple dividends on the same date, sum the amounts
+            if isinstance(d, pd.DataFrame) or (isinstance(d, pd.Series) and hasattr(d, '__len__') and len(d.shape) > 0 and d.shape[0] > 1):
+                amount = d['amount'].sum()
+            else:
+                amount = d['amount'] if not isinstance(d, pd.DataFrame) else d['amount'].iloc[0]
             if row['close'] > 0:
-                adj_factor *= (row['close'] - d['amount']) / row['close']
-            df.at[idx, 'dividend_amount'] = d['amount']
+                adj_factor *= (row['close'] - amount) / row['close']
+            df.at[idx, 'dividend_amount'] = amount
         adj_factors.append(adj_factor)
     df['adjustment_factor'] = adj_factors
     # Apply adjustment to all prior prices (back-adjusted)
