@@ -1,18 +1,22 @@
 # moved from project root
-import pandas as pd
+import asyncio
 from datetime import datetime, date
 from typing import List, Optional
+from universe_db import UniverseDB
 
 class SPYUniverse:
-    def __init__(self, csv_path: str = 'spy_membership.csv'):
-        self.df = pd.read_csv(csv_path, parse_dates=['effective_date', 'removal_date'])
+    def __init__(self, db_url: str, universe_name: str = 'S&P 500'):
+        self.db_url = db_url
+        self.universe_name = universe_name
+        self._universe_id = None
+        self._universe_db = UniverseDB(db_url)
 
-    def get_universe(self, as_of: Optional[date] = None) -> List[str]:
+    async def get_universe(self, as_of: Optional[date] = None) -> List[str]:
         if as_of is None:
             as_of = datetime.utcnow().date()
-        # Ensure as_of is a date
-        as_of = pd.Timestamp(as_of)
-        df = self.df
-        mask = (df['effective_date'] <= as_of) & \
-               ((df['removal_date'].isna()) | (df['removal_date'] > as_of))
-        return df.loc[mask, 'symbol'].tolist()
+        if self._universe_id is None:
+            self._universe_id = await self._universe_db.get_universe_id(self.universe_name)
+            if self._universe_id is None:
+                raise ValueError(f"Universe '{self.universe_name}' not found in DB.")
+        return await self._universe_db.get_universe_members(self._universe_id, as_of)
+
