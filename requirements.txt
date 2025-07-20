@@ -11,3 +11,5 @@ python-dotenv
 asyncpg
 async-timeout
 pandas_market_calendars
+aiohttp
+psycopg2
