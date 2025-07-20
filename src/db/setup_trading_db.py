@@ -82,6 +82,45 @@ def setup_tables():
     cur.execute(CREATE_DAILY_MARKET_CAP)
     cur.execute(CREATE_SIGNAL_TABLE)
     cur.execute(CREATE_FUNDAMENTALS)
+
+    # --- Universe tables ---
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS universe (
+        id SERIAL PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT now()
+    );
+    ''')
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS universe_membership (
+        id SERIAL PRIMARY KEY,
+        universe_id INTEGER NOT NULL REFERENCES universe(id),
+        symbol TEXT NOT NULL,
+        start_at DATE NOT NULL,
+        end_at DATE,
+        meta JSONB,
+        created_at TIMESTAMP DEFAULT now(),
+        UNIQUE (universe_id, symbol, start_at)
+    );
+    ''')
+    cur.execute('''CREATE INDEX IF NOT EXISTS idx_universe_membership_universe_date ON universe_membership (universe_id, start_at, end_at);''')
+
+    # Insert test universe and memberships if not exist
+    cur.execute("SELECT id FROM universe WHERE name = %s", ('TEST_UNIVERSE',))
+    row = cur.fetchone()
+    if row is None:
+        cur.execute("INSERT INTO universe (name, description) VALUES (%s, %s) RETURNING id", ('TEST_UNIVERSE', 'Test universe for integration tests'))
+        universe_id = cur.fetchone()[0]
+        cur.execute("""
+            INSERT INTO universe_membership (universe_id, symbol, start_at, end_at)
+            VALUES (%s, %s, %s, NULL),
+                   (%s, %s, %s, NULL)
+        """, (universe_id, 'AAPL', '2020-01-01', universe_id, 'TSLA', '2020-01-01'))
+        print("Inserted TEST_UNIVERSE with AAPL and TSLA memberships.")
+    else:
+        print("TEST_UNIVERSE already exists.")
+
     # Convert to hypertables
     try:
         cur.execute(CREATE_HYPERTABLE_DAILY_PRICES)
