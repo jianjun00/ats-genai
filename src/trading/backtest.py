@@ -22,37 +22,42 @@ def log_return(p0, p1):
     else:
         return 0.0
 
+from universe.universe_db import UniverseDB
+
 async def run_backtest(args):
     db_url = args.db_url
+    universe_name = getattr(args, 'universe_name', 'TEST_UNIVERSE')
     start_date = datetime.strptime(args.start_date, "%Y-%m-%d").date()
     end_date = datetime.strptime(args.end_date, "%Y-%m-%d").date()
     data_start = start_date - timedelta(days=args.data_start_days)
 
-    trading_universe = TradingUniverse(db_url)
     security_master = SecurityMaster(db_url)
+    universe_db = UniverseDB(db_url)
+    universe_id = await universe_db.get_universe_id(universe_name)
+    if universe_id is None:
+        raise ValueError(f"Universe '{universe_name}' not found in DB.")
 
-    # Warm up: build state up to start_date
-    # (No trades, just for rolling calculations)
-    # At start_date, determine eligible universe
-    await trading_universe.update_for_end_of_day(start_date)
-    portfolio = {s: 100 for s in trading_universe.get_current_universe()}
     portfolio_value_history = []
     cum_log_return = 0.0
     dates = [data_start + timedelta(days=i) for i in range((end_date-data_start).days+1)]
+    portfolio = None
 
     for i, d in enumerate(dates):
         if d < start_date:
             continue
-        await trading_universe.update_for_end_of_day(d)
-        universe = trading_universe.get_current_universe()
+        members = await universe_db.get_universe_members(universe_id, d)
+        if not members:
+            continue
         # Remove stocks no longer eligible
-        portfolio = {s: portfolio.get(s, 100) for s in universe}
+        if portfolio is None:
+            portfolio = {s: 100 for s in members}
+        else:
+            portfolio = {s: portfolio.get(s, 100) for s in members}
         # Get adjusted prices
         prices = await security_master.get_multiple_securities_info(list(portfolio.keys()), d)
         # Compute daily log returns
         day_returns = []
         for s in portfolio:
-            # Use adjusted price for return calculation
             prev_price = await security_master.get_security_info(s, d-timedelta(days=1))
             curr_price = prices.get(s)
             if prev_price and curr_price and prev_price['adjusted_price'] and curr_price['adjusted_price']:
@@ -86,5 +91,6 @@ if __name__ == "__main__":
     parser.add_argument("--end_date", type=str, required=True)
     parser.add_argument("--data_start_days", type=int, default=30)
     parser.add_argument("--db_url", type=str, default="postgresql://postgres:postgres@localhost:5432/trading_db")
+    parser.add_argument("--universe_name", type=str, default="TEST_UNIVERSE", help="Universe name to backtest (from universe table)")
     args = parser.parse_args()
     asyncio.run(run_backtest(args))
