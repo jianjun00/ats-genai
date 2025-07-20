@@ -90,6 +90,19 @@ def setup_tables():
 
     # --- Additional tables ---
     cur.execute("""
+    CREATE TABLE IF NOT EXISTS daily_prices_tiingo (
+        date DATE NOT NULL,
+        symbol TEXT NOT NULL,
+        open DOUBLE PRECISION,
+        high DOUBLE PRECISION,
+        low DOUBLE PRECISION,
+        close DOUBLE PRECISION,
+        adjClose DOUBLE PRECISION,
+        volume BIGINT,
+        PRIMARY KEY (date, symbol)
+    );
+    """)
+    cur.execute("""
     CREATE TABLE IF NOT EXISTS daily_adjusted_prices (
         date DATE NOT NULL,
         symbol TEXT NOT NULL,
