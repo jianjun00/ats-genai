@@ -112,8 +112,8 @@ async def test_adjusted_prices_one_split():
     splits = await fetch_splits(pool, symbol)
     dividends = await fetch_dividends(pool, symbol)
     adj_df = calculate_adjusted_prices(prices, splits, dividends)
-    assert adj_df.loc[0, 'adjustment_factor'] == pytest.approx(1.0)
-    assert adj_df.loc[1, 'adjustment_factor'] == pytest.approx(0.5)
+    assert adj_df['adjustment_factor'].iloc[0] == pytest.approx(1.0)
+    assert adj_df['adjustment_factor'].iloc[1] == pytest.approx(0.5)
     assert adj_df.loc[2, 'adjustment_factor'] == 0.5
     await cleanup(pool, symbol)
     await pool.close()
@@ -140,9 +140,9 @@ async def test_adjusted_prices_one_dividend():
     splits = await fetch_splits(pool, symbol)
     dividends = await fetch_dividends(pool, symbol)
     adj_df = calculate_adjusted_prices(prices, splits, dividends)
-    assert adj_df.loc[0, 'adjustment_factor'] == pytest.approx(1.0)
-    assert adj_df.loc[1, 'adjustment_factor'] == pytest.approx((110-10)/110)
-    assert adj_df.loc[2, 'adjustment_factor'] == pytest.approx((115-0)/115 * (110-10)/110)
+    assert adj_df['adjustment_factor'].iloc[0] == pytest.approx(1.0)
+    assert adj_df['adjustment_factor'].iloc[1] == pytest.approx((110-10)/110)
+    assert adj_df['adjustment_factor'].iloc[2] == pytest.approx((115-0)/115 * (110-10)/110)
     await cleanup(pool, symbol)
     await pool.close()
 
@@ -169,10 +169,10 @@ async def test_adjusted_prices_split_and_dividend():
     splits = await fetch_splits(pool, symbol)
     dividends = await fetch_dividends(pool, symbol)
     adj_df = calculate_adjusted_prices(prices, splits, dividends)
-    assert adj_df.loc[0, 'adjustment_factor'] == pytest.approx(1.0)
-    assert adj_df.loc[1, 'adjustment_factor'] == pytest.approx(0.5)
+    assert adj_df['adjustment_factor'].iloc[0] == pytest.approx(1.0)
+    assert adj_df['adjustment_factor'].iloc[1] == pytest.approx(0.5)
     # Day 3: split (0.5) * dividend ((115-5)/115)
-    assert adj_df.loc[2, 'adjustment_factor'] == pytest.approx(0.5 * (115-5)/115)
+    assert adj_df['adjustment_factor'].iloc[2] == pytest.approx(0.5 * (115-5)/115)
     await cleanup(pool, symbol)
     await pool.close()
 
@@ -199,10 +199,108 @@ async def test_adjusted_prices_two_dividends():
     splits = await fetch_splits(pool, symbol)
     dividends = await fetch_dividends(pool, symbol)
     adj_df = calculate_adjusted_prices(prices, splits, dividends)
-    assert adj_df.loc[0, 'adjustment_factor'] == pytest.approx(1.0)
-    assert adj_df.loc[1, 'adjustment_factor'] == pytest.approx((110-10)/110)
+    assert adj_df['adjustment_factor'].iloc[0] == pytest.approx(1.0)
+    assert adj_df['adjustment_factor'].iloc[1] == pytest.approx((110-10)/110)
     # Day 3: (115-5)/115 * (110-10)/110
-    assert adj_df.loc[2, 'adjustment_factor'] == pytest.approx((115-5)/115 * (110-10)/110)
+    assert adj_df['adjustment_factor'].iloc[2] == pytest.approx((115-5)/115 * (110-10)/110)
+    await cleanup(pool, symbol)
+    await pool.close()
+
+# --- Multiple splits on the same date ---
+@pytest.mark.asyncio
+async def test_adjusted_prices_multiple_splits_same_day():
+    symbol = "TESTMULTISPLIT"
+    pool = await asyncpg.create_pool(TSDB_URL)
+    async with pool.acquire() as conn:
+        await conn.execute(CREATE_DAILY_PRICES_SQL)
+        await conn.execute(CREATE_SPLITS_SQL)
+        await conn.execute(CREATE_DIVIDENDS_SQL)
+        await conn.execute(CREATE_DAILY_ADJUSTED_PRICES_SQL)
+    await cleanup(pool, symbol)
+    await insert_prices(pool, [
+        (date(2022, 1, 1), symbol, 100, 110, 90, 105, 1000, 105000, 100),
+        (date(2022, 1, 2), symbol, 105, 115, 95, 110, 1200, 110000, 110),
+        (date(2022, 1, 3), symbol, 110, 120, 100, 115, 1300, 115000, 115),
+    ])
+    await insert_split(pool, date(2022, 1, 2), 2, 1, symbol)  # 2-for-1 split
+    await insert_split(pool, date(2022, 1, 2), 5, 4, symbol)  # 5-for-4 split (on same day)
+    from src.universe.populate_daily_adjusted_prices import calculate_adjusted_prices
+    prices = await fetch_prices(pool, symbol)
+    splits = await fetch_splits(pool, symbol)
+    dividends = await fetch_dividends(pool, symbol)
+    adj_df = calculate_adjusted_prices(prices, splits, dividends)
+    # Adjustment for day 1: 1.0
+    assert adj_df['adjustment_factor'].iloc[0] == pytest.approx(1.0)
+    # Adjustment for day 2: (1/2)*(4/5) = 0.4
+    assert adj_df['adjustment_factor'].iloc[1] == pytest.approx(0.4)
+    # Adjustment for day 3: 0.4
+    assert adj_df['adjustment_factor'].iloc[2] == pytest.approx(0.4)
+    await cleanup(pool, symbol)
+    await pool.close()
+
+# --- Multiple dividends on the same date ---
+@pytest.mark.asyncio
+async def test_adjusted_prices_multiple_dividends_same_day():
+    symbol = "TESTMULTIDIV"
+    pool = await asyncpg.create_pool(TSDB_URL)
+    async with pool.acquire() as conn:
+        await conn.execute(CREATE_DAILY_PRICES_SQL)
+        await conn.execute(CREATE_SPLITS_SQL)
+        await conn.execute(CREATE_DIVIDENDS_SQL)
+        await conn.execute(CREATE_DAILY_ADJUSTED_PRICES_SQL)
+    await cleanup(pool, symbol)
+    await insert_prices(pool, [
+        (date(2022, 1, 1), symbol, 100, 110, 90, 105, 1000, 105000, 100),
+        (date(2022, 1, 2), symbol, 105, 115, 95, 110, 1200, 110000, 110),
+        (date(2022, 1, 3), symbol, 110, 120, 100, 115, 1300, 115000, 115),
+    ])
+    await insert_dividend(pool, date(2022, 1, 2), 10, symbol)
+    await insert_dividend(pool, date(2022, 1, 2), 5, symbol)
+    from src.universe.populate_daily_adjusted_prices import calculate_adjusted_prices
+    prices = await fetch_prices(pool, symbol)
+    splits = await fetch_splits(pool, symbol)
+    dividends = await fetch_dividends(pool, symbol)
+    adj_df = calculate_adjusted_prices(prices, splits, dividends)
+    # Day 1: 1.0
+    assert adj_df['adjustment_factor'].iloc[0] == pytest.approx(1.0)
+    # Day 2: (110-15)/110
+    assert adj_df['adjustment_factor'].iloc[1] == pytest.approx((110-15)/110)
+    # Day 3: (115-0)/115 * (110-15)/110
+    assert adj_df['adjustment_factor'].iloc[2] == pytest.approx((115-0)/115 * (110-15)/110)
+    await cleanup(pool, symbol)
+    await pool.close()
+
+# --- Multiple splits and dividends on the same date ---
+@pytest.mark.asyncio
+async def test_adjusted_prices_multiple_splits_and_dividends_same_day():
+    symbol = "TESTMULTIBOTH"
+    pool = await asyncpg.create_pool(TSDB_URL)
+    async with pool.acquire() as conn:
+        await conn.execute(CREATE_DAILY_PRICES_SQL)
+        await conn.execute(CREATE_SPLITS_SQL)
+        await conn.execute(CREATE_DIVIDENDS_SQL)
+        await conn.execute(CREATE_DAILY_ADJUSTED_PRICES_SQL)
+    await cleanup(pool, symbol)
+    await insert_prices(pool, [
+        (date(2022, 1, 1), symbol, 100, 110, 90, 105, 1000, 105000, 100),
+        (date(2022, 1, 2), symbol, 105, 115, 95, 110, 1200, 110000, 110),
+        (date(2022, 1, 3), symbol, 110, 120, 100, 115, 1300, 115000, 115),
+    ])
+    await insert_split(pool, date(2022, 1, 2), 2, 1, symbol)
+    await insert_split(pool, date(2022, 1, 2), 5, 4, symbol)
+    await insert_dividend(pool, date(2022, 1, 2), 10, symbol)
+    await insert_dividend(pool, date(2022, 1, 2), 5, symbol)
+    from src.universe.populate_daily_adjusted_prices import calculate_adjusted_prices
+    prices = await fetch_prices(pool, symbol)
+    splits = await fetch_splits(pool, symbol)
+    dividends = await fetch_dividends(pool, symbol)
+    adj_df = calculate_adjusted_prices(prices, splits, dividends)
+    # Day 1: 1.0
+    assert adj_df['adjustment_factor'].iloc[0] == pytest.approx(1.0)
+    # Day 2: (1/2)*(4/5)*((110-15)/110) = 0.4*((110-15)/110)
+    assert adj_df['adjustment_factor'].iloc[1] == pytest.approx(0.4*((110-15)/110))
+    # Day 3: 0.4*((115-0)/115)*((110-15)/110)
+    assert adj_df['adjustment_factor'].iloc[2] == pytest.approx(0.4*((115-0)/115)*((110-15)/110))
     await cleanup(pool, symbol)
     await pool.close()
 
