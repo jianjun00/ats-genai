@@ -33,4 +33,3 @@ def get_next_open_close(calendar, dt: pd.Timestamp) -> Tuple[Optional[pd.Timesta
         next_close = schedule['market_close'].iloc[0]
         return next_open, next_close
     return None, None
-

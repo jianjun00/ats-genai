@@ -2,7 +2,7 @@
 import unittest
 import pandas as pd
 from unittest.mock import MagicMock
-from market_data.market_calendar_utils import get_market_calendar, get_last_open_close, get_next_open_close
+from calendars.market_calendar_utils import get_market_calendar, get_last_open_close, get_next_open_close
 
 def make_mock_calendar():
     # Create a mock calendar with a known schedule including weekends and holidays
