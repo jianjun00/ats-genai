@@ -1,7 +1,6 @@
--- Schema for all required tables for market-forecast-app tests
+-- DEPRECATED: See src/db/schema.sql for the unified schema. This file is now a stub.
+-- All test and prod DBs should be initialized from schema.sql.
 
-CREATE TABLE IF NOT EXISTS events (
-    id SERIAL PRIMARY KEY,
     event_type TEXT NOT NULL,
     symbol TEXT,
     event_time TIMESTAMPTZ NOT NULL,
@@ -25,19 +24,10 @@ CREATE TABLE IF NOT EXISTS daily_prices (
     adjusted_price DOUBLE PRECISION,
     PRIMARY KEY (date, symbol)
 );
--- Add new columns if they do not exist
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='daily_prices' AND column_name='source') THEN
-        ALTER TABLE daily_prices ADD COLUMN source TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='daily_prices' AND column_name='status') THEN
-        ALTER TABLE daily_prices ADD COLUMN status TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='daily_prices' AND column_name='note') THEN
-        ALTER TABLE daily_prices ADD COLUMN note TEXT;
-    END IF;
-END$$;
+-- Add new columns if they do not exist (asyncpg-compatible)
+ALTER TABLE daily_prices ADD COLUMN IF NOT EXISTS source TEXT;
+ALTER TABLE daily_prices ADD COLUMN IF NOT EXISTS status TEXT;
+ALTER TABLE daily_prices ADD COLUMN IF NOT EXISTS note TEXT;
 
 -- Vendor table for all data providers (e.g., Tiingo, Polygon, Quandl, Norgate)
 CREATE TABLE IF NOT EXISTS vendors (
@@ -46,6 +36,25 @@ CREATE TABLE IF NOT EXISTS vendors (
     description TEXT,
     website TEXT,
     api_key_env_var TEXT, -- e.g. 'TIINGO_API_KEY'
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Reference table for Polygon instrument metadata
+CREATE TABLE IF NOT EXISTS instrument_polygon (
+    symbol TEXT PRIMARY KEY,
+    name TEXT,
+    exchange TEXT,
+    type TEXT,
+    currency TEXT,
+    figi TEXT,
+    isin TEXT,
+    cusip TEXT,
+    composite_figi TEXT,
+    active BOOLEAN,
+    list_date DATE,
+    delist_date DATE,
+    raw JSONB, -- full raw Polygon response
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
