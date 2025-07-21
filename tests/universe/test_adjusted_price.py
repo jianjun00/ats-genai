@@ -1,6 +1,6 @@
 import pytest
 from datetime import date
-from src.universe.calculate_adjusted_prices import compute_adjusted_prices
+from src.secmaster.calculate_adjusted_prices import compute_adjusted_prices
 
 def test_split_adjustment():
     # 2-for-1 split on 2023-01-03
