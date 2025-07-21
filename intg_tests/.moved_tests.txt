@@ -1,0 +1,17 @@
+The following test files were identified as using a real DB connection (TSDB_URL, DB_URL, or asyncpg.create_pool) and should be moved to intg_tests:
+
+- test_db_integrity.py
+- test_integration_splits_dividends.py
+- test_integration_spy_membership.py
+- test_timescaledb.py
+- integration/test_db_integration.py
+- trading/test_backtest_real_db.py
+- trading/test_trading_universe.py
+- universe/test_integration_daily_adjusted_prices.py
+- universe/test_integration_daily_prices_polygon.py
+- universe/test_integration_daily_prices_tiingo.py
+- universe/test_integration_populate_spy_universe_events.py
+- universe/test_universe_db.py
+- universe/test_universe_membership.py
+
+Each of these will be moved to intg_tests/ with their subdirectory structure preserved if applicable.
