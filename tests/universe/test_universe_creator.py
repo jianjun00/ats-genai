@@ -68,15 +68,15 @@ class TestUniverseCreator(AsyncPGTestDBBase):
             '--end_date', '2025-01-04',
             '--min_price', '5',
             '--min_adv', '100000',
-            '--universe_table', universe_table
+            '--universe_name', 'default'
         ]
         monkeypatch.setattr('sys.argv', ['universe_creator.py'] + args)
         await universe_creator.main()
         # Check results in universe table
         try:
             async with pool.acquire() as conn:
-                rows = await conn.fetch(f"SELECT start_at, symbol, end_at FROM {universe_table} ORDER BY start_at, symbol")
-                all_rows = await conn.fetch(f"SELECT * FROM {universe_table} ORDER BY start_at, symbol")
+                rows = await conn.fetch("SELECT universe_id, start_at, symbol, end_at FROM universe_membership ORDER BY start_at, symbol")
+                all_rows = await conn.fetch("SELECT * FROM universe_membership ORDER BY start_at, symbol")
                 print("[DEBUG] universe_membership full contents:", all_rows)
             # Verify (start_at, symbol) as before
             # Define expected intervals as (start_at, symbol, end_at)

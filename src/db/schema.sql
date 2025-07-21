@@ -150,14 +150,14 @@ CREATE TABLE IF NOT EXISTS daily_market_cap (
 
 -- Universe definitions (optional, for extensibility)
 CREATE TABLE IF NOT EXISTS universe (
-    universe_id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
     description TEXT
 );
 
 -- Universe membership: records which symbol is in which universe on which date
 CREATE TABLE IF NOT EXISTS universe_membership (
-    universe_id INTEGER NOT NULL DEFAULT 1 REFERENCES universe(universe_id),
+    universe_id INTEGER NOT NULL REFERENCES universe(id),
     symbol TEXT NOT NULL,
     start_at DATE NOT NULL,
     end_at DATE,
@@ -166,12 +166,10 @@ CREATE TABLE IF NOT EXISTS universe_membership (
 -- start_at: first date symbol is in the universe
 -- end_at: last date symbol is in the universe (NULL if still active)
 
-
 -- Insert default universe row for backward compatibility
-INSERT INTO universe (universe_id, name, description)
+INSERT INTO universe (id, name, description)
 VALUES (1, 'default', 'Default universe for daily screening')
-ON CONFLICT (universe_id) DO NOTHING;
-
+ON CONFLICT (id) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS fundamentals (
     ticker TEXT NOT NULL,
