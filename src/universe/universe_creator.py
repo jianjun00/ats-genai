@@ -27,16 +27,31 @@ async def main():
     parser.add_argument('--end_date', type=str, required=True)
     parser.add_argument('--min_adv', type=float, required=True)
     parser.add_argument('--min_price', type=float, required=True)
-    parser.add_argument('--universe_table', type=str, default='universe_membership')
+
+    parser.add_argument('--universe_name', type=str, default='default')
     args = parser.parse_args()
 
     start_date = datetime.strptime(args.start_date, '%Y-%m-%d').date()
     end_date = datetime.strptime(args.end_date, '%Y-%m-%d').date()
-    min_price = args.min_price
     min_adv = args.min_adv
-    universe_table = args.universe_table
+    min_price = args.min_price
+
+    universe_name = args.universe_name
 
     pool = await asyncpg.create_pool(os.environ['TSDB_URL'])
+    # Look up or create universe_id for the given universe_name
+    async with pool.acquire() as conn:
+        rec = await conn.fetchrow("SELECT id FROM universe WHERE name=$1", universe_name)
+        if rec:
+            universe_id = rec['id']
+        else:
+            # Insert new universe row
+            result = await conn.fetchrow(
+                "INSERT INTO universe (name, description) VALUES ($1, $2) RETURNING id",
+                universe_name, f"Universe {universe_name}"
+            )
+            universe_id = result['id']
+    print(f"[DEBUG] Using universe_id={universe_id} for universe_name={universe_name}")
     symbols_dict = await get_all_symbols(pool)
     symbols = list(symbols_dict.keys())
     universe = set()
@@ -46,7 +61,7 @@ async def main():
     # Prepare output table
     async with pool.acquire() as conn:
         await conn.execute(f"""
-        CREATE TABLE IF NOT EXISTS {universe_table} (
+        CREATE TABLE IF NOT EXISTS universe (
             date DATE NOT NULL,
             symbol TEXT NOT NULL,
             PRIMARY KEY (date, symbol)
@@ -98,20 +113,20 @@ async def main():
             for symbol in newly_added:
                 try:
                     await conn.execute(
-                        f"INSERT INTO {universe_table} (symbol, start_at, end_at) VALUES ($1, $2, NULL)",
-                        symbol, today
+                        "INSERT INTO universe_membership (universe_id, symbol, start_at, end_at) VALUES ($1, $2, $3, NULL)",
+                        universe_id, symbol, today
                     )
-                    print(f"[DEBUG] Inserted membership: symbol={symbol}, start_at={today}")
+                    print(f"[DEBUG] Inserted membership: universe_id={universe_id}, symbol={symbol}, start_at={today}")
                 except Exception as e:
                     print(f"[ERROR] Failed to insert membership for {symbol} on {today}: {e}")
             # Update end_at for removed memberships
             for symbol in to_remove:
                 try:
                     await conn.execute(
-                        f"UPDATE {universe_table} SET end_at=$1 WHERE symbol=$2 AND end_at IS NULL",
-                        today, symbol
+                        "UPDATE universe_membership SET end_at=$1 WHERE universe_id=$2 AND symbol=$3 AND end_at IS NULL",
+                        today, universe_id, symbol
                     )
-                    print(f"[DEBUG] Updated end_at for symbol={symbol} to {today}")
+                    print(f"[DEBUG] Updated end_at for universe_id={universe_id}, symbol={symbol} to {today}")
                 except Exception as e:
                     print(f"[ERROR] Failed to update end_at for {symbol} on {today}: {e}")
         today += timedelta(days=1)
