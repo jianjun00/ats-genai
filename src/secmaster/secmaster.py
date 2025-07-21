@@ -23,13 +23,18 @@ class SecMaster:
             pool = await asyncpg.create_pool(self.db_url)
             async with pool.acquire() as conn:
                 rows = await conn.fetch(
-                    "SELECT added, removed, event_date FROM spy_membership_change ORDER BY event_date"
+                    """
+                    SELECT symbol, start_date, end_date
+                    FROM universe_membership
+                    WHERE universe_name = 'S&P 500'
+                    ORDER BY start_date
+                    """
                 )
             await pool.close()
             self._events = [dict(row) for row in rows]
 
     async def get_spy_membership(self) -> List[str]:
-        """Returns SPY membership as of self.as_of_date (set at init)."""
+        """Returns SPY membership as of self.as_of_date (set at init), using universe_membership table."""
         if self.as_of_date is None:
             raise ValueError("as_of_date must be set at initialization for snapshot mode.")
         await self.load_all_membership_events()
@@ -37,41 +42,30 @@ class SecMaster:
             return sorted(self._membership_cache[self.as_of_date])
         membership = set()
         for row in self._events:
-            # Process all events up to and including as_of_date
-            if row['event_date'] > self.as_of_date:
-                continue
-            if row['added']:
-                membership.add(row['added'])
-            elif row['removed']:
-                membership.discard(row['removed'])
+            # Add symbol if start_date <= as_of_date and (end_date is null or end_date > as_of_date)
+            if row['start_date'] <= self.as_of_date and (row['end_date'] is None or row['end_date'] > self.as_of_date):
+                membership.add(row['symbol'])
         self._membership_cache[self.as_of_date] = set(membership)
         return sorted(membership)
 
     async def advance(self, to_date: date) -> List[str]:
         """
-        Advance the membership from self.as_of_date to to_date, applying all events in (self.as_of_date, to_date].
-        Updates self.as_of_date and caches for last_close_price, market_cap, and ADV (30d) for all tickers.
+        Advance the membership from self.as_of_date to to_date, updating caches for last_close_price, market_cap, and ADV (30d) for all tickers.
         Returns the new membership as a sorted list.
         """
         if self.as_of_date is None:
             raise ValueError("as_of_date must be set at initialization for advance().")
         await self.load_all_membership_events()
-        # Start from current membership
-        membership = set(await self.get_spy_membership())
-        # Apply only events in (self.as_of_date, to_date]
-        for row in self._events:
-            if not (self.as_of_date < row['event_date'] <= to_date):
-                continue
-            if row['added']:
-                membership.add(row['added'])
-            elif row['removed']:
-                membership.discard(row['removed'])
         self.as_of_date = to_date
-        self._membership_cache[to_date] = set(membership)
-        tickers = list(membership)
-        # Batch update caches for all tickers
+        # Recompute membership as of to_date using new logic
+        membership = set()
+        for row in self._events:
+            if row['start_date'] <= to_date and (row['end_date'] is None or row['end_date'] > to_date):
+                membership.add(row['symbol'])
+        # Update caches for tickers in new membership
         pool = await asyncpg.create_pool(self.db_url)
         async with pool.acquire() as conn:
+            tickers = list(membership)
             # Batch fetch last close prices
             rows = await conn.fetch(
                 """
@@ -108,21 +102,14 @@ class SecMaster:
         return sorted(membership)
 
     async def get_spy_membership_over_dates(self, dates: List[date]) -> dict:
-        """Efficiently get membership for a list of dates (must be sorted). Returns {date: set(tickers)}."""
+        """Efficiently get membership for a list of dates (must be sorted), using universe_membership logic. Returns {date: set(tickers)}."""
         await self.load_all_membership_events()
         results = {}
-        membership = set()
-        event_idx = 0
-        events = self._events
         for d in sorted(dates):
-            # Apply all events up to and including this date
-            while event_idx < len(events) and events[event_idx]['event_date'] <= d:
-                row = events[event_idx]
-                if row['added']:
-                    membership.add(row['added'])
-                elif row['removed']:
-                    membership.discard(row['removed'])
-                event_idx += 1
+            membership = set()
+            for row in self._events:
+                if row['start_date'] <= d and (row['end_date'] is None or row['end_date'] > d):
+                    membership.add(row['symbol'])
             results[d] = set(membership)
             self._membership_cache[d] = set(membership)
         return results

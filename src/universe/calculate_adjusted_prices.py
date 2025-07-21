@@ -38,30 +38,55 @@ def compute_adjusted_prices(prices, splits, dividends):
     # splits: list of (split_date, numerator, denominator)
     # dividends: list of (ex_date, amount)
     # Returns: dict {date: adjusted_close}
-    # Algorithm: walk forward, apply splits and dividends as they happen
-    adj_factors = {}
+    # Algorithm: back-adjust all prices so that each date reflects all splits/dividends after that date.
+    close_map = {row['date']: row['close'] for row in prices}
+    dates = sorted(close_map.keys())  # walk forward in time
+    # Pre-sort splits and dividends by date ascending
+    splits = sorted(splits, key=lambda x: x['split_date'])
+    dividends = sorted(dividends, key=lambda x: x['ex_date'])
+    # Precompute cumulative adjustment factors for each date
+    split_factors = {}
+    div_factors = {}
+    factor = 1.0
     split_idx = 0
     div_idx = 0
-    factor = 1.0
+    # Traverse forward, so we can accumulate all future splits/dividends
+    split_events = [(s['split_date'], s['numerator'], s['denominator']) for s in splits]
+    div_events = [(d['ex_date'], d['amount']) for d in dividends]
+    # Prepare lists of event dates
+    split_dates = [s[0] for s in split_events]
+    div_dates = [d[0] for d in div_events]
+    # For each date, compute the cumulative factor from all splits/dividends after that date
     adj = {}
-    splits = list(splits)
-    dividends = list(dividends)
-    # Create a date->close dict for fast lookup
-    close_map = {row['date']: row['close'] for row in prices}
-    dates = sorted(close_map.keys(), reverse=True)  # adjust backward in time
+    # Precompute split-adjusted close for all dates for use in dividend adjustment
+    split_factors_by_date = {}
     for dt in dates:
-        # Apply splits
-        while split_idx < len(splits) and splits[split_idx]['split_date'] > dt:
-            split = splits[split_idx]
-            factor *= split['denominator'] / split['numerator']
-            split_idx += 1
-        # Apply dividends
-        while div_idx < len(dividends) and dividends[div_idx]['ex_date'] > dt:
-            div = dividends[div_idx]
-            if close_map[dt] > 0:
-                factor *= (close_map[dt] - div['amount']) / close_map[dt]
-            div_idx += 1
-        adj[dt] = close_map[dt] * factor
+        split_factor = 1.0
+        for s in splits:
+            if s['split_date'] >= dt:
+                split_factor *= s['denominator'] / s['numerator']
+        split_factors_by_date[dt] = split_factor
+    split_adjusted_close_by_date = {dt: close_map[dt] * split_factors_by_date[dt] for dt in dates}
+
+    # For each date, apply all future dividends, using split-adjusted price at the dividend ex-date
+    adj = {}
+    for dt in dates:
+        # 1. Apply all splits after or on this date (standard back-adjustment)
+        split_factor = 1.0
+        for s in splits:
+            if s['split_date'] >= dt:
+                split_factor *= s['denominator'] / s['numerator']
+        split_adjusted_close = close_map[dt] * split_factor
+
+        # 2. For all dividends with ex_date >= dt, subtract the dividend amount (additive adjustment)
+        div_factor = 1.0
+        for d in dividends:
+            if d['ex_date'] >= dt:
+                px = close_map[d['ex_date']] * split_factors_by_date[d['ex_date']]
+                if px > 0:
+                    div_factor *= (px - d['amount']) / px
+        adj_val = round(split_adjusted_close * div_factor, 6)
+        adj[dt] = adj_val
     return adj
 
 async def main():
