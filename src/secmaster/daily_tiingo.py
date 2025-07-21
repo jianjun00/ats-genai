@@ -84,6 +84,13 @@ def get_missing_date_ranges(existing_dates, start_date, end_date):
 
 from calendars.exchange_calendar import ExchangeCalendar
 
+async def get_status_id(pool, code):
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT id FROM status_code WHERE code = $1", code)
+        if not row:
+            raise ValueError(f"Status code '{code}' not found in status_code table.")
+        return row['id']
+
 async def fetch_and_insert_symbol(pool, session, symbol, start_date, end_date):
     # Always use datetime.date for DB and date math
     if isinstance(start_date, str):
@@ -102,6 +109,8 @@ async def fetch_and_insert_symbol(pool, session, symbol, start_date, end_date):
     if not missing_ranges:
         print(f"[DEBUG] All data exists for {symbol} in {start_date} to {end_date}, skipping fetch.")
         return
+    ok_status_id = await get_status_id(pool, 'OK')
+    no_data_status_id = await get_status_id(pool, 'NO_DATA')
     for range_start, range_end in missing_ranges:
         url = tiingo_url(symbol, range_start, range_end)
         print(f"[DEBUG] Fetching {symbol} from URL: {url}")
@@ -113,6 +122,20 @@ async def fetch_and_insert_symbol(pool, session, symbol, start_date, end_date):
             data = await resp.json()
             if not data:
                 print(f"[WARNING] No data returned for {symbol} from {range_start} to {range_end}")
+                # Insert a row for each missing trading day in this range with status NO_DATA
+                missing_days = [d for d in trading_days if range_start <= d <= range_end]
+                rows = [
+                    (d, symbol, None, None, None, None, None, None, no_data_status_id)
+                    for d in missing_days
+                ]
+                async with pool.acquire() as conn:
+                    await conn.executemany(
+                        "INSERT INTO daily_prices_tiingo (date, symbol, open, high, low, close, adjClose, volume, status_id)\n"
+                        "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n"
+                        "ON CONFLICT (date, symbol) DO UPDATE SET status_id = EXCLUDED.status_id",
+                        rows
+                    )
+                print(f"[INFO] Inserted {len(rows)} NO_DATA rows for {symbol} from {range_start} to {range_end}")
                 continue
             rows = []
             for row in data:
@@ -129,12 +152,33 @@ async def fetch_and_insert_symbol(pool, session, symbol, start_date, end_date):
                     row.get('close'),
                     row.get('adjClose'),
                     row.get('volume'),
+                    ok_status_id
                 ))
             async with pool.acquire() as conn:
-                await conn.executemany(INSERT_SQL, rows)
+                await conn.executemany(
+                    "INSERT INTO daily_prices_tiingo (date, symbol, open, high, low, close, adjClose, volume, status_id)\n"
+                    "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n"
+                    "ON CONFLICT (date, symbol) DO UPDATE SET open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low, close = EXCLUDED.close, adjClose = EXCLUDED.adjClose, volume = EXCLUDED.volume, status_id = EXCLUDED.status_id",
+                    rows
+                )
             print(f"[INFO] Inserted {len(rows)} rows for {symbol} from {range_start} to {range_end}")
 
 # --- MAIN FUNCTION AND ENTRYPOINT ---
+async def get_instrument_dates(pool, symbol):
+    # Returns (list_date, delist_date) as date objects or None
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT list_date, delist_date FROM instrument_polygon WHERE symbol = $1", symbol)
+        if not row:
+            return None, None
+        list_date = row['list_date']
+        delist_date = row['delist_date']
+        # Convert to date if not None
+        if list_date is not None and isinstance(list_date, str):
+            list_date = datetime.strptime(list_date, "%Y-%m-%d").date()
+        if delist_date is not None and isinstance(delist_date, str):
+            delist_date = datetime.strptime(delist_date[:10], "%Y-%m-%d").date()
+        return list_date, delist_date
+
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--start_date', type=str, required=True, help='Start date (YYYY-MM-DD)')
@@ -149,7 +193,6 @@ async def main():
     pool = await asyncpg.create_pool(TSDB_URL, min_size=1, max_size=4)
     async with pool.acquire() as conn:
         await conn.execute(CREATE_DAILY_PRICES_TIINGO_SQL)
-        # WARNING: Disabling SSL verification is NOT recommended for production. Use only for debugging local SSL issues.
     import ssl
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
@@ -165,11 +208,23 @@ async def main():
                 return
         for symbol in tickers:
             try:
-                print(f"[INFO] Processing {symbol}...")
-                await fetch_and_insert_symbol(pool, session, symbol, args.start_date, args.end_date)
+                list_date, delist_date = await get_instrument_dates(pool, symbol)
+                if not list_date:
+                    print(f"[INFO] Skipping {symbol} (no list_date)")
+                    continue
+                start_date_arg = datetime.strptime(args.start_date, "%Y-%m-%d").date()
+                end_date_arg = datetime.strptime(args.end_date, "%Y-%m-%d").date()
+                effective_start = max(list_date, start_date_arg)
+                effective_end = delist_date if delist_date else end_date_arg
+                if effective_start > effective_end:
+                    print(f"[INFO] Skipping {symbol} (effective_start {effective_start} > effective_end {effective_end})")
+                    continue
+                print(f"[INFO] Processing {symbol} from {effective_start} to {effective_end}")
+                await fetch_and_insert_symbol(pool, session, symbol, effective_start, effective_end)
             except Exception as e:
                 print(f"[ERROR] Exception for {symbol}: {e}")
     await pool.close()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

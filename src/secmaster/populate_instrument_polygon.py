@@ -12,7 +12,10 @@ POLYGON_API_KEY = os.environ["POLYGON_API_KEY"]
 # Polygon reference API endpoint for all US stocks (paginated)
 BASE_URL = "https://api.polygon.io/v3/reference/tickers"
 
-async def fetch_and_store_instruments():
+import time
+from requests.exceptions import ConnectionError
+
+async def fetch_and_store_instruments(start_ticker=''):
     pool = await asyncpg.create_pool(DB_URL)
     url = BASE_URL + f"?market=stocks&active=true&limit=1000&apiKey={POLYGON_API_KEY}"
     total = 0
@@ -26,22 +29,30 @@ async def fetch_and_store_instruments():
         print(f"Fetched {len(tickers)} tickers from bulk endpoint.")
         for item in tickers:
             symbol = item.get('ticker')
-            # Fetch detailed metadata for each ticker
+            if symbol <= start_ticker:
+                continue  # Skip until we pass start_ticker
             detail_url = f"https://api.polygon.io/v3/reference/tickers/{symbol}?apiKey={POLYGON_API_KEY}"
-            detail_resp = requests.get(detail_url)
-            if detail_resp.status_code != 200:
-                print(f"[ERROR] Failed to fetch detail for {symbol}: {detail_resp.status_code} {detail_resp.text}")
-                continue
-            detail = detail_resp.json().get('results', {})
-            # Debug: print ticker and presence/values of list_date and delisted_utc
-            print(f"Ticker: {symbol}, list_date: {detail.get('list_date')}, delisted_utc: {detail.get('delisted_utc')}")
-            await upsert_instrument(pool, detail)
-            total += 1
+            for attempt in range(3):
+                try:
+                    detail_resp = requests.get(detail_url)
+                    if detail_resp.status_code != 200:
+                        print(f"[ERROR] Failed to fetch detail for {symbol}: {detail_resp.status_code} {detail_resp.text}")
+                        break
+                    detail = detail_resp.json().get('results', {})
+                    print(f"Ticker: {symbol}, list_date: {detail.get('list_date')}, delisted_utc: {detail.get('delisted_utc')}")
+                    await upsert_instrument(pool, detail)
+                    total += 1
+                    break
+                except ConnectionError as e:
+                    print(f"[ERROR] Connection error for {symbol}: {e}, retrying...")
+                    time.sleep(2 ** attempt)  # Exponential backoff
+            time.sleep(0.25)  # Add a small delay between requests
         url = data.get('next_url')
         if url and 'apiKey=' not in url:
             url += f"&apiKey={POLYGON_API_KEY}"
     print(f"Total tickers processed: {total}")
     await pool.close()
+
 
 
 import json
@@ -90,6 +101,12 @@ def parse_date(val):
     except Exception:
         return None
 
+import argparse
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Populate instrument_polygon from Polygon bulk and detail endpoints.")
+    parser.add_argument('--start_ticker', type=str, default='', help='Only update/add instrument_polygon if symbol > start_ticker (lexical order)')
+    args = parser.parse_args()
+
     import asyncio
-    asyncio.run(fetch_and_store_instruments())
+    asyncio.run(fetch_and_store_instruments(start_ticker=args.start_ticker))
