@@ -25,6 +25,18 @@ CREATE TABLE IF NOT EXISTS daily_prices (
     PRIMARY KEY (date, symbol)
 );
 
+CREATE TABLE IF NOT EXISTS daily_prices_tiingo (
+    date DATE NOT NULL,
+    symbol TEXT NOT NULL,
+    open DOUBLE PRECISION,
+    high DOUBLE PRECISION,
+    low DOUBLE PRECISION,
+    close DOUBLE PRECISION,
+    adjClose DOUBLE PRECISION,
+    volume BIGINT,
+    PRIMARY KEY (date, symbol)
+);
+
 CREATE TABLE IF NOT EXISTS stock_splits (
     id SERIAL PRIMARY KEY,
     symbol TEXT NOT NULL,
@@ -40,6 +52,41 @@ CREATE TABLE IF NOT EXISTS dividends (
     ex_date DATE NOT NULL,
     amount DOUBLE PRECISION NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS daily_prices_polygon (
+    date DATE NOT NULL,
+    symbol TEXT NOT NULL,
+    open DOUBLE PRECISION,
+    high DOUBLE PRECISION,
+    low DOUBLE PRECISION,
+    close DOUBLE PRECISION,
+    volume BIGINT,
+    market_cap DOUBLE PRECISION,
+    PRIMARY KEY (date, symbol)
+);
+
+CREATE TABLE IF NOT EXISTS daily_prices_norgate (
+    date DATE NOT NULL,
+    symbol TEXT NOT NULL,
+    open DOUBLE PRECISION,
+    high DOUBLE PRECISION,
+    low DOUBLE PRECISION,
+    close DOUBLE PRECISION,
+    volume BIGINT,
+    PRIMARY KEY (date, symbol)
+);
+
+CREATE TABLE IF NOT EXISTS daily_prices_quandl (
+    date DATE NOT NULL,
+    symbol TEXT NOT NULL,
+    open DOUBLE PRECISION,
+    high DOUBLE PRECISION,
+    low DOUBLE PRECISION,
+    close DOUBLE PRECISION,
+    volume BIGINT,
+    PRIMARY KEY (date, symbol)
+);
+
 
 CREATE TABLE IF NOT EXISTS spy_membership (
     id SERIAL PRIMARY KEY,
