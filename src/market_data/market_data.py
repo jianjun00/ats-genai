@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 from collections import deque, defaultdict
-from .market_calendar_utils import get_market_calendar, get_last_open_close
+from calendars.market_calendar_utils import get_market_calendar, get_last_open_close
 from datetime import timedelta
 import pandas as pd
 

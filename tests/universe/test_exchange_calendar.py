@@ -1,6 +1,6 @@
 import datetime
 import pytest
-from src.universe.exchange_calendar import ExchangeCalendar
+from src.calendars.exchange_calendar import ExchangeCalendar
 
 @pytest.mark.parametrize("exchange,known_holiday,known_trading,known_next,known_prior", [
     ("NYSE", datetime.date(2025, 1, 1), datetime.date(2025, 1, 2), datetime.date(2025, 1, 2), datetime.date(2024, 12, 31)),
@@ -72,7 +72,7 @@ def test_exchange_calendar_error_handling(monkeypatch):
     monkeypatch.setattr(builtins, "__import__", fake_import)
     try:
         with pytest.raises(ImportError):
-            from src.universe.exchange_calendar import ExchangeCalendar as _ExchangeCalendar
+            from src.calendars.exchange_calendar import ExchangeCalendar as _ExchangeCalendar
             _ExchangeCalendar("NYSE")
     finally:
         monkeypatch.setattr(builtins, "__import__", real_import)
