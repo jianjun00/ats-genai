@@ -15,20 +15,34 @@ BASE_URL = "https://api.polygon.io/v3/reference/tickers"
 async def fetch_and_store_instruments():
     pool = await asyncpg.create_pool(DB_URL)
     url = BASE_URL + f"?market=stocks&active=true&limit=1000&apiKey={POLYGON_API_KEY}"
+    total = 0
     while url:
         resp = requests.get(url)
         if resp.status_code != 200:
             print(f"[ERROR] Failed to fetch {url} : {resp.status_code} {resp.text}")
             break
         data = resp.json()
-        for item in data.get('results', []):
+        tickers = data.get('results', [])
+        print(f"Fetched {len(tickers)} tickers from bulk endpoint.")
+        for item in tickers:
+            symbol = item.get('ticker')
+            # Fetch detailed metadata for each ticker
+            detail_url = f"https://api.polygon.io/v3/reference/tickers/{symbol}?apiKey={POLYGON_API_KEY}"
+            detail_resp = requests.get(detail_url)
+            if detail_resp.status_code != 200:
+                print(f"[ERROR] Failed to fetch detail for {symbol}: {detail_resp.status_code} {detail_resp.text}")
+                continue
+            detail = detail_resp.json().get('results', {})
             # Debug: print ticker and presence/values of list_date and delisted_utc
-            print(f"Ticker: {item.get('ticker')}, list_date: {item.get('list_date')}, delisted_utc: {item.get('delisted_utc')}")
-            await upsert_instrument(pool, item)
+            print(f"Ticker: {symbol}, list_date: {detail.get('list_date')}, delisted_utc: {detail.get('delisted_utc')}")
+            await upsert_instrument(pool, detail)
+            total += 1
         url = data.get('next_url')
         if url and 'apiKey=' not in url:
             url += f"&apiKey={POLYGON_API_KEY}"
+    print(f"Total tickers processed: {total}")
     await pool.close()
+
 
 import json
 
