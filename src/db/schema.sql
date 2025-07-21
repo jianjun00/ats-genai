@@ -39,6 +39,48 @@ CREATE TABLE IF NOT EXISTS vendors (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS instruments (
+    instrument_id SERIAL PRIMARY KEY,
+    symbol TEXT NOT NULL,
+    name TEXT,
+    exchange TEXT,
+    type TEXT,
+    currency TEXT,
+    figi TEXT,
+    isin TEXT,
+    cusip TEXT,
+    composite_figi TEXT,
+    UNIQUE (symbol),
+    UNIQUE (figi),
+    UNIQUE (isin),
+    UNIQUE (cusip),
+    active BOOLEAN,
+    list_date DATE,
+    delist_date DATE,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS instrument_aliases (
+    id SERIAL PRIMARY KEY,
+    instrument_id INTEGER NOT NULL REFERENCES instruments(instrument_id) ON DELETE CASCADE,
+    alias TEXT NOT NULL,
+    source TEXT,
+    UNIQUE (instrument_id, alias)
+);
+
+CREATE TABLE IF NOT EXISTS instrument_metadata (
+    id SERIAL PRIMARY KEY,
+    instrument_id INTEGER NOT NULL REFERENCES instruments(instrument_id) ON DELETE CASCADE,
+    key TEXT NOT NULL,
+    value TEXT,
+    source TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (instrument_id, key, source)
+);
+
+
 CREATE TABLE IF NOT EXISTS instrument_polygon (
     symbol TEXT PRIMARY KEY,
     name TEXT,
