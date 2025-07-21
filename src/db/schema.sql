@@ -111,9 +111,6 @@ INSERT INTO status_code (code, description) VALUES
     ('NO_DATA', 'No data returned for this date/ticker')
 ON CONFLICT (code) DO NOTHING;
 
-ALTER TABLE daily_prices_tiingo
-ADD COLUMN IF NOT EXISTS status_id INTEGER REFERENCES status_code(id) DEFAULT NULL;
-
 -- Add all other required tables (daily_prices_polygon, stock_splits, fundamentals, etc.)
 -- ... (copy from init_test_schema.sql and setup_trading_db.py)
 
@@ -128,6 +125,9 @@ CREATE TABLE IF NOT EXISTS daily_prices_tiingo (
     volume BIGINT,
     PRIMARY KEY (date, symbol)
 );
+
+ALTER TABLE daily_prices_tiingo
+ADD COLUMN IF NOT EXISTS status_id INTEGER REFERENCES status_code(id) DEFAULT NULL;
 
 CREATE TABLE IF NOT EXISTS daily_prices_polygon (
     date DATE NOT NULL,
@@ -147,6 +147,31 @@ CREATE TABLE IF NOT EXISTS daily_market_cap (
     market_cap DOUBLE PRECISION,
     PRIMARY KEY (date, symbol)
 );
+
+-- Universe definitions (optional, for extensibility)
+CREATE TABLE IF NOT EXISTS universe (
+    universe_id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT
+);
+
+-- Universe membership: records which symbol is in which universe on which date
+CREATE TABLE IF NOT EXISTS universe_membership (
+    universe_id INTEGER NOT NULL DEFAULT 1 REFERENCES universe(universe_id),
+    symbol TEXT NOT NULL,
+    start_at DATE NOT NULL,
+    end_at DATE,
+    PRIMARY KEY (universe_id, symbol, start_at)
+);
+-- start_at: first date symbol is in the universe
+-- end_at: last date symbol is in the universe (NULL if still active)
+
+
+-- Insert default universe row for backward compatibility
+INSERT INTO universe (universe_id, name, description)
+VALUES (1, 'default', 'Default universe for daily screening')
+ON CONFLICT (universe_id) DO NOTHING;
+
 
 CREATE TABLE IF NOT EXISTS fundamentals (
     ticker TEXT NOT NULL,

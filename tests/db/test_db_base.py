@@ -57,14 +57,22 @@ class AsyncPGTestDBBase:
             schema_sql = f.read()
         pool = await asyncpg.create_pool(os.environ["TSDB_URL"])
         async with pool.acquire() as conn:
-            # asyncpg does not support executing multiple statements at once, so split on semicolon
-            for statement in filter(None, (s.strip() for s in schema_sql.split(";"))):
-                if statement:
-                    try:
-                        await conn.execute(statement)
-                    except Exception as e:
-                        print(f"Error executing statement: {statement}\nError: {e}")
-                        raise
+            # Remove comment lines before splitting
+            sql_lines = schema_sql.splitlines()
+            non_comment_lines = [line for line in sql_lines if not line.strip().startswith("--")]
+            sql_no_comments = "\n".join(non_comment_lines)
+            for statement in sql_no_comments.split(";"):
+                stripped = statement.strip()
+                if not stripped:
+                    print(f"Skipping empty statement.")
+                    continue
+                try:
+                    await conn.execute(statement)
+                except Exception as e:
+                    import traceback
+                    print(f"Error executing statement: {statement}\nError: {e}")
+                    traceback.print_exc()
+                    raise
         await pool.close()
 
     @pytest.mark.asyncio
