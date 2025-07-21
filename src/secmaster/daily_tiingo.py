@@ -60,10 +60,13 @@ async def get_existing_dates(pool, symbol, start_date, end_date):
         )
     return set(row['date'] for row in rows)
 
+from calendars.exchange_calendar import ExchangeCalendar
+
 def get_missing_date_ranges(existing_dates, start_date, end_date):
-    # Returns a list of (range_start, range_end) for missing contiguous dates
-    all_dates = pd.date_range(start=start_date, end=end_date, freq='D')
-    missing = [d.date() for d in all_dates if d.date() not in existing_dates]
+    # Returns a list of (range_start, range_end) for missing contiguous NYSE trading dates
+    nyse_cal = ExchangeCalendar('NYSE')
+    trading_days = nyse_cal.all_trading_days(start_date, end_date)
+    missing = [d for d in trading_days if d not in existing_dates]
     if not missing:
         return []
     # Group into contiguous ranges
@@ -71,12 +74,15 @@ def get_missing_date_ranges(existing_dates, start_date, end_date):
     range_start = missing[0]
     prev = missing[0]
     for d in missing[1:]:
+
         if (d - prev).days > 1:
             ranges.append((range_start, prev))
             range_start = d
         prev = d
     ranges.append((range_start, prev))
     return ranges
+
+from calendars.exchange_calendar import ExchangeCalendar
 
 async def fetch_and_insert_symbol(pool, session, symbol, start_date, end_date):
     # Always use datetime.date for DB and date math
@@ -88,6 +94,9 @@ async def fetch_and_insert_symbol(pool, session, symbol, start_date, end_date):
         end_date_dt = datetime.strptime(end_date, "%Y-%m-%d").date()
     else:
         end_date_dt = end_date
+    # Get NYSE trading days only
+    nyse_cal = ExchangeCalendar('NYSE')
+    trading_days = set(nyse_cal.all_trading_days(start_date_dt, end_date_dt))
     existing_dates = await get_existing_dates(pool, symbol, start_date_dt, end_date_dt)
     missing_ranges = get_missing_date_ranges(existing_dates, start_date_dt, end_date_dt)
     if not missing_ranges:
@@ -98,3 +107,69 @@ async def fetch_and_insert_symbol(pool, session, symbol, start_date, end_date):
         print(f"[DEBUG] Fetching {symbol} from URL: {url}")
         async with session.get(url) as resp:
             print(f"[DEBUG] HTTP status for {symbol}: {resp.status}")
+            if resp.status != 200:
+                print(f"[ERROR] Failed to fetch {symbol}: HTTP {resp.status}")
+                continue
+            data = await resp.json()
+            if not data:
+                print(f"[WARNING] No data returned for {symbol} from {range_start} to {range_end}")
+                continue
+            rows = []
+            for row in data:
+                # Robustly parse Tiingo ISO date string (e.g., '2020-01-02T00:00:00.000Z')
+                date_val = pd.to_datetime(row['date']).date()
+                if date_val not in trading_days:
+                    continue  # Only insert if NYSE is open
+                rows.append((
+                    date_val,
+                    symbol,
+                    row.get('open'),
+                    row.get('high'),
+                    row.get('low'),
+                    row.get('close'),
+                    row.get('adjClose'),
+                    row.get('volume'),
+                ))
+            async with pool.acquire() as conn:
+                await conn.executemany(INSERT_SQL, rows)
+            print(f"[INFO] Inserted {len(rows)} rows for {symbol} from {range_start} to {range_end}")
+
+# --- MAIN FUNCTION AND ENTRYPOINT ---
+async def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--start_date', type=str, required=True, help='Start date (YYYY-MM-DD)')
+    parser.add_argument('--end_date', type=str, required=True, help='End date (YYYY-MM-DD)')
+    parser.add_argument('--ticker', type=str, default=None, help='Process only this ticker (optional)')
+    args = parser.parse_args()
+
+    if not TIINGO_API_KEY:
+        print("[ERROR] TIINGO_API_KEY environment variable not set.")
+        return
+
+    pool = await asyncpg.create_pool(TSDB_URL, min_size=1, max_size=4)
+    async with pool.acquire() as conn:
+        await conn.execute(CREATE_DAILY_PRICES_TIINGO_SQL)
+        # WARNING: Disabling SSL verification is NOT recommended for production. Use only for debugging local SSL issues.
+    import ssl
+    ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ssl_context)) as session:
+        if args.ticker:
+            tickers = [args.ticker]
+        else:
+            tickers = await get_spy_members(pool)
+            if not tickers:
+                print("[ERROR] No tickers found to process.")
+                await pool.close()
+                return
+        for symbol in tickers:
+            try:
+                print(f"[INFO] Processing {symbol}...")
+                await fetch_and_insert_symbol(pool, session, symbol, args.start_date, args.end_date)
+            except Exception as e:
+                print(f"[ERROR] Exception for {symbol}: {e}")
+    await pool.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())

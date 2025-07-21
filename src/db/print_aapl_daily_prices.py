@@ -7,7 +7,7 @@ TSDB_URL = os.getenv('TSDB_URL', 'postgresql://localhost:5432/trading_db')
 
 QUERY = """
 SELECT date, open, high, low, close, volume
-FROM daily_prices
+FROM daily_prices_tiingo
 WHERE symbol = 'AAPL'
 ORDER BY date;
 """
