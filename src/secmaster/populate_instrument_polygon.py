@@ -22,6 +22,8 @@ async def fetch_and_store_instruments():
             break
         data = resp.json()
         for item in data.get('results', []):
+            # Debug: print ticker and presence/values of list_date and delisted_utc
+            print(f"Ticker: {item.get('ticker')}, list_date: {item.get('list_date')}, delisted_utc: {item.get('delisted_utc')}")
             await upsert_instrument(pool, item)
         url = data.get('next_url')
         if url and 'apiKey=' not in url:
