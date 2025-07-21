@@ -49,13 +49,8 @@ class AsyncPGTestDBBase:
             os.environ.pop("TSDB_URL", None)
 
     async def _init_schema(self):
-        # Override in subclass or call with your schema SQL
-        pass
-
-# Example usage:
-class TestSampleDB(AsyncPGTestDBBase):
-    async def _init_schema(self):
         # Load schema from SQL file
+        import os
         sql_path = os.path.join(os.path.dirname(__file__), "init_test_schema.sql")
         with open(sql_path, "r") as f:
             schema_sql = f.read()
