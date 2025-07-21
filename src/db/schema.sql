@@ -57,7 +57,22 @@ CREATE TABLE IF NOT EXISTS instrument_polygon (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Add all other required tables (daily_prices_tiingo, daily_prices_polygon, stock_splits, fundamentals, etc.)
+CREATE TABLE IF NOT EXISTS status_code (
+    id SERIAL PRIMARY KEY,
+    code TEXT UNIQUE NOT NULL,    -- e.g. 'OK', 'NO_DATA'
+    description TEXT
+);
+
+-- Insert default statuses
+INSERT INTO status_code (code, description) VALUES
+    ('OK', 'Data available and inserted'),
+    ('NO_DATA', 'No data returned for this date/ticker')
+ON CONFLICT (code) DO NOTHING;
+
+ALTER TABLE daily_prices_tiingo
+ADD COLUMN IF NOT EXISTS status_id INTEGER REFERENCES status_code(id) DEFAULT NULL;
+
+-- Add all other required tables (daily_prices_polygon, stock_splits, fundamentals, etc.)
 -- ... (copy from init_test_schema.sql and setup_trading_db.py)
 
 CREATE TABLE IF NOT EXISTS daily_prices_tiingo (
