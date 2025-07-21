@@ -49,9 +49,10 @@ class AsyncPGTestDBBase:
             os.environ.pop("TSDB_URL", None)
 
     async def _init_schema(self):
-        # Load schema from SQL file
+        # Load unified schema from SQL file
         import os
-        sql_path = os.path.join(os.path.dirname(__file__), "init_test_schema.sql")
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+        sql_path = os.path.join(project_root, "src/db/schema.sql")
         with open(sql_path, "r") as f:
             schema_sql = f.read()
         pool = await asyncpg.create_pool(os.environ["TSDB_URL"])
