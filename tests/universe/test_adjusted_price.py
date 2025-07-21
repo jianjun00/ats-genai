@@ -34,10 +34,16 @@ def test_dividend_adjustment():
         {'ex_date': date(2023, 1, 3), 'amount': 5}
     ]
     adj = compute_adjusted_prices(prices, splits, dividends)
-    # All prices before dividend should be reduced
-    assert abs(adj[date(2023, 1, 1)] - 95) < 1e-6
-    assert abs(adj[date(2023, 1, 2)] - 104.5) < 1e-6
-    assert abs(adj[date(2023, 1, 3)] - 115) < 1e-6
+    # All prices before and on dividend ex-date should be multiplicatively adjusted
+    # factor = (120-5)/120 = 0.958333...
+    # factor = (120-5)/120 = 0.958333...
+    # 2023-01-01: 100 * 0.958333 = 95.833333
+    # 2023-01-02: 110 * 0.958333 = 105.416667
+    # 2023-01-03: 120 * 0.958333 = 115.0
+    # 2023-01-04: 130 (no adjustment)
+    assert abs(adj[date(2023, 1, 1)] - 95.833333) < 1e-6
+    assert abs(adj[date(2023, 1, 2)] - 105.416667) < 1e-6
+    assert abs(adj[date(2023, 1, 3)] - 115.0) < 1e-6
     assert abs(adj[date(2023, 1, 4)] - 130) < 1e-6
 
 def test_multiple_events():
@@ -55,10 +61,15 @@ def test_multiple_events():
         {'ex_date': date(2023, 1, 3), 'amount': 5}
     ]
     adj = compute_adjusted_prices(prices, splits, dividends)
-    # Apply split first (backward), then dividend
-    assert abs(adj[date(2023, 1, 1)] - 47.5) < 1e-6
-    assert abs(adj[date(2023, 1, 2)] - 52.5) < 1e-6
-    assert abs(adj[date(2023, 1, 3)] - 57.5) < 1e-6
+    # Split: for dates < 2023-01-02, halve the price
+    # Dividend: factor = (120-5)/120 = 0.958333... for dates <= 2023-01-3
+    # 2023-01-01: (100/2) * 0.958333 = 50 * 0.958333 = 47.916667
+    # 2023-01-02: (110/2) * 0.958333 = 55 * 0.958333 = 52.708333
+    # 2023-01-03: 120 * 0.958333 = 115.0
+    # 2023-01-04: 130 (no adjustment)
+    assert abs(adj[date(2023, 1, 1)] - 47.916667) < 1e-6
+    assert abs(adj[date(2023, 1, 2)] - 52.708333) < 1e-6
+    assert abs(adj[date(2023, 1, 3)] - 115.0) < 1e-6
     assert abs(adj[date(2023, 1, 4)] - 130) < 1e-6
 
 def test_no_events():

@@ -7,7 +7,9 @@ class DummyConn:
     def __init__(self, rows):
         self._rows = rows
     async def fetch(self, query, *args, **kwargs):
-        # Return all dicts for compatibility with SecMaster
+        if 'universe_membership' in query:
+            return self._rows
+        # Fallback for other queries
         return self._rows
     async def __aenter__(self):
         return self
@@ -25,14 +27,11 @@ class DummyPool:
 
 @pytest.mark.asyncio
 async def test_membership_add_remove_logic(monkeypatch):
-    # Simulate the following event sequence for TICK1:
-    # 2020-01-01: add, 2020-06-01: remove, 2021-01-01: add
-    # For TICK2: 2020-03-01: add, never removed
+    # Membership intervals: (symbol, start_date, end_date)
     events = [
-        {'added': 'TICK1', 'removed': None, 'event_date': date(2020,1,1)},
-        {'added': None, 'removed': 'TICK1', 'event_date': date(2020,6,1)},
-        {'added': 'TICK1', 'removed': None, 'event_date': date(2021,1,1)},
-        {'added': 'TICK2', 'removed': None, 'event_date': date(2020,3,1)},
+        {'symbol': 'TICK1', 'start_date': date(2020,1,1), 'end_date': date(2020,6,1)},
+        {'symbol': 'TICK1', 'start_date': date(2021,1,1), 'end_date': None},
+        {'symbol': 'TICK2', 'start_date': date(2020,3,1), 'end_date': None},
     ]
     
     # Patch asyncpg.create_pool to return DummyPool
@@ -76,12 +75,11 @@ async def test_membership_add_remove_logic(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_advance_membership_and_caches(monkeypatch):
-    # Simulate membership events for TICK1, TICK2
+    # Membership intervals: (symbol, start_date, end_date)
     events = [
-        {'added': 'TICK1', 'removed': None, 'event_date': date(2020,1,1)},
-        {'added': None, 'removed': 'TICK1', 'event_date': date(2020,6,1)},
-        {'added': 'TICK1', 'removed': None, 'event_date': date(2021,1,1)},
-        {'added': 'TICK2', 'removed': None, 'event_date': date(2020,3,1)},
+        {'symbol': 'TICK1', 'start_date': date(2020,1,1), 'end_date': date(2020,6,1)},
+        {'symbol': 'TICK1', 'start_date': date(2021,1,1), 'end_date': None},
+        {'symbol': 'TICK2', 'start_date': date(2020,3,1), 'end_date': None},
     ]
     # Simulate daily_prices rows for cache checks
     daily_prices_rows = [
