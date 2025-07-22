@@ -29,18 +29,30 @@ class Universe:
                     unique_ids.append(id_)
             self.instrument_ids = unique_ids
     
-    def update_date(self, new_date: date, new_instrument_ids: Optional[List[int]] = None):
+    def advanceTo(self, new_date: date, new_instrument_ids: Optional[List[int]] = None):
         """
-        Update the universe to a new date, optionally updating the instrument list.
+        Advance the universe to a new date, optionally updating the instrument list.
+        This is the primary method for advancing the universe forward in time.
         
         Args:
-            new_date: The new date for the universe
+            new_date: The new date to advance the universe to
             new_instrument_ids: Optional new list of instrument IDs. If None, keeps current instruments.
         """
         self.current_date = new_date
         if new_instrument_ids is not None:
             self.instrument_ids = new_instrument_ids
             self.__post_init__()  # Remove duplicates
+    
+    def update_date(self, new_date: date, new_instrument_ids: Optional[List[int]] = None):
+        """
+        Update the universe to a new date, optionally updating the instrument list.
+        This method is kept for backward compatibility. Use advanceTo() for new code.
+        
+        Args:
+            new_date: The new date for the universe
+            new_instrument_ids: Optional new list of instrument IDs. If None, keeps current instruments.
+        """
+        self.advanceTo(new_date, new_instrument_ids)
     
     def add_instrument(self, instrument_id: int):
         """Add an instrument to the universe if it's not already present."""
