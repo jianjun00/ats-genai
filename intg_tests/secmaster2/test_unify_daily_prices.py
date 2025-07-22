@@ -3,11 +3,7 @@ import pytest
 import asyncpg
 from datetime import date
 from dotenv import load_dotenv
-<<<<<<< HEAD
 from tests.db.test_db_base import AsyncPGTestDBBase
-=======
-from db.test_db_base import AsyncPGTestDBBase
->>>>>>> a1b05ce7d4f4b6b2611a0b1150389207eb911d65
 import importlib.util
 import sys
 from pathlib import Path
