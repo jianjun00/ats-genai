@@ -9,20 +9,32 @@ import importlib.util
 import aiohttp
 from bs4 import BeautifulSoup
 
+# Add src to path for environment configuration
+src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
+
+from config.environment import get_environment, set_environment, EnvironmentType
+
+# Set integration environment for these tests
+set_environment(EnvironmentType.INTEGRATION)
+
 # Use the actual Wikipedia page for integration
 WIKI_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-DB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")
 SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/universe/spy_events_wiki.py"
 
 @pytest.mark.asyncio
 async def test_populate_spy_universe_events(tmp_path):
+    env = get_environment()
     # Use a test universe name to avoid clobbering production data
     test_universe = "SPY_TEST_INTEGRATION"
     # Connect to DB
-    pool = await asyncpg.create_pool(DB_URL, min_size=1, max_size=2)
+    pool = await asyncpg.create_pool(env.get_database_url(), min_size=1, max_size=2)
     async with pool.acquire() as conn:
-        await conn.execute("DELETE FROM universe_membership WHERE universe_id IN (SELECT id FROM universe WHERE name = $1)", test_universe)
-        await conn.execute("DELETE FROM universe WHERE name = $1", test_universe)
+        universe_membership_table = env.get_table_name("universe_membership")
+        universe_table = env.get_table_name("universe")
+        await conn.execute(f"DELETE FROM {universe_membership_table} WHERE universe_id IN (SELECT id FROM {universe_table} WHERE name = $1)", test_universe)
+        await conn.execute(f"DELETE FROM {universe_table} WHERE name = $1", test_universe)
     await pool.close()
     # Dynamically import the script as a module
     spec = importlib.util.spec_from_file_location("spy_events_script", SCRIPT_PATH)
@@ -30,16 +42,18 @@ async def test_populate_spy_universe_events(tmp_path):
     sys.modules["spy_events_script"] = spy_events_script
     spec.loader.exec_module(spy_events_script)
     # Run the main function with test universe and DB URL to avoid argparse
-    await spy_events_script.main(db_url=DB_URL, universe_name=test_universe)
+    await spy_events_script.main(db_url=env.get_database_url(), universe_name=test_universe)
 
     # Check DB for expected effects
-    pool = await asyncpg.create_pool(DB_URL, min_size=1, max_size=2)
+    pool = await asyncpg.create_pool(env.get_database_url(), min_size=1, max_size=2)
     async with pool.acquire() as conn:
-        universe_row = await conn.fetchrow("SELECT id FROM universe WHERE name = $1", test_universe)
+        universe_table = env.get_table_name("universe")
+        universe_membership_table = env.get_table_name("universe_membership")
+        universe_row = await conn.fetchrow(f"SELECT id FROM {universe_table} WHERE name = $1", test_universe)
         assert universe_row is not None, "Universe was not created"
         universe_id = universe_row['id']
         # Should have at least 100 membership intervals (usually >400)
-        memberships = await conn.fetch("SELECT * FROM universe_membership WHERE universe_id = $1", universe_id)
+        memberships = await conn.fetch(f"SELECT * FROM {universe_membership_table} WHERE universe_id = $1", universe_id)
         assert len(memberships) > 100, f"Expected >100 memberships, got {len(memberships)}"
         # Check that at least one membership has end_at IS NULL (currently active)
         open_members = [m for m in memberships if m['end_at'] is None]

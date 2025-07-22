@@ -1,11 +1,20 @@
 import os
+import sys
 import asyncio
 import asyncpg
 import pytest
 import pandas as pd
 from datetime import date
 
-TSDB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")
+# Add src to path for environment configuration
+src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
+
+from config.environment import get_environment, set_environment, EnvironmentType
+
+# Set integration environment for these tests
+set_environment(EnvironmentType.INTEGRATION)
 CREATE_DAILY_PRICES_SQL = """
 CREATE TABLE IF NOT EXISTS daily_prices (
     date DATE NOT NULL,
@@ -61,7 +70,8 @@ TEST_SYMBOL = "TESTADJ"
 
 @pytest.mark.asyncio
 async def test_adjusted_prices_basic(tmp_path):
-    pool = await asyncpg.create_pool(TSDB_URL)
+    env = get_environment()
+    pool = await asyncpg.create_pool(env.get_database_url())
     # Ensure tables exist
     async with pool.acquire() as conn:
         await conn.execute(CREATE_DAILY_PRICES_SQL)
@@ -94,7 +104,8 @@ async def test_adjusted_prices_basic(tmp_path):
 @pytest.mark.asyncio
 async def test_adjusted_prices_one_split():
     symbol = "TESTSPLIT"
-    pool = await asyncpg.create_pool(TSDB_URL)
+    env = get_environment()
+    pool = await asyncpg.create_pool(env.get_database_url())
     async with pool.acquire() as conn:
         await conn.execute(CREATE_DAILY_PRICES_SQL)
         await conn.execute(CREATE_SPLITS_SQL)
@@ -121,8 +132,9 @@ async def test_adjusted_prices_one_split():
 # --- One dividend only ---
 @pytest.mark.asyncio
 async def test_adjusted_prices_one_dividend():
-    symbol = "TESTDIV1"
-    pool = await asyncpg.create_pool(TSDB_URL)
+    symbol = "TESTDIVIDEND"
+    env = get_environment()
+    pool = await asyncpg.create_pool(env.get_database_url())
     async with pool.acquire() as conn:
         await conn.execute(CREATE_DAILY_PRICES_SQL)
         await conn.execute(CREATE_SPLITS_SQL)
@@ -150,7 +162,8 @@ async def test_adjusted_prices_one_dividend():
 @pytest.mark.asyncio
 async def test_adjusted_prices_split_and_dividend():
     symbol = "TESTSPLITDIV"
-    pool = await asyncpg.create_pool(TSDB_URL)
+    env = get_environment()
+    pool = await asyncpg.create_pool(env.get_database_url())
     async with pool.acquire() as conn:
         await conn.execute(CREATE_DAILY_PRICES_SQL)
         await conn.execute(CREATE_SPLITS_SQL)
@@ -179,8 +192,9 @@ async def test_adjusted_prices_split_and_dividend():
 # --- Two dividends ---
 @pytest.mark.asyncio
 async def test_adjusted_prices_two_dividends():
-    symbol = "TESTDIV2"
-    pool = await asyncpg.create_pool(TSDB_URL)
+    symbol = "TESTTWODIV"
+    env = get_environment()
+    pool = await asyncpg.create_pool(env.get_database_url())
     async with pool.acquire() as conn:
         await conn.execute(CREATE_DAILY_PRICES_SQL)
         await conn.execute(CREATE_SPLITS_SQL)
@@ -210,7 +224,8 @@ async def test_adjusted_prices_two_dividends():
 @pytest.mark.asyncio
 async def test_adjusted_prices_multiple_splits_same_day():
     symbol = "TESTMULTISPLIT"
-    pool = await asyncpg.create_pool(TSDB_URL)
+    env = get_environment()
+    pool = await asyncpg.create_pool(env.get_database_url())
     async with pool.acquire() as conn:
         await conn.execute(CREATE_DAILY_PRICES_SQL)
         await conn.execute(CREATE_SPLITS_SQL)
@@ -242,7 +257,8 @@ async def test_adjusted_prices_multiple_splits_same_day():
 @pytest.mark.asyncio
 async def test_adjusted_prices_multiple_dividends_same_day():
     symbol = "TESTMULTIDIV"
-    pool = await asyncpg.create_pool(TSDB_URL)
+    env = get_environment()
+    pool = await asyncpg.create_pool(env.get_database_url())
     async with pool.acquire() as conn:
         await conn.execute(CREATE_DAILY_PRICES_SQL)
         await conn.execute(CREATE_SPLITS_SQL)
@@ -274,7 +290,8 @@ async def test_adjusted_prices_multiple_dividends_same_day():
 @pytest.mark.asyncio
 async def test_adjusted_prices_multiple_splits_and_dividends_same_day():
     symbol = "TESTMULTIBOTH"
-    pool = await asyncpg.create_pool(TSDB_URL)
+    env = get_environment()
+    pool = await asyncpg.create_pool(env.get_database_url())
     async with pool.acquire() as conn:
         await conn.execute(CREATE_DAILY_PRICES_SQL)
         await conn.execute(CREATE_SPLITS_SQL)
@@ -306,11 +323,16 @@ async def test_adjusted_prices_multiple_splits_and_dividends_same_day():
 
 # --- Update helpers for symbol ---
 async def cleanup(pool, symbol=TEST_SYMBOL):
+    env = get_environment()
     async with pool.acquire() as conn:
-        await conn.execute(f"DELETE FROM daily_prices WHERE symbol = '{symbol}'")
-        await conn.execute(f"DELETE FROM stock_splits WHERE symbol = '{symbol}'")
-        await conn.execute(f"DELETE FROM dividends WHERE symbol = '{symbol}'")
-        await conn.execute(f"DELETE FROM daily_adjusted_prices WHERE symbol = '{symbol}'")
+        daily_prices_table = env.get_table_name("daily_prices")
+        splits_table = env.get_table_name("stock_splits")
+        dividends_table = env.get_table_name("dividends")
+        daily_adjusted_prices_table = env.get_table_name("daily_adjusted_prices")
+        await conn.execute(f"DELETE FROM {daily_prices_table} WHERE symbol = '{symbol}'")
+        await conn.execute(f"DELETE FROM {splits_table} WHERE symbol = '{symbol}'")
+        await conn.execute(f"DELETE FROM {dividends_table} WHERE symbol = '{symbol}'")
+        await conn.execute(f"DELETE FROM {daily_adjusted_prices_table} WHERE symbol = '{symbol}'")
 
 def make_row(row):
     return {
@@ -333,16 +355,20 @@ async def insert_prices(pool, rows):
         )
 
 async def insert_split(pool, split_date, numerator, denominator, symbol):
+    env = get_environment()
     async with pool.acquire() as conn:
+        splits_table = env.get_table_name("stock_splits")
         await conn.execute(
-            "INSERT INTO stock_splits (split_date, symbol, numerator, denominator) VALUES ($1, $2, $3, $4)",
+            f"INSERT INTO {splits_table} (split_date, symbol, numerator, denominator) VALUES ($1, $2, $3, $4)",
             split_date, symbol, numerator, denominator
         )
 
 async def insert_dividend(pool, ex_date, amount, symbol):
+    env = get_environment()
     async with pool.acquire() as conn:
+        dividends_table = env.get_table_name("dividends")
         await conn.execute(
-            "INSERT INTO dividends (ex_date, symbol, amount) VALUES ($1, $2, $3)",
+            f"INSERT INTO {dividends_table} (ex_date, symbol, amount) VALUES ($1, $2, $3)",
             ex_date, symbol, amount
         )
 
@@ -372,22 +398,28 @@ async def insert_prices(pool, rows):
 
 
 async def fetch_prices(pool, symbol):
+    env = get_environment()
     async with pool.acquire() as conn:
+        daily_prices_table = env.get_table_name("daily_prices")
         rows = await conn.fetch(
-            "SELECT * FROM daily_prices WHERE symbol = $1 ORDER BY date ASC", symbol
+            f"SELECT * FROM {daily_prices_table} WHERE symbol = $1 ORDER BY date ASC", symbol
         )
         return pd.DataFrame([dict(row) for row in rows])
 
 async def fetch_splits(pool, symbol):
+    env = get_environment()
     async with pool.acquire() as conn:
+        splits_table = env.get_table_name("stock_splits")
         rows = await conn.fetch(
-            "SELECT split_date, numerator, denominator FROM stock_splits WHERE symbol = $1 ORDER BY split_date ASC", symbol
+            f"SELECT split_date, numerator, denominator FROM {splits_table} WHERE symbol = $1 ORDER BY split_date ASC", symbol
         )
         return pd.DataFrame([dict(row) for row in rows])
 
 async def fetch_dividends(pool, symbol):
+    env = get_environment()
     async with pool.acquire() as conn:
+        dividends_table = env.get_table_name("dividends")
         rows = await conn.fetch(
-            "SELECT ex_date, amount FROM dividends WHERE symbol = $1 ORDER BY ex_date ASC", symbol
+            f"SELECT ex_date, amount FROM {dividends_table} WHERE symbol = $1 ORDER BY ex_date ASC", symbol
         )
         return pd.DataFrame([dict(row) for row in rows])
