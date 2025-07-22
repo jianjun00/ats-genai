@@ -2,6 +2,9 @@ from dataclasses import dataclass
 from typing import Dict
 from trading.instrument_interval import InstrumentInterval
 
+from datetime import datetime
+
 @dataclass
 class UniverseInterval:
-    instrument_intervals: Dict[int, InstrumentInterval]  # instrument_id -> InstrumentInterval
+    start_date_time: datetime
+    end_date_time: datetime

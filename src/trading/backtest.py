@@ -42,36 +42,81 @@ async def run_backtest(args):
     dates = [data_start + timedelta(days=i) for i in range((end_date-data_start).days+1)]
     portfolio = None
 
-    for i, d in enumerate(dates):
-        if d < start_date:
-            continue
+    from trading.market_data_manager import MarketDataManager
+    from trading.universe_state_builder import UniverseStateBuilder
+    from trading.universe_interval import UniverseInterval
+    from trading.instrument_interval import InstrumentInterval
+    from trading.indicator import UniverseState
+    
+    # Stubs for ModelManager, Optimizer, ExecutionManager
+    class ModelManager:
+        def forecast(self, universe_state):
+            # Return dicts: instrument_id -> forecasted_return/vol/volume
+            return {}, {}, {}
+    class Optimizer:
+        def optimize(self, forecasts, current_portfolio):
+            # Return next portfolio (instrument_id -> position)
+            return current_portfolio.copy()
+    class ExecutionManager:
+        def execute(self, current_portfolio, next_portfolio, open_prices):
+            # Fill trades at open + cost, return new portfolio
+            cost = 0.001  # 0.1% transaction cost
+            trades = {iid: next_portfolio.get(iid,0) - current_portfolio.get(iid,0) for iid in set(current_portfolio)|set(next_portfolio)}
+            return next_portfolio.copy(), cost*sum(abs(qty) for qty in trades.values())
+
+    market_data = MarketDataManager()
+    state_builder = UniverseStateBuilder()
+    model_manager = ModelManager()
+    optimizer = Optimizer()
+    execution_manager = ExecutionManager()
+
+    # Simulation loop
+    portfolio = {}
+    daily_returns = []
+    for d in dates:
+        # 1. Get universe for the day
         members = await universe_db.get_universe_members(universe_id, d)
         if not members:
             continue
-        # Remove stocks no longer eligible
-        if portfolio is None:
-            portfolio = {s: 100 for s in members}
-        else:
-            portfolio = {s: portfolio.get(s, 100) for s in members}
-        # Get adjusted prices
-        prices = await security_master.get_multiple_securities_info(list(portfolio.keys()), d)
-        # Compute daily log returns
-        day_returns = []
-        for s in portfolio:
-            prev_price = await security_master.get_security_info(s, d-timedelta(days=1))
-            curr_price = prices.get(s)
-            if prev_price and curr_price and prev_price['adjusted_price'] and curr_price['adjusted_price']:
-                r = log_return(prev_price['adjusted_price'], curr_price['adjusted_price'])
-                day_returns.append(r)
-            else:
-                day_returns.append(0.0)
-        # Portfolio log return = mean of all log returns (equal weight)
-        if day_returns:
-            portfolio_log_return = np.mean(day_returns)
-        else:
-            portfolio_log_return = 0.0
-        cum_log_return += portfolio_log_return
-        portfolio_value_history.append((d, cum_log_return))
+        # 2. Update market data manager with OHLC for each instrument
+        ohlc_batch = market_data.get_ohlc_batch(members, d, d)
+        # 3. Build universe state for this day
+        instrument_intervals = {}
+        for iid in members:
+            ohlc = ohlc_batch.get(iid) or {'open':0,'high':0,'low':0,'close':0}
+            instrument_intervals[iid] = InstrumentInterval(
+                instrument_id=iid,
+                start_date_time=d,
+                end_date_time=d,
+                open=ohlc['open'], high=ohlc['high'], low=ohlc['low'], close=ohlc['close'],
+                traded_volume=0, traded_dollar=0, status=None)
+        universe_interval = UniverseInterval(instrument_intervals=instrument_intervals)
+        state_builder.add_interval(universe_interval)
+        universe_state = state_builder.build()
+        # 4. ModelManager generates forecasts
+        ret_f, vol_f, volu_f = model_manager.forecast(universe_state)
+        # 5. Optimizer generates next portfolio
+        next_portfolio = optimizer.optimize({'return': ret_f, 'vol': vol_f, 'volume': volu_f}, portfolio)
+        # 6. ExecutionManager fills trades at next open + cost
+        open_prices = {iid: instrument_intervals[iid].open for iid in next_portfolio}
+        portfolio, tx_cost = execution_manager.execute(portfolio, next_portfolio, open_prices)
+        # 7. Update prices for splits/dividends (stub)
+        # (implement split/dividend logic here if needed)
+        # 8. Compute portfolio return
+        prev_value = sum(portfolio.get(iid,0) * instrument_intervals[iid].open for iid in portfolio)
+        curr_value = sum(portfolio.get(iid,0) * instrument_intervals[iid].close for iid in portfolio)
+        daily_ret = (curr_value - prev_value - tx_cost) / (prev_value + 1e-8) if prev_value > 0 else 0.0
+        daily_returns.append(daily_ret)
+        print(f"{d}: Portfolio return={daily_ret:.5f}, tx_cost={tx_cost:.5f}")
+    # Summary
+    avg_return = sum(daily_returns)/len(daily_returns) if daily_returns else 0.0
+    print(f"Average daily return: {avg_return:.5f}")
+    if day_returns:
+        portfolio_log_return = np.mean(day_returns)
+    else:
+        portfolio_log_return = 0.0
+    cum_log_return += portfolio_log_return
+    portfolio_value_history.append((d, cum_log_return))
     # Calculate stats
     returns = np.array([x[1] for x in portfolio_value_history])
     daily_returns = np.diff(returns)
