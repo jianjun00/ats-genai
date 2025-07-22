@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS vendors (
 
 -- Instruments table
 CREATE TABLE IF NOT EXISTS instruments (
-    instrument_id SERIAL PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     symbol TEXT NOT NULL,
     name TEXT,
     exchange TEXT,
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS instruments (
 -- Instrument aliases
 CREATE TABLE IF NOT EXISTS instrument_aliases (
     id SERIAL PRIMARY KEY,
-    instrument_id INTEGER NOT NULL REFERENCES instruments(instrument_id) ON DELETE CASCADE,
+    instrument_id INTEGER NOT NULL REFERENCES instruments(id) ON DELETE CASCADE,
     alias TEXT NOT NULL,
     source TEXT,
     UNIQUE (instrument_id, alias)
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS instrument_aliases (
 -- Instrument metadata
 CREATE TABLE IF NOT EXISTS instrument_metadata (
     id SERIAL PRIMARY KEY,
-    instrument_id INTEGER NOT NULL REFERENCES instruments(instrument_id) ON DELETE CASCADE,
+    instrument_id INTEGER NOT NULL REFERENCES instruments(id) ON DELETE CASCADE,
     key TEXT NOT NULL,
     value TEXT,
     source TEXT,
@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS status_code (
     code TEXT UNIQUE NOT NULL,
     description TEXT
 );
+ALTER TABLE status_code ADD CONSTRAINT status_code_code_key UNIQUE (code);
 
 -- Insert default statuses
 INSERT INTO status_code (code, description) VALUES

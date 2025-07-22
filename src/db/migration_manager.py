@@ -100,7 +100,6 @@ class MigrationManager:
                     for raw_stmt in raw_statements:
                         if not raw_stmt.strip():
                             continue
-                        
                         # Remove comments and extract SQL statements
                         lines = raw_stmt.split('\n')
                         sql_lines = []
@@ -116,6 +115,7 @@ class MigrationManager:
                     
                     # Execute each statement
                     for statement in statements:
+                        print(f"statement:{statement}")
                         await conn.execute(statement)
                     
                     # Record migration (skip for version 0 as it records itself)
