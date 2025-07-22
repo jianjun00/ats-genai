@@ -13,12 +13,7 @@ if str(SRC_DIR.resolve()) not in sys.path:
 import pytest
 import asyncpg
 from dotenv import load_dotenv
-<<<<<<< HEAD
 from tests.db.test_db_base import AsyncPGTestDBBase
-=======
-from db.test_db_base import AsyncPGTestDBBase
->>>>>>> a1b05ce7d4f4b6b2611a0b1150389207eb911d65
-import importlib.util
 from config.environment import get_environment, set_environment, EnvironmentType
 
 load_dotenv()
