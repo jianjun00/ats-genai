@@ -8,13 +8,13 @@ import sys
 from pathlib import Path
 
 DB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")
-SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/universe/daily_tiingo.py"
+SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/secmaster/daily_tiingo.py"
 
 @pytest.mark.asyncio
 async def test_download_and_populate_daily_prices_tiingo(tmp_path):
     test_symbol = "AAPL"
-    test_start = "2025-01-01"
-    test_end = "2025-01-10"
+    test_start = date(2025, 1, 1)
+    test_end = date(2025, 1, 10)
     # Clean up any existing data for the test symbol and range
     pool = await asyncpg.create_pool(DB_URL, min_size=1, max_size=2)
     async with pool.acquire() as conn:
@@ -30,7 +30,7 @@ async def test_download_and_populate_daily_prices_tiingo(tmp_path):
     spec.loader.exec_module(tiingo_script)
     # Run the main function with test args (simulate CLI)
     sys_argv_backup = sys.argv
-    sys.argv = [str(SCRIPT_PATH), "--start", test_start, "--end", test_end, "--tickers", test_symbol]
+    sys.argv = [str(SCRIPT_PATH), "--start_date", test_start.isoformat(), "--end_date", test_end.isoformat(), "--ticker", test_symbol]
     try:
         await tiingo_script.main()
     finally:
@@ -46,7 +46,7 @@ async def test_download_and_populate_daily_prices_tiingo(tmp_path):
         # Now re-run for the same range, should NOT re-fetch from Tiingo (no duplicates, no new rows)
         before_count = len(rows)
     await pool.close()
-    sys.argv = [str(SCRIPT_PATH), "--start", test_start, "--end", test_end, "--tickers", test_symbol]
+    sys.argv = [str(SCRIPT_PATH), "--start_date", test_start.isoformat(), "--end_date", test_end.isoformat(), "--ticker", test_symbol]
     await tiingo_script.main()
     # Check DB again
     pool = await asyncpg.create_pool(DB_URL, min_size=1, max_size=2)
