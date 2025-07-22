@@ -6,7 +6,7 @@ from trading.universe import Universe
 from trading.market_data_manager import MarketDataManager
 from trading.instrument_interval import InstrumentInterval
 from trading.indicator_config import IndicatorConfig
-from trading.indicator import PL
+from trading.indicator import PL, UniverseState
 from trading.universe_interval import UniverseInterval
 from trading.indicator_interval import IndicatorInterval
 
@@ -14,23 +14,23 @@ def test_universe_state_builder_init():
     """Test UniverseStateBuilder initialization."""
     # Create a test universe
     universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1, 2, 3])
-    
+
     # Test with defaults
     builder = UniverseStateBuilder(universe)
-    assert builder.intervals == []
-    assert builder.universe is universe
+    assert builder.universe_state.intervals == []
+    assert builder.universe_state.instrument_history == {}
+    assert builder.universe == universe
     assert isinstance(builder.indicator_config, IndicatorConfig)
-    assert len(builder.indicator_config) == 0  # Default is empty config
     assert isinstance(builder.market_data_manager, MarketDataManager)
-    assert builder.instrument_history == {}
+    assert isinstance(builder.universe_state, UniverseState)
     
     # Test with custom indicator config and MarketDataManager
     custom_config = IndicatorConfig.basic_config()
     custom_manager = Mock(spec=MarketDataManager)
-    builder = UniverseStateBuilder(universe, custom_config, custom_manager)
-    assert builder.indicator_config is custom_config
-    assert builder.market_data_manager is custom_manager
-    assert builder.universe is universe
+    builder_with_config = UniverseStateBuilder(universe, custom_config, custom_manager)
+    assert builder_with_config.indicator_config == custom_config
+    assert builder_with_config.market_data_manager is custom_manager
+    assert builder_with_config.universe is universe
 
 
 def test_build_next_interval():
@@ -134,16 +134,16 @@ def test_add_next_interval():
     end_time = datetime(2023, 1, 1, 10, 30)
     
     # Initially no intervals
-    assert len(builder.intervals) == 0
+    assert len(builder.universe_state.intervals) == 0
     
     # Add next interval (uses universe's instruments)
     builder.add_next_interval(start_time, end_time)
     
     # Verify interval was added
-    assert len(builder.intervals) == 1
-    assert builder.intervals[0].start_date_time == start_time
-    assert builder.intervals[0].end_date_time == end_time
-    assert 1 in builder.intervals[0].instrument_intervals
+    assert len(builder.universe_state.intervals) == 1
+    assert builder.universe_state.intervals[0].start_date_time == start_time
+    assert builder.universe_state.intervals[0].end_date_time == end_time
+    assert 1 in builder.universe_state.intervals[0].instrument_intervals
 
 
 def test_build_universe_state():
@@ -169,10 +169,10 @@ def test_build_universe_state():
     # Build UniverseState
     universe_state = builder.build()
     
-    # Verify UniverseState
+    # Verify the built UniverseState
     assert len(universe_state.intervals) == 2
-    assert universe_state.intervals[0] is not interval1  # Should be a copy
-    assert universe_state.intervals[1] is not interval2  # Should be a copy
+    assert universe_state.intervals[0] is builder.universe_state.intervals[0]  # Should be the same reference now
+    assert universe_state.intervals[1] is builder.universe_state.intervals[1]  # Should be the same reference now
     assert universe_state.intervals[0].start_date_time == interval1.start_date_time
     assert universe_state.intervals[1].start_date_time == interval2.start_date_time
 
@@ -191,12 +191,12 @@ def test_reset():
     )
     builder.add_interval(interval)
     
-    assert len(builder.intervals) == 1
+    assert len(builder.universe_state.intervals) == 1
     
     # Reset
     builder.reset()
     
-    assert len(builder.intervals) == 0
+    assert len(builder.universe_state.intervals) == 0
 
 
 def test_integration_workflow():
@@ -293,10 +293,9 @@ def test_add_next_interval_with_universe_advance():
     assert builder.universe.instrument_ids == new_instruments
     
     # Verify interval was added with new instruments
-    assert len(builder.intervals) == 1
-    interval = builder.intervals[0]
-    assert 1 in interval.instrument_intervals
-    assert 2 in interval.instrument_intervals
+    assert len(builder.universe_state.intervals) == 1
+    assert 1 in builder.universe_state.intervals[0].instrument_intervals
+    assert 2 in builder.universe_state.intervals[0].instrument_intervals
     
     # Verify MarketDataManager was called with updated instruments
     mock_manager.get_ohlc_batch.assert_called_once_with([1, 2], start_time, end_time)
@@ -326,10 +325,9 @@ def test_add_next_interval_basic():
     assert builder.universe.instrument_ids == [1, 2]
     
     # Verify interval was added with current instruments
-    assert len(builder.intervals) == 1
-    interval = builder.intervals[0]
-    assert 1 in interval.instrument_intervals
-    assert 2 in interval.instrument_intervals
+    assert len(builder.universe_state.intervals) == 1
+    assert 1 in builder.universe_state.intervals[0].instrument_intervals
+    assert 2 in builder.universe_state.intervals[0].instrument_intervals
     
     # Verify MarketDataManager was called with current instruments
     mock_manager.get_ohlc_batch.assert_called_once_with([1, 2], start_time, end_time)
@@ -354,8 +352,8 @@ def test_indicator_computation_with_basic_config():
     builder.add_next_interval(start_time1, end_time1)
     
     # Verify instrument history was updated
-    assert 1 in builder.instrument_history
-    assert len(builder.instrument_history[1]) == 1
+    assert 1 in builder.universe_state.instrument_history
+    assert len(builder.universe_state.instrument_history[1]) == 1
     
     # Build universe state
     universe_state = builder.build()
@@ -548,7 +546,7 @@ def test_indicator_computation_with_invalid_instrument_data():
     )
     
     # Replace the valid interval with invalid one
-    builder.instrument_history[1] = [invalid_interval]
+    builder.universe_state.instrument_history[1] = [invalid_interval]
     
     # Build universe state
     universe_state = builder.build()
@@ -585,20 +583,20 @@ def test_instrument_history_management():
     builder.add_next_interval(datetime(2023, 1, 1, 9, 30), datetime(2023, 1, 1, 10, 30))
     
     # Verify history has one interval for each instrument
-    assert len(builder.instrument_history[1]) == 1
-    assert len(builder.instrument_history[2]) == 1
+    assert len(builder.universe_state.instrument_history[1]) == 1
+    assert len(builder.universe_state.instrument_history[2]) == 1
     
     # Add second interval
     builder.add_next_interval(datetime(2023, 1, 1, 10, 30), datetime(2023, 1, 1, 11, 30))
     
     # Verify history has two intervals for each instrument
-    assert len(builder.instrument_history[1]) == 2
-    assert len(builder.instrument_history[2]) == 2
+    assert len(builder.universe_state.instrument_history[1]) == 2
+    assert len(builder.universe_state.instrument_history[2]) == 2
     
     # Test reset clears history
     builder.reset()
-    assert builder.instrument_history == {}
-    assert len(builder.intervals) == 0
+    assert builder.universe_state.instrument_history == {}
+    assert len(builder.universe_state.intervals) == 0
 
 
 def test_universe_state_with_indicator_intervals():

@@ -7,14 +7,34 @@ from trading.indicator_interval import IndicatorInterval
 
 @dataclass
 class UniverseState:
-    intervals: List[UniverseInterval]  # List of UniverseInterval, e.g., one per time step
+    intervals: List[UniverseInterval] = field(default_factory=list)  # List of UniverseInterval, e.g., one per time step
     instrument_intervals: Dict[int, InstrumentInterval] = field(default_factory=dict)
     indicator_intervals: Dict[int, IndicatorInterval] = field(default_factory=dict)  # Map instrument_id to computed indicators
+    instrument_history: Dict[int, List[InstrumentInterval]] = field(default_factory=dict)  # Historical intervals per instrument for indicator computation
 
     def __post_init__(self):
         # If instrument_intervals not provided, populate from last interval
         if not self.instrument_intervals and self.intervals:
             self.instrument_intervals = self.intervals[-1].instrument_intervals.copy()
+    
+    def add_interval(self, interval: UniverseInterval):
+        """Add a new UniverseInterval and update instrument history."""
+        self.intervals.append(interval)
+        self._update_instrument_history(interval)
+    
+    def _update_instrument_history(self, interval: UniverseInterval):
+        """Update instrument history with intervals from the new UniverseInterval."""
+        for instrument_id, instrument_interval in interval.instrument_intervals.items():
+            if instrument_id not in self.instrument_history:
+                self.instrument_history[instrument_id] = []
+            self.instrument_history[instrument_id].append(instrument_interval)
+    
+    def reset(self):
+        """Clear all intervals and history."""
+        self.intervals.clear()
+        self.instrument_intervals.clear()
+        self.indicator_intervals.clear()
+        self.instrument_history.clear()
 
 from typing import List, Optional
 from trading.instrument_interval import InstrumentInterval

@@ -18,27 +18,16 @@ class UniverseStateBuilder:
     """
     def __init__(self, universe: Universe, 
                  indicator_config: Optional[IndicatorConfig] = None,
-                 market_data_manager: Optional[MarketDataManager] = None):
-        self.intervals: List[UniverseInterval] = []
+                 market_data_manager: Optional[MarketDataManager] = None,
+                 universe_state: Optional[UniverseState] = None):
         self.universe = universe
         self.indicator_config = indicator_config or IndicatorConfig.empty_config()
         self.market_data_manager = market_data_manager or MarketDataManager()
-        
-        # Store historical instrument intervals for indicator computation
-        # Maps instrument_id to list of InstrumentInterval for rolling window calculations
-        self.instrument_history: Dict[int, List[InstrumentInterval]] = {}
+        self.universe_state = universe_state or UniverseState()
 
     def add_interval(self, interval: UniverseInterval):
-        self.intervals.append(interval)
-        # Update instrument history for indicator computation
-        self._update_instrument_history(interval)
-    
-    def _update_instrument_history(self, interval: UniverseInterval):
-        """Update the historical instrument intervals for indicator computation."""
-        for instrument_id, instrument_interval in interval.instrument_intervals.items():
-            if instrument_id not in self.instrument_history:
-                self.instrument_history[instrument_id] = []
-            self.instrument_history[instrument_id].append(instrument_interval)
+        """Add interval to the universe state."""
+        self.universe_state.add_interval(interval)
     
     def _compute_indicator_intervals(self, start_time: datetime, end_time: datetime) -> Dict[int, IndicatorInterval]:
         """
@@ -55,7 +44,7 @@ class UniverseStateBuilder:
         
         for instrument_id in self.universe.instrument_ids:
             # Get historical intervals for this instrument
-            history = self.instrument_history.get(instrument_id, [])
+            history = self.universe_state.instrument_history.get(instrument_id, [])
             
             if not history:
                 # No history available, skip this instrument
@@ -156,22 +145,17 @@ class UniverseStateBuilder:
 
     def build(self) -> UniverseState:
         """Build UniverseState with computed indicator intervals for the latest interval."""
-        copied_intervals = deepcopy(self.intervals)
-        
         # Compute indicator intervals for the latest time period if we have intervals
-        indicator_intervals = {}
-        if self.intervals:
-            latest_interval = self.intervals[-1]
+        if self.universe_state.intervals:
+            latest_interval = self.universe_state.intervals[-1]
             indicator_intervals = self._compute_indicator_intervals(
                 latest_interval.start_date_time,
                 latest_interval.end_date_time
             )
+            self.universe_state.indicator_intervals = indicator_intervals
         
-        return UniverseState(
-            intervals=copied_intervals,
-            indicator_intervals=indicator_intervals
-        )
+        return self.universe_state
 
     def reset(self):
-        self.intervals.clear()
-        self.instrument_history.clear()
+        """Reset the universe state by clearing all intervals and history."""
+        self.universe_state.reset()
