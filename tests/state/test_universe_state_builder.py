@@ -1,14 +1,14 @@
 import pytest
 from datetime import datetime, timedelta, date
 from unittest.mock import Mock, MagicMock
-from trading.universe_state_builder import UniverseStateBuilder
+from state.universe_state_builder import UniverseStateBuilder
 from trading.universe import Universe
 from trading.market_data_manager import MarketDataManager
-from trading.instrument_interval import InstrumentInterval
+from state.instrument_interval import InstrumentInterval
 from trading.indicator_config import IndicatorConfig
 from trading.indicator import PL, UniverseState
-from trading.universe_interval import UniverseInterval
-from trading.indicator_interval import IndicatorInterval
+from state.universe_interval import UniverseInterval
+from state.indicator_interval import IndicatorInterval
 
 def test_universe_state_builder_init():
     """Test UniverseStateBuilder initialization."""

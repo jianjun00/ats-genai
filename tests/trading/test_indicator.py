@@ -1,6 +1,6 @@
 import pytest
 from trading.indicator import PL, OneOneHigh
-from trading.instrument_interval import InstrumentInterval
+from state.instrument_interval import InstrumentInterval
 from datetime import datetime, timedelta
 
 @pytest.fixture
@@ -113,7 +113,7 @@ def test_oneonelow_invalid():
 
 import pytest
 from trading.indicator import PL, OneOneHigh, OneOneLow
-from trading.instrument_interval import InstrumentInterval
+from state.instrument_interval import InstrumentInterval
 from datetime import datetime, timedelta
 
 @pytest.mark.parametrize("indicator_cls, attr, values, expected, status_comb, expect_status, expect_val", [

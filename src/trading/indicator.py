@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional, Dict
-from trading.universe_interval import UniverseInterval
-from trading.instrument_interval import InstrumentInterval
-from trading.indicator_interval import IndicatorInterval
+from state.universe_interval import UniverseInterval
+from state.instrument_interval import InstrumentInterval
+from state.indicator_interval import IndicatorInterval
 
 @dataclass
 class UniverseState:
@@ -36,9 +36,7 @@ class UniverseState:
         self.indicator_intervals.clear()
         self.instrument_history.clear()
 
-from typing import List, Optional
-from trading.instrument_interval import InstrumentInterval
-from datetime import datetime
+
 
 class Indicator:
     def __init__(self):

@@ -43,9 +43,9 @@ async def run_backtest(args):
     portfolio = None
 
     from trading.market_data_manager import MarketDataManager
-    from trading.universe_state_builder import UniverseStateBuilder
-    from trading.universe_interval import UniverseInterval
-    from trading.instrument_interval import InstrumentInterval
+    from state.universe_state_builder import UniverseStateBuilder
+    from state.universe_interval import UniverseInterval
+    from state.instrument_interval import InstrumentInterval
     from trading.indicator import UniverseState
     
     # Stubs for ModelManager, Optimizer, ExecutionManager

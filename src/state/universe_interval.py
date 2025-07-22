@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Dict
-from trading.instrument_interval import InstrumentInterval
+from state.instrument_interval import InstrumentInterval
 
 from datetime import datetime
 
