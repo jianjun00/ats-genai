@@ -21,16 +21,7 @@ class UniverseStateBuilder:
     def add_interval(self, interval: UniverseInterval):
         self.intervals.append(interval)
 
-    def update_universe_date(self, new_date: date, new_instrument_ids: Optional[List[int]] = None):
-        """
-        Update the universe to a new date, optionally updating the instrument list.
-        
-        Args:
-            new_date: The new date for the universe
-            new_instrument_ids: Optional new list of instrument IDs. If None, keeps current instruments.
-        """
-        self.universe.update_date(new_date, new_instrument_ids)
-    
+
     def build_next_interval(self, start_time: datetime, end_time: datetime) -> UniverseInterval:
         """
         Build the next interval by fetching market data for the current universe's instruments.
@@ -77,37 +68,27 @@ class UniverseStateBuilder:
         
         return universe_interval
 
-    def add_next_interval(self, start_time: datetime, end_time: datetime):
+    def add_next_interval(self, start_time: datetime, end_time: datetime, 
+                         new_date: Optional[date] = None, 
+                         new_instrument_ids: Optional[List[int]] = None):
         """
-        Build and add the next interval to the builder using the current universe's instruments.
+        Build and add the next interval to the builder, optionally advancing the universe first.
         
         Args:
             start_time: Start time for the interval
             end_time: End time for the interval
-        """
-        interval = self.build_next_interval(start_time, end_time)
-        self.add_interval(interval)
-    
-    def add_next_interval_with_universe_update(self, start_time: datetime, end_time: datetime, 
-                                             new_date: Optional[date] = None, 
-                                             new_instrument_ids: Optional[List[int]] = None):
-        """
-        Update the universe (if needed) and then build and add the next interval.
-        
-        Args:
-            start_time: Start time for the interval
-            end_time: End time for the interval
-            new_date: Optional new date for the universe
+            new_date: Optional new date to advance the universe to
             new_instrument_ids: Optional new list of instrument IDs
         """
-        # Update universe if new date or instrument_ids provided
+        # Advance universe if new date or instrument_ids provided
         if new_date is not None:
-            self.update_universe_date(new_date, new_instrument_ids)
+            self.universe.advanceTo(new_date, new_instrument_ids)
         elif new_instrument_ids is not None:
             self.universe.instrument_ids = new_instrument_ids
         
         # Build and add the interval
-        self.add_next_interval(start_time, end_time)
+        interval = self.build_next_interval(start_time, end_time)
+        self.add_interval(interval)
 
     def build(self) -> UniverseState:
         return UniverseState(intervals=deepcopy(self.intervals))

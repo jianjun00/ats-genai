@@ -24,8 +24,30 @@ def test_universe_init():
     assert universe_dups.instrument_ids == [1, 2, 3, 4]
 
 
+def test_advance_to():
+    """Test advancing universe to new date."""
+    universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1, 2, 3])
+    
+    # Advance date only
+    new_date = date(2023, 1, 2)
+    universe.advanceTo(new_date)
+    assert universe.current_date == new_date
+    assert universe.instrument_ids == [1, 2, 3]  # Should remain unchanged
+    
+    # Advance date and instruments
+    newer_date = date(2023, 1, 3)
+    new_instruments = [4, 5, 6]
+    universe.advanceTo(newer_date, new_instruments)
+    assert universe.current_date == newer_date
+    assert universe.instrument_ids == new_instruments
+    
+    # Advance with duplicate instruments (should remove duplicates)
+    universe.advanceTo(date(2023, 1, 4), [1, 2, 2, 3, 1])
+    assert universe.instrument_ids == [1, 2, 3]
+
+
 def test_update_date():
-    """Test updating universe date."""
+    """Test updating universe date (backward compatibility)."""
     universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1, 2, 3])
     
     # Update date only

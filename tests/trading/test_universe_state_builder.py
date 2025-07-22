@@ -234,8 +234,8 @@ def test_integration_workflow():
     assert mock_manager.get_ohlc_batch.call_count == 2
 
 
-def test_universe_date_update():
-    """Test updating universe date and instruments."""
+def test_universe_advance_to():
+    """Test advancing universe date and instruments via builder's universe."""
     # Create initial universe
     universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1, 2])
     builder = UniverseStateBuilder(universe)
@@ -244,22 +244,22 @@ def test_universe_date_update():
     assert builder.universe.current_date == date(2023, 1, 1)
     assert builder.universe.instrument_ids == [1, 2]
     
-    # Update date only
+    # Advance date only
     new_date = date(2023, 1, 2)
-    builder.update_universe_date(new_date)
+    builder.universe.advanceTo(new_date)
     assert builder.universe.current_date == new_date
     assert builder.universe.instrument_ids == [1, 2]  # Should remain the same
     
-    # Update date and instruments
+    # Advance date and instruments
     newer_date = date(2023, 1, 3)
     new_instruments = [1, 2, 3, 4]
-    builder.update_universe_date(newer_date, new_instruments)
+    builder.universe.advanceTo(newer_date, new_instruments)
     assert builder.universe.current_date == newer_date
     assert builder.universe.instrument_ids == new_instruments
 
 
-def test_add_next_interval_with_universe_update():
-    """Test adding interval with universe update."""
+def test_add_next_interval_with_universe_advance():
+    """Test adding interval with universe advance using consolidated method."""
     # Create initial universe
     universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1])
     
@@ -274,14 +274,14 @@ def test_add_next_interval_with_universe_update():
     start_time = datetime(2023, 1, 2, 9, 30)
     end_time = datetime(2023, 1, 2, 10, 30)
     
-    # Add interval with universe update (new date and instruments)
+    # Add interval with universe advance (new date and instruments)
     new_date = date(2023, 1, 2)
     new_instruments = [1, 2]
-    builder.add_next_interval_with_universe_update(
+    builder.add_next_interval(
         start_time, end_time, new_date, new_instruments
     )
     
-    # Verify universe was updated
+    # Verify universe was advanced
     assert builder.universe.current_date == new_date
     assert builder.universe.instrument_ids == new_instruments
     
@@ -292,4 +292,37 @@ def test_add_next_interval_with_universe_update():
     assert 2 in interval.instrument_intervals
     
     # Verify MarketDataManager was called with updated instruments
+    mock_manager.get_ohlc_batch.assert_called_once_with([1, 2], start_time, end_time)
+
+
+def test_add_next_interval_basic():
+    """Test basic add_next_interval usage without optional parameters."""
+    # Create initial universe
+    universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1, 2])
+    
+    mock_manager = Mock(spec=MarketDataManager)
+    mock_manager.get_ohlc_batch.return_value = {
+        1: {'open': 100.0, 'high': 105.0, 'low': 99.0, 'close': 104.0},
+        2: {'open': 200.0, 'high': 210.0, 'low': 195.0, 'close': 208.0}
+    }
+    
+    builder = UniverseStateBuilder(universe, mock_manager)
+    
+    start_time = datetime(2023, 1, 1, 9, 30)
+    end_time = datetime(2023, 1, 1, 10, 30)
+    
+    # Add interval without universe changes (basic usage)
+    builder.add_next_interval(start_time, end_time)
+    
+    # Verify universe was not changed
+    assert builder.universe.current_date == date(2023, 1, 1)
+    assert builder.universe.instrument_ids == [1, 2]
+    
+    # Verify interval was added with current instruments
+    assert len(builder.intervals) == 1
+    interval = builder.intervals[0]
+    assert 1 in interval.instrument_intervals
+    assert 2 in interval.instrument_intervals
+    
+    # Verify MarketDataManager was called with current instruments
     mock_manager.get_ohlc_batch.assert_called_once_with([1, 2], start_time, end_time)
