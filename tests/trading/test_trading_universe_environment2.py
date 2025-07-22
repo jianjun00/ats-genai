@@ -50,19 +50,10 @@ class TestTradingUniverseEnvironment:
         mock_pool = AsyncMock()
         mock_conn = AsyncMock()
         
-<<<<<<< HEAD
         # Make create_pool return the mock pool directly
         mock_create_pool.return_value = mock_pool
         mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
         mock_pool.acquire.return_value.__aexit__.return_value = None
-=======
-        # Make create_pool return an awaitable AsyncMock
-        async def create_pool_side_effect(*args, **kwargs):
-            return mock_pool
-        
-        mock_create_pool.side_effect = create_pool_side_effect
-        mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
->>>>>>> a1b05ce7d4f4b6b2611a0b1150389207eb911d65
         mock_conn.fetch.return_value = [
             {'symbol': 'AAPL', 'close': 150.0, 'volume': 2000000, 'market_cap': 2000000000}
         ]
