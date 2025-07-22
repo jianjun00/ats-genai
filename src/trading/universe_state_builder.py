@@ -5,21 +5,85 @@ from trading.universe_interval import UniverseInterval
 from trading.indicator import UniverseState
 from trading.market_data_manager import MarketDataManager
 from trading.instrument_interval import InstrumentInterval
+from trading.indicator_interval import IndicatorInterval
 from trading.universe import Universe
+from trading.indicator_config import IndicatorConfig
 
 class UniverseStateBuilder:
     """
     Manages the construction of UniverseState from a sequence of UniverseInterval objects.
     Uses MarketDataManager to fetch market data and build intervals.
     Contains a Universe instance that manages the list of instrument_ids for the current date.
+    Computes indicators for each instrument based on the provided configuration.
     """
-    def __init__(self, universe: Universe, market_data_manager: Optional[MarketDataManager] = None):
+    def __init__(self, universe: Universe, 
+                 indicator_config: Optional[IndicatorConfig] = None,
+                 market_data_manager: Optional[MarketDataManager] = None):
         self.intervals: List[UniverseInterval] = []
         self.universe = universe
+        self.indicator_config = indicator_config or IndicatorConfig.empty_config()
         self.market_data_manager = market_data_manager or MarketDataManager()
+        
+        # Store historical instrument intervals for indicator computation
+        # Maps instrument_id to list of InstrumentInterval for rolling window calculations
+        self.instrument_history: Dict[int, List[InstrumentInterval]] = {}
 
     def add_interval(self, interval: UniverseInterval):
         self.intervals.append(interval)
+        # Update instrument history for indicator computation
+        self._update_instrument_history(interval)
+    
+    def _update_instrument_history(self, interval: UniverseInterval):
+        """Update the historical instrument intervals for indicator computation."""
+        for instrument_id, instrument_interval in interval.instrument_intervals.items():
+            if instrument_id not in self.instrument_history:
+                self.instrument_history[instrument_id] = []
+            self.instrument_history[instrument_id].append(instrument_interval)
+    
+    def _compute_indicator_intervals(self, start_time: datetime, end_time: datetime) -> Dict[int, IndicatorInterval]:
+        """
+        Compute indicator intervals for all instruments in the current universe.
+        
+        Args:
+            start_time: Start time for the indicator interval
+            end_time: End time for the indicator interval
+            
+        Returns:
+            Dictionary mapping instrument_id to IndicatorInterval with computed indicators
+        """
+        indicator_intervals = {}
+        
+        for instrument_id in self.universe.instrument_ids:
+            # Get historical intervals for this instrument
+            history = self.instrument_history.get(instrument_id, [])
+            
+            if not history:
+                # No history available, skip this instrument
+                continue
+            
+            # Create indicator interval for this instrument
+            indicator_interval = IndicatorInterval(
+                instrument_id=instrument_id,
+                start_date_time=start_time,
+                end_date_time=end_time
+            )
+            
+            # Compute each configured indicator
+            for indicator_name, indicator_class in self.indicator_config.indicators.items():
+                indicator_instance = indicator_class()
+                indicator_instance.update(history)
+                
+                # Add the computed indicator to the interval
+                indicator_interval.add_indicator(
+                    name=indicator_name,
+                    value=indicator_instance.get_value(),
+                    status=indicator_instance.status,
+                    update_at=indicator_instance.update_at
+                )
+            
+            indicator_intervals[instrument_id] = indicator_interval
+        
+        return indicator_intervals
 
 
     def build_next_interval(self, start_time: datetime, end_time: datetime) -> UniverseInterval:
@@ -91,7 +155,23 @@ class UniverseStateBuilder:
         self.add_interval(interval)
 
     def build(self) -> UniverseState:
-        return UniverseState(intervals=deepcopy(self.intervals))
+        """Build UniverseState with computed indicator intervals for the latest interval."""
+        copied_intervals = deepcopy(self.intervals)
+        
+        # Compute indicator intervals for the latest time period if we have intervals
+        indicator_intervals = {}
+        if self.intervals:
+            latest_interval = self.intervals[-1]
+            indicator_intervals = self._compute_indicator_intervals(
+                latest_interval.start_date_time,
+                latest_interval.end_date_time
+            )
+        
+        return UniverseState(
+            intervals=copied_intervals,
+            indicator_intervals=indicator_intervals
+        )
 
     def reset(self):
         self.intervals.clear()
+        self.instrument_history.clear()
