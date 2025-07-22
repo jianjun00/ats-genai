@@ -1,4 +1,4 @@
-# Market Forecast App
+# Market Forecast App (ats-genai)
 
 A server-side application for unified market data, event ingestion, signal computation, and deep learning-based forecasting. Modular, extensible, and production-ready.
 
@@ -10,6 +10,7 @@ A server-side application for unified market data, event ingestion, signal compu
 - REST API (FastAPI)
 - Automated setup with Docker and .env
 - Kubernetes-ready deployment for GCP
+- Multi-duration interval support for trading analysis
 
 ## Project Structure
 
@@ -20,6 +21,8 @@ src/
     ingest/          # Source-specific ingestion modules
   market_data/       # Core market data logic
   pipeline/          # Signal extraction, orchestration, etc.
+  state/             # Interval and state management (indicators, universe)
+  trading/           # Trading logic, indicators, time durations
   universe/          # Universe management
   main.py            # FastAPI app entrypoint
 ```
@@ -68,6 +71,7 @@ src/
 - Modular ingestion: add new event/data sources by dropping a new fetcher in `src/events/ingest/`
 - Unified reconciliation logic for multi-source event merging
 - Automated batch ingestion and orchestration
+- Multi-duration interval building with base duration support (5m, 15m, 1h, 1d, etc.)
 
 ## Notes
 - For production, add error handling, persistent storage, and robust model retraining.
