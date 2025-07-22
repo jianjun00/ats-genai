@@ -93,7 +93,11 @@ async def run_backtest(args):
                 end_date_time=d,
                 open=ohlc['open'], high=ohlc['high'], low=ohlc['low'], close=ohlc['close'],
                 traded_volume=0, traded_dollar=0, status=None)
-        universe_interval = UniverseInterval(instrument_intervals=instrument_intervals)
+        universe_interval = UniverseInterval(
+            start_date_time=d,
+            end_date_time=d,
+            instrument_intervals=instrument_intervals
+        )
         state_builder.add_interval(universe_interval)
         universe_state = state_builder.build()
         # 4. ModelManager generates forecasts
@@ -114,8 +118,8 @@ async def run_backtest(args):
     # Summary
     avg_return = sum(daily_returns)/len(daily_returns) if daily_returns else 0.0
     print(f"Average daily return: {avg_return:.5f}")
-    if day_returns:
-        portfolio_log_return = np.mean(day_returns)
+    if daily_returns:
+        portfolio_log_return = np.mean(daily_returns)
     else:
         portfolio_log_return = 0.0
     cum_log_return += portfolio_log_return
