@@ -21,14 +21,14 @@ class TestUnifyDailyPrices(AsyncPGTestDBBase):
         d3 = date(2025, 1, 3)
         d4 = date(2025, 1, 4)
         # Clean up all tables for test symbol
-        pool = await asyncpg.create_pool(os.environ["TSDB_URL"])
+        pool = await asyncpg.create_pool(env.get_database_url())
         async with pool.acquire() as conn:
             await conn.execute("DELETE FROM daily_prices WHERE symbol = $1", test_symbol)
             await conn.execute("DELETE FROM daily_prices_tiingo WHERE symbol = $1", test_symbol)
             await conn.execute("DELETE FROM daily_prices_polygon WHERE symbol = $1", test_symbol)
         await pool.close()
         # Insert test data
-        pool = await asyncpg.create_pool(os.environ["TSDB_URL"])
+        pool = await asyncpg.create_pool(env.get_database_url())
         async with pool.acquire() as conn:
             # Only Tiingo on d1
             await conn.execute("INSERT INTO daily_prices_tiingo (date, symbol, open, high, low, close, adjClose, volume) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", d1, test_symbol, 10, 11, 9, 10.5, 10.4, 1000)
@@ -48,7 +48,7 @@ class TestUnifyDailyPrices(AsyncPGTestDBBase):
         spec.loader.exec_module(unify_script)
         await unify_script.unify_daily_prices(test_symbol, d1, d4)
         # Check results
-        pool = await asyncpg.create_pool(os.environ["TSDB_URL"])
+        pool = await asyncpg.create_pool(env.get_database_url())
         async with pool.acquire() as conn:
             # d1: only Tiingo
             row = await conn.fetchrow("SELECT * FROM daily_prices WHERE symbol = $1 AND date = $2", test_symbol, d1)

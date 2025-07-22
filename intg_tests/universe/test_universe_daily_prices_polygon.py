@@ -4,7 +4,10 @@ import asyncpg
 import pytest
 from datetime import datetime
 
-TSDB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")
+from config.environment import get_environment, set_environment, EnvironmentType
+set_environment(EnvironmentType.INTEGRATION)
+env = get_environment()
+TSDB_URL = env.get_database_url()
 
 pytestmark = pytest.mark.asyncio
 

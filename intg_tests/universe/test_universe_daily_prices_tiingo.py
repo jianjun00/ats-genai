@@ -7,7 +7,10 @@ import importlib.util
 import sys
 from pathlib import Path
 
-DB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")
+from config.environment import get_environment, set_environment, EnvironmentType
+set_environment(EnvironmentType.INTEGRATION)
+env = get_environment()
+DB_URL = env.get_database_url()
 SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/secmaster/daily_tiingo.py"
 
 @pytest.mark.asyncio

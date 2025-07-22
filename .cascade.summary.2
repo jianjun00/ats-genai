@@ -1,0 +1,26 @@
+# Market Forecast App: Integration Test Schema & Fixture Context (2025-07-22)
+
+## Integration Test Schema & Fixture Issues
+- Integration tests and fixture loader expect all test tables to use `intg_` prefixes (e.g., `intg_vendors`, `intg_instruments`, `intg_daily_prices`).
+- Current integration DB schema (as of migration 002) only creates a subset of required `intg_` tables (e.g., `intg_stock_splits`), but NOT all needed tables (such as `intg_vendors`, `intg_instruments`, etc.).
+- The fixture loader fails with `UndefinedColumnError` (e.g., column "website" of relation "intg_vendors" does not exist) because these tables either do not exist or do not match the expected schema.
+- The base (non-prefixed) tables (e.g., `vendors`, `instruments`) are created by the initial migrations, but integration tests require isolated `intg_` tables for data isolation.
+
+## Root Cause
+- The integration migration files do not create all necessary `intg_` tables with the correct schema. Only `intg_stock_splits` is created as an `intg_` table in migration 002. All other required tables for fixtures/tests are missing in the integration schema.
+
+## Next Steps
+- Update or add a migration (e.g., `003_add_intg_tables.sql`) to create all required `intg_` tables (`intg_vendors`, `intg_instruments`, `intg_daily_prices`, etc.) with columns matching the corresponding non-prefixed tables.
+- Ensure all columns (such as `website`, `api_key_env_var`, etc.) are included in the `intg_` table definitions.
+- After migration, re-run migrations, reload fixtures, and rerun integration tests to confirm resolution.
+
+## Related Files
+- `src/db/migrations/001_initial_schema.sql`: Defines the schema for base tables (vendors, instruments, etc.).
+- `src/db/migrations/002_add_stock_splits_table.sql`: Defines `intg_stock_splits` (the only `intg_` table currently created by migration).
+- `intg_tests/db/test_db_manager.py`: Loads fixtures into `intg_` tables and expects them to exist.
+- `scripts/integration_test_run.py`: Orchestrates restore, fixture loading, and test execution.
+
+## Action Items
+1. Create or update migration to add all missing `intg_` tables for integration testing.
+2. Ensure all integration test fixture schemas match the new tables.
+3. Validate by running fixture loader and integration tests.

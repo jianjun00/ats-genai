@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS status_code (
     code TEXT UNIQUE NOT NULL,
     description TEXT
 );
+ALTER TABLE status_code DROP CONSTRAINT IF EXISTS status_code_code_key;
 ALTER TABLE status_code ADD CONSTRAINT status_code_code_key UNIQUE (code);
 
 -- Insert default statuses

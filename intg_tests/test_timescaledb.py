@@ -6,7 +6,10 @@ from datetime import datetime
 import json
 
 # Set your TimescaleDB/Postgres connection string as an environment variable TSDB_URL
-DB_URL = os.getenv('TSDB_URL', 'postgresql://user:password@localhost:5432/yourdb')
+from config.environment import get_environment, set_environment, EnvironmentType
+set_environment(EnvironmentType.INTEGRATION)
+env = get_environment()
+DB_URL = env.get_database_url()
 
 async def test_timescaledb_setup():
     print("Connecting to TimescaleDB...")
