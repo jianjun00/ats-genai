@@ -82,16 +82,47 @@ class MigrationManager:
                     # Replace table prefixes in migration
                     migration_sql = self._apply_table_prefixes(migration_sql)
                     
-                    # Execute migration
-                    await conn.execute(migration_sql)
+                    # Split by semicolons and process each part
+                    raw_statements = migration_sql.split(';')
+                    statements = []
                     
-                    # Record migration
-                    checksum = self._calculate_checksum(file_path)
-                    await conn.execute(f"""
-                        INSERT INTO {self.table_prefix}db_version 
-                        (version, description, checksum, migration_file)
-                        VALUES ($1, $2, $3, $4)
-                    """, version, description, checksum, file_path.name)
+                    for raw_stmt in raw_statements:
+                        if not raw_stmt.strip():
+                            continue
+                        
+                        # Remove comments and extract SQL statements
+                        lines = raw_stmt.split('\n')
+                        sql_lines = []
+                        for line in lines:
+                            line = line.strip()
+                            if line and not line.startswith('--'):
+                                sql_lines.append(line)
+                        
+                        if sql_lines:
+                            statement = ' '.join(sql_lines).strip()
+                            if statement:
+                                statements.append(statement)
+                    
+                    # Execute each statement
+                    for statement in statements:
+                        await conn.execute(statement)
+                    
+                    # Record migration (skip for version 0 as it records itself)
+                    if version != 0:
+                        checksum = self._calculate_checksum(file_path)
+                        await conn.execute(f"""
+                            INSERT INTO {self.table_prefix}db_version 
+                            (version, description, checksum, migration_file)
+                            VALUES ($1, $2, $3, $4)
+                        """, version, description, checksum, file_path.name)
+                    else:
+                        # For version 0, just update the checksum since the migration inserts itself
+                        checksum = self._calculate_checksum(file_path)
+                        await conn.execute(f"""
+                            UPDATE {self.table_prefix}db_version 
+                            SET checksum = $1
+                            WHERE version = 0
+                        """, checksum)
                     
                     print(f"Applied migration {version:03d}: {description}")
                     return True
@@ -117,6 +148,19 @@ class MigrationManager:
         sql = re.sub(
             rf'CREATE TABLE (?!IF NOT EXISTS)(?!{re.escape(self.table_prefix)})(\w+)',
             f'CREATE TABLE {self.table_prefix}\\1',
+            sql
+        )
+        
+        # Replace CREATE INDEX statements
+        sql = re.sub(
+            rf'CREATE INDEX IF NOT EXISTS (\w+) ON (?!{re.escape(self.table_prefix)})(\w+)',
+            f'CREATE INDEX IF NOT EXISTS \\1 ON {self.table_prefix}\\2',
+            sql
+        )
+        
+        sql = re.sub(
+            rf'CREATE INDEX (\w+) ON (?!{re.escape(self.table_prefix)})(\w+)',
+            f'CREATE INDEX \\1 ON {self.table_prefix}\\2',
             sql
         )
         
