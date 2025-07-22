@@ -26,6 +26,9 @@ SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/universe/spy_events_wik
 @pytest.mark.asyncio
 async def test_populate_spy_universe_events(tmp_path):
     env = get_environment()
+    print(f"[DEBUG TEST] DB URL: {env.get_database_url()}")
+    print(f"[DEBUG TEST] universe table: {env.get_table_name('universe')}")
+    print(f"[DEBUG TEST] universe_membership table: {env.get_table_name('universe_membership')}")
     # Use a test universe name to avoid clobbering production data
     test_universe = "SPY_TEST_INTEGRATION"
     # Connect to DB
@@ -35,6 +38,9 @@ async def test_populate_spy_universe_events(tmp_path):
         universe_table = env.get_table_name("universe")
         await conn.execute(f"DELETE FROM {universe_membership_table} WHERE universe_id IN (SELECT id FROM {universe_table} WHERE name = $1)", test_universe)
         await conn.execute(f"DELETE FROM {universe_table} WHERE name = $1", test_universe)
+        # Reset the sequence so that the next insert uses the lowest available id
+        # Set the sequence to max(id) or 1 to avoid duplicate key errors
+        await conn.execute(f"SELECT setval('{universe_table}_id_seq', (SELECT COALESCE(MAX(id), 1) FROM {universe_table}))")
     await pool.close()
     # Dynamically import the script as a module
     spec = importlib.util.spec_from_file_location("spy_events_script", SCRIPT_PATH)
@@ -42,7 +48,10 @@ async def test_populate_spy_universe_events(tmp_path):
     sys.modules["spy_events_script"] = spy_events_script
     spec.loader.exec_module(spy_events_script)
     # Run the main function with test universe and DB URL to avoid argparse
-    await spy_events_script.main(db_url=env.get_database_url(), universe_name=test_universe)
+    # Patch sys.argv to avoid pytest argument clash
+    import unittest.mock
+    with unittest.mock.patch('sys.argv', ['spy_events_wiki.py']):
+        await spy_events_script.main(db_url=env.get_database_url(), universe_name=test_universe, tickers=None, args=None)
 
     # Check DB for expected effects
     pool = await asyncpg.create_pool(env.get_database_url(), min_size=1, max_size=2)

@@ -133,49 +133,57 @@ async def fetch_spy_events(tickers=None):
     print("[DEBUG] Last 10 events:", events[-10:])
     return events
 
+from config.environment import get_environment
+
 async def get_or_create_universe(pool, name, description):
+    env = get_environment()
+    universe_table = env.get_table_name("universe")
     async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT id FROM universe WHERE name = $1", name)
+        row = await conn.fetchrow(f"SELECT id FROM {universe_table} WHERE name = $1", name)
         if row:
             print(f"[DEBUG] Universe '{name}' already exists with id {row['id']}")
             return row['id']
         row = await conn.fetchrow(
-            "INSERT INTO universe (name, description) VALUES ($1, $2) RETURNING id",
+            f"INSERT INTO {universe_table} (name, description) VALUES ($1, $2) RETURNING id",
             name, description)
         print(f"[DEBUG] Inserted new universe '{name}' with id {row['id']}")
         return row['id']
 
 async def apply_events_to_membership(pool, universe_id, events):
+    from config.environment import get_environment
+    env = get_environment()
+    universe_membership_table = env.get_table_name("universe_membership")
     async with pool.acquire() as conn:
         for event in events:
             if event['type'] == 'add':
-                # Insert new membership with start_at=date and end_at=NULL if not exists
-                import json
-                meta_str = json.dumps({"reason": event['reason']})
                 result = await conn.execute(
-                    """
-                    INSERT INTO universe_membership (universe_id, symbol, start_at, end_at, meta)
-                    VALUES ($1, $2, $3, NULL, $4::jsonb)
+                    f"""
+                    INSERT INTO {universe_membership_table} (universe_id, symbol, start_at, end_at)
+                    VALUES ($1, $2, $3, NULL)
                     ON CONFLICT (universe_id, symbol, start_at) DO NOTHING
                     """,
-                    universe_id, event['symbol'], event['date'], meta_str)
+                    universe_id, event['symbol'], event['date'])
                 print(f"[DEBUG] ADD {event['symbol']} at {event['date']} ({result})")
             elif event['type'] == 'remove':
-                import json
-                meta_str = json.dumps({"remove_reason": event['reason']})
-                # Update end_at for the latest open membership for this symbol
+                print(f"[DEBUG] Attempting to close membership for symbol={event['symbol']} in universe_id={universe_id} at date={event['date']}")
                 result = await conn.execute(
-                    """
-                    UPDATE universe_membership
-                    SET end_at = $1, meta = COALESCE(meta, '{}'::jsonb) || $2::jsonb
-                    WHERE universe_id = $3 AND symbol = $4 AND end_at IS NULL
+                    f"""
+                    UPDATE {universe_membership_table}
+                    SET end_at = $1
+                    WHERE universe_id = $2 AND symbol = $3 AND end_at IS NULL
                     """,
-                    event['date'], meta_str, universe_id, event['symbol'])
+                    event['date'], universe_id, event['symbol'])
                 print(f"[DEBUG] REMOVE {event['symbol']} at {event['date']} ({result})")
+                # Fetch and print the updated row for verification
+                updated = await conn.fetchrow(f"SELECT * FROM {universe_membership_table} WHERE universe_id = $1 AND symbol = $2 ORDER BY start_at DESC LIMIT 1", universe_id, event['symbol'])
+                print(f"[DEBUG] Updated row after REMOVE: {updated}")
 
 async def remove_all_universe_membership(pool, universe_id):
+    from config.environment import get_environment
+    env = get_environment()
+    universe_membership_table = env.get_table_name("universe_membership")
     async with pool.acquire() as conn:
-        result = await conn.execute("DELETE FROM universe_membership WHERE universe_id = $1", universe_id)
+        result = await conn.execute(f"DELETE FROM {universe_membership_table} WHERE universe_id = $1", universe_id)
         print(f"[DEBUG] Removed all universe_membership for universe_id={universe_id} ({result})")
 
 async def populate_spy_universe_events(db_url, universe_name, tickers=None):
@@ -188,21 +196,21 @@ async def populate_spy_universe_events(db_url, universe_name, tickers=None):
         ticker_set = set(t.upper() for t in tickers.split(",") if t)
         events = [e for e in events if (e['symbol'] and e['symbol'].upper() in ticker_set) or (e.get('reason') and isinstance(e.get('reason'), str) and e['reason'].upper() in ticker_set)]
         print(f"[DEBUG] Filtered events for tickers {ticker_set}: {len(events)} events")
+    # Sort events by date ascending before applying
+    events.sort(key=lambda e: e['date'])
     await apply_events_to_membership(pool, universe_id, events)
     await pool.close()
 
-async def main(db_url=None, universe_name=None, tickers=None):
-    import argparse
-    import sys
-    if db_url is None or universe_name is None or tickers is None:
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--db_url', type=str, default=os.getenv('TSDB_URL', 'postgresql://postgres:postgres@localhost:5432/trading_db'))
-        parser.add_argument('--universe_name', type=str, default='S&P 500')
-        parser.add_argument('--tickers', type=str, default=None, help='Only update/insert universe_membership for these comma-delimited tickers (optional)')
-        args = parser.parse_args()
-        db_url = args.db_url
-        universe_name = args.universe_name
-        tickers = args.tickers
+async def main(db_url=None, universe_name=None, tickers=None, args=None):
+    from config.environment import get_environment
+    env = get_environment()
+    print(f"[DEBUG SCRIPT] DB URL: {db_url}")
+    print(f"[DEBUG SCRIPT] universe table: {env.get_table_name('universe')}")
+    print(f"[DEBUG SCRIPT] universe_membership table: {env.get_table_name('universe_membership')}")
+    # Only use argparse if ALL are None (i.e., running as a script)
+    if db_url is None and universe_name is None and tickers is None:
+        print("missing db_url, universe_name, tickers")
+        return
     print(f"db_url:{db_url}")
     await populate_spy_universe_events(db_url, universe_name, tickers)
     print("Done populating SPY universe membership events.")
