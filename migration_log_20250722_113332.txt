@@ -1,0 +1,10 @@
+[2025-07-22 11:33:31] INFO: Starting full migration to all environments
+[2025-07-22 11:33:31] INFO: Starting migration to test environment
+[2025-07-22 11:33:31] INFO: Setting up test environment
+[2025-07-22 11:33:31] ERROR: Failed to setup test environment
+[2025-07-22 11:33:31] INFO: Starting migration to intg environment
+[2025-07-22 11:33:31] INFO: Setting up intg environment
+[2025-07-22 11:33:32] ERROR: Failed to setup intg environment
+[2025-07-22 11:33:32] INFO: Starting migration to prod environment
+[2025-07-22 11:33:32] ERROR: Critical error migrating to prod: invalid literal for int() with base 10: '${DB_PORT}'
+[2025-07-22 11:33:32] INFO: Full migration completed in 0:00:00.612205

@@ -1,0 +1,74 @@
+[2025-07-22 11:39:23] INFO: Starting migration from integration to production environment
+[2025-07-22 11:39:23] INFO: Created database: prod_trading_db
+[2025-07-22 11:39:23] INFO: Found 13 integration tables to migrate
+[2025-07-22 11:39:23] INFO: Creating production table: intg_daily_adjusted_prices -> prod_daily_adjusted_prices
+[2025-07-22 11:39:23] ERROR: Error creating table prod_daily_adjusted_prices: column "date" appears twice in primary key constraint
+[2025-07-22 11:39:23] INFO: Creating production table: intg_daily_prices -> prod_daily_prices
+[2025-07-22 11:39:23] ERROR: Error creating table prod_daily_prices: column "date" appears twice in primary key constraint
+[2025-07-22 11:39:23] INFO: Creating production table: intg_daily_prices_polygon -> prod_daily_prices_polygon
+[2025-07-22 11:39:23] ERROR: Error creating table prod_daily_prices_polygon: column "date" appears twice in primary key constraint
+[2025-07-22 11:39:23] INFO: Creating production table: intg_daily_prices_tiingo -> prod_daily_prices_tiingo
+[2025-07-22 11:39:23] ERROR: Error creating table prod_daily_prices_tiingo: column "date" appears twice in primary key constraint
+[2025-07-22 11:39:23] INFO: Creating production table: intg_dividends -> prod_dividends
+[2025-07-22 11:39:23] ERROR: Error creating table prod_dividends: column "date" appears twice in primary key constraint
+[2025-07-22 11:39:23] INFO: Creating production table: intg_events -> prod_events
+[2025-07-22 11:39:24] ERROR: Error creating table prod_events: relation "prod_events_id_seq" does not exist
+[2025-07-22 11:39:24] INFO: Creating production table: intg_instrument_polygon -> prod_instrument_polygon
+[2025-07-22 11:39:24] INFO: Created table prod_instrument_polygon
+[2025-07-22 11:39:24] INFO: Creating production table: intg_splits -> prod_splits
+[2025-07-22 11:39:24] ERROR: Error creating table prod_splits: column "date" appears twice in primary key constraint
+[2025-07-22 11:39:24] INFO: Creating production table: intg_spy_membership_change -> prod_spy_membership_change
+[2025-07-22 11:39:24] ERROR: Error creating table prod_spy_membership_change: relation "prod_spy_membership_change_id_seq" does not exist
+[2025-07-22 11:39:24] INFO: Creating production table: intg_status_code -> prod_status_code
+[2025-07-22 11:39:24] ERROR: Error creating table prod_status_code: relation "prod_status_code_id_seq" does not exist
+[2025-07-22 11:39:24] INFO: Creating production table: intg_test_universe_membership -> prod_test_universe_membership
+[2025-07-22 11:39:24] ERROR: Error creating table prod_test_universe_membership: column "date" appears twice in primary key constraint
+[2025-07-22 11:39:24] INFO: Creating production table: intg_universe -> prod_universe
+[2025-07-22 11:39:24] ERROR: Error creating table prod_universe: relation "prod_universe_id_seq" does not exist
+[2025-07-22 11:39:24] INFO: Creating production table: intg_universe_membership -> prod_universe_membership
+[2025-07-22 11:39:24] ERROR: Error creating table prod_universe_membership: relation "prod_universe_membership_id_seq" does not exist
+[2025-07-22 11:39:24] INFO: Copying data: intg_daily_adjusted_prices -> prod_daily_adjusted_prices
+[2025-07-22 11:39:24] INFO: No data to copy from intg_daily_adjusted_prices
+[2025-07-22 11:39:24] INFO: Copying data: intg_daily_prices -> prod_daily_prices
+[2025-07-22 11:39:24] ERROR: Error copying data from intg_daily_prices to prod_daily_prices: relation "prod_daily_prices" does not exist
+[2025-07-22 11:39:24] INFO: Copying data: intg_daily_prices_polygon -> prod_daily_prices_polygon
+[2025-07-22 11:39:25] ERROR: Error copying data from intg_daily_prices_polygon to prod_daily_prices_polygon: relation "prod_daily_prices_polygon" does not exist
+[2025-07-22 11:39:25] INFO: Copying data: intg_daily_prices_tiingo -> prod_daily_prices_tiingo
+[2025-07-22 11:39:25] ERROR: Error copying data from intg_daily_prices_tiingo to prod_daily_prices_tiingo: relation "prod_daily_prices_tiingo" does not exist
+[2025-07-22 11:39:25] INFO: Copying data: intg_dividends -> prod_dividends
+[2025-07-22 11:39:25] INFO: No data to copy from intg_dividends
+[2025-07-22 11:39:25] INFO: Copying data: intg_events -> prod_events
+[2025-07-22 11:39:25] INFO: No data to copy from intg_events
+[2025-07-22 11:39:25] INFO: Copying data: intg_instrument_polygon -> prod_instrument_polygon
+[2025-07-22 11:39:26] INFO: Copied 10000/11549 rows from intg_instrument_polygon to prod_instrument_polygon
+[2025-07-22 11:39:26] INFO: Copied 11549/11549 rows from intg_instrument_polygon to prod_instrument_polygon
+[2025-07-22 11:39:26] INFO: Successfully copied 11549 rows from intg_instrument_polygon to prod_instrument_polygon
+[2025-07-22 11:39:26] INFO: Copying data: intg_splits -> prod_splits
+[2025-07-22 11:39:26] INFO: No data to copy from intg_splits
+[2025-07-22 11:39:26] INFO: Copying data: intg_spy_membership_change -> prod_spy_membership_change
+[2025-07-22 11:39:26] ERROR: Error copying data from intg_spy_membership_change to prod_spy_membership_change: relation "prod_spy_membership_change" does not exist
+[2025-07-22 11:39:26] INFO: Copying data: intg_status_code -> prod_status_code
+[2025-07-22 11:39:26] ERROR: Error copying data from intg_status_code to prod_status_code: relation "prod_status_code" does not exist
+[2025-07-22 11:39:26] INFO: Copying data: intg_test_universe_membership -> prod_test_universe_membership
+[2025-07-22 11:39:26] ERROR: Error copying data from intg_test_universe_membership to prod_test_universe_membership: relation "prod_test_universe_membership" does not exist
+[2025-07-22 11:39:26] INFO: Copying data: intg_universe -> prod_universe
+[2025-07-22 11:39:26] ERROR: Error copying data from intg_universe to prod_universe: relation "prod_universe" does not exist
+[2025-07-22 11:39:26] INFO: Copying data: intg_universe_membership -> prod_universe_membership
+[2025-07-22 11:39:26] ERROR: Error copying data from intg_universe_membership to prod_universe_membership: relation "prod_universe_membership" does not exist
+[2025-07-22 11:39:26] INFO: Creating production indexes
+[2025-07-22 11:39:26] WARNING: Error creating index: relation "prod_daily_prices" does not exist
+[2025-07-22 11:39:26] WARNING: Error creating index: relation "prod_daily_prices" does not exist
+[2025-07-22 11:39:26] WARNING: Error creating index: relation "prod_daily_prices_polygon" does not exist
+[2025-07-22 11:39:26] WARNING: Error creating index: relation "prod_daily_prices_polygon" does not exist
+[2025-07-22 11:39:26] WARNING: Error creating index: relation "prod_daily_prices_tiingo" does not exist
+[2025-07-22 11:39:26] WARNING: Error creating index: relation "prod_daily_prices_tiingo" does not exist
+[2025-07-22 11:39:26] WARNING: Error creating index: relation "prod_daily_adjusted_prices" does not exist
+[2025-07-22 11:39:26] WARNING: Error creating index: relation "prod_daily_adjusted_prices" does not exist
+[2025-07-22 11:39:26] INFO: Created index: 
+[2025-07-22 11:39:26] WARNING: Error creating index: relation "prod_universe_membership" does not exist
+[2025-07-22 11:39:26] WARNING: Error creating index: relation "prod_universe_membership" does not exist
+[2025-07-22 11:39:26] WARNING: Error creating index: relation "prod_universe_membership" does not exist
+[2025-07-22 11:39:26] WARNING: Error creating index: relation "prod_spy_membership_change" does not exist
+[2025-07-22 11:39:26] WARNING: Error creating index: relation "prod_events" does not exist
+[2025-07-22 11:39:26] WARNING: Error creating index: relation "prod_events" does not exist
+[2025-07-22 11:39:26] INFO: Migration completed: 13 tables, 11549 total rows
