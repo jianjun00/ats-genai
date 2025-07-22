@@ -1,19 +1,6 @@
 -- Migration 001: Initial schema from existing schema.sql
 -- This migration creates all the base tables for the trading system
 
--- Events table for tracking market events
-CREATE TABLE IF NOT EXISTS events (
-    id SERIAL PRIMARY KEY,
-    event_type TEXT NOT NULL,
-    symbol TEXT,
-    event_time TIMESTAMPTZ NOT NULL,
-    reported_time TIMESTAMPTZ,
-    source TEXT,
-    data JSONB NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS idx_events_symbol_time ON events(symbol, event_time);
-CREATE INDEX IF NOT EXISTS idx_events_type_time ON events(event_type, event_time);
 
 -- Daily prices table
 CREATE TABLE IF NOT EXISTS daily_prices (
