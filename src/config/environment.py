@@ -7,6 +7,13 @@ prefixes and configuration settings.
 """
 
 import os
+# Automatically load environment variables from .env if present
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    import logging
+    logging.warning("python-dotenv not installed; .env file will not be loaded automatically.")
 import configparser
 from pathlib import Path
 from typing import Dict, Any, Optional
