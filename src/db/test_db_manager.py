@@ -28,7 +28,13 @@ class TestDatabaseManager:
         Args:
             test_type: "unit" or "integration"
         """
-        self.env = get_environment()
+        # Use the appropriate environment based on test type
+        if test_type == "integration":
+            from src.config.environment import Environment, EnvironmentType
+            self.env = Environment(EnvironmentType.INTEGRATION)
+        else:
+            self.env = get_environment()
+        
         self.test_type = test_type
         self.db_url = self.env.get_database_url()
         # Extract table prefix from environment
