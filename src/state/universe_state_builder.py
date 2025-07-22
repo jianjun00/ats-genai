@@ -1,11 +1,11 @@
 from typing import List, Dict, Optional
 from datetime import datetime, date
 from copy import deepcopy
-from trading.universe_interval import UniverseInterval
+from state.universe_interval import UniverseInterval
 from trading.indicator import UniverseState
 from trading.market_data_manager import MarketDataManager
-from trading.instrument_interval import InstrumentInterval
-from trading.indicator_interval import IndicatorInterval
+from state.instrument_interval import InstrumentInterval
+from state.indicator_interval import IndicatorInterval
 from trading.universe import Universe
 from trading.indicator_config import IndicatorConfig
 

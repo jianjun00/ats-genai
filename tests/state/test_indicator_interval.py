@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime
-from trading.indicator_interval import IndicatorInterval
+from state.indicator_interval import IndicatorInterval
 
 
 def test_indicator_interval_init():
