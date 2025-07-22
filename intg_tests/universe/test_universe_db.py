@@ -9,7 +9,10 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src/universe')))
 from universe_db import UniverseDB
 
-TSDB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")
+from config.environment import get_environment, set_environment, EnvironmentType
+set_environment(EnvironmentType.INTEGRATION)
+env = get_environment()
+TSDB_URL = env.get_database_url()
 
 @pytest.mark.asyncio
 async def test_universe_db_crud():
@@ -20,8 +23,10 @@ async def test_universe_db_crud():
     # Clean up if exists
     pool = await asyncpg.create_pool(TSDB_URL)
     async with pool.acquire() as conn:
-        await conn.execute('DELETE FROM universe_membership WHERE universe_id IN (SELECT id FROM universe WHERE name = $1)', test_universe_name)
-        await conn.execute('DELETE FROM universe WHERE name = $1', test_universe_name)
+        universe_table = env.get_table_name("universe")
+        universe_membership_table = env.get_table_name("universe_membership")
+        await conn.execute(f'DELETE FROM {universe_membership_table} WHERE universe_id IN (SELECT id FROM {universe_table} WHERE name = $1)', test_universe_name)
+        await conn.execute(f'DELETE FROM {universe_table} WHERE name = $1', test_universe_name)
     await pool.close()
 
     # Add universe
@@ -55,6 +60,6 @@ async def test_universe_db_crud():
     # Clean up
     pool = await asyncpg.create_pool(TSDB_URL)
     async with pool.acquire() as conn:
-        await conn.execute('DELETE FROM universe_membership WHERE universe_id = $1', universe_id)
-        await conn.execute('DELETE FROM universe WHERE id = $1', universe_id)
+        await conn.execute(f'DELETE FROM {universe_membership_table} WHERE universe_id = $1', universe_id)
+        await conn.execute(f'DELETE FROM {universe_table} WHERE id = $1', universe_id)
     await pool.close()

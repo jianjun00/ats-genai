@@ -15,11 +15,32 @@ import pytest_asyncio
 import uuid
 from typing import Dict, List, Optional, Any
 from contextlib import asynccontextmanager
-from src.config.environment import get_environment
-from src.db.migration_manager import MigrationManager
+from config.environment import get_environment
+from db.migration_manager import MigrationManager
 
 class TestDatabaseManager:
     """Manages test databases for unit and integration tests."""
+
+    async def setup_isolated_test_tables(self, base_tables, testname):
+        """
+        For each table in base_tables, create a new table named intg_<table>_<testname> by copying schema and data from intg_<table>.
+        Drops the test table if it exists.
+        """
+        import asyncpg
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                for base in base_tables:
+                    base_table = f"{self.table_prefix}{base}"
+                    test_table = f"{self.table_prefix}{base}_{testname}"
+                    # Drop if exists
+                    await conn.execute(f"DROP TABLE IF EXISTS {test_table} CASCADE")
+                    # Recreate with same schema
+                    await conn.execute(f"CREATE TABLE {test_table} (LIKE {base_table} INCLUDING ALL)")
+                    # Copy data
+                    await conn.execute(f"INSERT INTO {test_table} SELECT * FROM {base_table}")
+        finally:
+            await pool.close()
     
     def __init__(self, test_type: str = "unit"):
         """

@@ -4,15 +4,19 @@ import asyncpg
 import os
 from datetime import date
 
-TSDB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")
+from config.environment import get_environment, set_environment, EnvironmentType
+set_environment(EnvironmentType.INTEGRATION)
+env = get_environment()
+TSDB_URL = env.get_database_url()
 
 @pytest.mark.asyncio
 async def test_no_duplicate_daily_prices():
     pool = await asyncpg.create_pool(TSDB_URL)
     async with pool.acquire() as conn:
-        rows = await conn.fetch("""
+        daily_prices_table = env.get_table_name("daily_prices")
+        rows = await conn.fetch(f"""
             SELECT symbol, date, COUNT(*) as cnt
-            FROM daily_prices
+            FROM {daily_prices_table}
             GROUP BY symbol, date
             HAVING COUNT(*) > 1
         """)
@@ -23,9 +27,10 @@ async def test_no_duplicate_daily_prices():
 async def test_no_duplicate_splits():
     pool = await asyncpg.create_pool(TSDB_URL)
     async with pool.acquire() as conn:
-        rows = await conn.fetch("""
+        stock_splits_table = env.get_table_name("stock_splits")
+        rows = await conn.fetch(f"""
             SELECT symbol, split_date, COUNT(*) as cnt
-            FROM stock_splits
+            FROM {stock_splits_table}
             GROUP BY symbol, split_date
             HAVING COUNT(*) > 1
         """)
@@ -36,9 +41,10 @@ async def test_no_duplicate_splits():
 async def test_no_duplicate_dividends():
     pool = await asyncpg.create_pool(TSDB_URL)
     async with pool.acquire() as conn:
-        rows = await conn.fetch("""
+        dividends_table = env.get_table_name("dividends")
+        rows = await conn.fetch(f"""
             SELECT symbol, ex_date, COUNT(*) as cnt
-            FROM dividends
+            FROM {dividends_table}
             GROUP BY symbol, ex_date
             HAVING COUNT(*) > 1
         """)
@@ -49,6 +55,7 @@ async def test_no_duplicate_dividends():
 async def test_adjusted_price_not_null():
     pool = await asyncpg.create_pool(TSDB_URL)
     async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT COUNT(*) AS cnt FROM daily_prices WHERE adjusted_price IS NULL")
+        daily_prices_table = env.get_table_name("daily_prices")
+        row = await conn.fetchrow(f"SELECT COUNT(*) AS cnt FROM {daily_prices_table} WHERE adjusted_price IS NULL")
     await pool.close()
     assert row['cnt'] == 0, f"Found {row['cnt']} daily_prices rows with NULL adjusted_price."

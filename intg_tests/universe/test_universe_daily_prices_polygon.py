@@ -21,7 +21,13 @@ SAMPLE_SYMBOL = 'TESTSYM'
 SAMPLE_SHARES_OUTSTANDING = 1000000
 
 # Import the insert_prices function from the Polygon script
-from src.secmaster.daily_polygon import insert_prices, CREATE_DAILY_PRICES_POLYGON_SQL
+import sys
+import pathlib
+# Ensure src is in sys.path for import
+src_path = str(pathlib.Path(__file__).resolve().parent.parent.parent / "src")
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
+from secmaster.daily_polygon import insert_prices, CREATE_DAILY_PRICES_POLYGON_SQL
 
 async def cleanup_test_data(pool, symbol):
     async with pool.acquire() as conn:

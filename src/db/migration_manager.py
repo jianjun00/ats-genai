@@ -15,7 +15,7 @@ import hashlib
 import re
 from pathlib import Path
 from typing import List, Tuple, Optional
-from src.config.environment import get_environment
+from config.environment import get_environment
 
 class MigrationManager:
     def __init__(self, db_url: str = None):
@@ -26,10 +26,10 @@ class MigrationManager:
         # Determine environment based on database URL
         if db_url:
             if "intg_trading_db" in db_url:
-                from src.config.environment import Environment, EnvironmentType
+                from config.environment import Environment, EnvironmentType
                 self.env = Environment(EnvironmentType.INTEGRATION)
             elif "prod_trading_db" in db_url:
-                from src.config.environment import Environment, EnvironmentType
+                from config.environment import Environment, EnvironmentType
                 self.env = Environment(EnvironmentType.PRODUCTION)
             # else use current environment for test_trading_db
         
