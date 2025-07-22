@@ -40,7 +40,17 @@ async def test_trading_universe_update(monkeypatch):
             ($1, 'CCC', 1000000000), -- volume too low
             ($1, 'DDD', 10000000)    -- market cap too low
         """, today)
-        
+
+        # Debug: print inserted daily_prices rows
+        print("--- DEBUG: daily_prices rows for test date ---")
+        rows = await conn.fetch(f"SELECT * FROM {daily_prices_table} WHERE date = $1 ORDER BY symbol", today)
+        for row in rows:
+            print(dict(row))
+        print("--- DEBUG: daily_market_cap rows for test date ---")
+        rows = await conn.fetch(f"SELECT * FROM {daily_market_cap_table} WHERE date = $1 ORDER BY symbol", today)
+        for row in rows:
+            print(dict(row))
+
     await pool.close()
 
     universe = TradingUniverse(TSDB_URL)

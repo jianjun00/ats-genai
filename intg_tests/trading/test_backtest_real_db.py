@@ -7,7 +7,10 @@ from datetime import date, timedelta
 import numpy as np
 from trading.backtest import run_backtest
 
-TSDB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")
+from config.environment import get_environment, set_environment, EnvironmentType
+set_environment(EnvironmentType.INTEGRATION)
+env = get_environment()
+TSDB_URL = env.get_database_url()
 
 @pytest.mark.asyncio
 async def test_backtest_real_db_aapl_tsla():
@@ -21,6 +24,12 @@ async def test_backtest_real_db_aapl_tsla():
         data_start_days = 30
         db_url = TSDB_URL
         # Optionally, you could add a universe filter if supported
+    # Ensure TEST_UNIVERSE exists in DB
+    from universe.universe_db import UniverseDB
+    universe_db = UniverseDB(TSDB_URL)
+    universe_id = await universe_db.get_universe_id('TEST_UNIVERSE')
+    if universe_id is None:
+        await universe_db.add_universe('TEST_UNIVERSE', 'Test universe for backtest integration test')
     # Patch TradingUniverse to only include AAPL and TSLA
     from trading.trading_universe import TradingUniverse
     orig_update_for_end_of_day = TradingUniverse.update_for_end_of_day

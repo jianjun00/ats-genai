@@ -29,7 +29,7 @@ class TestIntegrationTiingo(AsyncPGTestDBBase):
         test_start = date(2025, 1, 1)
         test_end = date(2025, 1, 10)
         # Clean up any existing data for the test symbol and range
-        pool = await asyncpg.create_pool(os.environ["TSDB_URL"], min_size=1, max_size=2)
+        pool = await asyncpg.create_pool(env.get_database_url(), min_size=1, max_size=2)
         async with pool.acquire() as conn:
             await conn.execute(
                 "DELETE FROM daily_prices_tiingo WHERE symbol = $1 AND date >= $2 AND date <= $3",
@@ -49,7 +49,7 @@ class TestIntegrationTiingo(AsyncPGTestDBBase):
         finally:
             sys.argv = sys_argv_backup
         # Check DB for expected data
-        pool = await asyncpg.create_pool(os.environ["TSDB_URL"], min_size=1, max_size=2)
+        pool = await asyncpg.create_pool(env.get_database_url(), min_size=1, max_size=2)
         async with pool.acquire() as conn:
             rows = await conn.fetch(
                 "SELECT * FROM daily_prices_tiingo WHERE symbol = $1 AND date >= $2 AND date <= $3 ORDER BY date",
@@ -62,7 +62,7 @@ class TestIntegrationTiingo(AsyncPGTestDBBase):
         sys.argv = [str(SCRIPT_PATH), "--start_date", test_start.isoformat(), "--end_date", test_end.isoformat(), "--ticker", test_symbol]
         await tiingo_script.main()
         # Check DB again
-        pool = await asyncpg.create_pool(os.environ["TSDB_URL"], min_size=1, max_size=2)
+        pool = await asyncpg.create_pool(env.get_database_url(), min_size=1, max_size=2)
         async with pool.acquire() as conn:
             rows2 = await conn.fetch(
                 "SELECT * FROM daily_prices_tiingo WHERE symbol = $1 AND date >= $2 AND date <= $3 ORDER BY date",

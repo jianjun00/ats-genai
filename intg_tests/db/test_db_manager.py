@@ -108,6 +108,9 @@ class TestDatabaseManager:
     
     async def _create_test_database(self, db_name: str):
         """Create a new test database."""
+        set_environment(EnvironmentType.INTEGRATION)
+        env = get_environment()
+        TSDB_URL = env.get_database_url()
         # Connect to postgres database to create new database
         db_config = self.env.get_database_config()
         base_db_name = db_config['database']
