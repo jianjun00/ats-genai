@@ -1,16 +1,15 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict
 from trading.universe_interval import UniverseInterval
-
-from dataclasses import dataclass, field
-from typing import Dict
 from trading.instrument_interval import InstrumentInterval
+from trading.indicator_interval import IndicatorInterval
 
 @dataclass
 class UniverseState:
     intervals: List[UniverseInterval]  # List of UniverseInterval, e.g., one per time step
     instrument_intervals: Dict[int, InstrumentInterval] = field(default_factory=dict)
+    indicator_intervals: Dict[int, IndicatorInterval] = field(default_factory=dict)  # Map instrument_id to computed indicators
 
     def __post_init__(self):
         # If instrument_intervals not provided, populate from last interval

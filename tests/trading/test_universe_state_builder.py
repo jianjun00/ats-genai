@@ -2,26 +2,33 @@ import pytest
 from datetime import datetime, timedelta, date
 from unittest.mock import Mock, MagicMock
 from trading.universe_state_builder import UniverseStateBuilder
-from trading.market_data_manager import MarketDataManager
-from trading.universe_interval import UniverseInterval
-from trading.instrument_interval import InstrumentInterval
 from trading.universe import Universe
-
+from trading.market_data_manager import MarketDataManager
+from trading.instrument_interval import InstrumentInterval
+from trading.indicator_config import IndicatorConfig
+from trading.indicator import PL
+from trading.universe_interval import UniverseInterval
+from trading.indicator_interval import IndicatorInterval
 
 def test_universe_state_builder_init():
     """Test UniverseStateBuilder initialization."""
     # Create a test universe
     universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1, 2, 3])
     
-    # Test with default MarketDataManager
+    # Test with defaults
     builder = UniverseStateBuilder(universe)
     assert builder.intervals == []
     assert builder.universe is universe
+    assert isinstance(builder.indicator_config, IndicatorConfig)
+    assert len(builder.indicator_config) == 0  # Default is empty config
     assert isinstance(builder.market_data_manager, MarketDataManager)
+    assert builder.instrument_history == {}
     
-    # Test with custom MarketDataManager
+    # Test with custom indicator config and MarketDataManager
+    custom_config = IndicatorConfig.basic_config()
     custom_manager = Mock(spec=MarketDataManager)
-    builder = UniverseStateBuilder(universe, custom_manager)
+    builder = UniverseStateBuilder(universe, custom_config, custom_manager)
+    assert builder.indicator_config is custom_config
     assert builder.market_data_manager is custom_manager
     assert builder.universe is universe
 
@@ -39,7 +46,7 @@ def test_build_next_interval():
         3: None  # No data for instrument 3
     }
     
-    builder = UniverseStateBuilder(universe, mock_manager)
+    builder = UniverseStateBuilder(universe, None, mock_manager)
     
     start_time = datetime(2023, 1, 1, 9, 30)
     end_time = datetime(2023, 1, 1, 10, 30)
@@ -98,7 +105,7 @@ def test_build_next_interval_with_minimal_data():
         1: {'open': 100.0, 'high': 105.0, 'low': 99.0, 'close': 104.0}  # No volume/dollar_volume
     }
     
-    builder = UniverseStateBuilder(universe, mock_manager)
+    builder = UniverseStateBuilder(universe, None, mock_manager)
     
     start_time = datetime(2023, 1, 1, 9, 30)
     end_time = datetime(2023, 1, 1, 10, 30)
@@ -121,7 +128,7 @@ def test_add_next_interval():
         1: {'open': 100.0, 'high': 105.0, 'low': 99.0, 'close': 104.0}
     }
     
-    builder = UniverseStateBuilder(universe, mock_manager)
+    builder = UniverseStateBuilder(universe, None, mock_manager)
     
     start_time = datetime(2023, 1, 1, 9, 30)
     end_time = datetime(2023, 1, 1, 10, 30)
@@ -210,7 +217,7 @@ def test_integration_workflow():
     
     mock_manager.get_ohlc_batch.side_effect = mock_get_ohlc_batch
     
-    builder = UniverseStateBuilder(universe, mock_manager)
+    builder = UniverseStateBuilder(universe, None, mock_manager)
     
     # Add two intervals (uses universe's instruments)
     builder.add_next_interval(datetime(2023, 1, 1, 9, 30), datetime(2023, 1, 1, 10, 30))
@@ -269,7 +276,7 @@ def test_add_next_interval_with_universe_advance():
         2: {'open': 200.0, 'high': 210.0, 'low': 195.0, 'close': 208.0}
     }
     
-    builder = UniverseStateBuilder(universe, mock_manager)
+    builder = UniverseStateBuilder(universe, None, mock_manager)
     
     start_time = datetime(2023, 1, 2, 9, 30)
     end_time = datetime(2023, 1, 2, 10, 30)
@@ -306,7 +313,7 @@ def test_add_next_interval_basic():
         2: {'open': 200.0, 'high': 210.0, 'low': 195.0, 'close': 208.0}
     }
     
-    builder = UniverseStateBuilder(universe, mock_manager)
+    builder = UniverseStateBuilder(universe, None, mock_manager)
     
     start_time = datetime(2023, 1, 1, 9, 30)
     end_time = datetime(2023, 1, 1, 10, 30)
@@ -326,3 +333,303 @@ def test_add_next_interval_basic():
     
     # Verify MarketDataManager was called with current instruments
     mock_manager.get_ohlc_batch.assert_called_once_with([1, 2], start_time, end_time)
+
+
+def test_indicator_computation_with_basic_config():
+    """Test indicator computation with basic configuration."""
+    # Create universe and basic indicator config
+    universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1])
+    indicator_config = IndicatorConfig.basic_config()
+    
+    mock_manager = Mock(spec=MarketDataManager)
+    mock_manager.get_ohlc_batch.return_value = {
+        1: {'open': 100.0, 'high': 105.0, 'low': 99.0, 'close': 104.0}
+    }
+    
+    builder = UniverseStateBuilder(universe, indicator_config, mock_manager)
+    
+    # Add first interval
+    start_time1 = datetime(2023, 1, 1, 9, 30)
+    end_time1 = datetime(2023, 1, 1, 10, 30)
+    builder.add_next_interval(start_time1, end_time1)
+    
+    # Verify instrument history was updated
+    assert 1 in builder.instrument_history
+    assert len(builder.instrument_history[1]) == 1
+    
+    # Build universe state
+    universe_state = builder.build()
+    
+    # Verify indicator intervals were computed
+    assert 1 in universe_state.indicator_intervals
+    indicator_interval = universe_state.indicator_intervals[1]
+    
+    # Verify basic indicators were computed
+    expected_indicators = ['OneOneDot', 'OneOneHigh', 'OneOneLow']
+    for indicator_name in expected_indicators:
+        assert indicator_interval.has_indicator(indicator_name)
+        assert indicator_interval.is_indicator_valid(indicator_name)
+    
+    # Verify OneOneDot calculation
+    expected_oneonedot = (105.0 + 99.0 + 104.0) / 3.0  # (high + low + close) / 3
+    assert indicator_interval.get_indicator_value('OneOneDot') == expected_oneonedot
+    
+    # Verify OneOneHigh calculation (2 * OneOneDot - low)
+    expected_oneonehigh = 2 * expected_oneonedot - 99.0
+    assert indicator_interval.get_indicator_value('OneOneHigh') == expected_oneonehigh
+    
+    # Verify OneOneLow calculation (2 * OneOneDot - high)
+    expected_oneonelow = 2 * expected_oneonedot - 105.0
+    assert indicator_interval.get_indicator_value('OneOneLow') == expected_oneonelow
+
+
+def test_indicator_computation_with_default_config():
+    """Test indicator computation with default configuration."""
+    # Create universe and default indicator config
+    universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1])
+    indicator_config = IndicatorConfig.default_config()
+    
+    mock_manager = Mock(spec=MarketDataManager)
+    # Set up data for multiple intervals (EBot/ETop need at least 4 intervals)
+    mock_manager.get_ohlc_batch.side_effect = [
+        {1: {'open': 100.0, 'high': 105.0, 'low': 99.0, 'close': 104.0}},
+        {1: {'open': 104.0, 'high': 108.0, 'low': 103.0, 'close': 107.0}},
+        {1: {'open': 107.0, 'high': 110.0, 'low': 106.0, 'close': 109.0}},
+        {1: {'open': 109.0, 'high': 112.0, 'low': 108.0, 'close': 111.0}}
+    ]
+    
+    builder = UniverseStateBuilder(universe, indicator_config, mock_manager)
+    
+    # Add four intervals (needed for EBot, ETop to be valid)
+    for i in range(4):
+        start_time = datetime(2023, 1, 1, 9 + i, 30)
+        end_time = datetime(2023, 1, 1, 10 + i, 30)
+        builder.add_next_interval(start_time, end_time)
+    
+    # Build universe state
+    universe_state = builder.build()
+    
+    # Verify indicator intervals were computed
+    assert 1 in universe_state.indicator_intervals
+    indicator_interval = universe_state.indicator_intervals[1]
+    
+    # Verify all default indicators were computed
+    expected_indicators = ['PL', 'OneOneHigh', 'OneOneLow', 'OneOneDot', 'EBot', 'ETop']
+    for indicator_name in expected_indicators:
+        assert indicator_interval.has_indicator(indicator_name)
+        # All should be valid since we have sufficient data
+        assert indicator_interval.is_indicator_valid(indicator_name)
+        assert indicator_interval.get_indicator_value(indicator_name) is not None
+
+
+def test_indicator_computation_with_empty_config():
+    """Test that no indicators are computed with empty configuration."""
+    # Create universe and empty indicator config
+    universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1])
+    indicator_config = IndicatorConfig.empty_config()
+    
+    mock_manager = Mock(spec=MarketDataManager)
+    mock_manager.get_ohlc_batch.return_value = {
+        1: {'open': 100.0, 'high': 105.0, 'low': 99.0, 'close': 104.0}
+    }
+    
+    builder = UniverseStateBuilder(universe, indicator_config, mock_manager)
+    
+    # Add interval
+    start_time = datetime(2023, 1, 1, 9, 30)
+    end_time = datetime(2023, 1, 1, 10, 30)
+    builder.add_next_interval(start_time, end_time)
+    
+    # Build universe state
+    universe_state = builder.build()
+    
+    # Verify indicator intervals were computed but are empty
+    assert 1 in universe_state.indicator_intervals
+    indicator_interval = universe_state.indicator_intervals[1]
+    assert len(indicator_interval.get_indicator_names()) == 0
+
+
+def test_indicator_computation_multiple_instruments():
+    """Test indicator computation for multiple instruments."""
+    # Create universe with multiple instruments
+    universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1, 2])
+    indicator_config = IndicatorConfig.basic_config()
+    
+    mock_manager = Mock(spec=MarketDataManager)
+    mock_manager.get_ohlc_batch.return_value = {
+        1: {'open': 100.0, 'high': 105.0, 'low': 99.0, 'close': 104.0},
+        2: {'open': 200.0, 'high': 210.0, 'low': 195.0, 'close': 208.0}
+    }
+    
+    builder = UniverseStateBuilder(universe, indicator_config, mock_manager)
+    
+    # Add interval
+    start_time = datetime(2023, 1, 1, 9, 30)
+    end_time = datetime(2023, 1, 1, 10, 30)
+    builder.add_next_interval(start_time, end_time)
+    
+    # Build universe state
+    universe_state = builder.build()
+    
+    # Verify indicator intervals were computed for both instruments
+    assert 1 in universe_state.indicator_intervals
+    assert 2 in universe_state.indicator_intervals
+    
+    # Verify indicators for instrument 1
+    indicator_interval_1 = universe_state.indicator_intervals[1]
+    expected_oneonedot_1 = (105.0 + 99.0 + 104.0) / 3.0
+    assert indicator_interval_1.get_indicator_value('OneOneDot') == expected_oneonedot_1
+    
+    # Verify indicators for instrument 2
+    indicator_interval_2 = universe_state.indicator_intervals[2]
+    expected_oneonedot_2 = (210.0 + 195.0 + 208.0) / 3.0
+    assert indicator_interval_2.get_indicator_value('OneOneDot') == expected_oneonedot_2
+
+
+def test_indicator_computation_with_insufficient_data():
+    """Test indicator computation when there's insufficient historical data."""
+    # Create universe and config that requires multiple intervals
+    universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1])
+    indicator_config = IndicatorConfig()
+    indicator_config.add_indicator('PL', PL)  # PL requires 3 intervals
+    
+    mock_manager = Mock(spec=MarketDataManager)
+    mock_manager.get_ohlc_batch.return_value = {
+        1: {'open': 100.0, 'high': 105.0, 'low': 99.0, 'close': 104.0}
+    }
+    
+    builder = UniverseStateBuilder(universe, indicator_config, mock_manager)
+    
+    # Add only one interval (insufficient for PL)
+    start_time = datetime(2023, 1, 1, 9, 30)
+    end_time = datetime(2023, 1, 1, 10, 30)
+    builder.add_next_interval(start_time, end_time)
+    
+    # Build universe state
+    universe_state = builder.build()
+    
+    # Verify indicator intervals were computed
+    assert 1 in universe_state.indicator_intervals
+    indicator_interval = universe_state.indicator_intervals[1]
+    
+    # Verify PL indicator is invalid due to insufficient data
+    assert indicator_interval.has_indicator('PL')
+    assert not indicator_interval.is_indicator_valid('PL')
+    assert indicator_interval.get_indicator_value('PL') is None
+    assert indicator_interval.get_indicator_status('PL') == 'invalid'
+
+
+def test_indicator_computation_with_invalid_instrument_data():
+    """Test indicator computation when instrument data is invalid."""
+    # Create universe and basic indicator config
+    universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1])
+    indicator_config = IndicatorConfig.basic_config()
+    
+    mock_manager = Mock(spec=MarketDataManager)
+    mock_manager.get_ohlc_batch.return_value = {
+        1: {'open': 100.0, 'high': 105.0, 'low': 99.0, 'close': 104.0}
+    }
+    
+    builder = UniverseStateBuilder(universe, indicator_config, mock_manager)
+    
+    # Add a normal interval first to establish the time period
+    start_time = datetime(2023, 1, 1, 9, 30)
+    end_time = datetime(2023, 1, 1, 10, 30)
+    builder.add_next_interval(start_time, end_time)
+    
+    # Manually replace the valid interval with an invalid one
+    invalid_interval = InstrumentInterval(
+        instrument_id=1,
+        start_date_time=start_time,
+        end_date_time=end_time,
+        open=100.0, high=105.0, low=99.0, close=104.0,
+        traded_volume=1000.0, traded_dollar=103000.0,
+        status='invalid'  # Mark as invalid
+    )
+    
+    # Replace the valid interval with invalid one
+    builder.instrument_history[1] = [invalid_interval]
+    
+    # Build universe state
+    universe_state = builder.build()
+    
+    # Verify indicator intervals were computed
+    assert 1 in universe_state.indicator_intervals
+    indicator_interval = universe_state.indicator_intervals[1]
+    
+    # Verify all indicators are invalid due to invalid input data
+    expected_indicators = ['OneOneDot', 'OneOneHigh', 'OneOneLow']
+    for indicator_name in expected_indicators:
+        assert indicator_interval.has_indicator(indicator_name)
+        assert not indicator_interval.is_indicator_valid(indicator_name)
+        assert indicator_interval.get_indicator_value(indicator_name) is None
+
+
+def test_instrument_history_management():
+    """Test that instrument history is properly managed."""
+    # Create universe and basic indicator config
+    universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1, 2])
+    indicator_config = IndicatorConfig.basic_config()
+    
+    mock_manager = Mock(spec=MarketDataManager)
+    mock_manager.get_ohlc_batch.side_effect = [
+        {1: {'open': 100.0, 'high': 105.0, 'low': 99.0, 'close': 104.0},
+         2: {'open': 200.0, 'high': 210.0, 'low': 195.0, 'close': 208.0}},
+        {1: {'open': 104.0, 'high': 108.0, 'low': 103.0, 'close': 107.0},
+         2: {'open': 208.0, 'high': 215.0, 'low': 205.0, 'close': 212.0}}
+    ]
+    
+    builder = UniverseStateBuilder(universe, indicator_config, mock_manager)
+    
+    # Add first interval
+    builder.add_next_interval(datetime(2023, 1, 1, 9, 30), datetime(2023, 1, 1, 10, 30))
+    
+    # Verify history has one interval for each instrument
+    assert len(builder.instrument_history[1]) == 1
+    assert len(builder.instrument_history[2]) == 1
+    
+    # Add second interval
+    builder.add_next_interval(datetime(2023, 1, 1, 10, 30), datetime(2023, 1, 1, 11, 30))
+    
+    # Verify history has two intervals for each instrument
+    assert len(builder.instrument_history[1]) == 2
+    assert len(builder.instrument_history[2]) == 2
+    
+    # Test reset clears history
+    builder.reset()
+    assert builder.instrument_history == {}
+    assert len(builder.intervals) == 0
+
+
+def test_universe_state_with_indicator_intervals():
+    """Test UniverseState includes indicator intervals correctly."""
+    # Create universe and basic indicator config
+    universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1])
+    indicator_config = IndicatorConfig.basic_config()
+    
+    mock_manager = Mock(spec=MarketDataManager)
+    mock_manager.get_ohlc_batch.return_value = {
+        1: {'open': 100.0, 'high': 105.0, 'low': 99.0, 'close': 104.0}
+    }
+    
+    builder = UniverseStateBuilder(universe, indicator_config, mock_manager)
+    
+    # Add interval
+    start_time = datetime(2023, 1, 1, 9, 30)
+    end_time = datetime(2023, 1, 1, 10, 30)
+    builder.add_next_interval(start_time, end_time)
+    
+    # Build universe state
+    universe_state = builder.build()
+    
+    # Verify UniverseState structure
+    assert len(universe_state.intervals) == 1
+    assert len(universe_state.indicator_intervals) == 1
+    assert 1 in universe_state.indicator_intervals
+    
+    # Verify indicator interval details
+    indicator_interval = universe_state.indicator_intervals[1]
+    assert indicator_interval.instrument_id == 1
+    assert indicator_interval.start_date_time == start_time
+    assert indicator_interval.end_date_time == end_time
+    assert len(indicator_interval.get_indicator_names()) == 3  # Basic config has 3 indicators
