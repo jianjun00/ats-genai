@@ -30,14 +30,14 @@ class TradingUniverse:
         pool = await asyncpg.create_pool(self.db_url)
         async with pool.acquire() as conn:
             # Get all stocks with price, volume, and market cap as of as_of_date
-            daily_adjusted_prices = self.env.get_table_name("daily_adjusted_prices")
             daily_prices = self.env.get_table_name("daily_prices")
+            daily_market_cap = self.env.get_table_name("daily_market_cap")
             
             rows = await conn.fetch(f'''
-                SELECT dap.symbol, dap.close, dp.volume, dap.market_cap
-                FROM {daily_adjusted_prices} dap
-                JOIN {daily_prices} dp ON dap.symbol = dp.symbol AND dap.date = dp.date
-                WHERE dap.date = $1
+                SELECT dp.symbol, dp.close, dp.volume, dmc.market_cap
+                FROM {daily_prices} dp
+                JOIN {daily_market_cap} dmc ON dp.symbol = dmc.symbol AND dp.date = dmc.date
+                WHERE dp.date = $1
             ''', as_of_date)
             eligible = [
                 row['symbol'] for row in rows
@@ -68,14 +68,12 @@ class SecurityMaster:
     async def get_security_info(self, symbol: str, as_of_date: date) -> Optional[Dict]:
         pool = await asyncpg.create_pool(self.db_url)
         async with pool.acquire() as conn:
-            daily_adjusted_prices = self.env.get_table_name("daily_adjusted_prices")
             daily_prices = self.env.get_table_name("daily_prices")
             
             row = await conn.fetchrow(f'''
-                SELECT dap.symbol, dap.close AS adjusted_price, dp.close, dp.volume, dap.market_cap
-                FROM {daily_adjusted_prices} dap
-                JOIN {daily_prices} dp ON dap.symbol = dp.symbol AND dap.date = dp.date
-                WHERE dap.symbol = $1 AND dap.date = $2
+                SELECT symbol, close, volume
+                FROM {daily_prices}
+                WHERE symbol = $1 AND date = $2
             ''', symbol, as_of_date)
         await pool.close()
         if row:
@@ -85,14 +83,12 @@ class SecurityMaster:
     async def get_multiple_securities_info(self, symbols: List[str], as_of_date: date) -> Dict[str, Dict]:
         pool = await asyncpg.create_pool(self.db_url)
         async with pool.acquire() as conn:
-            daily_adjusted_prices = self.env.get_table_name("daily_adjusted_prices")
             daily_prices = self.env.get_table_name("daily_prices")
             
             rows = await conn.fetch(f'''
-                SELECT dap.symbol, dap.close AS adjusted_price, dp.close, dp.volume, dap.market_cap
-                FROM {daily_adjusted_prices} dap
-                JOIN {daily_prices} dp ON dap.symbol = dp.symbol AND dap.date = dp.date
-                WHERE dap.symbol = ANY($1::text[]) AND dap.date = $2
+                SELECT symbol, close, volume
+                FROM {daily_prices}
+                WHERE symbol = ANY($1::text[]) AND date = $2
             ''', symbols, as_of_date)
         await pool.close()
         return {row['symbol']: dict(row) for row in rows}

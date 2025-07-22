@@ -18,11 +18,11 @@ async def test_trading_universe_update(monkeypatch):
     async with pool.acquire() as conn:
         # Clean up existing data
         daily_prices_table = env.get_table_name("daily_prices")
-        daily_adjusted_prices_table = env.get_table_name("daily_adjusted_prices")
+        daily_market_cap_table = env.get_table_name("daily_market_cap")
         await conn.execute(f"DELETE FROM {daily_prices_table} WHERE date = $1", today)
-        await conn.execute(f"DELETE FROM {daily_adjusted_prices_table} WHERE date = $1", today)
+        await conn.execute(f"DELETE FROM {daily_market_cap_table} WHERE date = $1", today)
         
-        # Insert data into daily_prices (without market_cap)
+        # Insert data into daily_prices
         await conn.execute(f"""
             INSERT INTO {daily_prices_table} (date, symbol, open, high, low, close, volume)
             VALUES
@@ -31,16 +31,16 @@ async def test_trading_universe_update(monkeypatch):
             ($1, 'CCC', 10, 10, 10, 10, 500000),  -- volume too low
             ($1, 'DDD', 10, 10, 10, 10, 2000000)  -- market cap too low
         """, today)
-        
-        # Insert data into daily_adjusted_prices (with market_cap)
+        # Insert data into daily_market_cap
         await conn.execute(f"""
-            INSERT INTO {daily_adjusted_prices_table} (date, symbol, open, high, low, close, volume, market_cap)
+            INSERT INTO {daily_market_cap_table} (date, symbol, market_cap)
             VALUES
-            ($1, 'AAA', 10, 10, 10, 10, 2000000, 1000000000), -- eligible
-            ($1, 'BBB', 4, 4, 4, 4, 2000000, 1000000000),     -- price too low
-            ($1, 'CCC', 10, 10, 10, 10, 500000, 1000000000),  -- volume too low
-            ($1, 'DDD', 10, 10, 10, 10, 2000000, 10000000)    -- market cap too low
+            ($1, 'AAA', 1000000000), -- eligible
+            ($1, 'BBB', 1000000000), -- price too low
+            ($1, 'CCC', 1000000000), -- volume too low
+            ($1, 'DDD', 10000000)    -- market cap too low
         """, today)
+        
     await pool.close()
 
     universe = TradingUniverse(TSDB_URL)
@@ -58,7 +58,6 @@ async def test_security_master():
     info = await master.get_security_info('AAA', today)
     assert info['close'] == 10
     assert info['volume'] == 2000000
-    assert info['market_cap'] == 1000000000
     # Test missing symbol
     missing = await master.get_security_info('ZZZ', today)
     assert missing is None
