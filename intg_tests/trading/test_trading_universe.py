@@ -1,11 +1,14 @@
 import pytest
 import asyncio
 from datetime import date
-from src.trading.trading_universe import TradingUniverse, SecurityMaster
+from trading.trading_universe import TradingUniverse, SecurityMaster
 import os
 import asyncpg
 
-TSDB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")
+from config.environment import get_environment, set_environment, EnvironmentType
+set_environment(EnvironmentType.INTEGRATION)
+env = get_environment()
+TSDB_URL = env.get_database_url()
 
 @pytest.mark.asyncio
 async def test_trading_universe_update(monkeypatch):
@@ -14,12 +17,14 @@ async def test_trading_universe_update(monkeypatch):
     today = date(2023, 7, 20)
     async with pool.acquire() as conn:
         # Clean up existing data
-        await conn.execute("DELETE FROM daily_prices WHERE date = $1", today)
-        await conn.execute("DELETE FROM daily_adjusted_prices WHERE date = $1", today)
+        daily_prices_table = env.get_table_name("daily_prices")
+        daily_adjusted_prices_table = env.get_table_name("daily_adjusted_prices")
+        await conn.execute(f"DELETE FROM {daily_prices_table} WHERE date = $1", today)
+        await conn.execute(f"DELETE FROM {daily_adjusted_prices_table} WHERE date = $1", today)
         
         # Insert data into daily_prices (without market_cap)
-        await conn.execute("""
-            INSERT INTO daily_prices (date, symbol, open, high, low, close, volume)
+        await conn.execute(f"""
+            INSERT INTO {daily_prices_table} (date, symbol, open, high, low, close, volume)
             VALUES
             ($1, 'AAA', 10, 10, 10, 10, 2000000), -- eligible
             ($1, 'BBB', 4, 4, 4, 4, 2000000),     -- price too low
@@ -28,8 +33,8 @@ async def test_trading_universe_update(monkeypatch):
         """, today)
         
         # Insert data into daily_adjusted_prices (with market_cap)
-        await conn.execute("""
-            INSERT INTO daily_adjusted_prices (date, symbol, open, high, low, close, volume, market_cap)
+        await conn.execute(f"""
+            INSERT INTO {daily_adjusted_prices_table} (date, symbol, open, high, low, close, volume, market_cap)
             VALUES
             ($1, 'AAA', 10, 10, 10, 10, 2000000, 1000000000), -- eligible
             ($1, 'BBB', 4, 4, 4, 4, 2000000, 1000000000),     -- price too low

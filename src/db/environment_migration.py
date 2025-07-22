@@ -85,14 +85,13 @@ class EnvironmentMigration:
                     low DOUBLE PRECISION,
                     close DOUBLE PRECISION,
                     volume BIGINT,
+                    adjusted_price DOUBLE PRECISION,
                     source TEXT,
                     status TEXT,
                     note TEXT,
                     PRIMARY KEY (date, symbol)
                 )
             """,
-            
-<<<<<<< HEAD
             "daily_prices_polygon": f"""
                 CREATE TABLE IF NOT EXISTS {self.env.get_table_name("daily_prices_polygon")} (
                     date DATE NOT NULL,
@@ -106,7 +105,6 @@ class EnvironmentMigration:
                     PRIMARY KEY (date, symbol)
                 )
             """,
-            
             "daily_prices_tiingo": f"""
                 CREATE TABLE IF NOT EXISTS {self.env.get_table_name("daily_prices_tiingo")} (
                     date DATE NOT NULL,
@@ -121,9 +119,6 @@ class EnvironmentMigration:
                     PRIMARY KEY (date, symbol)
                 )
             """,
-            
-=======
->>>>>>> a1b05ce7d4f4b6b2611a0b1150389207eb911d65
             "daily_adjusted_prices": f"""
                 CREATE TABLE IF NOT EXISTS {self.env.get_table_name("daily_adjusted_prices")} (
                     date DATE NOT NULL,
@@ -141,15 +136,10 @@ class EnvironmentMigration:
                     split_numerator DOUBLE PRECISION,
                     split_denominator DOUBLE PRECISION,
                     dividend_amount DOUBLE PRECISION,
-<<<<<<< HEAD
-=======
                     adjustment_factor DOUBLE PRECISION,
->>>>>>> a1b05ce7d4f4b6b2611a0b1150389207eb911d65
                     PRIMARY KEY (date, symbol)
                 )
             """,
-            
-<<<<<<< HEAD
             "instrument_polygon": f"""
                 CREATE TABLE IF NOT EXISTS {self.env.get_table_name("instrument_polygon")} (
                     symbol TEXT PRIMARY KEY,
@@ -169,9 +159,6 @@ class EnvironmentMigration:
                     updated_at TIMESTAMP WITH TIME ZONE
                 )
             """,
-            
-=======
->>>>>>> a1b05ce7d4f4b6b2611a0b1150389207eb911d65
             "splits": f"""
                 CREATE TABLE IF NOT EXISTS {self.env.get_table_name("splits")} (
                     date DATE NOT NULL,
@@ -181,19 +168,6 @@ class EnvironmentMigration:
                     PRIMARY KEY (date, symbol)
                 )
             """,
-            
-<<<<<<< HEAD
-=======
-            "dividends": f"""
-                CREATE TABLE IF NOT EXISTS {self.env.get_table_name("dividends")} (
-                    date DATE NOT NULL,
-                    symbol TEXT NOT NULL,
-                    amount DOUBLE PRECISION NOT NULL,
-                    PRIMARY KEY (date, symbol)
-                )
-            """,
-            
->>>>>>> a1b05ce7d4f4b6b2611a0b1150389207eb911d65
             "universe": f"""
                 CREATE TABLE IF NOT EXISTS {self.env.get_table_name("universe")} (
                     id SERIAL PRIMARY KEY,
@@ -202,10 +176,8 @@ class EnvironmentMigration:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """,
-            
             "universe_membership": f"""
                 CREATE TABLE IF NOT EXISTS {self.env.get_table_name("universe_membership")} (
-<<<<<<< HEAD
                     id SERIAL PRIMARY KEY,
                     universe_id INTEGER NOT NULL,
                     symbol TEXT NOT NULL,
@@ -216,7 +188,6 @@ class EnvironmentMigration:
                     FOREIGN KEY (universe_id) REFERENCES {self.env.get_table_name("universe")}(id)
                 )
             """,
-            
             "test_universe_membership": f"""
                 CREATE TABLE IF NOT EXISTS {self.env.get_table_name("test_universe_membership")} (
                     date DATE NOT NULL,
@@ -224,37 +195,26 @@ class EnvironmentMigration:
                     PRIMARY KEY (date, symbol)
                 )
             """,
-            
             "spy_membership_change": f"""
                 CREATE TABLE IF NOT EXISTS {self.env.get_table_name("spy_membership_change")} (
                     id SERIAL PRIMARY KEY,
                     change_date DATE NOT NULL,
+                    event_date DATE,
                     added TEXT,
                     removed TEXT
                 )
             """,
-            
             "status_code": f"""
                 CREATE TABLE IF NOT EXISTS {self.env.get_table_name("status_code")} (
                     id SERIAL PRIMARY KEY,
                     code TEXT NOT NULL,
                     description TEXT
-=======
-                    universe_id INTEGER NOT NULL,
-                    symbol TEXT NOT NULL,
-                    start_date DATE NOT NULL,
-                    end_date DATE,
-                    PRIMARY KEY (universe_id, symbol, start_date),
-                    FOREIGN KEY (universe_id) REFERENCES {self.env.get_table_name("universe")} (id)
->>>>>>> a1b05ce7d4f4b6b2611a0b1150389207eb911d65
                 )
             """,
-            
             "events": f"""
                 CREATE TABLE IF NOT EXISTS {self.env.get_table_name("events")} (
                     id SERIAL PRIMARY KEY,
                     date DATE NOT NULL,
-<<<<<<< HEAD
                     symbol TEXT NOT NULL,
                     event_type TEXT NOT NULL,
                     amount DOUBLE PRECISION,
@@ -262,7 +222,6 @@ class EnvironmentMigration:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """,
-            
             "dividends": f"""
                 CREATE TABLE IF NOT EXISTS {self.env.get_table_name("dividends")} (
                     date DATE NOT NULL,
@@ -271,15 +230,62 @@ class EnvironmentMigration:
                     PRIMARY KEY (date, symbol)
                 )
             """,
-=======
-                    symbol TEXT,
-                    event_type TEXT NOT NULL,
+            "daily_adjusted_prices": f"""
+                CREATE TABLE IF NOT EXISTS {self.env.get_table_name("daily_adjusted_prices")} (
+                    date DATE NOT NULL,
+                    symbol TEXT NOT NULL,
+                    open DOUBLE PRECISION,
+                    high DOUBLE PRECISION,
+                    low DOUBLE PRECISION,
+                    close DOUBLE PRECISION,
+                    volume BIGINT,
+                    market_cap DOUBLE PRECISION,
+                    original_open DOUBLE PRECISION,
+                    original_high DOUBLE PRECISION,
+                    original_low DOUBLE PRECISION,
+                    original_close DOUBLE PRECISION,
+                    split_numerator DOUBLE PRECISION,
+                    split_denominator DOUBLE PRECISION,
+                    dividend_amount DOUBLE PRECISION,
+                    adjustment_factor DOUBLE PRECISION,
+                    PRIMARY KEY (date, symbol)
+                )
+            """,
+            "vendors": f"""
+                CREATE TABLE IF NOT EXISTS {self.env.get_table_name("vendors")} (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL UNIQUE,
                     description TEXT,
-                    data JSONB,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            """
->>>>>>> a1b05ce7d4f4b6b2611a0b1150389207eb911d65
+            """,
+            "instruments": f"""
+                CREATE TABLE IF NOT EXISTS {self.env.get_table_name("instruments")} (
+                    id SERIAL PRIMARY KEY,
+                    symbol TEXT NOT NULL UNIQUE,
+                    name TEXT,
+                    exchange TEXT,
+                    type TEXT,
+                    currency TEXT,
+                    figi TEXT,
+                    isin TEXT,
+                    cusip TEXT,
+                    composite_figi TEXT,
+                    active BOOLEAN,
+                    list_date DATE,
+                    delist_date DATE,
+                    raw JSONB,
+                    created_at TIMESTAMP WITH TIME ZONE,
+                    updated_at TIMESTAMP WITH TIME ZONE
+                )
+            """,
+            "db_version": f"""
+                CREATE TABLE IF NOT EXISTS {self.env.get_table_name("db_version")} (
+                    version INTEGER PRIMARY KEY,
+                    checksum TEXT NOT NULL,
+                    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """,
         }
     
     async def create_all_tables(self):
@@ -311,7 +317,6 @@ class EnvironmentMigration:
                 indexes = [
                     f"CREATE INDEX IF NOT EXISTS idx_{self.env.env_type.value}_daily_prices_symbol ON {self.env.get_table_name('daily_prices')} (symbol)",
                     f"CREATE INDEX IF NOT EXISTS idx_{self.env.env_type.value}_daily_prices_date ON {self.env.get_table_name('daily_prices')} (date)",
-<<<<<<< HEAD
                     f"CREATE INDEX IF NOT EXISTS idx_{self.env.env_type.value}_daily_prices_polygon_symbol ON {self.env.get_table_name('daily_prices_polygon')} (symbol)",
                     f"CREATE INDEX IF NOT EXISTS idx_{self.env.env_type.value}_daily_prices_polygon_date ON {self.env.get_table_name('daily_prices_polygon')} (date)",
                     f"CREATE INDEX IF NOT EXISTS idx_{self.env.env_type.value}_daily_prices_tiingo_symbol ON {self.env.get_table_name('daily_prices_tiingo')} (symbol)",
@@ -323,12 +328,6 @@ class EnvironmentMigration:
                     f"CREATE INDEX IF NOT EXISTS idx_{self.env.env_type.value}_universe_membership_dates ON {self.env.get_table_name('universe_membership')} (start_at, end_at)",
                     f"CREATE INDEX IF NOT EXISTS idx_{self.env.env_type.value}_universe_membership_universe_id ON {self.env.get_table_name('universe_membership')} (universe_id)",
                     f"CREATE INDEX IF NOT EXISTS idx_{self.env.env_type.value}_spy_membership_change_date ON {self.env.get_table_name('spy_membership_change')} (change_date)",
-=======
-                    f"CREATE INDEX IF NOT EXISTS idx_{self.env.env_type.value}_daily_adjusted_prices_symbol ON {self.env.get_table_name('daily_adjusted_prices')} (symbol)",
-                    f"CREATE INDEX IF NOT EXISTS idx_{self.env.env_type.value}_daily_adjusted_prices_date ON {self.env.get_table_name('daily_adjusted_prices')} (date)",
-                    f"CREATE INDEX IF NOT EXISTS idx_{self.env.env_type.value}_universe_membership_symbol ON {self.env.get_table_name('universe_membership')} (symbol)",
-                    f"CREATE INDEX IF NOT EXISTS idx_{self.env.env_type.value}_universe_membership_dates ON {self.env.get_table_name('universe_membership')} (start_date, end_date)",
->>>>>>> a1b05ce7d4f4b6b2611a0b1150389207eb911d65
                     f"CREATE INDEX IF NOT EXISTS idx_{self.env.env_type.value}_events_date ON {self.env.get_table_name('events')} (date)",
                     f"CREATE INDEX IF NOT EXISTS idx_{self.env.env_type.value}_events_symbol ON {self.env.get_table_name('events')} (symbol)",
                 ]
@@ -377,7 +376,6 @@ class EnvironmentMigration:
         """Complete environment setup: create database, tables, and indexes."""
         print(f"Setting up {self.env.env_type.value} environment...")
         
-<<<<<<< HEAD
         try:
             await self.create_database_if_not_exists()
             await self.create_all_tables()
@@ -388,13 +386,6 @@ class EnvironmentMigration:
         except Exception as e:
             print(f"Error setting up {self.env.env_type.value} environment: {e}")
             return False
-=======
-        await self.create_database_if_not_exists()
-        await self.create_all_tables()
-        await self.create_indexes()
-        
-        print(f"Environment {self.env.env_type.value} setup complete!")
->>>>>>> a1b05ce7d4f4b6b2611a0b1150389207eb911d65
 
 
 async def main():

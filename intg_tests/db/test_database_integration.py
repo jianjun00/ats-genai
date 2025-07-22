@@ -5,8 +5,9 @@ These tests share a common database for the entire test session.
 
 import pytest
 import asyncio
-from src.db.test_db_manager import integration_test_db, clean_integration_db, SAMPLE_FIXTURES
-from src.db.test_db_manager import TestDatabaseManager
+from config.environment import get_environment
+from db.test_db_manager import integration_test_db, clean_integration_db, SAMPLE_FIXTURES
+from db.test_db_manager import TestDatabaseManager
 
 
 @pytest.mark.integration

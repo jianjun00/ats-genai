@@ -1,7 +1,7 @@
 -- Migration 002: Add stock splits tracking table
 -- This migration adds support for tracking stock splits and dividends
 
-CREATE TABLE IF NOT EXISTS stock_splits (
+CREATE TABLE IF NOT EXISTS intg_stock_splits (
     id SERIAL PRIMARY KEY,
     symbol TEXT NOT NULL,
     ex_date DATE NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS stock_splits (
     UNIQUE (symbol, ex_date)
 );
 
-CREATE INDEX IF NOT EXISTS idx_stock_splits_symbol_date ON stock_splits(symbol, ex_date);
+CREATE INDEX IF NOT EXISTS idx_intg_stock_splits_symbol_date ON intg_stock_splits(symbol, ex_date);
 
 -- Add dividends table
 CREATE TABLE IF NOT EXISTS dividends (

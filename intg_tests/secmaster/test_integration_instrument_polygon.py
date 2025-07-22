@@ -6,14 +6,13 @@ THIS_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = THIS_DIR.parent.parent
 TESTS_DIR = PROJECT_ROOT / "tests"
 SRC_DIR = PROJECT_ROOT / "src"
-if str(TESTS_DIR) not in sys.path:
-    sys.path.insert(0, str(TESTS_DIR))
-if str(SRC_DIR.resolve()) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR.resolve()))
+
+
 import pytest
+import importlib
 import asyncpg
 from dotenv import load_dotenv
-from tests.db.test_db_base import AsyncPGTestDBBase
+from db.test_intg_db_base import AsyncPGTestDBBase
 from config.environment import get_environment, set_environment, EnvironmentType
 
 load_dotenv()

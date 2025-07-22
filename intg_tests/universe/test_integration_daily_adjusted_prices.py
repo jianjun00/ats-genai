@@ -87,7 +87,7 @@ async def test_adjusted_prices_basic(tmp_path):
         (date(2022, 1, 3), TEST_SYMBOL, 110, 120, 100, 115, 1300, 115000, 115),
     ])
     # Run adjustment
-    from src.universe.populate_daily_adjusted_prices import calculate_adjusted_prices
+    from universe.populate_daily_adjusted_prices import calculate_adjusted_prices
     prices = await fetch_prices(pool, TEST_SYMBOL)
     splits = await fetch_splits(pool, TEST_SYMBOL)
     dividends = await fetch_dividends(pool, TEST_SYMBOL)
@@ -118,7 +118,7 @@ async def test_adjusted_prices_one_split():
         (date(2022, 1, 3), symbol, 110, 120, 100, 115, 1300, 115000, 115),
     ])
     await insert_split(pool, date(2022, 1, 2), 2, 1, symbol)  # 2-for-1 split
-    from src.universe.populate_daily_adjusted_prices import calculate_adjusted_prices
+    from universe.populate_daily_adjusted_prices import calculate_adjusted_prices
     prices = await fetch_prices(pool, symbol)
     splits = await fetch_splits(pool, symbol)
     dividends = await fetch_dividends(pool, symbol)
@@ -147,7 +147,7 @@ async def test_adjusted_prices_one_dividend():
         (date(2022, 1, 3), symbol, 110, 120, 100, 115, 1300, 115000, 115),
     ])
     await insert_dividend(pool, date(2022, 1, 2), 10, symbol)  # $10 dividend
-    from src.universe.populate_daily_adjusted_prices import calculate_adjusted_prices
+    from universe.populate_daily_adjusted_prices import calculate_adjusted_prices
     prices = await fetch_prices(pool, symbol)
     splits = await fetch_splits(pool, symbol)
     dividends = await fetch_dividends(pool, symbol)
@@ -177,7 +177,7 @@ async def test_adjusted_prices_split_and_dividend():
     ])
     await insert_split(pool, date(2022, 1, 2), 2, 1, symbol)  # 2-for-1 split
     await insert_dividend(pool, date(2022, 1, 3), 5, symbol)  # $5 dividend
-    from src.universe.populate_daily_adjusted_prices import calculate_adjusted_prices
+    from universe.populate_daily_adjusted_prices import calculate_adjusted_prices
     prices = await fetch_prices(pool, symbol)
     splits = await fetch_splits(pool, symbol)
     dividends = await fetch_dividends(pool, symbol)
@@ -208,7 +208,7 @@ async def test_adjusted_prices_two_dividends():
     ])
     await insert_dividend(pool, date(2022, 1, 2), 10, symbol)
     await insert_dividend(pool, date(2022, 1, 3), 5, symbol)
-    from src.universe.populate_daily_adjusted_prices import calculate_adjusted_prices
+    from universe.populate_daily_adjusted_prices import calculate_adjusted_prices
     prices = await fetch_prices(pool, symbol)
     splits = await fetch_splits(pool, symbol)
     dividends = await fetch_dividends(pool, symbol)
@@ -239,7 +239,7 @@ async def test_adjusted_prices_multiple_splits_same_day():
     ])
     await insert_split(pool, date(2022, 1, 2), 2, 1, symbol)  # 2-for-1 split
     await insert_split(pool, date(2022, 1, 2), 5, 4, symbol)  # 5-for-4 split (on same day)
-    from src.universe.populate_daily_adjusted_prices import calculate_adjusted_prices
+    from universe.populate_daily_adjusted_prices import calculate_adjusted_prices
     prices = await fetch_prices(pool, symbol)
     splits = await fetch_splits(pool, symbol)
     dividends = await fetch_dividends(pool, symbol)
@@ -272,7 +272,7 @@ async def test_adjusted_prices_multiple_dividends_same_day():
     ])
     await insert_dividend(pool, date(2022, 1, 2), 10, symbol)
     await insert_dividend(pool, date(2022, 1, 2), 5, symbol)
-    from src.universe.populate_daily_adjusted_prices import calculate_adjusted_prices
+    from universe.populate_daily_adjusted_prices import calculate_adjusted_prices
     prices = await fetch_prices(pool, symbol)
     splits = await fetch_splits(pool, symbol)
     dividends = await fetch_dividends(pool, symbol)
@@ -307,7 +307,7 @@ async def test_adjusted_prices_multiple_splits_and_dividends_same_day():
     await insert_split(pool, date(2022, 1, 2), 5, 4, symbol)
     await insert_dividend(pool, date(2022, 1, 2), 10, symbol)
     await insert_dividend(pool, date(2022, 1, 2), 5, symbol)
-    from src.universe.populate_daily_adjusted_prices import calculate_adjusted_prices
+    from universe.populate_daily_adjusted_prices import calculate_adjusted_prices
     prices = await fetch_prices(pool, symbol)
     splits = await fetch_splits(pool, symbol)
     dividends = await fetch_dividends(pool, symbol)
