@@ -3,6 +3,7 @@
 A server-side application for unified market data, event ingestion, signal computation, and deep learning-based forecasting. Modular, extensible, and production-ready.
 
 ## Features
+- **Environment-Specific Configuration**: Support for test, integration, and production environments with automatic database/table prefixing
 - Real-time and historical market data ingestion (Alpaca, Polygon.io, Finnhub, FMP, IEX, Yahoo, Quandl, Investing.com, etc)
 - Unified event database with reconciliation from multiple sources
 - Technical indicator computation (pandas_ta)
@@ -11,6 +12,7 @@ A server-side application for unified market data, event ingestion, signal compu
 - Automated setup with Docker and .env
 - Kubernetes-ready deployment for GCP
 - Multi-duration interval support for trading analysis
+- Database migration tools for environment setup
 
 ## Project Structure
 
