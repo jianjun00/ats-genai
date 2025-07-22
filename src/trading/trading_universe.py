@@ -1,6 +1,7 @@
 import asyncpg
 from datetime import date, timedelta
 from typing import List, Dict, Optional
+from config.environment import get_environment
 
 class TradingUniverse:
     """
@@ -11,8 +12,14 @@ class TradingUniverse:
       - market cap > 500,000,000
     Universe membership can change daily.
     """
-    def __init__(self, db_url: str):
-        self.db_url = db_url
+    def __init__(self, db_url: Optional[str] = None):
+        """Initialize TradingUniverse with database configuration.
+        
+        Args:
+            db_url: Optional database URL. If None, will use environment configuration.
+        """
+        self.env = get_environment()
+        self.db_url = db_url or self.env.get_database_url()
         self.current_universe: List[str] = []
         self.last_update: Optional[date] = None
 
@@ -23,10 +30,13 @@ class TradingUniverse:
         pool = await asyncpg.create_pool(self.db_url)
         async with pool.acquire() as conn:
             # Get all stocks with price, volume, and market cap as of as_of_date
-            rows = await conn.fetch('''
+            daily_adjusted_prices = self.env.get_table_name("daily_adjusted_prices")
+            daily_prices = self.env.get_table_name("daily_prices")
+            
+            rows = await conn.fetch(f'''
                 SELECT dap.symbol, dap.close, dp.volume, dap.market_cap
-                FROM daily_adjusted_prices dap
-                JOIN daily_prices dp ON dap.symbol = dp.symbol AND dap.date = dp.date
+                FROM {daily_adjusted_prices} dap
+                JOIN {daily_prices} dp ON dap.symbol = dp.symbol AND dap.date = dp.date
                 WHERE dap.date = $1
             ''', as_of_date)
             eligible = [
@@ -46,16 +56,25 @@ class SecurityMaster:
     """
     Provides security-level info as of a given date.
     """
-    def __init__(self, db_url: str):
-        self.db_url = db_url
+    def __init__(self, db_url: Optional[str] = None):
+        """Initialize SecurityMaster with database configuration.
+        
+        Args:
+            db_url: Optional database URL. If None, will use environment configuration.
+        """
+        self.env = get_environment()
+        self.db_url = db_url or self.env.get_database_url()
 
     async def get_security_info(self, symbol: str, as_of_date: date) -> Optional[Dict]:
         pool = await asyncpg.create_pool(self.db_url)
         async with pool.acquire() as conn:
-            row = await conn.fetchrow('''
+            daily_adjusted_prices = self.env.get_table_name("daily_adjusted_prices")
+            daily_prices = self.env.get_table_name("daily_prices")
+            
+            row = await conn.fetchrow(f'''
                 SELECT dap.symbol, dap.close AS adjusted_price, dp.close, dp.volume, dap.market_cap
-                FROM daily_adjusted_prices dap
-                JOIN daily_prices dp ON dap.symbol = dp.symbol AND dap.date = dp.date
+                FROM {daily_adjusted_prices} dap
+                JOIN {daily_prices} dp ON dap.symbol = dp.symbol AND dap.date = dp.date
                 WHERE dap.symbol = $1 AND dap.date = $2
             ''', symbol, as_of_date)
         await pool.close()
@@ -66,10 +85,13 @@ class SecurityMaster:
     async def get_multiple_securities_info(self, symbols: List[str], as_of_date: date) -> Dict[str, Dict]:
         pool = await asyncpg.create_pool(self.db_url)
         async with pool.acquire() as conn:
-            rows = await conn.fetch('''
+            daily_adjusted_prices = self.env.get_table_name("daily_adjusted_prices")
+            daily_prices = self.env.get_table_name("daily_prices")
+            
+            rows = await conn.fetch(f'''
                 SELECT dap.symbol, dap.close AS adjusted_price, dp.close, dp.volume, dap.market_cap
-                FROM daily_adjusted_prices dap
-                JOIN daily_prices dp ON dap.symbol = dp.symbol AND dap.date = dp.date
+                FROM {daily_adjusted_prices} dap
+                JOIN {daily_prices} dp ON dap.symbol = dp.symbol AND dap.date = dp.date
                 WHERE dap.symbol = ANY($1::text[]) AND dap.date = $2
             ''', symbols, as_of_date)
         await pool.close()
