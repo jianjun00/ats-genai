@@ -11,6 +11,7 @@ This module provides:
 import asyncio
 import asyncpg
 import pytest
+import pytest_asyncio
 import uuid
 from typing import Dict, List, Optional, Any
 from contextlib import asynccontextmanager
@@ -58,9 +59,11 @@ class TestDatabaseManager:
             # Use shared integration database
             test_db_url = self.db_url
         
-        # Apply migrations to ensure latest schema
-        migration_manager = MigrationManager(test_db_url)
-        await migration_manager.migrate_to_latest()
+        # For integration tests, apply migrations to ensure latest schema
+        # Unit tests will manage their own migration state
+        if self.test_type == "integration":
+            migration_manager = MigrationManager(test_db_url)
+            await migration_manager.migrate_to_latest()
         
         return test_db_url
     
@@ -229,7 +232,7 @@ class IntegrationTestSession:
 
 # Pytest fixtures for test database management
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def unit_test_db():
     """Fixture for unit tests - provides isolated database per test."""
     db_manager = TestDatabaseManager("unit")
@@ -240,7 +243,7 @@ async def unit_test_db():
     await db_manager.teardown_test_database()
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 async def integration_test_db():
     """Fixture for integration tests - provides shared database for session."""
     session = await IntegrationTestSession.get_instance()

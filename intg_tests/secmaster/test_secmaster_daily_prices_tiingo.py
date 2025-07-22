@@ -19,7 +19,7 @@ TESTS_DIR = PROJECT_ROOT / "tests"
 if str(TESTS_DIR) not in sys.path:
     sys.path.insert(0, str(TESTS_DIR))
 
-from db.test_db_base import AsyncPGTestDBBase, get_test_db_url
+from tests.db.test_db_base import AsyncPGTestDBBase, get_test_db_url
 
 SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/secmaster/daily_tiingo.py"
 

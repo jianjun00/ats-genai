@@ -1,0 +1,122 @@
+[2025-07-22 11:40:21] INFO: Starting simplified production migration
+[2025-07-22 11:40:21] INFO: Step 1: Creating production database
+[2025-07-22 11:40:21] INFO: Database already exists: prod_trading_db
+[2025-07-22 11:40:21] INFO: Step 2: Setting up production tables
+[2025-07-22 11:40:21] INFO: Setting up production environment using EnvironmentMigration
+[2025-07-22 11:40:21] INFO: Production environment setup completed successfully
+[2025-07-22 11:40:21] INFO: Step 3: Finding integration tables with data
+[2025-07-22 11:40:21] INFO: Found 9 integration tables with data
+[2025-07-22 11:40:21] INFO: Step 4: Copying data from integration to production
+[2025-07-22 11:40:21] INFO: Copying intg_daily_prices (4 rows)
+[2025-07-22 11:40:21] INFO: Copied 4/4 rows from intg_daily_prices to prod_daily_prices
+[2025-07-22 11:40:21] INFO: Successfully copied 4 rows from intg_daily_prices to prod_daily_prices
+[2025-07-22 11:40:21] INFO: Copying intg_daily_prices_polygon (466827 rows)
+[2025-07-22 11:40:22] INFO: Copied 10000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:23] INFO: Copied 20000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:23] INFO: Copied 30000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:23] INFO: Copied 40000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:23] INFO: Copied 50000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:24] INFO: Copied 60000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:24] INFO: Copied 70000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:24] INFO: Copied 80000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:24] INFO: Copied 90000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:25] INFO: Copied 100000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:25] INFO: Copied 110000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:25] INFO: Copied 120000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:25] INFO: Copied 130000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:25] INFO: Copied 140000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:26] INFO: Copied 150000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:26] INFO: Copied 160000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:26] INFO: Copied 170000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:26] INFO: Copied 180000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:27] INFO: Copied 190000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:27] INFO: Copied 200000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:27] INFO: Copied 210000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:27] INFO: Copied 220000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:28] INFO: Copied 230000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:28] INFO: Copied 240000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:28] INFO: Copied 250000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:28] INFO: Copied 260000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:29] INFO: Copied 270000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:29] INFO: Copied 280000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:29] INFO: Copied 290000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:29] INFO: Copied 300000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:30] INFO: Copied 310000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:30] INFO: Copied 320000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:30] INFO: Copied 330000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:30] INFO: Copied 340000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:31] INFO: Copied 350000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:31] INFO: Copied 360000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:31] INFO: Copied 370000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:31] INFO: Copied 380000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:32] INFO: Copied 390000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:32] INFO: Copied 400000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:32] INFO: Copied 410000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:33] INFO: Copied 420000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:33] INFO: Copied 430000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:33] INFO: Copied 440000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:33] INFO: Copied 450000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:34] INFO: Copied 460000/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:34] INFO: Copied 466827/466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:34] INFO: Successfully copied 466827 rows from intg_daily_prices_polygon to prod_daily_prices_polygon
+[2025-07-22 11:40:34] INFO: Copying intg_daily_prices_tiingo (392079 rows)
+[2025-07-22 11:40:35] INFO: Copied 10000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:35] INFO: Copied 20000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:35] INFO: Copied 30000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:36] INFO: Copied 40000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:36] INFO: Copied 50000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:36] INFO: Copied 60000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:36] INFO: Copied 70000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:37] INFO: Copied 80000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:37] INFO: Copied 90000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:37] INFO: Copied 100000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:37] INFO: Copied 110000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:38] INFO: Copied 120000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:38] INFO: Copied 130000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:38] INFO: Copied 140000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:38] INFO: Copied 150000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:39] INFO: Copied 160000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:39] INFO: Copied 170000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:39] INFO: Copied 180000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:39] INFO: Copied 190000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:40] INFO: Copied 200000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:40] INFO: Copied 210000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:40] INFO: Copied 220000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:40] INFO: Copied 230000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:41] INFO: Copied 240000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:41] INFO: Copied 250000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:41] INFO: Copied 260000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:41] INFO: Copied 270000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:42] INFO: Copied 280000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:42] INFO: Copied 290000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:42] INFO: Copied 300000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:42] INFO: Copied 310000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:43] INFO: Copied 320000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:43] INFO: Copied 330000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:43] INFO: Copied 340000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:44] INFO: Copied 350000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:44] INFO: Copied 360000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:44] INFO: Copied 370000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:44] INFO: Copied 380000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:45] INFO: Copied 390000/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:45] INFO: Copied 392079/392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:45] INFO: Successfully copied 392079 rows from intg_daily_prices_tiingo to prod_daily_prices_tiingo
+[2025-07-22 11:40:45] INFO: Copying intg_instrument_polygon (11549 rows)
+[2025-07-22 11:40:45] ERROR: Error copying data from intg_instrument_polygon to prod_instrument_polygon: duplicate key value violates unique constraint "prod_instrument_polygon_pkey"
+DETAIL:  Key (symbol)=(AAA) already exists.
+[2025-07-22 11:40:45] INFO: Copying intg_spy_membership_change (1428 rows)
+[2025-07-22 11:40:45] INFO: Copied 1428/1428 rows from intg_spy_membership_change to prod_spy_membership_change
+[2025-07-22 11:40:45] INFO: Successfully copied 1428 rows from intg_spy_membership_change to prod_spy_membership_change
+[2025-07-22 11:40:45] INFO: Copying intg_status_code (2 rows)
+[2025-07-22 11:40:45] INFO: Copied 2/2 rows from intg_status_code to prod_status_code
+[2025-07-22 11:40:45] INFO: Successfully copied 2 rows from intg_status_code to prod_status_code
+[2025-07-22 11:40:45] INFO: Copying intg_test_universe_membership (536 rows)
+[2025-07-22 11:40:45] INFO: Copied 536/536 rows from intg_test_universe_membership to prod_test_universe_membership
+[2025-07-22 11:40:45] INFO: Successfully copied 536 rows from intg_test_universe_membership to prod_test_universe_membership
+[2025-07-22 11:40:45] INFO: Copying intg_universe (4 rows)
+[2025-07-22 11:40:45] INFO: Copied 4/4 rows from intg_universe to prod_universe
+[2025-07-22 11:40:45] INFO: Successfully copied 4 rows from intg_universe to prod_universe
+[2025-07-22 11:40:45] INFO: Copying intg_universe_membership (5098 rows)
+[2025-07-22 11:40:45] INFO: Copied 5098/5098 rows from intg_universe_membership to prod_universe_membership
+[2025-07-22 11:40:45] INFO: Successfully copied 5098 rows from intg_universe_membership to prod_universe_membership
+[2025-07-22 11:40:45] INFO: Migration completed: 8 tables, 865978 total rows
