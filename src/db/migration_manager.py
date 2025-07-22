@@ -22,6 +22,17 @@ class MigrationManager:
         self.env = get_environment()
         self.db_url = db_url or self.env.get_database_url()
         self.migrations_dir = Path(__file__).parent / "migrations"
+        
+        # Determine environment based on database URL
+        if db_url:
+            if "intg_trading_db" in db_url:
+                from src.config.environment import Environment, EnvironmentType
+                self.env = Environment(EnvironmentType.INTEGRATION)
+            elif "prod_trading_db" in db_url:
+                from src.config.environment import Environment, EnvironmentType
+                self.env = Environment(EnvironmentType.PRODUCTION)
+            # else use current environment for test_trading_db
+        
         # Extract table prefix from environment
         sample_table = self.env.get_table_name("sample")
         self.table_prefix = sample_table.replace("sample", "")
