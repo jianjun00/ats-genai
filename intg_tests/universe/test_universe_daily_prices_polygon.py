@@ -21,7 +21,7 @@ SAMPLE_SYMBOL = 'TESTSYM'
 SAMPLE_SHARES_OUTSTANDING = 1000000
 
 # Import the insert_prices function from the Polygon script
-from src.universe.daily_polygon import insert_prices, CREATE_DAILY_PRICES_POLYGON_SQL
+from src.secmaster.daily_polygon import insert_prices, CREATE_DAILY_PRICES_POLYGON_SQL
 
 async def cleanup_test_data(pool, symbol):
     async with pool.acquire() as conn:

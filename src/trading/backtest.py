@@ -65,7 +65,10 @@ async def run_backtest(args):
             return next_portfolio.copy(), cost*sum(abs(qty) for qty in trades.values())
 
     market_data = MarketDataManager()
-    state_builder = UniverseStateBuilder()
+    # Create a temporary universe for the state builder
+    from trading.universe import Universe
+    temp_universe = Universe(current_date=start_date, instrument_ids=[])
+    state_builder = UniverseStateBuilder(temp_universe)
     model_manager = ModelManager()
     optimizer = Optimizer()
     execution_manager = ExecutionManager()
