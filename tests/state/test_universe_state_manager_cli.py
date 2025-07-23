@@ -87,45 +87,100 @@ def test_cli_build_and_inspect(tmp_path):
     assert result.returncode == 0
 
 
-def test_cli_build_action(tmp_path):
-    # Build action should create universe state files
-    # Use a stub builder by patching UniverseStateBuilder
-    import pandas as pd
-    from unittest.mock import patch
-    dummy_df = pd.DataFrame({
-        'instrument_id': [1], 'low': [5], 'high': [10], 'close': [8], 'volume': [100],
-        'adv': [110], 'pldot': [0.1], 'etop': [0.2], 'ebot': [0.3]
-    })
-    class DummyBuilder:
-        def __init__(self, universe, state_manager): pass
-        def build_universe_state(self, date_str): return dummy_df
-    # Set env so CLI subprocess uses DummyBuilder
+def test_cli_build_and_inspect_all_signals(tmp_path):
+    """
+    Build a universe state with all technical signals, then inspect the persisted state and verify
+    all signals (high, low, close, pldot, oneonedot, etop, ebot) are as expected.
+    """
     import os
+    import pandas as pd
+    # Extend DummyBuilder to include oneonedot for this test
+    dummy_signals = {
+        'instrument_id': [1],
+        'low': [11],
+        'high': [22],
+        'close': [15],
+        'volume': [100],
+        'adv': [110],
+        'pldot': [0.5],
+        'oneonedot': [0.9],
+        'etop': [0.7],
+        'ebot': [0.2],
+    }
+    # Write a custom DummyBuilder to src/utils/tests/dummy_builder.py for this test
+    dummy_builder_path = Path(__file__).parent.parent.parent / "src/utils/tests/dummy_builder.py"
+    with open(dummy_builder_path, "w") as f:
+        f.write(
+            """
+import pandas as pd
+class DummyBuilder:
+    def __init__(self, universe, state_manager): pass
+    def build_universe_state(self, date_str):
+        return pd.DataFrame({
+            'instrument_id': [1],
+            'low': [11],
+            'high': [22],
+            'close': [15],
+            'volume': [100],
+            'adv': [110],
+            'pldot': [0.5],
+            'oneonedot': [0.9],
+            'etop': [0.7],
+            'ebot': [0.2]
+        })
+"""
+        )
+        f.flush()
+        import os
+        os.fsync(f.fileno())
     env = os.environ.copy()
     env["UNIVERSE_BUILDER_CLASS"] = "utils.tests.dummy_builder.DummyBuilder"
-    # Ensure both src and tests are on PYTHONPATH
     project_root = str(Path(__file__).parent.parent.parent)
     env["PYTHONPATH"] = project_root + (":" + env["PYTHONPATH"] if "PYTHONPATH" in env else "")
+    # Build
     result = subprocess.run([
         sys.executable, str(Path(__file__).parent.parent.parent / "src/state/universe_state_manager.py"),
-        "--start_date", "2024-01-02",
-        "--end_date", "2024-01-02",
+        "--start_date", "2024-01-03",
+        "--end_date", "2024-01-03",
         "--universe_id", "dummy",
         "--action", "build",
         "--saved_dir", str(tmp_path)
     ], capture_output=True, text=True, env=env)
-    assert "Built and saved universe state for 2024-01-02" in result.stdout
+    assert "Built and saved universe state for 2024-01-03" in result.stdout
     assert result.returncode == 0
-    # Now inspect to verify file
-    result2 = run_cli([
-        "--start_date", "2024-01-02",
-        "--end_date", "2024-01-02",
+    # Wait for file to exist before inspect
+    import time
+    parquet_path = Path(tmp_path) / "states" / "universe_state_20240103_000000.parquet"
+    for _ in range(10):
+        if parquet_path.exists():
+            break
+        time.sleep(0.1)
+    assert parquet_path.exists(), f"Expected state file {parquet_path} not found after build."
+    # Debug: print contents of states/ dir before inspect
+    print("DEBUG: states dir contents before inspect:", list((Path(tmp_path) / "states").iterdir()))
+    # Inspect
+    result2 = subprocess.run([
+        sys.executable, str(Path(__file__).parent.parent.parent / "src/state/universe_state_manager.py"),
+        "--start_date", "2024-01-03",
+        "--end_date", "2024-01-03",
         "--universe_id", "dummy",
         "--action", "inspect",
         "--instrument_id", "1",
-        "--mode", "print"
-    ], tmp_path)
-    assert "low=5" in result2.stdout
+        "--mode", "print",
+        "--fields", "low", "high", "close", "pldot", "oneonedot", "etop", "ebot",
+        "--saved_dir", str(tmp_path)
+    ], capture_output=True, text=True, env=env)
+    out = result2.stdout
+    err = result2.stderr
+    print("DEBUG: inspect CLI stdout:", out)
+    print("DEBUG: inspect CLI stderr:", err)
+    assert "low=11" in out
+    assert "high=22" in out
+    assert "close=15" in out
+    assert "pldot=0.5" in out
+    assert "oneonedot=0.9" in out
+    assert "etop=0.7" in out
+    assert "ebot=0.2" in out
     assert result2.returncode == 0
 
 
