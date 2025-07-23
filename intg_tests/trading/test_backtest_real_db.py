@@ -13,7 +13,7 @@ env = get_environment()
 TSDB_URL = env.get_database_url()
 
 @pytest.mark.asyncio
-async def test_backtest_real_db_aapl_tsla():
+async def test_backtest_real_db_aapl_tsla(backup_and_restore_tables):
     """
     Integration test: run backtest for AAPL and TSLA over real trading_db for 2025-01-01 to 2025-02-01.
     Requires daily_prices and related tables to be populated for AAPL and TSLA for this date range.

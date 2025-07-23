@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS vendors (
     vendor_id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
     description TEXT,
-    website TEXT,
+
     api_key_env_var TEXT,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()

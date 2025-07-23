@@ -17,9 +17,52 @@ from typing import Dict, List, Optional, Any
 from contextlib import asynccontextmanager
 from config.environment import get_environment
 from db.migration_manager import MigrationManager
+import logging
+logger = logging.getLogger(__name__)
+
 
 class TestDatabaseManager:
     """Manages test databases for unit and integration tests."""
+
+    async def backup_tables(self, tables: list):
+        """
+        For each table in tables, create a temp backup table with all data.
+        Example: intg_vendors -> intg_vendors__bak
+        """
+        import asyncpg
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                for table in tables:
+                    full_table = f"{self.table_prefix}{table}"
+                    backup_table = f"{full_table}__bak"
+                    # Drop backup if exists
+                    await conn.execute(f"DROP TABLE IF EXISTS {backup_table} CASCADE")
+                    # Create backup as copy
+                    await conn.execute(f"CREATE TABLE {backup_table} AS TABLE {full_table}")
+        finally:
+            await pool.close()
+
+    async def restore_tables(self, tables: list):
+        """
+        For each table in tables, restore data from temp backup table and drop the backup.
+        """
+        import asyncpg
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                for table in tables:
+                    full_table = f"{self.table_prefix}{table}"
+                    backup_table = f"{full_table}__bak"
+                    # Truncate table
+                    await conn.execute(f"TRUNCATE {full_table} RESTART IDENTITY CASCADE")
+                    # Restore data
+                    await conn.execute(f"INSERT INTO {full_table} SELECT * FROM {backup_table}")
+                    # Drop backup
+                    await conn.execute(f"DROP TABLE IF EXISTS {backup_table} CASCADE")
+        finally:
+            await pool.close()
+
 
     async def setup_isolated_test_tables(self, base_tables, testname):
         """
@@ -185,8 +228,12 @@ class TestDatabaseManager:
                             """)
         finally:
             await pool.close()
-    
+
     async def load_test_fixtures(self, fixtures: Dict[str, List[Dict[str, Any]]]):
+        logger.info("[DEBUG] load_test_fixtures called!")
+        logger.info("[DEBUG] fixtures type: %r", type(fixtures))
+        logger.info("[DEBUG] fixtures: %r", fixtures)
+
         """
         Load test data fixtures into the database.
         
@@ -198,6 +245,9 @@ class TestDatabaseManager:
             async with pool.acquire() as conn:
                 async with conn.transaction():
                     for table_name, rows in fixtures.items():
+                        print(f"[DEBUG] Table: {table_name} - rows: {len(rows)}")
+                        if rows:
+                            print(f"[DEBUG] First row: {rows[0]}")
                         if not rows:
                             continue
                         
@@ -214,9 +264,39 @@ class TestDatabaseManager:
                         """
                         
                         # Insert all rows
+                        print(f"[DEBUG] Inserting rows into table: {full_table_name}")
+                        from datetime import datetime, date
+                        import re
                         for row in rows:
-                            values = [row[col] for col in columns]
-                            await conn.execute(insert_sql, *values)
+                            values = []
+                            for col in columns:
+                                val = row[col]
+                                print(f"[DEBUG] Pre-insert: column={col}, type={type(val)}, value={val}")
+                                # Convert date/datetime objects to YYYY-MM-DD string
+                                if hasattr(val, 'isoformat') and (isinstance(val, datetime) or hasattr(val, 'year')):
+                                    print(f"[CONVERT] Converting date object to string: column={col}, value={val}, type={type(val)}")
+                                    val = val.isoformat()
+                                values.append(val)
+                            print(f"[DEBUG] Row values (post-conversion): {values}")
+                            print(f"[DEBUG] Row types: {[type(v) for v in values]}")
+                            for col, val in zip(columns, values):
+                                print(f"[DEBUG] Inserting into {full_table_name}: column={col}, type={type(val)}, value={val}")
+                                if isinstance(val, str) and re.match(r"^\d{4}-\d{2}-\d{2}$", val):
+                                    print(f"[WARNING] String date detected: column={col}, value={val}")
+                            print(f"[DEBUG] SQL: {insert_sql.strip()} VALUES: {tuple(values)}")
+                            import sys; sys.stdout.flush()
+                            try:
+                                await conn.execute(insert_sql, *values)
+                            except Exception as e:
+                                print("[ERROR] Exception during DB insert!")
+                                print(f"  Table: {full_table_name}")
+                                print(f"  Insert SQL: {insert_sql.strip()}")
+                                print(f"  Values: {values}")
+                                print(f"  Types: {[type(v) for v in values]}")
+                                import traceback
+                                traceback.print_exc()
+                                import sys; sys.stdout.flush()
+                                raise
         finally:
             await pool.close()
 
@@ -260,6 +340,30 @@ class IntegrationTestSession:
 
 # Pytest fixtures for test database management
 
+import pytest_asyncio
+
+@pytest_asyncio.fixture
+async def backup_and_restore_tables():
+    """
+    Async fixture for strict test isolation: backs up and restores tables touched by a test.
+    Usage: add as a fixture to integration tests.
+    """
+    db_manager = TestDatabaseManager("integration")
+    tables = [
+        'vendors', 'instruments', 'universe', 'events',
+        'universe_membership', 'instrument_aliases', 'instrument_metadata',
+        'daily_prices', 'daily_prices_tiingo', 'daily_prices_polygon',
+        'daily_market_cap', 'fundamentals', 'instrument_polygon'
+    ]
+    # Clean up tables BEFORE backing up
+    await db_manager.backup_tables(tables)
+    print("[DEBUG] backup_and_restore_tables: tables backed up")
+    # await db_manager._cleanup_test_data()
+    try:
+        yield
+    finally:
+        await db_manager.restore_tables(tables)
+
 @pytest_asyncio.fixture
 async def unit_test_db():
     """Fixture for unit tests - provides isolated database per test."""
@@ -279,12 +383,13 @@ async def integration_test_db():
     
     # Cleanup happens at session end
 
-@pytest.fixture
+import pytest_asyncio
+
+@pytest_asyncio.fixture
 async def clean_integration_db(integration_test_db):
-    """Fixture that cleans integration database before each test."""
+    """Async fixture that cleans integration database before each test. Compatible with pytest-asyncio."""
     session = await IntegrationTestSession.get_instance()
     await session._db_manager._cleanup_test_data()
-    
     yield integration_test_db
 
 @asynccontextmanager
@@ -327,12 +432,12 @@ SAMPLE_FIXTURES = {
         for ticker in SPY_TICKERS
     ],
     "spy_membership_change": [
-        {"change_date": TEST_DATE.isoformat(), "added": ticker, "removed": None}
+        {"change_date": TEST_DATE, "added": ticker, "removed": None}
         for ticker in SPY_TICKERS
     ],
     "daily_prices": [
         {
-            "date": TEST_DATE.isoformat(),
+            "date": TEST_DATE,
             "symbol": ticker,
             "open": float(100 + i % 10),
             "high": float(105 + i % 5),
@@ -345,7 +450,7 @@ SAMPLE_FIXTURES = {
     "splits": [
         {
             "symbol": SPY_TICKERS[0],
-            "ex_date": (TEST_DATE - timedelta(days=30)).isoformat(),
+            "ex_date": (TEST_DATE - timedelta(days=30)),
             "split_ratio": 2.0/1.0,
             "split_from": 1,
             "split_to": 2,
@@ -353,7 +458,7 @@ SAMPLE_FIXTURES = {
         },
         {
             "symbol": SPY_TICKERS[1],
-            "ex_date": (TEST_DATE - timedelta(days=60)).isoformat(),
+            "ex_date": (TEST_DATE - timedelta(days=60)),
             "split_ratio": 3.0/2.0,
             "split_from": 2,
             "split_to": 3,
@@ -362,12 +467,12 @@ SAMPLE_FIXTURES = {
     ],
     "dividends": [
         {
-            "ex_date": (TEST_DATE - timedelta(days=15)).isoformat(),
+            "ex_date": (TEST_DATE - timedelta(days=15)),
             "symbol": SPY_TICKERS[0],
             "amount": 1.23
         },
         {
-            "ex_date": (TEST_DATE - timedelta(days=45)).isoformat(),
+            "ex_date": (TEST_DATE - timedelta(days=45)),
             "symbol": SPY_TICKERS[1],
             "amount": 0.56
         }

@@ -17,30 +17,14 @@ from typing import Dict, List, Optional, Any
 from contextlib import asynccontextmanager
 from config.environment import get_environment
 from db.migration_manager import MigrationManager
+import logging
+logger = logging.getLogger(__name__)
+from dateutil import parser as date_parser
+import datetime
 
 class TestDatabaseManager:
     """Manages test databases for unit and integration tests."""
 
-    async def setup_isolated_test_tables(self, base_tables, testname):
-        """
-        For each table in base_tables, create a new table named intg_<table>_<testname> by copying schema and data from intg_<table>.
-        Drops the test table if it exists.
-        """
-        import asyncpg
-        pool = await asyncpg.create_pool(self.db_url)
-        try:
-            async with pool.acquire() as conn:
-                for base in base_tables:
-                    base_table = f"{self.table_prefix}{base}"
-                    test_table = f"{self.table_prefix}{base}_{testname}"
-                    # Drop if exists
-                    await conn.execute(f"DROP TABLE IF EXISTS {test_table} CASCADE")
-                    # Recreate with same schema
-                    await conn.execute(f"CREATE TABLE {test_table} (LIKE {base_table} INCLUDING ALL)")
-                    # Copy data
-                    await conn.execute(f"INSERT INTO {test_table} SELECT * FROM {base_table}")
-        finally:
-            await pool.close()
     
     def __init__(self, test_type: str = "unit"):
         """
@@ -104,7 +88,7 @@ class TestDatabaseManager:
             await self._drop_test_database(test_db_name)
         else:
             # For integration tests, clean up test data but keep schema
-            await self._cleanup_test_data()
+            await self.cleanup_test_data()
     
     async def _create_test_database(self, db_name: str):
         """Create a new test database."""
@@ -144,8 +128,9 @@ class TestDatabaseManager:
         finally:
             await pool.close()
     
-    async def _cleanup_test_data(self):
+    async def cleanup_test_data(self):
         """Clean up test data from integration test database."""
+        logger.debug(f"Cleaning up test data from {self.db_url}")
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
@@ -173,8 +158,8 @@ class TestDatabaseManager:
                             continue
                         
                         full_table_name = f"{self.table_prefix}{table}"
+                        logger.debug(f"Deleted test data from {full_table_name}")
                         await conn.execute(f"DELETE FROM {full_table_name}")
-                        
                         # Reset sequences for tables with serial primary keys
                         if table in ['vendors', 'instruments', 'universe', 'events']:
                             await conn.execute(f"""
@@ -183,13 +168,45 @@ class TestDatabaseManager:
         finally:
             await pool.close()
     
+    async def backup_tables(self, tables: List[str]):
+        """Backup tables by copying their contents to *_backup tables."""
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                for table in tables:
+                    full_table_name = f"{self.table_prefix}{table}"
+                    backup_table_name = f"{full_table_name}_backup"
+                    # Drop backup table if exists, then create
+                    await conn.execute(f"DROP TABLE IF EXISTS {backup_table_name}")
+                    await conn.execute(f"CREATE TABLE {backup_table_name} AS TABLE {full_table_name}")
+        finally:
+            await pool.close()
+
+    async def restore_tables(self, tables: List[str]):
+        """Restore tables from their *_backup tables and drop the backups."""
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                for table in tables:
+                    full_table_name = f"{self.table_prefix}{table}"
+                    backup_table_name = f"{full_table_name}_backup"
+                    # Truncate original table and restore from backup
+                    await conn.execute(f"TRUNCATE {full_table_name} RESTART IDENTITY CASCADE")
+                    await conn.execute(f"INSERT INTO {full_table_name} SELECT * FROM {backup_table_name}")
+                    await conn.execute(f"DROP TABLE IF EXISTS {backup_table_name}")
+        finally:
+            await pool.close()
+
     async def load_test_fixtures(self, fixtures: Dict[str, List[Dict[str, Any]]]):
         """
         Load test data fixtures into the database.
-        
+        Converts string date/datetime fields to Python objects for asyncpg compatibility.
         Args:
             fixtures: Dictionary mapping table names to lists of row data
         """
+        date_fields = {"date", "start_at", "end_at", "created_at", "updated_at"}
+        tables = list(fixtures.keys())
+        await self.backup_tables(tables)
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
@@ -197,23 +214,44 @@ class TestDatabaseManager:
                     for table_name, rows in fixtures.items():
                         if not rows:
                             continue
-                        
                         full_table_name = f"{self.table_prefix}{table_name}"
-                        
-                        # Build insert statement
                         columns = list(rows[0].keys())
                         placeholders = ', '.join(f'${i+1}' for i in range(len(columns)))
                         column_names = ', '.join(columns)
-                        
                         insert_sql = f"""
                             INSERT INTO {full_table_name} ({column_names})
                             VALUES ({placeholders})
                         """
-                        
-                        # Insert all rows
                         for row in rows:
-                            values = [row[col] for col in columns]
-                            await conn.execute(insert_sql, *values)
+                            values = []
+                            for col in columns:
+                                val = row[col]
+                                if col in date_fields and isinstance(val, str):
+                                    try:
+                                        dt = date_parser.parse(val)
+                                        if dt.time() == datetime.time(0, 0):
+                                            val = dt.date()
+                                        else:
+                                            val = dt
+                                    except Exception:
+                                        pass
+                                values.append(val)
+                            # Debug logging
+                            logger.debug(f"[DEBUG] Inserting row into table: {full_table_name}")
+                            logger.debug(f"[DEBUG] insert_sql: {insert_sql}")
+                            logger.debug(f"[DEBUG] columns: {columns}")
+                            logger.debug(f"[DEBUG] values: {values}")
+                            logger.debug(f"[DEBUG] value types: {[type(v) for v in values]}")
+                            try:
+                                await conn.execute(insert_sql, *values)
+                            except Exception as e:
+                                logger.error(f"[ERROR] Exception inserting into {full_table_name}: {e}")
+                                logger.error(f"[ERROR] insert_sql: {insert_sql}")
+                                logger.error(f"[ERROR] values: {values}")
+                                logger.error(f"[ERROR] value types: {[type(v) for v in values]}")
+                                import traceback
+                                logger.error(traceback.format_exc())
+                                raise
         finally:
             await pool.close()
 
@@ -280,11 +318,11 @@ async def integration_test_db():
     # Cleanup happens at session end
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def clean_integration_db(integration_test_db):
     """Fixture that cleans integration database before each test."""
     session = await IntegrationTestSession.get_instance()
-    await session._db_manager._cleanup_test_data()
+    await session._db_manager.cleanup_test_data()
     
     yield integration_test_db
 
