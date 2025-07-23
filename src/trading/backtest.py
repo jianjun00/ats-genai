@@ -5,6 +5,7 @@ import numpy as np
 import asyncpg
 from trading.trading_universe import TradingUniverse, SecurityMaster
 import math
+from trading.market_data_manager import MarketDataManager
 
 async def fetch_spy_members(as_of_date, db_url):
     pool = await asyncpg.create_pool(db_url)
@@ -44,8 +45,8 @@ async def run_backtest(args):
     dates = [data_start + timedelta(days=i) for i in range((end_date-data_start).days+1)]
     portfolio = None
 
-    from trading.market_data_manager import MarketDataManager
-    from state.universe_state_builder import UniverseStateBuilder
+    from src.state.universe_state_manager import UniverseStateManager
+    from src.state.universe_state_builder import UniverseStateBuilder
     from state.universe_interval import UniverseInterval
     from state.instrument_interval import InstrumentInterval
     from trading.indicator import UniverseState

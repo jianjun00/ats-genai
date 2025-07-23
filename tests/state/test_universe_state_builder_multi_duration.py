@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime, date
 from unittest.mock import Mock
-from state.universe_state_builder import UniverseStateBuilder
+from src.state.universe_state_builder import UniverseStateBuilder
 from trading.universe import Universe
 from trading.market_data_manager import MarketDataManager
 from trading.time_duration import TimeDuration
