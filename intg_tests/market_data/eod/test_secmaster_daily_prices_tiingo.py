@@ -21,7 +21,7 @@ TESTS_DIR = PROJECT_ROOT / "tests"
 from intg_tests.db.test_intg_db_base import AsyncPGTestDBBase, get_test_db_url
 from config.environment import get_environment, set_environment, EnvironmentType
 
-SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/secmaster/daily_tiingo.py"
+SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/market_data/eod/daily_tiingo.py"
 
 set_environment(EnvironmentType.INTEGRATION)
 env = get_environment()

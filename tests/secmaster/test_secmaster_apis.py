@@ -44,7 +44,11 @@ async def test_get_last_close_price(monkeypatch):
     async def dummy_create_pool(db_url):
         return DummyPool(fetchval_map)
     monkeypatch.setattr('asyncpg.create_pool', dummy_create_pool)
-    secm = SecMaster('dummy', as_of_date=date(2024, 7, 19))
+    from unittest.mock import MagicMock
+    mock_env = MagicMock()
+    mock_env.get_table_name.side_effect = lambda name: name
+    mock_env.get_database_url.return_value = 'postgresql://test/test'
+    secm = SecMaster(mock_env, as_of_date=date(2024, 7, 19))
     price = await secm.get_last_close_price('AAPL')
     assert price == 123.45
 
@@ -54,7 +58,11 @@ async def test_get_average_dollar_volume(monkeypatch):
     async def dummy_create_pool(db_url):
         return DummyPool(fetchval_map)
     monkeypatch.setattr('asyncpg.create_pool', dummy_create_pool)
-    secm = SecMaster('dummy', as_of_date=date(2024, 7, 19))
+    from unittest.mock import MagicMock
+    mock_env = MagicMock()
+    mock_env.get_table_name.side_effect = lambda name: name
+    mock_env.get_database_url.return_value = 'postgresql://test/test'
+    secm = SecMaster(mock_env, as_of_date=date(2024, 7, 19))
     avg_dv = await secm.get_average_dollar_volume('AAPL', window=30)
     assert avg_dv == 1_000_000
 
@@ -64,6 +72,10 @@ async def test_get_market_cap(monkeypatch):
     async def dummy_create_pool(db_url):
         return DummyPool(fetchval_map)
     monkeypatch.setattr('asyncpg.create_pool', dummy_create_pool)
-    secm = SecMaster('dummy', as_of_date=date(2024, 7, 19))
+    from unittest.mock import MagicMock
+    mock_env = MagicMock()
+    mock_env.get_table_name.side_effect = lambda name: name
+    mock_env.get_database_url.return_value = 'postgresql://test/test'
+    secm = SecMaster(mock_env, as_of_date=date(2024, 7, 19))
     mc = await secm.get_market_cap('AAPL')
     assert mc == 2_500_000_000_000

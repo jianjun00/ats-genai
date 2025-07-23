@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 import shutil
 import os
 from dataclasses import dataclass, asdict
-from src.config.environment import get_environment
+from config.environment import get_environment
 
 
 @dataclass

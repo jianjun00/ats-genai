@@ -43,7 +43,11 @@ async def test_advance_membership(monkeypatch):
     async def dummy_create_pool(db_url):
         return DummyPool(events)
     monkeypatch.setattr('asyncpg.create_pool', dummy_create_pool)
-    secm = SecMaster('dummy', as_of_date=date(2020,1,1))
+    from unittest.mock import MagicMock
+    mock_env = MagicMock()
+    mock_env.get_table_name.side_effect = lambda name: name
+    mock_env.get_database_url.return_value = 'postgresql://test/test'
+    secm = SecMaster(mock_env, as_of_date=date(2020,1,1))
     members = await secm.get_spy_membership()
     assert set(members) == {'TICK1'}
 

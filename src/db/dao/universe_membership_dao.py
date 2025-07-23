@@ -37,6 +37,16 @@ class UniverseMembershipDAO:
         finally:
             await pool.close()
 
+    async def get_active_memberships(self, universe_id: int, as_of):
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                return await conn.fetch(
+                    f"SELECT * FROM {self.table_name} WHERE universe_id = $1 AND start_at <= $2 AND (end_at IS NULL OR end_at > $2)",
+                    universe_id, as_of)
+        finally:
+            await pool.close()
+
     async def get_memberships_by_instrument(self, instrument_id: int):
         pool = await asyncpg.create_pool(self.db_url)
         try:

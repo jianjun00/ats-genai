@@ -13,7 +13,7 @@ env = get_environment()
 
 load_dotenv()
 
-SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/secmaster/unify_daily_prices.py"
+SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/market_data/eod/unify_daily_prices.py"
 
 class TestUnifyDailyPrices(AsyncPGTestDBBase):
     @pytest.mark.asyncio

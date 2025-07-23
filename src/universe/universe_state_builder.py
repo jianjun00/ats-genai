@@ -14,8 +14,8 @@ from datetime import datetime, date
 from dataclasses import dataclass
 from enum import Enum
 import numpy as np
-from src.config.environment import Environment, get_environment
-from src.universe.universe_state_manager import UniverseStateManager
+from config.environment import Environment, get_environment
+from universe.universe_state_manager import UniverseStateManager
 
 
 class UniverseAction(Enum):

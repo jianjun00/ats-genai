@@ -8,6 +8,7 @@ from typing import List, Optional
 
 class UniverseDB:
     def __init__(self, env: Environment = None):
+        print(f"[DEBUG] UniverseDB.__init__ received env of type {type(env)}: {env}")
         self.env = env or get_environment()
         self.universe_dao = UniverseDAO(self.env)
         self.universe_membership_dao = UniverseMembershipDAO(self.env)
