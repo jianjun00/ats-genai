@@ -119,6 +119,22 @@ class EnvironmentMigration:
                     PRIMARY KEY (date, symbol)
                 )
             """,
+            "daily_prices_quandl": f"""
+                CREATE TABLE IF NOT EXISTS {self.env.get_table_name("daily_prices_quandl")} (
+                    date DATE NOT NULL,
+                    symbol TEXT NOT NULL,
+                    open DOUBLE PRECISION,
+                    high DOUBLE PRECISION,
+                    low DOUBLE PRECISION,
+                    close DOUBLE PRECISION,
+                    volume BIGINT,
+                    adjusted_price DOUBLE PRECISION,
+                    source TEXT,
+                    status TEXT,
+                    note TEXT,
+                    PRIMARY KEY (date, symbol)
+                )
+            """,
             "daily_adjusted_prices": f"""
                 CREATE TABLE IF NOT EXISTS {self.env.get_table_name("daily_adjusted_prices")} (
                     date DATE NOT NULL,
