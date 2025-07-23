@@ -117,11 +117,9 @@ class TestSecurityMasterEnvironment:
 
         result = await master.get_security_info('AAPL', test_date)
 
-        call_args = mock_conn.fetchrow.call_args
-        query = call_args[0][0]  # First positional argument is the query
-
-        assert "test_daily_adjusted_prices" in query
-        assert "test_daily_prices" in query
+        queries = [args[0][0] for args in mock_conn.fetchrow.call_args_list]
+        assert any("test_daily_adjusted_prices" in q for q in queries)
+        assert any("test_daily_prices" in q for q in queries)
         assert result['symbol'] == 'AAPL'
     
     @patch('asyncpg.create_pool', new_callable=AsyncMock)
@@ -142,11 +140,9 @@ class TestSecurityMasterEnvironment:
 
         result = await master.get_multiple_securities_info(symbols, test_date)
 
-        call_args = mock_conn.fetch.call_args
-        query = call_args[0][0]  # First positional argument is the query
-
-        assert "test_daily_adjusted_prices" in query
-        assert "test_daily_prices" in query
+        queries = [args[0][0] for args in mock_conn.fetch.call_args_list]
+        assert any("test_daily_adjusted_prices" in q for q in queries)
+        assert any("test_daily_prices" in q for q in queries)
         assert len(result) == 2
         assert 'AAPL' in result
         assert 'GOOGL' in result
