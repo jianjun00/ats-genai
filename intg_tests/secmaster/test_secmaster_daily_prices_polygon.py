@@ -19,7 +19,13 @@ TESTS_DIR = PROJECT_ROOT / "tests"
 
 
 from intg_tests.db.test_intg_db_base import AsyncPGTestDBBase, get_test_db_url
+from config.environment import get_environment, set_environment, EnvironmentType
 SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/secmaster/daily_polygon.py"
+
+# Ensure environment is set for integration tests and env is globally available
+set_environment(EnvironmentType.INTEGRATION)
+global env
+env = get_environment()
 
 class TestIntegrationPolygon(AsyncPGTestDBBase):
     @pytest.mark.asyncio
@@ -31,7 +37,7 @@ class TestIntegrationPolygon(AsyncPGTestDBBase):
         pool = await asyncpg.create_pool(env.get_database_url(), min_size=1, max_size=2)
         async with pool.acquire() as conn:
             await conn.execute(
-                "DELETE FROM daily_prices_polygon WHERE symbol = $1 AND date >= $2 AND date <= $3",
+                f"DELETE FROM {env.get_table_name('daily_prices_polygon')} WHERE symbol = $1 AND date >= $2 AND date <= $3",
                 test_symbol, test_start, test_end
             )
         await pool.close()
@@ -51,7 +57,7 @@ class TestIntegrationPolygon(AsyncPGTestDBBase):
         pool = await asyncpg.create_pool(env.get_database_url(), min_size=1, max_size=2)
         async with pool.acquire() as conn:
             rows = await conn.fetch(
-                "SELECT * FROM daily_prices_polygon WHERE symbol = $1 AND date >= $2 AND date <= $3 ORDER BY date",
+                f"SELECT * FROM {env.get_table_name('daily_prices_polygon')} WHERE symbol = $1 AND date >= $2 AND date <= $3 ORDER BY date",
                 test_symbol, test_start, test_end
             )
             assert len(rows) > 0, "No prices inserted for test symbol and range"
@@ -64,7 +70,7 @@ class TestIntegrationPolygon(AsyncPGTestDBBase):
         pool = await asyncpg.create_pool(env.get_database_url(), min_size=1, max_size=2)
         async with pool.acquire() as conn:
             rows2 = await conn.fetch(
-                "SELECT * FROM daily_prices_polygon WHERE symbol = $1 AND date >= $2 AND date <= $3 ORDER BY date",
+                f"SELECT * FROM {env.get_table_name('daily_prices_polygon')} WHERE symbol = $1 AND date >= $2 AND date <= $3 ORDER BY date",
                 test_symbol, test_start, test_end
             )
             assert len(rows2) == before_count, "Duplicate or new rows were inserted when none should have been fetched"

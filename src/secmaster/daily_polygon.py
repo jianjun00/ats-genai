@@ -5,17 +5,19 @@ import requests
 from datetime import datetime, timedelta
 import time
 
-TSDB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")
+from src.config.environment import get_environment, set_environment, EnvironmentType
+import argparse
+
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")  # Set this in your environment
 BASE_URL = "https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{start}/{end}?adjusted=true&sort=asc&limit=50000&apiKey={api_key}"
 START_DATE = (datetime.now() - timedelta(days=365*10)).strftime("%Y-%m-%d")
 END_DATE = datetime.now().strftime("%Y-%m-%d")
 
-async def get_all_spy_tickers():
-    pool = await asyncpg.create_pool(TSDB_URL)
+async def get_all_spy_tickers(env):
+    pool = await asyncpg.create_pool(env.get_database_url())
     async with pool.acquire() as conn:
-        rows = await conn.fetch("SELECT DISTINCT added FROM spy_membership_change WHERE added IS NOT NULL")
-        removed = await conn.fetch("SELECT DISTINCT removed FROM spy_membership_change WHERE removed IS NOT NULL")
+        rows = await conn.fetch(f"SELECT DISTINCT added FROM {env.get_table_name('spy_membership_change')} WHERE added IS NOT NULL")
+        removed = await conn.fetch(f"SELECT DISTINCT removed FROM {env.get_table_name('spy_membership_change')} WHERE removed IS NOT NULL")
     await pool.close()
     tickers = set([row['added'] for row in rows] + [row['removed'] for row in removed])
     tickers.discard(None)
@@ -47,14 +49,26 @@ CREATE TABLE IF NOT EXISTS daily_prices_polygon (
 );
 """
 
-async def insert_prices(prices, ticker, shares_outstanding):
+async def insert_prices(prices, ticker, shares_outstanding, env, table_name):
     if not prices:
         return
-    pool = await asyncpg.create_pool(TSDB_URL)
+    pool = await asyncpg.create_pool(env.get_database_url())
     async with pool.acquire() as conn:
-        await conn.execute(CREATE_DAILY_PRICES_POLYGON_SQL)
+        await conn.execute(f"""
+        CREATE TABLE IF NOT EXISTS {table_name} (
+            date DATE NOT NULL,
+            symbol TEXT NOT NULL,
+            open DOUBLE PRECISION,
+            high DOUBLE PRECISION,
+            low DOUBLE PRECISION,
+            close DOUBLE PRECISION,
+            volume BIGINT,
+            market_cap DOUBLE PRECISION,
+            PRIMARY KEY (date, symbol)
+        );
+        """)
         await conn.executemany(
-            "INSERT INTO daily_prices_polygon (date, symbol, open, high, low, close, volume, market_cap) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT DO NOTHING",
+            f"INSERT INTO {table_name} (date, symbol, open, high, low, close, volume, market_cap) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT DO NOTHING",
             [(
                 datetime.utcfromtimestamp(row['t']/1000).date(),
                 ticker,
@@ -68,10 +82,10 @@ import argparse
 
 from calendars.exchange_calendar import ExchangeCalendar
 
-async def get_existing_dates_polygon(pool, symbol, start_date, end_date):
+async def get_existing_dates_polygon(pool, symbol, start_date, end_date, table_name):
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT date FROM daily_prices_polygon WHERE symbol = $1 AND date >= $2 AND date <= $3",
+            f"SELECT date FROM {table_name} WHERE symbol = $1 AND date >= $2 AND date <= $3",
             symbol, start_date, end_date
         )
     return set(row['date'] for row in rows)
@@ -97,18 +111,24 @@ async def main():
     parser.add_argument('--ticker', type=str, default=None, help='Process only this ticker (optional)')
     parser.add_argument('--start_date', type=str, required=True, help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end_date', type=str, required=True, help='End date (YYYY-MM-DD)')
+    parser.add_argument('--environment', type=str, default='intg', choices=['test', 'intg', 'prod'], help='Environment to use (test, intg, prod)')
     args = parser.parse_args()
+
+    set_environment(EnvironmentType(args.environment))
+    env = get_environment()
+    table_name = env.get_table_name('daily_prices_polygon')
+
     if not POLYGON_API_KEY:
         raise Exception("Please set your POLYGON_API_KEY environment variable.")
     if args.ticker:
         tickers = [args.ticker]
     else:
-        tickers = await get_all_spy_tickers()
+        tickers = await get_all_spy_tickers(env)
     start_date = datetime.strptime(args.start_date, "%Y-%m-%d").date()
     end_date = datetime.strptime(args.end_date, "%Y-%m-%d").date()
     nyse_cal = ExchangeCalendar('NYSE')
     trading_days = set(nyse_cal.all_trading_days(start_date, end_date))
-    pool = await asyncpg.create_pool(TSDB_URL)
+    pool = await asyncpg.create_pool(env.get_database_url())
     for ticker in tickers:
         print(f"Processing {ticker}...")
         try:
@@ -121,7 +141,7 @@ async def main():
             else:
                 print(f"Failed to fetch shares outstanding for {ticker}: {resp.status_code} {resp.text}")
                 shares_outstanding = None
-            existing_dates = await get_existing_dates_polygon(pool, ticker, start_date, end_date)
+            existing_dates = await get_existing_dates_polygon(pool, ticker, start_date, end_date, table_name)
             missing_days = [d for d in trading_days if d not in existing_dates]
             if not missing_days:
                 print(f"[DEBUG] All data exists for {ticker} in {start_date} to {end_date}, skipping fetch.")
@@ -133,7 +153,7 @@ async def main():
                 prices = download_prices_polygon(ticker, range_start.strftime("%Y-%m-%d"), range_end.strftime("%Y-%m-%d"), POLYGON_API_KEY)
                 # Filter prices to only missing trading days (Polygon may return extra)
                 filtered_prices = [row for row in prices if datetime.utcfromtimestamp(row['t']/1000).date() in missing_days]
-                await insert_prices(filtered_prices, ticker, shares_outstanding)
+                await insert_prices(filtered_prices, ticker, shares_outstanding, env, table_name)
                 total_inserted += len(filtered_prices)
                 print(f"Inserted {len(filtered_prices)} rows for {ticker} from {range_start} to {range_end}")
                 time.sleep(0.8)  # Polygon free tier: 5 requests/sec
