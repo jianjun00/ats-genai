@@ -14,7 +14,7 @@ from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta
 import json
 
-from src.universe.universe_state_manager import UniverseStateManager, UniverseStateMetadata
+from src.state.universe_state_manager import UniverseStateManager, UniverseStateMetadata
 
 
 class TestUniverseStateManager:
@@ -65,7 +65,7 @@ class TestUniverseStateManager:
     
     def test_initialization_default_path(self):
         """Test initialization with default path."""
-        with patch('src.universe.universe_state_manager.get_environment'):
+        with patch('src.state.universe_state_manager.get_environment'):
             manager = UniverseStateManager()
             assert manager.base_path == Path("data/universe_state")
     

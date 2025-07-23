@@ -3,6 +3,7 @@ import asyncio
 from datetime import date, timedelta
 import numpy as np
 from trading.backtest import run_backtest
+from trading.market_data_manager import MarketDataManager
 
 from config.environment import get_environment, set_environment, EnvironmentType
 set_environment(EnvironmentType.INTEGRATION)

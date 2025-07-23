@@ -11,8 +11,8 @@ from typing import Dict, Any, List, Optional
 import logging
 from datetime import datetime, timedelta
 from config.environment import Environment, get_environment
-from universe.universe_state_manager import UniverseStateManager
-from universe.universe_state_builder import (
+from state.universe_state_manager import UniverseStateManager
+from state.universe_state_builder import (
     UniverseStateBuilder, 
     UniverseMembershipChange, 
     CorporateAction
