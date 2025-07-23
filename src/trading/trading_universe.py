@@ -14,6 +14,7 @@ class TradingUniverse:
     Universe membership can change daily.
     """
     def __init__(self, env: Environment = None):
+        print(f"[DEBUG] TradingUniverse.__init__ received env of type {type(env)}: {env}")
         self.env = env or get_environment()
         self.db_url = self.env.get_database_url()
         self.daily_prices_dao = DailyPricesDAO(self.env)
@@ -47,6 +48,7 @@ class SecurityMaster:
     Provides security-level info as of a given date.
     """
     def __init__(self, env: Environment = None, db_url: str = None):
+        print(f"[DEBUG] SecurityMaster.__init__ received env of type {type(env)}: {env}, db_url={db_url} (type={type(db_url)})")
         if db_url is not None:
             # Create a copy of env or default, override db_url
             base_env = env or get_environment()

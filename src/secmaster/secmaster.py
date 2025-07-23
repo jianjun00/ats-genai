@@ -10,6 +10,7 @@ class SecMaster:
     2. Batch mode: use get_spy_membership_over_dates(dates) for multiple dates efficiently.
     """
     def __init__(self, env: Environment = None, as_of_date: date = None):
+        print(f"[DEBUG] SecMaster.__init__ received env of type {type(env)}: {env}, as_of_date={as_of_date} (type={type(as_of_date)})")
         self.env = env or get_environment()
         self.dao = SecMasterDAO(self.env)
         self.as_of_date = as_of_date

@@ -25,14 +25,16 @@ def log_return(p0, p1):
 from universe.universe_db import UniverseDB
 
 async def run_backtest(args):
-    db_url = args.db_url
+    from config.environment import get_environment
+    env = getattr(args, 'env', None) or get_environment()
+    db_url = getattr(args, 'db_url', None)
     universe_name = getattr(args, 'universe_name', 'TEST_UNIVERSE')
     start_date = datetime.strptime(args.start_date, "%Y-%m-%d").date()
     end_date = datetime.strptime(args.end_date, "%Y-%m-%d").date()
     data_start = start_date - timedelta(days=args.data_start_days)
 
-    security_master = SecurityMaster(db_url)
-    universe_db = UniverseDB(db_url)
+    security_master = SecurityMaster(env, db_url=db_url)
+    universe_db = UniverseDB(env)
     universe_id = await universe_db.get_universe_id(universe_name)
     if universe_id is None:
         raise ValueError(f"Universe '{universe_name}' not found in DB.")

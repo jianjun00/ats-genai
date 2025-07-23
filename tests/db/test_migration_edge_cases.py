@@ -139,6 +139,7 @@ async def test_migration_file_parsing():
 async def test_apply_migration_success(isolated_test_db):
     """Test successful migration application."""
     manager = MigrationManager(isolated_test_db)
+    await manager.get_current_version()
     
     # Create a temporary migration file
     with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
@@ -182,6 +183,7 @@ async def test_apply_migration_success(isolated_test_db):
 async def test_apply_migration_sql_error(isolated_test_db):
     """Test migration application with SQL error."""
     manager = MigrationManager(isolated_test_db)
+    await manager.get_current_version()
     
     # Create a migration file with invalid SQL
     with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
@@ -212,6 +214,7 @@ async def test_apply_migration_sql_error(isolated_test_db):
 async def test_migration_rollback_on_error(isolated_test_db):
     """Test that migration is rolled back on error (transaction behavior)."""
     manager = MigrationManager(isolated_test_db)
+    await manager.get_current_version()
     
     # SQL that starts successfully but fails partway through
     failing_sql = """
@@ -360,6 +363,7 @@ async def test_validation_with_modified_file(isolated_test_db):
 @pytest.mark.asyncio
 async def test_concurrent_migration_application(isolated_test_db):
     """Test that concurrent migration applications are handled correctly."""
+    import asyncpg
     manager1 = MigrationManager(isolated_test_db)
     manager2 = MigrationManager(isolated_test_db)
     
@@ -376,11 +380,22 @@ async def test_concurrent_migration_application(isolated_test_db):
             manager2.apply_migration(1, "concurrent test", temp_file),
             return_exceptions=True
         )
-        
+        print(f"[DEBUG] Results of concurrent migration: {results}")
+        for idx, r in enumerate(results):
+            if isinstance(r, Exception):
+                print(f"[DEBUG] Exception in migration {idx+1}: {r}")
         # At least one should succeed, one might fail
         success_count = sum(1 for r in results if r is True)
+        print(f"[DEBUG] Success count: {success_count}")
+        # Print db_version table state
+        pool = await asyncpg.create_pool(isolated_test_db)
+        try:
+            async with pool.acquire() as conn:
+                versions = await conn.fetch("SELECT * FROM test_db_version ORDER BY version")
+                print(f"[DEBUG] db_version table after concurrent migration: {versions}")
+        finally:
+            await pool.close()
         assert success_count >= 1
-        
     finally:
         temp_file.unlink()
 
@@ -434,6 +449,7 @@ async def test_migration_version_ordering(isolated_test_db):
 async def test_duplicate_version_handling(isolated_test_db):
     """Test handling of duplicate migration versions."""
     manager = MigrationManager(isolated_test_db)
+    await manager.get_current_version()
     
     # Create a temporary migration file
     with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
@@ -467,6 +483,7 @@ async def test_duplicate_version_handling(isolated_test_db):
 async def test_complex_sql_migration(isolated_test_db):
     """Test migration with complex SQL including functions, triggers, etc."""
     manager = MigrationManager(isolated_test_db)
+    await manager.get_current_version()
     
     complex_sql = """
     -- Create a table

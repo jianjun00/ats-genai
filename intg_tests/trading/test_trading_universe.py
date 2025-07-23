@@ -2,7 +2,6 @@ import pytest
 import asyncio
 from datetime import date
 from trading.trading_universe import TradingUniverse, SecurityMaster
-import os
 import asyncpg
 
 from config.environment import get_environment, set_environment, EnvironmentType
@@ -53,7 +52,7 @@ async def test_trading_universe_update(backup_and_restore_tables, monkeypatch):
 
     await pool.close()
 
-    universe = TradingUniverse(TSDB_URL)
+    universe = TradingUniverse(env)
     await universe.update_for_end_of_day(today)
     eligible = universe.get_current_universe()
     assert 'AAA' in eligible
@@ -64,7 +63,9 @@ async def test_trading_universe_update(backup_and_restore_tables, monkeypatch):
 @pytest.mark.asyncio
 async def test_security_master():
     today = date(2023, 7, 20)
-    master = SecurityMaster(TSDB_URL)
+    from config.environment import get_environment
+    env = get_environment()
+    master = SecurityMaster(env)
     info = await master.get_security_info('AAA', today)
     assert info['close'] == 10
     assert info['volume'] == 2000000
@@ -75,7 +76,9 @@ async def test_security_master():
 @pytest.mark.asyncio
 async def test_security_master_multiple():
     today = date(2023, 7, 20)
-    master = SecurityMaster(TSDB_URL)
+    from config.environment import get_environment
+    env = get_environment()
+    master = SecurityMaster(env)
     infos = await master.get_multiple_securities_info(['AAA', 'BBB', 'CCC', 'DDD'], today)
     assert 'AAA' in infos
     assert 'BBB' in infos

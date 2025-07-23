@@ -168,6 +168,7 @@ async def test_migration_file_parsing():
 async def test_apply_migration_success(unit_test_db):
     """Test successful migration application."""
     manager = MigrationManager(unit_test_db)
+    await manager.get_current_version()
     
     # Create a temporary migration file
     with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
@@ -213,6 +214,7 @@ async def test_apply_migration_success(unit_test_db):
 async def test_apply_migration_sql_error(unit_test_db):
     """Test migration application with SQL error."""
     manager = MigrationManager(unit_test_db)
+    await manager.get_current_version()
     
     # Create a migration file with invalid SQL
     with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
@@ -542,6 +544,7 @@ async def test_migration_with_complex_sql(unit_test_db):
 async def test_migration_rollback_on_error(unit_test_db):
     """Test that migration is rolled back on error (transaction behavior)."""
     manager = MigrationManager(unit_test_db)
+    await manager.get_current_version()
     
     # SQL that starts successfully but fails partway through
     failing_sql = """
@@ -600,6 +603,7 @@ async def test_migration_with_environment_variables(unit_test_db):
         reload(src.config.environment)
         
         manager = MigrationManager(unit_test_db)
+        await manager.get_current_version()
         # Note: In a real test, this would use prod_ prefix, but our test DB URL 
         # might override this. The important thing is testing the logic.
         

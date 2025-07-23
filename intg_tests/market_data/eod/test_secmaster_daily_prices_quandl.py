@@ -1,8 +1,8 @@
 import pytest
 import asyncio
-from src.config.environment import set_environment, EnvironmentType, get_environment
+from config.environment import set_environment, EnvironmentType, get_environment
 from db.dao.daily_prices_quandl_dao import DailyPricesQuandlDAO
-from src.secmaster import daily_quandl
+from market_data.eod import daily_quandl
 
 @pytest.mark.asyncio
 async def test_quandl_ingestion_and_dao(tmp_path, monkeypatch):

@@ -82,6 +82,9 @@ class MigrationManager:
     
     async def apply_migration(self, version: int, description: str, file_path: Path) -> bool:
         """Apply a single migration. Executes the entire migration file as a single SQL script to support complex PostgreSQL constructs (e.g., dollar-quoted functions)."""
+        print(f"[DEBUG] Applying migration version={version}, description='{description}', file_path='{file_path}'")
+        # Ensure version table exists before migration (fix for concurrency)
+        await self.get_current_version()
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
@@ -89,41 +92,41 @@ class MigrationManager:
                     # Read migration file
                     with open(file_path, 'r') as f:
                         migration_sql = f.read()
-                    
+                    print(f"[DEBUG] Raw migration SQL for version {version}:\n{migration_sql}")
                     # Replace table prefixes in migration
                     migration_sql = self._apply_table_prefixes(migration_sql)
-                    
+                    print(f"[DEBUG] Prefixed migration SQL for version {version}:\n{migration_sql}")
                     # Execute the entire migration as a single script
-                    await conn.execute(migration_sql)
-                    migration_sql = f.read()
+                    try:
+                        await conn.execute(migration_sql)
+                    except Exception as exec_sql_exc:
+                        print(f"[ERROR] Exception executing migration SQL for version {version}: {exec_sql_exc}")
+                        traceback.print_exc()
+                        raise
                 
-                # Replace table prefixes in migration
-                migration_sql = self._apply_table_prefixes(migration_sql)
-                
-                # Execute the entire migration as a single script
-                await conn.execute(migration_sql)
-
-                # Record migration (skip for version 0 as it records itself)
-                if version != 0:
-                    checksum = self._calculate_checksum(file_path)
-                    await conn.execute(f"""
-                        INSERT INTO {self.table_prefix}db_version 
-                        (version, description, checksum, migration_file)
-                        VALUES ($1, $2, $3, $4)
-                    """, version, description, checksum, file_path.name)
-                else:
-                    # For version 0, just update the checksum since the migration inserts itself
-                    checksum = self._calculate_checksum(file_path)
-                    await conn.execute(f"""
-                        UPDATE {self.table_prefix}db_version 
-                        SET checksum = $1
-                        WHERE version = 0
-                    """, checksum)
-                
-                print(f"Applied migration {version:03d}: {description}")
-                return True
+                    # Record migration (skip for version 0 as it records itself)
+                    if version != 0:
+                        checksum = self._calculate_checksum(file_path)
+                        await conn.execute(f"""
+                            INSERT INTO {self.table_prefix}db_version 
+                            (version, description, checksum, migration_file)
+                            VALUES ($1, $2, $3, $4)
+                        """, version, description, checksum, file_path.name)
+                    else:
+                        # For version 0, just update the checksum since the migration inserts itself
+                        checksum = self._calculate_checksum(file_path)
+                        await conn.execute(f"""
+                            UPDATE {self.table_prefix}db_version 
+                            SET checksum = $1
+                            WHERE version = 0
+                        """, checksum)
+                    
+                    print(f"Applied migration {version:03d}: {description}")
+                    return True
         except Exception as e:
-            print(f"Failed to apply migration {version:03d}: {e}")
+            print(f"[ERROR] Failed to apply migration {version:03d}: {e}")
+            import traceback
+            traceback.print_exc()
             return False
         finally:
             await pool.close()

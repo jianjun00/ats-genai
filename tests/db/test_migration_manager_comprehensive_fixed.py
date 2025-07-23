@@ -120,6 +120,7 @@ async def test_apply_table_prefixes_no_double_prefixing(unit_test_db):
 async def test_calculate_checksum(unit_test_db):
     """Test checksum calculation for migration files."""
     manager = MigrationManager(unit_test_db)
+    await manager.get_current_version()
     
     # Create a temporary file
     with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
@@ -463,7 +464,6 @@ async def test_concurrent_migration_application(unit_test_db):
 async def test_migration_with_complex_sql(unit_test_db):
     """Test migration with complex SQL including functions, triggers, etc."""
     manager = MigrationManager(unit_test_db)
-    # Ensure version table exists
     await manager.get_current_version()
     
     complex_sql = """
@@ -666,6 +666,7 @@ async def test_migration_version_ordering(unit_test_db):
 async def test_migration_duplicate_version_handling(unit_test_db):
     """Test handling of duplicate migration versions."""
     manager = MigrationManager(unit_test_db)
+    await manager.get_current_version()
     
     # Ensure version table exists
     await manager.get_current_version()

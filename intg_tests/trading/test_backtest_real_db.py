@@ -1,6 +1,3 @@
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src")))
 import pytest
 import asyncio
 from datetime import date, timedelta
@@ -22,11 +19,11 @@ async def test_backtest_real_db_aapl_tsla(backup_and_restore_tables):
         start_date = "2025-01-01"
         end_date = "2025-02-01"
         data_start_days = 30
-        db_url = TSDB_URL
+        env = env
         # Optionally, you could add a universe filter if supported
     # Ensure TEST_UNIVERSE exists in DB
     from universe.universe_db import UniverseDB
-    universe_db = UniverseDB(TSDB_URL)
+    universe_db = UniverseDB(env)
     universe_id = await universe_db.get_universe_id('TEST_UNIVERSE')
     if universe_id is None:
         await universe_db.add_universe('TEST_UNIVERSE', 'Test universe for backtest integration test')
