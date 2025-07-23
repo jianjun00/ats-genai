@@ -441,3 +441,142 @@ class UniverseStateManager:
             # Also remove from metadata cache if it's the same timestamp
             if oldest_key in self._cache_metadata:
                 del self._cache_metadata[oldest_key]
+
+
+if __name__ == "__main__":
+    import argparse
+    import sys
+    import pandas as pd
+    from datetime import datetime, timedelta
+    import matplotlib.pyplot as plt
+    from state.universe_state_builder import UniverseStateBuilder
+    # Assume Universe and other dependencies are available or stubbed for now
+
+    parser = argparse.ArgumentParser(description="Universe State Manager CLI")
+    parser.add_argument("--start_date", required=True, help="Start date (YYYY-MM-DD)")
+    parser.add_argument("--end_date", required=True, help="End date (YYYY-MM-DD)")
+    parser.add_argument("--universe_id", required=True, help="Universe ID")
+    parser.add_argument("--action", required=True, choices=["build", "inspect"], help="Action: build or inspect")
+    parser.add_argument("--instrument_id", required=False, help="Instrument ID for inspection")
+    parser.add_argument("--saved_dir", required=False, help="Directory to save or load universe states")
+    parser.add_argument("--mode", required=False, choices=["print", "graph"], default="print", help="Inspect mode: print or graph")
+    parser.add_argument("--fields", nargs="*", default=["low","high","close","volume","adv","pldot","etop","ebot"], help="Fields to inspect/visualize")
+
+    args = parser.parse_args()
+
+    # Parse dates
+    try:
+        start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
+        end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
+    except Exception as e:
+        print(f"Invalid date format: {e}")
+        sys.exit(1)
+
+    saved_dir = args.saved_dir or "data/universe_state"
+    manager = UniverseStateManager(base_path=saved_dir)
+
+    if args.action == "build":
+        # Placeholder: you may want to load a Universe object by universe_id
+        import os
+        builder_class_path = os.environ.get("UNIVERSE_BUILDER_CLASS")
+        if builder_class_path:
+            # Dynamically import builder class
+            import importlib
+            module_name, class_name = builder_class_path.rsplit('.', 1)
+            builder_mod = importlib.import_module(module_name)
+            BuilderClass = getattr(builder_mod, class_name)
+        else:
+            from state.universe_state_builder import UniverseStateBuilder
+            BuilderClass = UniverseStateBuilder
+        # TODO: Load actual Universe object by universe_id
+        universe = None  # Replace with actual loading logic
+        builder = BuilderClass(universe=universe, state_manager=manager)
+        cur_date = start_date
+        while cur_date <= end_date:
+            date_str = cur_date.strftime("%Y-%m-%d")
+            try:
+                # Build and save universe state for this date
+                # Support async build_universe_state if present
+                import inspect, asyncio
+                build_fn = builder.build_universe_state
+                if inspect.iscoroutinefunction(build_fn):
+                    df = asyncio.run(build_fn(date_str))
+                else:
+                    df = build_fn(date_str)
+                timestamp = cur_date.strftime("%Y%m%d_000000")
+                manager.save_universe_state(df, timestamp=timestamp)
+                print(f"Built and saved universe state for {date_str}")
+            except Exception as e:
+                print(f"Failed to build/save for {date_str}: {e}")
+            cur_date += timedelta(days=1)
+        print("Build complete.")
+
+    elif args.action == "inspect":
+        # Inspect mode
+        instrument_id = args.instrument_id
+        if not instrument_id:
+            print("--instrument_id is required for inspect mode.")
+            sys.exit(1)
+        # Find all available states in range
+        available_timestamps = manager.list_available_states()
+        # Filter by date range
+        selected_timestamps = []
+        for ts in available_timestamps:
+            try:
+                ts_date = datetime.strptime(ts[:8], "%Y%m%d")
+                if start_date <= ts_date <= end_date:
+                    selected_timestamps.append(ts)
+            except Exception:
+                continue
+        if not selected_timestamps:
+            print("No universe states found in the given date range.")
+            sys.exit(1)
+        selected_timestamps.sort()
+        series = {field: [] for field in args.fields}
+        dates = []
+        for ts in selected_timestamps:
+            try:
+                df = manager.load_universe_state(timestamp=ts)
+                row = df[df["instrument_id"] == int(instrument_id)]
+                if row.empty:
+                    for field in args.fields:
+                        series[field].append(None)
+                else:
+                    for field in args.fields:
+                        series[field].append(row.iloc[0].get(field, None))
+                dates.append(datetime.strptime(ts[:8], "%Y%m%d"))
+            except Exception as e:
+                print(f"Failed to load/parse state {ts}: {e}")
+                for field in args.fields:
+                    series[field].append(None)
+                dates.append(None)
+        if args.mode == "print":
+            for i, d in enumerate(dates):
+                print(f"{d}: ", end="")
+                for field in args.fields:
+                    print(f"{field}={series[field][i]}", end=" ")
+                print()
+        elif args.mode == "graph":
+            import os
+            if os.environ.get("PYTEST_CURRENT_TEST"):
+                import matplotlib
+                matplotlib.use("Agg")
+                for field in args.fields:
+                    plt.plot(dates, series[field], label=field)
+                plt.xlabel("Date")
+                plt.ylabel("Value")
+                plt.title(f"Instrument {instrument_id} State Over Time")
+                plt.legend()
+                plt.savefig("instrument_state_graph.png")
+                print("Graph saved to instrument_state_graph.png (test mode)")
+            else:
+                for field in args.fields:
+                    plt.plot(dates, series[field], label=field)
+                plt.xlabel("Date")
+                plt.ylabel("Value")
+                plt.title(f"Instrument {instrument_id} State Over Time")
+                plt.legend()
+                plt.show()
+        else:
+            print(f"Unknown mode: {args.mode}")
+            sys.exit(1)
