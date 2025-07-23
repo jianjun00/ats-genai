@@ -39,36 +39,48 @@ async def test_membership_add_remove_logic(monkeypatch):
         return DummyPool(events)
     monkeypatch.setattr('asyncpg.create_pool', dummy_create_pool)
     # As of 2020-02-01 (before TICK2 is added)
-    secm = SecMaster('dummy', as_of_date=date(2020,2,1))
+    from unittest.mock import MagicMock
+    mock_env = MagicMock()
+    mock_env.get_table_name.side_effect = lambda name: name
+    mock_env.get_database_url.return_value = 'postgresql://test/test'
+    secm = SecMaster(mock_env, as_of_date=date(2020,2,1))
     members = await secm.get_spy_membership()
     assert 'TICK1' in members
     assert 'TICK2' not in members
 
     # As of 2020-03-01 (TICK2 just added, TICK1 still in)
-    secm = SecMaster('dummy', as_of_date=date(2020,3,1))
+    secm = SecMaster(mock_env, as_of_date=date(2020,3,1))
     members = await secm.get_spy_membership()
     assert 'TICK1' in members
     assert 'TICK2' in members
 
     # Before TICK1 re-added (after it was removed)
-    secm = SecMaster('dummy', as_of_date=date(2020,7,1))
+    secm = SecMaster(mock_env, as_of_date=date(2020,7,1))
     members = await secm.get_spy_membership()
     assert 'TICK1' not in members
     assert 'TICK2' in members
 
     # After TICK1 re-added
-    secm = SecMaster('dummy', as_of_date=date(2021,2,1))
+    from unittest.mock import MagicMock
+    mock_env = MagicMock()
+    mock_env.get_table_name.side_effect = lambda name: name
+    mock_env.get_database_url.return_value = 'postgresql://test/test'
+    secm = SecMaster(mock_env, as_of_date=date(2021,2,1))
     members = await secm.get_spy_membership()
     assert 'TICK1' in members
     assert 'TICK2' in members
 
     # Before any adds
-    secm = SecMaster('dummy', as_of_date=date(2019,12,31))
+    secm = SecMaster(mock_env, as_of_date=date(2019,12,31))
     members = await secm.get_spy_membership()
     assert members == []
 
     # After first add but before remove
-    secm = SecMaster('dummy', as_of_date=date(2020,2,1))
+    from unittest.mock import MagicMock
+    mock_env = MagicMock()
+    mock_env.get_table_name.side_effect = lambda name: name
+    mock_env.get_database_url.return_value = 'postgresql://test/test'
+    secm = SecMaster(mock_env, as_of_date=date(2020,2,1))
     members = await secm.get_spy_membership()
     assert 'TICK1' in members
     assert 'TICK2' not in members
@@ -120,7 +132,11 @@ async def test_advance_membership_and_caches(monkeypatch):
         self._events = [dict(row) for row in events]
     monkeypatch.setattr(SecMaster, 'load_all_membership_events', dummy_load_events)
 
-    secm = SecMaster('dummy', as_of_date=date(2020,2,1))
+    from unittest.mock import MagicMock
+    mock_env = MagicMock()
+    mock_env.get_table_name.side_effect = lambda name: name
+    mock_env.get_database_url.return_value = 'postgresql://test/test'
+    secm = SecMaster(mock_env, as_of_date=date(2020,2,1))
     await secm.load_all_membership_events()
     # Advance to 2020-03-01
     members = await secm.advance(date(2020,3,1))
