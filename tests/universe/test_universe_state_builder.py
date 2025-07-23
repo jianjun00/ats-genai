@@ -90,8 +90,9 @@ class TestUniverseStateBuilder:
     @pytest.mark.asyncio
     async def test_build_universe_state_invalid_date(self, universe_builder):
         """Test building universe state with invalid date format."""
-        with pytest.raises(ValueError):
+        with pytest.raises(RuntimeError) as excinfo:
             await universe_builder.build_universe_state('invalid-date')
+        assert 'does not match format' in str(excinfo.value) or 'Universe building failed' in str(excinfo.value)
     
     @pytest.mark.asyncio
     async def test_build_universe_state_validation_failure(self, universe_builder, sample_base_universe):

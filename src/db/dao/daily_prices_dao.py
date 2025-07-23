@@ -7,6 +7,15 @@ class DailyPricesDAO:
         self.table_name = self.env.get_table_name('daily_prices')
         self.db_url = self.env.get_database_url()
 
+    async def list_prices_for_symbols_and_date(self, symbols, as_of_date):
+        import asyncpg
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                return await conn.fetch(f"SELECT * FROM {self.table_name} WHERE date = $1 AND symbol = ANY($2)", as_of_date, symbols)
+        finally:
+            await pool.close()
+
     async def insert_price(self, date, symbol, open_, high, low, close, volume, adjusted_price=None, source=None, status=None, note=None):
         pool = await asyncpg.create_pool(self.db_url)
         try:
