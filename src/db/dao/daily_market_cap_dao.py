@@ -2,6 +2,13 @@ from config.environment import Environment
 import asyncpg
 
 class DailyMarketCapDAO:
+    async def list_market_caps_for_date(self, as_of_date):
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                return await conn.fetch(f"SELECT * FROM {self.table_name} WHERE date = $1", as_of_date)
+        finally:
+            await pool.close()
     def __init__(self, env: Environment):
         self.env = env
         self.table_name = self.env.get_table_name('daily_market_cap')

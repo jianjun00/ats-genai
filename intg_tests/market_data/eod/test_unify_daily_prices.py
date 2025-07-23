@@ -13,7 +13,8 @@ env = get_environment()
 
 load_dotenv()
 
-SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/market_data/eod/unify_daily_prices.py"
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+SCRIPT_PATH = PROJECT_ROOT / "src/market_data/eod/unify_daily_prices.py"
 
 class TestUnifyDailyPrices(AsyncPGTestDBBase):
     @pytest.mark.asyncio
