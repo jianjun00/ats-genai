@@ -2,6 +2,27 @@ from config.environment import Environment
 import asyncpg
 
 class UniverseMembershipDAO:
+    async def update_membership_end(self, universe_id: int, symbol: str, end_at):
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                await conn.execute(f"""
+                    UPDATE {self.table_name}
+                    SET end_at = $3
+                    WHERE universe_id = $1 AND symbol = $2
+                """, universe_id, symbol, end_at)
+        finally:
+            await pool.close()
+    async def add_membership_full(self, universe_id: int, symbol: str, start_at, end_at=None):
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                await conn.execute(f"""
+                    INSERT INTO {self.table_name} (universe_id, symbol, start_at, end_at)
+                    VALUES ($1, $2, $3, $4)
+                """, universe_id, symbol, start_at, end_at)
+        finally:
+            await pool.close()
     def __init__(self, env: Environment):
         self.env = env
         self.table_name = self.env.get_table_name('universe_membership')

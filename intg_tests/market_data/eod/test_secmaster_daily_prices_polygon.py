@@ -20,7 +20,9 @@ TESTS_DIR = PROJECT_ROOT / "tests"
 
 from intg_tests.db.test_intg_db_base import AsyncPGTestDBBase, get_test_db_url
 from config.environment import get_environment, set_environment, EnvironmentType
-SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/market_data/eod/daily_polygon.py"
+# Find project root (the directory containing 'src')
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+SCRIPT_PATH = PROJECT_ROOT / "src/market_data/eod/daily_polygon.py"
 
 # Ensure environment is set for integration tests and env is globally available
 set_environment(EnvironmentType.INTEGRATION)
@@ -41,6 +43,8 @@ class TestIntegrationPolygon(AsyncPGTestDBBase):
                 test_symbol, test_start, test_end
             )
         await pool.close()
+                # Debug: print SCRIPT_PATH
+        print(f"DEBUG: SCRIPT_PATH = {SCRIPT_PATH}")
         # Dynamically import the script as a module
         spec = importlib.util.spec_from_file_location("polygon_script", SCRIPT_PATH)
         polygon_script = importlib.util.module_from_spec(spec)

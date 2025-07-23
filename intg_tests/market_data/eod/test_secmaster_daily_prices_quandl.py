@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 from config.environment import set_environment, EnvironmentType, get_environment
-from db.dao.daily_prices_quandl_dao import DailyPricesQuandlDAO
+from market_data.eod.daily_prices_quandl_dao import DailyPricesQuandlDAO
 from market_data.eod import daily_quandl
 
 @pytest.mark.asyncio

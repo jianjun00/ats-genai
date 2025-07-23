@@ -18,7 +18,8 @@ TSDB_URL = env.get_database_url()
 async def test_universe_db_crud():
     # Use a random universe name for isolation
     test_universe_name = f"TEST_UNIVERSE_{uuid.uuid4().hex[:8]}"
-    db = UniverseDB(TSDB_URL)
+    from config.environment import get_environment
+    db = UniverseDB(get_environment())
 
     # Clean up if exists
     pool = await asyncpg.create_pool(TSDB_URL)

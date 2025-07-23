@@ -13,7 +13,7 @@ class DailyPricesTiingoDAO:
             async with pool.acquire() as conn:
                 await conn.execute(f"""
                     INSERT INTO {self.table_name} (date, symbol, open, high, low, close, adjClose, volume, status_id)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                     ON CONFLICT (date, symbol) DO UPDATE SET
                         open=EXCLUDED.open,
                         high=EXCLUDED.high,
