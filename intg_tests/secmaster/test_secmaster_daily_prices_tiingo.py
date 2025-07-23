@@ -69,14 +69,12 @@ class TestIntegrationTiingo(AsyncPGTestDBBase):
         sys.argv = [str(SCRIPT_PATH), "--start_date", test_start.isoformat(), "--end_date", test_end.isoformat(), "--ticker", test_symbol]
         await tiingo_script.main()
         # Check DB again
-        pool = await asyncpg.create_pool(env.get_database_url(), min_size=1, max_size=2)
-        async with pool.acquire() as conn:
-            rows2 = await conn.fetch(
-                f"SELECT * FROM {env.get_table_name('daily_prices_tiingo')} WHERE symbol = $1 AND date >= $2 AND date <= $3 ORDER BY date",
-                test_symbol, test_start, test_end
-            )
-            assert len(rows2) == before_count, "Duplicate or new rows were inserted when none should have been fetched"
-        await pool.close()
+        # Use DAO to fetch and assert again
+        from db.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
+        dao = DailyPricesTiingoDAO(env)
+        rows2 = await dao.list_prices(test_symbol)
+        filtered_rows2 = [r for r in rows2 if test_start <= r['date'] <= test_end]
+        assert len(filtered_rows2) == before_count, "Duplicate or new rows were inserted when none should have been fetched"
 
     @pytest.mark.asyncio
     async def test_download_and_populate_daily_prices_tiingo_with_invalid_date(self, tmp_path):

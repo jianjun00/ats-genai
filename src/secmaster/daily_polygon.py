@@ -1,11 +1,12 @@
 import os
 import asyncio
-import asyncpg
 import requests
 from datetime import datetime, timedelta
 import time
 
 from src.config.environment import get_environment, set_environment, EnvironmentType
+from db.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+import asyncpg
 import argparse
 
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")  # Set this in your environment
@@ -49,46 +50,30 @@ CREATE TABLE IF NOT EXISTS daily_prices_polygon (
 );
 """
 
-async def insert_prices(prices, ticker, shares_outstanding, env, table_name):
+async def insert_prices(prices, ticker, shares_outstanding, env, dao: DailyPricesPolygonDAO):
     if not prices:
         return
-    pool = await asyncpg.create_pool(env.get_database_url())
-    async with pool.acquire() as conn:
-        await conn.execute(f"""
-        CREATE TABLE IF NOT EXISTS {table_name} (
-            date DATE NOT NULL,
-            symbol TEXT NOT NULL,
-            open DOUBLE PRECISION,
-            high DOUBLE PRECISION,
-            low DOUBLE PRECISION,
-            close DOUBLE PRECISION,
-            volume BIGINT,
-            market_cap DOUBLE PRECISION,
-            PRIMARY KEY (date, symbol)
-        );
-        """)
-        await conn.executemany(
-            f"INSERT INTO {table_name} (date, symbol, open, high, low, close, volume, market_cap) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT DO NOTHING",
-            [(
-                datetime.utcfromtimestamp(row['t']/1000).date(),
-                ticker,
-                row['o'], row['h'], row['l'], row['c'], row['v'],
-                (row['c'] * shares_outstanding if shares_outstanding else None)
-            ) for row in prices]
+    for row in prices:
+        date_val = datetime.utcfromtimestamp(row['t']/1000).date()
+        await dao.insert_price(
+            date=date_val,
+            symbol=ticker,
+            open_=row['o'],
+            high=row['h'],
+            low=row['l'],
+            close=row['c'],
+            volume=row['v'],
+            market_cap=(row['c'] * shares_outstanding if shares_outstanding else None)
         )
-    await pool.close()
 
 import argparse
 
 from calendars.exchange_calendar import ExchangeCalendar
 
-async def get_existing_dates_polygon(pool, symbol, start_date, end_date, table_name):
-    async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            f"SELECT date FROM {table_name} WHERE symbol = $1 AND date >= $2 AND date <= $3",
-            symbol, start_date, end_date
-        )
-    return set(row['date'] for row in rows)
+async def get_existing_dates_polygon(dao: DailyPricesPolygonDAO, symbol, start_date, end_date):
+    # Use list_prices and filter by date range
+    all_prices = await dao.list_prices(symbol)
+    return set(row['date'] for row in all_prices if start_date <= row['date'] <= end_date)
 
 def group_contiguous_dates(dates):
     # Given a sorted list of dates, group into contiguous ranges
@@ -128,7 +113,7 @@ async def main():
     end_date = datetime.strptime(args.end_date, "%Y-%m-%d").date()
     nyse_cal = ExchangeCalendar('NYSE')
     trading_days = set(nyse_cal.all_trading_days(start_date, end_date))
-    pool = await asyncpg.create_pool(env.get_database_url())
+    dao = DailyPricesPolygonDAO(env)
     for ticker in tickers:
         print(f"Processing {ticker}...")
         try:
@@ -141,7 +126,7 @@ async def main():
             else:
                 print(f"Failed to fetch shares outstanding for {ticker}: {resp.status_code} {resp.text}")
                 shares_outstanding = None
-            existing_dates = await get_existing_dates_polygon(pool, ticker, start_date, end_date, table_name)
+            existing_dates = await get_existing_dates_polygon(dao, ticker, start_date, end_date)
             missing_days = [d for d in trading_days if d not in existing_dates]
             if not missing_days:
                 print(f"[DEBUG] All data exists for {ticker} in {start_date} to {end_date}, skipping fetch.")
@@ -153,13 +138,12 @@ async def main():
                 prices = download_prices_polygon(ticker, range_start.strftime("%Y-%m-%d"), range_end.strftime("%Y-%m-%d"), POLYGON_API_KEY)
                 # Filter prices to only missing trading days (Polygon may return extra)
                 filtered_prices = [row for row in prices if datetime.utcfromtimestamp(row['t']/1000).date() in missing_days]
-                await insert_prices(filtered_prices, ticker, shares_outstanding, env, table_name)
+                await insert_prices(filtered_prices, ticker, shares_outstanding, env, dao)
                 total_inserted += len(filtered_prices)
                 print(f"Inserted {len(filtered_prices)} rows for {ticker} from {range_start} to {range_end}")
                 time.sleep(0.8)  # Polygon free tier: 5 requests/sec
         except Exception as e:
             print(f"Error with {ticker}: {e}")
-    await pool.close()
 
 if __name__ == "__main__":
     asyncio.run(main())

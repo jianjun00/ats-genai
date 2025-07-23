@@ -1,7 +1,8 @@
-import asyncpg
 from datetime import date, timedelta
 from typing import List, Dict, Optional
-from config.environment import get_environment
+from config.environment import get_environment, Environment
+from db.dao.daily_prices_dao import DailyPricesDAO
+from db.dao.daily_market_cap_dao import DailyMarketCapDAO
 
 class TradingUniverse:
     """
@@ -12,14 +13,10 @@ class TradingUniverse:
       - market cap > 500,000,000
     Universe membership can change daily.
     """
-    def __init__(self, db_url: Optional[str] = None):
-        """Initialize TradingUniverse with database configuration.
-        
-        Args:
-            db_url: Optional database URL. If None, will use environment configuration.
-        """
-        self.env = get_environment()
-        self.db_url = db_url or self.env.get_database_url()
+    def __init__(self, env: Environment = None):
+        self.env = env or get_environment()
+        self.daily_prices_dao = DailyPricesDAO(self.env)
+        self.daily_market_cap_dao = DailyMarketCapDAO(self.env)
         self.current_universe: List[str] = []
         self.last_update: Optional[date] = None
 
@@ -27,27 +24,19 @@ class TradingUniverse:
         """
         Update the trading universe for the given date.
         """
-        pool = await asyncpg.create_pool(self.db_url)
-        async with pool.acquire() as conn:
-            # Get all stocks with price, volume, and market cap as of as_of_date
-            daily_prices = self.env.get_table_name("daily_prices")
-            daily_market_cap = self.env.get_table_name("daily_market_cap")
-            
-            rows = await conn.fetch(f'''
-                SELECT dp.symbol, dp.close, dp.volume, dmc.market_cap
-                FROM {daily_prices} dp
-                JOIN {daily_market_cap} dmc ON dp.symbol = dmc.symbol AND dp.date = dmc.date
-                WHERE dp.date = $1
-            ''', as_of_date)
-            eligible = [
-                row['symbol'] for row in rows
-                if row['close'] is not None and row['close'] > 5 and
-                   row['volume'] is not None and row['volume'] > 1_000_000 and
-                   row['market_cap'] is not None and row['market_cap'] > 500_000_000
-            ]
-            self.current_universe = eligible
-            self.last_update = as_of_date
-        await pool.close()
+        # Fetch all prices and market caps for the date
+        prices = await self.daily_prices_dao.list_prices_for_date(as_of_date)
+        market_caps = await self.daily_market_cap_dao.list_market_caps_for_date(as_of_date)
+        # Build a symbol->market_cap dict for fast lookup
+        market_cap_map = {row['symbol']: row['market_cap'] for row in market_caps}
+        eligible = [
+            row['symbol'] for row in prices
+            if row['close'] is not None and row['close'] > 5 and
+               row['volume'] is not None and row['volume'] > 1_000_000 and
+               market_cap_map.get(row['symbol']) is not None and market_cap_map[row['symbol']] > 500_000_000
+        ]
+        self.current_universe = eligible
+        self.last_update = as_of_date
 
     def get_current_universe(self) -> List[str]:
         return self.current_universe
@@ -56,39 +45,16 @@ class SecurityMaster:
     """
     Provides security-level info as of a given date.
     """
-    def __init__(self, db_url: Optional[str] = None):
-        """Initialize SecurityMaster with database configuration.
-        
-        Args:
-            db_url: Optional database URL. If None, will use environment configuration.
-        """
-        self.env = get_environment()
-        self.db_url = db_url or self.env.get_database_url()
+    def __init__(self, env: Environment = None):
+        self.env = env or get_environment()
+        self.daily_prices_dao = DailyPricesDAO(self.env)
 
     async def get_security_info(self, symbol: str, as_of_date: date) -> Optional[Dict]:
-        pool = await asyncpg.create_pool(self.db_url)
-        async with pool.acquire() as conn:
-            daily_prices = self.env.get_table_name("daily_prices")
-            
-            row = await conn.fetchrow(f'''
-                SELECT symbol, close, volume
-                FROM {daily_prices}
-                WHERE symbol = $1 AND date = $2
-            ''', symbol, as_of_date)
-        await pool.close()
+        row = await self.daily_prices_dao.get_price(as_of_date, symbol)
         if row:
             return dict(row)
         return None
 
     async def get_multiple_securities_info(self, symbols: List[str], as_of_date: date) -> Dict[str, Dict]:
-        pool = await asyncpg.create_pool(self.db_url)
-        async with pool.acquire() as conn:
-            daily_prices = self.env.get_table_name("daily_prices")
-            
-            rows = await conn.fetch(f'''
-                SELECT symbol, close, volume
-                FROM {daily_prices}
-                WHERE symbol = ANY($1::text[]) AND date = $2
-            ''', symbols, as_of_date)
-        await pool.close()
+        rows = await self.daily_prices_dao.list_prices_for_symbols_and_date(symbols, as_of_date)
         return {row['symbol']: dict(row) for row in rows}

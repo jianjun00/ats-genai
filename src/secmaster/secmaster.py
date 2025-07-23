@@ -1,6 +1,7 @@
-import asyncpg
+from config.environment import get_environment, Environment
+from db.dao.secmaster_dao import SecMasterDAO
 from datetime import date
-from typing import List
+from typing import List, Optional, Dict
 
 class SecMaster:
     """
@@ -8,8 +9,9 @@ class SecMaster:
     1. Snapshot mode: initialized with as_of_date, all methods use this date.
     2. Batch mode: use get_spy_membership_over_dates(dates) for multiple dates efficiently.
     """
-    def __init__(self, db_url: str, as_of_date: date = None):
-        self.db_url = db_url
+    def __init__(self, env: Environment = None, as_of_date: date = None):
+        self.env = env or get_environment()
+        self.dao = SecMasterDAO(self.env)
         self.as_of_date = as_of_date
         self._events = None  # Will hold all membership events
         self._membership_cache = {}  # Optional: cache for date->membership
@@ -20,18 +22,7 @@ class SecMaster:
 
     async def load_all_membership_events(self):
         if self._events is None:
-            pool = await asyncpg.create_pool(self.db_url)
-            async with pool.acquire() as conn:
-                rows = await conn.fetch(
-                    """
-                    SELECT symbol, start_date, end_date
-                    FROM universe_membership
-                    WHERE universe_name = 'S&P 500'
-                    ORDER BY start_date
-                    """
-                )
-            await pool.close()
-            self._events = [dict(row) for row in rows]
+            self._events = await self.dao.get_spy_membership_events()
 
     async def get_spy_membership(self) -> List[str]:
         """Returns SPY membership as of self.as_of_date (set at init), using universe_membership table."""
@@ -63,42 +54,14 @@ class SecMaster:
             if row['start_date'] <= to_date and (row['end_date'] is None or row['end_date'] > to_date):
                 membership.add(row['symbol'])
         # Update caches for tickers in new membership
-        pool = await asyncpg.create_pool(self.db_url)
-        async with pool.acquire() as conn:
-            tickers = list(membership)
-            # Batch fetch last close prices
-            rows = await conn.fetch(
-                """
-                SELECT symbol, close FROM daily_prices
-                WHERE date = $1 AND symbol = ANY($2)
-                """, to_date, tickers
-            )
-            self._last_close_price_cache = {row['symbol']: row['close'] for row in rows}
-
-            # Batch fetch market cap from daily_prices (latest as of date)
-            rows = await conn.fetch(
-                """
-                SELECT symbol, market_cap FROM daily_prices
-                WHERE date = $1 AND symbol = ANY($2)
-                """, to_date, tickers
-            )
-            self._market_cap_cache = {row['symbol']: row['market_cap'] for row in rows}
-
-            # Batch fetch ADV for each ticker (window fixed at 30)
-            adv_cache = {}
-            for ticker in tickers:
-                adv = await conn.fetchval(
-                    """
-                    SELECT AVG(close * volume) FROM (
-                        SELECT close, volume FROM daily_prices
-                        WHERE symbol = $1 AND date <= $2
-                        ORDER BY date DESC LIMIT 30
-                    ) sub
-                    """, ticker, to_date, 30
-                )
-                adv_cache[(ticker, 30)] = adv
-            self._adv_cache = adv_cache
-        await pool.close()
+        tickers = list(membership)
+        self._last_close_price_cache = await self.dao.batch_last_close_prices(to_date, tickers)
+        self._market_cap_cache = await self.dao.batch_market_caps(to_date, tickers)
+        adv_cache = {}
+        for ticker in tickers:
+            adv = await self.dao.get_average_dollar_volume(ticker, to_date, 30)
+            adv_cache[(ticker, 30)] = adv
+        self._adv_cache = adv_cache
         return sorted(membership)
 
     async def get_spy_membership_over_dates(self, dates: List[date]) -> dict:
@@ -122,15 +85,7 @@ class SecMaster:
             return self._last_close_price_cache[ticker]
         if self.as_of_date is None:
             raise ValueError("as_of_date must be set at initialization.")
-        pool = await asyncpg.create_pool(self.db_url)
-        async with pool.acquire() as conn:
-            price = await conn.fetchval(
-                """
-                SELECT close FROM daily_prices
-                WHERE symbol = $1 AND date <= $2
-                ORDER BY date DESC LIMIT 1
-                """, ticker, self.as_of_date)
-        await pool.close()
+        price = await self.dao.get_last_close_price(ticker, self.as_of_date)
         self._last_close_price_cache[ticker] = price
         return price
 
@@ -143,17 +98,7 @@ class SecMaster:
             return self._adv_cache[key]
         if self.as_of_date is None:
             raise ValueError("as_of_date must be set at initialization.")
-        pool = await asyncpg.create_pool(self.db_url)
-        async with pool.acquire() as conn:
-            avg_dv = await conn.fetchval(
-                """
-                SELECT AVG(close * volume) FROM (
-                    SELECT close, volume FROM daily_prices
-                    WHERE symbol = $1 AND date <= $2
-                    ORDER BY date DESC LIMIT $3
-                ) sub
-                """, ticker, self.as_of_date, window)
-        await pool.close()
+        avg_dv = await self.dao.get_average_dollar_volume(ticker, self.as_of_date, window)
         self._adv_cache[key] = avg_dv
         return avg_dv
 
@@ -165,14 +110,6 @@ class SecMaster:
             return self._market_cap_cache[ticker]
         if self.as_of_date is None:
             raise ValueError("as_of_date must be set at initialization.")
-        pool = await asyncpg.create_pool(self.db_url)
-        async with pool.acquire() as conn:
-            mc = await conn.fetchval(
-                """
-                SELECT market_cap FROM daily_prices
-                WHERE symbol = $1 AND date <= $2
-                ORDER BY date DESC LIMIT 1
-                """, ticker, self.as_of_date)
-        await pool.close()
+        mc = await self.dao.get_market_cap(ticker, self.as_of_date)
         self._market_cap_cache[ticker] = mc
         return mc
