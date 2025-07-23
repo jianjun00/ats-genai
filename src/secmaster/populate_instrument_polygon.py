@@ -3,11 +3,12 @@ import requests
 import asyncpg
 from dotenv import load_dotenv
 from datetime import datetime
+from src.config.environment import get_environment, set_environment, EnvironmentType
 
 load_dotenv()
 
-DB_URL = os.environ["TSDB_URL"]
-POLYGON_API_KEY = os.environ["POLYGON_API_KEY"]
+set_environment(EnvironmentType.INTEGRATION)
+env = get_environment()
 
 # Polygon reference API endpoint for all US stocks (paginated)
 BASE_URL = "https://api.polygon.io/v3/reference/tickers"
@@ -16,8 +17,8 @@ import time
 from requests.exceptions import ConnectionError
 
 async def fetch_and_store_instruments(start_ticker=''):
-    pool = await asyncpg.create_pool(DB_URL)
-    url = BASE_URL + f"?market=stocks&active=true&limit=1000&apiKey={POLYGON_API_KEY}"
+    pool = await asyncpg.create_pool(env.get_database_url())
+    url = BASE_URL + f"?market=stocks&active=true&limit=1000&apiKey={env.get_api_key('polygon')}"
     total = 0
     while url:
         resp = requests.get(url)
@@ -31,7 +32,7 @@ async def fetch_and_store_instruments(start_ticker=''):
             symbol = item.get('ticker')
             if symbol <= start_ticker:
                 continue  # Skip until we pass start_ticker
-            detail_url = f"https://api.polygon.io/v3/reference/tickers/{symbol}?apiKey={POLYGON_API_KEY}"
+            detail_url = f"https://api.polygon.io/v3/reference/tickers/{symbol}?apiKey={env.get_api_key('polygon')}"
             for attempt in range(3):
                 try:
                     detail_resp = requests.get(detail_url)
@@ -49,7 +50,7 @@ async def fetch_and_store_instruments(start_ticker=''):
             time.sleep(0.25)  # Add a small delay between requests
         url = data.get('next_url')
         if url and 'apiKey=' not in url:
-            url += f"&apiKey={POLYGON_API_KEY}"
+            url += f"&apiKey={env.get_api_key('polygon')}"
     print(f"Total tickers processed: {total}")
     await pool.close()
 
@@ -60,8 +61,8 @@ import json
 async def upsert_instrument(pool, item):
     async with pool.acquire() as conn:
         await conn.execute(
-            """
-            INSERT INTO instrument_polygon (symbol, name, exchange, type, currency, figi, isin, cusip, composite_figi, active, list_date, delist_date, raw, updated_at)
+            f"""
+            INSERT INTO {env.get_table_name('instrument_polygon')} (symbol, name, exchange, type, currency, figi, isin, cusip, composite_figi, active, list_date, delist_date, raw, updated_at)
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now())
             ON CONFLICT (symbol) DO UPDATE SET
                 name=EXCLUDED.name,

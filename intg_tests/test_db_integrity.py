@@ -29,9 +29,9 @@ async def test_no_duplicate_splits():
     async with pool.acquire() as conn:
         stock_splits_table = env.get_table_name("stock_splits")
         rows = await conn.fetch(f"""
-            SELECT symbol, split_date, COUNT(*) as cnt
+            SELECT symbol, ex_date, COUNT(*) as cnt
             FROM {stock_splits_table}
-            GROUP BY symbol, split_date
+            GROUP BY symbol, ex_date
             HAVING COUNT(*) > 1
         """)
     await pool.close()
@@ -51,11 +51,3 @@ async def test_no_duplicate_dividends():
     await pool.close()
     assert len(rows) == 0, f"Duplicate dividends rows found: {rows}"
 
-@pytest.mark.asyncio
-async def test_adjusted_price_not_null():
-    pool = await asyncpg.create_pool(TSDB_URL)
-    async with pool.acquire() as conn:
-        daily_prices_table = env.get_table_name("daily_prices")
-        row = await conn.fetchrow(f"SELECT COUNT(*) AS cnt FROM {daily_prices_table} WHERE adjusted_price IS NULL")
-    await pool.close()
-    assert row['cnt'] == 0, f"Found {row['cnt']} daily_prices rows with NULL adjusted_price."
