@@ -1,6 +1,7 @@
 import os
 import asyncio
-import asyncpg
+from src.config.environment import get_environment, set_environment, EnvironmentType
+from db.dao.daily_prices_quandl_dao import DailyPricesQuandlDAO
 import requests
 from datetime import datetime, timedelta
 import time
@@ -63,28 +64,21 @@ CREATE TABLE IF NOT EXISTS daily_prices_quandl (
 );
 """
 
-async def insert_prices(prices, ticker):
+async def insert_prices(dao: DailyPricesQuandlDAO, prices, ticker):
     if not prices:
         return
-    pool = await asyncpg.create_pool(TSDB_URL)
-    async with pool.acquire() as conn:
-        await conn.execute(CREATE_DAILY_PRICES_QUANDL_SQL)
-        await conn.executemany(
-            "INSERT INTO daily_prices_quandl (date, symbol, open, high, low, close, volume) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING",
-            [(
-                row['date'],
-                ticker,
-                row['open'], row['high'], row['low'], row['close'], row['volume']
-            ) for row in prices]
-        )
-    await pool.close()
+    await dao.batch_insert_prices(prices, ticker)
 
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--ticker', type=str, default=None, help='Process only this ticker (optional)')
     parser.add_argument('--start', type=str, default=START_DATE, help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end', type=str, default=END_DATE, help='End date (YYYY-MM-DD)')
+    parser.add_argument('--environment', type=str, default='intg', choices=['test', 'intg', 'prod'], help='Environment to use (test, intg, prod)')
     args = parser.parse_args()
+    set_environment(EnvironmentType(args.environment))
+    env = get_environment()
+    dao = DailyPricesQuandlDAO(env)
     if not QUANDL_API_KEY:
         raise Exception("Please set your QUANDL_API_KEY environment variable.")
     if args.ticker:
@@ -95,7 +89,7 @@ async def main():
         print(f"Downloading {ticker} from Quandl...")
         try:
             prices = download_prices_quandl(ticker, args.start, args.end, QUANDL_API_KEY)
-            await insert_prices(prices, ticker)
+            await insert_prices(dao, prices, ticker)
             print(f"Inserted {len(prices)} rows for {ticker}")
             time.sleep(1.0)  # Be gentle to API
         except Exception as e:

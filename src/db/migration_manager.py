@@ -122,39 +122,11 @@ class MigrationManager:
                 
                 print(f"Applied migration {version:03d}: {description}")
                 return True
-    except Exception as e:
-        print(f"Failed to apply migration {version:03d}: {e}")
-        return False
-    finally:
-        await pool.close()                migration_sql = self._apply_table_prefixes(migration_sql)
-                
-                # Execute the entire migration as a single script
-                await conn.execute(migration_sql)
-
-                # Record migration (skip for version 0 as it records itself)
-                if version != 0:
-                    checksum = self._calculate_checksum(file_path)
-                    await conn.execute(f"""
-                        INSERT INTO {self.table_prefix}db_version 
-                        (version, description, checksum, migration_file)
-                        VALUES ($1, $2, $3, $4)
-                    """, version, description, checksum, file_path.name)
-                else:
-                    # For version 0, just update the checksum since the migration inserts itself
-                    checksum = self._calculate_checksum(file_path)
-                    await conn.execute(f"""
-                        UPDATE {self.table_prefix}db_version 
-                        SET checksum = $1
-                        WHERE version = 0
-                    """, checksum)
-                
-                print(f"Applied migration {version:03d}: {description}")
-                return True
-    except Exception as e:
-        print(f"Failed to apply migration {version:03d}: {e}")
-        return False
-    finally:
-        await pool.close()
+        except Exception as e:
+            print(f"Failed to apply migration {version:03d}: {e}")
+            return False
+        finally:
+            await pool.close()
     
     def _apply_table_prefixes(self, sql: str) -> str:
         """Apply environment-specific table prefixes to SQL."""
