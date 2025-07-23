@@ -303,7 +303,7 @@ class TestUniverseStateManager:
         optimized = state_manager._optimize_data_types(data.copy())
         
         # Check optimizations
-        assert optimized['small_int'].dtype == 'int8'
+        assert optimized['small_int'].dtype == 'uint8'
         assert optimized['categorical'].dtype.name == 'category'
         assert optimized['price'].dtype == 'float64'  # Should remain float64
     
