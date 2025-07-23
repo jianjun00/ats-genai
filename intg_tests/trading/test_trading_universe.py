@@ -11,7 +11,7 @@ env = get_environment()
 TSDB_URL = env.get_database_url()
 
 @pytest.mark.asyncio
-async def test_trading_universe_update(monkeypatch):
+async def test_trading_universe_update(backup_and_restore_tables, monkeypatch):
     # Setup: Insert mock daily_prices data
     pool = await asyncpg.create_pool(TSDB_URL)
     today = date(2023, 7, 20)
