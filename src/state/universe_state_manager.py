@@ -458,7 +458,7 @@ if __name__ == "__main__":
     parser.add_argument("--universe_id", required=True, help="Universe ID")
     parser.add_argument("--action", required=True, choices=["build", "inspect"], help="Action: build or inspect")
     parser.add_argument("--instrument_id", required=False, help="Instrument ID for inspection")
-    parser.add_argument("--saved_dir", required=False, help="Directory to save or load universe states")
+    parser.add_argument("--saved_dir", required=True, help="Directory to save or load universe states")
     parser.add_argument("--mode", required=False, choices=["print", "graph"], default="print", help="Inspect mode: print or graph")
     parser.add_argument("--fields", nargs="*", default=["low","high","close","volume","adv","pldot","etop","ebot"], help="Fields to inspect/visualize")
 
@@ -472,10 +472,9 @@ if __name__ == "__main__":
         print(f"Invalid date format: {e}")
         sys.exit(1)
 
-    saved_dir = args.saved_dir or "data/universe_state"
-    manager = UniverseStateManager(base_path=saved_dir)
-
+    # No global manager here! Only per-action.
     if args.action == "build":
+        manager = UniverseStateManager(base_path=args.saved_dir)
         # Placeholder: you may want to load a Universe object by universe_id
         import os
         builder_class_path = os.environ.get("UNIVERSE_BUILDER_CLASS")
@@ -517,6 +516,15 @@ if __name__ == "__main__":
         if not instrument_id:
             print("--instrument_id is required for inspect mode.")
             sys.exit(1)
+        # Use correct directory for inspection
+        manager = UniverseStateManager(base_path=args.saved_dir)
+        # Debug: print base_path and states_dir contents
+        print(f"DEBUG: UniverseStateManager.base_path={manager.base_path}")
+        print(f"DEBUG: UniverseStateManager.states_dir={manager.states_dir}")
+        try:
+            print("DEBUG: states_dir contents:", list(manager.states_dir.iterdir()))
+        except Exception as e:
+            print(f"DEBUG: Could not list states_dir: {e}")
         # Find all available states in range
         available_timestamps = manager.list_available_states()
         # Filter by date range
