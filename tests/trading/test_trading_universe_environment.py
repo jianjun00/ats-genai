@@ -9,8 +9,18 @@ from datetime import date
 from trading.trading_universe import TradingUniverse, SecurityMaster
 from config.environment import EnvironmentType, set_environment
 
+def make_mock_asyncpg_pool(mock_conn):
+    pool = MagicMock()
+    class DummyAcquire:
+        async def __aenter__(self):
+            return mock_conn
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
+    pool.acquire.return_value = DummyAcquire()
+    pool.close = AsyncMock()
+    return pool
 
-class TestTradingUniverseEnvironment:
+
     """Test TradingUniverse with Environment integration."""
     
     def setup_method(self):
@@ -46,27 +56,19 @@ class TestTradingUniverseEnvironment:
     @pytest.mark.asyncio
     async def test_update_for_end_of_day_uses_prefixed_tables(self, mock_create_pool):
         """Test that update_for_end_of_day uses environment-specific table names."""
-        # Setup mocks
-        mock_pool = AsyncMock()
         mock_conn = AsyncMock()
-        
-        # Make create_pool return the mock pool directly
-        mock_create_pool.return_value = mock_pool
-        mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
-        mock_pool.acquire.return_value.__aexit__.return_value = None
+        mock_pool = make_mock_asyncpg_pool(mock_conn)
+        async def create_pool_side_effect(*args, **kwargs):
+            return mock_pool
+        mock_create_pool.side_effect = create_pool_side_effect
         mock_conn.fetch.return_value = [
             {'symbol': 'AAPL', 'close': 150.0, 'volume': 2000000, 'market_cap': 2000000000}
         ]
-        
         universe = TradingUniverse()
         test_date = date(2023, 1, 1)
-        
         await universe.update_for_end_of_day(test_date)
-        
-        # Verify the query used prefixed table names
         call_args = mock_conn.fetch.call_args
-        query = call_args[0][0]  # First positional argument is the query
-        
+        query = call_args[0][0]
         assert "test_daily_adjusted_prices" in query
         assert "test_daily_prices" in query
         assert universe.current_universe == ['AAPL']
@@ -94,20 +96,14 @@ class TestSecurityMasterEnvironment:
         
         assert master.db_url == custom_url
     
-    @patch('asyncpg.create_pool')
+    @patch('asyncpg.create_pool', new_callable=AsyncMock)
     @pytest.mark.asyncio
     async def test_get_security_info_uses_prefixed_tables(self, mock_create_pool):
         """Test that get_security_info uses environment-specific table names."""
         # Setup mocks
-        mock_pool = AsyncMock()
         mock_conn = AsyncMock()
-        
-        # Make create_pool return an awaitable AsyncMock
-        async def create_pool_side_effect(*args, **kwargs):
-            return mock_pool
-        
-        mock_create_pool.side_effect = create_pool_side_effect
-        mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
+        mock_pool = make_mock_asyncpg_pool(mock_conn)
+        mock_create_pool.return_value = mock_pool
         mock_conn.fetchrow.return_value = {
             'symbol': 'AAPL', 
             'adjusted_price': 150.0, 
@@ -115,49 +111,40 @@ class TestSecurityMasterEnvironment:
             'volume': 2000000, 
             'market_cap': 2000000000
         }
-        
+
         master = SecurityMaster()
         test_date = date(2023, 1, 1)
-        
+
         result = await master.get_security_info('AAPL', test_date)
-        
-        # Verify the query used prefixed table names
+
         call_args = mock_conn.fetchrow.call_args
         query = call_args[0][0]  # First positional argument is the query
-        
+
         assert "test_daily_adjusted_prices" in query
         assert "test_daily_prices" in query
         assert result['symbol'] == 'AAPL'
     
-    @patch('asyncpg.create_pool')
+    @patch('asyncpg.create_pool', new_callable=AsyncMock)
     @pytest.mark.asyncio
     async def test_get_multiple_securities_info_uses_prefixed_tables(self, mock_create_pool):
         """Test that get_multiple_securities_info uses environment-specific table names."""
-        # Setup mocks
-        mock_pool = AsyncMock()
         mock_conn = AsyncMock()
-        
-        # Make create_pool return an awaitable AsyncMock
-        async def create_pool_side_effect(*args, **kwargs):
-            return mock_pool
-        
-        mock_create_pool.side_effect = create_pool_side_effect
-        mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
+        mock_pool = make_mock_asyncpg_pool(mock_conn)
+        mock_create_pool.return_value = mock_pool
         mock_conn.fetch.return_value = [
             {'symbol': 'AAPL', 'adjusted_price': 150.0, 'close': 149.0, 'volume': 2000000, 'market_cap': 2000000000},
             {'symbol': 'GOOGL', 'adjusted_price': 2500.0, 'close': 2490.0, 'volume': 1500000, 'market_cap': 1500000000}
         ]
-        
+
         master = SecurityMaster()
         test_date = date(2023, 1, 1)
         symbols = ['AAPL', 'GOOGL']
-        
+
         result = await master.get_multiple_securities_info(symbols, test_date)
-        
-        # Verify the query used prefixed table names
+
         call_args = mock_conn.fetch.call_args
         query = call_args[0][0]  # First positional argument is the query
-        
+
         assert "test_daily_adjusted_prices" in query
         assert "test_daily_prices" in query
         assert len(result) == 2

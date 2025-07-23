@@ -463,6 +463,8 @@ async def test_concurrent_migration_application(unit_test_db):
 async def test_migration_with_complex_sql(unit_test_db):
     """Test migration with complex SQL including functions, triggers, etc."""
     manager = MigrationManager(unit_test_db)
+    # Ensure version table exists
+    await manager.get_current_version()
     
     complex_sql = """
     -- Create a table
@@ -499,7 +501,9 @@ async def test_migration_with_complex_sql(unit_test_db):
         temp_file = Path(f.name)
     
     try:
+        print("Applying complex migration with SQL:\n", complex_sql)
         success = await manager.apply_migration(1, "complex migration", temp_file)
+        print(f"apply_migration returned: {success}")
         assert success is True
         
         # Verify all components were created
@@ -511,10 +515,12 @@ async def test_migration_with_complex_sql(unit_test_db):
                     SELECT COUNT(*) FROM information_schema.tables 
                     WHERE table_name = 'test_test_complex'
                 """)
+                print(f"Table exists: {table_exists}")
                 assert table_exists == 1
                 
                 # Check data
                 row_count = await conn.fetchval("SELECT COUNT(*) FROM test_test_complex")
+                print(f"Row count in test_test_complex: {row_count}")
                 assert row_count == 2
                 
                 # Check index
@@ -522,10 +528,13 @@ async def test_migration_with_complex_sql(unit_test_db):
                     SELECT COUNT(*) FROM pg_indexes 
                     WHERE tablename = 'test_test_complex' AND indexname LIKE '%name%'
                 """)
+                print(f"Index exists: {index_exists}")
                 assert index_exists >= 1
-                
         finally:
             await pool.close()
+    except Exception as e:
+        print(f"Exception during migration or verification: {e}")
+        raise
             
     finally:
         temp_file.unlink()

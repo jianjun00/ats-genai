@@ -81,7 +81,7 @@ class MigrationManager:
             await pool.close()
     
     async def apply_migration(self, version: int, description: str, file_path: Path) -> bool:
-        """Apply a single migration."""
+        """Apply a single migration. Executes the entire migration file as a single SQL script to support complex PostgreSQL constructs (e.g., dollar-quoted functions)."""
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
@@ -93,55 +93,68 @@ class MigrationManager:
                     # Replace table prefixes in migration
                     migration_sql = self._apply_table_prefixes(migration_sql)
                     
-                    # Split by semicolons and process each part
-                    raw_statements = migration_sql.split(';')
-                    statements = []
-                    
-                    for raw_stmt in raw_statements:
-                        if not raw_stmt.strip():
-                            continue
-                        # Remove comments and extract SQL statements
-                        lines = raw_stmt.split('\n')
-                        sql_lines = []
-                        for line in lines:
-                            line = line.strip()
-                            if line and not line.startswith('--'):
-                                sql_lines.append(line)
-                        
-                        if sql_lines:
-                            statement = ' '.join(sql_lines).strip()
-                            if statement:
-                                statements.append(statement)
-                    
-                    # Execute each statement
-                    for statement in statements:
-                        print(f"statement:{statement}")
-                        await conn.execute(statement)
-                    
-                    # Record migration (skip for version 0 as it records itself)
-                    if version != 0:
-                        checksum = self._calculate_checksum(file_path)
-                        await conn.execute(f"""
-                            INSERT INTO {self.table_prefix}db_version 
-                            (version, description, checksum, migration_file)
-                            VALUES ($1, $2, $3, $4)
-                        """, version, description, checksum, file_path.name)
-                    else:
-                        # For version 0, just update the checksum since the migration inserts itself
-                        checksum = self._calculate_checksum(file_path)
-                        await conn.execute(f"""
-                            UPDATE {self.table_prefix}db_version 
-                            SET checksum = $1
-                            WHERE version = 0
-                        """, checksum)
-                    
-                    print(f"Applied migration {version:03d}: {description}")
-                    return True
-        except Exception as e:
-            print(f"Failed to apply migration {version:03d}: {e}")
-            return False
-        finally:
-            await pool.close()
+                    # Execute the entire migration as a single script
+                    await conn.execute(migration_sql)
+                    migration_sql = f.read()
+                
+                # Replace table prefixes in migration
+                migration_sql = self._apply_table_prefixes(migration_sql)
+                
+                # Execute the entire migration as a single script
+                await conn.execute(migration_sql)
+
+                # Record migration (skip for version 0 as it records itself)
+                if version != 0:
+                    checksum = self._calculate_checksum(file_path)
+                    await conn.execute(f"""
+                        INSERT INTO {self.table_prefix}db_version 
+                        (version, description, checksum, migration_file)
+                        VALUES ($1, $2, $3, $4)
+                    """, version, description, checksum, file_path.name)
+                else:
+                    # For version 0, just update the checksum since the migration inserts itself
+                    checksum = self._calculate_checksum(file_path)
+                    await conn.execute(f"""
+                        UPDATE {self.table_prefix}db_version 
+                        SET checksum = $1
+                        WHERE version = 0
+                    """, checksum)
+                
+                print(f"Applied migration {version:03d}: {description}")
+                return True
+    except Exception as e:
+        print(f"Failed to apply migration {version:03d}: {e}")
+        return False
+    finally:
+        await pool.close()                migration_sql = self._apply_table_prefixes(migration_sql)
+                
+                # Execute the entire migration as a single script
+                await conn.execute(migration_sql)
+
+                # Record migration (skip for version 0 as it records itself)
+                if version != 0:
+                    checksum = self._calculate_checksum(file_path)
+                    await conn.execute(f"""
+                        INSERT INTO {self.table_prefix}db_version 
+                        (version, description, checksum, migration_file)
+                        VALUES ($1, $2, $3, $4)
+                    """, version, description, checksum, file_path.name)
+                else:
+                    # For version 0, just update the checksum since the migration inserts itself
+                    checksum = self._calculate_checksum(file_path)
+                    await conn.execute(f"""
+                        UPDATE {self.table_prefix}db_version 
+                        SET checksum = $1
+                        WHERE version = 0
+                    """, checksum)
+                
+                print(f"Applied migration {version:03d}: {description}")
+                return True
+    except Exception as e:
+        print(f"Failed to apply migration {version:03d}: {e}")
+        return False
+    finally:
+        await pool.close()
     
     def _apply_table_prefixes(self, sql: str) -> str:
         """Apply environment-specific table prefixes to SQL."""

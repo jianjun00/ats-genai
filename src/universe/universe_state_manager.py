@@ -160,10 +160,9 @@ class UniverseStateManager:
             raise FileNotFoundError("No universe state files found")
         
         # Check cache first
-        cache_key = f"{timestamp}_{hash(str(filters))}_{hash(str(columns))}"
-        if use_cache and cache_key in self._cache:
+        if use_cache and filters is None and columns is None and timestamp in self._cache:
             self.logger.debug(f"Loading universe state from cache: {timestamp}")
-            return self._cache[cache_key].copy()
+            return self._cache[timestamp].copy()
         
         file_path = self.states_dir / f"universe_state_{timestamp}.parquet"
         
@@ -366,8 +365,9 @@ class UniverseStateManager:
         """Optimize data types for better compression and performance."""
         # Convert string columns with limited unique values to categorical
         for col in df.select_dtypes(include=['object']).columns:
-            unique_ratio = df[col].nunique() / len(df)
-            if unique_ratio < 0.5:  # If less than 50% unique values
+            n_unique = df[col].nunique()
+            n_total = len(df)
+            if n_unique <= 10 or (n_total > 0 and n_unique / n_total < 0.5):  # robust for small sets
                 df[col] = df[col].astype('category')
         
         # Optimize numeric types
