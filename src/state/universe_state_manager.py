@@ -475,6 +475,30 @@ if __name__ == "__main__":
     # No global manager here! Only per-action.
     if args.action == "build":
         manager = UniverseStateManager(base_path=args.saved_dir)
+        # --- DEBUG: Print DB URL and schema for instrument_polygon and instruments ---
+        try:
+            from config.environment import get_environment
+            import asyncpg
+            import asyncio
+            env = get_environment()
+            print(f"DEBUG (CLI): DB URL: {env.get_database_url()}")
+            async def print_table_schema():
+                pool = await asyncpg.create_pool(env.get_database_url())
+                async with pool.acquire() as conn:
+                    for table in ["instrument_polygon", "instruments"]:
+                        tn = env.get_table_name(table)
+                        schema = await conn.fetch(f"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = $1", tn)
+                        print(f"DEBUG (CLI): {tn} columns:", schema)
+                        row = await conn.fetchrow(f"SELECT * FROM {tn} LIMIT 1")
+                        if row:
+                            print(f"DEBUG (CLI): {tn} sample row:", dict(row))
+                        else:
+                            print(f"DEBUG (CLI): {tn} sample row: <empty>")
+                await pool.close()
+            asyncio.run(print_table_schema())
+        except Exception as e:
+            print(f"DEBUG (CLI): Failed to print DB schema: {e}")
+        # --- END DEBUG ---
         # Placeholder: you may want to load a Universe object by universe_id
         import os
         builder_class_path = os.environ.get("UNIVERSE_BUILDER_CLASS")
