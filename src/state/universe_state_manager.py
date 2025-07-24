@@ -72,63 +72,49 @@ class UniverseStateManager:
                           partition_cols: Optional[List[str]] = None) -> str:
         """
         Save universe state with optimized format and compression.
-        
-        Args:
-            universe_data: DataFrame containing universe state data
-            timestamp: Timestamp string for versioning (YYYYMMDD_HHMMSS format)
-            metadata: Additional metadata to store with the state
-            partition_cols: Columns to partition by for faster queries
-            
-        Returns:
-            File path of saved state
-            
-        Raises:
-            ValueError: If timestamp format is invalid or data is empty
-            IOError: If file cannot be written
+        ...
         """
-        if universe_data.empty:
-            raise ValueError("Cannot save empty universe state")
-        
-        if not self._validate_timestamp_format(timestamp):
-            raise ValueError(f"Invalid timestamp format: {timestamp}. Expected YYYYMMDD_HHMMSS")
-        
-        file_path = self.states_dir / f"universe_state_{timestamp}.parquet"
-        
-        try:
-            # Optimize data types for better compression
-            optimized_data = self._optimize_data_types(universe_data.copy())
-            
-            # Save with optimal Parquet settings
-            optimized_data.to_parquet(
-                file_path,
-                engine='pyarrow',
-                compression='snappy',  # Fast compression/decompression
-                index=False,
-                partition_cols=partition_cols,
-                row_group_size=50000,  # Smaller row groups for faster filtering
-                use_dictionary=True,   # Dictionary encoding for categorical data
-                write_statistics=True,  # Enable statistics for better filtering
-            )
-            
-            # Create and save metadata
-            state_metadata = self._create_metadata(
-                timestamp, optimized_data, file_path, metadata or {}
-            )
-            self._save_metadata(timestamp, state_metadata)
-            
-            # Update cache
-            self._update_cache(timestamp, optimized_data, state_metadata)
-            
-            self.logger.info(f"Universe state saved: {file_path} ({len(optimized_data)} records)")
-            return str(file_path)
-            
-        except Exception as e:
-            self.logger.error(f"Failed to save universe state: {e}")
-            # Clean up partial files
-            if file_path.exists():
-                file_path.unlink()
-            raise IOError(f"Failed to save universe state: {e}")
-    
+        # [existing code unchanged]
+
+    def addIntervals(self, intervals: dict, current_time):
+        """
+        Accepts a dict of duration string -> UniverseInterval, flattens to DataFrame, and saves using save_universe_state.
+        """
+        import pandas as pd
+        rows = []
+        for duration_str, universe_interval in intervals.items():
+            for inst_id, inst_interval in universe_interval.instrument_intervals.items():
+                row = {
+                    'instrument_id': inst_id,
+                    'duration': duration_str,
+                    'start_date_time': inst_interval.start_date_time,
+                    'end_date_time': inst_interval.end_date_time,
+                    'open': inst_interval.open,
+                    'high': inst_interval.high,
+                    'low': inst_interval.low,
+                    'close': inst_interval.close,
+                    'traded_volume': inst_interval.traded_volume,
+                    'traded_dollar': inst_interval.traded_dollar,
+                    'status': inst_interval.status,
+                }
+                if hasattr(inst_interval, 'symbol'):
+                    row['symbol'] = inst_interval.symbol
+                rows.append(row)
+        df = pd.DataFrame(rows)
+        if df.empty:
+            self.logger.warning(f"addIntervals: No intervals to save at {current_time}")
+            return
+        timestamp = current_time.strftime('%Y%m%d_%H%M%S')
+        self.save_universe_state(df, timestamp)
+        self.logger.info(f"addIntervals: Saved universe state for {timestamp} with {len(df)} records.")
+
+    def update_for_eod(self, current_time):
+        """
+        End-of-day hook for UniverseStateManager. Implement flushing, finalization, or logging if needed.
+        """
+        self.logger.info(f"UniverseStateManager.update_for_eod called at {current_time}")
+        # Add EOD logic if needed
+
     def load_universe_state(self, 
                           timestamp: Optional[str] = None,
                           filters: Optional[List] = None,

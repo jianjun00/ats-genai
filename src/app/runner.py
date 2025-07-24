@@ -61,7 +61,13 @@ class Runner:
         """
         current_time = self.start_date
         last_eod_date = None
+        last_sod_date = None
         while current_time <= self.end_date:
+            # SOD event at first second of each date
+            sod_time = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
+            if last_sod_date != current_time.date():
+                yield (sod_time, "sod")
+                last_sod_date = current_time.date()
             # Yield interval event
             yield (current_time, "interval")
             # Check if EOD event should be yielded
@@ -76,13 +82,38 @@ class Runner:
 
     def run(self):
         for event_time, event_type in self.iter_events():
-            if event_type == "interval":
+            if event_type == "sod":
+                self.update_for_sod(event_time)
+                for cb in self.callbacks:
+                    if hasattr(cb, 'handleStartOfDay'):
+                        cb.handleStartOfDay(self, event_time)
+            elif event_type == "interval":
                 for cb in self.callbacks:
                     cb.handleInterval(self, event_time)
             elif event_type == "eod":
                 self.update_for_eod(event_time)
                 for cb in self.callbacks:
                     cb.handleEndOfDay(self, event_time)
+
+    def update_for_sod(self, current_time: datetime):
+        """
+        Call update_for_sod on universe_state_manager, universe_manager, and security_manager if available.
+        """
+        # UniverseStateManager SOD (e.g., initialize state)
+        if hasattr(self.universe_state_manager, 'update_for_sod'):
+            self.universe_state_manager.update_for_sod(current_time)
+        # UniverseManager SOD
+        if hasattr(self, 'universe_manager') and self.universe_manager:
+            import asyncio
+            if hasattr(self.universe_manager, 'update_for_sod'):
+                try:
+                    asyncio.run(self.universe_manager.update_for_sod(self.universe_id, current_time.date()))
+                except Exception as e:
+                    print(f"UniverseManager.update_for_sod failed: {e}")
+        # SecurityManager SOD (if implemented)
+        if hasattr(self, 'security_manager') and self.security_manager:
+            if hasattr(self.security_manager, 'update_for_sod'):
+                self.security_manager.update_for_sod(current_time)
 
     def update_for_eod(self, current_time: datetime):
         """

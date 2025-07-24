@@ -43,6 +43,16 @@ def test_runner_state_builder_aapl_tsla(monkeypatch):
             return pd.DataFrame(data)
     runner.market_data_manager = DummyMarketDataManager()
 
+    # Patch runner with dummy universe_manager for test compatibility
+    class DummyUniverseManager:
+        instrument_ids = UNIVERSE_SYMBOLS
+        universe = type('U', (), {'instrument_ids': UNIVERSE_SYMBOLS})()
+    runner.universe_manager = DummyUniverseManager()
+    # Patch runner with dummy universe for test compatibility
+    class DummyUniverse:
+        instrument_ids = UNIVERSE_SYMBOLS
+    runner.universe = DummyUniverse()
+
     # Patch UniverseStateBuilder to set universe attribute with instrument_ids
     for cb in runner.callbacks:
         if hasattr(cb, 'universe'):
