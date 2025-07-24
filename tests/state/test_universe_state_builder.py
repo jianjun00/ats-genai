@@ -229,7 +229,7 @@ class TestUniverseStateBuilder:
             'volume': [50000000, 1000000, 50000, 10000000],  # LOWVOL below min
             'avg_volume': [50000000, 1000000, 50000, 10000000],
             'is_active': [True, True, True, False],  # INACTIVE is false
-            'sector': ['Technology'] * 4,
+            
             'exchange': ['NASDAQ'] * 4,
             'as_of_date': ['2023-12-01'] * 4
         })

@@ -341,7 +341,7 @@ class UniverseStateBuilder:
         try:
             # Check required columns
             required_columns = [
-                'symbol', 'market_cap', 'avg_volume', 'sector', 
+                'market_cap', 'avg_volume', 
                 'exchange', 'is_active', 'as_of_date'
             ]
             
@@ -375,7 +375,7 @@ class UniverseStateBuilder:
                 self.logger.warning(f"Universe size ({len(universe_data)}) exceeds maximum ({self.max_universe_size})")
             
             # Check data completeness
-            critical_columns = ['symbol', 'market_cap', 'sector']
+            critical_columns = ['market_cap']
             for col in critical_columns:
                 null_count = universe_data[col].isnull().sum()
                 if null_count > 0:
@@ -476,7 +476,7 @@ class UniverseStateBuilder:
             new_row = new_state[new_state['symbol'] == symbol].iloc[0]
             
             # Check for changes in key fields
-            key_fields = ['market_cap', 'sector', 'exchange', 'is_active']
+            key_fields = ['market_cap', 'exchange', 'is_active']
             has_changes = False
             
             for field in key_fields:
@@ -516,7 +516,7 @@ class UniverseStateBuilder:
                 SELECT DISTINCT
                     i.symbol,
                     i.name,
-                    i.sector,
+                    
                     i.exchange,
                     dp.close,
                     dp.volume,
@@ -664,10 +664,10 @@ class UniverseStateBuilder:
         # Add universe rank by market cap
         result_data['market_cap_rank'] = result_data['market_cap'].rank(method='dense', ascending=False)
         
-        # Add sector weights (percentage of universe)
-        sector_counts = result_data['sector'].value_counts()
-        result_data['sector_weight'] = result_data['sector'].map(
-            sector_counts / len(result_data)
+        # Add  weights (percentage of universe)
+        _counts = result_data[''].value_counts()
+        result_data['_weight'] = result_data[''].map(
+            _counts / len(result_data)
         )
         
         return result_data
@@ -761,7 +761,7 @@ class UniverseStateBuilder:
         SELECT 
             i.symbol,
             i.name,
-            i.sector,
+            
             i.exchange,
             dp.close,
             dp.volume,
