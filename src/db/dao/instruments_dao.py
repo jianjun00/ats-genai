@@ -14,9 +14,9 @@ class InstrumentsDAO:
                 result = await conn.fetchrow(f"""
                     INSERT INTO {self.table_name} (symbol, name, exchange, type, currency)
                     VALUES ($1, $2, $3, $4, $5)
-                    RETURNING id
+                    RETURNING instrument_id
                 """, symbol, name, exchange, type_, currency)
-                return result['id'] if result else None
+                return result['instrument_id'] if result else None
         finally:
             await pool.close()
 
@@ -24,7 +24,7 @@ class InstrumentsDAO:
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
-                return await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE id = $1", instrument_id)
+                return await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE instrument_id = $1", instrument_id)
         finally:
             await pool.close()
 
