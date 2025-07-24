@@ -503,6 +503,11 @@ class UniverseStateBuilder:
     
     async def _get_base_universe(self, as_of_date: str) -> pd.DataFrame:
         """Get base universe from database."""
+        # Ensure as_of_date is a datetime.date
+        if isinstance(as_of_date, str):
+            as_of_date_dt = datetime.strptime(as_of_date, "%Y-%m-%d").date()
+        else:
+            as_of_date_dt = as_of_date
         pool = await asyncpg.create_pool(self.env.get_database_url())
         try:
             async with pool.acquire() as conn:
@@ -513,7 +518,7 @@ class UniverseStateBuilder:
                     i.name,
                     i.sector,
                     i.exchange,
-                    dp.close_price,
+                    dp.close,
                     dp.volume,
                     dp.market_cap,
                     dp.date as as_of_date,
@@ -521,13 +526,13 @@ class UniverseStateBuilder:
                 FROM {self.env.get_table_name('instruments')} i
                 JOIN {self.env.get_table_name('daily_prices')} dp ON i.symbol = dp.symbol
                 WHERE dp.date = $1
-                    AND dp.close_price > 0
+                    AND dp.close > 0
                     AND dp.volume > 0
-                    AND i.is_active = true
+                    AND i.active = true
                 ORDER BY i.symbol
                 """
                 
-                rows = await conn.fetch(query, as_of_date)
+                rows = await conn.fetch(query, as_of_date_dt)
                 
                 if not rows:
                     self.logger.warning(f"No base universe data found for {as_of_date}")
@@ -537,11 +542,16 @@ class UniverseStateBuilder:
                 
         finally:
             await pool.close()
-    
+
     async def _apply_membership_changes(self, 
                                       universe_data: pd.DataFrame, 
                                       as_of_date: str) -> pd.DataFrame:
         """Apply membership changes up to the specified date."""
+        # Ensure as_of_date is a datetime.date
+        if isinstance(as_of_date, str):
+            as_of_date_dt = datetime.strptime(as_of_date, "%Y-%m-%d").date()
+        else:
+            as_of_date_dt = as_of_date
         pool = await asyncpg.create_pool(self.env.get_database_url())
         try:
             async with pool.acquire() as conn:
@@ -553,7 +563,7 @@ class UniverseStateBuilder:
                 ORDER BY effective_date, symbol
                 """
                 
-                rows = await conn.fetch(query, as_of_date)
+                rows = await conn.fetch(query, as_of_date_dt)
                 
                 result_data = universe_data.copy()
                 
@@ -579,6 +589,11 @@ class UniverseStateBuilder:
                                      universe_data: pd.DataFrame, 
                                      as_of_date: str) -> pd.DataFrame:
         """Apply corporate actions up to the specified date."""
+        # Ensure as_of_date is a datetime.date
+        if isinstance(as_of_date, str):
+            as_of_date_dt = datetime.strptime(as_of_date, "%Y-%m-%d").date()
+        else:
+            as_of_date_dt = as_of_date
         pool = await asyncpg.create_pool(self.env.get_database_url())
         try:
             async with pool.acquire() as conn:
@@ -590,7 +605,7 @@ class UniverseStateBuilder:
                 ORDER BY effective_date, symbol
                 """
                 
-                rows = await conn.fetch(query, as_of_date)
+                rows = await conn.fetch(query, as_of_date_dt)
                 
                 result_data = universe_data.copy()
                 
@@ -736,14 +751,19 @@ class UniverseStateBuilder:
                              conn: asyncpg.Connection, 
                              symbol: str, 
                              as_of_date: str) -> pd.DataFrame:
-        """Get data for a specific symbol."""
+        # Ensure as_of_date is a datetime.date
+        if isinstance(as_of_date, str):
+            as_of_date_dt = datetime.strptime(as_of_date, "%Y-%m-%d").date()
+        else:
+            as_of_date_dt = as_of_date
+        
         query = f"""
         SELECT 
             i.symbol,
             i.name,
             i.sector,
             i.exchange,
-            dp.close_price,
+            dp.close,
             dp.volume,
             dp.market_cap,
             $2 as as_of_date,
@@ -753,7 +773,7 @@ class UniverseStateBuilder:
         WHERE i.symbol = $1 AND dp.date = $2
         """
         
-        rows = await conn.fetch(query, symbol, as_of_date)
+        rows = await conn.fetch(query, symbol, as_of_date_dt)
         
         if rows:
             return pd.DataFrame([dict(row) for row in rows])

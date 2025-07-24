@@ -58,6 +58,7 @@ async def test_populate_spy_universe_events(tmp_path):
     async with pool.acquire() as conn:
         universe_table = env.get_table_name("universe")
         universe_membership_table = env.get_table_name("universe_membership")
+        membership_changes_table = env.get_table_name("universe_membership_changes")
         universe_row = await conn.fetchrow(f"SELECT id FROM {universe_table} WHERE name = $1", test_universe)
         assert universe_row is not None, "Universe was not created"
         universe_id = universe_row['id']
@@ -90,4 +91,23 @@ async def test_populate_spy_universe_events(tmp_path):
         assert anss is not None, 'ANSS should have a removal record'
         assert str(jnpr['end_at']) == ddog_add_date, f"JNPR end_at should be {ddog_add_date}, got {jnpr['end_at']}"
         assert str(anss['end_at']) == ttd_add_date, f"ANSS end_at should be {ttd_add_date}, got {anss['end_at']}"
+
+        # --- New: Check membership_changes table ---
+        changes = await conn.fetch(f"SELECT symbol, action, effective_date FROM {membership_changes_table}")
+        assert len(changes) > 100, f"Expected >100 membership changes, got {len(changes)}"
+        # Check at least one add and one remove event
+        add_events = [c for c in changes if c['action'] == 'add']
+        remove_events = [c for c in changes if c['action'] == 'remove']
+        assert len(add_events) > 0, "No add events found in membership_changes"
+        assert len(remove_events) > 0, "No remove events found in membership_changes"
+        # Check DDOG and TTD add events
+        ddog_add = next((c for c in add_events if c['symbol'] == 'DDOG' and str(c['effective_date']) == ddog_add_date), None)
+        ttd_add = next((c for c in add_events if c['symbol'] == 'TTD' and str(c['effective_date']) == ttd_add_date), None)
+        assert ddog_add is not None, f"DDOG add event not found in membership_changes on {ddog_add_date}"
+        assert ttd_add is not None, f"TTD add event not found in membership_changes on {ttd_add_date}"
+        # Check JNPR and ANSS remove events
+        jnpr_remove = next((c for c in remove_events if c['symbol'] == 'JNPR' and str(c['effective_date']) == ddog_add_date), None)
+        anss_remove = next((c for c in remove_events if c['symbol'] == 'ANSS' and str(c['effective_date']) == ttd_add_date), None)
+        assert jnpr_remove is not None, f"JNPR remove event not found in membership_changes on {ddog_add_date}"
+        assert anss_remove is not None, f"ANSS remove event not found in membership_changes on {ttd_add_date}"
     await pool.close()
