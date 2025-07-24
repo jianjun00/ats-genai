@@ -38,7 +38,7 @@ class TestUniverseStateManager:
         return pd.DataFrame({
             'symbol': ['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'AMZN'],
             'name': ['Apple Inc.', 'Alphabet Inc.', 'Microsoft Corp.', 'Tesla Inc.', 'Amazon.com Inc.'],
-            'sector': ['Technology', 'Technology', 'Technology', 'Consumer Discretionary', 'Consumer Discretionary'],
+            
             'exchange': ['NASDAQ', 'NASDAQ', 'NASDAQ', 'NASDAQ', 'NASDAQ'],
             'market_cap': [2800000000000, 1600000000000, 2400000000000, 800000000000, 1400000000000],
             'close_price': [150.0, 2500.0, 300.0, 800.0, 3200.0],
