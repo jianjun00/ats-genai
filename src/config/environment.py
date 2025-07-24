@@ -28,6 +28,8 @@ class EnvironmentType(Enum):
     PRODUCTION = "prod"
 
 
+from trading.indicator_config import IndicatorConfig
+
 class Environment:
     """
     Environment configuration manager.
@@ -48,6 +50,7 @@ class Environment:
         self.config = configparser.ConfigParser()
         self._load_configurations()
         self.logger = self._setup_logging()
+        self._indicator_config = IndicatorConfig.default_config()
     
     def _detect_environment(self) -> EnvironmentType:
         """Detect environment from ENVIRONMENT environment variable."""
@@ -151,6 +154,45 @@ class Environment:
         key_name = f"{service}_api_key"
         return self.get("api_keys", key_name)
     
+    @property
+    def indicator_config(self) -> IndicatorConfig:
+        """
+        Get or set the indicator configuration for this environment.
+        Defaults to IndicatorConfig.default_config() if not explicitly set.
+        """
+        return self._indicator_config
+
+    @indicator_config.setter
+    def indicator_config(self, value: IndicatorConfig):
+        self._indicator_config = value
+
+    # --- Duration-related methods migrated from UniverseStateBuilder ---
+    def get_base_duration(self) -> 'TimeDuration':
+        # Default to 5 minutes if not set in config
+        from trading.time_duration import TimeDuration
+        duration_str = self.get('universe', 'base_duration', '5m')
+        return TimeDuration(duration_str)
+
+    def get_target_durations(self) -> 'List[TimeDuration]':
+        from trading.time_duration import TimeDuration
+        durations_str = self.get('universe', 'target_durations', '5m')
+        durations = [d.strip() for d in durations_str.split(',')]
+        return [TimeDuration(d) for d in durations]
+
+    def set_target_durations(self, durations: 'List[TimeDuration]'):
+        durations_str = ','.join(str(d) for d in durations)
+        self.set('universe', 'target_durations', durations_str)
+        self._validate_duration_compatibility()
+
+    def _validate_duration_compatibility(self):
+        # Example compatibility check (could be extended)
+        base = self.get_base_duration()
+        targets = self.get_target_durations()
+        if any(t < base for t in targets):
+            raise ValueError('Target durations must be >= base duration')
+
+    # --- End duration methods ---
+
     def is_feature_enabled(self, feature: str) -> bool:
         """
         Check if a feature is enabled in current environment.
