@@ -1,6 +1,8 @@
 from config.environment import Environment
 import asyncpg
 
+from datetime import date
+
 class UniverseMembershipDAO:
     async def update_membership_end(self, universe_id: int, symbol: str, end_at):
         pool = await asyncpg.create_pool(self.db_url)
@@ -23,30 +25,30 @@ class UniverseMembershipDAO:
                 """, universe_id, symbol, start_at, end_at)
         finally:
             await pool.close()
+
     def __init__(self, env: Environment):
         self.env = env
         self.table_name = self.env.get_table_name('universe_membership')
         self.db_url = self.env.get_database_url()
 
-    async def add_membership(self, universe_id: int, instrument_id: int) -> int:
+    async def add_membership(self, universe_id: int, symbol: str, start_at: date, end_at: date = None) -> bool:
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
-                result = await conn.fetchrow(f"""
-                    INSERT INTO {self.table_name} (universe_id, instrument_id)
-                    VALUES ($1, $2)
-                    RETURNING id
-                """, universe_id, instrument_id)
-                return result['id'] if result else None
+                await conn.execute(f"""
+                    INSERT INTO {self.table_name} (universe_id, symbol, start_at, end_at)
+                    VALUES ($1, $2, $3, $4)
+                """, universe_id, symbol, start_at, end_at)
+                return True
         finally:
             await pool.close()
 
-    async def remove_membership(self, membership_id: int) -> bool:
+    async def remove_membership(self, universe_id: int, symbol: str, start_at: date) -> bool:
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
-                result = await conn.execute(f"DELETE FROM {self.table_name} WHERE id = $1", membership_id)
-                return 'DELETE' in result
+                result = await conn.execute(f"DELETE FROM {self.table_name} WHERE universe_id = $1 AND symbol = $2 AND start_at = $3", universe_id, symbol, start_at)
+                return 'DELETE' in str(result)
         finally:
             await pool.close()
 
