@@ -54,22 +54,55 @@ class Runner:
     def get_universe_state_manager(self) -> UniverseStateManager:
         return self.universe_state_manager
 
-    def run(self):
+    def iter_events(self):
+        """
+        Yields (datetime, type) tuples for each simulation event.
+        'interval' for each interval step, 'eod' once per day at the last second.
+        """
         current_time = self.start_date
+        last_eod_date = None
         while current_time <= self.end_date:
-            # Start of day
-            if self.duration.is_daily_or_longer() or current_time.time() == datetime.min.time():
-                for cb in self.callbacks:
-                    cb.handleStartOfDay(self, current_time)
-            # Interval
-            for cb in self.callbacks:
-                cb.handleInterval(self, current_time)
-            # End of day
+            # Yield interval event
+            yield (current_time, "interval")
+            # Check if EOD event should be yielded
             next_time = self._advance_time(current_time)
+            # If next_time is a new day or past end_date, yield EOD at last second of current day
             if (next_time.date() != current_time.date()) or next_time > self.end_date:
-                for cb in self.callbacks:
-                    cb.handleEndOfDay(self, current_time)
+                eod_time = current_time.replace(hour=23, minute=59, second=59, microsecond=0)
+                if last_eod_date != current_time.date():
+                    yield (eod_time, "eod")
+                    last_eod_date = current_time.date()
             current_time = next_time
+
+    def run(self):
+        for event_time, event_type in self.iter_events():
+            if event_type == "interval":
+                for cb in self.callbacks:
+                    cb.handleInterval(self, event_time)
+            elif event_type == "eod":
+                self.update_for_eod(event_time)
+                for cb in self.callbacks:
+                    cb.handleEndOfDay(self, event_time)
+
+    def update_for_eod(self, current_time: datetime):
+        """
+        Call update_for_eod on universe_state_manager, universe_manager, and security_manager if available.
+        """
+        # UniverseStateManager EOD (e.g., flush cache or finalize state)
+        if hasattr(self.universe_state_manager, 'update_for_eod'):
+            self.universe_state_manager.update_for_eod(current_time)
+        # UniverseManager EOD
+        if hasattr(self, 'universe_manager') and self.universe_manager:
+            import asyncio
+            if hasattr(self.universe_manager, 'update_for_eod'):
+                try:
+                    asyncio.run(self.universe_manager.update_for_eod(self.universe_id, current_time.date()))
+                except Exception as e:
+                    print(f"UniverseManager.update_for_eod failed: {e}")
+        # SecurityManager EOD (if implemented)
+        if hasattr(self, 'security_manager') and self.security_manager:
+            if hasattr(self.security_manager, 'update_for_eod'):
+                self.security_manager.update_for_eod(current_time)
 
     def _advance_time(self, current_time: datetime) -> datetime:
         # Use TimeDuration to advance
