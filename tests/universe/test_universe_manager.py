@@ -49,3 +49,27 @@ async def test_update_for_eod(monkeypatch):
     await manager.update_for_eod(1, date(2025, 7, 15))
     manager.universe_db.get_membership_changes.assert_awaited_once()
     manager.update_universe_membership.assert_awaited_once_with(changes)
+
+@pytest.mark.asyncio
+async def test_update_for_sod(monkeypatch, caplog):
+    manager = UniverseManager()
+    expected_ids = ['AAPL', 'TSLA', 'GOOG']
+    # Patch get_members to return expected_ids
+    manager.get_members = AsyncMock(return_value=expected_ids)
+    # Track logs
+    with caplog.at_level('INFO'):
+        await manager.update_for_sod(42, date(2025, 7, 24))
+    # Assert instrument_ids is set
+    assert hasattr(manager, 'instrument_ids')
+    assert manager.instrument_ids == expected_ids
+    # Assert logging
+    assert any('UniverseManager.update_for_sod called for universe_id=42 at 2025-07-24' in r.message for r in caplog.records)
+    assert any(f"UniverseManager.instrument_ids set to {expected_ids}" in r.message for r in caplog.records)
+
+@pytest.mark.asyncio
+async def test_update_for_sod_error(monkeypatch):
+    manager = UniverseManager()
+    # Patch get_members to raise
+    manager.get_members = AsyncMock(side_effect=RuntimeError('DB error'))
+    with pytest.raises(RuntimeError, match='DB error'):
+        await manager.update_for_sod(99, date(2025, 7, 24))
