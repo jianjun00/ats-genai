@@ -17,6 +17,13 @@ class UniverseMembershipChange:
 import logging
 
 class UniverseManager:
+    async def update_for_eod(self, universe_id: int, as_of_date: date) -> None:
+        """
+        End-of-day hook for UniverseManager. Implement EOD membership or state updates if needed.
+        """
+        self.logger.info(f"UniverseManager.update_for_eod called for universe_id={universe_id} at {as_of_date}")
+        # Add EOD logic if needed
+
     """
     Manages universe membership operations, including updates and queries.
     """
@@ -66,6 +73,14 @@ class UniverseManager:
         Get the list of member symbols for a universe as of a specific date.
         """
         return await self.universe_db.get_universe_members(universe_id, as_of_date)
+
+    async def update_for_sod(self, universe_id: int, as_of_date: date) -> None:
+        """
+        Start-of-day hook: set instrument_ids to universe_membership valid at as_of_date.
+        """
+        self.logger.info(f"UniverseManager.update_for_sod called for universe_id={universe_id} at {as_of_date}")
+        self.instrument_ids = await self.get_members(universe_id, as_of_date)
+        self.logger.info(f"UniverseManager.instrument_ids set to {self.instrument_ids}")
 
     async def update_for_eod(self, universe_id: int, as_of_date: date) -> None:
         """
