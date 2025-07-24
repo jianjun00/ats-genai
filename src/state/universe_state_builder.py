@@ -18,6 +18,7 @@ from config.environment import Environment, get_environment
 from trading.time_duration import TimeDuration
 from state.instrument_interval import InstrumentInterval
 from state.universe_interval import UniverseInterval
+from secmaster.security_master import SecurityMaster, CorporateAction, CorporateActionType
 
 
 
@@ -59,7 +60,21 @@ class CorporateAction:
     metadata: Dict[str, Any] = None
 
 
-class UniverseStateBuilder:
+from app.runner import RunnerCallback
+
+class UniverseStateBuilder(RunnerCallback):
+    def handleStartOfDay(self, runner, current_time):
+        self.logger.info(f"UniverseStateBuilder.handleStartOfDay called at {current_time}")
+        # Add custom logic here
+
+    def handleEndOfDay(self, runner, current_time):
+        self.logger.info(f"UniverseStateBuilder.handleEndOfDay called at {current_time}")
+        # Add custom logic here
+
+    def handleInterval(self, runner, current_time):
+        self.logger.info(f"UniverseStateBuilder.handleInterval called at {current_time}")
+        # Add custom logic here
+
     """
     Builds universe state from multiple data sources with business logic,
     validation, and transformation rules.
@@ -68,36 +83,21 @@ class UniverseStateBuilder:
     """
     
     def __init__(self, 
-                 universe: 'Universe',
-                 state_manager: 'UniverseStateManager' = None,
                  env: Optional['Environment'] = None,
-                 base_duration: Optional['TimeDuration'] = None,
-                 target_durations: Optional[List['TimeDuration']] = None,
                  market_data_manager: Optional['MarketDataManager'] = None,
                  indicator_config: Optional[Any] = None):
         """
-        Initialize UniverseStateBuilder with multi-duration support.
+        Initialize UniverseStateBuilder.
         Args:
-            universe: Universe object
-            state_manager: UniverseStateManager instance for persistence
             env: Environment instance (uses global if None)
-            base_duration: Base TimeDuration (default 5m)
-            target_durations: List of TimeDuration (default [5m])
             market_data_manager: MarketDataManager instance
             indicator_config: Optional indicator config
         """
-        self.universe = universe
-        self.state_manager = state_manager
         self.env = env or get_environment()
         self.logger = logging.getLogger(__name__)
         self.market_data_manager = market_data_manager
         self.indicator_config = indicator_config
         self.universe_state = None
-
-        # Multi-duration logic
-        self.base_duration = base_duration or TimeDuration.create_5_minutes()
-        self.target_durations = target_durations or [self.base_duration]
-        self._validate_duration_compatibility()
 
         # Business rules configuration
         self.min_market_cap = 100_000_000  # $100M minimum market cap
@@ -109,25 +109,7 @@ class UniverseStateBuilder:
             'manual': 1
         }
 
-    def get_base_duration(self) -> 'TimeDuration':
-        return self.base_duration
 
-    def get_target_durations(self) -> 'List[TimeDuration]':
-        return self.target_durations
-
-    def set_target_durations(self, durations: 'List[TimeDuration]'):
-        self.target_durations = durations
-        self._validate_duration_compatibility()
-
-    def _validate_duration_compatibility(self):
-        # Only validate if all durations are minute-based
-        base = self.base_duration
-        for dur in self.target_durations:
-            if dur.is_intraday() and base.is_intraday():
-                base_min = base.get_duration_minutes()
-                dur_min = dur.get_duration_minutes()
-                if dur_min % base_min != 0:
-                    raise ValueError(f"Target duration {dur} is not a multiple of base duration {base}")
 
     def build_multi_duration_intervals(self, start_time: 'datetime') -> dict:
         """
@@ -135,7 +117,7 @@ class UniverseStateBuilder:
         Returns a dict mapping duration string to UniverseInterval.
         """
         intervals = {}
-        for duration in self.target_durations:
+        for duration in self.env.get_target_durations():
             end_time = duration.get_end_time(start_time)
             instrument_intervals = {}
             ohlc_batch = self.market_data_manager.get_ohlc_batch(self.universe.instrument_ids, start_time, end_time)
@@ -305,29 +287,24 @@ class UniverseStateBuilder:
         except Exception as e:
             self.logger.error(f"Failed to build universe state for {as_of_date}: {e}")
             raise RuntimeError(f"Universe building failed: {e}")
-    
-    async def update_universe_membership(self, 
-                                       membership_changes: List[UniverseMembershipChange]) -> None:
+
+    async def updateForEod(self, universe_id: int, as_of_date: str) -> None:
+        from universe.universe_manager import UniverseManager
         """
-        Apply membership changes to the universe.
-        
+        Triggers EOD membership and corporate action updates for the universe.
         Args:
-            membership_changes: List of membership changes to apply
+            universe_id: The universe identifier
+            as_of_date: Date string (YYYY-MM-DD)
         """
-        if not membership_changes:
-            return
-        
-        self.logger.info(f"Applying {len(membership_changes)} membership changes")
-        
-        pool = await asyncpg.create_pool(self.env.get_database_url())
-        try:
-            async with pool.acquire() as conn:
-                for change in membership_changes:
-                    await self._apply_single_membership_change(conn, change)
-                    
-        finally:
-            await pool.close()
-    
+        universe_manager = UniverseManager(self.env)
+        # Update membership for EOD
+        await universe_manager.update_for_eod(universe_id, date.fromisoformat(as_of_date))
+        # Apply corporate actions (splits/dividends)
+        # This assumes UniverseManager or another service provides corp action application. If not, add here.
+        # Example:
+        # await universe_manager.apply_corporate_actions(universe_id, as_of_date)
+        # For now, only membership update is implemented.
+
     def validate_universe_state(self, universe_data: pd.DataFrame) -> bool:
         """
         Validate universe state meets business rules and constraints.
@@ -409,9 +386,7 @@ class UniverseStateBuilder:
         # Rebuild from source data
         return await self.build_universe_state(as_of_date)
     
-    def apply_corporate_actions(self, 
-                              universe_data: pd.DataFrame,
-                              corporate_actions: List[CorporateAction]) -> pd.DataFrame:
+
         """
         Apply corporate actions to universe state.
         
@@ -580,30 +555,6 @@ class UniverseStateBuilder:
                         # Remove symbol from universe
                         result_data = result_data[result_data['symbol'] != row['symbol']]
                 
-                return result_data
-                
-        finally:
-            await pool.close()
-    
-    async def _apply_corporate_actions(self, 
-                                     universe_data: pd.DataFrame, 
-                                     as_of_date: str) -> pd.DataFrame:
-        """Apply corporate actions up to the specified date."""
-        # Ensure as_of_date is a datetime.date
-        if isinstance(as_of_date, str):
-            as_of_date_dt = datetime.strptime(as_of_date, "%Y-%m-%d").date()
-        else:
-            as_of_date_dt = as_of_date
-        pool = await asyncpg.create_pool(self.env.get_database_url())
-        try:
-            async with pool.acquire() as conn:
-                # Get corporate actions up to the date
-                query = f"""
-                SELECT symbol, action_type, effective_date, ratio, amount, new_symbol
-                FROM {self.env.get_table_name('corporate_actions')}
-                WHERE effective_date <= $1
-                ORDER BY effective_date, symbol
-                """
                 
                 rows = await conn.fetch(query, as_of_date_dt)
                 
@@ -665,11 +616,7 @@ class UniverseStateBuilder:
         result_data['market_cap_rank'] = result_data['market_cap'].rank(method='dense', ascending=False)
         
         # Add  weights (percentage of universe)
-        _counts = result_data[''].value_counts()
-        result_data['_weight'] = result_data[''].map(
-            _counts / len(result_data)
-        )
-        
+        # Remove broken sector_weight logic referencing empty column
         return result_data
     
     def _apply_business_rules(self, universe_data: pd.DataFrame) -> pd.DataFrame:
@@ -696,9 +643,7 @@ class UniverseStateBuilder:
         
         return result_data.reset_index(drop=True)
     
-    def _apply_single_corporate_action(self, 
-                                     universe_data: pd.DataFrame, 
-                                     action: CorporateAction) -> pd.DataFrame:
+
         """Apply a single corporate action to universe data."""
         result_data = universe_data.copy()
         
@@ -723,9 +668,7 @@ class UniverseStateBuilder:
         
         return result_data
     
-    async def _apply_single_membership_change(self, 
-                                            conn: asyncpg.Connection, 
-                                            change: UniverseMembershipChange) -> None:
+
         """Apply a single membership change to the database."""
         table_name = self.env.get_table_name('universe_membership_changes')
         
@@ -738,15 +681,7 @@ class UniverseStateBuilder:
             updated_at = NOW()
         """
         
-        await conn.execute(
-            query,
-            change.symbol,
-            change.action.value,
-            change.effective_date,
-            change.reason,
-            datetime.now()
-        )
-    
+
     async def _get_symbol_data(self, 
                              conn: asyncpg.Connection, 
                              symbol: str, 
