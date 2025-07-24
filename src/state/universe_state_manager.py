@@ -42,30 +42,27 @@ class UniverseStateManager:
     Uses Parquet format for optimal performance with columnar data.
     """
     
-    def __init__(self, base_path: Optional[str] = None):
+    def __init__(self, env=None, base_path: Optional[str] = None):
         """
         Initialize UniverseStateManager.
-        
+
         Args:
+            env: Environment instance (optional)
             base_path: Base directory for universe state files. If None, uses environment config.
         """
-        self.env = get_environment()
+        self.env = env or get_environment()
         self.base_path = Path(base_path) if base_path else Path("data/universe_state")
         self.base_path.mkdir(parents=True, exist_ok=True)
-        
         # Create subdirectories for organization
         self.states_dir = self.base_path / "states"
         self.metadata_dir = self.base_path / "metadata"
         self.cache_dir = self.base_path / "cache"
-        
         for dir_path in [self.states_dir, self.metadata_dir, self.cache_dir]:
             dir_path.mkdir(parents=True, exist_ok=True)
-        
         # In-memory cache for frequently accessed data
         self._cache: Dict[str, pd.DataFrame] = {}
         self._cache_metadata: Dict[str, UniverseStateMetadata] = {}
         self._max_cache_size = 5  # Maximum number of states to cache
-        
         self.logger = logging.getLogger(__name__)
     
     def save_universe_state(self, 
