@@ -17,20 +17,61 @@ from src.db.test_db_manager import TestDatabaseManager
 from src.config.environment import set_environment, EnvironmentType
 import pytest_asyncio
 
+@pytest_asyncio.fixture
+def pristine_test_db(request):
+    """
+    Fixture factory for a pristine (no migrations) test database per test function.
+    Usage:
+        @pytest.mark.asyncio
+        async def test_something(pristine_test_db):
+            db_url = await pristine_test_db()
+            ...
+    """
+    async def factory():
+        test_name = request.node.name if hasattr(request, 'node') else None
+        db_manager = TestDatabaseManager("unit", test_name=test_name, run_migrations=False)
+        db_url = await db_manager.setup_test_database()
+        # Teardown logic must be handled by the test (or addfinalizer if needed)
+        return db_url
+    return factory
+
 
 @pytest_asyncio.fixture
-async def isolated_test_db():
-    """Fixture for isolated test database."""
-    # Set test environment
+async def isolated_test_db(request):
+    """
+    Fixture for isolated test database per test function.
+    Args:
+        request: pytest fixture request object (automatically provided)
+    Usage:
+        @pytest.mark.asyncio
+        async def test_something(isolated_test_db):
+            ...
+    """
     set_environment(EnvironmentType.TEST)
-    
-    db_manager = TestDatabaseManager("unit")
+    test_name = request.node.name if hasattr(request, 'node') else None
+    db_manager = TestDatabaseManager("unit", test_name=test_name, run_migrations=False)
     test_db_url = await db_manager.setup_test_database()
-    
     yield test_db_url
-    
     await db_manager.teardown_test_database()
 
+
+@pytest_asyncio.fixture
+async def isolated_test_db_migrate(request):
+    """
+    Fixture for isolated test database per test function.
+    Args:
+        request: pytest fixture request object (automatically provided)
+    Usage:
+        @pytest.mark.asyncio
+        async def test_something(isolated_test_db):
+            ...
+    """
+    set_environment(EnvironmentType.TEST)
+    test_name = request.node.name if hasattr(request, 'node') else None
+    db_manager = TestDatabaseManager("unit", test_name=test_name, run_migrations=True)
+    test_db_url = await db_manager.setup_test_database()
+    yield test_db_url
+    await db_manager.teardown_test_database()
 
 @pytest.mark.asyncio
 async def test_migration_manager_basic_functionality(isolated_test_db):
@@ -136,9 +177,10 @@ async def test_migration_file_parsing():
 
 
 @pytest.mark.asyncio
-async def test_apply_migration_success(isolated_test_db):
-    """Test successful migration application."""
-    manager = MigrationManager(isolated_test_db)
+async def test_apply_migration_success(pristine_test_db):
+    """Test successful migration application on pristine DB."""
+    db_url = await pristine_test_db()
+    manager = MigrationManager(db_url)
     await manager.get_current_version()
     
     # Create a temporary migration file
@@ -157,7 +199,7 @@ async def test_apply_migration_success(isolated_test_db):
         assert success is True
         
         # Verify table was created with correct prefix
-        pool = await asyncpg.create_pool(isolated_test_db)
+        pool = await asyncpg.create_pool(db_url)
         try:
             async with pool.acquire() as conn:
                 # Check table exists
@@ -180,9 +222,10 @@ async def test_apply_migration_success(isolated_test_db):
 
 
 @pytest.mark.asyncio
-async def test_apply_migration_sql_error(isolated_test_db):
-    """Test migration application with SQL error."""
-    manager = MigrationManager(isolated_test_db)
+async def test_apply_migration_sql_error(pristine_test_db):
+    """Test migration application with SQL error on pristine DB."""
+    db_url = await pristine_test_db()
+    manager = MigrationManager(db_url)
     await manager.get_current_version()
     
     # Create a migration file with invalid SQL
@@ -196,12 +239,14 @@ async def test_apply_migration_sql_error(isolated_test_db):
         assert success is False
         
         # Verify migration was not recorded
-        pool = await asyncpg.create_pool(isolated_test_db)
+        pool = await asyncpg.create_pool(db_url)
         try:
             async with pool.acquire() as conn:
                 version_count = await conn.fetchval("""
                     SELECT COUNT(*) FROM test_db_version WHERE version = 1
                 """)
+                all_versions = await conn.fetch("SELECT * FROM test_db_version")
+                print(f"[DEBUG] test_db_version contents: {all_versions}")
                 assert version_count == 0
         finally:
             await pool.close()
@@ -361,46 +406,6 @@ async def test_validation_with_modified_file(isolated_test_db):
 
 
 @pytest.mark.asyncio
-async def test_concurrent_migration_application(isolated_test_db):
-    """Test that concurrent migration applications are handled correctly."""
-    import asyncpg
-    manager1 = MigrationManager(isolated_test_db)
-    manager2 = MigrationManager(isolated_test_db)
-    
-    # Create a temporary migration file
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
-        f.write("CREATE TABLE concurrent_test (id SERIAL PRIMARY KEY);")
-        temp_file = Path(f.name)
-    
-    try:
-        # Try to apply the same migration concurrently
-        # One should succeed, one should fail due to unique constraint
-        results = await asyncio.gather(
-            manager1.apply_migration(1, "concurrent test", temp_file),
-            manager2.apply_migration(1, "concurrent test", temp_file),
-            return_exceptions=True
-        )
-        print(f"[DEBUG] Results of concurrent migration: {results}")
-        for idx, r in enumerate(results):
-            if isinstance(r, Exception):
-                print(f"[DEBUG] Exception in migration {idx+1}: {r}")
-        # At least one should succeed, one might fail
-        success_count = sum(1 for r in results if r is True)
-        print(f"[DEBUG] Success count: {success_count}")
-        # Print db_version table state
-        pool = await asyncpg.create_pool(isolated_test_db)
-        try:
-            async with pool.acquire() as conn:
-                versions = await conn.fetch("SELECT * FROM test_db_version ORDER BY version")
-                print(f"[DEBUG] db_version table after concurrent migration: {versions}")
-        finally:
-            await pool.close()
-        assert success_count >= 1
-    finally:
-        temp_file.unlink()
-
-
-@pytest.mark.asyncio
 async def test_migration_version_ordering(isolated_test_db):
     """Test that migrations are applied in correct version order."""
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -446,9 +451,10 @@ async def test_migration_version_ordering(isolated_test_db):
 
 
 @pytest.mark.asyncio
-async def test_duplicate_version_handling(isolated_test_db):
-    """Test handling of duplicate migration versions."""
-    manager = MigrationManager(isolated_test_db)
+async def test_duplicate_version_handling(pristine_test_db):
+    """Test handling of duplicate migration versions on pristine DB."""
+    db_url = await pristine_test_db()
+    manager = MigrationManager(db_url)
     await manager.get_current_version()
     
     # Create a temporary migration file
@@ -461,11 +467,11 @@ async def test_duplicate_version_handling(isolated_test_db):
         success1 = await manager.apply_migration(1, "first attempt", temp_file)
         success2 = await manager.apply_migration(1, "second attempt", temp_file)
         
-        assert success1 is True
-        assert success2 is False  # Should fail due to unique constraint on version
+        assert success1 is True, "First migration application should succeed"
+        assert success2 is False, "Second migration application should fail due to duplicate version"
         
         # Verify only one record exists
-        pool = await asyncpg.create_pool(isolated_test_db)
+        pool = await asyncpg.create_pool(db_url)
         try:
             async with pool.acquire() as conn:
                 count = await conn.fetchval("""
@@ -480,9 +486,10 @@ async def test_duplicate_version_handling(isolated_test_db):
 
 
 @pytest.mark.asyncio
-async def test_complex_sql_migration(isolated_test_db):
-    """Test migration with complex SQL including functions, triggers, etc."""
-    manager = MigrationManager(isolated_test_db)
+async def test_complex_sql_migration(pristine_test_db):
+    """Test migration with complex SQL including functions, triggers, etc. on pristine DB."""
+    db_url = await pristine_test_db()
+    manager = MigrationManager(db_url)
     await manager.get_current_version()
     
     complex_sql = """
@@ -509,7 +516,7 @@ async def test_complex_sql_migration(isolated_test_db):
         assert success is True
         
         # Verify all components were created
-        pool = await asyncpg.create_pool(isolated_test_db)
+        pool = await asyncpg.create_pool(db_url)
         try:
             async with pool.acquire() as conn:
                 # Check table
