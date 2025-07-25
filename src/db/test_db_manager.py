@@ -26,12 +26,14 @@ class TestDatabaseManager:
     """Manages test databases for unit and integration tests."""
 
     
-    def __init__(self, test_type: str = "unit"):
+    def __init__(self, test_type: str = "unit", test_name: str = None, run_migrations: bool = True):
         """
         Initialize test database manager.
         
         Args:
             test_type: "unit" or "integration"
+            test_name: Optional, a string to uniquely identify the test case (used for DB name)
+            run_migrations: If False, do not apply migrations after DB creation (default: True)
         """
         # Use the appropriate environment based on test type
         if test_type == "integration":
@@ -45,16 +47,23 @@ class TestDatabaseManager:
         # Extract table prefix from environment
         sample_table = self.env.get_table_name("sample")
         self.table_prefix = sample_table.replace("sample", "")
-        
+        self.run_migrations = run_migrations
         # For unit tests, create unique database per test
         if test_type == "unit":
-            self.test_db_suffix = f"_{uuid.uuid4().hex[:8]}"
+            if test_name:
+                # Sanitize test_name for DB (alphanumeric + underscores only)
+                import re
+                safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', test_name)
+                self.test_db_suffix = f"_{safe_name}"
+            else:
+                import uuid
+                self.test_db_suffix = f"_{uuid.uuid4().hex[:8]}"
         else:
             self.test_db_suffix = ""
     
     async def setup_test_database(self) -> str:
         """
-        Set up test database with latest schema.
+        Set up test database with latest schema (unless run_migrations is False).
         
         Returns:
             Database URL for the test database
@@ -64,16 +73,21 @@ class TestDatabaseManager:
             db_config = self.env.get_database_config()
             base_db_name = db_config['database']
             test_db_name = f"{base_db_name}{self.test_db_suffix}"
+            print(f"[DEBUG] Creating test DB: {test_db_name}")
             await self._create_test_database(test_db_name)
             test_db_url = self.db_url.replace(base_db_name, test_db_name)
         else:
             # Use shared integration database
             test_db_url = self.db_url
         
-        # Apply migrations to ensure latest schema for both unit and integration tests
-        migration_manager = MigrationManager(test_db_url)
-        await migration_manager.migrate_to_latest()
-        
+        print(f"[DEBUG] TestDatabaseManager.run_migrations = {self.run_migrations}")
+        if self.run_migrations:
+            print(f"[DEBUG] Applying migrations to {test_db_url}")
+            # Apply migrations to ensure latest schema for both unit and integration tests
+            migration_manager = MigrationManager(test_db_url)
+            await migration_manager.migrate_to_latest()
+        else:
+            print(f"[DEBUG] Skipping migrations for {test_db_url}")
         return test_db_url
     
     async def teardown_test_database(self):
@@ -83,6 +97,7 @@ class TestDatabaseManager:
             db_config = self.env.get_database_config()
             base_db_name = db_config['database']
             test_db_name = f"{base_db_name}{self.test_db_suffix}"
+            print(f"[DEBUG] Dropping test DB: {test_db_name}")
             await self._drop_test_database(test_db_name)
         else:
             # For integration tests, clean up test data but keep schema
@@ -102,10 +117,33 @@ class TestDatabaseManager:
                     "SELECT 1 FROM pg_database WHERE datname = $1", db_name
                 )
                 if exists:
+                    # Debug: List tables before drop
+                    print(f"[DEBUG] Database '{db_name}' exists. Checking tables before drop...")
+                    try:
+                        temp_db_url = self.db_url.replace(f"/{base_db_name}", f"/{db_name}")
+                        temp_pool = await asyncpg.create_pool(temp_db_url)
+                        async with temp_pool.acquire() as temp_conn:
+                            tables = await temp_conn.fetch("""
+                                SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+                            """)
+                            print(f"[DEBUG] Tables in '{db_name}' before drop: {[t['tablename'] for t in tables]}")
+                    except Exception as e:
+                        print(f"[DEBUG] Could not list tables in '{db_name}': {e}")
                     # Terminate connections and drop
                     await conn.execute(f'''SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}' AND pid <> pg_backend_pid()''')
                     await conn.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
                 await conn.execute(f'CREATE DATABASE "{db_name}"')
+                # Debug: List tables after creation (should be empty)
+                try:
+                    temp_db_url = self.db_url.replace(f"/{base_db_name}", f"/{db_name}")
+                    temp_pool = await asyncpg.create_pool(temp_db_url)
+                    async with temp_pool.acquire() as temp_conn:
+                        tables = await temp_conn.fetch("""
+                            SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+                        """)
+                        print(f"[DEBUG] Tables in '{db_name}' after creation: {[t['tablename'] for t in tables]}")
+                except Exception as e:
+                    print(f"[DEBUG] Could not list tables in '{db_name}' after creation: {e}")
         finally:
             await pool.close()
     
