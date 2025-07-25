@@ -109,18 +109,30 @@ class MigrationManager:
                         await conn.execute(prefixed_sql)
                     except Exception as exec_sql_exc:
                         print(f"[ERROR] Exception executing migration SQL for version {version}: {exec_sql_exc}")
+                        print(f"[DEBUG] --- Failing SQL for version {version} ---")
+                        print(prefixed_sql)
+                        print(f"[DEBUG] --- END Failing SQL for version {version} ---")
                         import traceback
                         traceback.print_exc()
                         raise
                 
                     # Record migration (skip for version 0 as it records itself)
                     if version != 0:
+                        # Check if this version already exists
+                        exists = await conn.fetchval(f"""
+                            SELECT COUNT(*) FROM {self.table_prefix}db_version WHERE version = $1
+                        """, version)
+                        if exists:
+                            print(f"[WARN] Migration version {version} already exists in db_version. Skipping insert.")
+                            return False
+                        print(f"[DEBUG] About to insert migration version {version} into db_version")
                         checksum = self._calculate_checksum(file_path)
                         await conn.execute(f"""
                             INSERT INTO {self.table_prefix}db_version 
                             (version, description, checksum, migration_file)
                             VALUES ($1, $2, $3, $4)
                         """, version, description, checksum, file_path.name)
+                        print(f"[DEBUG] Successfully inserted migration version {version} into db_version")
                     else:
                         # For version 0, just update the checksum since the migration inserts itself
                         checksum = self._calculate_checksum(file_path)
@@ -134,6 +146,7 @@ class MigrationManager:
                     return True
         except Exception as e:
             print(f"[ERROR] Failed to apply migration {version:03d}: {e}")
+            print(f"[DEBUG] Transaction rollback triggered for migration version {version}")
             import traceback
             traceback.print_exc()
             return False
@@ -141,42 +154,22 @@ class MigrationManager:
             await pool.close()
     
     def _apply_table_prefixes(self, sql: str) -> str:
-        """Apply environment-specific table prefixes to SQL."""
+        """Apply environment-specific table prefixes to all tables in the SQL, dynamically extracting table names."""
         if not self.table_prefix:
             return sql
-        
-        # Replace CREATE TABLE statements - avoid double prefixing, allow flexible whitespace
-        sql = re.sub(
-            rf'CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+(?!{re.escape(self.table_prefix)})(\w+)',
-            f'CREATE TABLE IF NOT EXISTS {self.table_prefix}\\1',
-            sql,
-            flags=re.IGNORECASE | re.DOTALL
+
+        # 1. Dynamically extract all table names from CREATE TABLE statements
+        create_table_pattern = re.compile(
+            r'CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+(?!' + re.escape(self.table_prefix) + r')(\w+)',
+            flags=re.IGNORECASE
         )
-        
-        # Replace CREATE TABLE statements without IF NOT EXISTS, allow flexible whitespace
-        sql = re.sub(
-            rf'CREATE\s+TABLE\s+(?!IF\s+NOT\s+EXISTS)(?!{re.escape(self.table_prefix)})(\w+)',
-            f'CREATE TABLE {self.table_prefix}\\1',
-            sql,
-            flags=re.IGNORECASE | re.DOTALL
-        )
-        
-        # Replace CREATE INDEX statements
-        sql = re.sub(
-            rf'CREATE INDEX IF NOT EXISTS (\w+) ON (?!{re.escape(self.table_prefix)})(\w+)',
-            f'CREATE INDEX IF NOT EXISTS \\1 ON {self.table_prefix}\\2',
-            sql
-        )
-        
-        sql = re.sub(
-            rf'CREATE INDEX (\w+) ON (?!{re.escape(self.table_prefix)})(\w+)',
-            f'CREATE INDEX \\1 ON {self.table_prefix}\\2',
-            sql
-        )
-        
-        # Replace table references in other statements
-        # This is a simplified approach - you may need more sophisticated parsing
-        table_names = [
+        table_names = set(match.group(1) for match in create_table_pattern.finditer(sql))
+
+        # Always include db_version for version tracking
+        table_names.add('db_version')
+
+        # 1b. Add a comprehensive static list of known tables
+        static_table_names = set([
             # Core tables
             'events', 'daily_prices', 'vendors', 'instruments', 'instrument_aliases',
             'instrument_metadata', 'instrument_polygon', 'status_code', 'daily_prices_tiingo',
@@ -186,16 +179,44 @@ class MigrationManager:
             'users', 'posts', 'test_migration_table', 'concurrent_test', 'test_complex',
             'test_rollback', 'first_table', 'middle_table', 'last_table', 'duplicate_test', 'test_idempotent',
             # All tables found in migrations (ensure these are always prefixed)
-            'universe_membership_changes', 'stock_splits', 'dividends'
-        ]
+            'universe_membership_changes', 'stock_splits', 'dividends',
+        ])
+        table_names.update(static_table_names)
         
-        for table in table_names:
-            # Replace table references but avoid double prefixing
-            # Use negative lookbehind to avoid matching already prefixed tables
+        # 2. Prefix all CREATE TABLE statements
+        def prefix_create_table(match):
+            prefix = '' if match.group(2).startswith(self.table_prefix) else self.table_prefix
+            return match.group(1) + prefix + match.group(2)
+        sql = re.sub(
+            r'(CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+)(\w+)',
+            prefix_create_table,
+            sql,
+            flags=re.IGNORECASE
+        )
+
+        # 3. Prefix all CREATE INDEX statements
+        def prefix_create_index(match):
+            prefix = '' if match.group(3).startswith(self.table_prefix) else self.table_prefix
+            return f'{match.group(1)}{match.group(2)} ON {prefix}{match.group(3)}'
+        sql = re.sub(
+            r'(CREATE\s+INDEX(?:\s+IF\s+NOT\s+EXISTS)?\s+)(\w+)\s+ON\s+(\w+)',
+            prefix_create_index,
+            sql,
+            flags=re.IGNORECASE
+        )
+
+        # 4. Prefix all table references in statements (including foreign keys, inserts, etc)
+        for table in sorted(table_names, key=lambda x: -len(x)):
+            # Avoid double prefixing
+            'instrument_metadata', 'instrument_polygon', 'status_code', 'daily_prices_tiingo',
+            'daily_prices_polygon', 'daily_market_cap', 'universe', 'universe_membership',
+            'fundamentals', 'db_version',
+            # Test and migration utility tables
+            'users', 'posts', 'test_migration_table', 'concurrent_test', 'test_complex',
             pattern = rf'(?<!{re.escape(self.table_prefix)})\b{re.escape(table)}\b(?!\w)'
             replacement = f'{self.table_prefix}{table}'
             sql = re.sub(pattern, replacement, sql)
-        
+
         return sql
     
     def _get_backup_file(self):
