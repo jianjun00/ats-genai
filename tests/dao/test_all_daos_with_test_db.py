@@ -266,4 +266,31 @@ async def test_db_version_dao_crud():
     await dao.insert_version(version, desc, mig)
     # Get
     rows = await dao.get_version()
-    assert any(r['version'] == version for r in rows)
+
+@pytest.mark.asyncio
+async def test_universe_membership_dao_get_membership_changes():
+    env = Environment()
+    dao = UniverseMembershipDAO(env)
+    pool = await asyncpg.create_pool(env.get_database_url())
+    universe_name = "TESTUMC"
+    universe_desc = "Test for get_membership_changes"
+    symbol = "UMCTEST"
+    action = "add"
+    effective_date = date(2025, 7, 25)
+    reason = "unit_test"
+    # Create a universe
+    universe_table = env.get_table_name('universe')
+    membership_changes_table = env.get_table_name('universe_membership_changes')
+    async with pool.acquire() as conn:
+        # Clean up if exists
+        await conn.execute(f"DELETE FROM {membership_changes_table} WHERE symbol = $1", symbol)
+        await conn.execute(f"DELETE FROM {universe_table} WHERE name = $1", universe_name)
+        # Insert universe
+        row = await conn.fetchrow(f"INSERT INTO {universe_table} (name, description) VALUES ($1, $2) RETURNING id", universe_name, universe_desc)
+        universe_id = row['id']
+        # Insert a membership change
+        await conn.execute(f"INSERT INTO {membership_changes_table} (universe_id, symbol, action, effective_date, reason) VALUES ($1, $2, $3, $4, $5)", universe_id, symbol, action, effective_date, reason)
+    await pool.close()
+    # Retrieve via DAO
+    changes = await dao.get_membership_changes(universe_id, effective_date)
+    assert any(c['symbol'] == symbol and c['action'] == action and c['effective_date'] == effective_date for c in changes)

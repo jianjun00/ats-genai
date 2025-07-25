@@ -2,6 +2,7 @@ import pytest
 import pandas as pd
 from datetime import date
 from app.runner import Runner
+from config.environment import get_environment
 from universe.universe_manager import UniverseManager
 from state.universe_state_manager import UniverseStateManager
 from config.environment import Environment, EnvironmentType
@@ -40,12 +41,12 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db, monkeypatch):
     symbols = UNIVERSE_SYMBOLS
     # Insert test data as needed (no backup/restore required)
     # Insert test data as needed (no backup/restore required)
-    from config.environment import Environment, EnvironmentType
-    env = Environment(EnvironmentType.TEST)
+    from config.environment import get_environment
+    env = get_environment()
     if not env.config.has_section('universe'):
         env.config.add_section('universe')
     env.config.set('universe', 'base_duration', '1d')
-    env.config.set('universe', 'target_durations', '1d,5d')
+    env.config.set('universe', 'target_durations', '1d,1w')
     env.config.set('universe', 'universe_id', '9998')
     # Patch callbacks config to inject UniverseStateBuilder as callback
     monkeypatch.setattr(env, 'get', lambda section, key, default=None: ['state.universe_state_builder.UniverseStateBuilder'] if (section, key) == ('runner', 'callbacks') else env.__class__.get(env, section, key, default))
@@ -60,9 +61,27 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db, monkeypatch):
     # Debug: Check if test_universe_membership table exists
     pool = await asyncpg.create_pool(db_url)
     async with pool.acquire() as conn:
+        print('--- DEBUG: test DB tables ---')
+        tables = await conn.fetch("""
+            SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE 'test_%'
+        """)
+        for row in tables:
+            print('Table:', row['table_name'])
+            schema = await conn.fetch(f"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '{row['table_name']}'")
+            print('Columns:', [(col['column_name'], col['data_type']) for col in schema])
         result = await conn.fetchval("SELECT to_regclass('public.test_universe_membership')")
+        print('test_universe_membership exists:', result)
+        schema = await conn.fetch("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'test_universe_membership'")
+        print('test_universe_membership columns:', [(col['column_name'], col['data_type']) for col in schema])
         assert result is not None, 'test_universe_membership table does not exist in test DB!'
+
+        async with pool.acquire() as conn:
+            table_info = await conn.fetch(f"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'test_universe_membership_changes'")
+            print(f"[DEBUG] Columns for test_universe_membership_changes: {table_info}")
+
     await pool.close()
+
+
     # Run the runner
     await runner.run()
     # (Assertions and verification would go here)

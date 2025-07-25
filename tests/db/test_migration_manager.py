@@ -29,6 +29,7 @@ async def test_migration_validation(unit_test_db_clean):
     """Test migration validation functionality."""
     manager = MigrationManager(unit_test_db_clean)
     
+    await manager.get_current_version()
     # Apply migrations
     await manager.migrate_to_latest()
     

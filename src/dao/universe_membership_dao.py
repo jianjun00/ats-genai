@@ -6,13 +6,16 @@ from datetime import date
 class UniverseMembershipDAO:
     async def get_membership_changes(self, universe_id: int, as_of: date):
         table = self.env.get_table_name('universe_membership_changes')
+        sql = f"SELECT universe_id, symbol, action, effective_date, reason FROM {table} WHERE universe_id = $1 AND effective_date <= $2"
+        print(f"[DEBUG] Querying membership_changes table: {table}")
+        print(f"[DEBUG] SQL: {sql}")
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
-                rows = await conn.fetch(
-                    f"SELECT universe_id, symbol, action, effective_date, reason FROM {table} WHERE universe_id = $1 AND effective_date <= $2",
-                    universe_id, as_of
-                )
+
+                table_info = await conn.fetch(f"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '{table}'")
+                print(f"[DEBUG] Columns for {table}: {table_info}")
+                rows = await conn.fetch(sql, universe_id, as_of)
                 return [dict(row) for row in rows]
         finally:
             await pool.close()
