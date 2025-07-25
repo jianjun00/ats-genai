@@ -2,8 +2,6 @@ import pytest
 import asyncio
 from datetime import date, timedelta
 import numpy as np
-from trading.backtest import run_backtest
-from trading.market_data_manager import MarketDataManager
 
 from config.environment import get_environment, set_environment, EnvironmentType
 set_environment(EnvironmentType.INTEGRATION)
@@ -29,7 +27,7 @@ async def test_backtest_real_db_aapl_tsla(backup_and_restore_tables):
     if universe_id is None:
         await universe_db.add_universe('TEST_UNIVERSE', 'Test universe for backtest integration test')
     # Patch TradingUniverse to only include AAPL and TSLA
-    from trading.trading_universe import TradingUniverse
+    # from trading.trading_universe import TradingUniverse
     orig_update_for_end_of_day = TradingUniverse.update_for_end_of_day
     async def patched_update_for_end_of_day(self, as_of_date):
         await orig_update_for_end_of_day(self, as_of_date)

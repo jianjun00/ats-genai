@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 from datetime import date
-from trading.trading_universe import TradingUniverse, SecurityMaster
+# from trading.trading_universe import TradingUniverse, SecurityMaster
 import asyncpg
 
 from config.environment import get_environment, set_environment, EnvironmentType

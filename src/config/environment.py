@@ -28,7 +28,7 @@ class EnvironmentType(Enum):
     PRODUCTION = "prod"
 
 
-from trading.indicator_config import IndicatorConfig
+from signals.indicator_config import IndicatorConfig
 
 class Environment:
     """
@@ -169,15 +169,18 @@ class Environment:
     # --- Duration-related methods migrated from UniverseStateBuilder ---
     def get_base_duration(self) -> 'TimeDuration':
         # Default to 5 minutes if not set in config
-        from trading.time_duration import TimeDuration
+        from calendars.time_duration import TimeDuration
         duration_str = self.get('universe', 'base_duration', '5m')
         return TimeDuration(duration_str)
 
     def get_target_durations(self) -> 'List[TimeDuration]':
-        from trading.time_duration import TimeDuration
+        from calendars.time_duration import TimeDuration
         durations_str = self.get('universe', 'target_durations', '5m')
         durations = [d.strip() for d in durations_str.split(',')]
         return [TimeDuration(d) for d in durations]
+
+    def get_universe_id(self) -> int:
+        return int(self.get('universe', 'universe_id', '1'))
 
     def set_target_durations(self, durations: 'List[TimeDuration]'):
         durations_str = ','.join(str(d) for d in durations)

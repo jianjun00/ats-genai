@@ -70,11 +70,9 @@ class TestDatabaseManager:
             # Use shared integration database
             test_db_url = self.db_url
         
-        # For integration tests, apply migrations to ensure latest schema
-        # Unit tests will manage their own migration state
-        if self.test_type == "integration":
-            migration_manager = MigrationManager(test_db_url)
-            await migration_manager.migrate_to_latest()
+        # Apply migrations to ensure latest schema for both unit and integration tests
+        migration_manager = MigrationManager(test_db_url)
+        await migration_manager.migrate_to_latest()
         
         return test_db_url
     
@@ -99,12 +97,15 @@ class TestDatabaseManager:
         pool = await asyncpg.create_pool(postgres_url)
         try:
             async with pool.acquire() as conn:
-                # Check if database exists
+                # Drop DB if it exists (for clean test isolation)
                 exists = await conn.fetchval(
                     "SELECT 1 FROM pg_database WHERE datname = $1", db_name
                 )
-                if not exists:
-                    await conn.execute(f'CREATE DATABASE "{db_name}"')
+                if exists:
+                    # Terminate connections and drop
+                    await conn.execute(f'''SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}' AND pid <> pg_backend_pid()''')
+                    await conn.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
+                await conn.execute(f'CREATE DATABASE "{db_name}"')
         finally:
             await pool.close()
     
@@ -302,9 +303,14 @@ async def unit_test_db():
     """Fixture for unit tests - provides isolated database per test."""
     db_manager = TestDatabaseManager("unit")
     test_db_url = await db_manager.setup_test_database()
-    
+
+    # Apply migrations so schema is present for all tests
+    from db.migration_manager import MigrationManager
+    migration_manager = MigrationManager(test_db_url)
+    await migration_manager.migrate_to_latest()
+
     yield test_db_url
-    
+
     await db_manager.teardown_test_database()
 
 

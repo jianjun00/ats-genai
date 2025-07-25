@@ -1,6 +1,7 @@
 import pytest
 from datetime import datetime
 from state.indicator_interval import IndicatorInterval
+from db.test_db_manager import unit_test_db
 
 
 def test_indicator_interval_init():

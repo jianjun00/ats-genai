@@ -15,10 +15,11 @@ class SecMasterDAO:
             async with pool.acquire() as conn:
                 rows = await conn.fetch(
                     f"""
-                    SELECT symbol, start_date, end_date
-                    FROM {self.universe_membership_table}
-                    WHERE universe_name = 'S&P 500'
-                    ORDER BY start_date
+                    SELECT m.symbol, m.start_at AS start_date, m.end_at AS end_date
+                    FROM {self.universe_membership_table} m
+                    JOIN {self.env.get_table_name('universe')} u ON m.universe_id = u.id
+                    WHERE u.name = 'S&P 500'
+                    ORDER BY m.start_at
                     """
                 )
                 return [dict(row) for row in rows]

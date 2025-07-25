@@ -7,6 +7,7 @@ import pytest
 from pathlib import Path
 
 from src.state.universe_state_manager import UniverseStateManager
+from db.test_db_manager import unit_test_db
 
 
 def run_cli(args, tmp_path):

@@ -20,7 +20,7 @@ class CorporateAction:
         self.metadata = metadata or {}
 
 class SecurityMaster:
-    def update_for_eod(self, current_time):
+    def update_for_eod(self, runner, current_time):
         """
         End-of-day hook for SecurityMaster. Implement EOD security updates or logging if needed.
         """

@@ -4,16 +4,17 @@ import asyncio
 from datetime import date
 
 # Adjust import as needed for your project structure
-from config.environment import get_environment, set_environment, EnvironmentType
+from src.config.environment import Environment, EnvironmentType
+from db.test_db_manager import unit_test_db
 
 @pytest.mark.asyncio
-async def test_membership_changes_produce_expected_universe_membership(tmp_path):
+async def test_membership_changes_produce_expected_universe_membership(unit_test_db, tmp_path):
     """
     Test that applying a sequence of membership changes results in the expected universe_membership state.
     """
-    set_environment(EnvironmentType.INTEGRATION)
-    env = get_environment()
-    pool = await asyncpg.create_pool(env.get_database_url())
+    env = Environment(EnvironmentType.TEST)
+    env.get_database_url = lambda: unit_test_db
+    pool = await asyncpg.create_pool(unit_test_db)
     async with pool.acquire() as conn:
         # Clean up both tables
         await conn.execute(f"DELETE FROM {env.get_table_name('universe_membership')}")
