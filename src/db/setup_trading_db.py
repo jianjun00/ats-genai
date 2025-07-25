@@ -82,20 +82,6 @@ def setup_tables():
         cur.execute(CREATE_EXTENSION)
     except Exception as e:
         print(f"Extension creation skipped or failed: {e}")
-    # Load and execute unified schema
-    schema_path = os.path.join(os.path.dirname(__file__), "schema.sql")
-    with open(schema_path, "r") as f:
-        schema_sql = f.read()
-    for statement in schema_sql.split(';'):
-        stripped = statement.strip()
-        if not stripped or stripped.startswith('--'):
-            continue
-        try:
-            cur.execute(statement)
-        except Exception as e:
-            print(f"Error executing statement: {statement}\nError: {e}")
-            raise
-
     # Convert to hypertables
     try:
         cur.execute(CREATE_HYPERTABLE_DAILY_PRICES)
