@@ -18,6 +18,17 @@ async def test_runner_universe_manager_sod_eod_real_db(unit_test_db):
     async with pool.acquire() as conn:
         await conn.execute(f"DELETE FROM {env.get_table_name('universe_membership')}")
         await conn.execute(f"DELETE FROM {env.get_table_name('universe')}")
+        await conn.execute(f"DELETE FROM {env.get_table_name('instrument_xrefs')}")
+        await conn.execute(f"DELETE FROM {env.get_table_name('instruments')}")
+        await conn.execute(f"DELETE FROM {env.get_table_name('vendors')}")
+        # Insert vendor
+        vendor_id = await conn.fetchval(f"INSERT INTO {env.get_table_name('vendors')} (name) VALUES ($1) RETURNING vendor_id", 'TESTVENDOR')
+        # Insert instruments
+        aapl_id = await conn.fetchval(f"INSERT INTO {env.get_table_name('instruments')} (symbol, name) VALUES ($1, $2) RETURNING id", 'AAPL', 'Apple Inc.')
+        tsla_id = await conn.fetchval(f"INSERT INTO {env.get_table_name('instruments')} (symbol, name) VALUES ($1, $2) RETURNING id", 'TSLA', 'Tesla Inc.')
+        # Insert instrument_xrefs
+        await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol, type, start_at) VALUES ($1, $2, $3, $4, $5)", aapl_id, vendor_id, 'AAPL', 'primary', date(2025, 1, 1))
+        await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol, type, start_at) VALUES ($1, $2, $3, $4, $5)", tsla_id, vendor_id, 'TSLA', 'primary', date(2025, 1, 1))
     universe_name = "RUNNER_SOD_EOD"
     universe_id = await db.add_universe(universe_name, "desc")
     # Membership changes
