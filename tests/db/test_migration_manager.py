@@ -16,12 +16,7 @@ async def test_migration_manager_initial_version(unit_test_db):
     """Test that migration manager can track initial version."""
     manager = MigrationManager(unit_test_db)
     
-    # Initial version should be -1 (no migrations applied)
-    version = await manager.get_current_version()
-    assert version == -1
-    
-    # After applying initial migration, version should be 0
-    await manager.migrate_to_latest()
+    # After setup, all migrations are already applied by the fixture
     version = await manager.get_current_version()
     assert version >= 0
 

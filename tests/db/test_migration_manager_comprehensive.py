@@ -557,6 +557,15 @@ async def test_migration_rollback_on_error(unit_test_db):
         f.write(failing_sql)
         temp_file = Path(f.name)
     
+    pool = await asyncpg.create_pool(unit_test_db)
+    try:
+        async with pool.acquire() as conn:
+            print("[DEBUG] test_db_version contents BEFORE migration:")
+            rows = await conn.fetch("SELECT * FROM test_db_version")
+            for row in rows:
+                print(dict(row))
+    finally:
+        await pool.close()
     try:
         success = await manager.apply_migration(1, "failing migration", temp_file)
         assert success is False
@@ -575,6 +584,10 @@ async def test_migration_rollback_on_error(unit_test_db):
                 migration_recorded = await conn.fetchval("""
                     SELECT COUNT(*) FROM test_db_version WHERE version = 1
                 """)
+                print("[DEBUG] test_db_version contents after failed migration:")
+                rows = await conn.fetch("SELECT * FROM test_db_version")
+                for row in rows:
+                    print(dict(row))
                 assert migration_recorded == 0
                 
         finally:
@@ -632,40 +645,37 @@ async def test_migration_idempotency(unit_test_db):
         # Create idempotent migration
         migration1 = migrations_dir / "001_idempotent.sql"
         migration1.write_text("""
-        CREATE TABLE IF NOT EXISTS test_idempotent (
+        CREATE TABLE IF NOT EXISTS idempotent (
             id SERIAL PRIMARY KEY,
             name TEXT UNIQUE
         );
-        INSERT INTO test_idempotent (name) VALUES ('test') ON CONFLICT (name) DO NOTHING;
+        INSERT INTO idempotent (name) VALUES ('test') ON CONFLICT (name) DO NOTHING;
         """)
         
-        with patch.object(MigrationManager, '__init__', lambda self, db_url: None):
-            manager = MigrationManager(None)
-            manager.db_url = unit_test_db
-            manager.table_prefix = "test_"
-            manager.migrations_dir = migrations_dir
-            
-            # Run migration twice
-            success1 = await manager.migrate_to_latest()
-            
-            # Reset current version to test re-running
-            pool = await asyncpg.create_pool(unit_test_db)
-            try:
-                async with pool.acquire() as conn:
-                    await conn.execute("DELETE FROM test_db_version WHERE version = 1")
-            finally:
-                await pool.close()
-            
-            success2 = await manager.migrate_to_latest()
-            
-            assert success1 is True
-            assert success2 is True
-            
-            # Verify data integrity
-            pool = await asyncpg.create_pool(unit_test_db)
-            try:
-                async with pool.acquire() as conn:
-                    count = await conn.fetchval("SELECT COUNT(*) FROM test_test_idempotent")
-                    assert count == 1  # Should still be 1, not 2
-            finally:
-                await pool.close()
+        manager = MigrationManager(unit_test_db)
+        manager.migrations_dir = migrations_dir
+
+        # Run migration twice
+        success1 = await manager.migrate_to_latest()
+
+        # Reset current version to test re-running
+        pool = await asyncpg.create_pool(unit_test_db)
+        try:
+            async with pool.acquire() as conn:
+                await conn.execute("DELETE FROM test_db_version WHERE version = 1")
+        finally:
+            await pool.close()
+
+        success2 = await manager.migrate_to_latest()
+
+        assert success1 is True
+        assert success2 is True
+
+        # Verify data integrity
+        pool = await asyncpg.create_pool(unit_test_db)
+        try:
+            async with pool.acquire() as conn:
+                count = await conn.fetchval("SELECT COUNT(*) FROM test_idempotent")
+                assert count == 1  # Should still be 1, not 2
+        finally:
+            await pool.close()
