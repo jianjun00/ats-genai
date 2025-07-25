@@ -67,7 +67,18 @@ class DailyPriceMarketDataManager(MarketDataManager):
             )
             self._intervals[instrument_id] = interval
 
-    def update_for_eod(self, cur_date: date):
+    async def update_for_eod(self, runner=None, current_time=None):
+        # Compatible with both legacy and new signatures
+        # If called from Runner, runner and current_time are provided
+        # If called directly, cur_date may be passed as runner
+        if current_time is not None:
+            cur_date = current_time.date()
+        elif runner is not None:
+            # runner is actually cur_date in legacy calls
+            cur_date = runner
+        else:
+            from datetime import date as _date
+            cur_date = _date.today()
         # Can be used to flush, persist, or clear intervals if needed
         self._intervals.clear()
 
