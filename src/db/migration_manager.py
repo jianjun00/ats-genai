@@ -138,8 +138,7 @@ class MigrationManager:
             'daily_prices_polygon', 'daily_market_cap', 'universe', 'universe_membership',
             'fundamentals', 'db_version',
             # Test and migration utility tables
-            'users', 'posts', 'test_migration_table', 'concurrent_test', 'test_complex',
-            'test_rollback', 'first_table', 'middle_table', 'last_table', 'duplicate_test', 'test_idempotent',
+            'users', 'posts', 'test_migration_table', 'concurrent_test', 'test_complex', 'test_rollback', 'first_table', 'middle_table', 'last_table', 'duplicate_test', 'idempotent',
             # All tables found in migrations (ensure these are always prefixed)
             'universe_membership_changes', 'stock_splits', 'dividends',
         ])
@@ -279,14 +278,25 @@ class MigrationManager:
                     FROM {self.table_prefix}db_version 
                     ORDER BY version
                 """)
-                
+                print("[DEBUG] validate_migrations: Applied migrations:")
                 for record in applied_migrations:
+                    print(f"  version={record['version']}, file={record['migration_file']}, checksum={record['checksum']}")
+                for record in applied_migrations:
+                    if record['version'] == 0 or record['checksum'] is None:
+                        print(f"[DEBUG] Skipping validation for version {record['version']} (bootstrap or missing checksum)")
+                        continue
                     file_path = self.migrations_dir / record['migration_file']
+                    print(f"[DEBUG] Checking file: {file_path}")
                     if file_path.exists():
                         current_checksum = self._calculate_checksum(file_path)
+                        print(f"[DEBUG]   Current checksum: {current_checksum}, DB checksum: {record['checksum']}")
                         if current_checksum != record['checksum']:
-                            print(f"WARNING: Migration {record['version']:03d} has been modified!")
+                            print(f"WARNING: Migration {record['version']:03d} has been modified! File: {file_path}")
                             return False
+                    else:
+                        print(f"ERROR: Migration file missing: {file_path}")
+                        return False
+                print("[DEBUG] All migrations validated successfully.")
                 
                 print("All applied migrations are valid")
                 return True
