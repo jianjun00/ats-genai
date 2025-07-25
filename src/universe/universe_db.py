@@ -7,6 +7,9 @@ from datetime import date
 from typing import List, Optional
 
 class UniverseDB:
+    async def get_membership_changes(self, universe_id: int, as_of: date):
+        return await self.universe_membership_dao.get_membership_changes(universe_id, as_of)
+
     def __init__(self, env: Environment = None):
         print(f"[DEBUG] UniverseDB.__init__ received env of type {type(env)}: {env}")
         self.env = env or get_environment()

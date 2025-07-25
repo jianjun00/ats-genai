@@ -76,6 +76,18 @@ class EnvironmentMigration:
             Dictionary mapping table names to their CREATE TABLE SQL
         """
         return {
+            "universe_membership_changes": f"""
+                CREATE TABLE IF NOT EXISTS {self.env.get_table_name("universe_membership_changes")} (
+                    universe_id INTEGER NOT NULL,
+                    symbol TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    effective_date DATE NOT NULL,
+                    reason TEXT,
+                    created_at TIMESTAMPTZ DEFAULT now(),
+                    updated_at TIMESTAMPTZ DEFAULT now(),
+                    PRIMARY KEY (universe_id, symbol, action, effective_date)
+                )
+            """,
             "daily_prices": f"""
                 CREATE TABLE IF NOT EXISTS {self.env.get_table_name("daily_prices")} (
                     date DATE NOT NULL,

@@ -4,6 +4,19 @@ import asyncpg
 from datetime import date
 
 class UniverseMembershipDAO:
+    async def get_membership_changes(self, universe_id: int, as_of: date):
+        table = self.env.get_table_name('universe_membership_changes')
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(
+                    f"SELECT universe_id, symbol, action, effective_date, reason FROM {table} WHERE universe_id = $1 AND effective_date <= $2",
+                    universe_id, as_of
+                )
+                return [dict(row) for row in rows]
+        finally:
+            await pool.close()
+
     async def update_membership_end(self, universe_id: int, symbol: str, end_at):
         pool = await asyncpg.create_pool(self.db_url)
         try:

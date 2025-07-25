@@ -2,10 +2,9 @@ import pytest
 from datetime import datetime, date
 from unittest.mock import Mock
 from src.state.universe_state_builder import UniverseStateBuilder
-from trading.universe import Universe
-from trading.market_data_manager import MarketDataManager
-from trading.time_duration import TimeDuration
-from trading.indicator_config import IndicatorConfig
+from db.test_db_manager import unit_test_db
+from calendars.time_duration import TimeDuration
+from signals.indicator_config import IndicatorConfig
 from state.universe_interval import UniverseInterval
 from state.instrument_interval import InstrumentInterval
 

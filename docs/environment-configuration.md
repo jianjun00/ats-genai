@@ -105,7 +105,6 @@ Classes that previously used `os.environ` or `os.getenv` have been updated to us
 
 ```python
 # TradingUniverse - now uses environment configuration
-from trading.trading_universe import TradingUniverse
 
 # Uses environment database URL and table prefixes automatically
 universe = TradingUniverse()
@@ -114,7 +113,6 @@ universe = TradingUniverse()
 universe = TradingUniverse(db_url="postgresql://custom:url")
 
 # SecurityMaster - same pattern
-from trading.trading_universe import SecurityMaster
 master = SecurityMaster()  # Uses environment configuration
 ```
 

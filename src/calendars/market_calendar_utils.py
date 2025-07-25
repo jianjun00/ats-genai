@@ -31,7 +31,7 @@ def get_next_open_close(mkt_calendar, dt: pd.Timestamp) -> Tuple[Optional[pd.Tim
     """
     if not isinstance(dt, pd.Timestamp):
         dt = pd.Timestamp(dt)
-    schedule = calendar.schedule.loc[dt:]
+    schedule = mkt_calendar.schedule.loc[dt:]
     if not schedule.empty:
         next_open = schedule['market_open'].iloc[0]
         next_close = schedule['market_close'].iloc[0]
