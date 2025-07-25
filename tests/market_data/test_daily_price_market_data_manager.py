@@ -21,7 +21,10 @@ class DummyDAO:
             for symbol in symbols
         ]
 
-def test_update_for_sod_and_get_ohlc(monkeypatch):
+import pytest
+
+@pytest.mark.asyncio
+async def test_update_for_sod_and_get_ohlc(monkeypatch):
     # Patch DAO and calendar
     prices = {}
     manager = DailyPriceMarketDataManager()
@@ -31,7 +34,7 @@ def test_update_for_sod_and_get_ohlc(monkeypatch):
     monkeypatch.setattr(manager, '_get_exchange_open_close', lambda d: (
         datetime(2024, 1, 2, 9, 30), datetime(2024, 1, 2, 16, 0)))
     # SOD
-    manager.update_for_sod(date(2024, 1, 2))
+    await manager.update_for_sod(None, datetime(2024, 1, 2, 9, 30))
     # Check intervals
     for iid in [1, 2]:
         ohlc = manager.get_ohlc(iid, datetime(2024, 1, 2, 9, 30), datetime(2024, 1, 2, 16, 0))
@@ -42,5 +45,5 @@ def test_update_for_sod_and_get_ohlc(monkeypatch):
         assert ohlc['volume'] == 1000
         assert ohlc['traded_dollar'] == 11000.0
     # EOD clears intervals
-    manager.update_for_eod(date(2024, 1, 2))
+    await manager.update_for_eod(None, datetime(2024, 1, 2, 16, 0))
     assert manager._intervals == {}
