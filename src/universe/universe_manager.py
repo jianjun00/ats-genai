@@ -18,13 +18,6 @@ class UniverseMembershipChange:
 import logging
 
 class UniverseManager:
-    async def update_for_eod(self, universe_id: int, as_of_date: date) -> None:
-        """
-        End-of-day hook for UniverseManager. Implement EOD membership or state updates if needed.
-        """
-        self.logger.info(f"UniverseManager.update_for_eod called for universe_id={universe_id} at {as_of_date}")
-        # Add EOD logic if needed
-
     """
     Manages universe membership operations, including updates and queries.
     """

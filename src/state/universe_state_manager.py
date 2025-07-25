@@ -177,6 +177,13 @@ class UniverseStateManager:
         self.save_universe_state(df, timestamp)
         self.logger.info(f"addIntervals: Saved universe state for {timestamp} with {len(df)} records.")
 
+    def update_for_sod(self, runner, current_time):
+        """
+        Start-of-day hook for UniverseStateManager. Implement flushing, finalization, or logging if needed.
+        """
+        self.logger.info(f"UniverseStateManager.update_for_sod called at {current_time}")
+        # Add EOD logic if needed
+
     def update_for_eod(self, runner, current_time):
         """
         End-of-day hook for UniverseStateManager. Implement flushing, finalization, or logging if needed.
