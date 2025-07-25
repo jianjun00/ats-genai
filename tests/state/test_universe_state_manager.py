@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 import json
 
 from src.state.universe_state_manager import UniverseStateManager, UniverseStateMetadata
+from db.test_db_manager import unit_test_db
 
 
 class TestUniverseStateManager:
@@ -44,7 +45,8 @@ class TestUniverseStateManager:
             'close_price': [150.0, 2500.0, 300.0, 800.0, 3200.0],
             'volume': [50000000, 1500000, 30000000, 25000000, 3000000],
             'is_active': [True, True, True, True, True],
-            'as_of_date': ['2023-12-01'] * 5
+            'as_of_date': ['2023-12-01'] * 5,
+            'sector': ['Technology', 'Technology', 'Technology', 'Finance', 'Finance']
         })
     
     @pytest.fixture
