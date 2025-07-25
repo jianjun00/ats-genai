@@ -141,6 +141,62 @@ async def test_universe_dao_crud():
     assert uni2['name'] == new_name
 
 @pytest.mark.asyncio
+async def test_universe_membership_dao_universe_isolation():
+    env = Environment()
+    dao = UniverseMembershipDAO(env)
+    universe_id_1 = 101
+    universe_id_2 = 202
+    symbol_1 = "MEMB1"
+    symbol_2 = "MEMB2"
+    start_at = date(2025, 7, 24)
+    # Clean up any existing memberships for these universes/symbols
+    pool = await asyncpg.create_pool(env.get_database_url())
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(f"DELETE FROM {dao.table_name} WHERE universe_id IN ($1, $2) AND symbol IN ($3, $4)", universe_id_1, universe_id_2, symbol_1, symbol_2)
+    finally:
+        await pool.close()
+    # Add memberships
+    await dao.add_membership(universe_id_1, symbol_1, start_at)
+    await dao.add_membership(universe_id_2, symbol_2, start_at)
+    # Test isolation: get memberships for universe_id_1
+    memberships_1 = await dao.get_memberships_by_universe(universe_id_1)
+    assert any(m['symbol'] == symbol_1 for m in memberships_1)
+    assert all(m['symbol'] != symbol_2 for m in memberships_1)
+    # Test isolation: get memberships for universe_id_2
+    memberships_2 = await dao.get_memberships_by_universe(universe_id_2)
+    assert any(m['symbol'] == symbol_2 for m in memberships_2)
+    assert all(m['symbol'] != symbol_1 for m in memberships_2)
+
+@pytest.mark.asyncio
+async def test_universe_membership_dao_active_memberships():
+    env = Environment()
+    dao = UniverseMembershipDAO(env)
+    universe_id = 303
+    symbol_active = "ACTIVEMEMB"
+    symbol_inactive = "INACTIVEMEMB"
+    start_at = date(2025, 7, 24)
+    end_at = date(2025, 7, 25)
+    # Clean up any existing memberships for these symbols
+    pool = await asyncpg.create_pool(env.get_database_url())
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(f"DELETE FROM {dao.table_name} WHERE universe_id = $1 AND symbol IN ($2, $3)", universe_id, symbol_active, symbol_inactive)
+    finally:
+        await pool.close()
+    # Add memberships: one active, one inactive
+    await dao.add_membership(universe_id, symbol_active, start_at)
+    await dao.add_membership_full(universe_id, symbol_inactive, start_at, end_at)
+    # Query as_of before end date: both should be present
+    active_before = await dao.get_active_memberships(universe_id, date(2025, 7, 24))
+    assert any(m['symbol'] == symbol_active for m in active_before)
+    assert any(m['symbol'] == symbol_inactive for m in active_before)
+    # Query as_of after end date: only active should be present
+    active_after = await dao.get_active_memberships(universe_id, date(2025, 7, 26))
+    assert any(m['symbol'] == symbol_active for m in active_after)
+    assert all(m['symbol'] != symbol_inactive for m in active_after)
+
+@pytest.mark.asyncio
 async def test_universe_membership_dao_crud():
     env = Environment()
     dao = UniverseMembershipDAO(env)
