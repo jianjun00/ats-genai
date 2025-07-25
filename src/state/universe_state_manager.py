@@ -41,6 +41,44 @@ class UniverseStateManager:
     Focuses on I/O operations, caching, and data format optimization.
     Uses Parquet format for optimal performance with columnar data.
     """
+    def handleEnd(self, current_time, saved_dir=None):
+        """
+        Save the full universe state DataFrame under saved_dir (or base_path if None) with a timestamp based on current_time.
+        """
+        import logging
+        logger = self.logger if hasattr(self, 'logger') else logging.getLogger(__name__)
+        # Explicitly initialize saved_dir at the very start
+        local_saved_dir = saved_dir
+        logger.debug(f"handleEnd: ENTRY at {current_time}, saved_dir={local_saved_dir}")
+        print(f"handleEnd: Saving full universe state at {current_time}, saved_dir: {local_saved_dir}")
+        import pandas as pd
+        # Determine input and output directories separately
+        search_dir = local_saved_dir if local_saved_dir is not None else self.states_dir
+        out_dir = Path(local_saved_dir) if local_saved_dir is not None else self.base_path
+        logger.debug(f"handleEnd: Aggregating Parquet files from {search_dir}")
+        all_parquet_files = list(Path(search_dir).glob("universe_state_*.parquet"))
+        logger.debug(f"handleEnd: Found {len(all_parquet_files)} files: {[str(f) for f in all_parquet_files]}")
+        if not all_parquet_files:
+            logger.warning("handleEnd: No universe state files to aggregate.")
+            return
+        dfs = []
+        for f in all_parquet_files:
+            try:
+                logger.debug(f"handleEnd: Reading {f}")
+                dfs.append(pd.read_parquet(f))
+            except Exception as e:
+                logger.warning(f"handleEnd: Failed to read {f}: {e}")
+        if not dfs:
+            logger.warning("handleEnd: All universe state files failed to read.")
+            return
+        full_df = pd.concat(dfs, ignore_index=True)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = current_time.strftime('%Y%m%d_%H%M%S')
+        out_file = out_dir / f"full_universe_state_{timestamp}.parquet"
+        logger.debug(f"handleEnd: Writing full universe state to {out_file} ({len(full_df)} records)")
+        full_df.to_parquet(out_file, index=False)
+        logger.info(f"handleEnd: Saved full universe state to {out_file} with {len(full_df)} records.")
+        logger.debug(f"handleEnd: EXIT at {current_time}")
     
     def __init__(self, env=None, base_path: Optional[str] = None):
         """
@@ -72,10 +110,39 @@ class UniverseStateManager:
                           partition_cols: Optional[List[str]] = None) -> str:
         """
         Save universe state with optimized format and compression.
-        ...
+        Writes a Parquet file to self.states_dir/universe_state_{timestamp}.parquet.
+        Also generates and saves corresponding metadata JSON file.
         """
-        # [existing code unchanged]
+        self.states_dir.mkdir(parents=True, exist_ok=True)
+        self.metadata_dir.mkdir(parents=True, exist_ok=True)
+        file_path = self.states_dir / f"universe_state_{timestamp}.parquet"
 
+        # Validate input
+        if universe_data.empty:
+            raise ValueError("Cannot save empty universe state")
+        if not self._validate_timestamp_format(timestamp):
+            raise ValueError(f"Invalid timestamp format: {timestamp}")
+
+        try:
+            universe_data.to_parquet(file_path, index=False)
+        except Exception as e:
+            raise IOError(f"Failed to save universe state: {e}")
+
+        safe_metadata = metadata if metadata is not None else {}
+        meta_obj = self._create_metadata(
+            timestamp=timestamp,
+            data=universe_data,
+            file_path=file_path,
+            additional_metadata=safe_metadata
+        )
+        try:
+            self._save_metadata(timestamp, meta_obj)
+        except Exception as e:
+            raise IOError(f"Failed to save universe state metadata: {e}")
+        # Update cache after successful save
+        self._update_cache(timestamp, universe_data, meta_obj)
+        return str(file_path)
+    
     def addIntervals(self, intervals: dict, current_time):
         """
         Accepts a dict of duration string -> UniverseInterval, flattens to DataFrame, and saves using save_universe_state.
@@ -83,7 +150,9 @@ class UniverseStateManager:
         import pandas as pd
         rows = []
         for duration_str, universe_interval in intervals.items():
+            self.logger.info(f"addIntervals: Adding intervals for {duration_str} at {current_time}")
             for inst_id, inst_interval in universe_interval.instrument_intervals.items():
+                self.logger.info(f"addIntervals: Adding row for instr:{inst_id}, interval:{inst_interval}")
                 row = {
                     'instrument_id': inst_id,
                     'duration': duration_str,
@@ -108,7 +177,7 @@ class UniverseStateManager:
         self.save_universe_state(df, timestamp)
         self.logger.info(f"addIntervals: Saved universe state for {timestamp} with {len(df)} records.")
 
-    def update_for_eod(self, current_time):
+    def update_for_eod(self, runner, current_time):
         """
         End-of-day hook for UniverseStateManager. Implement flushing, finalization, or logging if needed.
         """
