@@ -34,9 +34,9 @@ async def test_membership_changes_produce_expected_universe_membership(unit_test
         ]
         for symbol, action, eff_date, reason in changes:
             await conn.execute(f"""
-                INSERT INTO {env.get_table_name('universe_membership_changes')} (symbol, action, effective_date, reason)
-                VALUES ($1, $2, $3, $4)
-            """, symbol, action, eff_date, reason)
+                INSERT INTO {env.get_table_name('universe_membership_changes')} (universe_id, symbol, action, effective_date, reason)
+                VALUES ($1, $2, $3, $4, $5)
+            """, universe_id, symbol, action, eff_date, reason)
 
         # Simulate logic: reconstruct expected universe_membership as of 2025-01-08
         # (In production, builder logic would do this. Here, we do it in test.)
@@ -46,7 +46,7 @@ async def test_membership_changes_produce_expected_universe_membership(unit_test
             SELECT symbol, action, effective_date
             FROM {env.get_table_name('universe_membership_changes')}
             WHERE effective_date <= $1
-            ORDER BY effective_date, id
+            ORDER BY effective_date, symbol
         """, as_of_date)
         symbol_state = {}
         for row in rows:
@@ -61,9 +61,9 @@ async def test_membership_changes_produce_expected_universe_membership(unit_test
         await conn.execute(f"DELETE FROM {env.get_table_name('universe_membership')} WHERE universe_id = $1", universe_id)
         for symbol in expected_members:
             await conn.execute(f"""
-                INSERT INTO {env.get_table_name('universe_membership')} (universe_id, symbol, start_at, end_at, meta)
-                VALUES ($1, $2, $3, NULL, $4)
-            """, universe_id, symbol, as_of_date, '{}')
+                INSERT INTO {env.get_table_name('universe_membership')} (universe_id, symbol, start_at, end_at)
+                VALUES ($1, $2, $3, NULL)
+            """, universe_id, symbol, as_of_date)
 
         # Fetch actual membership
         actual_members = await conn.fetch(f"""
