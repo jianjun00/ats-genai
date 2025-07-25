@@ -141,6 +141,8 @@ class MigrationManager:
             'users', 'posts', 'test_migration_table', 'concurrent_test', 'test_complex', 'test_rollback', 'first_table', 'middle_table', 'last_table', 'duplicate_test', 'idempotent',
             # All tables found in migrations (ensure these are always prefixed)
             'universe_membership_changes', 'stock_splits', 'dividends',
+            # Instrument xrefs table for membership resolution
+            'instrument_xrefs',
         ])
         table_names.update(static_table_names)
         

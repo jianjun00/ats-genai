@@ -28,25 +28,65 @@ CREATE TABLE IF NOT EXISTS daily_adjusted_prices (
 );
 """
 
-async def fetch_prices(pool, symbol):
+async def fetch_prices(pool, symbol=None, instrument_id=None):
     async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            "SELECT * FROM daily_prices WHERE symbol = $1 ORDER BY date ASC", symbol
-        )
+        if instrument_id is not None:
+            rows = await conn.fetch(
+                "SELECT * FROM daily_prices WHERE instrument_id = $1 ORDER BY date ASC", instrument_id
+            )
+        elif symbol is not None:
+            rows = await conn.fetch(
+                "SELECT * FROM daily_prices WHERE symbol = $1 ORDER BY date ASC", symbol
+            )
+        else:
+            raise ValueError("Must provide symbol or instrument_id")
         return pd.DataFrame([dict(row) for row in rows])
 
-async def fetch_splits(pool, symbol):
+async def resolve_instrument_id(conn, symbol, vendor_id=None, at_date=None):
+    q = "SELECT instrument_id FROM instrument_xref WHERE symbol = $1"
+    params = [symbol]
+    if vendor_id is not None:
+        q += " AND vendor_id = $2"
+        params.append(vendor_id)
+    if at_date is not None:
+        if vendor_id is not None:
+            q += " AND (start_at <= $3 AND (end_at IS NULL OR end_at >= $3))"
+            params.append(at_date)
+        else:
+            q += " AND (start_at <= $2 AND (end_at IS NULL OR end_at >= $2))"
+            params.append(at_date)
+    q += " ORDER BY start_at DESC LIMIT 1"
+    row = await conn.fetchrow(q, *params)
+    if not row:
+        raise ValueError(f"No instrument_id found for symbol={symbol}, vendor_id={vendor_id}, at_date={at_date}")
+    return row['instrument_id']
+
+async def fetch_splits(pool, symbol=None, instrument_id=None):
     async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            "SELECT split_date, numerator, denominator FROM stock_splits WHERE symbol = $1 ORDER BY split_date ASC", symbol
-        )
+        if instrument_id is not None:
+            rows = await conn.fetch(
+                "SELECT split_date, numerator, denominator FROM stock_splits WHERE instrument_id = $1 ORDER BY split_date ASC", instrument_id
+            )
+        elif symbol is not None:
+            rows = await conn.fetch(
+                "SELECT split_date, numerator, denominator FROM stock_splits WHERE symbol = $1 ORDER BY split_date ASC", symbol
+            )
+        else:
+            raise ValueError("Must provide symbol or instrument_id")
         return pd.DataFrame([dict(row) for row in rows])
 
-async def fetch_dividends(pool, symbol):
+async def fetch_dividends(pool, symbol=None, instrument_id=None):
     async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            "SELECT ex_date, amount FROM dividends WHERE symbol = $1 ORDER BY ex_date ASC", symbol
-        )
+        if instrument_id is not None:
+            rows = await conn.fetch(
+                "SELECT ex_date, amount FROM dividends WHERE instrument_id = $1 ORDER BY ex_date ASC", instrument_id
+            )
+        elif symbol is not None:
+            rows = await conn.fetch(
+                "SELECT ex_date, amount FROM dividends WHERE symbol = $1 ORDER BY ex_date ASC", symbol
+            )
+        else:
+            raise ValueError("Must provide symbol or instrument_id")
         return pd.DataFrame([dict(row) for row in rows])
 
 async def insert_adjusted_prices(pool, df, symbol):

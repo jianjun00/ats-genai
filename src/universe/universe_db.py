@@ -28,7 +28,7 @@ class UniverseDB:
         return await self.universe_dao.create_universe(name, description)
 
     async def add_universe_membership(self, universe_id: int, symbol: str, start_at: date, end_at: Optional[date] = None):
-        await self.universe_membership_dao.add_membership_full(universe_id, symbol, start_at, end_at)
+        await self.universe_membership_dao.add_membership_full(universe_id=universe_id, symbol=symbol, start_at=start_at, end_at=end_at)
 
     async def update_universe_membership_end(self, universe_id: int, symbol: str, end_at: date):
-        await self.universe_membership_dao.update_membership_end(universe_id, symbol, end_at)
+        await self.universe_membership_dao.update_membership_end(universe_id=universe_id, symbol=symbol, end_at=end_at)
