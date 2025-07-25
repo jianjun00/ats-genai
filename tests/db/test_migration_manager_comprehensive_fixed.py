@@ -13,12 +13,12 @@ import shutil
 from pathlib import Path
 from unittest.mock import patch, mock_open
 from src.db.migration_manager import MigrationManager
-from src.db.test_db_manager import TestDatabaseManager
+from src.db.conftest import unit_test_db_clean
 import pytest_asyncio
 
 
 @pytest_asyncio.fixture
-async def unit_test_db():
+async def unit_test_db_clean():
     """Fixture for unit tests - provides isolated database per test."""
     db_manager = TestDatabaseManager("unit")
     test_db_url = await db_manager.setup_test_database()
@@ -31,11 +31,11 @@ async def unit_test_db():
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_migration_manager_initialization(unit_test_db):
+async def test_migration_manager_initialization(unit_test_db_clean):
     """Test that migration manager initializes correctly."""
-    manager = MigrationManager(unit_test_db)
+    manager = MigrationManager(unit_test_db_clean)
     
-    assert manager.db_url == unit_test_db
+    assert manager.db_url == unit_test_db_clean
     assert manager.table_prefix == "test_"
     assert manager.migrations_dir.name == "migrations"
 
@@ -43,9 +43,9 @@ async def test_migration_manager_initialization(unit_test_db):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_get_current_version_empty_database(unit_test_db):
+async def test_get_current_version_empty_database(unit_test_db_clean):
     """Test getting version from empty database returns -1."""
-    manager = MigrationManager(unit_test_db)
+    manager = MigrationManager(unit_test_db_clean)
     
     version = await manager.get_current_version()
     assert version == -1
@@ -54,15 +54,15 @@ async def test_get_current_version_empty_database(unit_test_db):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_get_current_version_with_existing_data(unit_test_db):
+async def test_get_current_version_with_existing_data(unit_test_db_clean):
     """Test getting version when db_version table has data."""
-    manager = MigrationManager(unit_test_db)
+    manager = MigrationManager(unit_test_db_clean)
     
     # First call creates the table
     await manager.get_current_version()
     
     # Manually insert a version record
-    pool = await asyncpg.create_pool(unit_test_db)
+    pool = await asyncpg.create_pool(unit_test_db_clean)
     try:
         async with pool.acquire() as conn:
             await conn.execute("""
@@ -80,9 +80,9 @@ async def test_get_current_version_with_existing_data(unit_test_db):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_apply_table_prefixes(unit_test_db):
+async def test_apply_table_prefixes(unit_test_db_clean):
     """Test that table prefixes are correctly applied to SQL."""
-    manager = MigrationManager(unit_test_db)
+    manager = MigrationManager(unit_test_db_clean)
     
     sql = """
     CREATE TABLE IF NOT EXISTS events (id SERIAL PRIMARY KEY);
@@ -102,9 +102,9 @@ async def test_apply_table_prefixes(unit_test_db):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_apply_table_prefixes_no_double_prefixing(unit_test_db):
+async def test_apply_table_prefixes_no_double_prefixing(unit_test_db_clean):
     """Test that already prefixed tables don't get double-prefixed."""
-    manager = MigrationManager(unit_test_db)
+    manager = MigrationManager(unit_test_db_clean)
     
     sql = "CREATE TABLE IF NOT EXISTS test_events (id SERIAL PRIMARY KEY);"
     prefixed_sql = manager._apply_table_prefixes(sql)
@@ -117,9 +117,9 @@ async def test_apply_table_prefixes_no_double_prefixing(unit_test_db):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_calculate_checksum(unit_test_db):
+async def test_calculate_checksum(unit_test_db_clean):
     """Test checksum calculation for migration files."""
-    manager = MigrationManager(unit_test_db)
+    manager = MigrationManager(unit_test_db_clean)
     await manager.get_current_version()
     
     # Create a temporary file
@@ -177,9 +177,9 @@ async def test_migration_file_parsing():
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_apply_migration_success(unit_test_db):
+async def test_apply_migration_success(unit_test_db_clean):
     """Test successful migration application."""
-    manager = MigrationManager(unit_test_db)
+    manager = MigrationManager(unit_test_db_clean)
     await manager.get_current_version()
     
     # Create a temporary migration file
@@ -198,7 +198,7 @@ async def test_apply_migration_success(unit_test_db):
         assert success is True
         
         # Verify table was created with correct prefix
-        pool = await asyncpg.create_pool(unit_test_db)
+        pool = await asyncpg.create_pool(unit_test_db_clean)
         try:
             async with pool.acquire() as conn:
                 # Check table exists
@@ -223,9 +223,9 @@ async def test_apply_migration_success(unit_test_db):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_apply_migration_sql_error(unit_test_db):
+async def test_apply_migration_sql_error(unit_test_db_clean):
     """Test migration application with SQL error."""
-    manager = MigrationManager(unit_test_db)
+    manager = MigrationManager(unit_test_db_clean)
     await manager.get_current_version()
     
     # Create a migration file with invalid SQL
@@ -239,7 +239,7 @@ async def test_apply_migration_sql_error(unit_test_db):
         assert success is False
         
         # Verify migration was not recorded
-        pool = await asyncpg.create_pool(unit_test_db)
+        pool = await asyncpg.create_pool(unit_test_db_clean)
         try:
             async with pool.acquire() as conn:
                 version_count = await conn.fetchval("""
@@ -256,11 +256,11 @@ async def test_apply_migration_sql_error(unit_test_db):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_migrate_to_latest_no_migrations(unit_test_db):
+async def test_migrate_to_latest_no_migrations(unit_test_db_clean):
     """Test migrate_to_latest when no migrations are available."""
     # Create temporary empty migration directory
     with tempfile.TemporaryDirectory() as temp_dir:
-        manager = MigrationManager(unit_test_db)
+        manager = MigrationManager(unit_test_db_clean)
         manager.migrations_dir = Path(temp_dir)
         
         success = await manager.migrate_to_latest()
@@ -270,7 +270,7 @@ async def test_migrate_to_latest_no_migrations(unit_test_db):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_migrate_to_latest_with_migrations(unit_test_db):
+async def test_migrate_to_latest_with_migrations(unit_test_db_clean):
     """Test migrate_to_latest with multiple migrations."""
     with tempfile.TemporaryDirectory() as temp_dir:
         migrations_dir = Path(temp_dir)
@@ -282,14 +282,14 @@ async def test_migrate_to_latest_with_migrations(unit_test_db):
         migration2 = migrations_dir / "002_create_posts.sql"
         migration2.write_text("CREATE TABLE posts (id SERIAL PRIMARY KEY, user_id INTEGER);")
         
-        manager = MigrationManager(unit_test_db)
+        manager = MigrationManager(unit_test_db_clean)
         manager.migrations_dir = migrations_dir
         
         success = await manager.migrate_to_latest()
         assert success is True
         
         # Verify both tables were created
-        pool = await asyncpg.create_pool(unit_test_db)
+        pool = await asyncpg.create_pool(unit_test_db_clean)
         try:
             async with pool.acquire() as conn:
                 users_exists = await conn.fetchval("""
@@ -316,7 +316,7 @@ async def test_migrate_to_latest_with_migrations(unit_test_db):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_migrate_to_latest_partial_failure(unit_test_db):
+async def test_migrate_to_latest_partial_failure(unit_test_db_clean):
     """Test migrate_to_latest when one migration fails."""
     with tempfile.TemporaryDirectory() as temp_dir:
         migrations_dir = Path(temp_dir)
@@ -328,14 +328,14 @@ async def test_migrate_to_latest_partial_failure(unit_test_db):
         migration2 = migrations_dir / "002_invalid.sql"
         migration2.write_text("INVALID SQL;")
         
-        manager = MigrationManager(unit_test_db)
+        manager = MigrationManager(unit_test_db_clean)
         manager.migrations_dir = migrations_dir
         
         success = await manager.migrate_to_latest()
         assert success is False
         
         # Verify first migration was applied, second was not
-        pool = await asyncpg.create_pool(unit_test_db)
+        pool = await asyncpg.create_pool(unit_test_db_clean)
         try:
             async with pool.acquire() as conn:
                 users_exists = await conn.fetchval("""
@@ -356,7 +356,7 @@ async def test_migrate_to_latest_partial_failure(unit_test_db):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_validate_migrations_success(unit_test_db):
+async def test_validate_migrations_success(unit_test_db_clean):
     """Test migration validation with valid checksums."""
     with tempfile.TemporaryDirectory() as temp_dir:
         migrations_dir = Path(temp_dir)
@@ -365,7 +365,7 @@ async def test_validate_migrations_success(unit_test_db):
         migration1 = migrations_dir / "001_create_users.sql"
         migration1.write_text("CREATE TABLE users (id SERIAL PRIMARY KEY);")
         
-        manager = MigrationManager(unit_test_db)
+        manager = MigrationManager(unit_test_db_clean)
         manager.migrations_dir = migrations_dir
         
         # Apply migration first
@@ -379,7 +379,7 @@ async def test_validate_migrations_success(unit_test_db):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_validate_migrations_modified_file(unit_test_db):
+async def test_validate_migrations_modified_file(unit_test_db_clean):
     """Test migration validation when file has been modified."""
     with tempfile.TemporaryDirectory() as temp_dir:
         migrations_dir = Path(temp_dir)
@@ -388,7 +388,7 @@ async def test_validate_migrations_modified_file(unit_test_db):
         migration1 = migrations_dir / "001_create_users.sql"
         migration1.write_text("CREATE TABLE users (id SERIAL PRIMARY KEY);")
         
-        manager = MigrationManager(unit_test_db)
+        manager = MigrationManager(unit_test_db_clean)
         manager.migrations_dir = migrations_dir
         
         # Apply migration first
@@ -405,7 +405,7 @@ async def test_validate_migrations_modified_file(unit_test_db):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_validate_migrations_missing_file(unit_test_db):
+async def test_validate_migrations_missing_file(unit_test_db_clean):
     """Test migration validation when migration file is missing."""
     with tempfile.TemporaryDirectory() as temp_dir:
         migrations_dir = Path(temp_dir)
@@ -414,7 +414,7 @@ async def test_validate_migrations_missing_file(unit_test_db):
         migration1 = migrations_dir / "001_create_users.sql"
         migration1.write_text("CREATE TABLE users (id SERIAL PRIMARY KEY);")
         
-        manager = MigrationManager(unit_test_db)
+        manager = MigrationManager(unit_test_db_clean)
         manager.migrations_dir = migrations_dir
         
         # Apply migration first
@@ -431,10 +431,10 @@ async def test_validate_migrations_missing_file(unit_test_db):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_concurrent_migration_application(unit_test_db):
+async def test_concurrent_migration_application(unit_test_db_clean):
     """Test that concurrent migration applications are handled correctly."""
-    manager1 = MigrationManager(unit_test_db)
-    manager2 = MigrationManager(unit_test_db)
+    manager1 = MigrationManager(unit_test_db_clean)
+    manager2 = MigrationManager(unit_test_db_clean)
     
     # Create a temporary migration file
     with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
@@ -461,9 +461,9 @@ async def test_concurrent_migration_application(unit_test_db):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_migration_with_complex_sql(unit_test_db):
+async def test_migration_with_complex_sql(unit_test_db_clean):
     """Test migration with complex SQL including functions, triggers, etc."""
-    manager = MigrationManager(unit_test_db)
+    manager = MigrationManager(unit_test_db_clean)
     await manager.get_current_version()
     
     complex_sql = """
@@ -507,7 +507,7 @@ async def test_migration_with_complex_sql(unit_test_db):
         assert success is True
         
         # Verify all components were created
-        pool = await asyncpg.create_pool(unit_test_db)
+        pool = await asyncpg.create_pool(unit_test_db_clean)
         try:
             async with pool.acquire() as conn:
                 # Check table
@@ -543,9 +543,9 @@ async def test_migration_with_complex_sql(unit_test_db):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_migration_rollback_on_error(unit_test_db):
+async def test_migration_rollback_on_error(unit_test_db_clean):
     """Test that migration is rolled back on error (transaction behavior)."""
-    manager = MigrationManager(unit_test_db)
+    manager = MigrationManager(unit_test_db_clean)
     await manager.get_current_version()
     
     # SQL that starts successfully but fails partway through
@@ -564,7 +564,7 @@ async def test_migration_rollback_on_error(unit_test_db):
         assert success is False
         
         # Verify table was not created (rolled back)
-        pool = await asyncpg.create_pool(unit_test_db)
+        pool = await asyncpg.create_pool(unit_test_db_clean)
         try:
             async with pool.acquire() as conn:
                 table_exists = await conn.fetchval("""
@@ -589,9 +589,9 @@ async def test_migration_rollback_on_error(unit_test_db):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_migration_checksum_validation_edge_cases(unit_test_db):
+async def test_migration_checksum_validation_edge_cases(unit_test_db_clean):
     """Test checksum validation with various edge cases."""
-    manager = MigrationManager(unit_test_db)
+    manager = MigrationManager(unit_test_db_clean)
     
     # Test with empty file
     with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
@@ -616,7 +616,7 @@ async def test_migration_checksum_validation_edge_cases(unit_test_db):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_migration_version_ordering(unit_test_db):
+async def test_migration_version_ordering(unit_test_db_clean):
     """Test that migrations are applied in correct version order."""
     with tempfile.TemporaryDirectory() as temp_dir:
         migrations_dir = Path(temp_dir)
@@ -631,14 +631,14 @@ async def test_migration_version_ordering(unit_test_db):
         migration5 = migrations_dir / "005_middle.sql"
         migration5.write_text("CREATE TABLE middle_table (id SERIAL PRIMARY KEY);")
         
-        manager = MigrationManager(unit_test_db)
+        manager = MigrationManager(unit_test_db_clean)
         manager.migrations_dir = migrations_dir
         
         success = await manager.migrate_to_latest()
         assert success is True
         
         # Verify migrations were applied in correct order
-        pool = await asyncpg.create_pool(unit_test_db)
+        pool = await asyncpg.create_pool(unit_test_db_clean)
         try:
             async with pool.acquire() as conn:
                 # Check all tables exist
@@ -663,9 +663,9 @@ async def test_migration_version_ordering(unit_test_db):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
-async def test_migration_duplicate_version_handling(unit_test_db):
+async def test_migration_duplicate_version_handling(unit_test_db_clean):
     """Test handling of duplicate migration versions."""
-    manager = MigrationManager(unit_test_db)
+    manager = MigrationManager(unit_test_db_clean)
     await manager.get_current_version()
     
     # Ensure version table exists
@@ -685,7 +685,7 @@ async def test_migration_duplicate_version_handling(unit_test_db):
         assert success2 is False  # Should fail due to unique constraint on version
         
         # Verify only one record exists
-        pool = await asyncpg.create_pool(unit_test_db)
+        pool = await asyncpg.create_pool(unit_test_db_clean)
         try:
             async with pool.acquire() as conn:
                 count = await conn.fetchval("""

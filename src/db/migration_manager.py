@@ -21,22 +21,22 @@ from config.environment import get_environment
 
 class MigrationManager:
     def __init__(self, db_url: str = None):
-        self.env = get_environment()
-        self.db_url = db_url or self.env.get_database_url()
+        self.environment = get_environment()
+        self.db_url = db_url or self.environment.get_database_url()
         self.migrations_dir = Path(__file__).parent / "migrations"
         
         # Determine environment based on database URL
         if db_url:
             if "intg_trading_db" in db_url:
                 from config.environment import Environment, EnvironmentType
-                self.env = Environment(EnvironmentType.INTEGRATION)
+                self.environment = Environment(EnvironmentType.INTEGRATION)
             elif "prod_trading_db" in db_url:
                 from config.environment import Environment, EnvironmentType
-                self.env = Environment(EnvironmentType.PRODUCTION)
+                self.environment = Environment(EnvironmentType.PRODUCTION)
             # else use current environment for test_trading_db
         
         # Extract table prefix from environment
-        sample_table = self.env.get_table_name("sample")
+        sample_table = self.environment.get_table_name("sample")
         self.table_prefix = sample_table.replace("sample", "")
     
     def _get_migration_files(self) -> List[Tuple[int, str, Path]]:
@@ -82,29 +82,16 @@ class MigrationManager:
         finally:
             await pool.close()
     
-    async def apply_migration(self, version: int, description: str, file_path: Path) -> bool:
-        """Apply a single migration. Executes the entire migration file as a single SQL script to support complex PostgreSQL constructs (e.g., dollar-quoted functions)."""
-        print(f"[DEBUG] Applying migration version={version}, description='{description}', file_path='{file_path}'")
-        # Ensure version table exists before migration (fix for concurrency)
-        await self.get_current_version()
+    async def apply_migration(self, version: int, description: str, migration_file: Path) -> bool:
+        """Apply a single migration and record it in db_version table."""
+        print(f"Applying migration version {version:03d}: {description}")
+        sql_content = migration_file.read_text()
+        prefixed_sql = self._apply_table_prefixes(sql_content)
+        
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
                 async with conn.transaction():
-                    # Read migration file
-                    with open(file_path, 'r') as f:
-                        migration_sql = f.read()
-                    print(f"[DEBUG] Raw migration SQL for version {version}:")
-                    print(migration_sql)
-                    prefixed_sql = self._apply_table_prefixes(migration_sql)
-                    if version == 1:
-                        print(f"[DEBUG] --- Prefixed migration SQL for version 1 (initial schema) ---")
-                        print(prefixed_sql)
-                        print(f"[DEBUG] --- END Prefixed migration SQL for version 1 ---")
-                    else:
-                        print(f"[DEBUG] Prefixed migration SQL for version {version}:")
-                        print(prefixed_sql)
-                    # Execute the entire migration as a single script
                     try:
                         await conn.execute(prefixed_sql)
                     except Exception as exec_sql_exc:
@@ -114,42 +101,17 @@ class MigrationManager:
                         print(f"[DEBUG] --- END Failing SQL for version {version} ---")
                         import traceback
                         traceback.print_exc()
-                        raise
-                
-                    # Record migration (skip for version 0 as it records itself)
-                    if version != 0:
-                        # Check if this version already exists
-                        exists = await conn.fetchval(f"""
-                            SELECT COUNT(*) FROM {self.table_prefix}db_version WHERE version = $1
-                        """, version)
-                        if exists:
-                            print(f"[WARN] Migration version {version} already exists in db_version. Skipping insert.")
-                            return False
-                        print(f"[DEBUG] About to insert migration version {version} into db_version")
-                        checksum = self._calculate_checksum(file_path)
-                        await conn.execute(f"""
-                            INSERT INTO {self.table_prefix}db_version 
-                            (version, description, checksum, migration_file)
-                            VALUES ($1, $2, $3, $4)
-                        """, version, description, checksum, file_path.name)
-                        print(f"[DEBUG] Successfully inserted migration version {version} into db_version")
-                    else:
-                        # For version 0, just update the checksum since the migration inserts itself
-                        checksum = self._calculate_checksum(file_path)
-                        await conn.execute(f"""
-                            UPDATE {self.table_prefix}db_version 
-                            SET checksum = $1
-                            WHERE version = 0
-                        """, checksum)
+                        return False
                     
-                    print(f"Applied migration {version:03d}: {description}")
+                    # Record migration (skip for version 0 as it records itself)
+                    if version > 0:
+                        checksum = self._calculate_checksum(migration_file)
+                        await conn.execute(f"""
+                            INSERT INTO {self.table_prefix}db_version (version, description, applied_at, checksum, migration_file)
+                            VALUES ($1, $2, NOW(), $3, $4)
+                        """, version, description, checksum, migration_file.name)
+                    print(f"Migration version {version:03d} applied successfully")
                     return True
-        except Exception as e:
-            print(f"[ERROR] Failed to apply migration {version:03d}: {e}")
-            print(f"[DEBUG] Transaction rollback triggered for migration version {version}")
-            import traceback
-            traceback.print_exc()
-            return False
         finally:
             await pool.close()
     
@@ -208,11 +170,6 @@ class MigrationManager:
         # 4. Prefix all table references in statements (including foreign keys, inserts, etc)
         for table in sorted(table_names, key=lambda x: -len(x)):
             # Avoid double prefixing
-            'instrument_metadata', 'instrument_polygon', 'status_code', 'daily_prices_tiingo',
-            'daily_prices_polygon', 'daily_market_cap', 'universe', 'universe_membership',
-            'fundamentals', 'db_version',
-            # Test and migration utility tables
-            'users', 'posts', 'test_migration_table', 'concurrent_test', 'test_complex',
             pattern = rf'(?<!{re.escape(self.table_prefix)})\b{re.escape(table)}\b(?!\w)'
             replacement = f'{self.table_prefix}{table}'
             sql = re.sub(pattern, replacement, sql)
@@ -220,15 +177,15 @@ class MigrationManager:
         return sql
     
     def _get_backup_file(self):
-        db_name = self.env.get_database_config()['database']
+        db_name = self.environment.get_database_config()['database']
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         backup_dir = Path(self.migrations_dir) / 'backups'
         backup_dir.mkdir(exist_ok=True)
-        backup_file = backup_dir / f"{db_name}_backup_{timestamp}.dump"
+        backup_file = backup_dir / f"{db_name}_{timestamp}.dump"
         return str(backup_file)
 
     def _run_pg_dump(self, backup_file):
-        db_cfg = self.env.get_database_config()
+        db_cfg = self.environment.get_database_config()
         cmd = [
             'pg_dump', '-Fc',
             '-h', db_cfg['host'],
@@ -238,14 +195,16 @@ class MigrationManager:
             '-f', backup_file
         ]
         env = os.environ.copy()
-        if db_cfg.get('password'):
-            env['PGPASSWORD'] = db_cfg['password']
-        print(f"[INFO] Backing up database to {backup_file} ...")
-        subprocess.check_call(cmd, env=env)
+        env['PGPASSWORD'] = db_cfg['password']
+        print(f"[INFO] Backing up {db_cfg['database']} to {backup_file}...")
+        result = subprocess.run(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if result.returncode != 0:
+            print(f"[ERROR] Backup failed: {result.stderr}")
+            raise RuntimeError(f"Backup failed: {result.stderr}")
         print(f"[INFO] Backup complete.")
 
     def _run_pg_restore(self, backup_file):
-        db_cfg = self.env.get_database_config()
+        db_cfg = self.environment.get_database_config()
         cmd = [
             'pg_restore', '-c',
             '-h', db_cfg['host'],
@@ -255,12 +214,14 @@ class MigrationManager:
             backup_file
         ]
         env = os.environ.copy()
-        if db_cfg.get('password'):
-            env['PGPASSWORD'] = db_cfg['password']
-        print(f"[INFO] Restoring database from {backup_file} ...")
-        subprocess.check_call(cmd, env=env)
+        env['PGPASSWORD'] = db_cfg['password']
+        print(f"[INFO] Restoring {db_cfg['database']} from {backup_file}...")
+        result = subprocess.run(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if result.returncode != 0:
+            print(f"[ERROR] Restore failed: {result.stderr}")
+            raise RuntimeError(f"Restore failed: {result.stderr}")
         print(f"[INFO] Restore complete.")
-
+    
     async def migrate_to_latest(self) -> bool:
         """Apply all pending migrations with automatic backup and restore."""
         current_version = await self.get_current_version()
