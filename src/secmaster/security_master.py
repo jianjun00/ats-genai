@@ -20,6 +20,13 @@ class CorporateAction:
         self.metadata = metadata or {}
 
 class SecurityMaster:
+    def update_for_sod(self, runner, current_time):
+        """
+        Start-of-day hook for SecurityMaster. Implement SOD security updates or logging if needed.
+        """
+        # Add SOD logic if needed
+        pass
+
     def update_for_eod(self, runner, current_time):
         """
         End-of-day hook for SecurityMaster. Implement EOD security updates or logging if needed.
