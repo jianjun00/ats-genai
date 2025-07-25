@@ -54,6 +54,8 @@ class TestDatabaseManager:
                 # Sanitize test_name for DB (alphanumeric + underscores only)
                 import re
                 safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', test_name)
+                # Truncate to avoid exceeding Postgres 63-char identifier limit (leave room for base name)
+                safe_name = safe_name[:20]
                 self.test_db_suffix = f"_{safe_name}"
             else:
                 import uuid
