@@ -101,3 +101,7 @@ cython_debug/
 # Ignore tmp and temp files
 tmp/
 temp/
+
+# Ignore migration backups
+src/db/migrations/backups/
+
