@@ -72,17 +72,17 @@ async def test_universe_add_remove(unit_test_db, monkeypatch):
         insts = await conn.fetch(f"SELECT * FROM {instrument_table} ORDER BY symbol")
         print(f"[DEBUG] test_instrument_polygon contents before universe_creator: {insts}")
     # Run the universe_creator logic with --environment test for table prefixing
-    # Call the business logic directly instead of main()
-    await universe_creator.create_universe_membership(
-        start_date=date(2025, 1, 1),
-        end_date=date(2025, 1, 4),
-        min_adv=100000,
-        min_price=5,
-        universe_name='default',
-        env=env,
-        pool=pool
-    )
-    print("[DEBUG] Ran create_universe_membership()")
+    args = [
+        '--start_date', '2025-01-01',
+        '--end_date', '2025-01-04',
+        '--min_price', '5',
+        '--min_adv', '100000',
+        '--universe_name', 'default',
+        '--environment', 'test'
+    ]
+    monkeypatch.setattr('sys.argv', ['universe_creator.py'] + args)
+    await universe_creator.main()
+    print("[DEBUG] Ran universe_creator.main()")
     # Print universe_membership table after running universe_creator
     async with pool.acquire() as conn:
         rows_after = await conn.fetch(f"SELECT * FROM {membership_table} ORDER BY start_at, symbol")

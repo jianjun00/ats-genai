@@ -1,9 +1,9 @@
 import argparse
 import asyncio
 from config.environment import get_environment, set_environment, EnvironmentType
-from db.dao.instrument_polygon_dao import InstrumentPolygonDAO
-from db.dao.instruments_dao import InstrumentsDAO
-from db.dao.universe_membership_dao import UniverseMembershipDAO
+from dao.instrument_polygon_dao import InstrumentPolygonDAO
+from dao.instruments_dao import InstrumentsDAO
+from dao.universe_membership_dao import UniverseMembershipDAO
 
 async def main(environment: str, tickers=None, universe_id=None):
     set_environment(EnvironmentType(environment))

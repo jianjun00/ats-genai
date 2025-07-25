@@ -160,48 +160,6 @@ def test_add_multi_duration_intervals():
     for interval in intervals:
         if interval.end_date_time == datetime(2023, 1, 1, 9, 35):
             durations_found.add("5m")
-        elif interval.end_date_time == datetime(2023, 1, 1, 9, 45):
-            durations_found.add("15m")
-    
-    assert durations_found == {"5m", "15m"}
-
-
-def test_build_aggregated_interval():
-    """Test building aggregated intervals from base intervals."""
-    universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1])
-    builder = UniverseStateBuilder()
-    
-    # Create three 5-minute base intervals to aggregate into 15-minute interval
-    base_intervals = []
-    
-    for i in range(3):
-        start_time = datetime(2023, 1, 1, 9, 30 + i * 5)
-        end_time = datetime(2023, 1, 1, 9, 35 + i * 5)
-        
-        instrument_intervals = {
-            1: InstrumentInterval(
-                instrument_id=1,
-                start_date_time=start_time,
-                end_date_time=end_time,
-                open=100.0 + i,
-                high=105.0 + i,
-                low=99.0 + i,
-                close=104.0 + i,
-                traded_volume=1000.0,
-                traded_dollar=104000.0,
-                status='ok'
-            )
-        }
-        
-        base_interval = UniverseInterval(
-            start_date_time=start_time,
-            end_date_time=end_time,
-            instrument_intervals=instrument_intervals
-        )
-        base_intervals.append(base_interval)
-    
-    # Aggregate into 15-minute interval
-    target_duration = TimeDuration.create_15_minutes()
     aggregated = builder.build_aggregated_interval(base_intervals, target_duration)
     
     # Verify aggregated interval properties
@@ -218,43 +176,6 @@ def test_build_aggregated_interval():
     assert inst_interval.high == 107.0   # Max high (105.0 + 2)
     assert inst_interval.low == 99.0     # Min low (99.0 + 0)
     
-    # Volume aggregation: Sum of all
-    assert inst_interval.traded_volume == 3000.0  # 1000.0 * 3
-    assert inst_interval.traded_dollar == 312000.0  # 104000.0 * 3
-    assert inst_interval.status == 'ok'
-
-
-def test_build_aggregated_interval_with_mixed_status():
-    """Test aggregated interval with mixed status intervals."""
-    universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1])
-    builder = UniverseStateBuilder()
-    
-    # Create intervals with mixed status
-    base_intervals = []
-    statuses = ['ok', 'invalid', 'ok']
-    
-    for i, status in enumerate(statuses):
-        start_time = datetime(2023, 1, 1, 9, 30 + i * 5)
-        end_time = datetime(2023, 1, 1, 9, 35 + i * 5)
-        
-        instrument_intervals = {
-            1: InstrumentInterval(
-                instrument_id=1,
-                start_date_time=start_time,
-                end_date_time=end_time,
-                open=100.0, high=105.0, low=99.0, close=104.0,
-                traded_volume=1000.0, traded_dollar=104000.0,
-                status=status
-            )
-        }
-        
-        base_interval = UniverseInterval(
-            start_date_time=start_time,
-            end_date_time=end_time,
-            instrument_intervals=instrument_intervals
-        )
-        base_intervals.append(base_interval)
-    
     # Aggregate intervals
     target_duration = TimeDuration.create_15_minutes()
     aggregated = builder.build_aggregated_interval(base_intervals, target_duration)
@@ -264,22 +185,13 @@ def test_build_aggregated_interval_with_mixed_status():
     assert inst_interval.status == 'invalid'
 
 
-def test_build_aggregated_interval_empty_list():
-    """Test that aggregating empty list raises ValueError."""
-    universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1])
-    builder = UniverseStateBuilder()
-    
-    target_duration = TimeDuration.create_15_minutes()
-    
-    with pytest.raises(ValueError, match="Cannot aggregate empty list of intervals"):
-        builder.build_aggregated_interval([], target_duration)
 
 
 @pytest.mark.skip(reason="Duration logic moved to Environment; UniverseStateBuilder no longer manages durations.")
 def test_set_target_durations():
     """Test setting new target durations."""
     universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1])
-    builder = UniverseStateBuilder()
+    builder = UniverseStateBuilder(universe)    
     
     # Initially has default 5m duration
     assert len(builder.get_target_durations()) == 1

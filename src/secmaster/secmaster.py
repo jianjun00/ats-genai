@@ -1,5 +1,5 @@
 from config.environment import get_environment, Environment
-from db.dao.secmaster_dao import SecMasterDAO
+from dao.secmaster_dao import SecMasterDAO
 from datetime import date
 from typing import List, Optional, Dict
 

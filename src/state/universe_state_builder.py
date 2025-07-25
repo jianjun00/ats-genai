@@ -104,6 +104,8 @@ class UniverseStateBuilder(RunnerCallback):
 
     def calculate_derived_fields(self, df):
         df = df.copy()
+        if 'volume' in df.columns and 'avg_volume' not in df.columns:
+            df['avg_volume'] = df['volume']
         if 'market_cap' in df.columns:
             df['market_cap_tier'] = pd.qcut(df['market_cap'], 3, labels=['small', 'mid', 'large'])
             df['market_cap_rank'] = df['market_cap'].rank(ascending=False, method='min').astype(int)
@@ -111,8 +113,6 @@ class UniverseStateBuilder(RunnerCallback):
             df['liquidity_tier'] = pd.qcut(df['avg_volume'], 3, labels=['low', 'mid', 'high'])
         if 'close_price' in df.columns:
             df['price_tier'] = pd.qcut(df['close_price'], 3, labels=['low', 'mid', 'high'])
-        if 'volume' in df.columns and 'avg_volume' not in df.columns:
-            df['avg_volume'] = df['volume']
         return df
 
     def calculate_changes(self, old_state, new_state):

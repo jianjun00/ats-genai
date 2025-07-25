@@ -145,6 +145,8 @@ class MigrationManager:
         ])
         table_names.update(static_table_names)
         
+        # DEBUG: Print extracted and static table names being prefixed
+        print(f"[DEBUG] Table prefixing: prefix='{self.table_prefix}', tables={sorted(table_names)}")
         # 2. Prefix all CREATE TABLE statements
         def prefix_create_table(match):
             prefix = '' if match.group(2).startswith(self.table_prefix) else self.table_prefix
