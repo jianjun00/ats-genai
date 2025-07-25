@@ -42,7 +42,7 @@ async def test_daily_price_manager_sod_eod(unit_test_db):
 
     manager = TestManager(env=env)
     # SOD
-    await manager.update_for_sod(today)
+    await manager.update_for_sod(None, datetime(2024, 1, 2, 9, 30))
     # Check intervals
     ohlc_aapl = manager.get_ohlc(1, datetime(2024, 1, 2, 9, 30), datetime(2024, 1, 2, 16, 0))
     assert ohlc_aapl['open'] == 150
@@ -59,7 +59,8 @@ async def test_daily_price_manager_sod_eod(unit_test_db):
     assert ohlc_tsla['volume'] == 20000
     assert ohlc_tsla['traded_dollar'] == 14100000
     # EOD clears intervals
-    manager.update_for_eod(today)
+    await manager.update_for_eod(today)
+    await asyncio.sleep(0)
     assert manager._intervals == {}
 
 @pytest.mark.asyncio
@@ -140,12 +141,12 @@ async def test_daily_price_manager_multi_dates(unit_test_db):
 
     manager = TestManager(env=env)
     # SOD for d1
-    await manager.update_for_sod(d1)
+    await manager.update_for_sod(None, datetime(2024, 1, 2, 9, 30))
     ohlc_aapl_d1 = manager.get_ohlc(1, datetime(2024, 1, 2, 9, 30), datetime(2024, 1, 2, 16, 0))
     assert ohlc_aapl_d1['open'] == 150
     assert ohlc_aapl_d1['close'] == 154
     # SOD for d2
-    await manager.update_for_sod(d2)
+    await manager.update_for_sod(None, datetime(2024, 1, 3, 9, 30))
     ohlc_aapl_d2 = manager.get_ohlc(1, datetime(2024, 1, 3, 9, 30), datetime(2024, 1, 3, 16, 0))
     assert ohlc_aapl_d2['open'] == 156
     assert ohlc_aapl_d2['close'] == 157
@@ -153,10 +154,11 @@ async def test_daily_price_manager_multi_dates(unit_test_db):
     missing = manager.get_ohlc(1, datetime(2024, 1, 2, 9, 30), datetime(2024, 1, 2, 16, 0))
     assert missing is None or missing['close'] == 154  # fallback if last_prices is set
     # SOD for d1 again, should reload d1
-    await manager.update_for_sod(d1)
+    await manager.update_for_sod(None, datetime(2024, 1, 2, 9, 30))
     ohlc_aapl_d1b = manager.get_ohlc(1, datetime(2024, 1, 2, 9, 30), datetime(2024, 1, 2, 16, 0))
     assert ohlc_aapl_d1b['open'] == 150
     assert ohlc_aapl_d1b['close'] == 154
     # EOD clears intervals
-    manager.update_for_eod(d1)
+    await manager.update_for_eod(None, datetime(2024, 1, 2, 16, 0))
+    await asyncio.sleep(0)
     assert manager._intervals == {}

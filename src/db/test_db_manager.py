@@ -342,6 +342,15 @@ async def unit_test_db():
     db_manager = TestDatabaseManager("unit")
     test_db_url = await db_manager.setup_test_database()
 
+    # Patch the global environment config so all code sees this test DB URL
+    from config.environment import get_environment
+    env = get_environment()
+    # Patch the config for this test session
+    db_url_parts = test_db_url.split('/')
+    database_name = db_url_parts[-1]
+    env.config.set('database', 'database', database_name)
+    env.config.set('database', 'host', 'localhost')  # Optionally patch other parts if needed
+    env.config.set('database', 'port', '5432')
     # Apply migrations so schema is present for all tests
     from db.migration_manager import MigrationManager
     migration_manager = MigrationManager(test_db_url)
