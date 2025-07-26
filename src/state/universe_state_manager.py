@@ -34,6 +34,11 @@ class UniverseStateMetadata:
     version: str = "1.0"
 
 
+from state.universe_state import UniverseState
+from state.instrument_interval import InstrumentInterval
+from state.indicator_interval import IndicatorInterval
+from state.universe_interval import UniverseInterval
+
 class UniverseStateManager:
     """
     Handles fast persistence and retrieval of universe state data.
@@ -154,7 +159,7 @@ class UniverseStateManager:
             for inst_id, inst_interval in universe_interval.instrument_intervals.items():
                 self.logger.info(f"addIntervals: Adding row for instr:{inst_id}, interval:{inst_interval}")
                 row = {
-                    'instrument_id': inst_id,
+                    'instrument_id': inst_interval.instrument_id,
                     'duration': duration_str,
                     'start_date_time': inst_interval.start_date_time,
                     'end_date_time': inst_interval.end_date_time,
@@ -176,6 +181,55 @@ class UniverseStateManager:
         timestamp = current_time.strftime('%Y%m%d_%H%M%S')
         self.save_universe_state(df, timestamp)
         self.logger.info(f"addIntervals: Saved universe state for {timestamp} with {len(df)} records.")
+
+    def addUniverseState(self, duration_to_state: dict, current_time):
+        """
+        Accepts a dict of TimeDuration -> UniverseState, flattens all states to a DataFrame, and saves using save_universe_state.
+        """
+        import pandas as pd
+        self.logger.info(f"addUniverseState: Adding UniverseStates for {len(duration_to_state)} durations at {current_time}")
+        rows = []
+        for duration, universe_state in duration_to_state.items():
+            duration_str = str(duration)
+            # Flatten instrument intervals
+            for inst_id, inst_interval in universe_state.instrument_intervals.items():
+                row = {
+                    'duration': duration_str,
+                    'instrument_id': inst_interval.instrument_id,
+                    'start_date_time': inst_interval.start_date_time,
+                    'end_date_time': inst_interval.end_date_time,
+                    'open': inst_interval.open,
+                    'high': inst_interval.high,
+                    'low': inst_interval.low,
+                    'close': inst_interval.close,
+                    'traded_volume': inst_interval.traded_volume,
+                    'traded_dollar': inst_interval.traded_dollar,
+                    'status': inst_interval.status,
+                }
+                rows.append(row)
+            # Flatten indicator intervals (as additional rows per indicator type/instrument)
+            for indicator_type, inst_dict in universe_state.indicator_intervals.items():
+                for inst_id, indicator_interval in inst_dict.items():
+                    base_row = {
+                        'duration': duration_str,
+                        'instrument_id': indicator_interval.instrument_id,
+                        'start_date_time': indicator_interval.start_date_time,
+                        'end_date_time': indicator_interval.end_date_time,
+                        'indicator_type': indicator_type,
+                    }
+                    for ind_name, ind_val in (indicator_interval.indicators or {}).items():
+                        row = base_row.copy()
+                        row['indicator_name'] = ind_name
+                        row['indicator_value'] = ind_val.get('value')
+                        row['indicator_status'] = ind_val.get('status')
+                        rows.append(row)
+        df = pd.DataFrame(rows)
+        if df.empty:
+            self.logger.warning(f"addUniverseState: No data to save at {current_time}")
+            return
+        timestamp = current_time.strftime('%Y%m%d_%H%M%S')
+        self.save_universe_state(df, timestamp)
+        self.logger.info(f"addUniverseState: Saved universe state for {timestamp} with {len(df)} records.")
 
     def update_for_sod(self, runner, current_time):
         """

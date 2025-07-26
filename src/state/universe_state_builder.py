@@ -20,6 +20,9 @@ from state.instrument_interval import InstrumentInterval
 from state.universe_interval import UniverseInterval
 from app.runner import RunnerCallback
 
+from signals.indicator_builder import IndicatorBuilder
+from signals.indicator_config import IndicatorConfig
+
 class UniverseStateBuilder(RunnerCallback):
     def handleStartOfDay(self, runner, current_time):
         self.logger.info(f"UniverseStateBuilder.handleStartOfDay called at {current_time}")
@@ -31,17 +34,89 @@ class UniverseStateBuilder(RunnerCallback):
 
     def handleInterval(self, runner, current_time):
         """
-        Build multi-duration intervals for the current time using runner's market_data_manager, security_master, and universe_state_manager.
-        After building, add the intervals to the universe_state_manager.
+        Build UniverseState for base_duration and each target duration, passing each to UniverseStateManager.
+        Maintains rolling window cache of InstrumentIntervals and builds indicators via IndicatorBuilder.
         """
+        from state.universe_state import UniverseState
         self.logger.info(f"UniverseStateBuilder.handleInterval called at {current_time}")
-        # Use runner's managers
-        # Build intervals
-        intervals = self.build_multi_duration_intervals(current_time, runner)
-        self.logger.info(f"Built intervals for {len(intervals)} durations at {current_time}")
-        # Add to universe_state_manager
-        runner.universe_state_manager.addIntervals(intervals, current_time)
-
+        durations = self.env.get_target_durations()
+        if not durations:
+            self.logger.error("No target durations configured.")
+            return
+        instrument_ids = runner.universe_manager.instrument_ids
+        # --- 1. Always build and update rolling cache for base_duration (assume durations[0] is base) ---
+        base_duration = durations[0]
+        base_end_time = base_duration.get_end_time(current_time)
+        ohlc_batch = runner.market_data_manager.get_ohlc_batch(instrument_ids, current_time, base_end_time)
+        for inst_id in instrument_ids:
+            ohlc = ohlc_batch.get(inst_id)
+            if ohlc:
+                interval = InstrumentInterval(
+                    instrument_id=inst_id,
+                    start_date_time=current_time,
+                    end_date_time=base_end_time,
+                    open=ohlc.get('open', 0.0),
+                    high=ohlc.get('high', 0.0),
+                    low=ohlc.get('low', 0.0),
+                    close=ohlc.get('close', 0.0),
+                    traded_volume=ohlc.get('volume', 0.0),
+                    traded_dollar=ohlc.get('close', 0.0) * ohlc.get('volume', 0.0),
+                    status='ok'
+                )
+                if inst_id not in self.instrument_history:
+                    self.instrument_history[inst_id] = []
+                self.instrument_history[inst_id].append(interval)
+                if len(self.instrument_history[inst_id]) > self.rolling_window:
+                    self.instrument_history[inst_id] = self.instrument_history[inst_id][-self.rolling_window:]
+            else:
+                self.logger.warning(f"No ohlc data for instrument_id: {inst_id}")
+        # --- 2. For each duration, build UniverseInterval, indicator_intervals, UniverseState, emit ---
+        duration_to_state = {}
+        for duration in durations:
+            d_end_time = duration.get_end_time(current_time)
+            interval_map = {}
+            from calendars.time_duration import TimeDuration
+            base_duration = durations[0]
+            for inst_id in instrument_ids:
+                history = self.instrument_history.get(inst_id, [])
+                if duration == base_duration:
+                    interval = history[-1] if history else None
+                else:
+                    n = None
+                    base_minutes = base_duration.get_duration_minutes()
+                    target_minutes = duration.get_duration_minutes()
+                    if base_minutes and target_minutes and target_minutes % base_minutes == 0:
+                        n = target_minutes // base_minutes
+                    if n is not None and len(history) >= n:
+                        to_agg = history[-n:]
+                        interval = duration.aggregate_intervals(to_agg)
+                    else:
+                        interval = history[-1] if history else None
+                if interval:
+                    interval_map[inst_id] = interval
+                else:
+                    self.logger.warning(f"No interval data for instrument_id: {inst_id}")
+            universe_interval = UniverseInterval(
+                start_date_time=current_time,
+                end_date_time=d_end_time,
+                instrument_intervals=interval_map
+            )
+            indicator_intervals = {}
+            indicator_intervals['default'] = self.indicator_builder.build_indicator_intervals(
+                {inst_id: self.instrument_history.get(inst_id, []) for inst_id in instrument_ids},
+                start_date_time=current_time,
+                end_date_time=d_end_time
+            )
+            universe_state = UniverseState(
+                universe_interval=universe_interval,
+                instrument_intervals=interval_map,
+                indicator_intervals=indicator_intervals
+            )
+            duration_to_state[duration] = universe_state
+        if hasattr(runner, 'universe_state_manager'):
+            runner.universe_state_manager.addUniverseState(duration_to_state, current_time)
+        else:
+            self.logger.fatal("runner.universe_state_manager not available; skipping addUniverseState.")
 
     """
     Builds universe state from multiple data sources with business logic,
@@ -59,6 +134,14 @@ class UniverseStateBuilder(RunnerCallback):
         """
         self.env = env or get_environment()
         self.logger = logging.getLogger(__name__)
+        # Rolling cache: instrument_id -> list of InstrumentInterval
+        self.instrument_history: Dict[int, List[InstrumentInterval]] = {}
+        # Load indicator config from env
+        indicator_config = getattr(self.env, 'get_indicator_config', lambda: IndicatorConfig.empty_config())()
+        self.indicator_builder = IndicatorBuilder(indicator_config)
+        # Rolling window size (max history to keep, can be set by env or default)
+        self.rolling_window = getattr(self.env, 'indicator_rolling_window', 20)
+
         # Default business logic parameters (from test expectations)
         self.min_market_cap = 100_000_000
         self.min_avg_volume = 100_000
@@ -78,19 +161,6 @@ class UniverseStateBuilder(RunnerCallback):
         self.logger = logging.getLogger(__name__)
 
 
-    async def build_universe_state(self, as_of_date):
-        """
-        Build the universe state for a given as_of_date. (Stub for test compatibility)
-        """
-        # Simulate error for invalid date
-        import pandas as pd
-        try:
-            pd.to_datetime(as_of_date, format='%Y-%m-%d')
-        except Exception:
-            raise RuntimeError("does not match format")
-        # For test, just return empty DataFrame
-        return pd.DataFrame()
-
     def validate_universe_state(self, df):
         required_cols = {'symbol', 'market_cap', 'avg_volume', 'sector', 'exchange', 'is_active', 'as_of_date'}
         if not isinstance(df, pd.DataFrame) or df.empty:
@@ -102,44 +172,6 @@ class UniverseStateBuilder(RunnerCallback):
             return False
         return True
 
-    def calculate_derived_fields(self, df):
-        df = df.copy()
-        if 'volume' in df.columns and 'avg_volume' not in df.columns:
-            df['avg_volume'] = df['volume']
-        if 'market_cap' in df.columns:
-            df['market_cap_tier'] = pd.qcut(df['market_cap'], 3, labels=['small', 'mid', 'large'])
-            df['market_cap_rank'] = df['market_cap'].rank(ascending=False, method='min').astype(int)
-        if 'avg_volume' in df.columns:
-            df['liquidity_tier'] = pd.qcut(df['avg_volume'], 3, labels=['low', 'mid', 'high'])
-        if 'close_price' in df.columns:
-            df['price_tier'] = pd.qcut(df['close_price'], 3, labels=['low', 'mid', 'high'])
-        return df
-
-    def calculate_changes(self, old_state, new_state):
-        # Find additions and removals
-        old_syms = set(old_state['symbol'])
-        new_syms = set(new_state['symbol'])
-        additions = new_syms - old_syms
-        removals = old_syms - new_syms
-        changes = []
-        for sym in additions:
-            changes.append({'symbol': sym, 'change_type': 'addition'})
-        for sym in removals:
-            changes.append({'symbol': sym, 'change_type': 'removal'})
-        import pandas as pd
-        return pd.DataFrame(changes)
-
-    def _apply_business_rules(self, df):
-        df = df.copy()
-        # Only keep rows with market cap >= min_market_cap, avg_volume >= min_avg_volume, is_active True
-        if 'avg_volume' not in df.columns and 'volume' in df.columns:
-            df['avg_volume'] = df['volume']
-        filtered = df[
-            (df['market_cap'] >= self.min_market_cap)
-            & (df['avg_volume'] >= self.min_avg_volume)
-            & (df['is_active'] == True)
-        ]
-        return filtered
 
     def build_multi_duration_intervals(self, start_time: 'datetime', runner: 'Runner') -> dict:
         """
