@@ -4,9 +4,10 @@ import asyncpg
 from datetime import datetime
 
 class UniverseMembershipDAO:
-    def __init__(self, db_url=None, env=None):
-        self.db_url = db_url or (env.get_database_url() if env else None)
+    def __init__(self, env):
         self.env = env
+        self.table_name = self.env.get_table_name('universe_membership')
+        self.db_url = self.env.get_database_url()
         print(f"[DAO DEBUG] UniverseMembershipDAO using db_url: {self.db_url}")
     async def get_membership_changes(self, universe_id: int, as_of: datetime):
         table = self.env.get_table_name('universe_membership_changes')
@@ -56,10 +57,7 @@ class UniverseMembershipDAO:
         finally:
             await pool.close()
 
-    def __init__(self, env: Environment):
-        self.env = env
-        self.table_name = self.env.get_table_name('universe_membership')
-        self.db_url = self.env.get_database_url()
+
 
     async def resolve_instrument_id(self, symbol, vendor_id=None, at_date=None):
         """
@@ -97,6 +95,8 @@ class UniverseMembershipDAO:
             async with pool.acquire() as conn:
                 if instrument_id is None and symbol is not None:
                     instrument_id = await self.resolve_instrument_id(symbol, vendor_id, start_at)
+                print(f"[DEBUG] add_membership: instrument_id={instrument_id} type={type(instrument_id)} symbol={symbol} vendor_id={vendor_id} start_at={start_at}")
+                assert instrument_id is None or isinstance(instrument_id, int), f"instrument_id must be int or None, got {instrument_id} ({type(instrument_id)})"
                 await conn.execute(f"""
                     INSERT INTO {self.table_name} (universe_id, symbol, instrument_id, start_at, end_at)
                     VALUES ($1, $2, $3, $4, $5)

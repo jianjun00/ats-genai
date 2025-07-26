@@ -358,6 +358,10 @@ async def test_universe_membership_dao_crud(unit_test_db):
     try:
         async with pool.acquire() as conn:
             await conn.execute(f"DELETE FROM {instruments_dao.table_name} WHERE symbol = $1", symbol)
+            # Insert universe row for random universe_id
+            universe_table = env.get_table_name('universe')
+            await conn.execute(f"DELETE FROM {universe_table} WHERE id = $1", universe_id)
+            await conn.execute(f"INSERT INTO {universe_table} (id, name, description) VALUES ($1, $2, $3)", universe_id, f"TestUni_{universe_id}", "Test universe for membership CRUD")
     finally:
         await pool.close()
     instrument_id = await instruments_dao.create_instrument(symbol=symbol, name="Test Membership Instrument", type_="stock")
@@ -372,7 +376,8 @@ async def test_universe_membership_dao_crud(unit_test_db):
     import asyncio
     await asyncio.sleep(0.1)
     # Add membership
-    await dao.add_membership(universe_id, symbol=symbol, start_at=start_at)
+    print(f"[TEST DEBUG] add_membership args: universe_id={universe_id} ({type(universe_id)}), symbol={symbol} ({type(symbol)}), start_at={start_at} ({type(start_at)})")
+    await dao.add_membership(universe_id=universe_id, symbol=symbol, start_at=start_at)
     # Get by universe
     memberships = await dao.get_memberships_by_universe(universe_id)
     assert any(m['symbol'] == symbol and m['start_at'] == start_at for m in memberships)
@@ -380,7 +385,8 @@ async def test_universe_membership_dao_crud(unit_test_db):
     active = await dao.get_active_memberships(universe_id, start_at)
     assert any(m['symbol'] == symbol for m in active)
     # Remove: update end_at to simulate removal
-    await dao.update_membership_end(universe_id, symbol, start_at)
+    print(f"[TEST DEBUG] update_membership_end args: universe_id={universe_id} ({type(universe_id)}), symbol={symbol} ({type(symbol)}), start_at={start_at} ({type(start_at)})")
+    await dao.update_membership_end(universe_id=universe_id, symbol=symbol, end_at=start_at)
     updated = await dao.get_memberships_by_universe(universe_id)
     assert any(m['symbol'] == symbol and m['end_at'] == start_at for m in updated)
 
@@ -481,7 +487,8 @@ async def test_universe_membership_dao_get_membership_changes(unit_test_db):
 
     dao = UniverseMembershipDAO(env)
     pool = await asyncpg.create_pool(env.get_database_url())
-    universe_name = "TESTUMC"
+    import time
+    universe_name = f"TESTUMC_{int(time.time()*1000)}"
     universe_desc = "Test for get_membership_changes"
     symbol = "UMCTEST"
     action = "add"
@@ -491,14 +498,20 @@ async def test_universe_membership_dao_get_membership_changes(unit_test_db):
     universe_table = env.get_table_name('universe')
     membership_changes_table = env.get_table_name('universe_membership_changes')
     async with pool.acquire() as conn:
-        # Clean up if exists
+        # Clean up and reset universe table
+        await conn.execute(f"TRUNCATE {universe_table} RESTART IDENTITY CASCADE")
         await conn.execute(f"DELETE FROM {membership_changes_table} WHERE symbol = $1", symbol)
-        await conn.execute(f"DELETE FROM {universe_table} WHERE name = $1", universe_name)
         # Insert universe
         row = await conn.fetchrow(f"INSERT INTO {universe_table} (name, description) VALUES ($1, $2) RETURNING id", universe_name, universe_desc)
         universe_id = row['id']
-        # Insert a membership change
-        await conn.execute(f"INSERT INTO {membership_changes_table} (universe_id, symbol, action, effective_date, reason) VALUES ($1, $2, $3, $4, $5)", universe_id, symbol, action, effective_date, reason)
+        # Create instrument for symbol
+        instruments_dao = InstrumentsDAO(env)
+        await instruments_dao.create_instrument(symbol=symbol, name="Test UMC Instrument", type_="stock")
+        # Insert a membership change (resolve instrument_id for symbol)
+        inst_row = await conn.fetchrow(f"SELECT id FROM {instruments_dao.table_name} WHERE symbol = $1", symbol)
+        instrument_id = inst_row['id'] if inst_row else None
+        assert instrument_id is not None, f"Instrument for symbol {symbol} must exist"
+        await conn.execute(f"INSERT INTO {membership_changes_table} (universe_id, symbol, instrument_id, action, effective_date, reason) VALUES ($1, $2, $3, $4, $5, $6)", universe_id, symbol, instrument_id, action, effective_date, reason)
     await pool.close()
     # Retrieve via DAO
     changes = await dao.get_membership_changes(universe_id, effective_date)
