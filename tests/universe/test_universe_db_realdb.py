@@ -2,7 +2,7 @@ import pytest
 import asyncpg
 from datetime import date
 from src.universe.universe_db import UniverseDB
-from src.config.environment import Environment, EnvironmentType
+from config.environment import Environment, EnvironmentType
 from db.test_db_manager import unit_test_db
 from src.universe.universe_manager import UniverseManager
 

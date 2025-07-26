@@ -12,9 +12,9 @@ import tempfile
 import shutil
 from pathlib import Path
 from unittest.mock import patch, mock_open
-from src.db.migration_manager import MigrationManager
-from src.db.conftest import unit_test_db_clean
-from src.config.environment import get_environment
+from db.migration_manager import MigrationManager
+from db.conftest import unit_test_db_clean
+from config.environment import get_environment
 
 
 @pytest.mark.unit
@@ -587,7 +587,7 @@ async def test_migration_with_environment_variables(unit_test_db_clean):
         os.environ['ENVIRONMENT'] = 'production'
         
         # Need to reload the environment configuration
-        from src.config.environment import get_environment
+        from config.environment import get_environment
         from importlib import reload
         import src.config.environment
         reload(src.config.environment)

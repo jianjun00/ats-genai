@@ -15,7 +15,7 @@ class SecMasterDAO:
             async with pool.acquire() as conn:
                 rows = await conn.fetch(
                     f"""
-                    SELECT m.symbol, m.start_at AS start_date, m.end_at AS end_date
+                    SELECT m.instrument_id, m.start_at AS start_date, m.end_at AS end_date
                     FROM {self.universe_membership_table} m
                     JOIN {self.env.get_table_name('universe')} u ON m.universe_id = u.id
                     WHERE u.name = 'S&P 500'
@@ -26,65 +26,65 @@ class SecMasterDAO:
         finally:
             await pool.close()
 
-    async def batch_last_close_prices(self, as_of_date, symbols: List[str]) -> Dict[str, float]:
+    async def batch_last_close_prices(self, as_of_date, instrument_ids: List[int]) -> Dict[int, float]:
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
                 rows = await conn.fetch(
                     f"""
-                    SELECT symbol, close FROM {self.daily_prices_table}
-                    WHERE date = $1 AND symbol = ANY($2)
-                    """, as_of_date, symbols
+                    SELECT instrument_id, close FROM {self.daily_prices_table}
+                    WHERE date = $1 AND instrument_id = ANY($2)
+                    """, as_of_date, instrument_ids
                 )
-                return {row['symbol']: row['close'] for row in rows}
+                return {row['instrument_id']: row['close'] for row in rows}
         finally:
             await pool.close()
 
-    async def batch_market_caps(self, as_of_date, symbols: List[str]) -> Dict[str, float]:
+    async def batch_market_caps(self, as_of_date, instrument_ids: List[int]) -> Dict[int, float]:
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
                 rows = await conn.fetch(
                     f"""
-                    SELECT symbol, market_cap FROM {self.daily_prices_table}
-                    WHERE date = $1 AND symbol = ANY($2)
-                    """, as_of_date, symbols
+                    SELECT instrument_id, market_cap FROM {self.daily_prices_table}
+                    WHERE date = $1 AND instrument_id = ANY($2)
+                    """, as_of_date, instrument_ids
                 )
-                return {row['symbol']: row['market_cap'] for row in rows}
+                return {row['instrument_id']: row['market_cap'] for row in rows}
         finally:
             await pool.close()
 
-    async def get_last_close_price(self, symbol: str, as_of_date) -> Optional[float]:
+    async def get_last_close_price(self, instrument_id: int, as_of_date) -> Optional[float]:
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
                 price = await conn.fetchval(
                     f"""
                     SELECT close FROM {self.daily_prices_table}
-                    WHERE symbol = $1 AND date <= $2
+                    WHERE instrument_id = $1 AND date <= $2
                     ORDER BY date DESC LIMIT 1
-                    """, symbol, as_of_date
+                    """, instrument_id, as_of_date
                 )
                 return price
         finally:
             await pool.close()
 
-    async def get_market_cap(self, symbol: str, as_of_date) -> Optional[float]:
+    async def get_market_cap(self, instrument_id: int, as_of_date) -> Optional[float]:
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
                 mc = await conn.fetchval(
                     f"""
                     SELECT market_cap FROM {self.daily_prices_table}
-                    WHERE symbol = $1 AND date <= $2
+                    WHERE instrument_id = $1 AND date <= $2
                     ORDER BY date DESC LIMIT 1
-                    """, symbol, as_of_date
+                    """, instrument_id, as_of_date
                 )
                 return mc
         finally:
             await pool.close()
 
-    async def get_average_dollar_volume(self, symbol: str, as_of_date, window: int = 30) -> Optional[float]:
+    async def get_average_dollar_volume(self, instrument_id: int, as_of_date, window: int = 30) -> Optional[float]:
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
@@ -92,10 +92,10 @@ class SecMasterDAO:
                     f"""
                     SELECT AVG(close * volume) FROM (
                         SELECT close, volume FROM {self.daily_prices_table}
-                        WHERE symbol = $1 AND date <= $2
+                        WHERE instrument_id = $1 AND date <= $2
                         ORDER BY date DESC LIMIT $3
                     ) sub
-                    """, symbol, as_of_date, window
+                    """, instrument_id, as_of_date, window
                 )
                 return avg_dv
         finally:

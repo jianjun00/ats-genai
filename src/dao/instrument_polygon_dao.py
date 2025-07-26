@@ -7,14 +7,15 @@ class InstrumentPolygonDAO:
         self.table_name = self.env.get_table_name('instrument_polygon')
         self.db_url = self.env.get_database_url()
 
-    async def insert_instrument(self, symbol, name, exchange, type_, currency, figi, isin, cusip, composite_figi, active, list_date, delist_date, raw):
+    async def insert_instrument(self, instrument_id, symbol, name, exchange, type_, currency, figi, isin, cusip, composite_figi, active, list_date, delist_date, raw):
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
                 await conn.execute(f"""
-                    INSERT INTO {self.table_name} (symbol, name, exchange, type, currency, figi, isin, cusip, composite_figi, active, list_date, delist_date, raw)
-                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-                    ON CONFLICT (symbol) DO UPDATE SET
+                    INSERT INTO {self.table_name} (instrument_id, symbol, name, exchange, type, currency, figi, isin, cusip, composite_figi, active, list_date, delist_date, raw)
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+                    ON CONFLICT (instrument_id) DO UPDATE SET
+                        symbol=EXCLUDED.symbol,
                         name=EXCLUDED.name,
                         exchange=EXCLUDED.exchange,
                         type=EXCLUDED.type,
@@ -28,15 +29,15 @@ class InstrumentPolygonDAO:
                         delist_date=EXCLUDED.delist_date,
                         raw=EXCLUDED.raw,
                         updated_at=now()
-                """, symbol, name, exchange, type_, currency, figi, isin, cusip, composite_figi, active, list_date, delist_date, raw)
+                """, instrument_id, symbol, name, exchange, type_, currency, figi, isin, cusip, composite_figi, active, list_date, delist_date, raw)
         finally:
             await pool.close()
 
-    async def get_instrument(self, symbol):
+    async def get_instrument(self, instrument_id):
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
-                return await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE symbol = $1", symbol)
+                return await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE instrument_id = $1", instrument_id)
         finally:
             await pool.close()
 

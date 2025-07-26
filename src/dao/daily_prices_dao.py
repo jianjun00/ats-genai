@@ -14,26 +14,26 @@ class DailyPricesDAO:
         self.table_name = self.env.get_table_name('daily_prices')
         self.db_url = self.env.get_database_url()
 
-    async def list_prices_for_symbols_and_date(self, symbols, as_of_date):
+    async def list_prices_for_instruments_and_date(self, instrument_ids, as_of_date):
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
-                return await conn.fetch(f"SELECT * FROM {self.table_name} WHERE date = $1 AND symbol = ANY($2)", as_of_date, symbols)
+                return await conn.fetch(f"SELECT * FROM {self.table_name} WHERE date = $1 AND instrument_id = ANY($2)", as_of_date, instrument_ids)
         finally:
             await pool.close()
 
-    async def get_price(self, date, symbol):
+    async def get_price(self, date, instrument_id):
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
-                return await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE date = $1 AND symbol = $2", date, symbol)
+                return await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE date = $1 AND instrument_id = $2", date, instrument_id)
         finally:
             await pool.close()
 
-    async def list_prices(self, symbol):
+    async def list_prices(self, instrument_id):
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
-                return await conn.fetch(f"SELECT * FROM {self.table_name} WHERE symbol = $1", symbol)
+                return await conn.fetch(f"SELECT * FROM {self.table_name} WHERE instrument_id = $1", instrument_id)
         finally:
             await pool.close()
