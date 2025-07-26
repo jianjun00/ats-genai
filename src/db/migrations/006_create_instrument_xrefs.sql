@@ -3,7 +3,7 @@
 CREATE TABLE IF NOT EXISTS instrument_xrefs (
     id SERIAL PRIMARY KEY,
     instrument_id INTEGER NOT NULL REFERENCES instruments(id) ON DELETE CASCADE,
-    vendor_id INTEGER NOT NULL REFERENCES vendors(vendor_id) ON DELETE CASCADE,
+    vendor_id INTEGER NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
     symbol TEXT NOT NULL,
     type TEXT,
     start_at TIMESTAMP NOT NULL DEFAULT now(),

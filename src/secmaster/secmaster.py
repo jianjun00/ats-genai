@@ -34,8 +34,15 @@ class SecMaster:
             return sorted(self._membership_cache[self.as_of_date])
         membership = set()
         for row in self._events:
+            # Coerce start_date and end_date to date if they are datetime.datetime
+            start = row['start_date']
+            end = row['end_date']
+            if hasattr(start, 'date'):
+                start = start.date()
+            if end is not None and hasattr(end, 'date'):
+                end = end.date()
             # Add symbol if start_date <= as_of_date and (end_date is null or end_date > as_of_date)
-            if row['start_date'] <= self.as_of_date and (row['end_date'] is None or row['end_date'] > self.as_of_date):
+            if start <= self.as_of_date and (end is None or end > self.as_of_date):
                 membership.add(row['symbol'])
         self._membership_cache[self.as_of_date] = set(membership)
         return sorted(membership)

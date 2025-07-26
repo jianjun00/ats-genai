@@ -14,9 +14,9 @@ class VendorsDAO:
                 result = await conn.fetchrow(f"""
                     INSERT INTO {self.table_name} (name, description, api_key_env_var)
                     VALUES ($1, $2, $3)
-                    RETURNING vendor_id
+                    RETURNING id
                 """, name, description, api_key_env_var)
-                return result['vendor_id'] if result else None
+                return result['id'] if result else None
         finally:
             await pool.close()
 
@@ -24,7 +24,7 @@ class VendorsDAO:
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
-                return await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE vendor_id = $1", vendor_id)
+                return await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE id = $1", vendor_id)
         finally:
             await pool.close()
 

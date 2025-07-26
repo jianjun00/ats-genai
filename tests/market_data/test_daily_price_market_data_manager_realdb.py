@@ -6,6 +6,14 @@ from db.test_db_manager import unit_test_db, TestDatabaseManager
 from market_data.eod.daily_prices_dao import DailyPricesDAO
 from config.environment import get_environment
 
+async def debug_print_tables(env):
+    import asyncpg
+    pool = await asyncpg.create_pool(env.get_database_url())
+    async with pool.acquire() as conn:
+        tables = await conn.fetch("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+        print("DEBUG: Tables in test DB:", [r['tablename'] for r in tables])
+    await pool.close()
+
 async def insert_test_fixtures(env, instrument_rows):
     import asyncpg
     vendor_table = env.get_table_name('vendors')
@@ -16,9 +24,9 @@ async def insert_test_fixtures(env, instrument_rows):
         for inst in instrument_rows:
             # Insert vendor row (ticker as vendor name)
             await conn.execute(f"""
-                INSERT INTO {vendor_table} (vendor_id, name, description) VALUES ($1, $2, $3)
-                ON CONFLICT (vendor_id) DO NOTHING;
-            """, inst['vendor_id'], inst['ticker'], f"Vendor for {inst['ticker']}")
+                INSERT INTO {vendor_table} (id, name, description) VALUES ($1, $2, $3)
+                ON CONFLICT (id) DO NOTHING;
+            """, inst['vendor_id'], inst['ticker'], f"Vendor for {inst['ticker']}")  # id is now PK
             # Insert instrument row
             await conn.execute(f"""
                 INSERT INTO {instrument_table} (id, symbol, name, exchange, type, currency, active, list_date) VALUES ($1, $2, $3, 'NASDAQ', 'Equity', 'USD', TRUE, '2000-01-01')
@@ -44,7 +52,7 @@ async def cleanup_test_fixtures(env, instrument_rows):
         await conn.execute(f"DELETE FROM {daily_prices_table} WHERE instrument_id = ANY($1)", instrument_ids)
         await conn.execute(f"DELETE FROM {xref_table} WHERE instrument_id = ANY($1)", instrument_ids)
         await conn.execute(f"DELETE FROM {instrument_table} WHERE id = ANY($1)", instrument_ids)
-        await conn.execute(f"DELETE FROM {vendor_table} WHERE vendor_id = ANY($1)", vendor_ids)
+        await conn.execute(f"DELETE FROM {vendor_table} WHERE id = ANY($1)", vendor_ids)
     await pool.close()
 @pytest.mark.asyncio
 async def test_daily_price_manager_sod_eod(unit_test_db):
@@ -157,6 +165,7 @@ async def test_daily_price_manager_last_price_before_start(unit_test_db):
 @pytest.mark.asyncio
 async def test_daily_price_manager_multi_dates(unit_test_db):
     env = get_environment()
+    await debug_print_tables(env)  # Debug: print all tables in DB
     dao = DailyPricesDAO(env)
     d1 = date(2024, 1, 2)
     d2 = date(2024, 1, 3)

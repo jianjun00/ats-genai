@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS daily_prices (
 
 -- Vendors table
 CREATE TABLE IF NOT EXISTS vendors (
-    vendor_id SERIAL PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
+    vendor_id INTEGER,
     name TEXT UNIQUE NOT NULL,
     description TEXT,
     website TEXT,
