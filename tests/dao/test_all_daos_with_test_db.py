@@ -4,7 +4,7 @@ Each test will use the TEST environment and real DB access.
 """
 
 import pytest
-from datetime import date
+from datetime import datetime, date
 import asyncpg
 from config.environment import set_environment, EnvironmentType, Environment
 
@@ -32,7 +32,7 @@ import pytest_asyncio
 from db.test_db_manager import unit_test_db
 
 import asyncio
-from datetime import date
+from datetime import datetime
 from config.environment import Environment
 from config.environment import get_environment
 
@@ -116,10 +116,11 @@ async def test_daily_market_cap_dao_crud(unit_test_db):
     # List for instrument
     rows2 = await dao.list_market_caps(instrument_id)
     assert any(r['date'] == test_date for r in rows2)
-    # Clean up instrument
+    # Clean up instrument (delete from daily_market_cap first to avoid FK violation)
     pool = await asyncpg.create_pool(env.get_database_url())
     try:
         async with pool.acquire() as conn:
+            await conn.execute(f"DELETE FROM {dao.table_name} WHERE instrument_id = $1", instrument_id)
             await conn.execute(f"DELETE FROM {instruments_dao.table_name} WHERE id = $1", instrument_id)
     finally:
         await pool.close()
@@ -167,11 +168,11 @@ async def test_universe_dao_crud(unit_test_db):
     dao = UniverseDAO(env)
     name = "TESTUNI"
     desc = "Test universe"
-    # Clean up if exists
+    # Clean up: truncate universe table and reset sequence to avoid UniqueViolationError
     pool = await asyncpg.create_pool(env.get_database_url())
     try:
         async with pool.acquire() as conn:
-            await conn.execute(f"DELETE FROM {dao.table_name} WHERE name = $1", name)
+            await conn.execute(f"TRUNCATE {dao.table_name} RESTART IDENTITY CASCADE")
     finally:
         await pool.close()
     # Create
@@ -209,7 +210,7 @@ async def test_universe_membership_dao_universe_isolation(unit_test_db):
     universe_id_2 = 202
     symbol_1 = "MEMB1"
     symbol_2 = "MEMB2"
-    start_at = date(2025, 7, 24)
+    start_at = datetime(2025, 7, 24, 0, 0, 0)
     # Clean up any existing memberships for these universes/symbols
     pool = await asyncpg.create_pool(env.get_database_url())
     try:
@@ -217,9 +218,47 @@ async def test_universe_membership_dao_universe_isolation(unit_test_db):
             await conn.execute(f"DELETE FROM {dao.table_name} WHERE universe_id IN ($1, $2) AND symbol IN ($3, $4)", universe_id_1, universe_id_2, symbol_1, symbol_2)
     finally:
         await pool.close()
+
+    # DEBUG: Print schema of the test_universe_membership table
+    pool = await asyncpg.create_pool(env.get_database_url())
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT column_name, data_type
+                FROM information_schema.columns
+                WHERE table_name = $1
+                ORDER BY ordinal_position
+            """, dao.table_name)
+            print(f"[SCHEMA DEBUG] Columns for {dao.table_name}:")
+            for row in rows:
+                print(f"    {row['column_name']}: {row['data_type']}")
+    finally:
+        await pool.close()
+
+    # Insert required universes for memberships using direct SQL to set IDs
+    pool = await asyncpg.create_pool(env.get_database_url())
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(f"INSERT INTO {env.get_table_name('universe')} (id, name, description) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING", 101, "Universe101", "Universe for ID 101")
+            await conn.execute(f"INSERT INTO {env.get_table_name('universe')} (id, name, description) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING", 202, "Universe202", "Universe for ID 202")
+    finally:
+        await pool.close()
+
+    # Insert required vendor for xrefs
+    vendors_dao = VendorsDAO(env)
+    vendor_id = await vendors_dao.create_vendor(name="TestVendor", description="Test vendor for xref")
+
+    # Insert required instruments and xrefs for test symbols
+    instruments_dao = InstrumentsDAO(env)
+    instrument_id_1 = await instruments_dao.create_instrument(symbol=symbol_1, name="Test Member 1", type_="stock")
+    instrument_id_2 = await instruments_dao.create_instrument(symbol=symbol_2, name="Test Member 2", type_="stock")
+    xrefs_dao = __import__('dao.instrument_xrefs_dao', fromlist=['InstrumentXrefsDAO']).InstrumentXrefsDAO(env)
+    await xrefs_dao.create_xref(instrument_id_1, vendor_id=vendor_id, symbol=symbol_1, start_at=start_at)
+    await xrefs_dao.create_xref(instrument_id_2, vendor_id=vendor_id, symbol=symbol_2, start_at=start_at)
+
     # Add memberships
-    await dao.add_membership(universe_id_1, symbol_1, start_at)
-    await dao.add_membership(universe_id_2, symbol_2, start_at)
+    await dao.add_membership(universe_id_1, symbol=symbol_1, start_at=start_at)
+    await dao.add_membership(universe_id_2, symbol=symbol_2, start_at=start_at)
     # Test isolation: get memberships for universe_id_1
     memberships_1 = await dao.get_memberships_by_universe(universe_id_1)
     assert any(m['symbol'] == symbol_1 for m in memberships_1)
@@ -240,8 +279,8 @@ async def test_universe_membership_dao_active_memberships(unit_test_db):
     universe_id = 303
     symbol_active = "ACTIVEMEMB"
     symbol_inactive = "INACTIVEMEMB"
-    start_at = date(2025, 7, 24)
-    end_at = date(2025, 7, 25)
+    start_at = datetime(2025, 7, 24, 0, 0, 0)
+    end_at = datetime(2025, 7, 25, 0, 0, 0)
     # Clean up any existing memberships for these symbols
     pool = await asyncpg.create_pool(env.get_database_url())
     try:
@@ -257,7 +296,7 @@ async def test_universe_membership_dao_active_memberships(unit_test_db):
     assert any(m['symbol'] == symbol_active for m in active_before)
     assert any(m['symbol'] == symbol_inactive for m in active_before)
     # Query as_of after end date: only active should be present
-    active_after = await dao.get_active_memberships(universe_id, date(2025, 7, 26))
+    active_after = await dao.get_active_memberships(universe_id, datetime(2025, 7, 26, 0, 0, 0))
     assert any(m['symbol'] == symbol_active for m in active_after)
     assert all(m['symbol'] != symbol_inactive for m in active_after)
 
@@ -272,7 +311,7 @@ async def test_universe_membership_dao_crud(unit_test_db):
     dao = UniverseMembershipDAO(env)
     universe_id = 1
     symbol = "TESTMEMB"  # Use a unique symbol for the test
-    start_at = date(2025, 7, 24)
+    start_at = datetime(2025, 7, 24, 0, 0, 0)
     # Clean up if exists
     pool = await asyncpg.create_pool(env.get_database_url())
     try:
@@ -394,7 +433,7 @@ async def test_universe_membership_dao_get_membership_changes(unit_test_db):
     universe_desc = "Test for get_membership_changes"
     symbol = "UMCTEST"
     action = "add"
-    effective_date = date(2025, 7, 25)
+    effective_date = datetime(2025, 7, 25, 0, 0, 0)
     reason = "unit_test"
     # Create a universe
     universe_table = env.get_table_name('universe')
