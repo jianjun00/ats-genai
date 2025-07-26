@@ -30,3 +30,32 @@ Fix integration test failures for `UniverseMembershipDAO` by ensuring correct ar
 - All fixes committed and pushed to `jianjun00/ats-genai` main branch.
 
 ---
+
+## Universe Membership Test Debugging & Fixes (2025-07-27)
+
+### Objective
+Fix failing universe membership tests by ensuring correct DB setup, test isolation, and business logic for `universe_membership` intervals.
+
+### Key Issues and Fixes
+- **Root Cause 1:** `instrument_table` variable was undefined in `create_universe_membership`, causing membership insert failures. 
+  - **Fix:** Defined `instrument_table` using `env.get_table_name('instruments')`.
+- **Root Cause 2:** Type mismatch in test assertion (`datetime.date` vs. `datetime.datetime`) caused assertion failures.
+  - **Fix:** Normalized all actual interval dates to `datetime.date` before comparing to expected values.
+- **Root Cause 3:** Possible earlier silent failures due to DataFrame date type mismatches in membership logic.
+  - **Fix:** Added debug output to print DataFrame date values and types, and ensured all dates are compared as `datetime.date`.
+
+### Test Isolation & Environment
+- Test DB uses environment-specific prefixes (e.g., `test_`). All test code must use `env.get_table_name()` for correct table names.
+- Test data for `daily_prices_tiingo`, `instruments`, and `instrument_polygon` is inserted with sufficient ADV window and correct price/volume.
+- Debug output is present for close/ADV calculations and DataFrame date checks.
+- Test assertion now robustly checks intervals after normalizing date types.
+
+### Outcome
+- `test_universe_add_remove` now passes, confirming universe membership is inserted and verified as expected.
+- All changes committed and pushed to main branch.
+
+### Best Practices
+- Always check for table prefixing in test environment.
+- Normalize types when comparing DB and Python objects.
+- Add debug output for all filter and DB logic in tests.
+- Ensure test DB is isolated and cleaned before inserts.
