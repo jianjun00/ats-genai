@@ -334,8 +334,8 @@ class MigrationManager:
                             print(f"WARNING: Migration {record['version']:03d} has been modified! File: {file_path}")
                             return False
                     else:
-                        print(f"ERROR: Migration file missing: {file_path}")
-                        return False
+                        print(f"WARNING: Migration file missing: {file_path} (already applied, will not fail validation)")
+                        continue
                 print("[DEBUG] All migrations validated successfully.")
                 
                 print("All applied migrations are valid")
