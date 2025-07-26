@@ -190,3 +190,35 @@ class TimeDuration:
     def create_yearly(cls) -> 'TimeDuration':
         """Factory method to create a yearly duration."""
         return cls(DurationType.YEARLY)
+
+    def aggregate_intervals(self, intervals: list) -> 'InstrumentInterval':
+        """
+        Aggregate a list of InstrumentInterval objects (from base duration) into a single InstrumentInterval for this duration.
+        Assumes intervals are sorted by start_date_time ascending and are contiguous.
+        """
+        if not intervals:
+            raise ValueError("No intervals to aggregate")
+        from state.instrument_interval import InstrumentInterval
+        instrument_id = intervals[0].instrument_id
+        start_date_time = intervals[0].start_date_time
+        end_date_time = intervals[-1].end_date_time
+        open_ = intervals[0].open
+        close = intervals[-1].close
+        high = max(i.high for i in intervals)
+        low = min(i.low for i in intervals)
+        traded_volume = sum(i.traded_volume for i in intervals)
+        traded_dollar = sum(i.traded_dollar for i in intervals)
+        # If any interval is not 'ok', mark as 'unreliable'
+        status = 'ok' if all((getattr(i, 'status', 'ok') == 'ok') for i in intervals) else 'unreliable'
+        return InstrumentInterval(
+            instrument_id=instrument_id,
+            start_date_time=start_date_time,
+            end_date_time=end_date_time,
+            open=open_,
+            high=high,
+            low=low,
+            close=close,
+            traded_volume=traded_volume,
+            traded_dollar=traded_dollar,
+            status=status
+        )
