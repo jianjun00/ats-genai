@@ -281,6 +281,22 @@ async def test_universe_membership_dao_active_memberships(unit_test_db):
     symbol_inactive = "INACTIVEMEMB"
     start_at = datetime(2025, 7, 24, 0, 0, 0)
     end_at = datetime(2025, 7, 25, 0, 0, 0)
+    # Setup: Create vendor, instruments, and xrefs for both symbols
+    vendors_dao = VendorsDAO(env)
+    vendor_id = await vendors_dao.create_vendor(name="TestVendor", description="Test vendor for xref")
+    instruments_dao = InstrumentsDAO(env)
+    instrument_id_active = await instruments_dao.create_instrument(symbol=symbol_active, name="Active Member", type_="stock")
+    instrument_id_inactive = await instruments_dao.create_instrument(symbol=symbol_inactive, name="Inactive Member", type_="stock")
+    xrefs_dao = __import__('dao.instrument_xrefs_dao', fromlist=['InstrumentXrefsDAO']).InstrumentXrefsDAO(env)
+    await xrefs_dao.create_xref(instrument_id_active, vendor_id=vendor_id, symbol=symbol_active, start_at=start_at)
+    await xrefs_dao.create_xref(instrument_id_inactive, vendor_id=vendor_id, symbol=symbol_inactive, start_at=start_at)
+    # Insert required universe for memberships
+    pool = await asyncpg.create_pool(env.get_database_url())
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(f"INSERT INTO {env.get_table_name('universe')} (id, name, description) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING", universe_id, "Universe303", "Universe for ID 303")
+    finally:
+        await pool.close()
     # Clean up any existing memberships for these symbols
     pool = await asyncpg.create_pool(env.get_database_url())
     try:
@@ -288,9 +304,24 @@ async def test_universe_membership_dao_active_memberships(unit_test_db):
             await conn.execute(f"DELETE FROM {dao.table_name} WHERE universe_id = $1 AND symbol IN ($2, $3)", universe_id, symbol_active, symbol_inactive)
     finally:
         await pool.close()
+    # Debug: Print schema of the membership table before inserting
+    pool = await asyncpg.create_pool(env.get_database_url())
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(f"""
+                SELECT column_name, data_type
+                FROM information_schema.columns
+                WHERE table_name = $1
+                ORDER BY ordinal_position
+            """, dao.table_name)
+            print(f"[SCHEMA DEBUG] Columns for {dao.table_name}:")
+            for row in rows:
+                print(f"    {row['column_name']}: {row['data_type']}")
+    finally:
+        await pool.close()
     # Add memberships: one active, one inactive
-    await dao.add_membership(universe_id, symbol_active, start_at)
-    await dao.add_membership_full(universe_id, symbol_inactive, start_at, end_at)
+    await dao.add_membership(universe_id, symbol_active, start_at=start_at)
+    await dao.add_membership_full(universe_id, symbol_inactive, start_at=start_at, end_at=end_at)
     # Query as_of before end date: both should be present
     active_before = await dao.get_active_memberships(universe_id, date(2025, 7, 24))
     assert any(m['symbol'] == symbol_active for m in active_before)
