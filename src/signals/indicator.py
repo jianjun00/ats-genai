@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from calendars.time_duration import TimeDuration
 from typing import List, Optional, Dict
 from state.universe_interval import UniverseInterval
 from state.instrument_interval import InstrumentInterval
