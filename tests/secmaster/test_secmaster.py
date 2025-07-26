@@ -8,7 +8,12 @@ class DummyConn:
         self._rows = rows
     async def fetch(self, query, *args, **kwargs):
         if 'universe_membership' in query:
-            return self._rows
+            # Return membership intervals for S&P 500, include all required fields
+            return [
+                {'symbol': 'TICK1', 'start_date': date(2020,1,1), 'end_date': date(2020,6,1), 'instrument_id': 1},
+                {'symbol': 'TICK1', 'start_date': date(2021,1,1), 'end_date': None, 'instrument_id': 1},
+                {'symbol': 'TICK2', 'start_date': date(2020,3,1), 'end_date': None, 'instrument_id': 2},
+            ]
         # Fallback for other queries
         return self._rows
     async def __aenter__(self):
@@ -110,7 +115,10 @@ async def test_advance_membership_and_caches(monkeypatch):
             if 'FROM daily_prices' in query and ('close' in query or 'market_cap' in query):
                 date_arg = args[0]
                 syms = set(args[1])
-                return [r for r in daily_prices_rows if r['date'] == date_arg and r['symbol'] in syms]
+                filtered = [r for r in daily_prices_rows if r['date'] == date_arg and r['symbol'] in syms]
+                # Assign instrument_id by symbol
+                symbol_to_id = {'TICK1': 1, 'TICK2': 2}
+                return [dict(r, instrument_id=symbol_to_id[r['symbol']], symbol=r['symbol']) for r in filtered]
             return []
         async def fetchval(self, query, *args, **kwargs):
             # For ADV
@@ -141,19 +149,19 @@ async def test_advance_membership_and_caches(monkeypatch):
     # Advance to 2020-03-01
     members = await secm.advance(date(2020,3,1))
     assert set(members) == {'TICK1', 'TICK2'}
-    assert secm._last_close_price_cache['TICK1'] == 100
-    assert secm._last_close_price_cache['TICK2'] == 50
-    assert secm._market_cap_cache['TICK1'] == 1000000
-    assert secm._market_cap_cache['TICK2'] == 500000
+    assert secm._last_close_price_cache[1] == 100
+    assert secm._last_close_price_cache[2] == 50
+    assert secm._market_cap_cache[1] == 1000000
+    assert secm._market_cap_cache[2] == 500000
     assert secm._adv_cache[('TICK1', 30)] == 1234.0
     assert secm._adv_cache[('TICK2', 30)] == 5678.0
 
     # Advance to 2021-02-01 (TICK1 re-added, TICK2 updated)
     members = await secm.advance(date(2021,2,1))
     assert set(members) == {'TICK1', 'TICK2'}
-    assert secm._last_close_price_cache['TICK1'] == 110
-    assert secm._last_close_price_cache['TICK2'] == 60
-    assert secm._market_cap_cache['TICK1'] == 1100000
-    assert secm._market_cap_cache['TICK2'] == 600000
+    assert secm._last_close_price_cache[1] == 110
+    assert secm._last_close_price_cache[2] == 60
+    assert secm._market_cap_cache[1] == 1100000
+    assert secm._market_cap_cache[2] == 600000
     assert secm._adv_cache[('TICK1', 30)] == 1234.0
     assert secm._adv_cache[('TICK2', 30)] == 5678.0

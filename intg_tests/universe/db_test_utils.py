@@ -73,11 +73,17 @@ async def setup_test_universe(conn, universe_name, symbols, env):
         """, date(2025,1,2), sym, 100.0, 101.0, 99.0, 100.5, 1000000, 1_000_000_000)
     # Insert universe membership
     for sym in symbols:
+        # Fetch instrument_id from instrument_polygon (or instruments)
+        instrument_id_row = await conn.fetchrow(f"SELECT id FROM {get_table_name('instrument_polygon', env)} WHERE symbol = $1", sym)
+        if not instrument_id_row:
+            instrument_id_row = await conn.fetchrow(f"SELECT id FROM {get_table_name('instruments', env)} WHERE symbol = $1", sym)
+        assert instrument_id_row, f"Instrument ID not found for symbol {sym}"
+        instrument_id = instrument_id_row['id']
         await conn.execute(f"""
-            INSERT INTO {get_table_name('universe_membership', env)} (universe_id, symbol, start_at, end_at, meta)
-            VALUES ($1, $2, $3, NULL, $4)
+            INSERT INTO {get_table_name('universe_membership', env)} (universe_id, symbol, instrument_id, start_at, end_at, meta)
+            VALUES ($1, $2, $3, $4, NULL, $5)
             ON CONFLICT (universe_id, symbol, start_at) DO NOTHING
-        """, universe_id, sym, date(2025,1,2), '{}')
+        """, universe_id, sym, instrument_id, date(2025,1,2), '{}')
     return universe_id
 
 async def cleanup_test_universe(conn, universe_id, symbols, env):
