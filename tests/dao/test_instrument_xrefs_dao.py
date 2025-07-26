@@ -15,7 +15,7 @@ async def test_instrument_xrefs_dao_crud(unit_test_db):
     pool = await asyncpg.create_pool(unit_test_db)
     async with pool.acquire() as conn:
         instrument_id = (await conn.fetchrow(f"INSERT INTO {env.get_table_name('instruments')} (symbol) VALUES ('TESTSYM') RETURNING id")).get('id')
-        vendor_id = (await conn.fetchrow(f"INSERT INTO {env.get_table_name('vendors')} (name) VALUES ('TestVendor') RETURNING vendor_id")).get('vendor_id')
+        vendor_id = (await conn.fetchrow(f"INSERT INTO {env.get_table_name('vendors')} (name) VALUES ('TestVendor') RETURNING id")).get('id')
     await pool.close()
 
     # Create xref
