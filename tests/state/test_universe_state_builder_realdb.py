@@ -6,7 +6,7 @@ from datetime import datetime, date
 
 from src.state.universe_state_builder import UniverseStateBuilder
 from src.state.universe_state_manager import UniverseStateManager
-from src.config.environment import Environment, EnvironmentType
+from config.environment import Environment, EnvironmentType
 from db.test_db_manager import unit_test_db
 
 @pytest.mark.asyncio

@@ -4,7 +4,7 @@ import asyncio
 from datetime import date
 
 # Adjust import as needed for your project structure
-from src.config.environment import Environment, EnvironmentType
+from config.environment import Environment, EnvironmentType
 from db.test_db_manager import unit_test_db
 
 @pytest.mark.asyncio

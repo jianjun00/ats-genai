@@ -51,6 +51,9 @@ class DailyPriceMarketDataManager(MarketDataManager):
         open_time, close_time = self._get_exchange_open_close(cur_date)
         logger.debug(f"update_for_sod: open_time={open_time}, close_time={close_time}")
         for row in results:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"update_for_sod: row keys={list(row.keys())}, row values={list(row.values())}")
             instrument_id = self._symbol_to_id(row['symbol'])
             logger.debug(f"update_for_sod: Creating interval for instrument_id={instrument_id}, symbol={row['symbol']} with row={row}")
             interval = InstrumentInterval(

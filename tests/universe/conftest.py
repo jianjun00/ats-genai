@@ -1,5 +1,5 @@
 import pytest
-from src.config.environment import Environment, EnvironmentType
+from config.environment import Environment, EnvironmentType
 
 @pytest.fixture(scope="session")
 def test_env():

@@ -13,6 +13,7 @@ import asyncpg
 import pytest
 import pytest_asyncio
 import uuid
+import hashlib
 from typing import Dict, List, Optional, Any
 from contextlib import asynccontextmanager
 from config.environment import get_environment
@@ -51,15 +52,13 @@ class TestDatabaseManager:
         # For unit tests, create unique database per test
         if test_type == "unit":
             if test_name:
-                # Sanitize test_name for DB (alphanumeric + underscores only)
-                import re
-                safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', test_name)
-                # Truncate to avoid exceeding Postgres 63-char identifier limit (leave room for base name)
-                safe_name = safe_name[:20]
-                self.test_db_suffix = f"_{safe_name}"
+                # Use a hash of the test name for uniqueness and length
+                hash_part = hashlib.sha1(test_name.encode('utf-8')).hexdigest()[:8]
+                # Compose schema: <prefix>_db_<hash>
+                self.test_db_suffix = f"_db_{hash_part}"
             else:
                 import uuid
-                self.test_db_suffix = f"_{uuid.uuid4().hex[:8]}"
+                self.test_db_suffix = f"_db_{uuid.uuid4().hex[:8]}"
         else:
             self.test_db_suffix = ""
     
@@ -339,9 +338,11 @@ class IntegrationTestSession:
 # Pytest fixtures for test database management
 
 @pytest_asyncio.fixture
-async def unit_test_db():
+async def unit_test_db(request):
     """Fixture for unit tests - provides isolated database per test."""
-    db_manager = TestDatabaseManager("unit")
+    # Use the test function name as a unique identifier
+    test_name = request.node.name if hasattr(request, 'node') else None
+    db_manager = TestDatabaseManager("unit", test_name=test_name)
     test_db_url = await db_manager.setup_test_database()
 
     # Patch the global environment config so all code sees this test DB URL

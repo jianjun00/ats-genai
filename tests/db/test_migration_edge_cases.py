@@ -14,7 +14,7 @@ from pathlib import Path
 from unittest.mock import patch
 from src.db.migration_manager import MigrationManager
 from src.db.test_db_manager import TestDatabaseManager
-from src.config.environment import set_environment, EnvironmentType
+from config.environment import set_environment, EnvironmentType
 import pytest_asyncio
 
 @pytest_asyncio.fixture

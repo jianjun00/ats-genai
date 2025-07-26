@@ -21,7 +21,7 @@ from src.state.universe_state_builder import (
 
 )
 from src.state.universe_state_manager import UniverseStateManager
-from src.config.environment import Environment
+from config.environment import Environment
 from db.test_db_manager import unit_test_db
 
 

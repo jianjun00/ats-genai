@@ -28,17 +28,22 @@ from dao.universe_dao import UniverseDAO
 from dao.universe_membership_dao import UniverseMembershipDAO
 from dao.vendors_dao import VendorsDAO
 
-@pytest.fixture(scope="module", autouse=True)
-def setup_test_env():
-    set_environment(EnvironmentType.TEST)
+import pytest_asyncio
+from db.test_db_manager import unit_test_db
 
 import asyncio
 from datetime import date
 from config.environment import Environment
+from config.environment import get_environment
 
 @pytest.mark.asyncio
-async def test_instruments_dao_crud():
+async def test_instruments_dao_crud(unit_test_db):
+    from config.environment import Environment
     env = Environment()
+    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+    env.config.set('database', 'host', 'localhost')
+    env.config.set('database', 'port', '5432')
+
     dao = InstrumentsDAO(env)
     symbol = "TESTSYM"
     # Clean up if exists
@@ -65,49 +70,100 @@ async def test_instruments_dao_crud():
     assert any(inst['symbol'] == symbol for inst in all_insts)
 
 @pytest.mark.asyncio
-async def test_daily_market_cap_dao_crud():
+async def test_daily_market_cap_dao_crud(unit_test_db):
+    from config.environment import Environment
     env = Environment()
+    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+    env.config.set('database', 'host', 'localhost')
+    env.config.set('database', 'port', '5432')
+
+    # Create test instrument and get instrument_id
+    instruments_dao = InstrumentsDAO(env)
+    symbol = "TESTMCAP"
+    # Clean up if exists
+    instruments = await instruments_dao.list_instruments()
+    for inst in instruments:
+        if inst['symbol'] == symbol:
+            pool = await asyncpg.create_pool(env.get_database_url())
+            try:
+                async with pool.acquire() as conn:
+                    await conn.execute(f"DELETE FROM {instruments_dao.table_name} WHERE symbol = $1", symbol)
+            finally:
+                await pool.close()
+    instrument_id = await instruments_dao.create_instrument(symbol=symbol, name="Test MarketCap Instrument", type_="stock")
+    assert instrument_id is not None
+
     dao = DailyMarketCapDAO(env)
     test_date = date(2022, 1, 1)
-    symbol = "TESTMCAP"
     market_cap = 12345678
     # Clean up if exists
     pool = await asyncpg.create_pool(env.get_database_url())
     try:
         async with pool.acquire() as conn:
-            await conn.execute(f"DELETE FROM {dao.table_name} WHERE date = $1 AND symbol = $2", test_date, symbol)
+            await conn.execute(f"DELETE FROM {dao.table_name} WHERE date = $1 AND instrument_id = $2", test_date, instrument_id)
     finally:
         await pool.close()
     # Insert
-    await dao.insert_market_cap(test_date, symbol, market_cap)
+    await dao.insert_market_cap(test_date, instrument_id, market_cap)
     # Get
-    result = await dao.get_market_cap(test_date, symbol)
+    result = await dao.get_market_cap(test_date, instrument_id)
     assert result is not None
     assert result['market_cap'] == market_cap
+    assert result['instrument_id'] == instrument_id
     # List for date
-    results = await dao.list_market_caps_for_date(test_date)
-    assert any(r['symbol'] == symbol for r in results)
-    # List for symbol
-    rows2 = await dao.list_market_caps(symbol)
+    results = await dao.list_market_caps_for_date(test_date, instrument_id)
+    assert any(r['instrument_id'] == instrument_id for r in results)
+    # List for instrument
+    rows2 = await dao.list_market_caps(instrument_id)
     assert any(r['date'] == test_date for r in rows2)
+    # Clean up instrument
+    pool = await asyncpg.create_pool(env.get_database_url())
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(f"DELETE FROM {instruments_dao.table_name} WHERE id = $1", instrument_id)
+    finally:
+        await pool.close()
 
 @pytest.mark.asyncio
-async def test_daily_prices_dao_crud():
+async def test_daily_prices_dao_crud(unit_test_db):
+    from config.environment import Environment
     env = Environment()
+    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+    env.config.set('database', 'host', 'localhost')
+    env.config.set('database', 'port', '5432')
+
+    # Create test instrument
+    instruments_dao = InstrumentsDAO(env)
+    symbol = "TESTPRC"
+    # Clean up if exists
+    instruments = await instruments_dao.list_instruments()
+    for inst in instruments:
+        if inst['symbol'] == symbol:
+            pool = await asyncpg.create_pool(env.get_database_url())
+            try:
+                async with pool.acquire() as conn:
+                    await conn.execute(f"DELETE FROM {instruments_dao.table_name} WHERE symbol = $1", symbol)
+            finally:
+                await pool.close()
+    instrument_id = await instruments_dao.create_instrument(symbol=symbol, name="Test Price Instrument", type_="stock")
+    assert instrument_id is not None
+
     dao = DailyPricesDAO(env)
     test_date = date(2022, 2, 2)
-    symbol = "TESTPRC"
-    # Insert (simulate via direct SQL if needed)
-    # No insert method, so test get/list
     # Should not raise error
     _ = await dao.list_prices_for_date(test_date)
-    _ = await dao.list_prices_for_symbols_and_date([symbol], test_date)
-    _ = await dao.get_price(test_date, symbol)
-    _ = await dao.list_prices(symbol)
+    _ = await dao.list_prices_for_instruments_and_date([instrument_id], test_date)
+    _ = await dao.get_price(test_date, instrument_id)
+    _ = await dao.list_prices(instrument_id)
 
 @pytest.mark.asyncio
-async def test_universe_dao_crud():
+async def test_universe_dao_crud(unit_test_db):
+    from config.environment import Environment
     env = Environment()
+    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+    env.config.set('database', 'host', 'localhost')
+    env.config.set('database', 'port', '5432')
+
     dao = UniverseDAO(env)
     name = "TESTUNI"
     desc = "Test universe"
@@ -141,8 +197,13 @@ async def test_universe_dao_crud():
     assert uni2['name'] == new_name
 
 @pytest.mark.asyncio
-async def test_universe_membership_dao_universe_isolation():
+async def test_universe_membership_dao_universe_isolation(unit_test_db):
+    from config.environment import Environment
     env = Environment()
+    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+    env.config.set('database', 'host', 'localhost')
+    env.config.set('database', 'port', '5432')
+
     dao = UniverseMembershipDAO(env)
     universe_id_1 = 101
     universe_id_2 = 202
@@ -169,8 +230,12 @@ async def test_universe_membership_dao_universe_isolation():
     assert all(m['symbol'] != symbol_1 for m in memberships_2)
 
 @pytest.mark.asyncio
-async def test_universe_membership_dao_active_memberships():
+async def test_universe_membership_dao_active_memberships(unit_test_db):
     env = Environment()
+    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+    env.config.set('database', 'host', 'localhost')
+    env.config.set('database', 'port', '5432')
+
     dao = UniverseMembershipDAO(env)
     universe_id = 303
     symbol_active = "ACTIVEMEMB"
@@ -197,8 +262,13 @@ async def test_universe_membership_dao_active_memberships():
     assert all(m['symbol'] != symbol_inactive for m in active_after)
 
 @pytest.mark.asyncio
-async def test_universe_membership_dao_crud():
+async def test_universe_membership_dao_crud(unit_test_db):
+    from config.environment import Environment
     env = Environment()
+    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+    env.config.set('database', 'host', 'localhost')
+    env.config.set('database', 'port', '5432')
+
     dao = UniverseMembershipDAO(env)
     universe_id = 1
     symbol = "TESTMEMB"  # Use a unique symbol for the test
@@ -224,40 +294,83 @@ async def test_universe_membership_dao_crud():
     assert any(m['symbol'] == symbol and m['end_at'] == start_at for m in updated)
 
 @pytest.mark.asyncio
-async def test_daily_prices_polygon_dao_crud():
-    env = Environment()
+async def test_daily_prices_polygon_dao_crud(unit_test_db):
+    from config.environment import Environment
+    env = get_environment()
+    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+    env.config.set('database', 'host', 'localhost')
+    env.config.set('database', 'port', '5432')
+
+    # Create test instrument
+    instruments_dao = InstrumentsDAO(env)
+    symbol = "TESTPOLY"
+    instruments = await instruments_dao.list_instruments()
+    for inst in instruments:
+        if inst['symbol'] == symbol:
+            pool = await asyncpg.create_pool(env.get_database_url())
+            try:
+                async with pool.acquire() as conn:
+                    await conn.execute(f"DELETE FROM {instruments_dao.table_name} WHERE symbol = $1", symbol)
+            finally:
+                await pool.close()
+    instrument_id = await instruments_dao.create_instrument(symbol=symbol, name="Test Poly Instrument", type_="stock")
+    assert instrument_id is not None
+
     dao = DailyPricesPolygonDAO(env)
     test_date = date(2022, 3, 3)
-    symbol = "TESTPOLY"
     # Insert
-    await dao.insert_price(test_date, symbol, 1, 2, 0, 1.5, 1000, 99999)
+    await dao.insert_price(test_date, instrument_id, 1, 2, 0, 1.5, 1000, 99999)
     # Get
-    row = await dao.get_price(test_date, symbol)
+    row = await dao.get_price(test_date, instrument_id)
     assert row is not None
-    assert row['symbol'] == symbol
+    assert row['instrument_id'] == instrument_id
     # List
-    rows = await dao.list_prices(symbol)
+    rows = await dao.list_prices(instrument_id)
     assert any(r['date'] == test_date for r in rows)
 
 @pytest.mark.asyncio
-async def test_daily_prices_tiingo_dao_crud():
+async def test_daily_prices_tiingo_dao_crud(unit_test_db):
+    from config.environment import Environment
     env = Environment()
+    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+    env.config.set('database', 'host', 'localhost')
+    env.config.set('database', 'port', '5432')
+
+    # Create test instrument
+    instruments_dao = InstrumentsDAO(env)
+    symbol = "TESTTIINGO"
+    instruments = await instruments_dao.list_instruments()
+    for inst in instruments:
+        if inst['symbol'] == symbol:
+            pool = await asyncpg.create_pool(env.get_database_url())
+            try:
+                async with pool.acquire() as conn:
+                    await conn.execute(f"DELETE FROM {instruments_dao.table_name} WHERE symbol = $1", symbol)
+            finally:
+                await pool.close()
+    instrument_id = await instruments_dao.create_instrument(symbol=symbol, name="Test Tiingo Instrument", type_="stock")
+    assert instrument_id is not None
+
     dao = DailyPricesTiingoDAO(env)
     test_date = date(2022, 4, 4)
-    symbol = "TESTTIINGO"
     # Insert
-    await dao.insert_price(test_date, symbol, 1, 2, 0, 1.5, 1.6, 1000, None)
+    await dao.insert_price(test_date, instrument_id, 1, 2, 0, 1.5, 1.6, 1000, None)
     # Get
-    row = await dao.get_price(test_date, symbol)
+    row = await dao.get_price(test_date, instrument_id)
     assert row is not None
-    assert row['symbol'] == symbol
+    assert row['instrument_id'] == instrument_id
     # List
-    rows = await dao.list_prices(symbol)
+    rows = await dao.list_prices(instrument_id)
     assert any(r['date'] == test_date for r in rows)
 
 @pytest.mark.asyncio
-async def test_db_version_dao_crud():
+async def test_db_version_dao_crud(unit_test_db):
+    from config.environment import Environment
     env = Environment()
+    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+    env.config.set('database', 'host', 'localhost')
+    env.config.set('database', 'port', '5432')
+
     dao = DBVersionDAO(env)
     version = 9999
     desc = "Test migration"
@@ -268,8 +381,13 @@ async def test_db_version_dao_crud():
     rows = await dao.get_version()
 
 @pytest.mark.asyncio
-async def test_universe_membership_dao_get_membership_changes():
+async def test_universe_membership_dao_get_membership_changes(unit_test_db):
+    from config.environment import Environment
     env = Environment()
+    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+    env.config.set('database', 'host', 'localhost')
+    env.config.set('database', 'port', '5432')
+
     dao = UniverseMembershipDAO(env)
     pool = await asyncpg.create_pool(env.get_database_url())
     universe_name = "TESTUMC"

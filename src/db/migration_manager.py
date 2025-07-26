@@ -115,6 +115,18 @@ class MigrationManager:
         finally:
             await pool.close()
     
+    def _safe_identifier(self, name: str) -> str:
+        """
+        Ensure identifier is <= 63 chars (PostgreSQL limit). If too long, truncate and append a hash.
+        """
+        max_len = 63
+        if len(name) <= max_len:
+            return name
+        import hashlib
+        hash_suffix = hashlib.sha1(name.encode()).hexdigest()[:8]
+        trunc_len = max_len - 9  # 8 for hash, 1 for underscore
+        return f"{name[:trunc_len]}_{hash_suffix}"
+
     def _apply_table_prefixes(self, sql: str) -> str:
         """Apply environment-specific table prefixes to all tables in the SQL, dynamically extracting table names."""
         if not self.table_prefix:
@@ -162,10 +174,36 @@ class MigrationManager:
         # 3. Prefix all CREATE INDEX statements
         def prefix_create_index(match):
             prefix = '' if match.group(3).startswith(self.table_prefix) else self.table_prefix
-            return f'{match.group(1)}{match.group(2)} ON {prefix}{match.group(3)}'
+            raw_index_name = match.group(2)
+            safe_index_name = self._safe_identifier(raw_index_name)
+            return f'{match.group(1)}{safe_index_name} ON {prefix}{match.group(3)}'
         sql = re.sub(
             r'(CREATE\s+INDEX(?:\s+IF\s+NOT\s+EXISTS)?\s+)(\w+)\s+ON\s+(\w+)',
             prefix_create_index,
+            sql,
+            flags=re.IGNORECASE
+        )
+
+        # 3b. Enforce identifier length limit for constraint names in ALTER TABLE ... ADD CONSTRAINT ...
+        def patch_constraint_name(match):
+            prefix, constraint, name, rest = match.groups()
+            safe_name = self._safe_identifier(name)
+            return f"{prefix}{constraint}{safe_name}{rest}"
+        sql = re.sub(
+            r'(ALTER\s+TABLE\s+\w+\s+ADD\s+CONSTRAINT\s+)(\w+)(\s+.+)',
+            lambda m: m.group(1) + self._safe_identifier(m.group(2)) + m.group(3),
+            sql,
+            flags=re.IGNORECASE
+        )
+
+        # 3c. Enforce identifier length for inline constraints in CREATE TABLE ... CONSTRAINT ...
+        def patch_inline_constraint_name(match):
+            before, name, after = match.groups()
+            safe_name = self._safe_identifier(name)
+            return f"{before}{safe_name}{after}"
+        sql = re.sub(
+            r'(CONSTRAINT\s+)(\w+)(\s+)',
+            patch_inline_constraint_name,
             sql,
             flags=re.IGNORECASE
         )
