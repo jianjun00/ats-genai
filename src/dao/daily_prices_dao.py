@@ -2,6 +2,10 @@ from config.environment import Environment
 import asyncpg
 
 class DailyPricesDAO:
+    def __init__(self, db_url=None, env=None):
+        self.db_url = db_url or (env.get_database_url() if env else None)
+        self.env = env
+        print(f"[DAO DEBUG] DailyPricesDAO using db_url: {self.db_url}")
     async def list_prices_for_date(self, as_of_date):
         pool = await asyncpg.create_pool(self.db_url)
         try:

@@ -1,10 +1,14 @@
 from config.environment import Environment
 import asyncpg
 
-from datetime import date
+from datetime import datetime
 
 class UniverseMembershipDAO:
-    async def get_membership_changes(self, universe_id: int, as_of: date):
+    def __init__(self, db_url=None, env=None):
+        self.db_url = db_url or (env.get_database_url() if env else None)
+        self.env = env
+        print(f"[DAO DEBUG] UniverseMembershipDAO using db_url: {self.db_url}")
+    async def get_membership_changes(self, universe_id: int, as_of: datetime):
         table = self.env.get_table_name('universe_membership_changes')
         sql = f"SELECT universe_id, instrument_id, symbol, action, effective_date, reason FROM {table} WHERE universe_id = $1 AND effective_date <= $2"
         print(f"[DEBUG] Querying membership_changes table: {table}")
@@ -101,7 +105,7 @@ class UniverseMembershipDAO:
         finally:
             await pool.close()
 
-    async def remove_membership(self, universe_id: int, symbol: str, start_at: date) -> bool:
+    async def remove_membership(self, universe_id: int, symbol: str, start_at: datetime) -> bool:
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:

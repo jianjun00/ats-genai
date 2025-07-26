@@ -16,7 +16,7 @@ import uuid
 import hashlib
 from typing import Dict, List, Optional, Any
 from contextlib import asynccontextmanager
-from config.environment import get_environment
+from config.environment import Environment, get_environment
 from db.migration_manager import MigrationManager
 import logging
 logger = logging.getLogger(__name__)
@@ -347,7 +347,8 @@ async def unit_test_db(request):
 
     # Patch the global environment config so all code sees this test DB URL
     from config.environment import get_environment
-    env = get_environment()
+    #global_env = get_environment()
+    env = Environment()
     # Patch the config for this test session
     db_url_parts = test_db_url.split('/')
     database_name = db_url_parts[-1]
