@@ -29,7 +29,14 @@ class InstrumentXrefsDAO:
         try:
             async with pool.acquire() as conn:
                 row = await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE id = $1", xref_id)
-                return dict(row) if row else None
+                if row:
+                    d = dict(row)
+                    if hasattr(d.get('start_at'), 'date'):
+                        d['start_at'] = d['start_at'].date()
+                    if d.get('end_at') is not None and hasattr(d['end_at'], 'date'):
+                        d['end_at'] = d['end_at'].date()
+                    return d
+                return None
         finally:
             await pool.close()
 
@@ -38,7 +45,15 @@ class InstrumentXrefsDAO:
         try:
             async with pool.acquire() as conn:
                 rows = await conn.fetch(f"SELECT * FROM {self.table_name} WHERE instrument_id = $1", instrument_id)
-                return [dict(row) for row in rows]
+                result = []
+                for row in rows:
+                    d = dict(row)
+                    if hasattr(d.get('start_at'), 'date'):
+                        d['start_at'] = d['start_at'].date()
+                    if d.get('end_at') is not None and hasattr(d['end_at'], 'date'):
+                        d['end_at'] = d['end_at'].date()
+                    result.append(d)
+                return result
         finally:
             await pool.close()
 
@@ -47,7 +62,15 @@ class InstrumentXrefsDAO:
         try:
             async with pool.acquire() as conn:
                 rows = await conn.fetch(f"SELECT * FROM {self.table_name} WHERE vendor_id = $1", vendor_id)
-                return [dict(row) for row in rows]
+                result = []
+                for row in rows:
+                    d = dict(row)
+                    if hasattr(d.get('start_at'), 'date'):
+                        d['start_at'] = d['start_at'].date()
+                    if d.get('end_at') is not None and hasattr(d['end_at'], 'date'):
+                        d['end_at'] = d['end_at'].date()
+                    result.append(d)
+                return result
         finally:
             await pool.close()
 
@@ -56,6 +79,13 @@ class InstrumentXrefsDAO:
         try:
             async with pool.acquire() as conn:
                 row = await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE vendor_id = $1 AND symbol = $2", vendor_id, symbol)
-                return dict(row) if row else None
+                if row:
+                    d = dict(row)
+                    if hasattr(d.get('start_at'), 'date'):
+                        d['start_at'] = d['start_at'].date()
+                    if d.get('end_at') is not None and hasattr(d['end_at'], 'date'):
+                        d['end_at'] = d['end_at'].date()
+                    return d
+                return None
         finally:
             await pool.close()

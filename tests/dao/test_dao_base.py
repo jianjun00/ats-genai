@@ -114,13 +114,15 @@ async def test_universe_membership_dao_add_and_remove(monkeypatch):
     pool = DummyPool(conn)
     monkeypatch.setattr('asyncpg.create_pool', AsyncMock(return_value=pool))
     dao = UniverseMembershipDAO(env)
-    mid = await dao.add_membership(1, 101, '2020-01-01')
+    # add_membership expects instrument_id as int, not str
+    mid = await dao.add_membership(1, instrument_id=101)
     assert mid is True
-    # remove_membership returns True
+    # remove_membership returns True (use int for instrument_id)
     conn2 = DummyConn(execute_result='DELETE 1')
     pool2 = DummyPool(conn2)
     monkeypatch.setattr('asyncpg.create_pool', AsyncMock(return_value=pool2))
-    removed = await dao.remove_membership(1, 101, '2020-01-01')
+    # remove_membership expects symbol and start_at, not instrument_id
+    removed = await dao.remove_membership(1, symbol=101, start_at=None)
     assert removed is True
 
 @pytest.mark.asyncio

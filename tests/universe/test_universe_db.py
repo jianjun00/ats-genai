@@ -46,7 +46,7 @@ async def test_add_universe_membership(monkeypatch):
     db.universe_membership_dao = MagicMock()
     db.universe_membership_dao.add_membership_full = AsyncMock()
     await db.add_universe_membership(1, 'AAPL', date(2025, 7, 24), None)
-    db.universe_membership_dao.add_membership_full.assert_awaited_once_with(1, 'AAPL', date(2025, 7, 24), None)
+    db.universe_membership_dao.add_membership_full.assert_awaited_once_with(universe_id=1, symbol='AAPL', start_at=date(2025, 7, 24), end_at=None)
 
 @pytest.mark.asyncio
 async def test_update_universe_membership_end(monkeypatch):
@@ -54,4 +54,4 @@ async def test_update_universe_membership_end(monkeypatch):
     db.universe_membership_dao = MagicMock()
     db.universe_membership_dao.update_membership_end = AsyncMock()
     await db.update_universe_membership_end(1, 'AAPL', date(2025, 7, 24))
-    db.universe_membership_dao.update_membership_end.assert_awaited_once_with(1, 'AAPL', date(2025, 7, 24))
+    db.universe_membership_dao.update_membership_end.assert_awaited_once_with(universe_id=1, symbol='AAPL', end_at=date(2025, 7, 24))

@@ -1,0 +1,32 @@
+# ats.context
+
+## UniverseMembershipDAO Test Fix Context Summary (2025-07-26)
+
+### Objective
+Fix integration test failures for `UniverseMembershipDAO` by ensuring correct argument usage in DAO method calls and robust test data setup, so all tests pass reliably.
+
+### Key Issues & Root Causes
+- **TypeError/DataError from asyncpg**: Caused by incorrect positional arguments in test calls to `add_membership` and `update_membership_end`, resulting in a `datetime` being passed where an `int` was expected.
+- **Test Data Dependencies**: Tests failed if required rows (instruments, vendors, instrument_xrefs, universes) were not present before membership operations.
+- **Python Class Definition Bug**: Duplicate `__init__` methods in `UniverseMembershipDAO` led to unpredictable initialization.
+
+### Solutions Implemented
+- All calls to `add_membership` and `update_membership_end` in tests now use **keyword arguments** to guarantee argument order and type correctness.
+- Test setup ensures all required data (instrument, vendor, xref, universe) is inserted before DAO operations.
+- Removed duplicate `__init__` methods in `UniverseMembershipDAO` so initialization is robust and predictable.
+- Added debug prints and assertions to confirm argument types at runtime during debugging.
+
+### Results
+- All integration tests in `tests/dao/test_all_daos_with_test_db.py` now pass (as of 2025-07-26).
+- The DAO and its tests are now robust to argument order/type bugs and data isolation issues.
+
+### Best Practices Going Forward
+- Always use keyword arguments for DAO methods with optional parameters.
+- Ensure test isolation and required test data setup before DAO operations.
+- Avoid duplicate method definitions in Python classes.
+- Run full integration test suite after any changes to DAO logic or test setup.
+
+### Commit
+- All fixes committed and pushed to `jianjun00/ats-genai` main branch.
+
+---

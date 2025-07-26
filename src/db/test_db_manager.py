@@ -54,8 +54,9 @@ class TestDatabaseManager:
             if test_name:
                 # Use a hash of the test name for uniqueness and length
                 hash_part = hashlib.sha1(test_name.encode('utf-8')).hexdigest()[:8]
-                # Compose schema: <prefix>_db_<hash>
-                self.test_db_suffix = f"_db_{hash_part}"
+                # Compose schema: <prefix>_db_<truncatedname>_<hash>
+                truncated = ''.join(c for c in test_name if c.isalnum())[:8]
+                self.test_db_suffix = f"_db_{truncated}_{hash_part}"
             else:
                 import uuid
                 self.test_db_suffix = f"_db_{uuid.uuid4().hex[:8]}"
