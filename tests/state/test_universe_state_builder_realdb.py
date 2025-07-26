@@ -24,19 +24,29 @@ async def test_universe_state_builder_real_db(unit_test_db, tmp_path):
     state_manager = UniverseStateManager(env=env, base_path=base_path)
     builder = UniverseStateBuilder(env=env)
 
+    symbols = ["AAPL", "TSLA"]
+    # Insert test instruments and get their ids
+    symbol_to_id = {}
+    pool = await asyncpg.create_pool(unit_test_db)
+    async with pool.acquire() as conn:
+        for symbol in symbols:
+            await conn.execute(f"INSERT INTO {env.get_table_name('instruments')} (symbol, name) VALUES ($1, $2) ON CONFLICT (symbol) DO NOTHING", symbol, symbol)
+            row = await conn.fetchrow(f"SELECT id FROM {env.get_table_name('instruments')} WHERE symbol = $1", symbol)
+            assert row, f"Instrument ID not found for symbol {symbol}"
+            symbol_to_id[symbol] = row['id']
+
     # Insert required daily_prices data for test symbols
     test_date = date(2025, 7, 25)
-    symbols = ["AAPL", "TSLA"]
     table_name = env.get_table_name("daily_prices")
-    pool = await asyncpg.create_pool(unit_test_db)
     async with pool.acquire() as conn:
         # Clean up
         await conn.execute(f"DELETE FROM {table_name}")
         # Insert test data
         for symbol in symbols:
+            instrument_id = symbol_to_id[symbol]
             await conn.execute(
-                f"INSERT INTO {table_name} (date, symbol, open, high, low, close, volume) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-                test_date, symbol, 100, 110, 90, 105, 1000
+                f"INSERT INTO {table_name} (date, symbol, instrument_id, open, high, low, close, volume) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                test_date, symbol, instrument_id, 100, 110, 90, 105, 1000
             )
     await pool.close()
 

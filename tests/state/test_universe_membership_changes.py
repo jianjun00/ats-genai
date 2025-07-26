@@ -24,6 +24,15 @@ async def test_membership_changes_produce_expected_universe_membership(unit_test
         await conn.execute(f"INSERT INTO {env.get_table_name('universe')} (id, name, description) VALUES (100, 'test', 'test universe') ON CONFLICT (id) DO NOTHING")
         universe_id = 100
 
+        # Insert test instruments and get their ids
+        symbols = ['AAPL', 'TSLA']
+        symbol_to_id = {}
+        for symbol in symbols:
+            await conn.execute(f"INSERT INTO {env.get_table_name('instruments')} (symbol, name) VALUES ($1, $2) ON CONFLICT (symbol) DO NOTHING", symbol, symbol)
+            row = await conn.fetchrow(f"SELECT id FROM {env.get_table_name('instruments')} WHERE symbol = $1", symbol)
+            assert row, f"Instrument ID not found for symbol {symbol}"
+            symbol_to_id[symbol] = row['id']
+
         # Insert membership changes: add/remove events for two symbols
         changes = [
             ('AAPL', 'add', date(2025, 1, 2), 'test add'),
@@ -33,10 +42,11 @@ async def test_membership_changes_produce_expected_universe_membership(unit_test
             ('AAPL', 'add', date(2025, 1, 7), 'test re-add'),
         ]
         for symbol, action, eff_date, reason in changes:
+            instrument_id = symbol_to_id[symbol]
             await conn.execute(f"""
-                INSERT INTO {env.get_table_name('universe_membership_changes')} (universe_id, symbol, action, effective_date, reason)
-                VALUES ($1, $2, $3, $4, $5)
-            """, universe_id, symbol, action, eff_date, reason)
+                INSERT INTO {env.get_table_name('universe_membership_changes')} (universe_id, symbol, instrument_id, action, effective_date, reason)
+                VALUES ($1, $2, $3, $4, $5, $6)
+            """, universe_id, symbol, instrument_id, action, eff_date, reason)
 
         # Simulate logic: reconstruct expected universe_membership as of 2025-01-08
         # (In production, builder logic would do this. Here, we do it in test.)
@@ -60,10 +70,11 @@ async def test_membership_changes_produce_expected_universe_membership(unit_test
         # (In real system, this should be built from changes, but here we insert it manually for test)
         await conn.execute(f"DELETE FROM {env.get_table_name('universe_membership')} WHERE universe_id = $1", universe_id)
         for symbol in expected_members:
+            instrument_id = symbol_to_id[symbol]
             await conn.execute(f"""
-                INSERT INTO {env.get_table_name('universe_membership')} (universe_id, symbol, start_at, end_at)
-                VALUES ($1, $2, $3, NULL)
-            """, universe_id, symbol, as_of_date)
+                INSERT INTO {env.get_table_name('universe_membership')} (universe_id, symbol, instrument_id, start_at, end_at)
+                VALUES ($1, $2, $3, $4, NULL)
+            """, universe_id, symbol, instrument_id, as_of_date)
 
         # Fetch actual membership
         actual_members = await conn.fetch(f"""
