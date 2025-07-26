@@ -54,6 +54,7 @@ async def create_universe_membership(
     # Look up or create universe_id for the given universe_name
     async with pool.acquire() as conn:
         universe_table = env.get_table_name('universe')
+        instrument_table = env.get_table_name('instruments')
         rec = await conn.fetchrow(f"SELECT id FROM {universe_table} WHERE name=$1", universe_name)
         if rec:
             universe_id = rec['id']
@@ -99,6 +100,7 @@ async def create_universe_membership(
             # Use get_daily_metrics with env
             df = await get_daily_metrics(pool, symbol, adv_start, today, env)
             if df.empty or today not in set(df['date']):
+                print(f"[DEBUG] {symbol} on {today}: df.empty={df.empty}, df['date'] values={list(df['date'])}, types={[type(x) for x in df['date']]}, today type={type(today)}")
                 if symbol in universe:
                     to_remove.add(symbol)
                 continue
@@ -112,10 +114,12 @@ async def create_universe_membership(
                 continue
             adv = recent['volume'].mean()
             close = recent.iloc[-1]['close']
+            print(f"[DEBUG] {symbol} on {today}: close={close}, ADV={adv}, min_price={min_price}, min_adv={min_adv}")
             if close >= min_price and adv >= min_adv:
                 if symbol not in universe:
                     newly_added.add(symbol)
             else:
+                print(f"[DEBUG] {symbol} on {today} failed filter: close={close} (min {min_price}), ADV={adv} (min {min_adv})")
                 if symbol in universe:
                     to_remove.add(symbol)
         # Debugging output
@@ -130,11 +134,16 @@ async def create_universe_membership(
             # Insert new memberships (added today)
             for symbol in newly_added:
                 try:
+                    # Fetch instrument_id for symbol
+                    inst_row = await conn.fetchrow(f"SELECT id FROM {instrument_table} WHERE symbol=$1", symbol)
+                    if not inst_row:
+                        raise ValueError(f"No instrument_id found for symbol {symbol}")
+                    instrument_id = inst_row['id']
                     await conn.execute(
-                        f"INSERT INTO {membership_table} (universe_id, symbol, start_at, end_at) VALUES ($1, $2, $3, NULL)",
-                        universe_id, symbol, today
+                        f"INSERT INTO {membership_table} (universe_id, instrument_id, symbol, start_at, end_at) VALUES ($1, $2, $3, $4, NULL)",
+                        universe_id, instrument_id, symbol, today
                     )
-                    print(f"[DEBUG] Inserted membership: universe_id={universe_id}, symbol={symbol}, start_at={today}")
+                    print(f"[DEBUG] Inserted membership: universe_id={universe_id}, instrument_id={instrument_id}, symbol={symbol}, start_at={today}")
                 except Exception as e:
                     print(f"[ERROR] Failed to insert membership for {symbol} on {today}: {e}")
             # Update end_at for removed memberships
