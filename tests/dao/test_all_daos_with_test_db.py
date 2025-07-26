@@ -340,7 +340,8 @@ async def test_universe_membership_dao_crud(unit_test_db):
     env.config.set('database', 'port', '5432')
 
     dao = UniverseMembershipDAO(env)
-    universe_id = 1
+    import random
+    universe_id = random.randint(10000, 99999)
     symbol = "TESTMEMB"  # Use a unique symbol for the test
     start_at = datetime(2025, 7, 24, 0, 0, 0)
     # Clean up if exists
@@ -350,8 +351,28 @@ async def test_universe_membership_dao_crud(unit_test_db):
             await conn.execute(f"DELETE FROM {dao.table_name} WHERE universe_id = $1 AND symbol = $2 AND start_at = $3", universe_id, symbol, start_at)
     finally:
         await pool.close()
+    # Insert required instrument for the symbol
+    instruments_dao = InstrumentsDAO(env)
+    # Clean up any existing instrument with this symbol
+    pool = await asyncpg.create_pool(env.get_database_url())
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(f"DELETE FROM {instruments_dao.table_name} WHERE symbol = $1", symbol)
+    finally:
+        await pool.close()
+    instrument_id = await instruments_dao.create_instrument(symbol=symbol, name="Test Membership Instrument", type_="stock")
+    # Insert required vendor
+    vendors_dao = VendorsDAO(env)
+    vendor_id = await vendors_dao.create_vendor(name="TestVendor", description="Test vendor for xref")
+    # Insert instrument_xref
+    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+    xrefs_dao = InstrumentXrefsDAO(env)
+    await xrefs_dao.create_xref(instrument_id, vendor_id=vendor_id, symbol=symbol, start_at=start_at)
+    # Wait briefly to ensure insert is visible to other connections
+    import asyncio
+    await asyncio.sleep(0.1)
     # Add membership
-    await dao.add_membership(universe_id, symbol, start_at)
+    await dao.add_membership(universe_id, symbol=symbol, start_at=start_at)
     # Get by universe
     memberships = await dao.get_memberships_by_universe(universe_id)
     assert any(m['symbol'] == symbol and m['start_at'] == start_at for m in memberships)
