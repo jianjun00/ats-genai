@@ -10,7 +10,7 @@ from src.config import Environment, EnvironmentType
 async def test_universe_add_remove(unit_test_db, monkeypatch):
     # Use the test DB created by unit_test_db fixture, schema is initialized
     print(f"[DEBUG] Using test DB URL: {unit_test_db}")
-    assert "test_trading_db_" in unit_test_db, f"Unexpected DB URL: {unit_test_db}"
+    assert "test_db_" in unit_test_db, f"Unexpected DB URL: {unit_test_db}"
     pool = await asyncpg.create_pool(unit_test_db)
     env = Environment(EnvironmentType.TEST)
     universe_table = env.get_table_name('universe')

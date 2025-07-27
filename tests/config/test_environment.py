@@ -53,20 +53,20 @@ class TestEnvironment:
         """Test database URL generation for test environment."""
         env = Environment(EnvironmentType.TEST)
         url = env.get_database_url()
-        assert "test_trading_db" in url
+        assert "test_db" in url
         assert "postgresql://" in url
     
     def test_get_database_url_integration_environment(self):
         """Test database URL generation for integration environment."""
         env = Environment(EnvironmentType.INTEGRATION)
         url = env.get_database_url()
-        assert "intg_trading_db" in url
+        assert "intg_db" in url
     
     def test_get_database_url_production_environment(self):
         """Test database URL generation for production environment."""
         env = Environment(EnvironmentType.PRODUCTION)
         url = env.get_database_url()
-        assert "prod_trading_db" in url
+        assert "prod_db" in url
     
     def test_get_table_name_with_prefix(self):
         """Test table name prefixing."""
@@ -113,7 +113,7 @@ class TestEnvironment:
         assert "user" in config
         assert "password" in config
         assert "database" in config
-        assert config["database"] == "test_trading_db"
+        assert config["database"] == "test_db"
         assert isinstance(config["port"], int)
         assert isinstance(config["min_size"], int)
         assert isinstance(config["max_size"], int)
@@ -208,6 +208,6 @@ class TestEnvironmentConfiguration:
         test_db = test_env.get("database", "database")
         intg_db = intg_env.get("database", "database")
         
-        assert test_db == "test_trading_db"
-        assert intg_db == "intg_trading_db"
+        assert test_db == "test_db"
+        assert intg_db == "intg_db"
         assert test_db != intg_db

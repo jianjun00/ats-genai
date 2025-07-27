@@ -27,13 +27,13 @@ class MigrationManager:
         
         # Determine environment based on database URL
         if db_url:
-            if "intg_trading_db" in db_url:
+            if "intg_db" in db_url:
                 from config.environment import Environment, EnvironmentType
                 self.environment = Environment(EnvironmentType.INTEGRATION)
-            elif "prod_trading_db" in db_url:
+            elif "prod_db" in db_url:
                 from config.environment import Environment, EnvironmentType
                 self.environment = Environment(EnvironmentType.PRODUCTION)
-            # else use current environment for test_trading_db
+            # else use current environment for test_db
         
         # Extract table prefix from environment
         sample_table = self.environment.get_table_name("sample")

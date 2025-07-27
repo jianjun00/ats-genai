@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from spy_universe import SPYUniverse
 import os
 
-TSDB_URL = os.getenv('TSDB_URL', 'postgresql://localhost:5432/trading_db')
+TSDB_URL = os.getenv('TSDB_URL', 'postgresql://localhost:5432/intg_db')
 BATCH_SIZE = 1000  # Number of rows per insert batch
 
 CREATE_TABLE_SQL = """
