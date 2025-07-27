@@ -20,6 +20,9 @@ async def test_universe_state_builder_real_db(unit_test_db, tmp_path):
     # Setup environment for test DB
     env = Environment(EnvironmentType.TEST)
     env.get_database_url = lambda: unit_test_db
+    # Ensure indicator config includes all required indicators
+    from src.signals.indicator_config import IndicatorConfig
+    env.get_indicator_config = lambda: IndicatorConfig.default_config()
     base_path = tmp_path / "universe_state"
     state_manager = UniverseStateManager(env=env, base_path=base_path)
     builder = UniverseStateBuilder(env=env)
@@ -76,9 +79,20 @@ async def test_universe_state_builder_real_db(unit_test_db, tmp_path):
     state_files = list((base_path / "states").glob("universe_state_*.parquet"))
     assert len(state_files) > 0, "No universe state file created"
     df = pd.read_parquet(state_files[0])
-    # Should have one row per symbol
-    assert set(df["instrument_id"]) == set(symbols)
-    assert all(df["open"] == 100)
-    assert all(df["close"] == 105)
-    assert all(df["traded_volume"] == 1000)
-    assert all(df["traded_dollar"] == 105000)
+    # Instrument rows: no indicator_name
+    instrument_rows = df[df["indicator_name"].isna() if "indicator_name" in df.columns else [True]*len(df)]
+    assert set(instrument_rows["instrument_id"]) == set(symbols)
+    assert all(instrument_rows["open"] == 100)
+    assert all(instrument_rows["close"] == 105)
+    assert all(instrument_rows["traded_volume"] == 1000)
+    assert all(instrument_rows["traded_dollar"] == 105000)
+
+    # Check indicator columns exist and are computed for each symbol
+    indicator_names = ["OneOneDot", "ETop", "EBot", "OneOneHigh", "OneOneLow"]
+    for symbol in symbols:
+        for ind in indicator_names:
+            rows = df[(df["indicator_name"] == ind) & (df["symbol"] == symbol)] if "symbol" in df.columns else df[(df["indicator_name"] == ind)]
+            assert not rows.empty, f"No row found for indicator {ind} and symbol {symbol}"
+            for _, row in rows.iterrows():
+                if row.get("indicator_status") == "ok":
+                    assert pd.notnull(row["indicator_value"]), f"Indicator {ind} for symbol {symbol} has null value when status is ok"
