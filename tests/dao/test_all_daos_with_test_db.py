@@ -17,8 +17,8 @@ from dao.db_version_dao import DBVersionDAO
 from dao.dividends_dao import DividendsDAO
 from dao.events_dao import EventsDAO
 from dao.fundamentals_dao import FundamentalsDAO
-from dao.instrument_aliases_dao import InstrumentAliasesDAO
-from dao.instrument_metadata_dao import InstrumentMetadataDAO
+
+
 from dao.instrument_polygon_dao import InstrumentPolygonDAO
 from dao.instruments_dao import InstrumentsDAO
 from dao.secmaster_dao import SecMasterDAO
@@ -394,6 +394,8 @@ async def test_universe_membership_dao_crud(unit_test_db):
 async def test_daily_prices_polygon_dao_crud(unit_test_db):
     from config.environment import Environment
     env = get_environment()
+    # Patch get_database_url to always return the correct test DB URL
+    env.get_database_url = lambda: unit_test_db
     env.config.set('database', 'database', unit_test_db.split('/')[-1])
     env.config.set('database', 'host', 'localhost')
     env.config.set('database', 'port', '5432')

@@ -22,7 +22,20 @@ class UniverseDB:
 
     async def get_universe_members(self, universe_id: int, as_of: date) -> List[str]:
         memberships = await self.universe_membership_dao.get_active_memberships(universe_id, as_of)
-        return [row['symbol'] for row in memberships]
+        instrument_ids = [row['instrument_id'] for row in memberships if row.get('instrument_id') is not None]
+        if not instrument_ids:
+            return []
+        # Query all symbols for instrument_ids in one go
+        instruments_dao = __import__('dao.instruments_dao', fromlist=['InstrumentsDAO']).InstrumentsDAO(self.env)
+        pool = await __import__('asyncpg').create_pool(self.env.get_database_url())
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(f"SELECT id, symbol FROM {instruments_dao.table_name} WHERE id = ANY($1)", instrument_ids)
+                id_to_symbol = {row['id']: row['symbol'] for row in rows}
+            return [id_to_symbol.get(instrument_id) for instrument_id in instrument_ids]
+        finally:
+            await pool.close()
+
 
     async def add_universe(self, name: str, description: Optional[str] = None) -> int:
         return await self.universe_dao.create_universe(name, description)
