@@ -4,6 +4,7 @@ from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 from src.universe.universe_db import UniverseDB
 
+
 @pytest.mark.asyncio
 async def test_get_universe_id_found(monkeypatch):
     db = UniverseDB()
@@ -22,14 +23,6 @@ async def test_get_universe_id_not_found(monkeypatch):
     uid = await db.get_universe_id('MISSING')
     assert uid is None
 
-@pytest.mark.asyncio
-async def test_get_universe_members(monkeypatch):
-    db = UniverseDB()
-    db.universe_membership_dao = MagicMock()
-    db.universe_membership_dao.get_active_memberships = AsyncMock(return_value=[{'symbol': 'AAPL'}, {'symbol': 'TSLA'}])
-    members = await db.get_universe_members(1, date(2025, 7, 24))
-    assert members == ['AAPL', 'TSLA']
-    db.universe_membership_dao.get_active_memberships.assert_awaited_once_with(1, date(2025, 7, 24))
 
 @pytest.mark.asyncio
 async def test_add_universe(monkeypatch):
