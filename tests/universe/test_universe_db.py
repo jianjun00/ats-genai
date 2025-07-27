@@ -53,5 +53,7 @@ async def test_update_universe_membership_end(monkeypatch):
     db = UniverseDB()
     db.universe_membership_dao = MagicMock()
     db.universe_membership_dao.update_membership_end = AsyncMock()
+    db.universe_membership_dao.resolve_instrument_id = AsyncMock(return_value=123)
     await db.update_universe_membership_end(1, 'AAPL', date(2025, 7, 24))
-    db.universe_membership_dao.update_membership_end.assert_awaited_once_with(universe_id=1, symbol='AAPL', end_at=date(2025, 7, 24))
+    db.universe_membership_dao.resolve_instrument_id.assert_awaited_once_with('AAPL')
+    db.universe_membership_dao.update_membership_end.assert_awaited_once_with(universe_id=1, instrument_id=123, end_at=date(2025, 7, 24))
