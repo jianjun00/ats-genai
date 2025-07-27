@@ -133,7 +133,7 @@ async def test_universe_membership_dao_update_and_add_full(monkeypatch):
     monkeypatch.setattr('asyncpg.create_pool', AsyncMock(return_value=pool))
     dao = UniverseMembershipDAO(env)
     # update_membership_end
-    await dao.update_membership_end(1, 'AAPL', date(2025, 7, 24))
+    await dao.update_membership_end(1, 123, date(2025, 7, 24))
     # add_membership_full
     await dao.add_membership_full(1, 'AAPL', date(2025, 7, 24), None)
 

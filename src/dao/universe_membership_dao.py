@@ -24,24 +24,19 @@ class UniverseMembershipDAO:
         finally:
             await pool.close()
 
-    async def update_membership_end(self, universe_id: int, symbol=None, instrument_id=None, end_at=None, vendor_id=None, at_date=None):
+    async def update_membership_end(self, universe_id: int, instrument_id: int, end_at=None):
+        """
+        Update the end date for a universe membership by universe_id and instrument_id.
+        The caller must resolve instrument_id before calling this method.
+        """
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
-                if instrument_id is None and symbol is not None:
-                    instrument_id = await self.resolve_instrument_id(symbol, vendor_id, at_date)
-                if instrument_id is not None:
-                    await conn.execute(f"""
-                        UPDATE {self.table_name}
-                        SET end_at = $3
-                        WHERE universe_id = $1 AND instrument_id = $2 AND end_at IS NULL
-                    """, universe_id, instrument_id, end_at)
-                else:
-                    await conn.execute(f"""
-                        UPDATE {self.table_name}
-                        SET end_at = $3
-                        WHERE universe_id = $1 AND symbol = $2 AND end_at IS NULL
-                    """, universe_id, symbol, end_at)
+                await conn.execute(f"""
+                    UPDATE {self.table_name}
+                    SET end_at = $3
+                    WHERE universe_id = $1 AND instrument_id = $2 AND end_at IS NULL
+                """, universe_id, instrument_id, end_at)
         finally:
             await pool.close()
     async def add_membership_full(self, universe_id: int, symbol=None, instrument_id=None, start_at=None, end_at=None, vendor_id=None):
