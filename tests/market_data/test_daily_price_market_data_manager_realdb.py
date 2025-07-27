@@ -3,8 +3,9 @@ import asyncio
 from datetime import date, datetime
 from market_data.daily_price_market_data_manager import DailyPriceMarketDataManager
 from db.test_db_manager import unit_test_db, TestDatabaseManager
-from market_data.daily_prices_dao import DailyPricesDAO
+from dao.daily_prices_dao import DailyPricesDAO
 from config.environment import get_environment
+from src.config.environment import Environment
 
 async def debug_print_tables(env):
     import asyncpg
@@ -56,7 +57,8 @@ async def cleanup_test_fixtures(env, instrument_rows):
     await pool.close()
 @pytest.mark.asyncio
 async def test_daily_price_manager_sod_eod(unit_test_db):
-    env = get_environment()
+    env = Environment()
+    env.get_database_url = lambda: unit_test_db
     dao = DailyPricesDAO(env)
     today = date(2024, 1, 2)
     # Cleanup before test
@@ -75,7 +77,6 @@ async def test_daily_price_manager_sod_eod(unit_test_db):
         """
         Test SOD/EOD and get_ohlc with real DB and real daily_prices table.
         """
-        env = get_environment()
         dao = DailyPricesDAO(env)
         today = date(2024, 1, 2)
         await dao.insert_price(today, 1, 155, 155, 148, 154, 10000)
@@ -116,7 +117,8 @@ async def test_daily_price_manager_sod_eod(unit_test_db):
 
 @pytest.mark.asyncio
 async def test_daily_price_manager_last_price_before_start(unit_test_db):
-    env = get_environment()
+    env = Environment()
+    env.get_database_url = lambda: unit_test_db
     dao = DailyPricesDAO(env)
     prev_date = date(2023, 12, 29)
     # Cleanup before test
@@ -129,21 +131,20 @@ async def test_daily_price_manager_last_price_before_start(unit_test_db):
     instrument_rows = [
         {'instrument_id': 1, 'symbol': 'AAPL', 'ticker': 'AAPL', 'vendor_id': 10, 'xref_start': prev_date},
         {'instrument_id': 2, 'symbol': 'TSLA', 'ticker': 'TSLA', 'vendor_id': 20, 'xref_start': prev_date},
-        {'instrument_id': 100, 'symbol': 'AAPL', 'ticker': 'AAPL', 'vendor_id': 10, 'xref_start': prev_date},
-        {'instrument_id': 105, 'symbol': 'AAPL', 'ticker': 'AAPL', 'vendor_id': 10, 'xref_start': prev_date},
-        {'instrument_id': 400, 'symbol': 'TSLA', 'ticker': 'TSLA', 'vendor_id': 20, 'xref_start': prev_date},
-        {'instrument_id': 410, 'symbol': 'TSLA', 'ticker': 'TSLA', 'vendor_id': 20, 'xref_start': prev_date}
+        {'instrument_id': 100, 'symbol': 'AAPL_100', 'ticker': 'AAPL', 'vendor_id': 10, 'xref_start': prev_date},
+        {'instrument_id': 105, 'symbol': 'AAPL_105', 'ticker': 'AAPL', 'vendor_id': 10, 'xref_start': prev_date},
+        {'instrument_id': 400, 'symbol': 'TSLA_400', 'ticker': 'TSLA', 'vendor_id': 20, 'xref_start': prev_date},
+        {'instrument_id': 410, 'symbol': 'TSLA_410', 'ticker': 'TSLA', 'vendor_id': 20, 'xref_start': prev_date}
     ]
     await insert_test_fixtures(env, instrument_rows)
     try:
         """
         Test loading last price before start_date during construction.
         """
-        env = get_environment()
         dao = DailyPricesDAO(env)
         prev_date = date(2023, 12, 29)
-        await dao.insert_price(prev_date, 'AAPL', 100, 110, 90, 105, 5000)
-        await dao.insert_price(prev_date, 'TSLA', 400, 420, 390, 410, 8000)
+        await dao.insert_price(prev_date, 1, 100, 110, 90, 105, 5000)
+        await dao.insert_price(prev_date, 2, 400, 420, 390, 410, 8000)
 
         class TestManager(DailyPriceMarketDataManager):
             def _get_all_symbols(self):
@@ -164,7 +165,8 @@ async def test_daily_price_manager_last_price_before_start(unit_test_db):
 
 @pytest.mark.asyncio
 async def test_daily_price_manager_multi_dates(unit_test_db):
-    env = get_environment()
+    env = Environment()
+    env.get_database_url = lambda: unit_test_db
     await debug_print_tables(env)  # Debug: print all tables in DB
     dao = DailyPricesDAO(env)
     d1 = date(2024, 1, 2)
@@ -185,14 +187,13 @@ async def test_daily_price_manager_multi_dates(unit_test_db):
         """
         Test SOD/EOD and get_ohlc for multiple dates and intervals.
         """
-        env = get_environment()
         dao = DailyPricesDAO(env)
         d1 = date(2024, 1, 2)
         d2 = date(2024, 1, 3)
-        await dao.insert_price(d1, 'AAPL', 1, 155, 148, 154, 10000)
-        await dao.insert_price(d1, 'TSLA', 2, 710, 690, 705, 20000)
-        await dao.insert_price(d2, 'AAPL', 1, 158, 153, 157, 12000)
-        await dao.insert_price(d2, 'TSLA', 2, 715, 705, 712, 21000)
+        await dao.insert_price(d1, 1, 155, 155, 148, 154, 10000)
+        await dao.insert_price(d1, 2, 710, 710, 690, 705, 20000)
+        await dao.insert_price(d2, 1, 158, 158, 153, 157, 12000)
+        await dao.insert_price(d2, 2, 715, 715, 705, 712, 21000)
 
         class TestManager(DailyPriceMarketDataManager):
             def _get_all_symbols(self):
@@ -208,16 +209,24 @@ async def test_daily_price_manager_multi_dates(unit_test_db):
         manager = TestManager(env=env)
         await manager.update_for_sod(None, datetime(2024, 1, 2, 9, 30))
         ohlc_aapl_d1 = manager.get_ohlc(1, datetime(2024, 1, 2, 9, 30), datetime(2024, 1, 2, 16, 0))
+        print('DEBUG ohlc_aapl_d1:', ohlc_aapl_d1)
+        assert ohlc_aapl_d1 is not None, 'ohlc_aapl_d1 is None'
         assert ohlc_aapl_d1['open'] == 155
         assert ohlc_aapl_d1['close'] == 154
         ohlc_tsla_d1 = manager.get_ohlc(2, datetime(2024, 1, 2, 9, 30), datetime(2024, 1, 2, 16, 0))
+        print('DEBUG ohlc_tsla_d1:', ohlc_tsla_d1)
+        assert ohlc_tsla_d1 is not None, 'ohlc_tsla_d1 is None'
         assert ohlc_tsla_d1['open'] == 710
         assert ohlc_tsla_d1['close'] == 705
         await manager.update_for_sod(None, datetime(2024, 1, 3, 9, 30))
         ohlc_aapl_d2 = manager.get_ohlc(1, datetime(2024, 1, 3, 9, 30), datetime(2024, 1, 3, 16, 0))
+        print('DEBUG ohlc_aapl_d2:', ohlc_aapl_d2)
+        assert ohlc_aapl_d2 is not None, 'ohlc_aapl_d2 is None'
         assert ohlc_aapl_d2['open'] == 158
         assert ohlc_aapl_d2['close'] == 157
         ohlc_tsla_d2 = manager.get_ohlc(2, datetime(2024, 1, 3, 9, 30), datetime(2024, 1, 3, 16, 0))
+        print('DEBUG ohlc_tsla_d2:', ohlc_tsla_d2)
+        assert ohlc_tsla_d2 is not None, 'ohlc_tsla_d2 is None'
         assert ohlc_tsla_d2['open'] == 715
         assert ohlc_tsla_d2['close'] == 712
         missing = manager.get_ohlc(1, datetime(2024, 1, 2, 9, 30), datetime(2024, 1, 2, 16, 0))
