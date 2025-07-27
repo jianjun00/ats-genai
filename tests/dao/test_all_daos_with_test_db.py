@@ -321,15 +321,18 @@ async def test_universe_membership_dao_active_memberships(unit_test_db):
         await pool.close()
     # Add memberships: one active, one inactive
     await dao.add_membership(universe_id, symbol_active, start_at=start_at)
-    await dao.add_membership_full(universe_id, symbol_inactive, start_at=start_at, end_at=end_at)
+    await dao.add_membership_full(universe_id, instrument_id_inactive, start_at=start_at, end_at=end_at)
     # Query as_of before end date: both should be present
     active_before = await dao.get_active_memberships(universe_id, date(2025, 7, 24))
-    assert any(m['symbol'] == symbol_active for m in active_before)
-    assert any(m['symbol'] == symbol_inactive for m in active_before)
+    # Compare instrument_ids, since get_active_memberships returns instrument_id not symbol
+    active_before_ids = [m['instrument_id'] for m in active_before]
+    assert instrument_id_active in active_before_ids
+    assert instrument_id_inactive in active_before_ids
     # Query as_of after end date: only active should be present
     active_after = await dao.get_active_memberships(universe_id, datetime(2025, 7, 26, 0, 0, 0))
-    assert any(m['symbol'] == symbol_active for m in active_after)
-    assert all(m['symbol'] != symbol_inactive for m in active_after)
+    active_after_ids = [m['instrument_id'] for m in active_after]
+    assert instrument_id_active in active_after_ids
+    assert instrument_id_inactive not in active_after_ids
 
 @pytest.mark.asyncio
 async def test_universe_membership_dao_crud(unit_test_db):
@@ -386,7 +389,7 @@ async def test_universe_membership_dao_crud(unit_test_db):
     assert any(m['symbol'] == symbol for m in active)
     # Remove: update end_at to simulate removal
     print(f"[TEST DEBUG] update_membership_end args: universe_id={universe_id} ({type(universe_id)}), symbol={symbol} ({type(symbol)}), start_at={start_at} ({type(start_at)})")
-    await dao.update_membership_end(universe_id=universe_id, symbol=symbol, end_at=start_at)
+    await dao.update_membership_end(universe_id=universe_id, instrument_id=instrument_id, end_at=start_at)
     updated = await dao.get_memberships_by_universe(universe_id)
     assert any(m['symbol'] == symbol and m['end_at'] == start_at for m in updated)
 
