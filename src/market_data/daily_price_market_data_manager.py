@@ -2,15 +2,13 @@ from typing import List, Dict, Optional
 from datetime import datetime, date, time, timedelta
 
 from market_data.market_data_manager import MarketDataManager
-from market_data.eod.daily_prices_dao import DailyPricesDAO
-from config.environment import get_environment
+from dao.daily_prices_dao import DailyPricesDAO
 from calendars.exchange_calendar import ExchangeCalendar
 from state.instrument_interval import InstrumentInterval
 
 class DailyPriceMarketDataManager(MarketDataManager):
-    def __init__(self, db=None, env=None, exchange="NYSE", start_date: Optional[date]=None):
-        super().__init__(db)
-        self.env = env or get_environment()
+    def __init__(self, env, exchange="NYSE", start_date: Optional[date]=None):
+        self.env = env
         self.exchange = exchange
         self.calendar = ExchangeCalendar(self.exchange)
         self.dao = DailyPricesDAO(self.env)
@@ -25,8 +23,9 @@ class DailyPriceMarketDataManager(MarketDataManager):
         prev_date = self.calendar.prior_trading_date(self._start_date)
         if prev_date is None:
             return
-        # Load last price for each symbol
-        results = await self.dao.list_prices_for_symbols_and_date(symbols, prev_date)
+        # Load last price for each instrument
+        instrument_ids = [self._symbol_to_id(symbol) for symbol in symbols]
+        results = await self.dao.list_prices_for_instruments_and_date(instrument_ids, prev_date)
         for row in results:
             instrument_id = self._symbol_to_id(row['symbol'])
             self._last_prices[instrument_id] = {
@@ -46,7 +45,8 @@ class DailyPriceMarketDataManager(MarketDataManager):
         # Load daily_prices for cur_date and store as InstrumentInterval
         symbols = self._get_all_symbols()
         logger.debug(f"update_for_sod: fetched symbols: {symbols}")
-        results = await self.dao.list_prices_for_symbols_and_date(symbols, cur_date)
+        instrument_ids = [self._symbol_to_id(symbol) for symbol in symbols]
+        results = await self.dao.list_prices_for_instruments_and_date(instrument_ids, cur_date)
         logger.debug(f"update_for_sod: got {len(results)} price records from DB for date {cur_date}")
         open_time, close_time = self._get_exchange_open_close(cur_date)
         logger.debug(f"update_for_sod: open_time={open_time}, close_time={close_time}")

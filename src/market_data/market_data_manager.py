@@ -6,8 +6,6 @@ class MarketDataManager:
     Provides open, high, low, close for a given instrument and time range.
     This is an interface; actual implementation should connect to your DB or data provider.
     """
-    def __init__(self, db=None):
-        self.db = db  # Optionally pass a DB connection or API client
 
     def get_ohlc(self, instrument_id: int, start: datetime, end: datetime) -> Optional[Dict[str, float]]:
         """
