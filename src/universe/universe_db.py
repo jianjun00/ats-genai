@@ -45,5 +45,7 @@ class UniverseDB:
 
     async def update_universe_membership_end(self, universe_id: int, symbol: str, end_at: date):
         # Map symbol to instrument_id before calling DAO
-        instrument_id = await self.universe_membership_dao.resolve_instrument_id(symbol)
+        from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+        xrefs_dao = InstrumentXrefsDAO(self.env)
+        instrument_id = await xrefs_dao.resolve_instrument_id(symbol)
         await self.universe_membership_dao.update_membership_end(universe_id=universe_id, instrument_id=instrument_id, end_at=end_at)

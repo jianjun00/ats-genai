@@ -2,6 +2,13 @@
 -- The db_version table is already created by get_current_version method
 -- This migration just records that version 0 has been applied
 
+ALTER TABLE db_version
+  ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE db_version
+  ADD COLUMN IF NOT EXISTS migration_file TEXT;
+
+ALTER TABLE db_version ALTER COLUMN checksum DROP NOT NULL;
+
 -- Insert initial version record (table already exists from get_current_version)
 INSERT INTO db_version (version, description, migration_file)
 VALUES (0, 'Initial database version tracking', '000_initial_db_version.sql')

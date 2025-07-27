@@ -7,15 +7,15 @@ class InstrumentsDAO:
         self.table_name = self.env.get_table_name('instruments')
         self.db_url = self.env.get_database_url()
 
-    async def create_instrument(self, symbol: str, name: str = None, exchange: str = None, type_: str = None, currency: str = None) -> int:
+    async def create_instrument(self, symbol: str, name: str = None, exchange: str = None, type_: str = None, currency: str = None, list_date=None, delist_date=None) -> int:
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
                 result = await conn.fetchrow(f"""
-                    INSERT INTO {self.table_name} (symbol, name, exchange, type, currency)
-                    VALUES ($1, $2, $3, $4, $5)
+                    INSERT INTO {self.table_name} (symbol, name, exchange, type, currency, list_date, delist_date)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
                     RETURNING id
-                """, symbol, name, exchange, type_, currency)
+                """, symbol, name, exchange, type_, currency, list_date, delist_date)
                 return result['id'] if result else None
         finally:
             await pool.close()

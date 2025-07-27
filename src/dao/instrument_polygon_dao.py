@@ -37,14 +37,15 @@ class InstrumentPolygonDAO:
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
-                return await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE instrument_id = $1", instrument_id)
+                return await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE id = $1", instrument_id)
         finally:
             await pool.close()
 
-    async def list_instruments(self):
+    async def get_all_symbols(self):
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
-                return await conn.fetch(f"SELECT * FROM {self.table_name}")
+                rows = await conn.fetch(f"SELECT symbol FROM {self.table_name}")
+                return [row['symbol'] for row in rows]
         finally:
             await pool.close()

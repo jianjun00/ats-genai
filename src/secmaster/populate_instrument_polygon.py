@@ -3,23 +3,50 @@ import requests
 import asyncpg
 from dotenv import load_dotenv
 from datetime import datetime
-from src.config.environment import get_environment, set_environment, EnvironmentType
+from config.environment import get_environment, set_environment, EnvironmentType
 
 load_dotenv()
 
-set_environment(EnvironmentType.INTEGRATION)
-env = get_environment()
-
+# set_environment(EnvironmentType.INTEGRATION)
+# env = get_environment()
+# (moved to main)
 # Polygon reference API endpoint for all US stocks (paginated)
 BASE_URL = "https://api.polygon.io/v3/reference/tickers"
 
 import time
 from requests.exceptions import ConnectionError
 
-async def fetch_and_store_instruments(start_ticker=''):
+async def fetch_and_store_instruments(start_ticker='', ticker=None):
     pool = await asyncpg.create_pool(env.get_database_url())
-    url = BASE_URL + f"?market=stocks&active=true&limit=1000&apiKey={env.get_api_key('polygon')}"
     total = 0
+    if ticker:
+        symbol = ticker
+        detail_url = f"https://api.polygon.io/v3/reference/tickers/{symbol}?apiKey={env.get_api_key('polygon')}"
+        for attempt in range(3):
+            try:
+                print(f"[DEBUG] Fetching {detail_url}")
+                detail_resp = requests.get(detail_url)
+                print(f"[DEBUG] detail_resp.status_code={detail_resp.status_code}")
+                print(f"[DEBUG] detail_resp.text={detail_resp.text}")
+                if detail_resp.status_code != 200:
+                    print(f"[ERROR] Failed to fetch detail for {symbol}: {detail_resp.status_code} {detail_resp.text}")
+                    break
+                detail = detail_resp.json().get('results', {})
+                print(f"[DEBUG] detail parsed: {detail}")
+                print(f"Ticker: {symbol}, list_date: {detail.get('list_date')}, delisted_utc: {detail.get('delisted_utc')}")
+                print(f"[DEBUG] Calling upsert_instrument(pool, detail) with detail={detail}")
+                await upsert_instrument(pool, detail)
+                total += 1
+                break
+            except ConnectionError as e:
+                print(f"[ERROR] Connection error for {symbol}: {e}, retrying...")
+                time.sleep(2 ** attempt)  # Exponential backoff
+            except Exception as e:
+                print(f"[DEBUG] Exception in fetch_and_store_instruments for {symbol}: {e}")
+        print(f"Total tickers processed: {total}")
+        await pool.close()
+        return
+    url = BASE_URL + f"?market=stocks&active=true&limit=1000&apiKey={env.get_api_key('polygon')}"
     while url:
         resp = requests.get(url)
         if resp.status_code != 200:
@@ -107,7 +134,12 @@ import argparse
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Populate instrument_polygon from Polygon bulk and detail endpoints.")
     parser.add_argument('--start_ticker', type=str, default='', help='Only update/add instrument_polygon if symbol > start_ticker (lexical order)')
+    parser.add_argument('--environment', type=str, default='intg', choices=['test', 'intg', 'prod'], help='Environment to use (test/intg/prod)')
+    parser.add_argument('--ticker', type=str, default=None, help='Populate only this ticker (optional, skips bulk)')
     args = parser.parse_args()
 
+    set_environment(EnvironmentType(args.environment))
+    env = get_environment()
+
     import asyncio
-    asyncio.run(fetch_and_store_instruments(start_ticker=args.start_ticker))
+asyncio.run(fetch_and_store_instruments(start_ticker=args.start_ticker, ticker=args.ticker))
