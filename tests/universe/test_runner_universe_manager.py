@@ -33,14 +33,16 @@ async def test_runner_universe_manager_sod_eod_real_db(unit_test_db):
         await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol, type, start_at) VALUES ($1, $2, $3, $4, $5)", tsla_id, vendor_id, 'TSLA', 'primary', date(2025, 1, 1))
     universe_name = "RUNNER_SOD_EOD"
     universe_id = await universe_dao.create_universe(universe_name, "desc")
+    # Build instrument_id to symbol mapping for assertions
+    instrument_id_to_symbol = {aapl_id: 'AAPL', tsla_id: 'TSLA'}
     # Membership changes
-    await membership_dao.add_membership_full(universe_id, symbol="AAPL", start_at=date(2025, 7, 1))
-    await membership_dao.add_membership_full(universe_id, symbol="TSLA", start_at=date(2025, 7, 1))
+    await membership_dao.add_membership_full(universe_id, aapl_id, start_at=date(2025, 7, 1))
+    await membership_dao.add_membership_full(universe_id, tsla_id, start_at=date(2025, 7, 1))
     async with pool.acquire() as conn:
-        await conn.execute(f"UPDATE {env.get_table_name('universe_membership')} SET end_at=$1 WHERE universe_id=$2 AND symbol='AAPL'", date(2025, 7, 2), universe_id)
-    await membership_dao.add_membership_full(universe_id, symbol="AAPL", start_at=date(2025, 7, 3))
+        await conn.execute(f"UPDATE {env.get_table_name('universe_membership')} SET end_at=$1 WHERE universe_id=$2 AND instrument_id=$3", date(2025, 7, 2), universe_id, aapl_id)
+    await membership_dao.add_membership_full(universe_id, aapl_id, start_at=date(2025, 7, 3))
     async with pool.acquire() as conn:
-        await conn.execute(f"UPDATE {env.get_table_name('universe_membership')} SET end_at=$1 WHERE universe_id=$2 AND symbol='TSLA' AND end_at IS NULL", date(2025, 7, 3), universe_id)
+        await conn.execute(f"UPDATE {env.get_table_name('universe_membership')} SET end_at=$1 WHERE universe_id=$2 AND instrument_id=$3 AND end_at IS NULL", date(2025, 7, 3), universe_id, tsla_id)
     # Run SOD/EOD for each day and check instrument ids
     env.get = lambda section, key, default=None: [] if (section, key) == ("runner", "callbacks") else default
     runner = Runner("2025-07-01", "2025-07-03", env, universe_id)
@@ -50,7 +52,7 @@ async def test_runner_universe_manager_sod_eod_real_db(unit_test_db):
     sod_instruments = {}
     async def capture_sod(runner, current_time):
         memberships = await membership_dao.get_active_memberships(universe_id, current_time.date())
-        ids = [row['symbol'] for row in memberships]
+        ids = [instrument_id_to_symbol.get(row['instrument_id']) for row in memberships]
         sod_instruments[current_time.date()] = set(ids)
     runner.universe_manager.update_for_sod = capture_sod
     for event_time, event_type in runner.iter_events():

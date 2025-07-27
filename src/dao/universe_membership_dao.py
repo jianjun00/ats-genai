@@ -39,20 +39,19 @@ class UniverseMembershipDAO:
                 """, universe_id, instrument_id, end_at)
         finally:
             await pool.close()
-    async def add_membership_full(self, universe_id: int, symbol=None, instrument_id=None, start_at=None, end_at=None, vendor_id=None):
+    async def add_membership_full(self, universe_id: int, instrument_id: int, start_at=None, end_at=None):
+        """
+        Add a full universe membership record with resolved instrument_id. The client must resolve instrument_id before calling.
+        """
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
-                if instrument_id is None and symbol is not None:
-                    instrument_id = await self.resolve_instrument_id(symbol, vendor_id, start_at)
                 await conn.execute(f"""
-                    INSERT INTO {self.table_name} (universe_id, symbol, instrument_id, start_at, end_at)
-                    VALUES ($1, $2, $3, $4, $5)
-                """, universe_id, symbol, instrument_id, start_at, end_at)
+                    INSERT INTO {self.table_name} (universe_id, instrument_id, start_at, end_at)
+                    VALUES ($1, $2, $3, $4)
+                """, universe_id, instrument_id, start_at, end_at)
         finally:
             await pool.close()
-
-
 
     async def resolve_instrument_id(self, symbol, vendor_id=None, at_date=None):
         """
