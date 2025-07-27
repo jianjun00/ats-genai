@@ -41,3 +41,19 @@ class DailyPricesDAO:
                 return await conn.fetch(f"SELECT * FROM {self.table_name} WHERE instrument_id = $1", instrument_id)
         finally:
             await pool.close()
+
+    async def insert_price(self, date, instrument_id, open_, high, low, close, volume):
+        print(f"[DEBUG] insert_price called with: date={date}, instrument_id={instrument_id}, open={open_}, high={high}, low={low}, close={close}, volume={volume}")
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    f"""
+                    INSERT INTO {self.table_name} (date, instrument_id, open, high, low, close, volume)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    ON CONFLICT (date, instrument_id) DO NOTHING
+                    """,
+                    date, instrument_id, open_, high, low, close, volume
+                )
+        finally:
+            await pool.close()
