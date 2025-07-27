@@ -7,9 +7,9 @@ import subprocess
 
 # Map environment to database name (customize as needed)
 DB_NAMES = {
-    'test': 'test_trading_db',
-    'intg': 'intg_trading_db',
-    'prod': 'prod_trading_db',
+    'test': 'test_db',
+    'intg': 'intg_db',
+    'prod': 'prod_db',
 }
 
 # Optionally, map environment to user/host/port if needed
