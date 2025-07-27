@@ -3,7 +3,7 @@ import asyncpg
 import asyncio
 import os
 
-TSDB_URL = os.getenv('TSDB_URL', 'postgresql://localhost:5432/trading_db')
+TSDB_URL = os.getenv('TSDB_URL', 'postgresql://localhost:5432/intg_db')
 
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS daily_prices (

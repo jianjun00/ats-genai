@@ -124,7 +124,7 @@ class Environment:
         port = self.get("database", "port", "5432")
         user = self.get("database", "user", "postgres")
         password = self.get("database", "password", "password")
-        database = self.get("database", "database", f"{self.env_type.value}_trading_db")
+        database = self.get("database", "database", f"{self.env_type.value}_db")
         
         return f"postgresql://{user}:{password}@{host}:{port}/{database}"
     
@@ -221,8 +221,8 @@ class Environment:
             "port": int(self.get("database", "port", "5432")),
             "user": self.get("database", "user", "postgres"),
             "password": self.get("database", "password", "password"),
-            "base_database": self.get("database", "base_database", f"{self.env_type.value}_trading_db"),
-            "database": self.get("database", "database", f"{self.env_type.value}_trading_db"),
+            "base_database": self.get("database", "base_database", f"{self.env_type.value}_db"),
+            "database": self.get("database", "database", f"{self.env_type.value}_db"),
             "min_size": int(self.get("database", "pool_min_size", "1")),
             "max_size": int(self.get("database", "pool_max_size", "10")),
             "command_timeout": int(self.get("database", "command_timeout", "60")),

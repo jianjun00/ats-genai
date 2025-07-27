@@ -31,7 +31,7 @@ def make_mock_asyncpg_pool(mock_conn):
         universe = TradingUniverse()
         
         # Should use test environment database URL
-        assert "test_trading_db" in universe.db_url
+        assert "test_db" in universe.db_url
         assert "postgresql://" in universe.db_url
     
     def test_trading_universe_explicit_db_url_override(self):
