@@ -280,25 +280,13 @@ class MigrationManager:
         print(f"Current version: {current_version}")
         print(f"Applying {len(pending_migrations)} pending migrations...")
         
-        backup_file = self._get_backup_file()
-        try:
-            self._run_pg_dump(backup_file)
-        except Exception as e:
-            print(f"[ERROR] Database backup failed: {e}")
-            return False
-        
         success = True
         for version, description, file_path in pending_migrations:
             try:
                 if not await self.apply_migration(version, description, file_path):
                     raise Exception(f"Migration {version} failed")
             except Exception as migration_exc:
-                print(f"[ERROR] Migration failed. Attempting to restore database from backup...")
-                try:
-                    self._run_pg_restore(backup_file)
-                except Exception as restore_exc:
-                    print(f"[CRITICAL] Database restore failed: {restore_exc}")
-                print(f"[INFO] Fix the migration SQL and re-run migrations.")
+                print(f"[ERROR] Migration failed. Fix the migration SQL and re-run migrations.")
                 success = False
                 break
         

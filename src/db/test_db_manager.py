@@ -78,6 +78,7 @@ class TestDatabaseManager:
             print(f"[DEBUG] Creating test DB: {test_db_name}")
             await self._create_test_database(test_db_name)
             test_db_url = self.db_url.replace(base_db_name, test_db_name)
+            print(f"[DEBUG] Using test DB URL: {test_db_url}, base_db_name: {base_db_name}, test_db_name: {test_db_name}")
         else:
             # Use shared integration database
             test_db_url = self.db_url
@@ -111,6 +112,7 @@ class TestDatabaseManager:
         db_config = self.env.get_database_config()
         base_db_name = db_config['database']
         postgres_url = self.db_url.replace(f"/{base_db_name}", "/postgres")
+        print(f"[DEBUG] Connecting to postgres DB: {postgres_url}")
         pool = await asyncpg.create_pool(postgres_url)
         try:
             async with pool.acquire() as conn:

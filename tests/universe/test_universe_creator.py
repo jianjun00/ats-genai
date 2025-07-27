@@ -10,10 +10,7 @@ from src.config import Environment, EnvironmentType
 async def test_universe_add_remove(unit_test_db, monkeypatch):
     # Use the test DB created by unit_test_db fixture, schema is initialized
     print(f"[DEBUG] Using test DB URL: {unit_test_db}")
-    if "trading_db" in unit_test_db and "test" not in unit_test_db:
-        raise AssertionError(f"Unexpected DB URL: {unit_test_db}")
-    if "trading_db" in unit_test_db:
-        print(f"[WARNING] Using legacy test DB name containing 'trading_db': {unit_test_db}")
+    assert "trading_db" not in unit_test_db, f"Unexpected DB URL contains legacy trading_db: {unit_test_db}"
     assert "test" in unit_test_db, f"Test DB URL should contain 'test': {unit_test_db}"
     pool = await asyncpg.create_pool(unit_test_db)
     env = Environment(EnvironmentType.TEST)
