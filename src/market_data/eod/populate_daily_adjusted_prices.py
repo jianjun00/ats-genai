@@ -42,24 +42,11 @@ async def fetch_prices(pool, symbol=None, instrument_id=None):
             raise ValueError("Must provide symbol or instrument_id")
         return pd.DataFrame([dict(row) for row in rows])
 
-async def resolve_instrument_id(conn, symbol, vendor_id=None, at_date=None):
-    q = "SELECT instrument_id FROM instrument_xref WHERE symbol = $1"
-    params = [symbol]
-    if vendor_id is not None:
-        q += " AND vendor_id = $2"
-        params.append(vendor_id)
-    if at_date is not None:
-        if vendor_id is not None:
-            q += " AND (start_at <= $3 AND (end_at IS NULL OR end_at >= $3))"
-            params.append(at_date)
-        else:
-            q += " AND (start_at <= $2 AND (end_at IS NULL OR end_at >= $2))"
-            params.append(at_date)
-    q += " ORDER BY start_at DESC LIMIT 1"
-    row = await conn.fetchrow(q, *params)
-    if not row:
-        raise ValueError(f"No instrument_id found for symbol={symbol}, vendor_id={vendor_id}, at_date={at_date}")
-    return row['instrument_id']
+# Use InstrumentXrefsDAO for instrument_id resolution
+from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+
+# Remove the local resolve_instrument_id function; use the DAO instead.
+
 
 async def fetch_splits(pool, symbol=None, instrument_id=None):
     async with pool.acquire() as conn:

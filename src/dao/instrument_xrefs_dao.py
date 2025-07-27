@@ -3,6 +3,34 @@ import asyncpg
 from typing import Optional, List, Dict, Any
 
 class InstrumentXrefsDAO:
+    async def resolve_instrument_id(self, symbol, vendor_id=None, at_date=None):
+        """
+        Lookup instrument_id from instrument_xrefs using symbol (and vendor_id, at_date if provided).
+        """
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                table_name = self.table_name
+                q = f"SELECT instrument_id FROM {table_name} WHERE symbol = $1"
+                params = [symbol]
+                if vendor_id is not None:
+                    q += " AND vendor_id = $2"
+                    params.append(vendor_id)
+                if at_date is not None:
+                    # at_date must be a datetime.date object for asyncpg
+                    if vendor_id is not None:
+                        q += " AND (start_at <= $3 AND (end_at IS NULL OR end_at >= $3))"
+                        params.append(at_date)
+                    else:
+                        q += " AND (start_at <= $2 AND (end_at IS NULL OR end_at >= $2))"
+                        params.append(at_date)
+                row = await conn.fetchrow(q, *params)
+                if row:
+                    return row['instrument_id']
+                return None
+        finally:
+            await pool.close()
+
     def __init__(self, env: Environment):
         self.env = env
         self.table_name = self.env.get_table_name('instrument_xrefs')

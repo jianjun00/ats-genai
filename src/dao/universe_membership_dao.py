@@ -53,42 +53,14 @@ class UniverseMembershipDAO:
         finally:
             await pool.close()
 
-    async def resolve_instrument_id(self, symbol, vendor_id=None, at_date=None):
-        """
-        Lookup instrument_id from instrument_xref using symbol (and vendor_id, at_date if provided).
-        """
-        pool = await asyncpg.create_pool(self.db_url)
-        try:
-            async with pool.acquire() as conn:
-                # Use correct table and columns for instrument_xrefs
-                table_name = self.env.get_table_name('instrument_xrefs')
-                q = f"SELECT instrument_id FROM {table_name} WHERE symbol = $1"
-                params = [symbol]
-                if vendor_id is not None:
-                    q += " AND vendor_id = $2"
-                    params.append(vendor_id)
-                if at_date is not None:
-                    # at_date must be a datetime.date object for asyncpg
-                    if vendor_id is not None:
-                        q += " AND (start_at <= $3 AND (end_at IS NULL OR end_at >= $3))"
-                        params.append(at_date)
-                    else:
-                        q += " AND (start_at <= $2 AND (end_at IS NULL OR end_at >= $2))"
-                        params.append(at_date)
-                q += " ORDER BY start_at DESC LIMIT 1"
-                row = await conn.fetchrow(q, *params)
-                if not row:
-                    raise ValueError(f"No instrument_id found for symbol={symbol}, vendor_id={vendor_id}, at_date={at_date}")
-                return row['instrument_id']
-        finally:
-            await pool.close()
-
     async def add_membership(self, universe_id: int, symbol=None, instrument_id=None, start_at=None, end_at=None, vendor_id=None) -> bool:
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
                 if instrument_id is None and symbol is not None:
-                    instrument_id = await self.resolve_instrument_id(symbol, vendor_id, start_at)
+                    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+                    xrefs_dao = InstrumentXrefsDAO(self.env)
+                    instrument_id = await xrefs_dao.resolve_instrument_id(symbol, vendor_id, start_at)
                 print(f"[DEBUG] add_membership: instrument_id={instrument_id} type={type(instrument_id)} symbol={symbol} vendor_id={vendor_id} start_at={start_at}")
                 assert instrument_id is None or isinstance(instrument_id, int), f"instrument_id must be int or None, got {instrument_id} ({type(instrument_id)})"
                 await conn.execute(f"""

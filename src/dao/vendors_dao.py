@@ -28,6 +28,14 @@ class VendorsDAO:
         finally:
             await pool.close()
 
+    async def get_vendor_by_name(self, name: str):
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                return await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE name = $1", name)
+        finally:
+            await pool.close()
+
     async def list_vendors(self):
         pool = await asyncpg.create_pool(self.db_url)
         try:

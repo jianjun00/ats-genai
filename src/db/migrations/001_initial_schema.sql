@@ -21,7 +21,6 @@ CREATE TABLE IF NOT EXISTS daily_prices (
 -- Vendors table
 CREATE TABLE IF NOT EXISTS vendors (
     id SERIAL PRIMARY KEY,
-    vendor_id INTEGER,
     name TEXT UNIQUE NOT NULL,
     description TEXT,
     website TEXT,
@@ -166,8 +165,8 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Fundamentals data
 CREATE TABLE IF NOT EXISTS fundamentals (
-    ticker TEXT NOT NULL,
+    symbol TEXT NOT NULL,
     date DATE NOT NULL,
     market_cap DOUBLE PRECISION,
-    PRIMARY KEY (ticker, date)
+    PRIMARY KEY (symbol, date)
 );

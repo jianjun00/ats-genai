@@ -335,23 +335,26 @@ class MigrationManager:
 async def main():
     """CLI interface for migration management."""
     import sys
-    
-    if len(sys.argv) < 2:
-        print("Usage: python migration_manager.py [migrate|validate|version]")
-        return
-    
-    command = sys.argv[1]
+    import argparse
+    from config.environment import set_environment, EnvironmentType
+
+    parser = argparse.ArgumentParser(description="Migration Manager CLI")
+    parser.add_argument("command", choices=["migrate", "validate", "version"], help="Migration command to run")
+    parser.add_argument("--environment", "-e", help="Environment to use (test, intg, prod)")
+    args = parser.parse_args()
+
+    if args.environment:
+        set_environment(EnvironmentType(args.environment))
+
     manager = MigrationManager()
-    
-    if command == "migrate":
+
+    if args.command == "migrate":
         await manager.migrate_to_latest()
-    elif command == "validate":
+    elif args.command == "validate":
         await manager.validate_migrations()
-    elif command == "version":
+    elif args.command == "version":
         version = await manager.get_current_version()
         print(f"Current database version: {version}")
-    else:
-        print(f"Unknown command: {command}")
 
 
 if __name__ == "__main__":

@@ -8,10 +8,12 @@ from state.instrument_interval import InstrumentInterval
 
 class DailyPriceMarketDataManager(MarketDataManager):
     def __init__(self, env, exchange="NYSE", start_date: Optional[date]=None):
+        from dao.instrument_xrefs_dao import InstrumentXrefsDAO
         self.env = env
         self.exchange = exchange
         self.calendar = ExchangeCalendar(self.exchange)
         self.dao = DailyPricesDAO(self.env)
+        self.instrument_xref_dao = InstrumentXrefsDAO(self.env)
         self._intervals: Dict[int, InstrumentInterval] = {}
         self._last_prices: Dict[int, Dict[str, float]] = {}
         self._start_date = start_date
@@ -24,10 +26,14 @@ class DailyPriceMarketDataManager(MarketDataManager):
         if prev_date is None:
             return
         # Load last price for each instrument
-        instrument_ids = [self._symbol_to_id(symbol) for symbol in symbols]
+        instrument_ids = []
+        for symbol in symbols:
+            instrument_id = await self.instrument_xref_dao.resolve_instrument_id(symbol)
+            if instrument_id is not None:
+                instrument_ids.append(instrument_id)
         results = await self.dao.list_prices_for_instruments_and_date(instrument_ids, prev_date)
         for row in results:
-            instrument_id = self._symbol_to_id(row['symbol'])
+            instrument_id = row['instrument_id']
             self._last_prices[instrument_id] = {
                 'open': row['open'],
                 'high': row['high'],
@@ -45,8 +51,13 @@ class DailyPriceMarketDataManager(MarketDataManager):
         # Load daily_prices for cur_date and store as InstrumentInterval
         symbols = self._get_all_symbols()
         logger.debug(f"update_for_sod: fetched symbols: {symbols}")
-        instrument_ids = [self._symbol_to_id(symbol) for symbol in symbols]
+        instrument_ids = []
+        for symbol in symbols:
+            instrument_id = await self.instrument_xref_dao.resolve_instrument_id(symbol)
+            if instrument_id is not None:
+                instrument_ids.append(instrument_id)
         results = await self.dao.list_prices_for_instruments_and_date(instrument_ids, cur_date)
+        print(f"DEBUG update_for_sod: loaded rows for date={cur_date}, instrument_ids={instrument_ids}: {results}")
         logger.debug(f"update_for_sod: got {len(results)} price records from DB for date {cur_date}")
         open_time, close_time = self._get_exchange_open_close(cur_date)
         logger.debug(f"update_for_sod: open_time={open_time}, close_time={close_time}")
@@ -54,7 +65,7 @@ class DailyPriceMarketDataManager(MarketDataManager):
             import logging
             logger = logging.getLogger(__name__)
             logger.warning(f"update_for_sod: row keys={list(row.keys())}, row values={list(row.values())}")
-            instrument_id = self._symbol_to_id(row['symbol'])
+            instrument_id = row['instrument_id']
             logger.debug(f"update_for_sod: Creating interval for instrument_id={instrument_id}, symbol={row['symbol']} with row={row}")
             interval = InstrumentInterval(
                 instrument_id=instrument_id,
@@ -123,7 +134,3 @@ class DailyPriceMarketDataManager(MarketDataManager):
         # For now, returns an empty list
         return []
 
-    def _symbol_to_id(self, symbol: str) -> int:
-        # Placeholder: in production, map symbol to instrument_id
-        # For now, use hash
-        return hash(symbol)
