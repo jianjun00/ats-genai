@@ -61,7 +61,7 @@ async def test_add_and_get_universe_members_real_db(unit_test_db):
 
     # Add membership (now vendor/instrument/xref exist)
     # Add membership (pass vendor_id to ensure match)
-    await db.universe_membership_dao.add_membership_full(universe_id=universe_id, symbol="AAPL", start_at=date(2025, 7, 25), end_at=None, vendor_id=vendor_id)
+    await db.universe_membership_dao.add_membership_full(universe_id=universe_id, instrument_id=instrument_id, start_at=date(2025, 7, 25), end_at=None)
 
     # Retrieve members (UniverseDB.get_universe_members does not take vendor_id, but membership resolution will now work)
     members = await db.get_universe_members(universe_id, date(2025, 7, 25))
@@ -139,15 +139,15 @@ async def test_universe_manager_multiday_multiinstrument_real_db(unit_test_db):
     universe_name = "TEST_MULTI_DAY"
     universe_id = await db.add_universe(universe_name, "desc")
     # Day 1: Add AAPL & TSLA
-    await db.universe_membership_dao.add_membership_full(universe_id=universe_id, symbol="AAPL", start_at=date(2025, 7, 1), end_at=None, vendor_id=vendor_id)
-    await db.universe_membership_dao.add_membership_full(universe_id=universe_id, symbol="TSLA", start_at=date(2025, 7, 1), end_at=None, vendor_id=vendor_id)
+    await db.universe_membership_dao.add_membership_full(universe_id=universe_id, instrument_id=instrument_ids["AAPL"], start_at=date(2025, 7, 1), end_at=None)
+    await db.universe_membership_dao.add_membership_full(universe_id=universe_id, instrument_id=instrument_ids["TSLA"], start_at=date(2025, 7, 1), end_at=None)
     # Day 2: Remove AAPL (set end_at)
     async with pool.acquire() as conn:
-        await conn.execute(f"UPDATE {env.get_table_name('universe_membership')} SET end_at=$1 WHERE universe_id=$2 AND symbol='AAPL'", date(2025, 7, 2), universe_id)
+        await conn.execute(f"UPDATE {env.get_table_name('universe_membership')} SET end_at=$1 WHERE universe_id=$2 AND instrument_id=$3", date(2025, 7, 2), universe_id, instrument_ids["AAPL"])
     # Day 3: Remove TSLA, add AAPL back
-    await db.universe_membership_dao.add_membership_full(universe_id=universe_id, symbol="AAPL", start_at=date(2025, 7, 3), end_at=None, vendor_id=vendor_id)
+    await db.universe_membership_dao.add_membership_full(universe_id=universe_id, instrument_id=instrument_ids["AAPL"], start_at=date(2025, 7, 3), end_at=None)
     async with pool.acquire() as conn:
-        await conn.execute(f"UPDATE {env.get_table_name('universe_membership')} SET end_at=$1 WHERE universe_id=$2 AND symbol='TSLA' AND end_at IS NULL", date(2025, 7, 3), universe_id)
+        await conn.execute(f"UPDATE {env.get_table_name('universe_membership')} SET end_at=$1 WHERE universe_id=$2 AND instrument_id=$3 AND end_at IS NULL", date(2025, 7, 3), universe_id, instrument_ids["TSLA"])
     # Verify membership for each day
     members_day1 = await db.get_universe_members(universe_id, date(2025, 7, 1))
     members_day2 = await db.get_universe_members(universe_id, date(2025, 7, 2))
