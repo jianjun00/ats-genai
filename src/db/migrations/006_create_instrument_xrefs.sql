@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS instrument_xrefs (
     active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now(),
-    UNIQUE (instrument_id, vendor_id, symbol, start_at)
+    UNIQUE (instrument_id, vendor_id, start_at)
 );
 
 -- For environment-specific tables (integration, test, prod), the migration runner should apply prefixing automatically.

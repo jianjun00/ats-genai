@@ -32,7 +32,7 @@ class TestUniverseStateBuilder:
     def mock_env(self):
         """Mock Environment instance."""
         env = MagicMock(spec=Environment)
-        env.get_database_url.return_value = "postgresql://test:test@localhost/test_db"
+        env.get_database_url.return_value = os.environ.get('TSDB_URL', 'postgresql://test:test@localhost/test_db')
         env.get_table_name.side_effect = lambda table: f"test_{table}"
         return env
     
