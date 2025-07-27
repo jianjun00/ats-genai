@@ -282,3 +282,15 @@ def test_multi_duration_integration_with_indicators():
     expected_indicators = ['OneOneDot', 'OneOneHigh', 'OneOneLow']
     for indicator_name in expected_indicators:
         assert indicator_interval.has_indicator(indicator_name)
+    # Verify indicator values are correct
+    # Interval: high=105.0, low=99.0, close=104.0
+    high, low, close = 105.0, 99.0, 104.0
+    oneonedot = (high + low + close) / 3.0
+    expected_values = {
+        'OneOneDot': oneonedot,
+        'OneOneHigh': 2 * oneonedot - low,
+        'OneOneLow': 2 * oneonedot - high,
+    }
+    for indicator_name, expected_value in expected_values.items():
+        value = indicator_interval.indicators[indicator_name]['value']
+        assert value == expected_value, f"{indicator_name} value {value} != expected {expected_value}"
