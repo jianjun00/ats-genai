@@ -153,23 +153,27 @@ class TestDatabaseManager:
     
     async def _drop_test_database(self, db_name: str):
         """Drop a test database."""
+        import asyncpg
         db_config = self.env.get_database_config()
         base_db_name = db_config['database']
         postgres_url = self.db_url.replace(f"/{base_db_name}", "/postgres")
-        pool = await asyncpg.create_pool(postgres_url)
         try:
-            async with pool.acquire() as conn:
-                # Terminate active connections to the database
-                await conn.execute("""
-                    SELECT pg_terminate_backend(pid)
-                    FROM pg_stat_activity
-                    WHERE datname = $1 AND pid <> pg_backend_pid()
-                """, db_name)
-                
-                # Drop the database
-                await conn.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
-        finally:
-            await pool.close()
+            pool = await asyncpg.create_pool(postgres_url)
+            try:
+                async with pool.acquire() as conn:
+                    # Terminate active connections to the database
+                    await conn.execute("""
+                        SELECT pg_terminate_backend(pid)
+                        FROM pg_stat_activity
+                        WHERE datname = $1 AND pid <> pg_backend_pid()
+                    """, db_name)
+                    # Drop the database
+                    await conn.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
+            finally:
+                await pool.close()
+        except asyncpg.exceptions.InvalidCatalogNameError as e:
+            # Ignore if database does not exist (including pool creation)
+            print(f"[DEBUG] Database '{db_name}' does not exist or could not connect, ignoring drop: {e}")
     
     async def cleanup_test_data(self):
         """Clean up test data from integration test database."""
