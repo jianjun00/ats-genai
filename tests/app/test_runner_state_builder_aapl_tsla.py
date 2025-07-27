@@ -42,7 +42,11 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db, monkeypatch):
     # Insert test data as needed (no backup/restore required)
     # Insert test data as needed (no backup/restore required)
     from config.environment import get_environment
-    env = get_environment()
+    env = Environment()
+    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+    env.config.set('database', 'host', 'localhost')
+    env.config.set('database', 'port', '5432')
+
     if not env.config.has_section('universe'):
         env.config.add_section('universe')
     env.config.set('universe', 'base_duration', '1d')
@@ -54,10 +58,41 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db, monkeypatch):
     # Insert test daily prices for AAPL/TSLA for each test date using the provided db_url
     async with asyncpg.create_pool(db_url) as pool:
         async with pool.acquire() as conn:
+            # Ensure instruments exist for all symbols
+            instruments_table = env.get_table_name('instruments')
+            xrefs_table = env.get_table_name('instrument_xrefs')
+            test_vendor_id = 1  # Use a consistent test vendor_id for your test setup
+            # Insert instruments and fetch their IDs, and insert xrefs
+            instrument_ids = {}
             for symbol in UNIVERSE_SYMBOLS:
+                await conn.execute(
+                    f"INSERT INTO {instruments_table} (symbol, name, type) VALUES ($1, $2, $3) "
+                    f"ON CONFLICT (symbol) DO NOTHING",
+                    symbol, f"Test {symbol}", "stock"
+                )
+                row = await conn.fetchrow(f"SELECT id FROM {instruments_table} WHERE symbol = $1", symbol)
+                assert row, f"Instrument not found for symbol {symbol}"
+                instrument_id = row['id']
+                instrument_ids[symbol] = instrument_id
+                # Insert into instrument_xrefs for test vendor
+                await conn.execute(
+                    f"INSERT INTO {xrefs_table} (instrument_id, vendor_id, symbol) VALUES ($1, $2, $3) ",
+                    instrument_id, test_vendor_id, symbol
+                )
+            # Debug: Print all instruments in table before inserting prices
+            instruments = await conn.fetch(f"SELECT id, symbol FROM {instruments_table}")
+            print(f"DEBUG: Instruments in table before price insert: {[dict(row) for row in instruments]}")
+            # Insert daily prices using the correct instrument_id
+            for symbol in UNIVERSE_SYMBOLS:
+                instrument_id = instrument_ids[symbol]
                 for d in pd.date_range(TEST_START_DATE, TEST_END_DATE):
                     table_name = env.get_table_name('daily_prices')
-                    await conn.execute(f"INSERT INTO {table_name} (date, symbol, open, high, low, close, volume) VALUES ($1, $2, 100, 110, 90, 105, 1000) ON CONFLICT DO NOTHING", d.date(), symbol)
+                    await conn.execute(
+                        f"INSERT INTO {table_name} (date, symbol, instrument_id, open, high, low, close, volume) "
+                        f"VALUES ($1, $2, $3, 100, 110, 90, 105, 1000) ON CONFLICT DO NOTHING",
+                        d.date(), symbol, instrument_id
+                    )
+
     # Debug: Check if test_universe_membership table exists
     pool = await asyncpg.create_pool(db_url)
     async with pool.acquire() as conn:
@@ -90,7 +125,7 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db, monkeypatch):
     monkeypatch.setattr(env, 'get', lambda section, key, default=None: ['state.universe_state_builder.UniverseStateBuilder'] if (section, key) == ('runner', 'callbacks') else env.__class__.get(env, section, key, default))
     runner = Runner(TEST_START_DATE, TEST_END_DATE, env, UNIVERSE_ID)
     # Insert test daily prices for AAPL/TSLA for each test date
-    from market_data.eod.daily_prices_dao import DailyPricesDAO
+    from dao.daily_prices_dao import DailyPricesDAO
     dao = DailyPricesDAO(env)
     test_dates = [pd.to_datetime(d).date() for d in pd.date_range(TEST_START_DATE, TEST_END_DATE)]
     async def setup_prices():
@@ -100,8 +135,8 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db, monkeypatch):
             await conn.execute(f"DELETE FROM {dao.table_name} WHERE date >= $1 AND date <= $2 AND symbol IN ($3, $4)", test_dates[0], test_dates[-1], 'AAPL', 'TSLA')
         await pool.close()
         for d in test_dates:
-            await dao.insert_price(d, 'AAPL', 150, 155, 148, 154, 10000)
-            await dao.insert_price(d, 'TSLA', 700, 710, 690, 705, 20000)
+            await dao.insert_price(d, instrument_ids['AAPL'], 155, 158, 148, 154, 10000)
+            await dao.insert_price(d, instrument_ids['TSLA'], 710, 715, 690, 705, 20000)
     await setup_prices()
 
     # Patch in a real DailyPriceMarketDataManager
