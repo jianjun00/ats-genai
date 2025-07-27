@@ -3,7 +3,7 @@ import asyncio
 from datetime import date, datetime
 from market_data.daily_price_market_data_manager import DailyPriceMarketDataManager
 from db.test_db_manager import unit_test_db, TestDatabaseManager
-from market_data.eod.daily_prices_dao import DailyPricesDAO
+from market_data.daily_prices_dao import DailyPricesDAO
 from config.environment import get_environment
 
 async def debug_print_tables(env):
@@ -78,8 +78,8 @@ async def test_daily_price_manager_sod_eod(unit_test_db):
         env = get_environment()
         dao = DailyPricesDAO(env)
         today = date(2024, 1, 2)
-        await dao.insert_price(today, 'AAPL', 1, 155, 148, 154, 10000)
-        await dao.insert_price(today, 'TSLA', 2, 710, 690, 705, 20000)
+        await dao.insert_price(today, 1, 155, 155, 148, 154, 10000)
+        await dao.insert_price(today, 2, 710, 710, 690, 705, 20000)
 
         class TestManager(DailyPriceMarketDataManager):
             def _get_all_symbols(self):
