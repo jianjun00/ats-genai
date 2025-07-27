@@ -164,7 +164,7 @@ class TestTimeDuration:
     def test_get_all_supported_durations(self):
         """Test get_all_supported_durations class method."""
         supported = TimeDuration.get_all_supported_durations()
-        expected = ["5m", "15m", "60m", "1d", "1w", "1m", "1q", "1y"]
+        expected = ["5m", "15m", "30m", "60m", "1d", "1w", "1m", "1q", "1y"]
         assert supported == expected
     
     def test_factory_methods(self):
