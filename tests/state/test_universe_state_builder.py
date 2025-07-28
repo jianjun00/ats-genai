@@ -5,6 +5,7 @@ Tests cover business logic, data validation, corporate actions,
 membership changes, and integration with data sources.
 """
 
+import os
 import pytest
 import pandas as pd
 import asyncio
