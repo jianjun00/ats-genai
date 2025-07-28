@@ -160,28 +160,35 @@ async def apply_events_to_membership(pool, universe_id, events, env=None):
         env = get_environment()
     universe_membership_table = env.get_table_name('universe_membership')
     membership_changes_table = env.get_table_name('universe_membership_changes')
+    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+    xrefs_dao = InstrumentXrefsDAO(env)
     async with pool.acquire() as conn:
         for event in events:
+            # Resolve instrument_id for the symbol
+            instrument_id = await xrefs_dao.resolve_instrument_id(event['symbol'])
+            if instrument_id is None:
+                print(f"[ERROR] Could not resolve instrument_id for symbol '{event['symbol']}'. Skipping event: {event}")
+                continue
             # Insert into membership_changes
             await conn.execute(
                 f"""
-                INSERT INTO {membership_changes_table} (symbol, action, effective_date, reason)
-                VALUES ($1, $2, $3, $4)
-                ON CONFLICT (symbol, action, effective_date) DO NOTHING
+                INSERT INTO {membership_changes_table} (instrument_id, universe_id, action, effective_date, reason)
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (instrument_id, universe_id, action, effective_date) DO NOTHING
                 """,
-                event['symbol'], event['type'], event['date'], event.get('reason', None)
+                instrument_id, universe_id, event['type'], event['date'], event.get('reason', None)
             )
             if event['type'] == 'add':
                 import json
                 meta_str = json.dumps({"reason": event['reason']})
                 result = await conn.execute(
                     f"""
-                    INSERT INTO {universe_membership_table} (universe_id, symbol, start_at, end_at, meta)
-                    VALUES ($1, $2, $3, NULL, $4::jsonb)
-                    ON CONFLICT (universe_id, symbol, start_at) DO NOTHING
+                    INSERT INTO {universe_membership_table} (universe_id, instrument_id, symbol, start_at, end_at, meta)
+                    VALUES ($1, $2, $3, $4, NULL, $5::jsonb)
+                    ON CONFLICT (universe_id, instrument_id, start_at) DO NOTHING
                     """,
-                    universe_id, event['symbol'], event['date'], meta_str)
-                print(f"[DEBUG] ADD {event['symbol']} at {event['date']} ({result})")
+                    universe_id, instrument_id, event['symbol'], event['date'], meta_str)
+                print(f"[DEBUG] ADD {event['symbol']} (instrument_id={instrument_id}) at {event['date']} ({result})")
             elif event['type'] == 'remove':
                 import json
                 meta_str = json.dumps({"remove_reason": event['reason']})
@@ -189,10 +196,10 @@ async def apply_events_to_membership(pool, universe_id, events, env=None):
                     f"""
                     UPDATE {universe_membership_table}
                     SET end_at = $1, meta = COALESCE(meta, '{{}}'::jsonb) || $2::jsonb
-                    WHERE universe_id = $3 AND symbol = $4 AND end_at IS NULL
+                    WHERE universe_id = $3 AND instrument_id = $4 AND end_at IS NULL
                     """,
-                    event['date'], meta_str, universe_id, event['symbol'])
-                print(f"[DEBUG] REMOVE {event['symbol']} at {event['date']} ({result})")
+                    event['date'], meta_str, universe_id, instrument_id)
+                print(f"[DEBUG] REMOVE {event['symbol']} (instrument_id={instrument_id}) at {event['date']} ({result})")
 
 
 async def remove_all_universe_membership(pool, universe_id):

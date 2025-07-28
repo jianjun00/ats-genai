@@ -33,9 +33,9 @@ async def test_add_and_get_universe_members_real_db(unit_test_db):
     xrefs_dao = InstrumentXrefsDAO(env)
     vendor_id = None
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(f"SELECT vendor_id FROM {env.get_table_name('vendors')} WHERE name=$1", vendor_name)
+        row = await conn.fetchrow(f"SELECT id FROM {env.get_table_name('vendors')} WHERE name=$1", vendor_name)
         if row:
-            vendor_id = row['vendor_id']
+            vendor_id = row['id']
         else:
             vendor_id = await vendors_dao.create_vendor(vendor_name, description="Test Vendor")
     # Insert or get instrument
@@ -105,9 +105,9 @@ async def test_universe_manager_multiday_multiinstrument_real_db(unit_test_db):
     vendor_id = None
     pool = await asyncpg.create_pool(unit_test_db)
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(f"SELECT vendor_id FROM {env.get_table_name('vendors')} WHERE name=$1", vendor_name)
+        row = await conn.fetchrow(f"SELECT id FROM {env.get_table_name('vendors')} WHERE name=$1", vendor_name)
         if row:
-            vendor_id = row['vendor_id']
+            vendor_id = row['id']
         else:
             vendor_id = await vendors_dao.create_vendor(vendor_name, description="Test Vendor")
     # Insert or get instruments

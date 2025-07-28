@@ -41,12 +41,21 @@ async def test_add_universe_membership(monkeypatch):
     await db.add_universe_membership(1, 'AAPL', date(2025, 7, 24), None)
     db.universe_membership_dao.add_membership_full.assert_awaited_once_with(universe_id=1, symbol='AAPL', start_at=date(2025, 7, 24), end_at=None)
 
+from config.environment import Environment
+
 @pytest.mark.asyncio
-async def test_update_universe_membership_end(monkeypatch):
-    db = UniverseDB()
+async def test_update_universe_membership_end(unit_test_db, monkeypatch):
+    from config.environment import EnvironmentType
+    env = Environment(EnvironmentType.TEST)
+    # Patch get_database_url to return the test DB URL
+    env.get_database_url = lambda: unit_test_db
+    db = UniverseDB(env)
     db.universe_membership_dao = MagicMock()
     db.universe_membership_dao.update_membership_end = AsyncMock()
-    db.universe_membership_dao.resolve_instrument_id = AsyncMock(return_value=123)
+    # Patch InstrumentXrefsDAO at the import path actually used in the function
+    mock_xrefs_dao = MagicMock()
+    mock_xrefs_dao.resolve_instrument_id = AsyncMock(return_value=123)
+    monkeypatch.setattr("dao.instrument_xrefs_dao.InstrumentXrefsDAO", lambda env: mock_xrefs_dao)
     await db.update_universe_membership_end(1, 'AAPL', date(2025, 7, 24))
-    db.universe_membership_dao.resolve_instrument_id.assert_awaited_once_with('AAPL')
+    mock_xrefs_dao.resolve_instrument_id.assert_awaited_once_with('AAPL')
     db.universe_membership_dao.update_membership_end.assert_awaited_once_with(universe_id=1, instrument_id=123, end_at=date(2025, 7, 24))
