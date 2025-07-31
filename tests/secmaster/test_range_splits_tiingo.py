@@ -3,6 +3,44 @@ import asyncio
 from datetime import date
 from secmaster.range_splits_tiingo import parse_date, map_tiingo_split, insert_splits_tiingo
 
+import types
+from secmaster.range_splits_tiingo import get_symbols_from_stock_splits_polygon
+
+@pytest.mark.asyncio
+async def test_get_symbols_from_stock_splits_polygon_parses_dates():
+    class DummyConn:
+        def __init__(self):
+            self.last_args = None
+        async def fetch(self, query, start, end):
+            self.last_args = (query, start, end)
+            return [{"symbol": "AAPL"}, {"symbol": "MSFT"}]
+    class DummyAcquireCtx:
+        async def __aenter__(self):
+            return DummyConn()
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
+    class DummyPool:
+        def acquire(self):
+            return DummyAcquireCtx()
+        async def close(self):
+            pass
+    async def dummy_create_pool(db_url):
+        return DummyPool()
+    import secmaster.range_splits_tiingo as mod
+    orig_create_pool = mod.asyncpg.create_pool
+    mod.asyncpg.create_pool = dummy_create_pool
+    try:
+        class DummyEnv:
+            def get_database_url(self):
+                return "postgresql://user:pass@localhost:5432/fake"
+            def get_table_name(self, name):
+                return "stock_splits_polygon"
+        env = DummyEnv()
+        symbols = await get_symbols_from_stock_splits_polygon(env, "2022-01-01", "2022-12-31")
+        assert symbols == ["AAPL", "MSFT"]
+    finally:
+        mod.asyncpg.create_pool = orig_create_pool
+
 @pytest.mark.asyncio
 async def test_parse_date_handles_none_and_date():
     assert parse_date(None) is None
