@@ -5,19 +5,11 @@ import requests
 from datetime import datetime, timedelta
 
 TSDB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")
-POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")
+
 START_DATE = (datetime.now() - timedelta(days=365*10)).strftime("%Y-%m-%d")
 END_DATE = datetime.now().strftime("%Y-%m-%d")
 
-async def get_all_spy_tickers():
-    pool = await asyncpg.create_pool(TSDB_URL)
-    async with pool.acquire() as conn:
-        rows = await conn.fetch("SELECT DISTINCT added FROM spy_membership_change WHERE added IS NOT NULL")
-        removed = await conn.fetch("SELECT DISTINCT removed FROM spy_membership_change WHERE removed IS NOT NULL")
-    await pool.close()
-    tickers = set([row['added'] for row in rows] + [row['removed'] for row in removed])
-    tickers.discard(None)
-    return sorted(tickers)
+# get_all_spy_tickers is obsolete, use InstrumentPolygonDAO.get_all_symbols instead.
 
 def fetch_splits_polygon(ticker, api_key):
     url = f"https://api.polygon.io/v3/reference/splits?ticker={ticker}&apiKey={api_key}"
@@ -68,15 +60,21 @@ async def insert_dividends(dividends, ticker):
         )
     await pool.close()
 
+from dao.instrument_polygon_dao import InstrumentPolygonDAO
+from config.environment import get_environment
+
 async def main():
-    if not POLYGON_API_KEY:
-        raise Exception("Please set your POLYGON_API_KEY environment variable.")
-    tickers = await get_all_spy_tickers()
+    env = get_environment()
+    api_key = env.get_api_key('polygon')
+    if not api_key:
+        raise Exception("Please set your POLYGON_API_KEY in your environment or config.")
+    dao = InstrumentPolygonDAO(env)
+    tickers = await dao.get_all_symbols()
     for ticker in tickers:
         print(f"Processing splits and dividends for {ticker}...")
-        splits = fetch_splits_polygon(ticker, POLYGON_API_KEY)
+        splits = fetch_splits_polygon(ticker, api_key)
         await insert_splits(splits, ticker)
-        dividends = fetch_dividends_polygon(ticker, POLYGON_API_KEY)
+        dividends = fetch_dividends_polygon(ticker, api_key)
         await insert_dividends(dividends, ticker)
         print(f"Inserted splits and dividends for {ticker}")
 
