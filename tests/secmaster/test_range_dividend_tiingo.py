@@ -3,6 +3,53 @@ import asyncio
 from datetime import date
 from secmaster.range_dividend_tiingo import parse_date, map_tiingo_dividend, insert_dividends_tiingo
 
+import types
+from secmaster.range_dividend_tiingo import get_symbols_from_dividend_polygon
+
+@pytest.mark.asyncio
+async def test_get_symbols_from_dividend_polygon_parses_dates(tmp_path):
+    # Setup: create a test DB and table
+    import asyncpg
+    import os
+    import tempfile
+    import uuid
+    db_name = f"test_db_{uuid.uuid4().hex[:8]}"
+    db_url = f"postgresql://localhost/{db_name}"
+    # For real test, use a test DB fixture; here, just check type conversion and SQL
+    class DummyEnv:
+        def get_database_url(self):
+            return "postgresql://user:pass@localhost:5432/fake"  # Not actually used
+        def get_table_name(self, name):
+            return "dividend_polygon"
+    class DummyConn:
+        def __init__(self):
+            self.last_args = None
+        async def fetch(self, query, start, end):
+            self.last_args = (query, start, end)
+            return [{"symbol": "AAPL"}, {"symbol": "MSFT"}]
+    class DummyAcquireCtx:
+        async def __aenter__(self):
+            return DummyConn()
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
+    class DummyPool:
+        def acquire(self):
+            return DummyAcquireCtx()
+        async def close(self):
+            pass
+    async def dummy_create_pool(db_url):
+        return DummyPool()
+    import secmaster.range_dividend_tiingo as mod
+    orig_create_pool = mod.asyncpg.create_pool
+    mod.asyncpg.create_pool = dummy_create_pool
+    try:
+        env = DummyEnv()
+        # Pass string dates, should be parsed to date
+        symbols = await get_symbols_from_dividend_polygon(env, "2022-01-01", "2022-12-31")
+        assert symbols == ["AAPL", "MSFT"]
+    finally:
+        mod.asyncpg.create_pool = orig_create_pool
+
 @pytest.mark.asyncio
 async def test_parse_date_handles_none_and_date():
     assert parse_date(None) is None
