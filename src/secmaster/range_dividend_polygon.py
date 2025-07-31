@@ -74,9 +74,17 @@ async def main():
     if not api_key:
         raise Exception("Please set your POLYGON_API_KEY in your environment or config.")
     all_dividends = []
+    import time
+    last_request_time = None
     for chunk_start, chunk_end in date_chunks(args.start_date, args.end_date, chunk_days=5):
+        now = time.monotonic()
+        if last_request_time is not None:
+            elapsed = now - last_request_time
+            if elapsed < 0.2:
+                await asyncio.sleep(0.2 - elapsed)
         print(f"[DEBUG] Fetching dividends for {chunk_start} to {chunk_end}")
         chunk_divs = fetch_dividends_polygon(chunk_start, chunk_end, api_key)
+        last_request_time = time.monotonic()
         print(f"[DEBUG] Fetched {len(chunk_divs)} dividends for {chunk_start} to {chunk_end}")
         all_dividends.extend(chunk_divs)
     print(f"Fetched {len(all_dividends)} total dividends from Polygon API.")
