@@ -340,7 +340,7 @@ async def main():
 
     parser = argparse.ArgumentParser(description="Migration Manager CLI")
     parser.add_argument("command", choices=["migrate", "validate", "version"], help="Migration command to run")
-    parser.add_argument("--environment", "-e", help="Environment to use (test, intg, prod)")
+    parser.add_argument("--environment", "-e", choices=["test", "intg", "prod"], default="test", help="Environment to use (test, intg, prod)")
     args = parser.parse_args()
 
     if args.environment:

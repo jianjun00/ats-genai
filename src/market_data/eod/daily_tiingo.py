@@ -213,7 +213,6 @@ async def main():
             existing_dates = await get_existing_dates(dao, instrument_id, effective_start, effective_end)
             missing_ranges = get_missing_date_ranges(existing_dates, effective_start, effective_end)
 
-
             if not missing_ranges:
                 print(f"[INFO] No missing dates for {symbol} (instrument_id {instrument_id}) in {args.start_date} to {args.end_date}")
                 continue
