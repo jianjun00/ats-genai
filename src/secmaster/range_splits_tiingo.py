@@ -46,9 +46,11 @@ def map_tiingo_split(split):
 async def get_symbols_from_stock_splits_polygon(env, start_date, end_date):
     db_url = env.get_database_url()
     table_name = env.get_table_name('stock_splits_polygon')
+    start = parse_date(start_date)
+    end = parse_date(end_date)
     pool = await asyncpg.create_pool(db_url)
     async with pool.acquire() as conn:
-        rows = await conn.fetch(f"SELECT DISTINCT symbol FROM {table_name} WHERE execution_date >= $1 AND execution_date <= $2", start_date, end_date)
+        rows = await conn.fetch(f"SELECT DISTINCT symbol FROM {table_name} WHERE execution_date >= $1 AND execution_date <= $2", start, end)
     await pool.close()
     return [row['symbol'] for row in rows]
 
