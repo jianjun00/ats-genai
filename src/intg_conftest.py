@@ -1,5 +1,10 @@
 import pytest
-from intg_tests.db.fixture_backup_restore_all_intg_tables import auto_backup_restore_all_intg_tables
+import os
+
+def pytest_configure(config):
+    os.environ['ENVIRONMENT'] = 'intg'
+
+from src.db.fixture_backup_restore_all_intg_tables import auto_backup_restore_all_intg_tables
 import asyncpg
 import asyncio
 from src.config.environment import get_environment

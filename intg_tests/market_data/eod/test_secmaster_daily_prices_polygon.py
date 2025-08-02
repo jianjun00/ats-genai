@@ -25,8 +25,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCRIPT_PATH = PROJECT_ROOT / "src/market_data/eod/daily_polygon.py"
 
 # Ensure environment is set for integration tests and env is globally available
-set_environment(EnvironmentType.INTEGRATION)
-global env
 env = get_environment()
 
 class TestIntegrationPolygon(AsyncPGTestDBBase):

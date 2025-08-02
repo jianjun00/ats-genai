@@ -6,10 +6,10 @@ from market_data.eod import daily_quandl
 
 @pytest.mark.asyncio
 async def test_quandl_ingestion_and_dao(tmp_path, monkeypatch):
-    # Set environment to test
-    set_environment(EnvironmentType.TEST)
     env = get_environment()
     dao = DailyPricesQuandlDAO(env)
+    import asyncpg
+    dao.pool = await asyncpg.create_pool(env.get_database_url())
 
     # Prepare fake prices
     import datetime
@@ -28,10 +28,11 @@ async def test_quandl_ingestion_and_dao(tmp_path, monkeypatch):
 
     # Insert prices using DAO
     await dao.batch_insert_prices(prices, symbol)
-    stored = await dao.list_prices(symbol)
+    stored = await dao.get_prices(symbol, datetime.date(2023, 7, 1), datetime.date(2023, 7, 2))
     assert len(stored) == 2
-    assert stored[0]['symbol'] == symbol
-    assert stored[0]['open'] == 100.0
+    assert stored[0]['date'] == datetime.date(2023, 7, 1)
+    assert stored[1]['date'] == datetime.date(2023, 7, 2)
+    await dao.pool.close()
     assert stored[1]['close'] == 108.0
 
     # Test ingestion script logic with monkeypatched download
@@ -48,10 +49,13 @@ async def test_quandl_ingestion_and_dao(tmp_path, monkeypatch):
         ticker = symbol
         start = '2023-07-01'
         end = '2023-07-02'
-        environment = 'test'
+        environment = 'intg'
+
     # Patch argparse to return test args
     monkeypatch.setattr('argparse.ArgumentParser.parse_args', lambda self: Args)
     await daily_quandl.main()
-    # Should not error, and should insert again (ON CONFLICT DO NOTHING)
-    stored2 = await dao.list_prices(symbol)
+    # Re-initialize DAO pool after main(), since pool may be closed
+    dao.pool = await asyncpg.create_pool(env.get_database_url())
+    stored2 = await dao.get_prices(symbol, datetime.date(2023, 7, 1), datetime.date(2023, 7, 2))
     assert len(stored2) == 2  # No duplicates
+    await dao.pool.close()

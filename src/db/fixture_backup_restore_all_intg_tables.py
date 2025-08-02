@@ -8,6 +8,9 @@ async def auto_backup_restore_all_intg_tables(event_loop):
     Automatically backup and restore all intg_ tables before and after each test in intg_tests.
     """
     env = get_environment()
+    # Force database name to intg_db for all integration tests
+    import os
+    os.environ['DATABASE_NAME'] = 'intg_db'
     db_url = env.get_database_url()
     pool = await asyncpg.create_pool(db_url)
     async with pool.acquire() as conn:
