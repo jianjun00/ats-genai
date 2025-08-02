@@ -14,7 +14,7 @@ try:
 except ImportError:
     import logging
     logging.warning("python-dotenv not installed; .env file will not be loaded automatically.")
-import configparser
+import gin
 from pathlib import Path
 from typing import Dict, Any, Optional
 from enum import Enum
@@ -32,25 +32,118 @@ from signals.indicator_config import IndicatorConfig
 
 class Environment:
     """
-    Environment configuration manager.
-    
-    Manages environment-specific configurations including database connections,
-    API keys, and application settings. Supports test, integration, and production
-    environments with proper database prefixing.
+    Gin-based Environment configuration manager.
+    Loads config from Gin config file (e.g., config/app.gin).
+    All config values are bound as module-level variables.
     """
-    
-    def __init__(self, env_type: Optional[EnvironmentType] = None):
-        """
-        Initialize environment configuration.
-        
-        Args:
-            env_type: Environment type. If None, will be determined from ENVIRONMENT env var.
-        """
-        self.env_type = env_type or self._detect_environment()
-        self.config = configparser.ConfigParser()
-        self._load_configurations()
-        self.logger = self._setup_logging()
+    def __init__(self, gin_config_path: Optional[str] = None, env_type: Optional[object] = None):
+        # Accept either a gin config path or an environment type (enum or str)
+        config_path = None
+        # If gin_config_path is actually an EnvironmentType or str, treat as env_type
+        if gin_config_path is not None and not isinstance(gin_config_path, str):
+            env_type = gin_config_path
+            gin_config_path = None
+        # Set self.env_type based on env_type or config
+        if env_type is not None:
+            if isinstance(env_type, EnvironmentType):
+                self.env_type = env_type
+            else:
+                # Try to coerce to EnvironmentType
+                try:
+                    self.env_type = EnvironmentType(env_type)
+                except Exception:
+                    self.env_type = EnvironmentType.TEST
+        else:
+            # Try to infer from GIN_CONFIG or default
+            gin_cfg = gin_config_path or os.getenv("GIN_CONFIG", "config/app.gin")
+            if "intg" in gin_cfg:
+                self.env_type = EnvironmentType.INTEGRATION
+            elif "prod" in gin_cfg:
+                self.env_type = EnvironmentType.PRODUCTION
+            else:
+                self.env_type = EnvironmentType.TEST
+
+        # Accept either a gin config path or an environment type (enum or str)
+        config_path = None
+        # If gin_config_path is actually an EnvironmentType or str, treat as env_type
+        if gin_config_path is not None and not isinstance(gin_config_path, str):
+            env_type = gin_config_path
+            gin_config_path = None
+        if gin_config_path is not None:
+            config_path = gin_config_path
+        elif env_type is not None:
+            if isinstance(env_type, EnvironmentType):
+                env_type_str = env_type.value
+            else:
+                env_type_str = str(env_type)
+            if env_type_str in ("test", "TEST"):
+                config_path = "config/app.gin"
+            elif env_type_str in ("intg", "integration", "INTEGRATION"):
+                config_path = "config/app_intg.gin"
+            elif env_type_str in ("prod", "production", "PRODUCTION"):
+                config_path = "config/app_prod.gin"
+            else:
+                config_path = "config/app.gin"
+        else:
+            config_path = os.getenv("GIN_CONFIG", "config/app.gin")
+        import logging
+        print(f"[GIN DEBUG] About to load Gin config: {config_path}, env_type={getattr(self, 'env_type', None)}")
+        self.gin_config_path = config_path
+        gin.clear_config()
+
+        # Ensure Database is registered as a Gin configurable before parsing config
+        from config.logging_config import LoggingConfig
+        from config.database import Database
+
+        gin.parse_config_file(self.gin_config_path)
+
+        self.logging_config = LoggingConfig()
+        # Create a Database object using Gin-configured parameters
+        self.database = Database()
+        try:
+            print(f"[GIN DEBUG] Loaded database config from Gin: host={self.database.host}, db={self.database.database}")
+        except Exception as e:
+            print(f"[GIN DEBUG] Could not instantiate Database from Gin: {e}")
         self._indicator_config = IndicatorConfig.default_config()
+        self.logger = self._setup_logging()
+
+    def get_api_key(self, service: str) -> str:
+        return gin.query_parameter(f"{service}_api_key")
+
+
+    def _setup_logging(self) -> logging.Logger:
+        logger = logging.getLogger("market-forecast-app")
+        level_str = getattr(self.logging_config, "level", "INFO")
+        level = getattr(logging, level_str.upper(), logging.INFO)
+        logger.setLevel(level)
+        if not logger.handlers:
+            handler = logging.StreamHandler()
+            format_str = getattr(self.logging_config, "format", "%(asctime)s - %(levelname)s - %(message)s")
+            formatter = logging.Formatter(format_str)
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+        return logger
+
+    def get_database_config(self) -> dict:
+        return {
+            "host": self.database.host,
+            "port": self.database.port,
+            "user": self.database.user,
+            "password": self.database.password,
+            "database": self.database.database,
+            "min_size": self.database.pool_min_size,
+            "max_size": self.database.pool_max_size,
+            "command_timeout": self.database.command_timeout,
+        }
+
+    @property
+    def indicator_config(self) -> IndicatorConfig:
+        return self._indicator_config
+
+    @indicator_config.setter
+    def indicator_config(self, value: IndicatorConfig):
+        self._indicator_config = value
+
     
     def _detect_environment(self) -> EnvironmentType:
         """Detect environment from ENVIRONMENT environment variable."""
@@ -81,66 +174,43 @@ class Environment:
         """Setup logging based on environment configuration."""
         logger = logging.getLogger("market-forecast-app")
         
-        level_str = self.get("logging", "level", "INFO")
+        level_str = self.logging_config.level
         level = getattr(logging, level_str.upper(), logging.INFO)
         logger.setLevel(level)
         
         if not logger.handlers:
             handler = logging.StreamHandler()
-            format_str = self.get("logging", "format", "%(asctime)s - %(levelname)s - %(message)s")
+            format_str = self.logging_config.format
             formatter = logging.Formatter(format_str)
             handler.setFormatter(formatter)
             logger.addHandler(handler)
         
         return logger
     
-    def get(self, section: str, key: str, default: Any = None) -> Any:
-        """
-        Get configuration value with environment variable substitution.
-        
-        Args:
-            section: Configuration section name
-            key: Configuration key name
-            default: Default value if key not found
-            
-        Returns:
-            Configuration value with environment variables expanded
-        """
-        try:
-            value = self.config.get(section, key)
-            # Expand environment variables
-            return os.path.expandvars(value)
-        except (configparser.NoSectionError, configparser.NoOptionError):
-            return default
     
     def get_database_url(self) -> str:
         """
-        Get database URL for current environment.
-        
-        Returns:
-            PostgreSQL connection URL with environment-specific database name
+        Get database URL for current environment from Gin config.
         """
-        host = self.get("database", "host", "localhost")
-        port = self.get("database", "port", "5432")
-        user = self.get("database", "user", "postgres")
-        password = self.get("database", "password", "password")
-        database = self.get("database", "database", f"{self.env_type.value}_db")
-        
+        host = self.database.host
+        port = self.database.port
+        user = self.database.user
+        password = self.database.password
+        database = self.database.database
         return f"postgresql://{user}:{password}@{host}:{port}/{database}"
-    
-    def get_table_name(self, base_table_name: str) -> str:
+
+    def get_table_name(self, base_table_name: str):
         """
-        Get prefixed table name for current environment.
-        
-        Args:
-            base_table_name: Base table name without prefix
-            
-        Returns:
-            Table name with environment prefix (e.g., test_daily_prices)
+        Get prefixed table name for current environment (Gin-based, uses env_type if present).
         """
-        prefix = self.get("database", "prefix", f"{self.env_type.value}_")
-        return f"{prefix}{base_table_name}"
-    
+        # If env_type is not set, default to 'test'
+        prefix = getattr(self, "env_type", None)
+        if prefix is None:
+            prefix = "test"
+        else:
+            prefix = prefix.value if hasattr(prefix, "value") else str(prefix)
+        return f"{prefix}_{base_table_name}"
+
     def get_api_key(self, service: str) -> Optional[str]:
         """
         Get API key for specified service.
@@ -152,7 +222,7 @@ class Environment:
             API key or None if not found
         """
         key_name = f"{service}_api_key"
-        return self.get("api_keys", key_name)
+        return self.get(f"{key_name}")
     
     @property
     def indicator_config(self) -> IndicatorConfig:
@@ -170,17 +240,17 @@ class Environment:
     def get_base_duration(self) -> 'TimeDuration':
         # Default to 5 minutes if not set in config
         from calendars.time_duration import TimeDuration
-        duration_str = self.get('universe', 'base_duration', '5m')
+        duration_str = self.get('universe.base_duration', '5m')
         return TimeDuration(duration_str)
 
     def get_target_durations(self) -> 'List[TimeDuration]':
         from calendars.time_duration import TimeDuration
-        durations_str = self.get('universe', 'target_durations', '5m')
+        durations_str = self.get('universe.target_durations', '5m')
         durations = [d.strip() for d in durations_str.split(',')]
         return [TimeDuration(d) for d in durations]
 
     def get_universe_id(self) -> int:
-        return int(self.get('universe', 'universe_id', '1'))
+        return int(self.get('universe.universe_id', '1'))
 
     def set_target_durations(self, durations: 'List[TimeDuration]'):
         durations_str = ','.join(str(d) for d in durations)
@@ -206,7 +276,7 @@ class Environment:
         Returns:
             True if feature is enabled, False otherwise
         """
-        value = self.get("features", feature, "false")
+        value = self.get(f"features.{feature}", "false")
         return value.lower() in ("true", "1", "yes", "on")
     
     def get_database_config(self) -> Dict[str, Any]:
@@ -217,15 +287,16 @@ class Environment:
             Dictionary with database connection parameters
         """
         return {
-            "host": self.get("database", "host", "localhost"),
-            "port": int(self.get("database", "port", "5432")),
-            "user": self.get("database", "user", "postgres"),
-            "password": self.get("database", "password", "password"),
-            "base_database": self.get("database", "base_database", f"{self.env_type.value}_db"),
-            "database": self.get("database", "database", f"{self.env_type.value}_db"),
-            "min_size": int(self.get("database", "pool_min_size", "1")),
-            "max_size": int(self.get("database", "pool_max_size", "10")),
-            "command_timeout": int(self.get("database", "command_timeout", "60")),
+            "host": self.database.host,
+            "port": int(self.database.port),
+            "user": self.database.user,
+            "password": self.database.password,
+            "base_database": self.database.base_database,
+            "database": self.database.database,
+            "min_size": int(self.database.pool_min_size),
+            "max_size": int(self.database.pool_max_size),
+            "command_timeout": int(self.database.command_timeout),
+
         }
     
     def __str__(self) -> str:
@@ -243,14 +314,14 @@ _env_instance: Optional[Environment] = None
 
 def get_environment() -> Environment:
     """
-    Get global environment instance (singleton pattern).
-    
-    Returns:
-        Global Environment instance
+    Get global Gin-based Environment instance (singleton pattern).
+    Honors GIN_CONFIG environment variable if set.
     """
     global _env_instance
     if _env_instance is None:
-        _env_instance = Environment()
+        import os
+        gin_config_path = os.environ.get("GIN_CONFIG")
+        _env_instance = Environment(gin_config_path=gin_config_path)
     return _env_instance
 
 
@@ -262,4 +333,4 @@ def set_environment(env_type: EnvironmentType):
         env_type: Environment type to set
     """
     global _env_instance
-    _env_instance = Environment(env_type)
+    _env_instance = Environment(env_type=env_type)
