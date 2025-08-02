@@ -71,6 +71,8 @@ def compare_prices(tiingo, polygon, close_threshold=0.01):
 @pytest.mark.parametrize("symbol,start_date,end_date", [
     ("AAPL", "2025-01-01", "2025-01-10"),
     ("TSLA", "2025-01-01", "2025-01-10"),
+    ("AAPL", "2024-01-01", "2025-07-31"),
+    ("TSLA", "2024-01-01", "2025-07-31"),
 ])
 def test_unify_daily_prices_discrepancies(symbol, start_date, end_date):
     tiingo_dir = "tests/data/daily_prices_tiingo"
