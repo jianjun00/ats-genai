@@ -636,8 +636,13 @@ if __name__ == "__main__":
                 import inspect, asyncio
                 # Use handleInterval with a real DailyPriceMarketDataManager
                 from market_data.eod.daily_price_market_data_manager import DailyPriceMarketDataManager
+                from market_data.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
                 # Patch _get_all_symbols to return test symbols (AAPL, TSLA)
                 class PatchedDailyPriceMarketDataManager(DailyPriceMarketDataManager):
+                    def _get_all_symbols(self):
+                        return ["AAPL", "TSLA"]
+
+                class PatchedFileDailyPriceMarketDataManager(FileDailyPriceMarketDataManager):
                     def _get_all_symbols(self):
                         return ["AAPL", "TSLA"]
                 # Fetch instrument_ids for AAPL, TSLA from DB
@@ -657,7 +662,17 @@ if __name__ == "__main__":
                 class RealRunner:
                     def __init__(self, env, instrument_ids):
                         self.universe_manager = type('UM', (), {'instrument_ids': instrument_ids})()
-                        self.market_data_manager = PatchedDailyPriceMarketDataManager(env, start_date=cur_date.date())
+                        # Switch between file-based and DB-based managers
+                        if os.environ.get('FILE_BASED_PRICES') == '1':
+                            print('DEBUG: Using FileDailyPriceMarketDataManager for prices')
+                            vendors_dirs = {
+                                'polygon': 'tests/data/daily_prices_polygon',
+                                'tiingo': 'tests/data/daily_prices_tiingo'
+                            }
+                            self.market_data_manager = PatchedFileDailyPriceMarketDataManager(vendors_dirs, symbols=["AAPL", "TSLA"])
+                        else:
+                            print('DEBUG: Using DailyPriceMarketDataManager (DB) for prices')
+                            self.market_data_manager = PatchedDailyPriceMarketDataManager(env, start_date=cur_date.date())
                         self.universe_state_manager = manager
                         self.env = env
                 runner = RealRunner(env, instrument_ids)

@@ -23,6 +23,7 @@ class MigrationManager:
     def __init__(self, db_url: str = None):
         self.environment = get_environment()
         self.db_url = db_url or self.environment.get_database_url()
+        print(f"[MIGRATION MANAGER INIT] db_url: {self.db_url}, env_type: {self.environment.env_type}")
         self.migrations_dir = Path(__file__).parent / "migrations"
         
         # Determine environment based on database URL

@@ -22,12 +22,15 @@ import logging
 logger = logging.getLogger(__name__)
 from dateutil import parser as date_parser
 import datetime
+import gin
 
+@gin.configurable
 class TestDatabaseManager:
     """Manages test databases for unit and integration tests."""
 
     
-    def __init__(self, test_type: str = "unit", test_name: str = None, run_migrations: bool = True):
+    def __init__(self, test_type: str = "unit", test_name: str = None, run_migrations: bool = True, database_name: str = None):
+        print(f"[GIN DEBUG] TestDatabaseManager __init__: test_type={test_type}, database_name={database_name}")
         """
         Initialize test database manager.
         
@@ -37,14 +40,23 @@ class TestDatabaseManager:
             run_migrations: If False, do not apply migrations after DB creation (default: True)
         """
         # Use the appropriate environment based on test type
-        if test_type == "integration":
-            from src.config.environment import Environment, EnvironmentType
+        logger.debug(f"TestDatabaseManager: test_type={test_type}")
+        if test_type == "integration": 
             self.env = Environment(EnvironmentType.INTEGRATION)
         else:
-            self.env = get_environment()
+            self.env = Environment(env_type=EnvironmentType.TEST)
         
         self.test_type = test_type
-        self.db_url = self.env.get_database_url()
+        if database_name:
+            # Override DB name in URL
+            url = self.env.get_database_url()
+            import re
+            # Replace last path segment with database_name
+            self.db_url = re.sub(r"(?<=/)[^/]+$", database_name, url)
+            print(f"[GIN DEBUG] TestDatabaseManager using database_name override: {database_name} → db_url={self.db_url}")
+        else:
+            self.db_url = self.env.get_database_url()
+            print(f"[GIN DEBUG] TestDatabaseManager using env db_url={self.db_url}")
         # Extract table prefix from environment
         sample_table = self.env.get_table_name("sample")
         self.table_prefix = sample_table.replace("sample", "")
@@ -346,6 +358,13 @@ class IntegrationTestSession:
 
 @pytest_asyncio.fixture
 async def unit_test_db(request):
+    from config.environment import get_environment, EnvironmentType
+    env = get_environment()
+    print(f"[DEBUG] unit_test_db fixture: env_type={env.env_type}, db={env.get_database_url()}")
+    assert env.env_type == EnvironmentType.TEST, (
+        f"Environment type is {env.env_type}, expected TEST. "
+        "Check your GIN_CONFIG and test runner setup!"
+    )
     """Fixture for unit tests - provides isolated database per test."""
     # Use the test function name as a unique identifier
     test_name = request.node.name if hasattr(request, 'node') else None
@@ -410,6 +429,83 @@ async def test_database_context(test_type: str = "unit"):
 
 
 # Example test fixtures for common test data
+
+import pytest_asyncio
+import pytest
+import asyncpg
+from pathlib import Path
+from db.migration_manager import MigrationManager
+from config.environment import Environment, EnvironmentType, get_environment
+
+@pytest_asyncio.fixture
+async def unit_test_db_clean():
+    """
+    Fixture for a completely empty unit test database (no tables).
+    Ensures environment is TEST. Used for DB migration and isolation tests.
+    """
+    assert get_environment().env_type == EnvironmentType.TEST, (
+        f"Environment type is {get_environment().env_type}, expected TEST. "
+        "Check your GIN_CONFIG and test runner setup!"
+    )
+    import gin
+    db_manager = gin.get_configurable(TestDatabaseManager)("unit")
+    test_db_url = await db_manager.setup_test_database()
+    migration_manager = MigrationManager(test_db_url)
+    await migration_manager.migrate_to_latest()
+    # Drop all tables to ensure DB is empty
+    pool = await asyncpg.create_pool(test_db_url)
+    try:
+        async with pool.acquire() as conn:
+            tables = await conn.fetch("""
+                SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+            """)
+            for row in tables:
+                await conn.execute(f'DROP TABLE IF EXISTS "{row["tablename"]}" CASCADE')
+    finally:
+        await pool.close()
+    yield test_db_url
+    await db_manager.teardown_test_database()
+    # Clean up backup/dump files created for this test DB
+    db_name = test_db_url.split('/')[-1]
+    backup_dir = Path(__file__).parent / "../db/migrations/backups"
+    if backup_dir.exists():
+        pattern = f"{db_name}_*.dump"
+        for dump_file in backup_dir.glob(pattern):
+            try:
+                dump_file.unlink()
+            except Exception:
+                pass
+
+@pytest_asyncio.fixture
+async def unit_test_db(request):
+    """
+    Fixture for unit tests - provides isolated database per test.
+    Ensures environment is TEST. Used for most DB-backed unit tests.
+    """
+    assert get_environment().env_type == EnvironmentType.TEST, (
+        f"Environment type is {get_environment().env_type}, expected TEST. "
+        "Check your GIN_CONFIG and test runner setup!"
+    )
+    test_name = request.node.name if hasattr(request, 'node') else None
+    db_manager = TestDatabaseManager("unit", test_name=test_name)
+    test_db_url = await db_manager.setup_test_database()
+    # Patch the config for this test session
+    env = Environment()
+    db_url_parts = test_db_url.split('/')
+    database_name = db_url_parts[-1]
+    env.config.set('database', 'database', database_name)
+    env.config.set('database', 'host', 'localhost')
+    env.config.set('database', 'port', '5432')
+    migration_manager = MigrationManager(test_db_url)
+    await migration_manager.migrate_to_latest()
+    yield test_db_url
+    await db_manager.teardown_test_database()
+
+@pytest.fixture(scope="session")
+def test_env():
+    """Fixture to provide a test Environment instance with universe_id set."""
+    env = Environment(EnvironmentType.TEST)
+    return env
 
 SAMPLE_FIXTURES = {
     "vendors": [

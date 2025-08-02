@@ -2,9 +2,9 @@ import pytest
 import asyncpg
 import pandas as pd
 from datetime import date
-from src.app.runner import Runner
-from src.universe.universe_manager import UniverseManager
-from src.state.universe_state_manager import UniverseStateManager
+from app.runner import Runner
+from universe.universe_manager import UniverseManager
+from state.universe_state_manager import UniverseStateManager
 from config.environment import Environment, EnvironmentType
 
 # Test config: use intg_ DB prefix and robust test isolation

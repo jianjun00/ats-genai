@@ -1,0 +1,9 @@
+# Root Hydra config
+# Compose with defaults below
+
+defaults:
+  - shared
+  - environment: test
+  - _self_
+
+# You can put global config here if needed

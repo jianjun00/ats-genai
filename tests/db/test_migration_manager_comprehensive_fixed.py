@@ -13,7 +13,7 @@ import shutil
 from pathlib import Path
 from unittest.mock import patch, mock_open
 from src.db.migration_manager import MigrationManager
-from src.db.conftest import unit_test_db_clean
+
 import pytest_asyncio
 from src.db.test_db_manager import TestDatabaseManager
 

@@ -1,0 +1,32 @@
+# Gin config for market-forecast-app (production environment)
+
+# API keys
+finnhub_api_key = 'prod_finnhub_key'
+iex_api_key = 'prod_iex_key'
+quandl_api_key = 'prod_quandl_key'
+fmp_api_key = 'prod_fmp_key'
+polygon_api_key = 'prod_polygon_key'
+tiingo_api_key = 'prod_tiingo_key'
+
+# Logging
+bind = ['logging.level', 'WARNING']
+bind = ['logging.format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s']
+
+# Features
+bind = ['enable_caching', True]
+bind = ['enable_metrics', True]
+bind = ['strict_validation', True]
+
+# Runner
+bind = ['callbacks', 'state.universe_state_builder.UniverseStateBuilder']
+bind = ['saved_dir', '/var/universe_states']
+
+# Database
+bind = ['database.host', 'prod-db-host']
+bind = ['database.port', 5432]
+bind = ['database.user', 'prod_user']
+bind = ['database.password', 'prod_password']
+bind = ['database.database', 'prod_trading_db']
+bind = ['database.pool_min_size', 2]
+bind = ['database.pool_max_size', 20]
+bind = ['database.command_timeout', 60]
