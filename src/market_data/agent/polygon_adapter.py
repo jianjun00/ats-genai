@@ -61,9 +61,9 @@ class PolygonAdapter(VendorAdapter):
                 except Exception:
                     return False
             if ticker.upper() in log_tickers and in_log_range(start_date, end_date):
-                os.makedirs("test/data", exist_ok=True)
-                req_path = f"test/data/polygon_{ticker.lower()}_{start_date}_{end_date}_request.json"
-                resp_path = f"test/data/polygon_{ticker.lower()}_{start_date}_{end_date}_response.json"
+                os.makedirs("tests/data", exist_ok=True)
+                req_path = f"tests/data/polygon_{ticker.lower()}_{start_date}_{end_date}_request.json"
+                resp_path = f"tests/data/polygon_{ticker.lower()}_{start_date}_{end_date}_response.json"
                 with open(req_path, "w") as f:
                     json.dump({"url": url}, f, indent=2)
                 try:

@@ -2,10 +2,11 @@ import json
 import pytest
 from datetime import datetime
 from pathlib import Path
+from src.market_data.eod.unify_daily_prices import FileDailyPricesUnifier, DailyPricesUnifierBase
 
-def load_fixture_prices(log_dir, symbol, start_date, end_date, provider):
+def load_fixture_prices(log_dir, symbol, provider):
     """
-    Loads price data from the log response json for a given symbol, date range, and provider ('tiingo' or 'polygon').
+    Loads price data from the log response json for a given symbol and provider ('tiingo' or 'polygon').
     Returns a dict keyed by date.
     """
     fname = f"{provider}_{symbol.lower()}_response.json"
@@ -14,15 +15,13 @@ def load_fixture_prices(log_dir, symbol, start_date, end_date, provider):
         data = json.load(f)
     prices = {}
     if provider == 'tiingo':
-        # Tiingo: list of dicts, each with 'date'
         for row in data:
             dt = row['date'][:10]
             prices[dt] = row
     elif provider == 'polygon':
-        # Polygon: dict with 'results' key
         for row in data['results']:
             dt = datetime.utcfromtimestamp(row['t']/1000).strftime('%Y-%m-%d')
-            prices[dt] = row
+            prices[dt] = {'open': row['o'], 'high': row['h'], 'low': row['l'], 'close': row['c'], 'volume': row['v']}
     return prices
 
 def compare_prices(tiingo, polygon, close_threshold=0.01):
@@ -77,13 +76,65 @@ def compare_prices(tiingo, polygon, close_threshold=0.01):
 def test_unify_daily_prices_discrepancies(symbol, start_date, end_date):
     tiingo_dir = "tests/data/daily_prices_tiingo"
     polygon_dir = "tests/data/daily_prices_polygon"
-    tiingo = load_fixture_prices(tiingo_dir, symbol, start_date, end_date, "tiingo")
-    polygon = load_fixture_prices(polygon_dir, symbol, start_date, end_date, "polygon")
-    stats = compare_prices(tiingo, polygon)
+    tiingo = load_fixture_prices(tiingo_dir, symbol, "tiingo")
+    polygon = load_fixture_prices(polygon_dir, symbol, "polygon")
+    # Build data dicts for FileDailyPricesUnifier
+    tiingo_data = {symbol: tiingo}
+    polygon_data = {symbol: polygon}
+    unifier = FileDailyPricesUnifier(environment=None, tiingo_data=tiingo_data, polygon_data=polygon_data)
+    # Run unification for the date range
+    import asyncio
+    results = asyncio.run(unifier.unify_daily_prices(symbol, (start_date, end_date)))
+    # Analyze results
+    import pandas as pd
+    from pandas.tseries.holiday import USFederalHolidayCalendar
+    stats = {
+        'total_dates': 0, 'only_tiingo': 0, 'only_polygon': 0, 'close_enough': 0,
+        'conflict': 0, 'invalid': 0, 'invalid_holiday': 0, 'invalid_weekend': 0, 'invalid_weekday': 0, 'conflicts': [], 'invalid_notes': []
+    }
+    cal = USFederalHolidayCalendar()
+    # NYSE holidays are more than USFederalHolidayCalendar, but this is a close proxy for test
+    for row in results:
+        stats['total_dates'] += 1
+        classified = False
+        if row['status'] == 'valid':
+            if row['source'] == 'tiingo':
+                stats['only_tiingo'] += 1
+                classified = True
+            elif row['source'] == 'polygon':
+                stats['only_polygon'] += 1
+                classified = True
+            elif row['source'] == 'both':
+                stats['close_enough'] += 1
+                classified = True
+        elif row['status'] == 'conflict':
+            stats['conflict'] += 1
+            stats['conflicts'].append({'date': row['date'], 'note': row['note']})
+            classified = True
+        elif row['status'] == 'invalid':
+            stats['invalid'] += 1
+            # Classify as holiday, weekend, or weekday
+            dt = pd.to_datetime(row['date'])
+            weekday = dt.weekday()
+            us_holidays = cal.holidays(start=dt, end=dt)
+            if weekday >= 5:
+                stats['invalid_weekend'] += 1
+            elif dt in us_holidays:
+                stats['invalid_holiday'] += 1
+            else:
+                stats['invalid_weekday'] += 1
+            # Save a sample of notes for debug
+            if len(stats['invalid_notes']) < 10:
+                stats['invalid_notes'].append({'date': row['date'], 'note': row['note']})
+            classified = True
+        if not classified:
+            print(f"Unclassified row: date={row['date']} status={row['status']} source={row['source']}")
     print(f"Discrepancy stats for {symbol}: {stats}")
-    # Basic sanity: every date should be classified
-    assert stats['total_dates'] == (stats['only_tiingo'] + stats['only_polygon'] + stats['close_enough'] + stats['conflict'])
-    # Optionally, assert no conflicts or print details
+    if stats['invalid_notes']:
+        print("Sample invalid notes:")
+        for n in stats['invalid_notes']:
+            print(f"Invalid on {n['date']}: {n['note']}")
+    assert stats['total_dates'] == (stats['only_tiingo'] + stats['only_polygon'] + stats['close_enough'] + stats['conflict'] + stats['invalid'])
     if stats['conflict'] > 0:
         for c in stats['conflicts']:
-            print(f"Conflict on {c['date']}: {c['diffs']}")
+            print(f"Conflict on {c['date']}: {c['note']}")
