@@ -2,6 +2,8 @@ import pytest
 import asyncpg
 from secmaster import dividend_polygon
 
+from db.test_db_manager import unit_test_db
+
 @pytest.mark.asyncio
 async def test_insert_dividends_polygon_inserts_correctly(unit_test_db):
     # Example Polygon dividends API response
@@ -18,13 +20,19 @@ async def test_insert_dividends_polygon_inserts_correctly(unit_test_db):
         }
     ]
     ticker = "AAPL"
-    # Insert dividends into the real test DB
-    await dividend_polygon.insert_dividends_polygon(dividends, ticker)
+        # Patch: Inject DAO with test DB URL
+    from dao.dividend_polygon_dao import DividendPolygonDAO
+    from config.environment import Environment
+    env = Environment()
+    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+    dao = DividendPolygonDAO(env)
+    await dividend_polygon.insert_dividends_polygon(dividends, ticker, dao=dao)
 
     # Query the test DB to verify insertion
     pool = await asyncpg.create_pool(unit_test_db)
     async with pool.acquire() as conn:
-        rows = await conn.fetch("SELECT * FROM dividend_polygon WHERE symbol = $1", ticker)
+        table_name = env.get_table_name('dividend_polygon')
+        rows = await conn.fetch(f"SELECT * FROM {table_name} WHERE symbol = $1", ticker)
         assert len(rows) == 1
         row = rows[0]
         assert row['symbol'] == 'AAPL'

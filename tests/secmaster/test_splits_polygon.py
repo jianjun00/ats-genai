@@ -2,6 +2,8 @@ import pytest
 import asyncpg
 from secmaster import splits_polygon
 
+from db.test_db_manager import unit_test_db
+
 @pytest.mark.asyncio
 async def test_insert_splits_polygon_inserts_correctly(unit_test_db):
     # Example Polygon splits API response
@@ -20,13 +22,19 @@ async def test_insert_splits_polygon_inserts_correctly(unit_test_db):
         }
     ]
     ticker = "AAPL"
-    # Insert splits into the real test DB
-    await splits_polygon.insert_splits_polygon(splits, ticker)
+        # Patch: Inject DAO with test DB URL
+    from dao.stock_splits_polygon_dao import StockSplitsPolygonDAO
+    from config.environment import Environment
+    env = Environment()
+    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+    dao = StockSplitsPolygonDAO(env)
+    await splits_polygon.insert_splits_polygon(splits, ticker, dao=dao)
 
     # Query the test DB to verify insertion
     pool = await asyncpg.create_pool(unit_test_db)
     async with pool.acquire() as conn:
-        rows = await conn.fetch("SELECT * FROM stock_splits_polygon WHERE symbol = $1", ticker)
+        table_name = env.get_table_name('stock_splits_polygon')
+        rows = await conn.fetch(f"SELECT * FROM {table_name} WHERE symbol = $1", ticker)
         assert len(rows) == 1
         row = rows[0]
         assert row['symbol'] == 'AAPL'
