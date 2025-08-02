@@ -92,6 +92,38 @@ async def fetch_and_insert_symbol(dao: DailyPricesTiingoDAO, session, instrument
         url = tiingo_url(symbol, range_start, range_end)
         print(f"[DEBUG] Fetching {symbol} from URL: {url}")
         async with session.get(url) as resp:
+            # Log request/response for AAPL/TSLA in date range
+            from datetime import datetime
+            import json, os
+            log_tickers = {"AAPL", "TSLA"}
+            log_start = datetime(2020, 1, 10)
+            log_end = datetime(2024, 12, 31)
+            def in_log_range(s, e):
+                try:
+                    sdt = datetime.strptime(str(s), "%Y-%m-%d")
+                    edt = datetime.strptime(str(e), "%Y-%m-%d")
+                    return not (edt < log_start or sdt > log_end)
+                except Exception:
+                    return False
+            if symbol.upper() in log_tickers and in_log_range(range_start, range_end):
+                os.makedirs("test/data", exist_ok=True)
+                req_path = f"test/data/tiingo_{symbol.lower()}_{range_start}_{range_end}_request.json"
+                resp_path = f"test/data/tiingo_{symbol.lower()}_{range_start}_{range_end}_response.json"
+                with open(req_path, "w") as f:
+                    json.dump({"url": url}, f, indent=2)
+                try:
+                    # Read response content as text and attempt to parse as JSON
+                    resp_text = await resp.text()
+                    try:
+                        resp_json = json.loads(resp_text)
+                        with open(resp_path, "w") as f:
+                            json.dump(resp_json, f, indent=2)
+                    except Exception:
+                        with open(resp_path, "w") as f:
+                            f.write(resp_text)
+                except Exception as e:
+                    with open(resp_path, "w") as f:
+                        f.write(f"[ERROR] Could not serialize response: {e}\n")
             print(f"[DEBUG] HTTP status for {symbol}: {resp.status}")
             if resp.status != 200:
                 print(f"[ERROR] Failed to fetch {symbol}: HTTP {resp.status}")
@@ -158,7 +190,7 @@ async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--start_date', type=str, required=True, help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end_date', type=str, required=True, help='End date (YYYY-MM-DD)')
-    parser.add_argument('--instrument_id', type=str, default=None, help='Process only this instrument_id (optional)')
+    parser.add_argument('--ticker', type=str, default=None, help='Process only this ticker (optional, maps to instrument_id)')
     parser.add_argument('--environment', type=str, default='intg', choices=['test', 'intg', 'prod'], help='Environment to use (test, intg, prod)')
     args = parser.parse_args()
 
@@ -176,8 +208,13 @@ async def main():
     pool = await asyncpg.create_pool(env.get_database_url(), min_size=1, max_size=4)
     from dao.instrument_xrefs_dao import InstrumentXrefsDAO
     xrefs_dao = InstrumentXrefsDAO(env)
-    if args.instrument_id:
-        instrument_ids = [int(args.instrument_id)]
+    if args.ticker:
+        instrument_id = await xrefs_dao.resolve_instrument_id(args.ticker)
+        if instrument_id is None:
+            print(f"[ERROR] Could not resolve instrument_id for ticker {args.ticker}. Exiting.")
+            await pool.close()
+            return
+        instrument_ids = [instrument_id]
     else:
         # Get all unique instrument_ids with a symbol in instrument_xrefs
         xrefs_rows = await xrefs_dao.list_xrefs_for_vendor(vendor_id=1)  # None = all vendors
