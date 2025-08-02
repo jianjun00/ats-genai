@@ -250,15 +250,16 @@ async def test_universe_membership_dao_universe_isolation(unit_test_db):
 
     # Insert required instruments and xrefs for test symbols
     instruments_dao = InstrumentsDAO(env)
-    instrument_id_1 = await instruments_dao.create_instrument(symbol=symbol_1, name="Test Member 1", type_="stock")
-    instrument_id_2 = await instruments_dao.create_instrument(symbol=symbol_2, name="Test Member 2", type_="stock")
+    instrument_list_date = datetime(2010, 1, 1).date()
+    instrument_id_1 = await instruments_dao.create_instrument(symbol=symbol_1, name="Test Member 1", type_="stock", list_date=instrument_list_date)
+    instrument_id_2 = await instruments_dao.create_instrument(symbol=symbol_2, name="Test Member 2", type_="stock", list_date=instrument_list_date)
     xrefs_dao = __import__('dao.instrument_xrefs_dao', fromlist=['InstrumentXrefsDAO']).InstrumentXrefsDAO(env)
-    await xrefs_dao.create_xref(instrument_id_1, vendor_id=vendor_id, symbol=symbol_1, start_at=start_at)
-    await xrefs_dao.create_xref(instrument_id_2, vendor_id=vendor_id, symbol=symbol_2, start_at=start_at)
+    await xrefs_dao.create_xref(instrument_id_1, vendor_id, symbol_1, instrument_list_date)
+    await xrefs_dao.create_xref(instrument_id_2, vendor_id, symbol_2, instrument_list_date)
 
     # Add memberships
-    await dao.add_membership(universe_id_1, symbol=symbol_1, start_at=start_at)
-    await dao.add_membership(universe_id_2, symbol=symbol_2, start_at=start_at)
+    await dao.add_membership(universe_id_1, symbol=symbol_1, start_at=instrument_list_date)
+    await dao.add_membership(universe_id_2, symbol=symbol_2, start_at=instrument_list_date)
     # Test isolation: get memberships for universe_id_1
     memberships_1 = await dao.get_memberships_by_universe(universe_id_1)
     assert any(m['symbol'] == symbol_1 for m in memberships_1)
@@ -285,11 +286,12 @@ async def test_universe_membership_dao_active_memberships(unit_test_db):
     vendors_dao = VendorsDAO(env)
     vendor_id = await vendors_dao.create_vendor(name="TestVendor", description="Test vendor for xref")
     instruments_dao = InstrumentsDAO(env)
-    instrument_id_active = await instruments_dao.create_instrument(symbol=symbol_active, name="Active Member", type_="stock")
-    instrument_id_inactive = await instruments_dao.create_instrument(symbol=symbol_inactive, name="Inactive Member", type_="stock")
+    instrument_list_date = datetime(2010, 1, 1).date()
+    instrument_id_active = await instruments_dao.create_instrument(symbol=symbol_active, name="Active Member", type_="stock", list_date=instrument_list_date)
+    instrument_id_inactive = await instruments_dao.create_instrument(symbol=symbol_inactive, name="Inactive Member", type_="stock", list_date=instrument_list_date)
     xrefs_dao = __import__('dao.instrument_xrefs_dao', fromlist=['InstrumentXrefsDAO']).InstrumentXrefsDAO(env)
-    await xrefs_dao.create_xref(instrument_id_active, vendor_id=vendor_id, symbol=symbol_active, start_at=start_at)
-    await xrefs_dao.create_xref(instrument_id_inactive, vendor_id=vendor_id, symbol=symbol_inactive, start_at=start_at)
+    await xrefs_dao.create_xref(instrument_id_active, vendor_id, symbol_active, instrument_list_date)
+    await xrefs_dao.create_xref(instrument_id_inactive, vendor_id, symbol_inactive, instrument_list_date)
     # Insert required universe for memberships
     pool = await asyncpg.create_pool(env.get_database_url())
     try:
@@ -320,8 +322,8 @@ async def test_universe_membership_dao_active_memberships(unit_test_db):
     finally:
         await pool.close()
     # Add memberships: one active, one inactive
-    await dao.add_membership(universe_id, symbol_active, start_at=start_at)
-    await dao.add_membership_full(universe_id, instrument_id_inactive, start_at=start_at, end_at=end_at)
+    await dao.add_membership(universe_id, symbol_active, start_at=instrument_list_date)
+    await dao.add_membership_full(universe_id, instrument_id_inactive, start_at=instrument_list_date, end_at=end_at)
     # Query as_of before end date: both should be present
     active_before = await dao.get_active_memberships(universe_id, date(2025, 7, 24))
     # Compare instrument_ids, since get_active_memberships returns instrument_id not symbol
@@ -356,6 +358,7 @@ async def test_universe_membership_dao_crud(unit_test_db):
         await pool.close()
     # Insert required instrument for the symbol
     instruments_dao = InstrumentsDAO(env)
+    instrument_list_date = datetime(2010, 1, 1).date()
     # Clean up any existing instrument with this symbol
     pool = await asyncpg.create_pool(env.get_database_url())
     try:
@@ -367,20 +370,20 @@ async def test_universe_membership_dao_crud(unit_test_db):
             await conn.execute(f"INSERT INTO {universe_table} (id, name, description) VALUES ($1, $2, $3)", universe_id, f"TestUni_{universe_id}", "Test universe for membership CRUD")
     finally:
         await pool.close()
-    instrument_id = await instruments_dao.create_instrument(symbol=symbol, name="Test Membership Instrument", type_="stock")
+    instrument_id = await instruments_dao.create_instrument(symbol=symbol, name="Test Membership Instrument", type_="stock", list_date=instrument_list_date)
     # Insert required vendor
     vendors_dao = VendorsDAO(env)
     vendor_id = await vendors_dao.create_vendor(name="TestVendor", description="Test vendor for xref")
     # Insert instrument_xref
     from dao.instrument_xrefs_dao import InstrumentXrefsDAO
     xrefs_dao = InstrumentXrefsDAO(env)
-    await xrefs_dao.create_xref(instrument_id, vendor_id=vendor_id, symbol=symbol, start_at=start_at)
+    await xrefs_dao.create_xref(instrument_id, vendor_id, symbol, instrument_list_date)
     # Wait briefly to ensure insert is visible to other connections
     import asyncio
     await asyncio.sleep(0.1)
     # Add membership
     print(f"[TEST DEBUG] add_membership args: universe_id={universe_id} ({type(universe_id)}), symbol={symbol} ({type(symbol)}), start_at={start_at} ({type(start_at)})")
-    await dao.add_membership(universe_id=universe_id, symbol=symbol, start_at=start_at)
+    await dao.add_membership(universe_id=universe_id, symbol=symbol, start_at=instrument_list_date)
     # Get by universe
     memberships = await dao.get_memberships_by_universe(universe_id)
     assert any(m['symbol'] == symbol and m['start_at'] == start_at for m in memberships)

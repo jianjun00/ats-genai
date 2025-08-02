@@ -36,10 +36,9 @@ class InstrumentXrefsDAO:
         self.table_name = self.env.get_table_name('instrument_xrefs')
         self.db_url = self.env.get_database_url()
 
-    async def create_xref(self, instrument_id: int, vendor_id: int, symbol: str, type: Optional[str] = None, start_at: Optional[str] = None, end_at: Optional[str] = None) -> int:
-        from datetime import date
+    async def create_xref(self, instrument_id: int, vendor_id: int, symbol: str, start_at: str, type: Optional[str] = None, end_at: Optional[str] = None) -> int:
         if start_at is None:
-            start_at = date.today().isoformat()
+            raise ValueError("start_at is required and cannot be None")
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:

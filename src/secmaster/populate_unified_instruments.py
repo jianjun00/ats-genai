@@ -116,7 +116,7 @@ async def process_symbol(symbol, polygon_dao, instruments_dao, xrefs_dao, ticker
         instrument_id=instrument_id,
         vendor_id=ticker_vendor_id,
         symbol=symbol,
-        start_at=start_at,
+        start_at=list_date,  # Always use instrument's list_date for xref
         end_at=end_at
     )
     if debug:

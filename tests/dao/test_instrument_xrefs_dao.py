@@ -1,6 +1,7 @@
 import pytest
 import asyncio
 import asyncpg
+from datetime import date
 from config.environment import Environment, EnvironmentType
 from dao.instrument_xrefs_dao import InstrumentXrefsDAO
 from db.test_db_manager import unit_test_db
@@ -19,9 +20,8 @@ async def test_instrument_xrefs_dao_crud(unit_test_db):
     await pool.close()
 
     # Create xref
-    from datetime import date
-    today = date.today()
-    xref_id = await dao.create_xref(instrument_id, vendor_id, 'TICK_XREF', 'primary', start_at=today, end_at=None)
+    instrument_list_date = date(2010, 1, 1)
+    xref_id = await dao.create_xref(instrument_id, vendor_id, 'TICK_XREF', instrument_list_date, 'primary', None)
     assert xref_id is not None
 
     # Get xref
