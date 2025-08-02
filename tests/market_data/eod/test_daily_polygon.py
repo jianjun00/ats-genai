@@ -1,7 +1,3 @@
-import sys
-import os
-# Add project root to sys.path so db.dao resolves to src/db/dao
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..')))
 import pytest
 import asyncio
 from datetime import datetime
@@ -13,50 +9,37 @@ from market_data.eod import daily_polygon
 
 @pytest.mark.asyncio
 async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch):
-    from datetime import datetime, date
-    today_str = datetime.now().strftime('%Y-%m-%d')
-    print(f"[DEBUG] test setup today_str type: {type(today_str)}, value: {today_str}")
-    print(f"[DEBUG] test setup today_date type: {type(date.today())}, value: {date.today()}")
-    from config.environment import Environment
-    env = Environment()
-    env.config.set('database', 'database', unit_test_db.split('/')[-1])
-    from dao.instruments_dao import InstrumentsDAO
-    instrument_dao = InstrumentsDAO(env)
+    set_environment(EnvironmentType.TEST)
+    env = get_environment()
+    instrument_dao = InstrumentPolygonDAO(env)
     prices_dao = DailyPricesPolygonDAO(env)
-    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
-    xrefs_dao = InstrumentXrefsDAO(env)
 
-    # Insert a test instrument using InstrumentsDAO
+    # Insert a test instrument
     test_symbol = "AAPL"
-    from dao.vendors_dao import VendorsDAO
-    vendors_dao = VendorsDAO(env)
-    # Create a test vendor and get its id
-    test_vendor_id = await vendors_dao.create_vendor(name="Test Vendor", description="Test vendor for xref", api_key_env_var=None)
-    print(f"[DEBUG] insert_instrument list_date type: {type(datetime(2010, 1, 1).date())}, value: {datetime(2010, 1, 1).date()}")
-    instrument_id = await instrument_dao.create_instrument(
+    test_instrument_id = 1
+    await instrument_dao.insert_instrument(
         symbol=test_symbol,
         name="Apple Inc.",
         exchange="NASDAQ",
         type_="CS",
         currency="USD",
-        list_date=datetime(2010, 1, 1).date(),
-        delist_date=None
-    )
-    # Insert xref for the test symbol using the actual instrument_id and vendor_id
-    await xrefs_dao.create_xref(
-        instrument_id, test_vendor_id, test_symbol, datetime(2010, 1, 1).date()
+        figi=None,
+        isin=None,
+        cusip=None,
+        composite_figi=None,
+        active=True,
+        list_date=datetime(2010,1,1).date(),
+        delist_date=None,
+        raw=None
     )
     # Patch POLYGON_API_KEY and API calls
     monkeypatch.setenv("POLYGON_API_KEY", "testkey")
-    import calendar
     def fake_download_prices_polygon(ticker, start, end, api_key):
-        # Return a single fake price row for 2023-01-03 UTC
-        utc_millis = calendar.timegm(datetime(2023,1,3).timetuple()) * 1000
+        # Return a single fake price row
         return [{
-            't': utc_millis,
+            't': int(datetime(2023,1,3).timestamp()*1000),
             'o': 100.0, 'h': 110.0, 'l': 95.0, 'c': 105.0, 'v': 1000000
         }]
-
     monkeypatch.setattr(daily_polygon, "download_prices_polygon", fake_download_prices_polygon)
     # Patch shares outstanding API
     class FakeResp:
@@ -64,17 +47,16 @@ async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch):
         def json(self):
             return {'results': {'share_class_shares_outstanding': 1000000000}}
     monkeypatch.setattr(daily_polygon.requests, "get", lambda url: FakeResp())
-    # Run the logic
-    print(f"[DEBUG] run_ingestion start_date type: {type('2023-01-03')}, value: {'2023-01-03'}")
-    print(f"[DEBUG] run_ingestion end_date type: {type('2023-01-03')}, value: {'2023-01-03'}")
+    # Run the ingestion logic directly
     await daily_polygon.run_ingestion(
-        [test_symbol], "2023-01-03", "2023-01-03",
+        tickers=[test_symbol],
+        start_date="2023-01-03",
+        end_date="2023-01-03",
         environment="test",
         instrument_dao=instrument_dao,
         prices_dao=prices_dao,
-        xrefs_dao=xrefs_dao
+        polygon_api_key="testkey"
     )
-    # Resolve instrument_id via xref for the test symbol
-    resolved_id = await xrefs_dao.resolve_instrument_id(test_symbol)
-    rows = await prices_dao.list_prices(resolved_id)
+    # Check that a price was inserted
+    rows = await prices_dao.list_prices(test_instrument_id)
     assert any(row['open'] == 100.0 and row['close'] == 105.0 for row in rows)
