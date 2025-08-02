@@ -13,7 +13,7 @@ import asyncpg
 import os
 import sys
 from pathlib import Path
-from intg_tests.universe import db_test_utils
+from src.db.test_db_manager import IntegrationTestSession
 
 @pytest.mark.asyncio
 async def test_universe_state_manager_cli_build_and_inspect_aapl_tsla(tmp_path):
@@ -26,14 +26,45 @@ async def test_universe_state_manager_cli_build_and_inspect_aapl_tsla(tmp_path):
     from config.environment import get_environment, set_environment, EnvironmentType
     set_environment(EnvironmentType.INTEGRATION)
     env = get_environment()
+    import tempfile
+    import subprocess
+    db_url = env.get_database_url()
+    # Parse DB name, user, host, port from db_url (assume postgres://user:pass@host:port/dbname)
+    import re
+    m = re.match(r"postgresql?://([^:]+):([^@]+)@([^:/]+)(?::(\d+))?/([^?]+)", db_url)
+    if not m:
+        raise RuntimeError(f"Could not parse DB URL: {db_url}")
+    db_user, db_pass, db_host, db_port, db_name = m.groups()
+    db_port = db_port or "5432"
+    # Use a temp file for the backup
+    backup_file = tempfile.NamedTemporaryFile(delete=False)
+    backup_file.close()
+    # Set PGPASSWORD for subprocess
+    env_vars = os.environ.copy()
+    env_vars["PGPASSWORD"] = db_pass
+    # Dump the whole DB before test
+    subprocess.run([
+        "pg_dump", "-h", db_host, "-p", db_port, "-U", db_user, "-F", "c", "-f", backup_file.name, db_name
+    ], check=True, env=env_vars)
     pool = await asyncpg.create_pool(env.get_database_url())
     async with pool.acquire() as conn:
-        # Backup tables
-        universe_backup = await db_test_utils.backup_table(conn, "universe", env)
-        membership_backup = await db_test_utils.backup_table(conn, "universe_membership", env)
-        inst_backup = await db_test_utils.backup_table(conn, "instrument_polygon", env)
-        # Setup minimal test data
-        universe_id = await db_test_utils.setup_test_universe(conn, universe_name, symbols, env)
+        # Setup minimal test data: insert universe and instruments
+        universe_table = env.get_table_name("universe")
+        membership_table = env.get_table_name("universe_membership")
+        inst_table = env.get_table_name("instrument_polygon")
+        daily_prices_polygon_table = env.get_table_name("daily_prices_polygon")
+        await conn.execute(f"INSERT INTO {universe_table} (name, description) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING", universe_name, "Test Universe")
+        universe_id_row = await conn.fetchrow(f"SELECT id FROM {universe_table} WHERE name = $1", universe_name)
+        universe_id = universe_id_row["id"] if universe_id_row else None
+        # Insert instruments and instrument_polygon rows for AAPL, TSLA
+        for symbol in symbols:
+            await conn.execute(f"INSERT INTO {env.get_table_name('instruments')} (symbol) VALUES ($1) ON CONFLICT (symbol) DO NOTHING", symbol)
+            inst_row = await conn.fetchrow(f"SELECT id FROM {env.get_table_name('instruments')} WHERE symbol = $1", symbol)
+            inst_id = inst_row["id"] if inst_row else None
+            import datetime
+            await conn.execute(f"INSERT INTO {inst_table} (symbol, list_date) VALUES ($1, $2) ON CONFLICT (symbol) DO NOTHING", symbol, datetime.date(2020, 1, 1))
+            # Add membership
+            await conn.execute(f"INSERT INTO {membership_table} (universe_id, instrument_id, symbol, start_at) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING", universe_id, inst_id, symbol, datetime.date(2025, 1, 2))
     # Debug: print schema for instrument_polygon and instruments before build
     async with pool.acquire() as conn:
         for table in ["instrument_polygon", "instruments"]:
@@ -97,14 +128,18 @@ async def test_universe_state_manager_cli_build_and_inspect_aapl_tsla(tmp_path):
             assert inspect.returncode == 0, f"Inspect CLI failed for {instrument}!\nSTDOUT:\n{out.decode()}\nSTDERR:\n{err.decode()}"
             # Do not assert specific signal values (real builder)
     finally:
-        pool = await asyncpg.create_pool(env.get_database_url())
-        async with pool.acquire() as conn:
-            await db_test_utils.cleanup_test_universe(conn, universe_id, symbols, env)
-            # Restore in FK-safe order: universe, then membership, then instrument_polygon
-            # Restore in FK-safe order: instrument_polygon, then universe, then membership
-            await db_test_utils.restore_table(conn, "instrument_polygon", inst_backup, env)
-            # Ensure no memberships reference universes before restore
-            await conn.execute(f'DELETE FROM {env.get_table_name("universe_membership")}')
-            await db_test_utils.restore_table(conn, "universe", universe_backup, env)
-            await db_test_utils.restore_table(conn, "universe_membership", membership_backup, env)
-        await pool.close()
+        # Restore the DB from backup (drop schema, recreate, restore from dump)
+        # Use env_vars from above for PGPASSWORD
+        # Drop all connections to DB (optional, best effort)
+        subprocess.run([
+            "psql", "-h", db_host, "-p", db_port, "-U", db_user, "-d", db_name, "-c", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid();"
+        ], check=False, env=env_vars)
+        # Drop schema cascade (clean slate)
+        subprocess.run([
+            "psql", "-h", db_host, "-p", db_port, "-U", db_user, "-d", db_name, "-c", "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+        ], check=True, env=env_vars)
+        # Restore from backup
+        subprocess.run([
+            "pg_restore", "-h", db_host, "-p", db_port, "-U", db_user, "-d", db_name, "-F", "c", backup_file.name
+        ], check=True, env=env_vars)
+        os.unlink(backup_file.name)

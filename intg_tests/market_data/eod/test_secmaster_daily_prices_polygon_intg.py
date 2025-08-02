@@ -18,7 +18,7 @@ PROJECT_ROOT = THIS_DIR.parent.parent
 TESTS_DIR = PROJECT_ROOT / "tests"
 
 
-from intg_tests.db.test_intg_db_base import AsyncPGTestDBBase, get_test_db_url
+from intg_tests.db.test_intg_db_base_intg import AsyncPGTestDBBase, get_test_db_url
 from config.environment import get_environment, set_environment, EnvironmentType
 # Find project root (the directory containing 'src')
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
