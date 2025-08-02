@@ -2,7 +2,7 @@ import os
 import asyncio
 import aiohttp
 import asyncpg
-from datetime import datetime, timedelta
+import datetime as dt
 import pandas as pd
 import argparse
 from config.environment import get_environment, set_environment, EnvironmentType
@@ -23,6 +23,7 @@ def get_env_and_table_name(environment):
     set_environment(parse_env_type(environment))
     env = get_environment()
     table_name = env.get_table_name('daily_prices_tiingo')
+    print(f"[DEBUG] ENVIRONMENT at start of main: {env.env_type.value}, table: {table_name}")
     return env, table_name
 
 def tiingo_url(symbol, start_date, end_date):
@@ -72,6 +73,10 @@ async def get_status_id(pool, code, env):
 
 async def fetch_and_insert_symbol(dao: DailyPricesTiingoDAO, session, instrument_id, symbol, start_date, end_date, ok_status_id, no_data_status_id):
     # Always use datetime.date for DB and date math
+    from config.environment import get_environment
+    env = get_environment()
+    table_name = env.get_table_name('daily_prices_tiingo')
+    print(f"[DEBUG] Inserting into table: {table_name}, ENVIRONMENT: {env.env_type.value}")
     if isinstance(start_date, str):
         start_date_dt = datetime.strptime(start_date, "%Y-%m-%d").date()
     else:
@@ -181,40 +186,70 @@ async def get_instrument_dates(env, instrument_id):
     print(f"[DEBUG] delist_date type: {type(delist_date)}, value: {delist_date}")
     # Convert to date if not None
     if list_date is not None and isinstance(list_date, str):
-        list_date = datetime.strptime(list_date, "%Y-%m-%d").date()
+        list_date = dt.datetime.strptime(list_date, "%Y-%m-%d").date()
     if delist_date is not None and isinstance(delist_date, str):
-        delist_date = datetime.strptime(delist_date[:10], "%Y-%m-%d").date()
+        delist_date = dt.datetime.strptime(delist_date[:10], "%Y-%m-%d").date()
     return list_date, delist_date
 
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--start_date', type=str, required=True, help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end_date', type=str, required=True, help='End date (YYYY-MM-DD)')
-    parser.add_argument('--ticker', type=str, default=None, help='Process only this ticker (optional, maps to instrument_id)')
+    parser.add_argument('--tickers', type=str, default=None, help='Comma-separated list of tickers to process and log (optional, maps to instrument_id)')
     parser.add_argument('--environment', type=str, default='intg', choices=['test', 'intg', 'prod'], help='Environment to use (test, intg, prod)')
+    parser.add_argument('--logging', action='store_true', help='Enable logging of Tiingo API requests/responses for specified tickers in date range')
+    parser.add_argument('--log_dir', type=str, default='tests/data/daily_prices_tiingo', help='Directory to store Tiingo API logs (default: tests/data/daily_prices_tiingo)')
     args = parser.parse_args()
 
     env, table_name = get_env_and_table_name(args.environment)
 
     if not TIINGO_API_KEY:
-        print("[ERROR] TIINGO_API_KEY environment variable not set.")
+        print("[DEBUG] Early return: TIINGO_API_KEY environment variable not set.")
         return
 
     # Use DAO for all daily_prices_tiingo operations
     dao = DailyPricesTiingoDAO(env)
-    import ssl
+
+    # Handle tickers argument (comma-separated)
+    if args.tickers:
+        tickers = [t.strip().upper() for t in args.tickers.split(',') if t.strip()]
+    else:
+        # If not provided, fetch all symbols from the DB (or raise error)
+        from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+        xrefs_dao = InstrumentXrefsDAO(env)
+        tickers = await xrefs_dao.get_all_symbols()
+
+    # For each ticker, resolve instrument_id and run ingestion
+    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+    xrefs_dao = InstrumentXrefsDAO(env)
+    for ticker in tickers:
+        instrument_id = await xrefs_dao.resolve_instrument_id(ticker)
+        if instrument_id is None:
+            print(f"[ERROR] Could not resolve instrument_id for ticker {ticker}. Skipping.")
+            continue
+        # Run ingestion for this ticker
+        # (You may need to adapt this part to your actual ingestion function)
+        print(f"[INFO] Would run ingestion for {ticker} (instrument_id={instrument_id}) from {args.start_date} to {args.end_date}")
+        # Example placeholder:
+        # await run_tiingo_ingestion(dao, instrument_id, ticker, args.start_date, args.end_date)    import ssl
 
     # Determine instrument_ids to process
     pool = await asyncpg.create_pool(env.get_database_url(), min_size=1, max_size=4)
     from dao.instrument_xrefs_dao import InstrumentXrefsDAO
     xrefs_dao = InstrumentXrefsDAO(env)
-    if args.ticker:
-        instrument_id = await xrefs_dao.resolve_instrument_id(args.ticker)
-        if instrument_id is None:
-            print(f"[ERROR] Could not resolve instrument_id for ticker {args.ticker}. Exiting.")
+    if args.tickers:
+        ticker_list = [t.strip().upper() for t in args.tickers.split(',') if t.strip()]
+        instrument_ids = []
+        for ticker in ticker_list:
+            instrument_id = await xrefs_dao.resolve_instrument_id(ticker)
+            if instrument_id is None:
+                print(f"[DEBUG] Early skip: Could not resolve instrument_id for ticker {ticker}. Skipping.")
+                continue
+            instrument_ids.append(instrument_id)
+        if not instrument_ids:
+            print(f"[ERROR] No valid instrument_ids found for tickers: {args.tickers}. Exiting.")
             await pool.close()
             return
-        instrument_ids = [instrument_id]
     else:
         # Get all unique instrument_ids with a symbol in instrument_xrefs
         xrefs_rows = await xrefs_dao.list_xrefs_for_vendor(vendor_id=1)  # None = all vendors
@@ -231,27 +266,53 @@ async def main():
                 # Choose the first symbol (could be improved to select by vendor if needed)
                 symbol = xrefs[0]['symbol']
             if not symbol:
-                print(f"[ERROR] Could not resolve symbol for instrument_id {instrument_id}. Skipping.")
+                print(f"[DEBUG] Early skip: Could not resolve symbol for instrument_id {instrument_id}. Skipping.")
                 continue
             list_date, delist_date = await get_instrument_dates(env, instrument_id)
             if not list_date:
-                print(f"[INFO] Skipping {symbol} (no list_date)")
+                print(f"[DEBUG] Early skip: Skipping {symbol} (no list_date)")
                 continue
             print(f"[DEBUG] Instrument_id {instrument_id} maps to symbol {symbol}")
-            start_date_dt = datetime.strptime(args.start_date, "%Y-%m-%d").date()
-            end_date_dt = datetime.strptime(args.end_date, "%Y-%m-%d").date()
+            import datetime
+            start_date_dt = datetime.datetime.strptime(args.start_date, "%Y-%m-%d").date()
+            end_date_dt = datetime.datetime.strptime(args.end_date, "%Y-%m-%d").date()
 
             effective_start = max(list_date, start_date_dt)
             effective_end = delist_date if delist_date else end_date_dt
             if effective_start > effective_end:
-                print(f"[INFO] Skipping {symbol} (effective_start {effective_start} > effective_end {effective_end})")
+                print(f"[DEBUG] Early skip: Skipping {symbol} (effective_start {effective_start} > effective_end {effective_end})")
                 continue
             print(f"[INFO] Processing {symbol} from {effective_start} to {effective_end}")
+            # If log_dir is specified, skip DB filtering/inserts, just log all requested data
+            if args.log_dir:
+                print(f"[DEBUG] Early skip: args.log_dir set ({args.log_dir}), skipping DB insert for {symbol}.")
+                from datetime import datetime
+                import json, os
+                os.makedirs(args.log_dir, exist_ok=True)
+                url = tiingo_url(symbol, effective_start, effective_end)
+                req_path = os.path.join(args.log_dir, f"tiingo_{symbol.lower()}_{effective_start}_{effective_end}_request.json")
+                resp_path = os.path.join(args.log_dir, f"tiingo_{symbol.lower()}_{effective_start}_{effective_end}_response.json")
+                async with session.get(url) as resp:
+                    with open(req_path, "w") as f:
+                        json.dump({"url": url}, f, indent=2)
+                    try:
+                        resp_text = await resp.text()
+                        try:
+                            resp_json = json.loads(resp_text)
+                            with open(resp_path, "w") as f:
+                                json.dump(resp_json, f, indent=2)
+                        except Exception:
+                            with open(resp_path, "w") as f:
+                                f.write(resp_text)
+                    except Exception as e:
+                        with open(resp_path, "w") as f:
+                            f.write(f"[ERROR] Could not serialize response: {e}\n")
+                continue
             existing_dates = await get_existing_dates(dao, instrument_id, effective_start, effective_end)
             missing_ranges = get_missing_date_ranges(existing_dates, effective_start, effective_end)
 
             if not missing_ranges:
-                print(f"[INFO] No missing dates for {symbol} (instrument_id {instrument_id}) in {args.start_date} to {args.end_date}")
+                print(f"[DEBUG] Early skip: No missing dates for {symbol} (instrument_id {instrument_id}) in {args.start_date} to {args.end_date}")
                 continue
             for range_start, range_end in missing_ranges:
                 print(f"[INFO] Processing {symbol} (instrument_id {instrument_id}) from {range_start} to {range_end}")

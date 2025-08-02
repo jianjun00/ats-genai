@@ -25,7 +25,6 @@ from config.environment import get_environment, set_environment, EnvironmentType
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCRIPT_PATH = PROJECT_ROOT / "src/market_data/eod/daily_tiingo.py"
 
-set_environment(EnvironmentType.INTEGRATION)
 env = get_environment()
 
 class TestIntegrationTiingo(AsyncPGTestDBBase):
