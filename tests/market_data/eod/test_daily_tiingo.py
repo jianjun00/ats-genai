@@ -13,6 +13,16 @@ import asyncio
 # Helper to run the main logic from daily_tiingo.py (should be refactored for direct import)
 from market_data.eod import daily_tiingo
 
+
+def test_tiingo_log_fixture(log_fixture):
+    """Test loading Tiingo API logs for AAPL from tests/data/daily_prices_tiingo."""
+    req, resp = log_fixture('daily_prices_tiingo', 'aapl', '2024-01-01_2025-07-31')
+    assert 'url' in req
+    assert isinstance(resp, (list, dict))
+    # Check that the response contains at least one price row if not empty
+    if isinstance(resp, list) and resp:
+        assert 'date' in resp[0]
+
 @pytest.mark.asyncio
 async def test_no_prior_instrument_and_xref(unit_test_db):
     """Test when there is no prior instrument and instrument_xref entry."""
