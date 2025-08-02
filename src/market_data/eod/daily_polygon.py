@@ -23,6 +23,31 @@ async def get_all_polygon_tickers(env):
 def download_prices_polygon(ticker, start, end, api_key):
     url = BASE_URL.format(ticker=ticker, start=start, end=end, api_key=api_key)
     resp = requests.get(url)
+    # Log request/response for AAPL/TSLA in date range
+    from datetime import datetime
+    import json, os
+    log_tickers = {"AAPL", "TSLA"}
+    log_start = datetime(2020, 1, 10)
+    log_end = datetime(2024, 12, 31)
+    def in_log_range(s, e):
+        try:
+            sdt = datetime.strptime(str(s), "%Y-%m-%d")
+            edt = datetime.strptime(str(e), "%Y-%m-%d")
+            return not (edt < log_start or sdt > log_end)
+        except Exception:
+            return False
+    if ticker.upper() in log_tickers and in_log_range(start, end):
+        os.makedirs("test/data", exist_ok=True)
+        req_path = f"test/data/polygon_{ticker.lower()}_{start}_{end}_request.json"
+        resp_path = f"test/data/polygon_{ticker.lower()}_{start}_{end}_response.json"
+        with open(req_path, "w") as f:
+            json.dump({"url": url}, f, indent=2)
+        try:
+            with open(resp_path, "w") as f:
+                json.dump(resp.json(), f, indent=2)
+        except Exception as e:
+            with open(resp_path, "w") as f:
+                f.write(f"[ERROR] Could not serialize response: {e}\n")
     if resp.status_code != 200:
         print(f"Failed to fetch {ticker}: {resp.status_code} {resp.text}")
         return []
@@ -142,7 +167,7 @@ async def run_ingestion(tickers, start_date, end_date, environment=None, instrum
 
 async def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--ticker', type=str, default=None, help='Process only this ticker (optional)')
+    parser.add_argument('--ticker', type=str, default=None, help='Process only this ticker (optional, maps to instrument_id)')
     parser.add_argument('--start_date', type=str, required=True, help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end_date', type=str, required=True, help='End date (YYYY-MM-DD)')
     parser.add_argument('--environment', type=str, default='intg', choices=['test', 'intg', 'prod'], help='Environment to use (test, intg, prod)')
@@ -150,7 +175,13 @@ async def main():
     set_environment(EnvironmentType(args.environment))
     env = get_environment()
     instrument_dao = InstrumentPolygonDAO(env)
+    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+    xrefs_dao = InstrumentXrefsDAO(env)
     if args.ticker:
+        instrument_id = await xrefs_dao.resolve_instrument_id(args.ticker)
+        if instrument_id is None:
+            print(f"[ERROR] Could not resolve instrument_id for ticker {args.ticker}. Exiting.")
+            return
         tickers = [args.ticker]
     else:
         tickers = await instrument_dao.get_all_symbols()
