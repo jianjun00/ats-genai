@@ -8,6 +8,7 @@ class DailyPricesPolygonDAO:
         self.db_url = self.env.get_database_url()
 
     async def insert_price(self, date, instrument_id, open_, high, low, close, volume, market_cap=None):
+        print(f"[DEBUG] insert_price date type: {type(date)}, value: {date}")
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
@@ -26,6 +27,7 @@ class DailyPricesPolygonDAO:
             await pool.close()
 
     async def get_price(self, date, instrument_id):
+        print(f"[DEBUG] get_price date type: {type(date)}, value: {date}")
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
@@ -34,6 +36,7 @@ class DailyPricesPolygonDAO:
             await pool.close()
 
     async def list_prices(self, instrument_id):
+        print(f"[DEBUG] list_prices instrument_id type: {type(instrument_id)}, value: {instrument_id}")
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:

@@ -62,6 +62,11 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db, monkeypatch):
             instruments_table = env.get_table_name('instruments')
             xrefs_table = env.get_table_name('instrument_xrefs')
             test_vendor_id = 1  # Use a consistent test vendor_id for your test setup
+            # Insert test vendor (required for instrument_xrefs FK)
+            vendors_table = env.get_table_name('vendors')
+            await conn.execute(
+                f"INSERT INTO {vendors_table} (id, name, description) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING",
+                test_vendor_id, 'TestVendor', 'Test vendor for unit test')
             # Insert instruments and fetch their IDs, and insert xrefs
             instrument_ids = {}
             for symbol in UNIVERSE_SYMBOLS:

@@ -4,12 +4,12 @@ from config.environment import get_environment, set_environment, EnvironmentType
 from db.test_db_manager import unit_test_db
 from dao.stock_splits_polygon_dao import StockSplitsPolygonDAO
 from dao.dividend_polygon_dao import DividendPolygonDAO
+from config.environment import Environment
 
 @pytest.mark.asyncio
 async def test_stock_splits_polygon_dao(unit_test_db):
     set_environment(EnvironmentType.TEST)
-    env = get_environment()
-    # Patch env to use the actual test DB URL
+    env = Environment()
     env.config.set('database', 'database', unit_test_db.split('/')[-1])
     dao = StockSplitsPolygonDAO(env)
     import datetime
@@ -40,8 +40,7 @@ async def test_stock_splits_polygon_dao(unit_test_db):
 @pytest.mark.asyncio
 async def test_dividend_polygon_dao(unit_test_db):
     set_environment(EnvironmentType.TEST)
-    env = get_environment()
-    # Patch env to use the actual test DB URL
+    env = Environment()
     env.config.set('database', 'database', unit_test_db.split('/')[-1])
     dao = DividendPolygonDAO(env)
     import datetime

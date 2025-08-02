@@ -46,13 +46,13 @@ async def test_add_and_get_universe_members_real_db(unit_test_db):
         if row:
             instrument_id = row['id']
         else:
-            instrument_id = await instruments_dao.create_instrument(symbol, name=f"{symbol} Inc.", exchange="NASDAQ", type_="EQUITY", currency="USD")
+            instrument_list_date = date(2010, 1, 1)
+            instrument_id = await instruments_dao.create_instrument(symbol, name=f"{symbol} Inc.", exchange="NASDAQ", type_="EQUITY", currency="USD", list_date=instrument_list_date)
     # Insert xref
-    from datetime import date
     xref_start = date(2025, 7, 1)
     existing = await xrefs_dao.find_xref(vendor_id, symbol)
     if not existing:
-        await xrefs_dao.create_xref(instrument_id, vendor_id, symbol, type="EQUITY", start_at=xref_start)
+        await xrefs_dao.create_xref(instrument_id, vendor_id, symbol, type="EQUITY", start_at=instrument_list_date)
 
     # Add universe
     universe_name = "TEST_REALDB"
