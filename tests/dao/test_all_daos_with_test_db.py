@@ -386,7 +386,11 @@ async def test_universe_membership_dao_crud(unit_test_db):
     await dao.add_membership(universe_id=universe_id, symbol=symbol, start_at=instrument_list_date)
     # Get by universe
     memberships = await dao.get_memberships_by_universe(universe_id)
-    assert any(m['symbol'] == symbol and m['start_at'] == start_at for m in memberships)
+    print(f"[DEBUG] memberships returned: {memberships}")
+    for m in memberships:
+        print(f"[DEBUG] membership types: symbol={type(m['symbol'])}, start_at={m['start_at']} ({type(m['start_at'])})")
+    print(f"[DEBUG] instrument_list_date: {instrument_list_date} ({type(instrument_list_date)})")
+    assert any(m['symbol'] == symbol and m['start_at'].date() == instrument_list_date for m in memberships)
     # Get active memberships
     active = await dao.get_active_memberships(universe_id, start_at)
     assert any(m['symbol'] == symbol for m in active)
