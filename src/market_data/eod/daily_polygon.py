@@ -114,7 +114,10 @@ async def run_ingestion(tickers, start_date, end_date, environment=None, instrum
                 print(f"Failed to fetch shares outstanding for {ticker}: {resp.status_code} {resp.text}")
                 shares_outstanding = None
             existing_dates = await get_existing_dates_polygon(prices_dao, instrument_id, start_date, end_date)
+            print(f"[DEBUG] trading_days: {sorted(trading_days)}")
+            print(f"[DEBUG] existing_dates: {sorted(existing_dates)}")
             missing_days = [d for d in trading_days if d not in existing_dates]
+            print(f"[DEBUG] missing_days: {sorted(missing_days)}")
             if not missing_days:
                 print(f"[DEBUG] All data exists for {ticker} in {start_date} to {end_date}, skipping fetch.")
                 continue
@@ -123,7 +126,13 @@ async def run_ingestion(tickers, start_date, end_date, environment=None, instrum
             total_inserted = 0
             for range_start, range_end in ranges:
                 prices = download_prices_polygon(ticker, range_start.strftime("%Y-%m-%d"), range_end.strftime("%Y-%m-%d"), polygon_api_key)
+                print(f"[DEBUG] prices returned: {prices}")
+                for row in prices:
+                    row_date = datetime.utcfromtimestamp(row['t']/1000).date()
+                    print(f"[DEBUG] price row date: {row_date}, in missing_days: {row_date in missing_days}")
                 filtered_prices = [row for row in prices if datetime.utcfromtimestamp(row['t']/1000).date() in missing_days]
+                print(f"[DEBUG] filtered_prices: {filtered_prices}")
+                print(f"[DEBUG] instrument_id used for insert: {instrument_id}")
                 await insert_prices(filtered_prices, instrument_id, shares_outstanding, prices_dao)
                 total_inserted += len(filtered_prices)
                 print(f"Inserted {len(filtered_prices)} rows for {ticker} from {range_start} to {range_end}")

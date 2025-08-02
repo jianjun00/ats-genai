@@ -20,45 +20,43 @@ async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch):
     from config.environment import Environment
     env = Environment()
     env.config.set('database', 'database', unit_test_db.split('/')[-1])
-    instrument_dao = InstrumentPolygonDAO(env)
+    from dao.instruments_dao import InstrumentsDAO
+    instrument_dao = InstrumentsDAO(env)
     prices_dao = DailyPricesPolygonDAO(env)
     from dao.instrument_xrefs_dao import InstrumentXrefsDAO
     xrefs_dao = InstrumentXrefsDAO(env)
 
-    # Insert a test instrument
+    # Insert a test instrument using InstrumentsDAO
     test_symbol = "AAPL"
-    test_vendor_id = 1
+    from dao.vendors_dao import VendorsDAO
+    vendors_dao = VendorsDAO(env)
+    # Create a test vendor and get its id
+    test_vendor_id = await vendors_dao.create_vendor(name="Test Vendor", description="Test vendor for xref", api_key_env_var=None)
     print(f"[DEBUG] insert_instrument list_date type: {type(datetime(2010, 1, 1).date())}, value: {datetime(2010, 1, 1).date()}")
-    await instrument_dao.insert_instrument(
-        test_symbol,
+    instrument_id = await instrument_dao.create_instrument(
+        symbol=test_symbol,
         name="Apple Inc.",
         exchange="NASDAQ",
         type_="CS",
         currency="USD",
-        figi=None,
-        isin=None,
-        cusip=None,
-        composite_figi=None,
-        active=True,
         list_date=datetime(2010, 1, 1).date(),
-        delist_date=None,
-        raw=None
+        delist_date=None
     )
-    # Fetch instrument_id by symbol (if insert_instrument does not return id)
-    instrument = await instrument_dao.get_instrument_by_symbol(test_symbol)
-    instrument_id = instrument['id']
-    # Insert xref for the test symbol using actual instrument_id
+    # Insert xref for the test symbol using the actual instrument_id and vendor_id
     await xrefs_dao.create_xref(
         instrument_id, test_vendor_id, test_symbol, datetime(2010, 1, 1).date()
     )
     # Patch POLYGON_API_KEY and API calls
     monkeypatch.setenv("POLYGON_API_KEY", "testkey")
+    import calendar
     def fake_download_prices_polygon(ticker, start, end, api_key):
-        # Return a single fake price row
+        # Return a single fake price row for 2023-01-03 UTC
+        utc_millis = calendar.timegm(datetime(2023,1,3).timetuple()) * 1000
         return [{
-            't': int(datetime(2023,1,3).timestamp()*1000),
+            't': utc_millis,
             'o': 100.0, 'h': 110.0, 'l': 95.0, 'c': 105.0, 'v': 1000000
         }]
+
     monkeypatch.setattr(daily_polygon, "download_prices_polygon", fake_download_prices_polygon)
     # Patch shares outstanding API
     class FakeResp:
@@ -69,7 +67,13 @@ async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch):
     # Run the logic
     print(f"[DEBUG] run_ingestion start_date type: {type('2023-01-03')}, value: {'2023-01-03'}")
     print(f"[DEBUG] run_ingestion end_date type: {type('2023-01-03')}, value: {'2023-01-03'}")
-    await daily_polygon.run_ingestion([test_symbol], "2023-01-03", "2023-01-03", instrument_dao, prices_dao)
+    await daily_polygon.run_ingestion(
+        [test_symbol], "2023-01-03", "2023-01-03",
+        environment="test",
+        instrument_dao=instrument_dao,
+        prices_dao=prices_dao,
+        xrefs_dao=xrefs_dao
+    )
     # Resolve instrument_id via xref for the test symbol
     resolved_id = await xrefs_dao.resolve_instrument_id(test_symbol)
     rows = await prices_dao.list_prices(resolved_id)
