@@ -1,7 +1,7 @@
 import os
 import asyncio
 import requests
-from datetime import datetime, timedelta
+import datetime as dt
 import time
 
 from config.environment import get_environment, set_environment, EnvironmentType
@@ -11,8 +11,8 @@ import argparse
 
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")  # Set this in your environment
 BASE_URL = "https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{start}/{end}?adjusted=true&sort=asc&limit=50000&apiKey={api_key}"
-START_DATE = (datetime.now() - timedelta(days=365*10)).strftime("%Y-%m-%d")
-END_DATE = datetime.now().strftime("%Y-%m-%d")
+START_DATE = (dt.datetime.now() - dt.timedelta(days=365*10)).strftime("%Y-%m-%d")
+END_DATE = dt.datetime.now().strftime("%Y-%m-%d")
 
 from dao.instrument_polygon_dao import InstrumentPolygonDAO
 
@@ -20,26 +20,27 @@ async def get_all_polygon_tickers(env):
     instrument_dao = InstrumentPolygonDAO(env)
     return await instrument_dao.get_all_symbols()
 
-def download_prices_polygon(ticker, start, end, api_key):
+def download_prices_polygon(ticker, start, end, api_key, logging=False, log_start=None, log_end=None, log_tickers=None, log_dir=None):
+    # Debug: print the datetime being used
+    print(f'[DEBUG] datetime in download_prices_polygon: {dt.datetime} ({type(dt.datetime)})')
     url = BASE_URL.format(ticker=ticker, start=start, end=end, api_key=api_key)
     resp = requests.get(url)
-    # Log request/response for AAPL/TSLA in date range
-    from datetime import datetime
     import json, os
-    log_tickers = {"AAPL", "TSLA"}
-    log_start = datetime(2020, 1, 10)
-    log_end = datetime(2024, 12, 31)
+    log_tickers = set(log_tickers) if log_tickers else set()
     def in_log_range(s, e):
+        if log_start is None or log_end is None:
+            return False
         try:
-            sdt = datetime.strptime(str(s), "%Y-%m-%d")
-            edt = datetime.strptime(str(e), "%Y-%m-%d")
+            sdt = dt.datetime.strptime(str(s), "%Y-%m-%d")
+            edt = dt.datetime.strptime(str(e), "%Y-%m-%d")
             return not (edt < log_start or sdt > log_end)
         except Exception:
             return False
-    if ticker.upper() in log_tickers and in_log_range(start, end):
-        os.makedirs("test/data", exist_ok=True)
-        req_path = f"test/data/polygon_{ticker.lower()}_{start}_{end}_request.json"
-        resp_path = f"test/data/polygon_{ticker.lower()}_{start}_{end}_response.json"
+    if logging and ticker.upper() in log_tickers and in_log_range(start, end):
+        log_dir = log_dir or "test/data/daily_prices_polygon"
+        os.makedirs(log_dir, exist_ok=True)
+        req_path = os.path.join(log_dir, f"polygon_{ticker.lower()}_{start}_{end}_request.json")
+        resp_path = os.path.join(log_dir, f"polygon_{ticker.lower()}_{start}_{end}_response.json")
         with open(req_path, "w") as f:
             json.dump({"url": url}, f, indent=2)
         try:
@@ -59,10 +60,14 @@ def download_prices_polygon(ticker, start, end, api_key):
 
 
 async def insert_prices(prices, instrument_id, shares_outstanding, dao: DailyPricesPolygonDAO):
+    from config.environment import get_environment
+    env = get_environment()
+    table_name = env.get_table_name('daily_prices_polygon')
+    print(f"[DEBUG] Inserting into table: {table_name}, ENVIRONMENT: {env.env_type.value}")
     if not prices:
         return
     for row in prices:
-        date_val = datetime.utcfromtimestamp(row['t']/1000).date()
+        date_val = dt.datetime.utcfromtimestamp(row['t']/1000).date()
         print(f"[DEBUG] insert_prices date_val type: {type(date_val)}, value: {date_val}")
         await dao.insert_price(
             date=date_val,
@@ -99,12 +104,13 @@ def group_contiguous_dates(dates):
     ranges.append((range_start, prev))
     return ranges
 
-async def run_ingestion(tickers, start_date, end_date, environment=None, instrument_dao=None, prices_dao=None, polygon_api_key=None, xrefs_dao=None):
+async def run_ingestion(tickers, start_date, end_date, environment=None, instrument_dao=None, prices_dao=None, polygon_api_key=None, xrefs_dao=None, logging=False, log_tickers=None, log_dir=None):
     print(f"[DEBUG] run_ingestion start_date type: {type(start_date)}, value: {start_date}")
     print(f"[DEBUG] run_ingestion end_date type: {type(end_date)}, value: {end_date}")
     if environment:
         set_environment(EnvironmentType(environment))
     env = get_environment()
+    print(f"[DEBUG] ENVIRONMENT at start of run_ingestion: {env.env_type.value}")
     if not polygon_api_key:
         polygon_api_key = os.getenv("POLYGON_API_KEY")
     if not polygon_api_key:
@@ -118,16 +124,35 @@ async def run_ingestion(tickers, start_date, end_date, environment=None, instrum
         xrefs_dao = InstrumentXrefsDAO(env)
     nyse_cal = ExchangeCalendar('NYSE')
     if isinstance(start_date, str):
-        start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+        start_date = dt.datetime.strptime(start_date, "%Y-%m-%d").date()
     if isinstance(end_date, str):
-        end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+        end_date = dt.datetime.strptime(end_date, "%Y-%m-%d").date()
     trading_days = set(nyse_cal.all_trading_days(start_date, end_date))
     for ticker in tickers:
         print(f"Processing {ticker}...")
         try:
+            if log_dir:
+                print(f"[DEBUG] Early skip: log_dir set ({log_dir}), skipping DB insert for {ticker}.")
+                # If log_dir is specified, skip filtering and DAO insertion, just log all requested data
+                from datetime import datetime
+                log_start = datetime.strptime(str(start_date), "%Y-%m-%d") if logging else None
+                log_end = datetime.strptime(str(end_date), "%Y-%m-%d") if logging else None
+                prices = download_prices_polygon(
+                    ticker,
+                    start_date.strftime("%Y-%m-%d"),
+                    end_date.strftime("%Y-%m-%d"),
+                    polygon_api_key,
+                    logging=logging,
+                    log_start=log_start,
+                    log_end=log_end,
+                    log_tickers=log_tickers,
+                    log_dir=log_dir
+                )
+                print(f"[DEBUG] (log_dir set) prices returned: {prices}")
+                continue
             instrument_id = await xrefs_dao.resolve_instrument_id(ticker)
             if not instrument_id:
-                print(f"[WARN] No instrument_id for {ticker}, skipping.")
+                print(f"[DEBUG] Early skip: No instrument_id for {ticker}, skipping.")
                 continue
             # Fetch shares outstanding
             url = f"https://api.polygon.io/v3/reference/tickers/{ticker}?apiKey={polygon_api_key}"
@@ -144,13 +169,26 @@ async def run_ingestion(tickers, start_date, end_date, environment=None, instrum
             missing_days = [d for d in trading_days if d not in existing_dates]
             print(f"[DEBUG] missing_days: {sorted(missing_days)}")
             if not missing_days:
-                print(f"[DEBUG] All data exists for {ticker} in {start_date} to {end_date}, skipping fetch.")
+                print(f"[DEBUG] Early skip: All data exists for {ticker} in {start_date} to {end_date}, skipping fetch.")
                 continue
             # Group into contiguous ranges for efficient API calls
             ranges = group_contiguous_dates(missing_days)
             total_inserted = 0
             for range_start, range_end in ranges:
-                prices = download_prices_polygon(ticker, range_start.strftime("%Y-%m-%d"), range_end.strftime("%Y-%m-%d"), polygon_api_key)
+                from datetime import datetime
+                log_start = datetime.strptime(str(start_date), "%Y-%m-%d") if logging else None
+                log_end = datetime.strptime(str(end_date), "%Y-%m-%d") if logging else None
+                prices = download_prices_polygon(
+                    ticker,
+                    range_start.strftime("%Y-%m-%d"),
+                    range_end.strftime("%Y-%m-%d"),
+                    polygon_api_key,
+                    logging=logging,
+                    log_start=log_start,
+                    log_end=log_end,
+                    log_tickers=log_tickers,
+                    log_dir=log_dir
+                )
                 print(f"[DEBUG] prices returned: {prices}")
                 for row in prices:
                     row_date = datetime.utcfromtimestamp(row['t']/1000).date()
@@ -167,25 +205,43 @@ async def run_ingestion(tickers, start_date, end_date, environment=None, instrum
 
 async def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--ticker', type=str, default=None, help='Process only this ticker (optional, maps to instrument_id)')
+    parser.add_argument('--tickers', type=str, default=None, help='Comma-separated list of tickers to process and log (optional, maps to instrument_id)')
     parser.add_argument('--start_date', type=str, required=True, help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end_date', type=str, required=True, help='End date (YYYY-MM-DD)')
     parser.add_argument('--environment', type=str, default='intg', choices=['test', 'intg', 'prod'], help='Environment to use (test, intg, prod)')
+    parser.add_argument('--logging', action='store_true', help='Enable logging of Polygon API requests/responses for specified tickers in date range')
+    parser.add_argument('--log_dir', type=str, default='test/data/daily_prices_polygon', help='Directory to store Polygon API logs (default: test/data/daily_prices_polygon)')
     args = parser.parse_args()
     set_environment(EnvironmentType(args.environment))
     env = get_environment()
     instrument_dao = InstrumentPolygonDAO(env)
     from dao.instrument_xrefs_dao import InstrumentXrefsDAO
     xrefs_dao = InstrumentXrefsDAO(env)
-    if args.ticker:
-        instrument_id = await xrefs_dao.resolve_instrument_id(args.ticker)
-        if instrument_id is None:
-            print(f"[ERROR] Could not resolve instrument_id for ticker {args.ticker}. Exiting.")
+    if args.tickers:
+        tickers = [t.strip().upper() for t in args.tickers.split(',') if t.strip()]
+        # Optionally check instrument_id mapping for each ticker
+        missing = []
+        for t in tickers:
+            instrument_id = await xrefs_dao.resolve_instrument_id(t)
+            if instrument_id is None:
+                missing.append(t)
+        if missing:
+            print(f"[ERROR] Could not resolve instrument_id for tickers: {', '.join(missing)}. Exiting.")
             return
-        tickers = [args.ticker]
     else:
         tickers = await instrument_dao.get_all_symbols()
-    await run_ingestion(tickers, args.start_date, args.end_date, args.environment, instrument_dao=instrument_dao, polygon_api_key=POLYGON_API_KEY)
+    await run_ingestion(
+        tickers,
+        args.start_date,
+        args.end_date,
+        args.environment,
+        instrument_dao=instrument_dao,
+        polygon_api_key=POLYGON_API_KEY,
+        logging=args.logging,
+        log_tickers=tickers if args.tickers else None,
+        log_dir=args.log_dir
+    )
+
 
 
 if __name__ == "__main__":

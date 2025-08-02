@@ -46,6 +46,32 @@ class PolygonAdapter(VendorAdapter):
                 api_key=self.api_key
             )
             resp = requests.get(url)
+            # Log request/response for AAPL/TSLA in date range
+            from datetime import datetime
+            import json, os
+            log_tickers = {"AAPL", "TSLA"}
+            log_start = datetime(2020, 1, 10)
+            log_end = datetime(2024, 12, 31)
+            # Dates as strings, but comparison is safe if format is YYYY-MM-DD
+            def in_log_range(s, e):
+                try:
+                    sdt = datetime.strptime(str(s), "%Y-%m-%d")
+                    edt = datetime.strptime(str(e), "%Y-%m-%d")
+                    return not (edt < log_start or sdt > log_end)
+                except Exception:
+                    return False
+            if ticker.upper() in log_tickers and in_log_range(start_date, end_date):
+                os.makedirs("test/data", exist_ok=True)
+                req_path = f"test/data/polygon_{ticker.lower()}_{start_date}_{end_date}_request.json"
+                resp_path = f"test/data/polygon_{ticker.lower()}_{start_date}_{end_date}_response.json"
+                with open(req_path, "w") as f:
+                    json.dump({"url": url}, f, indent=2)
+                try:
+                    with open(resp_path, "w") as f:
+                        json.dump(resp.json(), f, indent=2)
+                except Exception as e:
+                    with open(resp_path, "w") as f:
+                        f.write(f"[ERROR] Could not serialize response: {e}\n")
             if resp.status_code != 200:
                 continue
             data = resp.json()
