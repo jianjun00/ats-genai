@@ -1,4 +1,36 @@
-# ats.context
+# ATS Project Context Summary
+
+## Objective
+Summarize the current project context, integration test refactor status, and DB/test best practices for ATS as a single authoritative context file.
+
+## Current State
+- All integration and unit tests must use the appropriate test DB fixture (`integration_test_db` for integration, `unit_test_db` for unit tests) from `src/db/test_db_manager.py`.
+- All database access in tests must use environment-aware table names via `env.get_table_name()`; no hardcoded names or prefixes are allowed.
+- The canonical way to create a test instrument is via `InstrumentsDAO.create_instrument`, which returns an `instrument_id`. Use this `instrument_id` to create xrefs via `InstrumentXrefsDAO.create_xref`.
+- For legacy tables (e.g., `instrument_polygon`) that lack an `id` column, tests must not expect or require an `id` field.
+- All price ingestion and downstream operations must use the canonical `instrument_id` as resolved by the xref table.
+- All integration tests must patch the Environment to use the fixture DB URL and remove any hardcoded DB/environment references.
+- All code changes must be accompanied by corresponding test coverage updates and all tests must pass (`pytest` with `PYTHONPATH=src`).
+
+## Achievements
+- Refactored all major integration tests in `intg_tests/universe` and `tests/market_data/eod` to use the `integration_test_db` fixture.
+- Fixed all test setup to use `InstrumentsDAO` for instrument creation and xref creation with valid `instrument_id`.
+- Patched tests to remove reliance on `instrument_polygon.id` and ensured robust xref/instrument mapping.
+- Fixed all AsyncMock/patching issues in DAO tests for correct await/assertion tracking.
+- Patched all DB environment setup to use fixture DB names (with `intg_` or `test_` prefix as appropriate).
+
+## Best Practices
+- Always use the appropriate test DB fixture for all integration/unit tests.
+- Always use canonical DAOs for test setup and teardown.
+- Never hardcode DB names or table prefixes; always use `env.get_table_name()`.
+- Use `instrument_id` from `InstrumentsDAO` for all xref and price operations.
+- Ensure all code changes have corresponding test coverage and pass all tests before merging.
+- Maintain strict test isolation and clean environment setup for every test run.
+
+## Outstanding Work
+- Continue to audit and refactor any remaining integration tests for fixture usage and DB isolation.
+- Ensure all test and migration code is robust to schema changes and table prefixing.
+- Maintain and update this context file as the single source of truth for ATS integration test and DB best practices.
 
 ## UniverseMembershipDAO Test Fix Context Summary (2025-07-26)
 

@@ -24,15 +24,20 @@ WIKI_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/universe/spy_events_wiki.py"
 
 @pytest.mark.asyncio
-async def test_populate_spy_universe_events(tmp_path):
+async def test_populate_spy_universe_events(tmp_path, integration_test_db):
     env = get_environment()
-    print(f"[DEBUG TEST] DB URL: {env.get_database_url()}")
+    # Patch environment to use integration_test_db URL
+    # Ensure the correct intg_db name is set (not test_db)
+    db_name = integration_test_db.split('/')[-1]
+    assert db_name.startswith('intg_'), f"Expected integration DB name to start with 'intg_', got {db_name}"
+    env.config.set('database', 'database', db_name)
+    print(f"[DEBUG TEST] DB URL: {integration_test_db}")
     print(f"[DEBUG TEST] universe table: {env.get_table_name('universe')}")
     print(f"[DEBUG TEST] universe_membership table: {env.get_table_name('universe_membership')}")
     # Use a test universe name to avoid clobbering production data
     test_universe = "SPY_TEST_INTEGRATION"
     # Connect to DB
-    pool = await asyncpg.create_pool(env.get_database_url(), min_size=1, max_size=2)
+    pool = await asyncpg.create_pool(integration_test_db, min_size=1, max_size=2)
     async with pool.acquire() as conn:
         universe_membership_table = env.get_table_name("universe_membership")
         universe_table = env.get_table_name("universe")
@@ -51,10 +56,10 @@ async def test_populate_spy_universe_events(tmp_path):
     # Patch sys.argv to avoid pytest argument clash
     import unittest.mock
     with unittest.mock.patch('sys.argv', ['spy_events_wiki.py']):
-        await spy_events_script.main(db_url=env.get_database_url(), universe_name=test_universe, tickers=None, args=None)
+        await spy_events_script.main(db_url=integration_test_db, universe_name=test_universe, tickers=None, args=None)
 
     # Check DB for expected effects
-    pool = await asyncpg.create_pool(env.get_database_url(), min_size=1, max_size=2)
+    pool = await asyncpg.create_pool(integration_test_db, min_size=1, max_size=2)
     async with pool.acquire() as conn:
         universe_table = env.get_table_name("universe")
         universe_membership_table = env.get_table_name("universe_membership")
