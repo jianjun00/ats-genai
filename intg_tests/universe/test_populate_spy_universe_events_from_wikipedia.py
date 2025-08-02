@@ -9,11 +9,14 @@ SCRIPT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src
 TICKERS_TO_CHECK = ["JNPR", "TSLA", "AAPL", "TTD", "HOOD", "ANSS"]
 
 @pytest.mark.asyncio
-async def test_populate_spy_universe_events_and_membership(tmp_path):
+async def test_populate_spy_universe_events_and_membership(tmp_path, integration_test_db):
     # Use integration environment
+    # Use integration_test_db for DB isolation
+    db_name = integration_test_db.split('/')[-1]
     cmd = [sys.executable, SCRIPT_PATH, '--universe_name', 'SPY', '--environment', 'intg', '--tickers', ','.join(TICKERS_TO_CHECK)]
     env = os.environ.copy()
     env['PYTHONPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src'))
+    env['DB_NAME'] = db_name
     result = subprocess.run(cmd, env=env, capture_output=True, text=True)
     if result.returncode != 0:
         print(f"[SCRIPT STDOUT]\n{result.stdout}")
@@ -24,7 +27,9 @@ async def test_populate_spy_universe_events_and_membership(tmp_path):
     from config.environment import get_environment, set_environment, EnvironmentType
     set_environment(EnvironmentType.INTEGRATION)
     env_obj = get_environment()
-    db_url = env_obj.get_database_url()
+    # Patch environment to use integration_test_db
+    db_url = integration_test_db
+    env_obj.config.set('database', 'database', db_name)
     universe_table = env_obj.get_table_name('universe')
     membership_table = env_obj.get_table_name('universe_membership')
     changes_table = env_obj.get_table_name('universe_membership_changes')

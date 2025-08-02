@@ -14,13 +14,15 @@ UNIVERSE_SYMBOLS = ["AAPL", "TSLA"]
 UNIVERSE_ID = 9999  # Arbitrary test universe ID
 
 @pytest.mark.asyncio
-async def test_runner_with_aapl_tsla(monkeypatch):
+async def test_runner_with_aapl_tsla(monkeypatch, integration_test_db):
     """
     Integration test: create a universe with AAPL and TSLA, run runner from 2025-07-01 to 2025-07-03,
     and verify correct processing.
     """
+    # Patch environment and pool to use integration_test_db fixture URL
     env = Environment(EnvironmentType.INTEGRATION)
-    pool = await asyncpg.create_pool(env.get_database_url())
+    env.config.set('database', 'database', integration_test_db.split('/')[-1])
+    pool = await asyncpg.create_pool(integration_test_db)
 
     # --- Backup and restore for test isolation ---
     tables = [

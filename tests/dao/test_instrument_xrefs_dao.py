@@ -21,6 +21,7 @@ async def test_instrument_xrefs_dao_crud(unit_test_db):
 
     # Create xref
     instrument_list_date = date(2010, 1, 1)
+    today = instrument_list_date
     xref_id = await dao.create_xref(instrument_id, vendor_id, 'TICK_XREF', instrument_list_date, 'primary', None)
     assert xref_id is not None
 
