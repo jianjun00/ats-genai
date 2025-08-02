@@ -2,8 +2,8 @@
   "timestamp": "20250723_000000",
   "record_count": 4,
   "file_size_bytes": 6819,
-  "checksum": "fa3ad62023f9b7a03626fb26dc05d6a7",
-  "created_at": "2025-08-02T10:38:18.514373",
+  "checksum": "d1cd3d4ddee9c012dd097ef0d02a2a15",
+  "created_at": "2025-08-02T20:38:56.417616",
   "columns": [
     "duration",
     "instrument_id",

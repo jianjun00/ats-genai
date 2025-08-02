@@ -3,7 +3,7 @@ import asyncpg
 import numpy as np
 from datetime import datetime, date
 from dotenv import load_dotenv
-from src.config.environment import get_environment
+from config.environment import get_environment
 
 load_dotenv()
 
@@ -149,6 +149,22 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
         await pool.close()
 
 class FileDailyPricesUnifier(DailyPricesUnifierBase):
+    def unify_daily_prices_sync(self, symbol, asof):
+        import asyncio
+        coro = self.unify_daily_prices(symbol, asof)
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        if loop.is_running():
+            import nest_asyncio
+            nest_asyncio.apply()
+            fut = asyncio.ensure_future(coro)
+            return loop.run_until_complete(fut)
+        else:
+            return loop.run_until_complete(coro)
+
     def __init__(self, environment, tiingo_data, polygon_data):
         super().__init__(environment)
         self.tiingo_data = tiingo_data
@@ -206,7 +222,7 @@ if __name__ == "__main__":
     parser.add_argument('--start_date', required=True)
     parser.add_argument('--end_date', required=True)
     args = parser.parse_args()
-    from src.config.environment import get_environment
+    from config.environment import get_environment
     environment = get_environment()
     unifier = DatabaseDailyPricesUnifier(environment)
     asyncio.run(unifier.unify_daily_prices(args.symbol, (args.start_date, args.end_date)))

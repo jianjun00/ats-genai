@@ -626,7 +626,7 @@ if __name__ == "__main__":
             BuilderClass = UniverseStateBuilder
         # TODO: Load actual Universe object by universe_id
         universe = None  # Replace with actual loading logic
-        builder = BuilderClass(universe=universe, state_manager=manager)
+        builder = BuilderClass(env=env)
         cur_date = start_date
         while cur_date <= end_date:
             date_str = cur_date.strftime("%Y-%m-%d")
@@ -634,14 +634,39 @@ if __name__ == "__main__":
                 # Build and save universe state for this date
                 # Support async build_universe_state if present
                 import inspect, asyncio
-                build_fn = builder.build_universe_state
-                if inspect.iscoroutinefunction(build_fn):
-                    df = asyncio.run(build_fn(date_str))
-                else:
-                    df = build_fn(date_str)
-                timestamp = cur_date.strftime("%Y%m%d_000000")
-                manager.save_universe_state(df, timestamp=timestamp)
-                print(f"Built and saved universe state for {date_str}")
+                # Use handleInterval with a real DailyPriceMarketDataManager
+                from market_data.eod.daily_price_market_data_manager import DailyPriceMarketDataManager
+                # Patch _get_all_symbols to return test symbols (AAPL, TSLA)
+                class PatchedDailyPriceMarketDataManager(DailyPriceMarketDataManager):
+                    def _get_all_symbols(self):
+                        return ["AAPL", "TSLA"]
+                # Fetch instrument_ids for AAPL, TSLA from DB
+                import asyncpg
+                import asyncio
+                async def get_instrument_ids():
+                    pool = await asyncpg.create_pool(env.get_database_url())
+                    async with pool.acquire() as conn:
+                        ids = []
+                        for symbol in ["AAPL", "TSLA"]:
+                            row = await conn.fetchrow(f"SELECT id FROM {env.get_table_name('instruments')} WHERE symbol = $1", symbol)
+                            if row:
+                                ids.append(row["id"])
+                    await pool.close()
+                    return ids
+                instrument_ids = asyncio.run(get_instrument_ids())
+                class RealRunner:
+                    def __init__(self, env, instrument_ids):
+                        self.universe_manager = type('UM', (), {'instrument_ids': instrument_ids})()
+                        self.market_data_manager = PatchedDailyPriceMarketDataManager(env, start_date=cur_date.date())
+                        self.universe_state_manager = manager
+                        self.env = env
+                runner = RealRunner(env, instrument_ids)
+                # Load last prices before start (if needed)
+                # asyncio.run(runner.market_data_manager._load_last_prices_before_start())  # Uncomment if needed
+                # update_for_sod populates intervals for the day
+                asyncio.run(runner.market_data_manager.update_for_sod(runner, cur_date))
+                builder.handleInterval(runner, cur_date)
+                print(f"Called handleInterval for {date_str}")
             except Exception as e:
                 print(f"Failed to build/save for {date_str}: {e}")
             cur_date += timedelta(days=1)
