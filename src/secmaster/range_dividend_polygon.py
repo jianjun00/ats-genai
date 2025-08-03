@@ -2,7 +2,7 @@ import argparse
 import asyncio
 import requests
 from datetime import datetime, date, timedelta
-from config.environment import set_environment, EnvironmentType
+from config.environment import Environment, EnvironmentType
 from dao.dividend_polygon_dao import DividendPolygonDAO
 
 def fetch_dividends_polygon(start_date, end_date, api_key):
@@ -68,8 +68,7 @@ async def main():
     parser.add_argument('--start_date', type=str, required=True, help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end_date', type=str, required=True, help='End date (YYYY-MM-DD)')
     args = parser.parse_args()
-    set_environment(EnvironmentType(args.environment))
-    env = Environment()
+    env = Environment(env_type=EnvironmentType(args.environment))
     api_key = env.get_api_key('polygon')
     if not api_key:
         raise Exception("Please set your POLYGON_API_KEY in your environment or config.")
