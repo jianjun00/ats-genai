@@ -23,7 +23,7 @@ from src.state.universe_state_builder import (
 )
 from src.state.universe_state_manager import UniverseStateManager
 from config.environment import Environment
-from db.test_db_manager import unit_test_db
+from db.test_db_manager import unit_test_db_clean
 
 
 class TestUniverseStateBuilder:

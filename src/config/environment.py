@@ -31,12 +31,14 @@ class EnvironmentType(Enum):
 from signals.indicator_config import IndicatorConfig
 
 class Environment:
+
     """
     Gin-based Environment configuration manager.
     Loads config from Gin config file (e.g., config/app.gin).
     All config values are bound as module-level variables.
     """
-    def __init__(self, gin_config_path: Optional[str] = None, env_type: Optional[object] = None):
+    def __init__(self, gin_config_path: Optional[str] = None, env_type: Optional[object] = None, db_url: Optional[str] = None):
+        print(f"[GIN DEBUG] Environment.__init__ received db_url: {db_url}")
         # Accept either a gin config path or an environment type (enum or str)
         config_path = None
         # If gin_config_path is actually an EnvironmentType or str, treat as env_type
@@ -87,25 +89,53 @@ class Environment:
         else:
             config_path = os.getenv("GIN_CONFIG", "config/app.gin")
         import logging
-        print(f"[GIN DEBUG] About to load Gin config: {config_path}, env_type={getattr(self, 'env_type', None)}")
+        print(f"[GIN DEBUG] Using Gin config: {config_path}, env_type={getattr(self, 'env_type', None)}")
         self.gin_config_path = config_path
-        gin.clear_config()
-
-        # Ensure Database is registered as a Gin configurable before parsing config
+        # Do NOT clear or parse Gin config here; rely on fixture/test setup
         from config.logging_config import LoggingConfig
         from config.database import Database
-
-        gin.parse_config_file(self.gin_config_path)
-
         self.logging_config = LoggingConfig()
-        # Create a Database object using Gin-configured parameters
-        self.database = Database()
+        self.db_url = db_url
+        print(f"[GIN DEBUG] Environment.__init__ received db_url: {db_url}")
+        if db_url:
+            import re
+            m = re.match(r"postgresql://([^:]+):([^@]+)@([^:]+):(\d+)/(.*)", db_url)
+            if m:
+                user = m.group(1)
+                password = m.group(2)
+                host = m.group(3)
+                port = int(m.group(4))
+                database = m.group(5)
+                base_database = database
+                # Use defaults for pool sizes and timeout, or get from Gin if desired
+                pool_min_size = 1
+                pool_max_size = 10
+                command_timeout = 60
+                print(f"[ENV DEBUG] Constructing Database: host={host}, port={port}, user={user}, password=***, database={database}, base_database={base_database}, pool_min_size={pool_min_size}, pool_max_size={pool_max_size}, command_timeout={command_timeout}")
+                self.database = Database(
+                    host=host,
+                    port=port,
+                    user=user,
+                    password=password,
+                    database=database,
+                    base_database=base_database,
+                    pool_min_size=pool_min_size,
+                    pool_max_size=pool_max_size,
+                    command_timeout=command_timeout
+                )
+            else:
+                raise ValueError(f"Could not parse db_url: {db_url}")
+        else:
+            self.database = Database()
         try:
             print(f"[GIN DEBUG] Loaded database config from Gin: host={self.database.host}, db={self.database.database}")
         except Exception as e:
             print(f"[GIN DEBUG] Could not instantiate Database from Gin: {e}")
         self._indicator_config = IndicatorConfig.default_config()
         self.logger = self._setup_logging()
+
+    def get_database_url(self) -> str:
+        return self.db_url
 
     def get_api_key(self, service: str) -> str:
         return gin.query_parameter(f"{service}_api_key")
@@ -183,22 +213,6 @@ class Environment:
             format_str = self.logging_config.format
             formatter = logging.Formatter(format_str)
             handler.setFormatter(formatter)
-            logger.addHandler(handler)
-        
-        return logger
-    
-    
-    def get_database_url(self) -> str:
-        """
-        Get database URL for current environment from Gin config.
-        """
-        host = self.database.host
-        port = self.database.port
-        user = self.database.user
-        password = self.database.password
-        database = self.database.database
-        return f"postgresql://{user}:{password}@{host}:{port}/{database}"
-
     def get_table_name(self, base_table_name: str):
         """
         Get prefixed table name for current environment (Gin-based, uses env_type if present).

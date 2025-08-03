@@ -17,10 +17,10 @@ UNIVERSE_SYMBOLS = ["AAPL", "TSLA"]
 UNIVERSE_ID = 9998  # Arbitrary test universe ID for unit test
 
 import pytest
-from db.test_db_manager import unit_test_db
+from db.test_db_manager import unit_test_db_clean
 
 @pytest.mark.asyncio
-async def test_runner_state_builder_aapl_tsla(unit_test_db, monkeypatch):
+async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
     """
     Unit test: create a universe with AAPL and TSLA, run runner from 2025-07-01 to 2025-07-03,
     and verify the built universe state is as expected (test env, not intg env).

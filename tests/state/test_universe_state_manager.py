@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 import json
 
 from src.state.universe_state_manager import UniverseStateManager, UniverseStateMetadata
-from db.test_db_manager import unit_test_db
+from db.test_db_manager import unit_test_db_clean
 
 
 class TestUniverseStateManager:

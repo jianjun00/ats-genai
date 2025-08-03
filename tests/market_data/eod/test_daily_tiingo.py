@@ -3,7 +3,7 @@ import pytest_asyncio
 import asyncpg
 import os
 from datetime import date
-from db.test_db_manager import unit_test_db
+from db.test_db_manager import unit_test_db_clean
 from config.environment import Environment, EnvironmentType
 from dao.instruments_dao import InstrumentsDAO
 from dao.instrument_xrefs_dao import InstrumentXrefsDAO

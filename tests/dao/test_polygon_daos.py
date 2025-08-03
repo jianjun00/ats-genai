@@ -1,16 +1,16 @@
 import pytest
 import asyncio
 from config.environment import get_environment, set_environment, EnvironmentType
-from db.test_db_manager import unit_test_db
+from db.test_db_manager import unit_test_db_clean
 from dao.stock_splits_polygon_dao import StockSplitsPolygonDAO
 from dao.dividend_polygon_dao import DividendPolygonDAO
 from config.environment import Environment
 
 @pytest.mark.asyncio
-async def test_stock_splits_polygon_dao(unit_test_db):
-    set_environment(EnvironmentType.TEST)
-    env = Environment()
-    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+async def test_stock_splits_polygon_dao(unit_test_db_clean):
+    import logging
+    logging.debug(f"[TEST DEBUG] unit_test_db_clean: {unit_test_db_clean}")
+    env = Environment(EnvironmentType.TEST, db_url=unit_test_db_clean)
     dao = StockSplitsPolygonDAO(env)
     import datetime
     split = {
@@ -37,11 +37,30 @@ async def test_stock_splits_polygon_dao(unit_test_db):
     all_splits = await dao.get_all_splits()
     assert any(row['symbol'] == 'AAPL' for row in all_splits)
 
+async def debug_table_existence(db_url, table_name):
+    import asyncpg
+    import logging
+    logging.debug(f"[DEBUG] Checking existence of table '{table_name}' in DB: {db_url}")
+    pool = await asyncpg.create_pool(db_url)
+    try:
+        async with pool.acquire() as conn:
+            # Print all tables in DB
+            tables = await conn.fetch("SELECT tablename FROM pg_tables WHERE schemaname='public'")
+            logging.debug(f"[DEBUG] All tables in DB: {[t['tablename'] for t in tables]}")
+            result = await conn.fetchval("SELECT to_regclass($1)", table_name)
+            if result is None:
+                logging.debug(f"[DEBUG] Table '{table_name}' does NOT exist in database!")
+            else:
+                logging.debug(f"[DEBUG] Table '{table_name}' exists as: {result}")
+    finally:
+        await pool.close()
+
 @pytest.mark.asyncio
-async def test_dividend_polygon_dao(unit_test_db):
-    set_environment(EnvironmentType.TEST)
-    env = Environment()
-    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+async def test_dividend_polygon_dao(unit_test_db_clean):
+    import logging
+    logging.debug(f"[TEST DEBUG] unit_test_db_clean: {unit_test_db_clean}")
+    await debug_table_existence(unit_test_db_clean, "test_dividend_polygon")
+    env = Environment(EnvironmentType.TEST, db_url=unit_test_db_clean)
     dao = DividendPolygonDAO(env)
     import datetime
     dividend = {
