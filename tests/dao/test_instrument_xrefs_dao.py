@@ -4,16 +4,15 @@ import asyncpg
 from datetime import date
 from config.environment import Environment, EnvironmentType
 from dao.instrument_xrefs_dao import InstrumentXrefsDAO
-from db.test_db_manager import unit_test_db
+from db.test_db_manager import unit_test_db_clean
 
 @pytest.mark.asyncio
-async def test_instrument_xrefs_dao_crud(unit_test_db):
-    env = Environment(EnvironmentType.TEST)
-    env.get_database_url = lambda: unit_test_db
+async def test_instrument_xrefs_dao_crud(unit_test_db_clean):
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db_clean)
     dao = InstrumentXrefsDAO(env)
 
     # Insert a dummy instrument and vendor to satisfy FKs
-    pool = await asyncpg.create_pool(unit_test_db)
+    pool = await asyncpg.create_pool(env.get_database_url())
     async with pool.acquire() as conn:
         instrument_id = (await conn.fetchrow(f"INSERT INTO {env.get_table_name('instruments')} (symbol) VALUES ('TESTSYM') RETURNING id")).get('id')
         vendor_id = (await conn.fetchrow(f"INSERT INTO {env.get_table_name('vendors')} (name) VALUES ('TestVendor') RETURNING id")).get('id')
