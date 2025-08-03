@@ -26,22 +26,22 @@ class RunnerCallback:
         pass
 
 class Runner:
-    def __init__(self, start_date: str, end_date: str, environment: Environment, universe_id: int):
+    def __init__(self, start_date: str, end_date: str, environment: Environment, universe_id: int, callbacks: List[str]):
         self.env = environment
         self.universe_id = universe_id
         self.start_date = datetime.strptime(start_date, "%Y-%m-%d")
         self.end_date = datetime.strptime(end_date, "%Y-%m-%d")
         self.duration = self.env.get_base_duration()  # expects TimeDuration
-        self.callbacks: List[RunnerCallback] = self._init_callbacks()
+        self.callbacks: List[RunnerCallback] = self._init_callbacks(callbacks)
         self.security_master = SecurityMaster(self.env)
         self.universe_state_manager = UniverseStateManager(self.env)
         self.universe_manager = UniverseManager(self.env)
         self.market_data_manager = DailyPriceMarketDataManager(self.env)
 
-    def _init_callbacks(self) -> List[RunnerCallback]:
+    def _init_callbacks(self, callbacks: List[str]) -> List[RunnerCallback]:
         # Expect config to contain a list of callback classes/instances
         import gin
-        callback_classes = gin.query_parameter('runner/callbacks') or []
+        callback_classes = callbacks or []
         callbacks = []
         for cb_class in callback_classes:
             if isinstance(cb_class, RunnerCallback):

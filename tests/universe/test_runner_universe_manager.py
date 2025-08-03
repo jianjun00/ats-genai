@@ -7,13 +7,15 @@ from src.app.runner import Runner
 from src.dao.universe_dao import UniverseDAO
 from src.dao.universe_membership_dao import UniverseMembershipDAO
 
+import gin
+gin.parse_config_file('config/app.gin')
+
 @pytest.mark.asyncio
 async def test_runner_universe_manager_sod_eod_real_db(unit_test_db):
     """
     Integration test: Runner calls update_for_sod and update_for_eod on UniverseManager, verifying correct instrument IDs each day.
     """
-    env = Environment(EnvironmentType.TEST)
-    env.get_database_url = lambda: unit_test_db  # Patch to use correct test DB
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     universe_dao = UniverseDAO(env)
     membership_dao = UniverseMembershipDAO(env)
     pool = await asyncpg.create_pool(unit_test_db)
@@ -45,7 +47,7 @@ async def test_runner_universe_manager_sod_eod_real_db(unit_test_db):
         await conn.execute(f"UPDATE {env.get_table_name('universe_membership')} SET end_at=$1 WHERE universe_id=$2 AND instrument_id=$3 AND end_at IS NULL", date(2025, 7, 3), universe_id, tsla_id)
     # Run SOD/EOD for each day and check instrument ids
     env.get = lambda section, key, default=None: [] if (section, key) == ("runner", "callbacks") else default
-    runner = Runner("2025-07-01", "2025-07-03", env, universe_id)
+    runner = Runner("2025-07-01", "2025-07-03", env, universe_id, callbacks=["state.universe_state_builder.UniverseStateBuilder"])
     # Patch runner.market_data_manager to use patched env (ensures correct DB URL)
     from market_data.daily_price_market_data_manager import DailyPriceMarketDataManager
     runner.market_data_manager = DailyPriceMarketDataManager(env=env)
