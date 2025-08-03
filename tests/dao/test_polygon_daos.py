@@ -1,16 +1,16 @@
 import pytest
 import asyncio
 from config.environment import get_environment, set_environment, EnvironmentType
-from db.test_db_manager import unit_test_db_clean
+from db.test_db_manager import unit_test_db
 from dao.stock_splits_polygon_dao import StockSplitsPolygonDAO
 from dao.dividend_polygon_dao import DividendPolygonDAO
 from config.environment import Environment
 
 @pytest.mark.asyncio
-async def test_stock_splits_polygon_dao(unit_test_db_clean):
+async def test_stock_splits_polygon_dao(unit_test_db):
     import logging
-    logging.debug(f"[TEST DEBUG] unit_test_db_clean: {unit_test_db_clean}")
-    env = Environment(EnvironmentType.TEST, db_url=unit_test_db_clean)
+    logging.debug(f"[TEST DEBUG] unit_test_db: {unit_test_db}")
+    env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     dao = StockSplitsPolygonDAO(env)
     import datetime
     split = {
@@ -56,11 +56,11 @@ async def debug_table_existence(db_url, table_name):
         await pool.close()
 
 @pytest.mark.asyncio
-async def test_dividend_polygon_dao(unit_test_db_clean):
+async def test_dividend_polygon_dao(unit_test_db):
     import logging
-    logging.debug(f"[TEST DEBUG] unit_test_db_clean: {unit_test_db_clean}")
-    await debug_table_existence(unit_test_db_clean, "test_dividend_polygon")
-    env = Environment(EnvironmentType.TEST, db_url=unit_test_db_clean)
+    logging.debug(f"[TEST DEBUG] unit_test_db: {unit_test_db}")
+    await debug_table_existence(unit_test_db, "test_dividend_polygon")
+    env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     dao = DividendPolygonDAO(env)
     import datetime
     dividend = {
