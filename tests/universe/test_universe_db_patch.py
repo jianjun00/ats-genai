@@ -30,8 +30,10 @@ async def test_get_universe_members(monkeypatch):
     async def fake_create_pool(db_url): return FakePool()
     monkeypatch.setattr('asyncpg.create_pool', fake_create_pool)
 
+    from config.environment import Environment, EnvironmentType
     from src.universe.universe_db import UniverseDB
-    db = UniverseDB()
+    env = Environment(env_type=EnvironmentType.TEST, db_url="postgresql://test:test@localhost:5432/test_db_patch")
+    db = UniverseDB(env=env)
     db.universe_membership_dao = MagicMock()
     # Memberships now return instrument_id only
     db.universe_membership_dao.get_active_memberships = AsyncMock(return_value=[{'instrument_id': 1}, {'instrument_id': 2}])
