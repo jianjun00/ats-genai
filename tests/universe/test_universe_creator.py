@@ -13,7 +13,7 @@ async def test_universe_add_remove(unit_test_db, monkeypatch):
     assert "trading_db" not in unit_test_db, f"Unexpected DB URL contains legacy trading_db: {unit_test_db}"
     assert "test" in unit_test_db, f"Test DB URL should contain 'test': {unit_test_db}"
     pool = await asyncpg.create_pool(unit_test_db)
-    env = Environment(EnvironmentType.TEST)
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     universe_table = env.get_table_name('universe')
     instrument_table = env.get_table_name('instrument_polygon')
     daily_prices_table = env.get_table_name('daily_prices_tiingo')
