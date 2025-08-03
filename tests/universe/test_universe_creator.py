@@ -2,9 +2,9 @@ import pytest
 import asyncpg
 import os
 from datetime import date, timedelta
-from src.universe import universe_creator
+from universe import universe_creator
 from db.test_db_manager import unit_test_db_clean
-from src.config import Environment, EnvironmentType
+from config import Environment, EnvironmentType
 
 @pytest.mark.asyncio
 async def test_universe_add_remove(unit_test_db, monkeypatch):

@@ -19,13 +19,13 @@ TESTS_DIR = PROJECT_ROOT / "tests"
 
 
 from intg_tests.db.test_intg_db_base_intg import AsyncPGTestDBBase, get_test_db_url
-from config.environment import get_environment, set_environment, EnvironmentType
+from config.environment import Environment, EnvironmentType
 
 # Find project root (the directory containing 'src')
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCRIPT_PATH = PROJECT_ROOT / "src/market_data/eod/daily_tiingo.py"
 
-env = get_environment()
+env = Environment(env_type=EnvironmentType.INTEGRATION)
 
 class TestIntegrationTiingo(AsyncPGTestDBBase):
     @pytest.mark.asyncio

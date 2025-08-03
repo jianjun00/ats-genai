@@ -1,14 +1,25 @@
+import state.universe_state_builder as universe_state_builder
+import gin
+from state.universe_state_builder import UniverseStateBuilder
+
+import app.runner
+
+print("Module file:", universe_state_builder.__file__)
+print("Class module:", universe_state_builder.UniverseStateBuilder.__module__)
+
+
+gin.parse_config_file('config/app.gin')
+print("GIN REGISTERED:", gin.config._CONFIG.keys())
+
 import pytest
 import asyncpg
 from datetime import date
 from config.environment import Environment, EnvironmentType
 from db.test_db_manager import unit_test_db_clean
-from src.app.runner import Runner
-from src.dao.universe_dao import UniverseDAO
-from src.dao.universe_membership_dao import UniverseMembershipDAO
+from dao.universe_dao import UniverseDAO
+from dao.universe_membership_dao import UniverseMembershipDAO
 
-import gin
-gin.parse_config_file('config/app.gin')
+
 
 @pytest.mark.asyncio
 async def test_runner_universe_manager_sod_eod_real_db(unit_test_db):
@@ -47,19 +58,19 @@ async def test_runner_universe_manager_sod_eod_real_db(unit_test_db):
         await conn.execute(f"UPDATE {env.get_table_name('universe_membership')} SET end_at=$1 WHERE universe_id=$2 AND instrument_id=$3 AND end_at IS NULL", date(2025, 7, 3), universe_id, tsla_id)
     # Run SOD/EOD for each day and check instrument ids
     env.get = lambda section, key, default=None: [] if (section, key) == ("runner", "callbacks") else default
-    runner = Runner("2025-07-01", "2025-07-03", env, universe_id, callbacks=["state.universe_state_builder.UniverseStateBuilder"])
+    runner_object = app.runner.Runner("2025-07-01", "2025-07-03", env, universe_id, callbacks=["state.universe_state_builder.UniverseStateBuilder"])
     # Patch runner.market_data_manager to use patched env (ensures correct DB URL)
-    from market_data.daily_price_market_data_manager import DailyPriceMarketDataManager
-    runner.market_data_manager = DailyPriceMarketDataManager(env=env)
+    from market_data.eod.daily_price_market_data_manager import DailyPriceMarketDataManager
+    runner_object.market_data_manager = DailyPriceMarketDataManager(env=env)
     sod_instruments = {}
-    async def capture_sod(runner, current_time):
+    async def capture_sod(runner_object, current_time):
         memberships = await membership_dao.get_active_memberships(universe_id, current_time.date())
         ids = [instrument_id_to_symbol.get(row['instrument_id']) for row in memberships]
         sod_instruments[current_time.date()] = set(ids)
-    runner.universe_manager.update_for_sod = capture_sod
-    for event_time, event_type in runner.iter_events():
+    runner_object.universe_manager.update_for_sod = capture_sod
+    for event_time, event_type in runner_object.iter_events():
         if event_type == "sod":
-            await runner.update_for_sod(event_time)
+            await runner_object.update_for_sod(event_time)
     assert sod_instruments[date(2025, 7, 1)] == {"AAPL", "TSLA"}
     assert sod_instruments[date(2025, 7, 2)] == {"TSLA"}
     assert sod_instruments[date(2025, 7, 3)] == {"AAPL"}

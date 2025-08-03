@@ -93,7 +93,6 @@ class MigrationManager:
         print(f"Applying migration version {version:03d}: {description}")
         sql_content = migration_file.read_text()
         prefixed_sql = self._apply_table_prefixes(sql_content)
-        print(f"[MIGRATION DEBUG] SQL to execute (with prefix):\n{prefixed_sql}\n---")
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:

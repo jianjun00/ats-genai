@@ -5,7 +5,7 @@ from config.logging_config import LoggingConfig
 
 @pytest.fixture(autouse=True)
 def gin_test_setup(request):
-    gin.clear_config()
+    #gin.clear_config()
     # Register configurables for Gin (fixes 'No configurable matching' error)
     from config.database import Database
     from config.logging_config import LoggingConfig
@@ -29,5 +29,5 @@ def gin_test_setup(request):
             db_name = db_url.split('/')[-1]
             gin.bind_parameter('Database.database', db_name)
             gin.bind_parameter('Database.base_database', db_name)
-    yield
-    gin.clear_config()
+    #yield
+    #gin.clear_config()

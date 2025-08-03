@@ -3,9 +3,8 @@ import asyncio
 from datetime import date, timedelta
 import numpy as np
 
-from config.environment import get_environment, set_environment, EnvironmentType
-set_environment(EnvironmentType.INTEGRATION)
-env = get_environment()
+from config.environment import Environment, EnvironmentType
+env = Environment(env_type=EnvironmentType.INTEGRATION)
 TSDB_URL = env.get_database_url()
 
 @pytest.mark.asyncio

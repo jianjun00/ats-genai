@@ -12,8 +12,8 @@ import tempfile
 import shutil
 from pathlib import Path
 from unittest.mock import patch
-from src.db.migration_manager import MigrationManager
-from src.db.test_db_manager import TestDatabaseManager
+from db.migration_manager import MigrationManager
+from db.test_db_manager import TestDatabaseManager
 from config.environment import EnvironmentType, Environment
 import pytest_asyncio
 

@@ -2,7 +2,7 @@ import pytest
 import asyncio
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock
-from src.universe.universe_db import UniverseDB
+from universe.universe_db import UniverseDB
 from config.environment import Environment, EnvironmentType
 
 TEST_DB_URL = "postgresql://test:test@localhost:5432/test_db_universe"

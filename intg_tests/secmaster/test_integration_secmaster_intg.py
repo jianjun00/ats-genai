@@ -2,13 +2,12 @@ import pytest
 import asyncio
 from datetime import date, timedelta
 import asyncpg
-from config.environment import get_environment, set_environment, EnvironmentType
+from config.environment import Environment, EnvironmentType
 from src.secmaster.secmaster import SecMaster
 from db.test_intg_db_base import AsyncPGTestDBBase
 from intg_tests.secmaster.fixtures_spy_membership import spy_membership_fixture
 
-set_environment(EnvironmentType.INTEGRATION)
-env = get_environment()
+env = Environment(env_type=EnvironmentType.INTEGRATION)
 
 class TestIntegrationSecMaster(AsyncPGTestDBBase):
     @pytest.mark.asyncio

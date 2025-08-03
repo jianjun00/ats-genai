@@ -7,9 +7,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
-from config.environment import get_environment, set_environment, EnvironmentType
-set_environment(EnvironmentType.INTEGRATION)
-env = get_environment()
+from config.environment import Environment, EnvironmentType
+env = Environment(env_type=EnvironmentType.INTEGRATION)
 DB_URL = env.get_database_url()
 SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/secmaster/daily_tiingo.py"
 

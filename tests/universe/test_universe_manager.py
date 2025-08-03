@@ -2,8 +2,8 @@ import pytest
 import asyncio
 from datetime import date
 from unittest.mock import AsyncMock, patch, MagicMock
-from src.universe.universe_manager import UniverseManager
-from src.universe.universe_manager import UniverseMembershipChange
+from universe.universe_manager import UniverseManager
+from universe.universe_manager import UniverseMembershipChange
 
 @pytest.mark.asyncio
 async def test_update_universe_membership_applies_changes(monkeypatch, test_env):

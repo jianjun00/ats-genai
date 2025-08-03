@@ -2,36 +2,29 @@ import pandas as pd
 from datetime import datetime, timedelta
 from typing import List, Callable, Optional, Any
 
+
 from config.environment import Environment
 from market_data.market_data_manager import MarketDataManager
 from market_data.eod.daily_price_market_data_manager import DailyPriceMarketDataManager
 from secmaster.security_master import SecurityMaster
+from state.universe_state_builder import UniverseStateBuilder
 from state.universe_state_manager import UniverseStateManager
 from calendars.time_duration import TimeDuration
 from universe.universe_manager import UniverseManager
 
-class RunnerCallback:
-    """
-    Base class for runner callbacks. Users should subclass and implement desired hooks.
-    """
-    def handleStart(self, runner, current_time: datetime):
-        pass
-    def handleStartOfDay(self, runner, current_time: datetime):
-        pass
-    def handleEndOfDay(self, runner, current_time: datetime):
-        pass
-    def handleInterval(self, runner, current_time: datetime):
-        pass
-    def handleEnd(self, runner, current_time: datetime):
-        pass
+from state.runner_callback import RunnerCallback
 
+import gin
+
+@gin.configurable
 class Runner:
-    def __init__(self, start_date: str, end_date: str, environment: Environment, universe_id: int, callbacks: List[str]):
+    def __init__(self, start_date: str, end_date: str, environment: Environment,
+    universe_id: int, callbacks: List[str], base_duration: str):
         self.env = environment
         self.universe_id = universe_id
         self.start_date = datetime.strptime(start_date, "%Y-%m-%d")
         self.end_date = datetime.strptime(end_date, "%Y-%m-%d")
-        self.duration = self.env.get_base_duration()  # expects TimeDuration
+        self.duration = TimeDuration(base_duration)  # expects TimeDuration
         self.callbacks: List[RunnerCallback] = self._init_callbacks(callbacks)
         self.security_master = SecurityMaster(self.env)
         self.universe_state_manager = UniverseStateManager(self.env)
@@ -43,16 +36,17 @@ class Runner:
         import gin
         callback_classes = callbacks or []
         callbacks = []
+        print("_init_callbacks CONFIGURABLE REGISTERED:", gin.config._CONFIG.keys())
         for cb_class in callback_classes:
             if isinstance(cb_class, RunnerCallback):
-                callbacks.append(cb_class)
+                callbacks.append(cb_class())
             elif isinstance(cb_class, type) and issubclass(cb_class, RunnerCallback):
                 callbacks.append(cb_class())
             elif isinstance(cb_class, str):
                 # Optionally support import by string
                 mod_name, class_name = cb_class.rsplit('.', 1)
                 mod = __import__(mod_name, fromlist=[class_name])
-                callbacks.append(getattr(mod, class_name)())
+                callbacks.append(getattr(mod, class_name)(self.env))
         return callbacks
 
     def get_environment(self) -> Environment:
