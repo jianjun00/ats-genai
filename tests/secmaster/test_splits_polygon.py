@@ -24,8 +24,8 @@ async def test_insert_splits_polygon_inserts_correctly(unit_test_db):
     ticker = "AAPL"
         # Patch: Inject DAO with test DB URL
     from dao.stock_splits_polygon_dao import StockSplitsPolygonDAO
-    from config.environment import Environment
-    env = Environment(EnvironmentType.TEST)
+    from config.environment import Environment, EnvironmentType
+    env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     dao = StockSplitsPolygonDAO(env)
     await splits_polygon.insert_splits_polygon(splits, ticker, dao=dao)
 

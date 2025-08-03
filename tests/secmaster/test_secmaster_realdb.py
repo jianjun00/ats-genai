@@ -10,7 +10,7 @@ async def test_get_spy_membership_real_db(unit_test_db):
     Real DB integration: SecMaster retrieves SPY membership as of a date using isolated test DB.
     """
     # Patch env to use the test DB URL
-    env = Environment(EnvironmentType.TEST)
+    env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     env.get_database_url = lambda: unit_test_db
     secm = SecMaster(env=env, as_of_date=date(2025, 7, 25))
 
