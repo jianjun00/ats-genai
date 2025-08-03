@@ -96,6 +96,7 @@ class Environment:
         from config.database import Database
         self.logging_config = LoggingConfig()
         self.db_url = db_url
+        assert db_url is not None, "Environment requires db_url to be passed explicitly."
         print(f"[GIN DEBUG] Environment.__init__ received db_url: {db_url}")
         if db_url:
             import re
