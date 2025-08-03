@@ -19,8 +19,8 @@ bind = ['enable_metrics', False]
 bind = ['strict_validation', True]
 
 # Durations for UniverseStateBuilder
-universe.base_duration = '5m'
-universe.target_durations = '5m,15m,60m'
+UniverseStateBuilder.base_duration = '5m'
+UniverseStateBuilder.target_durations = '5m,15m,60m'
 
 # Runner
 bind = ['callbacks', 'state.universe_state_builder.UniverseStateBuilder']

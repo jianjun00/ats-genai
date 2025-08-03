@@ -25,6 +25,16 @@ from src.state.universe_state_manager import UniverseStateManager
 from config.environment import Environment, EnvironmentType
 from db.test_db_manager import unit_test_db
 
+import gin
+
+@pytest.fixture(autouse=True, scope='class')
+def gin_config():
+    import gin
+    gin.clear_config()
+    gin.parse_config_file('config/app.gin')
+    yield
+    gin.clear_config()
+
 class TestUniverseStateBuilder:
     """Test suite for UniverseStateBuilder class."""
     
@@ -44,7 +54,7 @@ class TestUniverseStateBuilder:
     @pytest.fixture
     def universe_builder(self, mock_state_manager, mock_env):
         """Create UniverseStateBuilder instance for testing."""
-        return UniverseStateBuilder(env=mock_env)
+        return UniverseStateBuilder(env=mock_env, base_duration='5m', target_durations='5m,15m,60m')
     
     @pytest.fixture
     def sample_base_universe(self):
@@ -64,7 +74,7 @@ class TestUniverseStateBuilder:
     def test_initialization(self, mock_state_manager, mock_env):
         """Test UniverseStateBuilder initialization."""
         universe = MagicMock(name='Universe')
-        builder = UniverseStateBuilder(env=mock_env)
+        builder = UniverseStateBuilder(env=mock_env, base_duration='5m', target_durations='5m,15m,60m' )
         
         assert builder.env == mock_env
         assert builder.min_market_cap == 100_000_000
@@ -102,7 +112,7 @@ class TestUniverseStateBuilder:
                 return cfg
             indicator_rolling_window = 3
         env = DummyEnv()
-        builder = UniverseStateBuilder(env=env)
+        builder = UniverseStateBuilder(env=env, base_duration='5m', target_durations='5m,15m,60m')
         # Mock runner
         class DummyRunner:
             class DummyUniverseManager:
@@ -131,7 +141,7 @@ class TestUniverseStateBuilder:
         state_dict = runner.universe_state_manager.last_state
         assert isinstance(state_dict, dict)
         # Expect only one duration in DummyEnv
-        assert len(state_dict) == 1
+        assert len(state_dict) == 3
         state = list(state_dict.values())[0]
         assert type(state).__name__ == 'UniverseState'
         assert 'default' in state.indicator_intervals

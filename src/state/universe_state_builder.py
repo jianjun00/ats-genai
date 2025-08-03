@@ -24,6 +24,7 @@ from app.runner import RunnerCallback
 from signals.indicator_builder import IndicatorBuilder
 from signals.indicator_config import IndicatorConfig
 
+@gin.configurable
 class UniverseStateBuilder(RunnerCallback):
     def handleStartOfDay(self, runner, current_time):
         self.logger.info(f"UniverseStateBuilder.handleStartOfDay called at {current_time}")
@@ -125,8 +126,7 @@ class UniverseStateBuilder(RunnerCallback):
     
     Handles data collection, validation, corporate actions, and derived calculations.
     """
-    
-    @gin.configurable
+
     def __init__(self, 
                  env: Optional['Environment'] = None,
                  base_duration: Optional[str] = None,
@@ -151,9 +151,9 @@ class UniverseStateBuilder(RunnerCallback):
         # Durations
         import gin
         from calendars.time_duration import TimeDuration
-        base_duration_str = base_duration or gin.query_parameter('universe.base_duration') or '5m'
+        base_duration_str = base_duration or gin.query_parameter('UniverseStateBuilder.base_duration') or '5m'
         self.base_duration = TimeDuration(base_duration_str)
-        target_durations_str = target_durations or gin.query_parameter('universe.target_durations') or '5m'
+        target_durations_str = target_durations or gin.query_parameter('UniverseStateBuilder.target_durations') or '5m'
         self.target_durations = [TimeDuration(d.strip()) for d in target_durations_str.split(',')]
 
         # Default business logic parameters (from test expectations)
@@ -165,7 +165,6 @@ class UniverseStateBuilder(RunnerCallback):
             'tiingo': 2,
             'quandl': 3
         }
-
 
     def validate_universe_state(self, df):
         required_cols = {'symbol', 'market_cap', 'avg_volume', 'sector', 'exchange', 'is_active', 'as_of_date'}
