@@ -1,4 +1,5 @@
 import pytest
+import gin
 
 from config.database import Database  # Import first, so Gin registers it
 from config.logging_config import LoggingConfig  # Register logging config

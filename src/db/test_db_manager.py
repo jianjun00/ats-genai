@@ -464,6 +464,17 @@ async def unit_test_db_clean(request):
     db_manager = gin.get_configurable(TestDatabaseManager)("unit", database_obj=db_obj)
     test_db_url = await db_manager.setup_test_database()
 
+    # Drop all tables for a clean DB
+    import asyncpg
+    conn = await asyncpg.connect(test_db_url)
+    tables = await conn.fetch("""
+        SELECT table_name FROM information_schema.tables
+        WHERE table_schema='public' AND table_type='BASE TABLE';
+    """)
+    for row in tables:
+        await conn.execute(f'DROP TABLE IF EXISTS "{row["table_name"]}" CASCADE;')
+    await conn.close()
+
     yield test_db_url
     await db_manager.teardown_test_database()
     # Clean up backup/dump files created for this test DB

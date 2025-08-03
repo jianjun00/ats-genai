@@ -28,7 +28,7 @@ class Runner:
         self.callbacks: List[RunnerCallback] = self._init_callbacks(callbacks)
         self.security_master = SecurityMaster(self.env)
         self.universe_state_manager = UniverseStateManager(self.env)
-        self.universe_manager = UniverseManager(self.env)
+        self.universe_manager = UniverseManager(self.env, self.universe_id)
         self.market_data_manager = DailyPriceMarketDataManager(self.env)
 
     def _init_callbacks(self, callbacks: List[str]) -> List[RunnerCallback]:
@@ -166,9 +166,11 @@ class Runner:
         """
         import logging
         logger = logging.getLogger(__name__)
-        saved_dir = None
         import gin
-        saved_dir = gin.query_parameter('runner/saved_dir')
+        try:
+            saved_dir = gin.query_parameter('runner/saved_dir')
+        except ValueError:
+            saved_dir = None
         logger.info(f"saved_dir:{saved_dir}")
         if hasattr(self.universe_state_manager, 'handleEnd'):
             logger.info(f"Runner.run: Calling universe_state_manager.handleEnd at {current_time}, saved_dir: {saved_dir}")

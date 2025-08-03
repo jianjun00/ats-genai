@@ -47,7 +47,9 @@ async def test_runner_universe_manager_sod_eod_real_db(unit_test_db):
         await conn.execute(f"UPDATE {env.get_table_name('universe_membership')} SET end_at=$1 WHERE universe_id=$2 AND instrument_id=$3 AND end_at IS NULL", date(2025, 7, 3), universe_id, tsla_id)
     # Run SOD/EOD for each day and check instrument ids
     env.get = lambda section, key, default=None: [] if (section, key) == ("runner", "callbacks") else default
-    runner_object = app.runner.Runner("2025-07-01", "2025-07-03", env, universe_id, callbacks=["state.universe_state_builder.UniverseStateBuilder"])
+    # Patch callbacks to provide required UniverseStateBuilder arguments
+    callbacks = [lambda: UniverseStateBuilder(env=env, base_duration="1d", target_durations="1d")]
+    runner_object = app.runner.Runner("2025-07-01", "2025-07-03", env, universe_id, callbacks=callbacks, base_duration="1d")
     # Patch runner.market_data_manager to use patched env (ensures correct DB URL)
     from market_data.eod.daily_price_market_data_manager import DailyPriceMarketDataManager
     runner_object.market_data_manager = DailyPriceMarketDataManager(env=env)
