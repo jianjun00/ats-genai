@@ -7,6 +7,7 @@ integration with multiple data sources.
 """
 
 import pandas as pd
+import gin
 import asyncpg
 from typing import Dict, Any, List, Optional, Tuple
 import logging
@@ -14,7 +15,7 @@ from datetime import datetime, date
 from dataclasses import dataclass
 from enum import Enum
 import numpy as np
-from config.environment import Environment, get_environment
+from config.environment import Environment
 from calendars.time_duration import TimeDuration
 from state.instrument_interval import InstrumentInterval
 from state.universe_interval import UniverseInterval
@@ -39,13 +40,13 @@ class UniverseStateBuilder(RunnerCallback):
         """
         from state.universe_state import UniverseState
         self.logger.info(f"UniverseStateBuilder.handleInterval called at {current_time}")
-        durations = self.env.get_target_durations()
+        durations = self.target_durations
         if not durations:
             self.logger.error("No target durations configured.")
             return
         instrument_ids = runner.universe_manager.instrument_ids
         # --- 1. Always build and update rolling cache for base_duration (assume durations[0] is base) ---
-        base_duration = durations[0]
+        base_duration = self.base_duration
         base_end_time = base_duration.get_end_time(current_time)
         ohlc_batch = runner.market_data_manager.get_ohlc_batch(instrument_ids, current_time, base_end_time)
         for inst_id in instrument_ids:
@@ -72,11 +73,11 @@ class UniverseStateBuilder(RunnerCallback):
                 self.logger.warning(f"No ohlc data for instrument_id: {inst_id}")
         # --- 2. For each duration, build UniverseInterval, indicator_intervals, UniverseState, emit ---
         duration_to_state = {}
-        for duration in durations:
+        for duration in self.target_durations:
             d_end_time = duration.get_end_time(current_time)
             interval_map = {}
             from calendars.time_duration import TimeDuration
-            base_duration = durations[0]
+            base_duration = self.base_duration
             for inst_id in instrument_ids:
                 history = self.instrument_history.get(inst_id, [])
                 if duration == base_duration:
@@ -125,14 +126,19 @@ class UniverseStateBuilder(RunnerCallback):
     Handles data collection, validation, corporate actions, and derived calculations.
     """
     
+    @gin.configurable
     def __init__(self, 
-                 env: Optional['Environment'] = None):
+                 env: Optional['Environment'] = None,
+                 base_duration: Optional[str] = None,
+                 target_durations: Optional[str] = None):
         """
         Initialize UniverseStateBuilder.
         Args:
             env: Environment instance (uses global if None)
+            base_duration: str (e.g. '5m'), overrides Gin config if provided
+            target_durations: comma-separated str (e.g. '5m,15m,60m'), overrides Gin config if provided
         """
-        self.env = env or get_environment()
+        self.env = env
         self.logger = logging.getLogger(__name__)
         # Rolling cache: instrument_id -> list of InstrumentInterval
         self.instrument_history: Dict[int, List[InstrumentInterval]] = {}
@@ -141,6 +147,14 @@ class UniverseStateBuilder(RunnerCallback):
         self.indicator_builder = IndicatorBuilder(indicator_config)
         # Rolling window size (max history to keep, can be set by env or default)
         self.rolling_window = getattr(self.env, 'indicator_rolling_window', 20)
+
+        # Durations
+        import gin
+        from calendars.time_duration import TimeDuration
+        base_duration_str = base_duration or gin.query_parameter('universe.base_duration') or '5m'
+        self.base_duration = TimeDuration(base_duration_str)
+        target_durations_str = target_durations or gin.query_parameter('universe.target_durations') or '5m'
+        self.target_durations = [TimeDuration(d.strip()) for d in target_durations_str.split(',')]
 
         # Default business logic parameters (from test expectations)
         self.min_market_cap = 100_000_000
@@ -151,14 +165,6 @@ class UniverseStateBuilder(RunnerCallback):
             'tiingo': 2,
             'quandl': 3
         }
-        """
-        Initialize UniverseStateBuilder.
-        Args:
-            env: Environment instance (uses global if None)
-
-        """
-        self.env = env or get_environment()
-        self.logger = logging.getLogger(__name__)
 
 
     def validate_universe_state(self, df):
@@ -179,8 +185,8 @@ class UniverseStateBuilder(RunnerCallback):
         Returns a dict mapping duration string to UniverseInterval.
         """
         intervals = {}
-        self.logger.info(f"Building intervals for {len(self.env.get_target_durations())} durations at {start_time}")
-        for duration in self.env.get_target_durations():
+        self.logger.info(f"Building intervals for {len(self.target_durations)} durations at {start_time}")
+        for duration in self.target_durations:
             end_time = duration.get_end_time(start_time)
             instrument_intervals = {}
             instrument_ids = runner.universe_manager.instrument_ids

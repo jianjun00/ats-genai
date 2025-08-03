@@ -42,12 +42,11 @@ import pytest
 from unittest.mock import AsyncMock
 from dao.universe_dao import UniverseDAO
 from dao.universe_membership_dao import UniverseMembershipDAO
-from config.environment import get_environment
+from config.environment import Environment, EnvironmentType
 from datetime import date
 
 @pytest.mark.asyncio
 async def test_universe_dao_get_universe_by_name_found(unit_test_db, monkeypatch):
-    from config.environment import Environment, EnvironmentType
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     result_row = {'id': 1, 'name': 'TEST'}
     conn = DummyConn(fetchrow_result=result_row)
@@ -59,7 +58,6 @@ async def test_universe_dao_get_universe_by_name_found(unit_test_db, monkeypatch
 
 @pytest.mark.asyncio
 async def test_universe_dao_get_universe_by_name_not_found(unit_test_db, monkeypatch):
-    from config.environment import Environment, EnvironmentType
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     conn = DummyConn(fetchrow_result=None)
     pool = DummyPool(conn)
@@ -70,7 +68,6 @@ async def test_universe_dao_get_universe_by_name_not_found(unit_test_db, monkeyp
 
 @pytest.mark.asyncio
 async def test_universe_dao_create_and_list(unit_test_db, monkeypatch):
-    from config.environment import Environment, EnvironmentType
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     # create_universe returns id
     conn = DummyConn(fetchrow_result={'id': 5})
@@ -88,7 +85,6 @@ async def test_universe_dao_create_and_list(unit_test_db, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_universe_dao_update_universe(unit_test_db, monkeypatch):
-    from config.environment import Environment, EnvironmentType
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     conn = DummyConn(execute_result='UPDATE 1')
     pool = DummyPool(conn)
@@ -102,7 +98,6 @@ async def test_universe_dao_update_universe(unit_test_db, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_universe_dao_get_universe(unit_test_db, monkeypatch):
-    from config.environment import Environment, EnvironmentType
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     conn = DummyConn(fetchrow_result={'id': 2, 'name': 'BAR'})
     pool = DummyPool(conn)
@@ -113,7 +108,6 @@ async def test_universe_dao_get_universe(unit_test_db, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_universe_membership_dao_add_and_remove(unit_test_db, monkeypatch):
-    from config.environment import Environment, EnvironmentType
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     # add_membership returns id
     conn = DummyConn(fetchrow_result={'id': 11})
@@ -133,7 +127,6 @@ async def test_universe_membership_dao_add_and_remove(unit_test_db, monkeypatch)
 
 @pytest.mark.asyncio
 async def test_universe_membership_dao_update_and_add_full(unit_test_db, monkeypatch):
-    from config.environment import Environment, EnvironmentType
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     conn = DummyConn(execute_result='UPDATE 1')
     pool = DummyPool(conn)
@@ -146,7 +139,6 @@ async def test_universe_membership_dao_update_and_add_full(unit_test_db, monkeyp
 
 @pytest.mark.asyncio
 async def test_universe_membership_dao_getters(unit_test_db, monkeypatch):
-    from config.environment import Environment, EnvironmentType
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     memberships = [{'symbol': 'AAPL'}, {'symbol': 'TSLA'}]
     conn = DummyConn(fetch_result=memberships)
@@ -165,7 +157,6 @@ async def test_universe_membership_dao_getters(unit_test_db, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_universe_dao_db_error(unit_test_db, monkeypatch):
-    from config.environment import Environment, EnvironmentType
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     exc = RuntimeError('DB fail')
     conn = DummyConn(raise_exc=exc)

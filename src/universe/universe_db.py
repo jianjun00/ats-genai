@@ -1,6 +1,6 @@
 # universe_db.py
 # Utility functions for multi-universe membership using universe and universe_membership tables
-from config.environment import get_environment, Environment
+from config.environment import Environment
 from dao.universe_dao import UniverseDAO
 from dao.universe_membership_dao import UniverseMembershipDAO
 from datetime import date
@@ -12,7 +12,7 @@ class UniverseDB:
 
     def __init__(self, env: Environment = None):
         print(f"[DEBUG] UniverseDB.__init__ received env of type {type(env)}: {env}")
-        self.env = env or get_environment()
+        self.env = env or Environment()
         self.universe_dao = UniverseDAO(self.env)
         self.universe_membership_dao = UniverseMembershipDAO(self.env)
 

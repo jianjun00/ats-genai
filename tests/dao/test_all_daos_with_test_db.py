@@ -6,7 +6,7 @@ Each test will use the TEST environment and real DB access.
 import pytest
 from datetime import datetime, date
 import asyncpg
-from config.environment import set_environment, EnvironmentType, Environment
+from config.environment import EnvironmentType, Environment
 
 # Import all DAOs
 from dao.daily_market_cap_dao import DailyMarketCapDAO
@@ -34,7 +34,6 @@ from db.test_db_manager import unit_test_db
 import asyncio
 from datetime import datetime
 from config.environment import Environment
-from config.environment import get_environment
 
 @pytest.mark.asyncio
 async def test_instruments_dao_crud(unit_test_db):

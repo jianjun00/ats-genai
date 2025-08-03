@@ -17,7 +17,6 @@ from datetime import datetime, timedelta
 import shutil
 import os
 from dataclasses import dataclass, asdict
-from config.environment import get_environment
 
 
 @dataclass
@@ -93,7 +92,7 @@ class UniverseStateManager:
             env: Environment instance (optional)
             base_path: Base directory for universe state files. If None, uses environment config.
         """
-        self.env = env or get_environment()
+        self.env = env
         self.base_path = Path(base_path) if base_path else Path("data/universe_state")
         self.base_path.mkdir(parents=True, exist_ok=True)
         # Create subdirectories for organization
@@ -590,10 +589,9 @@ if __name__ == "__main__":
         manager = UniverseStateManager(base_path=args.saved_dir)
         # --- DEBUG: Print DB URL and schema for instrument_polygon and instruments ---
         try:
-            from config.environment import get_environment
             import asyncpg
             import asyncio
-            env = get_environment()
+            env = Environment()
             print(f"DEBUG (CLI): DB URL: {env.get_database_url()}")
             async def print_table_schema():
                 pool = await asyncpg.create_pool(env.get_database_url())

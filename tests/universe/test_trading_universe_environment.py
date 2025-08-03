@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 from datetime import date
 
-from config.environment import EnvironmentType, set_environment
+from config.environment import EnvironmentType
 
 def make_mock_asyncpg_pool(mock_conn):
     pool = MagicMock()
@@ -24,7 +24,7 @@ def make_mock_asyncpg_pool(mock_conn):
     
     def setup_method(self):
         """Setup test environment."""
-        set_environment(EnvironmentType.TEST)
+        # set_environment(EnvironmentType.TEST)
     
     def test_trading_universe_uses_environment_db_url(self):
         """Test that TradingUniverse uses environment database URL when none provided."""
@@ -78,7 +78,7 @@ class TestSecurityMasterEnvironment:
     
     def setup_method(self):
         """Setup test environment."""
-        set_environment(EnvironmentType.TEST)
+        # set_environment(EnvironmentType.TEST)
     #     mock_pool = make_mock_asyncpg_pool(mock_conn)
     #     mock_create_pool.return_value = mock_pool
     #     mock_conn.fetch.return_value = [
@@ -103,19 +103,19 @@ class TestEnvironmentSpecificBehavior:
     # def test_different_environments_use_different_table_prefixes(self):
     #     """Test that different environments use different table prefixes."""
     #     # Test environment
-    #     set_environment(EnvironmentType.TEST)
+    #     # set_environment(EnvironmentType.TEST)
     #     test_universe = TradingUniverse()
     #     test_table = test_universe.env.get_table_name("daily_prices")
     #     assert test_table == "test_daily_prices"
     #     
     #     # Integration environment
-    #     set_environment(EnvironmentType.INTEGRATION)
+    #     # set_environment(EnvironmentType.INTEGRATION)
     #     intg_universe = TradingUniverse()
     #     intg_table = intg_universe.env.get_table_name("daily_prices")
     #     assert intg_table == "intg_daily_prices"
     #     
     #     # Production environment
-    #     set_environment(EnvironmentType.PRODUCTION)
+    #     # set_environment(EnvironmentType.PRODUCTION)
     #     prod_universe = TradingUniverse()
     #     prod_table = prod_universe.env.get_table_name("daily_prices")
     #     assert prod_table == "prod_daily_prices"
@@ -124,24 +124,24 @@ class TestEnvironmentSpecificBehavior:
     #     assert test_table != intg_table != prod_table
     #     
     #     # Reset to test for other tests
-    #     set_environment(EnvironmentType.TEST)
+    #     # set_environment(EnvironmentType.TEST)
     
     # def test_different_environments_use_different_databases(self):
     #     """Test that different environments use different database names."""
     #     # Test environment
-    #     set_environment(EnvironmentType.TEST)
+    #     # set_environment(EnvironmentType.TEST)
     #     test_universe = TradingUniverse()
     #     assert test_universe.env.db_name == "test_trading_db"
     #     
     #     # Integration environment
-    #     set_environment(EnvironmentType.INTEGRATION)
+    #     # set_environment(EnvironmentType.INTEGRATION)
     #     intg_universe = TradingUniverse()
     #     assert intg_universe.env.db_name == "intg_trading_db"
     #     
     #     # Production environment
-    #     set_environment(EnvironmentType.PRODUCTION)
+    #     # set_environment(EnvironmentType.PRODUCTION)
     #     prod_universe = TradingUniverse()
     #     assert prod_universe.env.db_name == "prod_trading_db"
     #     
     #     # Reset to test for other tests
-    #     set_environment(EnvironmentType.TEST)
+    #     # set_environment(EnvironmentType.TEST)

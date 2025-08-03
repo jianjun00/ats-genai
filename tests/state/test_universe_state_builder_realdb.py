@@ -6,7 +6,7 @@ from datetime import datetime, date
 
 from src.state.universe_state_builder import UniverseStateBuilder
 from src.state.universe_state_manager import UniverseStateManager
-from config.environment import Environment, EnvironmentType
+from config.environment import Environment, EnvironmentType, EnvironmentType
 from db.test_db_manager import unit_test_db_clean
 
 @pytest.mark.asyncio
@@ -18,7 +18,7 @@ async def test_universe_state_builder_real_db(unit_test_db, tmp_path):
     - Verifies output universe state is persisted and correct
     """
     # Setup environment for test DB
-    env = Environment(EnvironmentType.TEST)
+    env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     env.get_database_url = lambda: unit_test_db
     # Ensure indicator config includes all required indicators
     from src.signals.indicator_config import IndicatorConfig

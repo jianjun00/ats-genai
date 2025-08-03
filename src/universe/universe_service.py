@@ -10,7 +10,7 @@ import pandas as pd
 from typing import Dict, Any, List, Optional
 import logging
 from datetime import datetime, timedelta
-from config.environment import Environment, get_environment
+from config.environment import Environment
 from state.universe_state_manager import UniverseStateManager
 from state.universe_state_builder import (
     UniverseStateBuilder, 
@@ -37,7 +37,7 @@ class UniverseService:
             base_path: Base directory for universe state files
             env: Environment instance (uses global if None)
         """
-        self.env = env or get_environment()
+        self.env = env or Environment()
         self.state_manager = UniverseStateManager(base_path)
         self.state_builder = UniverseStateBuilder(self.state_manager, self.env)
         self.logger = logging.getLogger(__name__)

@@ -61,10 +61,10 @@ async def insert_dividends(dividends, ticker):
     await pool.close()
 
 from dao.instrument_polygon_dao import InstrumentPolygonDAO
-from config.environment import get_environment
+
 
 async def main():
-    env = get_environment()
+    env = Environment()
     api_key = env.get_api_key('polygon')
     if not api_key:
         raise Exception("Please set your POLYGON_API_KEY in your environment or config.")

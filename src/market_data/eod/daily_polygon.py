@@ -4,7 +4,7 @@ import requests
 import datetime as dt
 import time
 
-from config.environment import get_environment, set_environment, EnvironmentType
+from config.environment import set_environment, EnvironmentType
 from dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
 import asyncpg
 import argparse
@@ -60,8 +60,8 @@ def download_prices_polygon(ticker, start, end, api_key, logging=False, log_star
 
 
 async def insert_prices(prices, instrument_id, shares_outstanding, dao: DailyPricesPolygonDAO):
-    from config.environment import get_environment
-    env = get_environment()
+    from config.environment import Environment
+    env = Environment()
     table_name = env.get_table_name('daily_prices_polygon')
     print(f"[DEBUG] Inserting into table: {table_name}, ENVIRONMENT: {env.env_type.value}")
     if not prices:
@@ -109,7 +109,7 @@ async def run_ingestion(tickers, start_date, end_date, environment=None, instrum
     print(f"[DEBUG] run_ingestion end_date type: {type(end_date)}, value: {end_date}")
     if environment:
         set_environment(EnvironmentType(environment))
-    env = get_environment()
+    env = Environment()
     print(f"[DEBUG] ENVIRONMENT at start of run_ingestion: {env.env_type.value}")
     if not polygon_api_key:
         polygon_api_key = os.getenv("POLYGON_API_KEY")
@@ -213,7 +213,7 @@ async def main():
     parser.add_argument('--log_dir', type=str, default='test/data/daily_prices_polygon', help='Directory to store Polygon API logs (default: test/data/daily_prices_polygon)')
     args = parser.parse_args()
     set_environment(EnvironmentType(args.environment))
-    env = get_environment()
+    env = Environment()
     instrument_dao = InstrumentPolygonDAO(env)
     from dao.instrument_xrefs_dao import InstrumentXrefsDAO
     xrefs_dao = InstrumentXrefsDAO(env)

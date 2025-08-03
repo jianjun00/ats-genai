@@ -2,7 +2,7 @@ import asyncpg
 from calendars.time_duration import TimeDuration
 from typing import Optional, Dict, Any, List
 from datetime import date
-from config.environment import get_environment, Environment
+from config.environment import Environment
 from .universe_db import UniverseDB
 from dataclasses import dataclass
 from typing import Dict, Any
@@ -22,7 +22,7 @@ class UniverseManager:
     Manages universe membership operations, including updates and queries.
     """
     def __init__(self, env: Optional[Environment] = None):
-        self.env = env or get_environment()
+        self.env = env or Environment()
         self.universe_id = env.get_universe_id()
         self.logger = logging.getLogger(__name__)
         self.universe_db = UniverseDB(self.env)

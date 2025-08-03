@@ -22,9 +22,8 @@ from src.state.universe_state_builder import (
 
 )
 from src.state.universe_state_manager import UniverseStateManager
-from config.environment import Environment
-from db.test_db_manager import unit_test_db_clean
-
+from config.environment import Environment, EnvironmentType
+from db.test_db_manager import unit_test_db
 
 class TestUniverseStateBuilder:
     """Test suite for UniverseStateBuilder class."""

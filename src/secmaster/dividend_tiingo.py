@@ -1,7 +1,7 @@
 import argparse
 import requests
 from datetime import datetime, date
-from config.environment import set_environment, EnvironmentType, get_environment
+from config.environment import set_environment, EnvironmentType
 from dao.dividend_tiingo_dao import DividendTiingoDAO
 
 
@@ -57,7 +57,7 @@ def main():
     parser.add_argument('--end_date', type=str, required=True, help='End date (YYYY-MM-DD)')
     args = parser.parse_args()
     set_environment(EnvironmentType(args.environment))
-    env = get_environment()
+    env = Environment()
     api_key = env.get_api_key('tiingo')
     if not api_key:
         raise Exception("Please set your TIINGO_API_KEY in your environment or config.")
