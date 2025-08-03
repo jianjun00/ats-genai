@@ -5,7 +5,7 @@ import asyncpg
 import datetime as dt
 import pandas as pd
 import argparse
-from config.environment import set_environment, EnvironmentType
+from config.environment import EnvironmentType
 from dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
 
 def parse_env_type(env_str):
@@ -20,7 +20,6 @@ TIINGO_API_KEY = os.getenv("TIINGO_API_KEY")
 TIINGO_BASE_URL = "https://api.tiingo.com/tiingo/daily/{symbol}/prices"
 
 def get_env_and_table_name(environment):
-    set_environment(parse_env_type(environment))
     env = Environment()
     table_name = env.get_table_name('daily_prices_tiingo')
     print(f"[DEBUG] ENVIRONMENT at start of main: {env.env_type.value}, table: {table_name}")

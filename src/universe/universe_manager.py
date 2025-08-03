@@ -1,6 +1,7 @@
 import asyncpg
 from calendars.time_duration import TimeDuration
-from typing import Optional, Dict, Any, List
+import gin
+from typing import List, Dict, Any, Optional
 from datetime import date
 from config.environment import Environment
 from .universe_db import UniverseDB
@@ -17,14 +18,16 @@ class UniverseMembershipChange:
 
 import logging
 
+@gin.configurable
 class UniverseManager:
     """
     Manages universe membership operations, including updates and queries.
     """
-    def __init__(self, env: Optional[Environment] = None):
+    def __init__(self, env: Environment, universe_id: int):
         self.env = env or Environment()
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger(__name__)        
         self.universe_db = UniverseDB(self.env)
+        self.universe_id = universe_id
 
     async def update_universe_membership(self, membership_changes: List[UniverseMembershipChange]) -> None:
         """

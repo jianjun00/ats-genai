@@ -4,7 +4,7 @@ import requests
 import datetime as dt
 import time
 
-from config.environment import set_environment, EnvironmentType
+from config.environment import EnvironmentType
 from dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
 import asyncpg
 import argparse
@@ -59,9 +59,10 @@ def download_prices_polygon(ticker, start, end, api_key, logging=False, log_star
     return data['results']
 
 
-async def insert_prices(prices, instrument_id, shares_outstanding, dao: DailyPricesPolygonDAO):
-    from config.environment import Environment
-    env = Environment()
+async def insert_prices(prices, instrument_id, shares_outstanding, dao: DailyPricesPolygonDAO, env=None):
+    if env is None:
+        from config.environment import Environment
+        env = Environment()
     table_name = env.get_table_name('daily_prices_polygon')
     print(f"[DEBUG] Inserting into table: {table_name}, ENVIRONMENT: {env.env_type.value}")
     if not prices:
@@ -108,8 +109,9 @@ async def run_ingestion(tickers, start_date, end_date, environment=None, instrum
     print(f"[DEBUG] run_ingestion start_date type: {type(start_date)}, value: {start_date}")
     print(f"[DEBUG] run_ingestion end_date type: {type(end_date)}, value: {end_date}")
     if environment:
-        set_environment(EnvironmentType(environment))
-    env = Environment()
+        env = environment
+    else:
+        env = Environment()
     print(f"[DEBUG] ENVIRONMENT at start of run_ingestion: {env.env_type.value}")
     if not polygon_api_key:
         polygon_api_key = os.getenv("POLYGON_API_KEY")
@@ -196,7 +198,7 @@ async def run_ingestion(tickers, start_date, end_date, environment=None, instrum
                 filtered_prices = [row for row in prices if datetime.utcfromtimestamp(row['t']/1000).date() in missing_days]
                 print(f"[DEBUG] filtered_prices: {filtered_prices}")
                 print(f"[DEBUG] instrument_id used for insert: {instrument_id}")
-                await insert_prices(filtered_prices, instrument_id, shares_outstanding, prices_dao)
+                await insert_prices(filtered_prices, instrument_id, shares_outstanding, prices_dao, env=env)
                 total_inserted += len(filtered_prices)
                 print(f"Inserted {len(filtered_prices)} rows for {ticker} from {range_start} to {range_end}")
                 time.sleep(0.8)
@@ -212,7 +214,7 @@ async def main():
     parser.add_argument('--logging', action='store_true', help='Enable logging of Polygon API requests/responses for specified tickers in date range')
     parser.add_argument('--log_dir', type=str, default='test/data/daily_prices_polygon', help='Directory to store Polygon API logs (default: test/data/daily_prices_polygon)')
     args = parser.parse_args()
-    set_environment(EnvironmentType(args.environment))
+    
     env = Environment()
     instrument_dao = InstrumentPolygonDAO(env)
     from dao.instrument_xrefs_dao import InstrumentXrefsDAO
