@@ -14,8 +14,10 @@ class DummyStateManager:
     pass
 
 import pytest
+import pytest_asyncio
+
 @pytest.mark.asyncio
-async def test_runner_with_universe_state_builder(tmp_path, caplog):
+async def test_runner_with_universe_state_builder(tmp_path, caplog, unit_test_db):
     # Minimal environment config with runner callback
     config_path = tmp_path / "test.conf"
     with open(config_path, "w") as f:
@@ -27,7 +29,7 @@ callbacks=state.universe_state_builder.UniverseStateBuilder
     from config.environment import EnvironmentType
     os.environ["ENVIRONMENT"] = "test"
     # set_environment(EnvironmentType.TEST)
-    env = Environment()
+    env = Environment(env_type="test", db_url=unit_test_db)
 
     # Setup logger to capture output
     caplog.set_level(logging.INFO)
@@ -35,7 +37,20 @@ callbacks=state.universe_state_builder.UniverseStateBuilder
     # Instantiate UniverseStateBuilder (callback)
     universe = DummyUniverse()
     state_manager = DummyStateManager()
-    usb = UniverseStateBuilder(env=env)
+    from state.runner_callback import RunnerCallback
+    class DummyUniverseStateBuilder(RunnerCallback):
+        def __init__(self):
+            self.env = env
+            self.base_duration = '1d'
+            self.target_durations = '1d'
+            self.logger = logging.getLogger(__name__)
+        def handleStartOfDay(self, runner, current_time):
+            self.logger.info(f"DummyUniverseStateBuilder.handleStartOfDay called at {current_time}")
+        def handleEndOfDay(self, runner, current_time):
+            self.logger.info(f"DummyUniverseStateBuilder.handleEndOfDay called at {current_time}")
+        def handleInterval(self, runner, current_time):
+            self.logger.info(f"DummyUniverseStateBuilder.handleInterval called at {current_time}")
+    callback_class = DummyUniverseStateBuilder
 
     # Patch env.get_base_duration to return a 1-day duration
     class DummyDuration:
@@ -50,8 +65,9 @@ callbacks=state.universe_state_builder.UniverseStateBuilder
     from unittest.mock import AsyncMock, MagicMock, patch
 
     class DummyUniverseManager:
-        def __init__(self, env):
+        def __init__(self, env, universe_id):
             self.env = env
+            self.universe_id = universe_id
             self.instrument_ids = ['AAPL', 'TSLA']
         async def update_for_sod(self, *args, **kwargs):
             return None
@@ -76,11 +92,16 @@ callbacks=state.universe_state_builder.UniverseStateBuilder
 
     # Patch Runner to use DummyUniverseManager and DummyMarketDataManager
     class TestRunner(Runner):
-        def _init_callbacks(self):
-            return [usb]
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.universe_manager = DummyUniverseManager(self.env)
+        def __init__(self, start_date, end_date, environment, universe_id):
+            super().__init__(
+                start_date=start_date,
+                end_date=end_date,
+                environment=environment,
+                universe_id=universe_id,
+                callbacks=[callback_class],
+                base_duration='1d'
+            )
+            self.universe_manager = DummyUniverseManager(self.env, universe_id)
             self.universe_manager.universe_db = DummyUniverseDB()
             self.market_data_manager = DummyMarketDataManager()
 

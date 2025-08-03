@@ -10,7 +10,7 @@ from config.environment import Environment, EnvironmentType
 async def test_update_universe_membership_applies_changes(monkeypatch, unit_test_db):
     # Mock environment and DB
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
-    manager = UniverseManager(env=env)
+    manager = UniverseManager(env=env, universe_id=1)
     mock_conn = AsyncMock()
     class DummyConn:
         async def __aenter__(self): return mock_conn
@@ -29,7 +29,7 @@ async def test_update_universe_membership_applies_changes(monkeypatch, unit_test
 @pytest.mark.asyncio
 async def test_update_universe_membership_no_changes(monkeypatch, unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
-    manager = UniverseManager(env=env)
+    manager = UniverseManager(env=env, universe_id=1)
     # Should not call DB or _apply_single_membership_change
     manager._apply_single_membership_change = AsyncMock()
     await manager.update_universe_membership([])
@@ -38,7 +38,7 @@ async def test_update_universe_membership_no_changes(monkeypatch, unit_test_db):
 @pytest.mark.asyncio
 async def test_get_members(monkeypatch, unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
-    manager = UniverseManager(env=env)
+    manager = UniverseManager(env=env, universe_id=1)
     expected = ['AAPL', 'TSLA']
     manager.universe_db.get_universe_members = AsyncMock(return_value=expected)
     members = await manager.get_members(1, date(2025, 7, 15))
@@ -47,7 +47,7 @@ async def test_get_members(monkeypatch, unit_test_db):
 @pytest.mark.asyncio
 async def test_update_for_eod(monkeypatch, unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
-    manager = UniverseManager(env=env)
+    manager = UniverseManager(env=env, universe_id=1)
     # Simulate DB returning dicts as from DAO
     changes = [{
         'universe_id': 1,
@@ -78,7 +78,7 @@ async def test_update_for_eod(monkeypatch, unit_test_db):
 @pytest.mark.asyncio
 async def test_update_for_sod(monkeypatch, caplog, unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
-    manager = UniverseManager(env=env)
+    manager = UniverseManager(env=env, universe_id=1)
     expected_ids = ['AAPL', 'TSLA', 'GOOG']
     # Patch get_members to return expected_ids
     manager.get_members = AsyncMock(return_value=expected_ids)
@@ -97,7 +97,7 @@ async def test_update_for_sod(monkeypatch, caplog, unit_test_db):
 @pytest.mark.asyncio
 async def test_update_for_sod_error(monkeypatch, unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
-    manager = UniverseManager(env=env)
+    manager = UniverseManager(env=env, universe_id=1)
     manager.universe_id = 99  # Patch universe_id to valid value
     # Patch get_members to raise
     manager.get_members = AsyncMock(side_effect=RuntimeError('DB error'))

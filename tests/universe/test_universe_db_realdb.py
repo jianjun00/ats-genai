@@ -84,7 +84,7 @@ async def test_universe_manager_multiday_multiinstrument_real_db(unit_test_db):
     """
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     db = UniverseDB(env=env)
-    manager = UniverseManager(env=env)
+    manager = UniverseManager(env=env, universe_id=1)
     pool = await asyncpg.create_pool(unit_test_db)
     async with pool.acquire() as conn:
         await conn.execute(f"DELETE FROM {env.get_table_name('universe_membership')}")

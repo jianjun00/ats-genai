@@ -10,6 +10,13 @@ from db.test_db_manager import unit_test_db_clean
 async def test_insert_and_get_reconciled_record(unit_test_db):
     import asyncpg
     pool = await asyncpg.create_pool(unit_test_db)
+    # Patch Environment to always use the correct db_url for this test
+    import config.environment
+    orig_env_init = config.environment.Environment.__init__
+    def patched_env_init(self, *args, **kwargs):
+        kwargs['db_url'] = unit_test_db
+        orig_env_init(self, *args, **kwargs)
+    config.environment.Environment.__init__ = patched_env_init
     dao = ReconciledRecordDAO(pool)
     record = ReconciledRecord(
         data_type="eod",
