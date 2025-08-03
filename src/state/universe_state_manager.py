@@ -38,6 +38,9 @@ from state.instrument_interval import InstrumentInterval
 from state.indicator_interval import IndicatorInterval
 from state.universe_interval import UniverseInterval
 
+import gin
+
+@gin.configurable
 class UniverseStateManager:
     """
     Handles fast persistence and retrieval of universe state data.

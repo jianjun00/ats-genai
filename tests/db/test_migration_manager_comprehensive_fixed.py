@@ -12,10 +12,10 @@ import tempfile
 import shutil
 from pathlib import Path
 from unittest.mock import patch, mock_open
-from src.db.migration_manager import MigrationManager
+from db.migration_manager import MigrationManager
 
 import pytest_asyncio
-from src.db.test_db_manager import TestDatabaseManager
+from db.test_db_manager import TestDatabaseManager
 
 
 @pytest.mark.unit

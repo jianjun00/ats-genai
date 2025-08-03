@@ -9,17 +9,15 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src/universe')))
 from universe_db import UniverseDB
 
-from config.environment import get_environment, set_environment, EnvironmentType
-set_environment(EnvironmentType.INTEGRATION)
-env = get_environment()
+from config.environment import Environment, EnvironmentType
+env = Environment(env_type=EnvironmentType.INTEGRATION)
 TSDB_URL = env.get_database_url()
 
 @pytest.mark.asyncio
 async def test_universe_db_crud():
     # Use a random universe name for isolation
     test_universe_name = f"TEST_UNIVERSE_{uuid.uuid4().hex[:8]}"
-    from config.environment import get_environment
-    db = UniverseDB(get_environment())
+    db = UniverseDB(Environment(env_type=EnvironmentType.INTEGRATION))
 
     # Clean up if exists
     pool = await asyncpg.create_pool(TSDB_URL)

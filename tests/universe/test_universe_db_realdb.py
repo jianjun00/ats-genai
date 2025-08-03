@@ -1,10 +1,10 @@
 import pytest
 import asyncpg
 from datetime import date
-from src.universe.universe_db import UniverseDB
+from universe.universe_db import UniverseDB
 from config.environment import Environment, EnvironmentType
 from db.test_db_manager import unit_test_db_clean
-from src.universe.universe_manager import UniverseManager
+from universe.universe_manager import UniverseManager
 
 @pytest.mark.asyncio
 async def test_add_and_get_universe_members_real_db(unit_test_db):
@@ -23,9 +23,9 @@ async def test_add_and_get_universe_members_real_db(unit_test_db):
         await conn.execute(f"DELETE FROM {env.get_table_name('universe')}")
 
     # --- Setup vendor, instrument, and instrument_xref for AAPL ---
-    from src.dao.vendors_dao import VendorsDAO
-    from src.dao.instruments_dao import InstrumentsDAO
-    from src.dao.instrument_xrefs_dao import InstrumentXrefsDAO
+    from dao.vendors_dao import VendorsDAO
+    from dao.instruments_dao import InstrumentsDAO
+    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
     vendor_name = "TEST_VENDOR"
     vendors_dao = VendorsDAO(env)
     instruments_dao = InstrumentsDAO(env)
@@ -90,9 +90,9 @@ async def test_universe_manager_multiday_multiinstrument_real_db(unit_test_db):
         await conn.execute(f"DELETE FROM {env.get_table_name('universe_membership')}")
         await conn.execute(f"DELETE FROM {env.get_table_name('universe')}")
     # --- Setup vendor, instruments, and instrument_xrefs for test isolation ---
-    from src.dao.vendors_dao import VendorsDAO
-    from src.dao.instruments_dao import InstrumentsDAO
-    from src.dao.instrument_xrefs_dao import InstrumentXrefsDAO
+    from dao.vendors_dao import VendorsDAO
+    from dao.instruments_dao import InstrumentsDAO
+    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
 
     vendor_name = "TEST_VENDOR"
     vendors_dao = VendorsDAO(env)

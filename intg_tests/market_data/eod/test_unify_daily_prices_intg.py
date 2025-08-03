@@ -7,9 +7,9 @@ from intg_tests.db.test_intg_db_base_intg import AsyncPGTestDBBase
 import importlib.util
 import sys
 from pathlib import Path
-from src.config.environment import get_environment
+from src.config.environment import Environment, EnvironmentType
 
-env = get_environment()
+env = Environment(env_type=EnvironmentType.INTEGRATION)
 
 load_dotenv()
 

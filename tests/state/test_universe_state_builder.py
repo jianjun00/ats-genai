@@ -13,27 +13,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, date
 import asyncpg
 
-from src.secmaster.security_master import CorporateActionType
-from src.secmaster.security_master import CorporateAction
-from src.state.universe_state_builder import (
+from secmaster.security_master import CorporateActionType
+from secmaster.security_master import CorporateAction
+from state.universe_state_builder import (
     UniverseStateBuilder, 
-
-
-
 )
-from src.state.universe_state_manager import UniverseStateManager
+from state.universe_state_manager import UniverseStateManager
 from config.environment import Environment, EnvironmentType
 from db.test_db_manager import unit_test_db
-
-import gin
-
-@pytest.fixture(autouse=True, scope='class')
-def gin_config():
-    import gin
-    gin.clear_config()
-    gin.parse_config_file('config/app.gin')
-    yield
-    gin.clear_config()
 
 class TestUniverseStateBuilder:
     """Test suite for UniverseStateBuilder class."""
@@ -89,11 +76,11 @@ class TestUniverseStateBuilder:
 
     def test_indicator_builder_rolling_cache(self):
         """Test that UniverseStateBuilder maintains rolling cache and builds indicator intervals correctly."""
-        from src.state.universe_state_builder import UniverseStateBuilder
-        from src.state.instrument_interval import InstrumentInterval
-        from src.state.universe_interval import UniverseInterval
-        from src.state.universe_state import UniverseState
-        from src.state.indicator_interval import IndicatorInterval
+        from state.universe_state_builder import UniverseStateBuilder
+        from state.instrument_interval import InstrumentInterval
+        from state.universe_interval import UniverseInterval
+        from state.universe_state import UniverseState
+        from state.indicator_interval import IndicatorInterval
         from datetime import datetime, timedelta
         from types import SimpleNamespace
         import random

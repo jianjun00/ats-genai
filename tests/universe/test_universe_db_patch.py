@@ -31,7 +31,7 @@ async def test_get_universe_members(monkeypatch):
     monkeypatch.setattr('asyncpg.create_pool', fake_create_pool)
 
     from config.environment import Environment, EnvironmentType
-    from src.universe.universe_db import UniverseDB
+    from universe.universe_db import UniverseDB
     env = Environment(env_type=EnvironmentType.TEST, db_url="postgresql://test:test@localhost:5432/test_db_patch")
     db = UniverseDB(env=env)
     db.universe_membership_dao = MagicMock()

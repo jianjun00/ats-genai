@@ -1,11 +1,11 @@
 import pytest
 import asyncpg
 from datetime import date
-from config.environment import get_environment
+from config.environment import Environment, EnvironmentType
 
 @pytest.fixture(scope="function")
 async def spy_membership_fixture():
-    env = get_environment()
+    env = Environment(env_type=EnvironmentType.INTEGRATION)
     pool = await asyncpg.create_pool(env.get_database_url())
     universe_table = env.get_table_name('universe')
     membership_table = env.get_table_name('universe_membership')

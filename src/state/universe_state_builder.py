@@ -8,6 +8,7 @@ integration with multiple data sources.
 
 import pandas as pd
 import gin
+from state.runner_callback import RunnerCallback
 import asyncpg
 from typing import Dict, Any, List, Optional, Tuple
 import logging
@@ -19,7 +20,6 @@ from config.environment import Environment
 from calendars.time_duration import TimeDuration
 from state.instrument_interval import InstrumentInterval
 from state.universe_interval import UniverseInterval
-from app.runner import RunnerCallback
 
 from signals.indicator_builder import IndicatorBuilder
 from signals.indicator_config import IndicatorConfig
@@ -127,10 +127,7 @@ class UniverseStateBuilder(RunnerCallback):
     Handles data collection, validation, corporate actions, and derived calculations.
     """
 
-    def __init__(self, 
-                 env: Optional['Environment'] = None,
-                 base_duration: Optional[str] = None,
-                 target_durations: Optional[str] = None):
+    def __init__(self, env: Environment, base_duration: str, target_durations: str):
         """
         Initialize UniverseStateBuilder.
         Args:
@@ -149,11 +146,10 @@ class UniverseStateBuilder(RunnerCallback):
         self.rolling_window = getattr(self.env, 'indicator_rolling_window', 20)
 
         # Durations
-        import gin
         from calendars.time_duration import TimeDuration
-        base_duration_str = base_duration or gin.query_parameter('UniverseStateBuilder.base_duration') or '5m'
+        base_duration_str = base_duration
         self.base_duration = TimeDuration(base_duration_str)
-        target_durations_str = target_durations or gin.query_parameter('UniverseStateBuilder.target_durations') or '5m'
+        target_durations_str = target_durations
         self.target_durations = [TimeDuration(d.strip()) for d in target_durations_str.split(',')]
 
         # Default business logic parameters (from test expectations)
@@ -213,4 +209,3 @@ class UniverseStateBuilder(RunnerCallback):
                 instrument_intervals=instrument_intervals
             )
         return intervals
-

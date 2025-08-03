@@ -10,9 +10,8 @@ SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/secmaster/populate_unif
 @pytest.mark.asyncio
 async def test_populate_unified_instruments_integration():
     # Setup: use integration environment
-    from config.environment import set_environment, EnvironmentType, get_environment
-    set_environment(EnvironmentType.INTEGRATION)
-    env = get_environment()
+    from config.environment import Environment, EnvironmentType
+    env = Environment(env_type=EnvironmentType.INTEGRATION)
     # Pick a test ticker that exists in intg_instrument_polygon
     test_ticker = 'AAPL'
     # Remove from intg_instruments if present

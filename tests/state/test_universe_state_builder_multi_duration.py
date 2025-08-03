@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime, date
 from unittest.mock import Mock
-from src.state.universe_state_builder import UniverseStateBuilder
+from state.universe_state_builder import UniverseStateBuilder
 from db.test_db_manager import unit_test_db_clean
 from calendars.time_duration import TimeDuration
 from signals.indicator_config import IndicatorConfig

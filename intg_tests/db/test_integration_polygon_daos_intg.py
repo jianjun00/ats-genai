@@ -1,16 +1,13 @@
 import pytest
 import asyncio
 import datetime
-from config.environment import set_environment, EnvironmentType, get_environment
+from config.environment import Environment, EnvironmentType
 from dao.stock_splits_polygon_dao import StockSplitsPolygonDAO
 from dao.dividend_polygon_dao import DividendPolygonDAO
 
 @pytest.mark.asyncio
 async def test_integration_stock_splits_polygon_dao(clean_integration_db):
-    set_environment(EnvironmentType.INTEGRATION)
-    env = get_environment()
-    # Patch env to use the actual integration test DB URL
-    env.config.set('database', 'database', clean_integration_db.split('/')[-1])
+    env = Environment(env_type=EnvironmentType.INTEGRATION, db_url=clean_integration_db)
     dao = StockSplitsPolygonDAO(env)
     dao.db_url = clean_integration_db
     split = {
@@ -39,10 +36,7 @@ async def test_integration_stock_splits_polygon_dao(clean_integration_db):
 
 @pytest.mark.asyncio
 async def test_integration_dividend_polygon_dao(clean_integration_db):
-    set_environment(EnvironmentType.INTEGRATION)
-    env = get_environment()
-    # Patch env to use the actual integration test DB URL
-    env.config.set('database', 'database', clean_integration_db.split('/')[-1])
+    env = Environment(env_type=EnvironmentType.INTEGRATION, db_url=clean_integration_db)
     dao = DividendPolygonDAO(env)
     dao.db_url = clean_integration_db
     dividend = {
