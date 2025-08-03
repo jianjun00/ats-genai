@@ -4,11 +4,11 @@ import asyncpg
 from datetime import date
 from config.environment import Environment, EnvironmentType
 from dao.instrument_xrefs_dao import InstrumentXrefsDAO
-from db.test_db_manager import unit_test_db_clean
+from db.test_db_manager import unit_test_db
 
 @pytest.mark.asyncio
-async def test_instrument_xrefs_dao_crud(unit_test_db_clean):
-    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db_clean)
+async def test_instrument_xrefs_dao_crud(unit_test_db):
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     dao = InstrumentXrefsDAO(env)
 
     # Insert a dummy instrument and vendor to satisfy FKs
