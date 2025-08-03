@@ -14,7 +14,7 @@ from pathlib import Path
 from unittest.mock import patch
 from src.db.migration_manager import MigrationManager
 from src.db.test_db_manager import TestDatabaseManager
-from config.environment import set_environment, EnvironmentType
+from config.environment import set_environment, EnvironmentType, Environment
 import pytest_asyncio
 
 @pytest_asyncio.fixture
@@ -29,12 +29,30 @@ def pristine_test_db(request):
     """
     async def factory():
         test_name = request.node.name if hasattr(request, 'node') else None
-        db_manager = TestDatabaseManager("unit", test_name=test_name, run_migrations=False)
+        from config.database import Database
+        import uuid
+        if test_name:
+            hash_part = uuid.uuid4().hex[:8]
+            truncated = ''.join(c for c in test_name if c.isalnum())[:8]
+            db_name = f"test_db_{truncated}_{hash_part}"
+        else:
+            db_name = f"test_db_{uuid.uuid4().hex[:8]}"
+        db_obj = Database(
+            host="localhost",
+            port=5432,
+            user="postgres",
+            password="password",
+            database=db_name,
+            base_database=db_name,
+            pool_min_size=1,
+            pool_max_size=10,
+            command_timeout=60
+        )
+        db_manager = TestDatabaseManager("unit", run_migrations=False, database_obj=db_obj)
         db_url = await db_manager.setup_test_database()
         # Teardown logic must be handled by the test (or addfinalizer if needed)
         return db_url
     return factory
-
 
 @pytest_asyncio.fixture
 async def isolated_test_db(request):
@@ -47,9 +65,28 @@ async def isolated_test_db(request):
         async def test_something(isolated_test_db):
             ...
     """
-    set_environment(EnvironmentType.TEST)
+    # set_environment(EnvironmentType.TEST)  # Not needed, always use Environment(db_url=..., env_type=EnvironmentType.TEST)
     test_name = request.node.name if hasattr(request, 'node') else None
-    db_manager = TestDatabaseManager("unit", test_name=test_name, run_migrations=False)
+    from config.database import Database
+    import uuid
+    if test_name:
+        hash_part = uuid.uuid4().hex[:8]
+        truncated = ''.join(c for c in test_name if c.isalnum())[:8]
+        db_name = f"test_db_{truncated}_{hash_part}"
+    else:
+        db_name = f"test_db_{uuid.uuid4().hex[:8]}"
+    db_obj = Database(
+        host="localhost",
+        port=5432,
+        user="postgres",
+        password="password",
+        database=db_name,
+        base_database=db_name,
+        pool_min_size=1,
+        pool_max_size=10,
+        command_timeout=60
+    )
+    db_manager = TestDatabaseManager("unit", run_migrations=False, database_obj=db_obj)
     test_db_url = await db_manager.setup_test_database()
     yield test_db_url
     await db_manager.teardown_test_database()
@@ -66,15 +103,35 @@ async def isolated_test_db_migrate(request):
         async def test_something(isolated_test_db):
             ...
     """
-    set_environment(EnvironmentType.TEST)
+    # set_environment(EnvironmentType.TEST)  # Not needed, always use Environment(db_url=..., env_type=EnvironmentType.TEST)
     test_name = request.node.name if hasattr(request, 'node') else None
-    db_manager = TestDatabaseManager("unit", test_name=test_name, run_migrations=True)
+    from config.database import Database
+    import uuid
+    if test_name:
+        hash_part = uuid.uuid4().hex[:8]
+        truncated = ''.join(c for c in test_name if c.isalnum())[:8]
+        db_name = f"test_db_{truncated}_{hash_part}"
+    else:
+        db_name = f"test_db_{uuid.uuid4().hex[:8]}"
+    db_obj = Database(
+        host="localhost",
+        port=5432,
+        user="postgres",
+        password="password",
+        database=db_name,
+        base_database=db_name,
+        pool_min_size=1,
+        pool_max_size=10,
+        command_timeout=60
+    )
+    db_manager = TestDatabaseManager("unit", run_migrations=True, database_obj=db_obj)
     test_db_url = await db_manager.setup_test_database()
     yield test_db_url
     await db_manager.teardown_test_database()
 
 @pytest.mark.asyncio
 async def test_migration_manager_basic_functionality(isolated_test_db):
+    
     """Test basic migration manager functionality."""
     manager = MigrationManager(isolated_test_db)
     
@@ -90,6 +147,7 @@ async def test_migration_manager_basic_functionality(isolated_test_db):
 
 @pytest.mark.asyncio
 async def test_table_prefix_application(isolated_test_db):
+    
     """Test that table prefixes are correctly applied to SQL."""
     manager = MigrationManager(isolated_test_db)
     
@@ -110,6 +168,7 @@ async def test_table_prefix_application(isolated_test_db):
 
 @pytest.mark.asyncio
 async def test_table_prefix_no_double_prefixing(isolated_test_db):
+    
     """Test that already prefixed tables don't get double-prefixed."""
     manager = MigrationManager(isolated_test_db)
     
@@ -123,6 +182,7 @@ async def test_table_prefix_no_double_prefixing(isolated_test_db):
 
 @pytest.mark.asyncio
 async def test_checksum_calculation(isolated_test_db):
+    
     """Test checksum calculation for migration files."""
     manager = MigrationManager(isolated_test_db)
     
@@ -257,6 +317,7 @@ async def test_apply_migration_sql_error(pristine_test_db):
 
 @pytest.mark.asyncio
 async def test_migration_rollback_on_error(isolated_test_db):
+    
     """Test that migration is rolled back on error (transaction behavior)."""
     manager = MigrationManager(isolated_test_db)
     await manager.get_current_version()
@@ -301,6 +362,7 @@ async def test_migration_rollback_on_error(isolated_test_db):
 
 @pytest.mark.asyncio
 async def test_migrate_to_latest_with_multiple_migrations(isolated_test_db):
+    
     """Test migrate_to_latest with multiple migrations."""
     with tempfile.TemporaryDirectory() as temp_dir:
         migrations_dir = Path(temp_dir)
@@ -345,6 +407,7 @@ async def test_migrate_to_latest_with_multiple_migrations(isolated_test_db):
 
 @pytest.mark.asyncio
 async def test_migrate_to_latest_partial_failure(isolated_test_db):
+    
     """Test migrate_to_latest when one migration fails."""
     with tempfile.TemporaryDirectory() as temp_dir:
         migrations_dir = Path(temp_dir)
@@ -383,6 +446,7 @@ async def test_migrate_to_latest_partial_failure(isolated_test_db):
 
 @pytest.mark.asyncio
 async def test_validation_with_modified_file(isolated_test_db):
+    
     """Test migration validation when file has been modified."""
     with tempfile.TemporaryDirectory() as temp_dir:
         migrations_dir = Path(temp_dir)
@@ -407,6 +471,7 @@ async def test_validation_with_modified_file(isolated_test_db):
 
 @pytest.mark.asyncio
 async def test_migration_version_ordering(isolated_test_db):
+    
     """Test that migrations are applied in correct version order."""
     with tempfile.TemporaryDirectory() as temp_dir:
         migrations_dir = Path(temp_dir)
@@ -546,6 +611,7 @@ async def test_complex_sql_migration(pristine_test_db):
 
 @pytest.mark.asyncio
 async def test_empty_migration_directory(isolated_test_db):
+    
     """Test migrate_to_latest when no migrations are available."""
     # Create temporary empty migration directory
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -559,6 +625,11 @@ async def test_empty_migration_directory(isolated_test_db):
 @pytest.mark.asyncio
 async def test_checksum_edge_cases(isolated_test_db):
     """Test checksum validation with various edge cases."""
+    # Patch: ensure MigrationManager does not instantiate Database without a db name
+    # If needed, patch get_environment or Database to always provide a database argument
+    import gin
+    gin.clear_config()  # Clear to avoid Gin bleed
+    gin.bind_parameter('Database.database', 'test_db_dummy')
     manager = MigrationManager(isolated_test_db)
     
     # Test with empty file
