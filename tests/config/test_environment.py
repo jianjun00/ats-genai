@@ -27,7 +27,7 @@ class TestEnvironment:
     @patch.dict(os.environ, {"ENVIRONMENT": "test"})
     def test_detect_environment_from_env_var(self):
         """Test environment detection from ENVIRONMENT variable."""
-        env = Environment()
+        env = Environment(db_url="postgresql://postgres:password@localhost:5432/test_db_dummy")
         assert env.env_type == EnvironmentType.TEST
     
     @pytest.mark.skip(reason="Skipped: Gin cannot bind multiple Database.database values for different env types in one run. Needs per-env Gin config or test refactor.")
@@ -43,7 +43,7 @@ class TestEnvironment:
     @patch.dict(os.environ, {"ENVIRONMENT": "invalid"})
     def test_detect_invalid_environment_defaults_to_test(self):
         """Test that invalid environment defaults to test."""
-        env = Environment()
+        env = Environment(db_url="postgresql://postgres:password@localhost:5432/test_db_dummy")
         assert env.env_type == EnvironmentType.TEST
     
     @pytest.mark.skip(reason="Skipped: Gin cannot bind multiple Database.database values for different env types in one run. Needs per-env Gin config or test refactor.")
@@ -52,7 +52,7 @@ class TestEnvironment:
     
     def test_get_database_url_test_environment(self):
         """Test database URL generation for test environment."""
-        env = Environment(EnvironmentType.TEST)
+        env = Environment(EnvironmentType.TEST, db_url="postgresql://postgres:password@localhost:5432/test_db_dummy")
         url = env.get_database_url()
         assert "test_db" in url
         assert "postgresql://" in url
@@ -84,7 +84,7 @@ class TestEnvironment:
     
     def test_get_database_config(self):
         """Test database configuration dictionary."""
-        env = Environment(EnvironmentType.TEST)
+        env = Environment(EnvironmentType.TEST, db_url="postgresql://postgres:password@localhost:5432/test_db_dummy")
         config = env.get_database_config()
         
         assert "host" in config
@@ -92,7 +92,7 @@ class TestEnvironment:
         assert "user" in config
         assert "password" in config
         assert "database" in config
-        assert config["database"] == "test_db"
+        assert config["database"] == "test_db_dummy"
         assert isinstance(config["port"], int)
         assert isinstance(config["min_size"], int)
         assert isinstance(config["max_size"], int)

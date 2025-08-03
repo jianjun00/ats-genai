@@ -336,7 +336,7 @@ def get_environment() -> Environment:
     if _env_instance is None:
         import os
         gin_config_path = os.environ.get("GIN_CONFIG")
-        _env_instance = Environment(gin_config_path=gin_config_path)
+        _env_instance = Environment(gin_config_path=gin_config_path, db_url="postgresql://postgres:password@localhost:5432/test_db_dummy")
     return _env_instance
 
 
