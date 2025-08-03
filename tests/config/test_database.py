@@ -3,6 +3,7 @@ import pytest
 
 from config.database import Database  # Import first, so Gin registers it
 from config.logging_config import LoggingConfig  # Register logging config
+from state.universe_state_builder import UniverseStateBuilder
 
 @pytest.fixture(autouse=True)
 def gin_clear():
