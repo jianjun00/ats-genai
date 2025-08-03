@@ -1,6 +1,6 @@
 import os
 import asyncio
-from src.config.environment import get_environment, set_environment, EnvironmentType
+from src.config.environment import set_environment, EnvironmentType
 from market_data.eod.daily_prices_quandl_dao import DailyPricesQuandlDAO
 import requests
 from datetime import datetime, timedelta
@@ -77,7 +77,7 @@ async def main():
     parser.add_argument('--environment', type=str, default='intg', choices=['test', 'intg', 'prod'], help='Environment to use (test, intg, prod)')
     args = parser.parse_args()
     set_environment(EnvironmentType(args.environment))
-    env = get_environment()
+    env = Environment()
     dao = DailyPricesQuandlDAO(env)
     if not QUANDL_API_KEY:
         raise Exception("Please set your QUANDL_API_KEY environment variable.")

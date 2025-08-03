@@ -3,12 +3,12 @@ import requests
 import asyncpg
 from dotenv import load_dotenv
 from datetime import datetime
-from config.environment import get_environment, set_environment, EnvironmentType
+from config.environment import set_environment, EnvironmentType
 
 load_dotenv()
 
 # set_environment(EnvironmentType.INTEGRATION)
-# env = get_environment()
+
 # (moved to main)
 # Polygon reference API endpoint for all US stocks (paginated)
 BASE_URL = "https://api.polygon.io/v3/reference/tickers"
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     set_environment(EnvironmentType(args.environment))
-    env = get_environment()
+    env = Environment()
 
     import asyncio
 asyncio.run(fetch_and_store_instruments(start_ticker=args.start_ticker, ticker=args.ticker))

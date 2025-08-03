@@ -322,30 +322,3 @@ class Environment:
         """Detailed string representation."""
         return f"Environment(type={self.env_type.value}, config_sections={list(self.config.sections())})"
 
-
-# Global environment instance
-_env_instance: Optional[Environment] = None
-
-
-def get_environment() -> Environment:
-    """
-    Get global Gin-based Environment instance (singleton pattern).
-    Honors GIN_CONFIG environment variable if set.
-    """
-    global _env_instance
-    if _env_instance is None:
-        import os
-        gin_config_path = os.environ.get("GIN_CONFIG")
-        _env_instance = Environment(gin_config_path=gin_config_path, db_url="postgresql://postgres:password@localhost:5432/test_db_dummy")
-    return _env_instance
-
-
-def set_environment(env_type: EnvironmentType):
-    """
-    Set global environment type and reinitialize.
-    
-    Args:
-        env_type: Environment type to set
-    """
-    global _env_instance
-    _env_instance = Environment(env_type=env_type)

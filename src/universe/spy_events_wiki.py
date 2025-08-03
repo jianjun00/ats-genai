@@ -133,10 +133,9 @@ async def fetch_spy_events(tickers=None):
     print("[DEBUG] Last 10 events:", events[-10:])
     return events
 
-from config.environment import get_environment
 
 async def get_or_create_universe(pool, name, description):
-    env = get_environment()
+    env = Environment()
     universe_table = env.get_table_name("universe")
     async with pool.acquire() as conn:
         row = await conn.fetchrow(f"SELECT id FROM {universe_table} WHERE name = $1", name)
@@ -150,8 +149,7 @@ async def get_or_create_universe(pool, name, description):
         return row['id']
 
 async def apply_events_to_membership(pool, universe_id, events):
-    from config.environment import get_environment
-    env = get_environment()
+        env = Environment()
     universe_membership_table = env.get_table_name("universe_membership")
     async with pool.acquire() as conn:
         for event in events:
@@ -179,8 +177,7 @@ async def apply_events_to_membership(pool, universe_id, events):
                 print(f"[DEBUG] Updated row after REMOVE: {updated}")
 
 async def remove_all_universe_membership(pool, universe_id):
-    from config.environment import get_environment
-    env = get_environment()
+        env = Environment()
     universe_membership_table = env.get_table_name("universe_membership")
     async with pool.acquire() as conn:
         result = await conn.execute(f"DELETE FROM {universe_membership_table} WHERE universe_id = $1", universe_id)
@@ -202,8 +199,7 @@ async def populate_spy_universe_events(db_url, universe_name, tickers=None):
     await pool.close()
 
 async def main(db_url=None, universe_name=None, tickers=None, args=None):
-    from config.environment import get_environment
-    env = get_environment()
+        env = Environment()
     print(f"[DEBUG SCRIPT] DB URL: {db_url}")
     print(f"[DEBUG SCRIPT] universe table: {env.get_table_name('universe')}")
     print(f"[DEBUG SCRIPT] universe_membership table: {env.get_table_name('universe_membership')}")

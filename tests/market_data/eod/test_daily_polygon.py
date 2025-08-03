@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 from datetime import datetime
-from config.environment import set_environment, EnvironmentType, get_environment
+from config.environment import EnvironmentType
 from db.test_db_manager import unit_test_db_clean
 from dao.instrument_polygon_dao import InstrumentPolygonDAO
 from dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
@@ -9,10 +9,9 @@ from market_data.eod import daily_polygon
 
 @pytest.mark.asyncio
 async def test_daily_polygon_inserts_prices(unit_test_db_clean, monkeypatch):
-    from config.environment import Environment, EnvironmentType
-    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db_clean)
-    instrument_dao = InstrumentPolygonDAO(env)
-    prices_dao = DailyPricesPolygonDAO(env)
+    env_type = EnvironmentType.TEST
+    instrument_dao = InstrumentPolygonDAO(env_type)
+    prices_dao = DailyPricesPolygonDAO(env_type)
 
     # Insert a test instrument
     test_symbol = "AAPL"
@@ -52,7 +51,7 @@ async def test_daily_polygon_inserts_prices(unit_test_db_clean, monkeypatch):
         tickers=[test_symbol],
         start_date="2023-01-03",
         end_date="2023-01-03",
-        environment="test",
+        environment=env_type,
         instrument_dao=instrument_dao,
         prices_dao=prices_dao,
         polygon_api_key="testkey"

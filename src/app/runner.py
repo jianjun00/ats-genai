@@ -40,7 +40,8 @@ class Runner:
 
     def _init_callbacks(self) -> List[RunnerCallback]:
         # Expect config to contain a list of callback classes/instances
-        callback_classes = self.env.get('runner', 'callbacks', [])
+        import gin
+        callback_classes = gin.query_parameter('runner/callbacks') or []
         callbacks = []
         for cb_class in callback_classes:
             if isinstance(cb_class, RunnerCallback):
@@ -172,8 +173,8 @@ class Runner:
         import logging
         logger = logging.getLogger(__name__)
         saved_dir = None
-        if hasattr(self.env, 'get'):
-            saved_dir = self.env.get('runner', 'saved_dir', None)
+        import gin
+        saved_dir = gin.query_parameter('runner/saved_dir')
         logger.info(f"saved_dir:{saved_dir}")
         if hasattr(self.universe_state_manager, 'handleEnd'):
             logger.info(f"Runner.run: Calling universe_state_manager.handleEnd at {current_time}, saved_dir: {saved_dir}")

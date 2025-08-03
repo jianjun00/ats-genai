@@ -14,7 +14,7 @@ from pathlib import Path
 from unittest.mock import patch, mock_open
 from db.migration_manager import MigrationManager
 
-from config.environment import get_environment
+from config.environment import Environment
 
 
 @pytest.mark.unit
@@ -279,7 +279,7 @@ async def test_migrate_to_latest_with_migrations(unit_test_db_clean):
             manager.db_url = unit_test_db_clean
             manager.table_prefix = "test_"
             manager.migrations_dir = migrations_dir
-            manager.environment = get_environment()
+            manager.environment = Environment()
             
             success = await manager.migrate_to_latest()
             assert success is True
@@ -329,7 +329,7 @@ async def test_migrate_to_latest_partial_failure(unit_test_db_clean):
             manager.db_url = unit_test_db_clean
             manager.table_prefix = "test_"
             manager.migrations_dir = migrations_dir
-            manager.environment = get_environment()
+            manager.environment = Environment()
             
             success = await manager.migrate_to_latest()
             assert success is False
@@ -370,7 +370,7 @@ async def test_validate_migrations_success(unit_test_db_clean):
             manager.db_url = unit_test_db_clean
             manager.table_prefix = "test_"
             manager.migrations_dir = migrations_dir
-            manager.environment = get_environment()
+            manager.environment = Environment()
             
             # Apply migration first
             await manager.migrate_to_latest()
@@ -397,7 +397,7 @@ async def test_validate_migrations_modified_file(unit_test_db_clean):
             manager.db_url = unit_test_db_clean
             manager.table_prefix = "test_"
             manager.migrations_dir = migrations_dir
-            manager.environment = get_environment()
+            manager.environment = Environment()
             
             # Apply migration first
             await manager.migrate_to_latest()
@@ -427,7 +427,7 @@ async def test_validate_migrations_missing_file(unit_test_db_clean):
             manager.db_url = unit_test_db_clean
             manager.table_prefix = "test_"
             manager.migrations_dir = migrations_dir
-            manager.environment = get_environment()            
+            manager.environment = Environment()            
             # Apply migration first
             await manager.migrate_to_latest()
             
@@ -587,7 +587,7 @@ async def test_migration_with_environment_variables(unit_test_db_clean):
         os.environ['ENVIRONMENT'] = 'production'
         
         # Need to reload the environment configuration
-        from config.environment import get_environment
+        from config.environment import Environment
         from importlib import reload
         import src.config.environment
         reload(src.config.environment)

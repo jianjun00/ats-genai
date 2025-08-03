@@ -1,6 +1,6 @@
 import pytest
 import asyncio
-from config.environment import get_environment, set_environment, EnvironmentType
+from config.environment import EnvironmentType
 from db.test_db_manager import unit_test_db
 from dao.stock_splits_polygon_dao import StockSplitsPolygonDAO
 from dao.dividend_polygon_dao import DividendPolygonDAO
@@ -10,7 +10,7 @@ from config.environment import Environment
 async def test_stock_splits_polygon_dao(unit_test_db):
     import logging
     logging.debug(f"[TEST DEBUG] unit_test_db: {unit_test_db}")
-    env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     dao = StockSplitsPolygonDAO(env)
     import datetime
     split = {

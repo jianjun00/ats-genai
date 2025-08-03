@@ -24,10 +24,10 @@ async def test_runner_with_universe_state_builder(tmp_path, caplog):
 callbacks=state.universe_state_builder.UniverseStateBuilder
 """)
     import os
-    from config.environment import EnvironmentType, set_environment, get_environment
+    from config.environment import EnvironmentType
     os.environ["ENVIRONMENT"] = "test"
-    set_environment(EnvironmentType.TEST)
-    env = get_environment()
+    # set_environment(EnvironmentType.TEST)
+    env = Environment()
 
     # Setup logger to capture output
     caplog.set_level(logging.INFO)

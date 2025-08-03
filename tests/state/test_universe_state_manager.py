@@ -67,9 +67,9 @@ class TestUniverseStateManager:
     
     def test_initialization_default_path(self):
         """Test initialization with default path."""
-        with patch('src.state.universe_state_manager.get_environment'):
-            manager = UniverseStateManager()
-            assert manager.base_path == Path("data/universe_state")
+        # get_environment removed; patch Environment or Gin config if needed
+        manager = UniverseStateManager()
+        assert manager.base_path == Path("data/universe_state")
     
     def test_save_universe_state_success(self, state_manager, sample_universe_data, valid_timestamp):
         """Test successful universe state saving."""

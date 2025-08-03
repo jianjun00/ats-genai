@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 from datetime import date
 from app.runner import Runner
-from config.environment import get_environment
+from config.environment import Environment
 from universe.universe_manager import UniverseManager
 from state.universe_state_manager import UniverseStateManager
 from config.environment import Environment, EnvironmentType
@@ -41,7 +41,7 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
     symbols = UNIVERSE_SYMBOLS
     # Insert test data as needed (no backup/restore required)
     # Insert test data as needed (no backup/restore required)
-    from config.environment import get_environment
+    from config.environment import Environment
     env = Environment()
     env.config.set('database', 'database', unit_test_db.split('/')[-1])
     env.config.set('database', 'host', 'localhost')

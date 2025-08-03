@@ -8,7 +8,7 @@ tables with proper prefixes (test_, intg_, prod_).
 import asyncio
 import asyncpg
 from typing import List, Dict, Any
-from config.environment import get_environment, EnvironmentType
+from config.environment import EnvironmentType
 
 
 class EnvironmentMigration:
@@ -27,7 +27,7 @@ class EnvironmentMigration:
             from config.environment import set_environment
             set_environment(env_type)
         
-        self.env = get_environment()
+        self.env = Environment()
         self.db_config = self.env.get_database_config()
     
     async def create_database_if_not_exists(self):

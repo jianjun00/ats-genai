@@ -3,7 +3,7 @@ import asyncpg
 import pandas as pd
 from datetime import datetime, timedelta
 import os
-from config import get_environment, Environment, EnvironmentType
+from config import Environment, EnvironmentType
 
 ADV_WINDOW = 20  # days for average daily volume
 
@@ -44,7 +44,7 @@ async def create_universe_membership(
         pool (asyncpg.Pool): Database pool (if None, create from TSDB_URL)
     """
     if env is None:
-        env = get_environment()
+        env = Environment()
     if pool is None:
         pool = await asyncpg.create_pool(os.environ['TSDB_URL'])
         close_pool = True
@@ -176,7 +176,7 @@ async def main():
     min_price = args.min_price
     universe_name = args.universe_name
     env_type = args.environment.lower() if args.environment else None
-    env = Environment(EnvironmentType(env_type)) if env_type else get_environment()
+    env = Environment(EnvironmentType(env_type)) if env_type else Environment()
 
     await create_universe_membership(
         start_date=start_date,

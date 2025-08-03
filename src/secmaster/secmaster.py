@@ -1,4 +1,4 @@
-from config.environment import get_environment, Environment
+from config.environment import Environment
 from dao.secmaster_dao import SecMasterDAO
 from datetime import date
 from typing import List, Optional, Dict
@@ -11,7 +11,7 @@ class SecMaster:
     """
     def __init__(self, env: Environment = None, as_of_date: date = None):
         print(f"[DEBUG] SecMaster.__init__ received env of type {type(env)}: {env}, as_of_date={as_of_date} (type={type(as_of_date)})")
-        self.env = env or get_environment()
+        self.env = env or Environment()
         self.dao = SecMasterDAO(self.env)
         self.as_of_date = as_of_date
         self._events = None  # Will hold all membership events

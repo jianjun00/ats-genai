@@ -136,8 +136,7 @@ async def fetch_spy_events(tickers=None):
     return events
 
 async def get_or_create_universe(pool, name, description):
-    from config.environment import get_environment
-    env = get_environment()
+        env = Environment()
     universe_table = env.get_table_name('universe')
     async with pool.acquire() as conn:
         row = await conn.fetchrow(f"SELECT id FROM {universe_table} WHERE name = $1", name)
@@ -155,9 +154,8 @@ async def apply_events_to_membership(pool, universe_id, events, env=None):
     Apply add/remove events to universe_membership and also log to universe_membership_changes.
     If env is provided, use it to prefix the membership_changes table.
     """
-    from config.environment import get_environment
-    if env is None:
-        env = get_environment()
+        if env is None:
+        env = Environment()
     universe_membership_table = env.get_table_name('universe_membership')
     membership_changes_table = env.get_table_name('universe_membership_changes')
     from dao.instrument_xrefs_dao import InstrumentXrefsDAO
@@ -203,8 +201,7 @@ async def apply_events_to_membership(pool, universe_id, events, env=None):
 
 
 async def remove_all_universe_membership(pool, universe_id):
-    from config.environment import get_environment
-    env = get_environment()
+        env = Environment()
     universe_membership_table = env.get_table_name('universe_membership')
     async with pool.acquire() as conn:
         result = await conn.execute(f"DELETE FROM {universe_membership_table} WHERE universe_id = $1", universe_id)
@@ -228,15 +225,14 @@ async def populate_spy_universe_events(universe_name, tickers=None):
     """
     Populate both universe_membership and universe_membership_changes with SPY events.
     """
-    from config.environment import get_environment
-    db_url = get_environment().get_database_url()
+        db_url = Environment().get_database_url()
     pool = await asyncpg.create_pool(db_url, min_size=1, max_size=4)
     events = await fetch_spy_events(tickers)
     print(f"[DEBUG] Fetched {len(events)} SPY membership events from Wikipedia.")
     universe_id = await get_or_create_universe(pool, universe_name, SPY_UNIVERSE_DESC)
     await remove_all_universe_membership(pool, universe_id)
     # Get env for prefixed table names
-    env = get_environment()
+    env = Environment()
     await remove_all_universe_membership_changes(pool, universe_name, env=env)
     if tickers:
         ticker_set = set(t.upper() for t in tickers.split(",") if t)
@@ -266,8 +262,7 @@ async def main(universe_name=None, tickers=None, environment=None):  # environme
             print(f"[INFO] Set environment to {environment}")
         except Exception as e:
             print(f"[WARN] Invalid environment '{environment}': {e}. Using auto-detected environment.")
-    from config.environment import get_environment
-    db_url = get_environment().get_database_url()
+        db_url = Environment().get_database_url()
     print(f"db_url:{db_url}")
     await populate_spy_universe_events(universe_name, tickers)
     print("Done populating SPY universe membership events.")

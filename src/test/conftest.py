@@ -1,4 +1,4 @@
-from db.test_db_manager import unit_test_db_clean
+from db.test_db_manager import unit_test_db
 import pytest
 import gin
 from config.logging_config import LoggingConfig

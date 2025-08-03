@@ -18,9 +18,9 @@ def fetch_dividends_polygon(ticker, api_key):
 
 async def insert_dividends_polygon(dividends, ticker, dao=None):
     if dao is None:
-        from config.environment import get_environment
+        
         from dao.dividend_polygon_dao import DividendPolygonDAO
-        env = get_environment()
+        env = Environment()
         dao = DividendPolygonDAO(env)
     if not dividends:
         return
@@ -46,7 +46,7 @@ async def insert_dividends_polygon(dividends, ticker, dao=None):
             await dao.insert_dividend(dividend_row)
 
 from dao.instrument_polygon_dao import InstrumentPolygonDAO
-from config.environment import get_environment, set_environment, EnvironmentType
+from config.environment import set_environment, EnvironmentType
 import argparse
 
 async def main():
@@ -55,7 +55,7 @@ async def main():
     parser.add_argument('--start_ticker', type=str, default='', help='Only process tickers > start_ticker (lexical order)')
     args = parser.parse_args()
     set_environment(EnvironmentType(args.environment))
-    env = get_environment()
+    env = Environment()
     api_key = env.get_api_key('polygon')
     if not api_key:
         raise Exception("Please set your POLYGON_API_KEY in your environment or config.")

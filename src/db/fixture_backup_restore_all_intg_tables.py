@@ -1,13 +1,13 @@
 import pytest
 import asyncpg
-from src.config.environment import get_environment
+from src.config.environment import Environment
 
 @pytest.fixture(autouse=True, scope="function")
 async def auto_backup_restore_all_intg_tables(event_loop):
     """
     Automatically backup and restore all intg_ tables before and after each test in intg_tests.
     """
-    env = get_environment()
+    env = Environment()
     # Force database name to intg_db for all integration tests
     import os
     os.environ['DATABASE_NAME'] = 'intg_db'

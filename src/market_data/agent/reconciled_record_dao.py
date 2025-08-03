@@ -1,13 +1,13 @@
 from typing import List, Optional
 from market_data.agent.models import ReconciledRecord
-from config.environment import get_environment
+from config.environment import Environment
 import asyncpg
 import json
 
 class ReconciledRecordDAO:
     def __init__(self, pool: asyncpg.Pool):
         self.pool = pool
-        self.env = get_environment()
+        self.env = Environment()
         self.table = self.env.get_table_name("reconciled_records")
 
     async def insert(self, record: ReconciledRecord) -> None:

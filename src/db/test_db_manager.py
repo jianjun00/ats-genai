@@ -16,7 +16,7 @@ import uuid
 import hashlib
 from typing import Dict, List, Optional, Any
 from contextlib import asynccontextmanager
-from config.environment import Environment, get_environment
+from config.environment import Environment
 from db.migration_manager import MigrationManager
 import logging
 logger = logging.getLogger(__name__)
@@ -382,7 +382,7 @@ import pytest
 import asyncpg
 from pathlib import Path
 from db.migration_manager import MigrationManager
-from config.environment import Environment, EnvironmentType, get_environment
+from config.environment import Environment, EnvironmentType
 
 @pytest_asyncio.fixture
 async def unit_test_db(request):
