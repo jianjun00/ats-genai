@@ -385,6 +385,54 @@ from db.migration_manager import MigrationManager
 from config.environment import Environment, EnvironmentType, get_environment
 
 @pytest_asyncio.fixture
+async def unit_test_db(request):
+    """
+    Fixture for a completely empty unit test database (no tables, no migrations applied).
+    Ensures environment is TEST. Used for DAO and non-migration tests.
+    Generates a unique test DB name per test and passes it to TestDatabaseManager.
+    """
+    import gin
+    import uuid
+    from config.database import Database
+    test_name = request.node.name if hasattr(request, 'node') else None
+    if test_name:
+        hash_part = hashlib.sha1(test_name.encode('utf-8')).hexdigest()[:8]
+        truncated = ''.join(c for c in test_name if c.isalnum())[:8]
+        db_name = f"test_db_{truncated}_{hash_part}"
+    else:
+        db_name = f"test_db_{uuid.uuid4().hex[:8]}"
+    # Construct Database object for this test
+    db_obj = Database(
+        host="localhost",
+        port=5432,
+        user="postgres",
+        password="password",
+        database=db_name,
+        base_database=db_name,
+        pool_min_size=1,
+        pool_max_size=10,
+        command_timeout=60
+    )
+    db_manager = gin.get_configurable(TestDatabaseManager)("unit", database_obj=db_obj)
+    test_db_url = await db_manager.setup_test_database()
+
+    migration_manager = MigrationManager(test_db_url)
+    print(f"[DEBUG] Applying migrations to {test_db_url}")    # Apply migrations to ensure latest schema for both unit and integration tests
+    await migration_manager.migrate_to_latest()
+
+    yield test_db_url
+    await db_manager.teardown_test_database()
+    # Clean up backup/dump files created for this test DB
+    backup_dir = Path(__file__).parent / "../db/migrations/backups"
+    if backup_dir.exists():
+        pattern = f"{db_name}_*.dump"
+        for dump_file in backup_dir.glob(pattern):
+            try:
+                dump_file.unlink()
+            except Exception:
+                pass
+
+@pytest_asyncio.fixture
 async def unit_test_db_clean(request):
     """
     Fixture for a completely empty unit test database (no tables).
@@ -415,10 +463,6 @@ async def unit_test_db_clean(request):
     )
     db_manager = gin.get_configurable(TestDatabaseManager)("unit", database_obj=db_obj)
     test_db_url = await db_manager.setup_test_database()
-    migration_manager = MigrationManager(test_db_url)
-    print(f"[DEBUG] Applying migrations to {test_db_url}")    # Apply migrations to ensure latest schema for both unit and integration tests
-    await migration_manager.migrate_to_latest()
-
 
     yield test_db_url
     await db_manager.teardown_test_database()
