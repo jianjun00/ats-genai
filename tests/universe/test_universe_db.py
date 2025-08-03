@@ -44,11 +44,9 @@ async def test_add_universe_membership(monkeypatch):
 from config.environment import Environment
 
 @pytest.mark.asyncio
-async def test_update_universe_membership_end(unit_test_db, monkeypatch):
+async def test_update_universe_membership_end(unit_test_db_clean, monkeypatch):
     from config.environment import EnvironmentType
-    env = Environment(EnvironmentType.TEST)
-    # Patch get_database_url to return the test DB URL
-    env.get_database_url = lambda: unit_test_db
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db_clean)
     db = UniverseDB(env)
     db.universe_membership_dao = MagicMock()
     db.universe_membership_dao.update_membership_end = AsyncMock()

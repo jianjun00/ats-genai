@@ -1,0 +1,1573 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.10.11, pytest-8.4.1, pluggy-1.6.0 -- /Library/Frameworks/Python.framework/Versions/3.10/bin/python3.10
+cachedir: .pytest_cache
+rootdir: /Users/jianjunchen/CascadeProjects/market-forecast-app
+configfile: pytest.ini
+plugins: env-1.1.5, asyncio-1.1.0, anyio-3.7.1
+asyncio: mode=auto, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 11 items
+
+tests/dao/test_all_daos_with_test_db.py::test_instruments_dao_crud FAILED [  9%]
+tests/dao/test_all_daos_with_test_db.py::test_daily_market_cap_dao_crud FAILED [ 18%]
+tests/dao/test_all_daos_with_test_db.py::test_daily_prices_dao_crud FAILED [ 27%]
+tests/dao/test_all_daos_with_test_db.py::test_universe_dao_crud FAILED   [ 36%]
+tests/dao/test_all_daos_with_test_db.py::test_universe_membership_dao_universe_isolation FAILED [ 45%]
+tests/dao/test_all_daos_with_test_db.py::test_universe_membership_dao_active_memberships FAILED [ 54%]
+tests/dao/test_all_daos_with_test_db.py::test_universe_membership_dao_crud FAILED [ 63%]
+tests/dao/test_all_daos_with_test_db.py::test_daily_prices_polygon_dao_crud FAILED [ 72%]
+tests/dao/test_all_daos_with_test_db.py::test_daily_prices_tiingo_dao_crud FAILED [ 81%]
+tests/dao/test_all_daos_with_test_db.py::test_db_version_dao_crud FAILED [ 90%]
+tests/dao/test_all_daos_with_test_db.py::test_universe_membership_dao_get_membership_changes FAILED [100%]
+
+=================================== FAILURES ===================================
+__________________________ test_instruments_dao_crud ___________________________
+
+unit_test_db = 'test_db_db_testinst_b8375c65'
+
+    @pytest.mark.asyncio
+    async def test_instruments_dao_crud(unit_test_db):
+        import gin
+        print(f"[GIN DEBUG] Database.database in test: {gin.query_parameter('Database.database')}")
+        from config.environment import Environment
+        env = Environment(EnvironmentType.TEST)
+        dao = InstrumentsDAO(env)
+        symbol = "TESTSYM"
+        # Clean up if exists
+>       instruments = await dao.list_instruments()
+
+tests/dao/test_all_daos_with_test_db.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/dao/instruments_dao.py:32: in list_instruments
+    pool = await asyncpg.create_pool(self.db_url)
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:418: in _async__init__
+    await self._initialize()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:445: in _initialize
+    await first_ch.connect()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:132: in connect
+    self._con = await self._pool._get_new_connection()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:517: in _get_new_connection
+    con = await self._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connection.py:2421: in connect
+    return await connect_utils._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:1049: in _connect
+    conn = await _connect_addr(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:886: in _connect_addr
+    return await __connect_addr(params, True, *args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+params = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x1102e7d...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+retry = True, addr = ('localhost', 5432)
+loop = <_UnixSelectorEventLoop running=False closed=False debug=False>
+config = ConnectionConfiguration(command_timeout=None, statement_cache_size=100, max_cached_statement_lifetime=300, max_cacheable_statement_size=15360)
+connection_class = <class 'asyncpg.connection.Connection'>
+record_class = <class 'asyncpg.Record'>
+params_input = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x1102e7d...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+
+    async def __connect_addr(
+        params,
+        retry,
+        addr,
+        loop,
+        config,
+        connection_class,
+        record_class,
+        params_input,
+    ):
+        connected = _create_future(loop)
+    
+        proto_factory = lambda: protocol.Protocol(
+            addr, connected, params, record_class, loop)
+    
+        if isinstance(addr, str):
+            # UNIX socket
+            connector = loop.create_unix_connection(proto_factory, addr)
+    
+        elif params.ssl and params.ssl_negotiation is SSLNegotiation.direct:
+            # if ssl and ssl_negotiation is `direct`, skip STARTTLS and perform
+            # direct SSL connection
+            connector = loop.create_connection(
+                proto_factory, *addr, ssl=params.ssl
+            )
+    
+        elif params.ssl:
+            connector = _create_ssl_connection(
+                proto_factory, *addr, loop=loop, ssl_context=params.ssl,
+                ssl_is_advisory=params.sslmode == SSLMode.prefer)
+        else:
+            connector = loop.create_connection(proto_factory, *addr)
+    
+        tr, pr = await connector
+    
+        try:
+>           await connected
+E           asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:934: InvalidCatalogNameError
+---------------------------- Captured stdout setup -----------------------------
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+[GIN DEBUG] TestDatabaseManager __init__: test_type=unit, database_name=None
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+[GIN DEBUG] TestDatabaseManager using env db_url=postgresql://postgres:password@localhost:5432/test_db
+[DEBUG] Creating test DB: test_db_db_testinst_b8375c65
+[DEBUG] Connecting to postgres DB: postgresql://postgres:password@localhost:5432/postgres
+[DEBUG] Tables in 'test_db_db_testinst_b8375c65' after creation: []
+[DEBUG] Using test DB URL: postgresql://postgres:password@localhost:5432/test_db_db_testinst_b8375c65, base_db_name: test_db, test_db_name: test_db_db_testinst_b8375c65
+[DEBUG] TestDatabaseManager.run_migrations = True
+[DEBUG] Applying migrations to postgresql://postgres:password@localhost:5432/test_db_db_testinst_b8375c65
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testinst_b8375c65, env_type: EnvironmentType.TEST
+Current version: -1
+Applying 14 pending migrations...
+Applying migration version 000: initial db version
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 000 applied successfully
+Applying migration version 001: initial schema
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 001 applied successfully
+Applying migration version 002: add stock splits table
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 002 applied successfully
+Applying migration version 003: add vendor columns
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 003 applied successfully
+Applying migration version 004: add sector column instruments
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 004 applied successfully
+Applying migration version 005: create universe membership changes
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 005 applied successfully
+Applying migration version 006: create instrument xrefs
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 006 applied successfully
+Applying migration version 013: add instrument id and change pk
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 013 applied successfully
+Applying migration version 014: remove symbol not null
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 014 applied successfully
+Applying migration version 015: change universe membership to timestamp
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 015 applied successfully
+Applying migration version 016: drop instrument aliases and metadata
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 016 applied successfully
+Applying migration version 017: add polygon tables
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividend_polygon', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'stock_splits_polygon', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 017 applied successfully
+Applying migration version 018: create reconciled records
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'reconciled_records', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 018 applied successfully
+Applying migration version 019: create daily prices quandl
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_quandl', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 019 applied successfully
+Migration completed. Current version: 19
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testinst_b8375c65, env_type: EnvironmentType.TEST
+Database is up to date (version 19)
+----------------------------- Captured stdout call -----------------------------
+[GIN DEBUG] Database.database in test: test_db_db_testinst_b8375c65
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+--------------------------- Captured stdout teardown ---------------------------
+[DEBUG] Dropping test DB: test_db_db_testinst_b8375c65
+________________________ test_daily_market_cap_dao_crud ________________________
+
+unit_test_db = 'test_db_db_testdail_16716200'
+
+    @pytest.mark.asyncio
+    async def test_daily_market_cap_dao_crud(unit_test_db):
+        from config.environment import Environment
+        env = Environment(EnvironmentType.TEST)
+        # Create test instrument and get instrument_id
+        instruments_dao = InstrumentsDAO(env)
+        symbol = "TESTMCAP"
+        # Clean up if exists
+>       instruments = await instruments_dao.list_instruments()
+
+tests/dao/test_all_daos_with_test_db.py:78: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/dao/instruments_dao.py:32: in list_instruments
+    pool = await asyncpg.create_pool(self.db_url)
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:418: in _async__init__
+    await self._initialize()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:445: in _initialize
+    await first_ch.connect()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:132: in connect
+    self._con = await self._pool._get_new_connection()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:517: in _get_new_connection
+    con = await self._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connection.py:2421: in connect
+    return await connect_utils._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:1049: in _connect
+    conn = await _connect_addr(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:886: in _connect_addr
+    return await __connect_addr(params, True, *args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+params = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x1104999...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+retry = True, addr = ('localhost', 5432)
+loop = <_UnixSelectorEventLoop running=False closed=False debug=False>
+config = ConnectionConfiguration(command_timeout=None, statement_cache_size=100, max_cached_statement_lifetime=300, max_cacheable_statement_size=15360)
+connection_class = <class 'asyncpg.connection.Connection'>
+record_class = <class 'asyncpg.Record'>
+params_input = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x1104999...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+
+    async def __connect_addr(
+        params,
+        retry,
+        addr,
+        loop,
+        config,
+        connection_class,
+        record_class,
+        params_input,
+    ):
+        connected = _create_future(loop)
+    
+        proto_factory = lambda: protocol.Protocol(
+            addr, connected, params, record_class, loop)
+    
+        if isinstance(addr, str):
+            # UNIX socket
+            connector = loop.create_unix_connection(proto_factory, addr)
+    
+        elif params.ssl and params.ssl_negotiation is SSLNegotiation.direct:
+            # if ssl and ssl_negotiation is `direct`, skip STARTTLS and perform
+            # direct SSL connection
+            connector = loop.create_connection(
+                proto_factory, *addr, ssl=params.ssl
+            )
+    
+        elif params.ssl:
+            connector = _create_ssl_connection(
+                proto_factory, *addr, loop=loop, ssl_context=params.ssl,
+                ssl_is_advisory=params.sslmode == SSLMode.prefer)
+        else:
+            connector = loop.create_connection(proto_factory, *addr)
+    
+        tr, pr = await connector
+    
+        try:
+>           await connected
+E           asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:934: InvalidCatalogNameError
+---------------------------- Captured stdout setup -----------------------------
+[GIN DEBUG] TestDatabaseManager __init__: test_type=unit, database_name=None
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+[GIN DEBUG] TestDatabaseManager using env db_url=postgresql://postgres:password@localhost:5432/test_db
+[DEBUG] Creating test DB: test_db_db_testdail_16716200
+[DEBUG] Connecting to postgres DB: postgresql://postgres:password@localhost:5432/postgres
+[DEBUG] Tables in 'test_db_db_testdail_16716200' after creation: []
+[DEBUG] Using test DB URL: postgresql://postgres:password@localhost:5432/test_db_db_testdail_16716200, base_db_name: test_db, test_db_name: test_db_db_testdail_16716200
+[DEBUG] TestDatabaseManager.run_migrations = True
+[DEBUG] Applying migrations to postgresql://postgres:password@localhost:5432/test_db_db_testdail_16716200
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testdail_16716200, env_type: EnvironmentType.TEST
+Current version: -1
+Applying 14 pending migrations...
+Applying migration version 000: initial db version
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 000 applied successfully
+Applying migration version 001: initial schema
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 001 applied successfully
+Applying migration version 002: add stock splits table
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 002 applied successfully
+Applying migration version 003: add vendor columns
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 003 applied successfully
+Applying migration version 004: add sector column instruments
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 004 applied successfully
+Applying migration version 005: create universe membership changes
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 005 applied successfully
+Applying migration version 006: create instrument xrefs
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 006 applied successfully
+Applying migration version 013: add instrument id and change pk
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 013 applied successfully
+Applying migration version 014: remove symbol not null
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 014 applied successfully
+Applying migration version 015: change universe membership to timestamp
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 015 applied successfully
+Applying migration version 016: drop instrument aliases and metadata
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 016 applied successfully
+Applying migration version 017: add polygon tables
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividend_polygon', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'stock_splits_polygon', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 017 applied successfully
+Applying migration version 018: create reconciled records
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'reconciled_records', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 018 applied successfully
+Applying migration version 019: create daily prices quandl
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_quandl', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 019 applied successfully
+Migration completed. Current version: 19
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testdail_16716200, env_type: EnvironmentType.TEST
+Database is up to date (version 19)
+----------------------------- Captured stdout call -----------------------------
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+--------------------------- Captured stdout teardown ---------------------------
+[DEBUG] Dropping test DB: test_db_db_testdail_16716200
+__________________________ test_daily_prices_dao_crud __________________________
+
+unit_test_db = 'test_db_db_testdail_dca3c9e1'
+
+    @pytest.mark.asyncio
+    async def test_daily_prices_dao_crud(unit_test_db):
+        from config.environment import Environment
+        env = Environment(EnvironmentType.TEST)
+        # Create test instrument
+        instruments_dao = InstrumentsDAO(env)
+        symbol = "TESTPRC"
+        # Clean up if exists
+>       instruments = await instruments_dao.list_instruments()
+
+tests/dao/test_all_daos_with_test_db.py:130: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/dao/instruments_dao.py:32: in list_instruments
+    pool = await asyncpg.create_pool(self.db_url)
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:418: in _async__init__
+    await self._initialize()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:445: in _initialize
+    await first_ch.connect()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:132: in connect
+    self._con = await self._pool._get_new_connection()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:517: in _get_new_connection
+    con = await self._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connection.py:2421: in connect
+    return await connect_utils._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:1049: in _connect
+    conn = await _connect_addr(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:886: in _connect_addr
+    return await __connect_addr(params, True, *args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+params = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x110640a...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+retry = True, addr = ('localhost', 5432)
+loop = <_UnixSelectorEventLoop running=False closed=False debug=False>
+config = ConnectionConfiguration(command_timeout=None, statement_cache_size=100, max_cached_statement_lifetime=300, max_cacheable_statement_size=15360)
+connection_class = <class 'asyncpg.connection.Connection'>
+record_class = <class 'asyncpg.Record'>
+params_input = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x110640a...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+
+    async def __connect_addr(
+        params,
+        retry,
+        addr,
+        loop,
+        config,
+        connection_class,
+        record_class,
+        params_input,
+    ):
+        connected = _create_future(loop)
+    
+        proto_factory = lambda: protocol.Protocol(
+            addr, connected, params, record_class, loop)
+    
+        if isinstance(addr, str):
+            # UNIX socket
+            connector = loop.create_unix_connection(proto_factory, addr)
+    
+        elif params.ssl and params.ssl_negotiation is SSLNegotiation.direct:
+            # if ssl and ssl_negotiation is `direct`, skip STARTTLS and perform
+            # direct SSL connection
+            connector = loop.create_connection(
+                proto_factory, *addr, ssl=params.ssl
+            )
+    
+        elif params.ssl:
+            connector = _create_ssl_connection(
+                proto_factory, *addr, loop=loop, ssl_context=params.ssl,
+                ssl_is_advisory=params.sslmode == SSLMode.prefer)
+        else:
+            connector = loop.create_connection(proto_factory, *addr)
+    
+        tr, pr = await connector
+    
+        try:
+>           await connected
+E           asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:934: InvalidCatalogNameError
+---------------------------- Captured stdout setup -----------------------------
+[GIN DEBUG] TestDatabaseManager __init__: test_type=unit, database_name=None
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+[GIN DEBUG] TestDatabaseManager using env db_url=postgresql://postgres:password@localhost:5432/test_db
+[DEBUG] Creating test DB: test_db_db_testdail_dca3c9e1
+[DEBUG] Connecting to postgres DB: postgresql://postgres:password@localhost:5432/postgres
+[DEBUG] Tables in 'test_db_db_testdail_dca3c9e1' after creation: []
+[DEBUG] Using test DB URL: postgresql://postgres:password@localhost:5432/test_db_db_testdail_dca3c9e1, base_db_name: test_db, test_db_name: test_db_db_testdail_dca3c9e1
+[DEBUG] TestDatabaseManager.run_migrations = True
+[DEBUG] Applying migrations to postgresql://postgres:password@localhost:5432/test_db_db_testdail_dca3c9e1
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testdail_dca3c9e1, env_type: EnvironmentType.TEST
+Current version: -1
+Applying 14 pending migrations...
+Applying migration version 000: initial db version
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 000 applied successfully
+Applying migration version 001: initial schema
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 001 applied successfully
+Applying migration version 002: add stock splits table
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 002 applied successfully
+Applying migration version 003: add vendor columns
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 003 applied successfully
+Applying migration version 004: add sector column instruments
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 004 applied successfully
+Applying migration version 005: create universe membership changes
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 005 applied successfully
+Applying migration version 006: create instrument xrefs
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 006 applied successfully
+Applying migration version 013: add instrument id and change pk
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 013 applied successfully
+Applying migration version 014: remove symbol not null
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 014 applied successfully
+Applying migration version 015: change universe membership to timestamp
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 015 applied successfully
+Applying migration version 016: drop instrument aliases and metadata
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 016 applied successfully
+Applying migration version 017: add polygon tables
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividend_polygon', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'stock_splits_polygon', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 017 applied successfully
+Applying migration version 018: create reconciled records
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'reconciled_records', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 018 applied successfully
+Applying migration version 019: create daily prices quandl
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_quandl', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 019 applied successfully
+Migration completed. Current version: 19
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testdail_dca3c9e1, env_type: EnvironmentType.TEST
+Database is up to date (version 19)
+----------------------------- Captured stdout call -----------------------------
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+--------------------------- Captured stdout teardown ---------------------------
+[DEBUG] Dropping test DB: test_db_db_testdail_dca3c9e1
+____________________________ test_universe_dao_crud ____________________________
+
+unit_test_db = 'test_db_db_testuniv_9562dfb2'
+
+    @pytest.mark.asyncio
+    async def test_universe_dao_crud(unit_test_db):
+        from config.environment import Environment
+        env = Environment(EnvironmentType.TEST)
+        dao = UniverseDAO(env)
+        name = "TESTUNI"
+        desc = "Test universe"
+        # Clean up: truncate universe table and reset sequence to avoid UniqueViolationError
+>       pool = await asyncpg.create_pool(env.get_database_url())
+
+tests/dao/test_all_daos_with_test_db.py:158: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:418: in _async__init__
+    await self._initialize()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:445: in _initialize
+    await first_ch.connect()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:132: in connect
+    self._con = await self._pool._get_new_connection()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:517: in _get_new_connection
+    con = await self._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connection.py:2421: in connect
+    return await connect_utils._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:1049: in _connect
+    conn = await _connect_addr(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:886: in _connect_addr
+    return await __connect_addr(params, True, *args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+params = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x1101ed3...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+retry = True, addr = ('localhost', 5432)
+loop = <_UnixSelectorEventLoop running=False closed=False debug=False>
+config = ConnectionConfiguration(command_timeout=None, statement_cache_size=100, max_cached_statement_lifetime=300, max_cacheable_statement_size=15360)
+connection_class = <class 'asyncpg.connection.Connection'>
+record_class = <class 'asyncpg.Record'>
+params_input = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x1101ed3...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+
+    async def __connect_addr(
+        params,
+        retry,
+        addr,
+        loop,
+        config,
+        connection_class,
+        record_class,
+        params_input,
+    ):
+        connected = _create_future(loop)
+    
+        proto_factory = lambda: protocol.Protocol(
+            addr, connected, params, record_class, loop)
+    
+        if isinstance(addr, str):
+            # UNIX socket
+            connector = loop.create_unix_connection(proto_factory, addr)
+    
+        elif params.ssl and params.ssl_negotiation is SSLNegotiation.direct:
+            # if ssl and ssl_negotiation is `direct`, skip STARTTLS and perform
+            # direct SSL connection
+            connector = loop.create_connection(
+                proto_factory, *addr, ssl=params.ssl
+            )
+    
+        elif params.ssl:
+            connector = _create_ssl_connection(
+                proto_factory, *addr, loop=loop, ssl_context=params.ssl,
+                ssl_is_advisory=params.sslmode == SSLMode.prefer)
+        else:
+            connector = loop.create_connection(proto_factory, *addr)
+    
+        tr, pr = await connector
+    
+        try:
+>           await connected
+E           asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:934: InvalidCatalogNameError
+---------------------------- Captured stdout setup -----------------------------
+[GIN DEBUG] TestDatabaseManager __init__: test_type=unit, database_name=None
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+[GIN DEBUG] TestDatabaseManager using env db_url=postgresql://postgres:password@localhost:5432/test_db
+[DEBUG] Creating test DB: test_db_db_testuniv_9562dfb2
+[DEBUG] Connecting to postgres DB: postgresql://postgres:password@localhost:5432/postgres
+[DEBUG] Tables in 'test_db_db_testuniv_9562dfb2' after creation: []
+[DEBUG] Using test DB URL: postgresql://postgres:password@localhost:5432/test_db_db_testuniv_9562dfb2, base_db_name: test_db, test_db_name: test_db_db_testuniv_9562dfb2
+[DEBUG] TestDatabaseManager.run_migrations = True
+[DEBUG] Applying migrations to postgresql://postgres:password@localhost:5432/test_db_db_testuniv_9562dfb2
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testuniv_9562dfb2, env_type: EnvironmentType.TEST
+Current version: -1
+Applying 14 pending migrations...
+Applying migration version 000: initial db version
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 000 applied successfully
+Applying migration version 001: initial schema
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 001 applied successfully
+Applying migration version 002: add stock splits table
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 002 applied successfully
+Applying migration version 003: add vendor columns
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 003 applied successfully
+Applying migration version 004: add sector column instruments
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 004 applied successfully
+Applying migration version 005: create universe membership changes
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 005 applied successfully
+Applying migration version 006: create instrument xrefs
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 006 applied successfully
+Applying migration version 013: add instrument id and change pk
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 013 applied successfully
+Applying migration version 014: remove symbol not null
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 014 applied successfully
+Applying migration version 015: change universe membership to timestamp
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 015 applied successfully
+Applying migration version 016: drop instrument aliases and metadata
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 016 applied successfully
+Applying migration version 017: add polygon tables
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividend_polygon', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'stock_splits_polygon', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 017 applied successfully
+Applying migration version 018: create reconciled records
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'reconciled_records', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 018 applied successfully
+Applying migration version 019: create daily prices quandl
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_quandl', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 019 applied successfully
+Migration completed. Current version: 19
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testuniv_9562dfb2, env_type: EnvironmentType.TEST
+Database is up to date (version 19)
+----------------------------- Captured stdout call -----------------------------
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+--------------------------- Captured stdout teardown ---------------------------
+[DEBUG] Dropping test DB: test_db_db_testuniv_9562dfb2
+_______________ test_universe_membership_dao_universe_isolation ________________
+
+unit_test_db = 'test_db_db_testuniv_337c506e'
+
+    @pytest.mark.asyncio
+    async def test_universe_membership_dao_universe_isolation(unit_test_db):
+        from config.environment import Environment
+        env = Environment(EnvironmentType.TEST)
+        dao = UniverseMembershipDAO(env)
+        universe_id_1 = 101
+        universe_id_2 = 202
+        symbol_1 = "MEMB1"
+        symbol_2 = "MEMB2"
+        start_at = datetime(2025, 7, 24, 0, 0, 0)
+        # Clean up any existing memberships for these universes/symbols
+>       pool = await asyncpg.create_pool(env.get_database_url())
+
+tests/dao/test_all_daos_with_test_db.py:197: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:418: in _async__init__
+    await self._initialize()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:445: in _initialize
+    await first_ch.connect()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:132: in connect
+    self._con = await self._pool._get_new_connection()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:517: in _get_new_connection
+    con = await self._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connection.py:2421: in connect
+    return await connect_utils._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:1049: in _connect
+    conn = await _connect_addr(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:886: in _connect_addr
+    return await __connect_addr(params, True, *args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+params = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x1103cd7...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+retry = True, addr = ('localhost', 5432)
+loop = <_UnixSelectorEventLoop running=False closed=False debug=False>
+config = ConnectionConfiguration(command_timeout=None, statement_cache_size=100, max_cached_statement_lifetime=300, max_cacheable_statement_size=15360)
+connection_class = <class 'asyncpg.connection.Connection'>
+record_class = <class 'asyncpg.Record'>
+params_input = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x1103cd7...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+
+    async def __connect_addr(
+        params,
+        retry,
+        addr,
+        loop,
+        config,
+        connection_class,
+        record_class,
+        params_input,
+    ):
+        connected = _create_future(loop)
+    
+        proto_factory = lambda: protocol.Protocol(
+            addr, connected, params, record_class, loop)
+    
+        if isinstance(addr, str):
+            # UNIX socket
+            connector = loop.create_unix_connection(proto_factory, addr)
+    
+        elif params.ssl and params.ssl_negotiation is SSLNegotiation.direct:
+            # if ssl and ssl_negotiation is `direct`, skip STARTTLS and perform
+            # direct SSL connection
+            connector = loop.create_connection(
+                proto_factory, *addr, ssl=params.ssl
+            )
+    
+        elif params.ssl:
+            connector = _create_ssl_connection(
+                proto_factory, *addr, loop=loop, ssl_context=params.ssl,
+                ssl_is_advisory=params.sslmode == SSLMode.prefer)
+        else:
+            connector = loop.create_connection(proto_factory, *addr)
+    
+        tr, pr = await connector
+    
+        try:
+>           await connected
+E           asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:934: InvalidCatalogNameError
+---------------------------- Captured stdout setup -----------------------------
+[GIN DEBUG] TestDatabaseManager __init__: test_type=unit, database_name=None
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+[GIN DEBUG] TestDatabaseManager using env db_url=postgresql://postgres:password@localhost:5432/test_db
+[DEBUG] Creating test DB: test_db_db_testuniv_337c506e
+[DEBUG] Connecting to postgres DB: postgresql://postgres:password@localhost:5432/postgres
+[DEBUG] Tables in 'test_db_db_testuniv_337c506e' after creation: []
+[DEBUG] Using test DB URL: postgresql://postgres:password@localhost:5432/test_db_db_testuniv_337c506e, base_db_name: test_db, test_db_name: test_db_db_testuniv_337c506e
+[DEBUG] TestDatabaseManager.run_migrations = True
+[DEBUG] Applying migrations to postgresql://postgres:password@localhost:5432/test_db_db_testuniv_337c506e
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testuniv_337c506e, env_type: EnvironmentType.TEST
+Current version: -1
+Applying 14 pending migrations...
+Applying migration version 000: initial db version
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 000 applied successfully
+Applying migration version 001: initial schema
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 001 applied successfully
+Applying migration version 002: add stock splits table
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 002 applied successfully
+Applying migration version 003: add vendor columns
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 003 applied successfully
+Applying migration version 004: add sector column instruments
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 004 applied successfully
+Applying migration version 005: create universe membership changes
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 005 applied successfully
+Applying migration version 006: create instrument xrefs
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 006 applied successfully
+Applying migration version 013: add instrument id and change pk
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 013 applied successfully
+Applying migration version 014: remove symbol not null
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 014 applied successfully
+Applying migration version 015: change universe membership to timestamp
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 015 applied successfully
+Applying migration version 016: drop instrument aliases and metadata
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 016 applied successfully
+Applying migration version 017: add polygon tables
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividend_polygon', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'stock_splits_polygon', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 017 applied successfully
+Applying migration version 018: create reconciled records
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'reconciled_records', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 018 applied successfully
+Applying migration version 019: create daily prices quandl
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_quandl', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 019 applied successfully
+Migration completed. Current version: 19
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testuniv_337c506e, env_type: EnvironmentType.TEST
+Database is up to date (version 19)
+----------------------------- Captured stdout call -----------------------------
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+[DAO DEBUG] UniverseMembershipDAO using db_url: postgresql://postgres:password@localhost:5432/test_db
+--------------------------- Captured stdout teardown ---------------------------
+[DEBUG] Dropping test DB: test_db_db_testuniv_337c506e
+_______________ test_universe_membership_dao_active_memberships ________________
+
+unit_test_db = 'test_db_db_testuniv_0faffead'
+
+    @pytest.mark.asyncio
+    async def test_universe_membership_dao_active_memberships(unit_test_db):
+        from config.environment import Environment
+        env = Environment(EnvironmentType.TEST)
+        dao = UniverseMembershipDAO(env)
+        universe_id = 303
+        symbol_active = "ACTIVEMEMB"
+        symbol_inactive = "INACTIVEMEMB"
+        start_at = datetime(2025, 7, 24, 0, 0, 0)
+        end_at = datetime(2025, 7, 25, 0, 0, 0)
+        # Setup: Create vendor, instruments, and xrefs for both symbols
+        vendors_dao = VendorsDAO(env)
+>       vendor_id = await vendors_dao.create_vendor(name="TestVendor", description="Test vendor for xref")
+
+tests/dao/test_all_daos_with_test_db.py:266: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/dao/vendors_dao.py:11: in create_vendor
+    pool = await asyncpg.create_pool(self.db_url)
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:418: in _async__init__
+    await self._initialize()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:445: in _initialize
+    await first_ch.connect()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:132: in connect
+    self._con = await self._pool._get_new_connection()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:517: in _get_new_connection
+    con = await self._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connection.py:2421: in connect
+    return await connect_utils._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:1049: in _connect
+    conn = await _connect_addr(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:886: in _connect_addr
+    return await __connect_addr(params, True, *args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+params = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x1105f7e...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+retry = True, addr = ('localhost', 5432)
+loop = <_UnixSelectorEventLoop running=False closed=False debug=False>
+config = ConnectionConfiguration(command_timeout=None, statement_cache_size=100, max_cached_statement_lifetime=300, max_cacheable_statement_size=15360)
+connection_class = <class 'asyncpg.connection.Connection'>
+record_class = <class 'asyncpg.Record'>
+params_input = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x1105f7e...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+
+    async def __connect_addr(
+        params,
+        retry,
+        addr,
+        loop,
+        config,
+        connection_class,
+        record_class,
+        params_input,
+    ):
+        connected = _create_future(loop)
+    
+        proto_factory = lambda: protocol.Protocol(
+            addr, connected, params, record_class, loop)
+    
+        if isinstance(addr, str):
+            # UNIX socket
+            connector = loop.create_unix_connection(proto_factory, addr)
+    
+        elif params.ssl and params.ssl_negotiation is SSLNegotiation.direct:
+            # if ssl and ssl_negotiation is `direct`, skip STARTTLS and perform
+            # direct SSL connection
+            connector = loop.create_connection(
+                proto_factory, *addr, ssl=params.ssl
+            )
+    
+        elif params.ssl:
+            connector = _create_ssl_connection(
+                proto_factory, *addr, loop=loop, ssl_context=params.ssl,
+                ssl_is_advisory=params.sslmode == SSLMode.prefer)
+        else:
+            connector = loop.create_connection(proto_factory, *addr)
+    
+        tr, pr = await connector
+    
+        try:
+>           await connected
+E           asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:934: InvalidCatalogNameError
+---------------------------- Captured stdout setup -----------------------------
+[GIN DEBUG] TestDatabaseManager __init__: test_type=unit, database_name=None
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+[GIN DEBUG] TestDatabaseManager using env db_url=postgresql://postgres:password@localhost:5432/test_db
+[DEBUG] Creating test DB: test_db_db_testuniv_0faffead
+[DEBUG] Connecting to postgres DB: postgresql://postgres:password@localhost:5432/postgres
+[DEBUG] Tables in 'test_db_db_testuniv_0faffead' after creation: []
+[DEBUG] Using test DB URL: postgresql://postgres:password@localhost:5432/test_db_db_testuniv_0faffead, base_db_name: test_db, test_db_name: test_db_db_testuniv_0faffead
+[DEBUG] TestDatabaseManager.run_migrations = True
+[DEBUG] Applying migrations to postgresql://postgres:password@localhost:5432/test_db_db_testuniv_0faffead
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testuniv_0faffead, env_type: EnvironmentType.TEST
+Current version: -1
+Applying 14 pending migrations...
+Applying migration version 000: initial db version
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 000 applied successfully
+Applying migration version 001: initial schema
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 001 applied successfully
+Applying migration version 002: add stock splits table
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 002 applied successfully
+Applying migration version 003: add vendor columns
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 003 applied successfully
+Applying migration version 004: add sector column instruments
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 004 applied successfully
+Applying migration version 005: create universe membership changes
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 005 applied successfully
+Applying migration version 006: create instrument xrefs
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 006 applied successfully
+Applying migration version 013: add instrument id and change pk
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 013 applied successfully
+Applying migration version 014: remove symbol not null
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 014 applied successfully
+Applying migration version 015: change universe membership to timestamp
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 015 applied successfully
+Applying migration version 016: drop instrument aliases and metadata
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 016 applied successfully
+Applying migration version 017: add polygon tables
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividend_polygon', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'stock_splits_polygon', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 017 applied successfully
+Applying migration version 018: create reconciled records
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'reconciled_records', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 018 applied successfully
+Applying migration version 019: create daily prices quandl
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_quandl', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 019 applied successfully
+Migration completed. Current version: 19
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testuniv_0faffead, env_type: EnvironmentType.TEST
+Database is up to date (version 19)
+----------------------------- Captured stdout call -----------------------------
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+[DAO DEBUG] UniverseMembershipDAO using db_url: postgresql://postgres:password@localhost:5432/test_db
+--------------------------- Captured stdout teardown ---------------------------
+[DEBUG] Dropping test DB: test_db_db_testuniv_0faffead
+______________________ test_universe_membership_dao_crud _______________________
+
+unit_test_db = 'test_db_db_testuniv_80edc1e9'
+
+    @pytest.mark.asyncio
+    async def test_universe_membership_dao_crud(unit_test_db):
+        from config.environment import Environment
+        env = Environment(EnvironmentType.TEST)
+        dao = UniverseMembershipDAO(env)
+        import random
+        universe_id = random.randint(10000, 99999)
+        symbol = "TESTMEMB"  # Use a unique symbol for the test
+        start_at = datetime(2025, 7, 24, 0, 0, 0)
+        # Clean up if exists
+>       pool = await asyncpg.create_pool(env.get_database_url())
+
+tests/dao/test_all_daos_with_test_db.py:328: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:418: in _async__init__
+    await self._initialize()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:445: in _initialize
+    await first_ch.connect()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:132: in connect
+    self._con = await self._pool._get_new_connection()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:517: in _get_new_connection
+    con = await self._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connection.py:2421: in connect
+    return await connect_utils._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:1049: in _connect
+    conn = await _connect_addr(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:886: in _connect_addr
+    return await __connect_addr(params, True, *args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+params = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x1107529...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+retry = True, addr = ('localhost', 5432)
+loop = <_UnixSelectorEventLoop running=False closed=False debug=False>
+config = ConnectionConfiguration(command_timeout=None, statement_cache_size=100, max_cached_statement_lifetime=300, max_cacheable_statement_size=15360)
+connection_class = <class 'asyncpg.connection.Connection'>
+record_class = <class 'asyncpg.Record'>
+params_input = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x1107529...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+
+    async def __connect_addr(
+        params,
+        retry,
+        addr,
+        loop,
+        config,
+        connection_class,
+        record_class,
+        params_input,
+    ):
+        connected = _create_future(loop)
+    
+        proto_factory = lambda: protocol.Protocol(
+            addr, connected, params, record_class, loop)
+    
+        if isinstance(addr, str):
+            # UNIX socket
+            connector = loop.create_unix_connection(proto_factory, addr)
+    
+        elif params.ssl and params.ssl_negotiation is SSLNegotiation.direct:
+            # if ssl and ssl_negotiation is `direct`, skip STARTTLS and perform
+            # direct SSL connection
+            connector = loop.create_connection(
+                proto_factory, *addr, ssl=params.ssl
+            )
+    
+        elif params.ssl:
+            connector = _create_ssl_connection(
+                proto_factory, *addr, loop=loop, ssl_context=params.ssl,
+                ssl_is_advisory=params.sslmode == SSLMode.prefer)
+        else:
+            connector = loop.create_connection(proto_factory, *addr)
+    
+        tr, pr = await connector
+    
+        try:
+>           await connected
+E           asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:934: InvalidCatalogNameError
+---------------------------- Captured stdout setup -----------------------------
+[GIN DEBUG] TestDatabaseManager __init__: test_type=unit, database_name=None
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+[GIN DEBUG] TestDatabaseManager using env db_url=postgresql://postgres:password@localhost:5432/test_db
+[DEBUG] Creating test DB: test_db_db_testuniv_80edc1e9
+[DEBUG] Connecting to postgres DB: postgresql://postgres:password@localhost:5432/postgres
+[DEBUG] Tables in 'test_db_db_testuniv_80edc1e9' after creation: []
+[DEBUG] Using test DB URL: postgresql://postgres:password@localhost:5432/test_db_db_testuniv_80edc1e9, base_db_name: test_db, test_db_name: test_db_db_testuniv_80edc1e9
+[DEBUG] TestDatabaseManager.run_migrations = True
+[DEBUG] Applying migrations to postgresql://postgres:password@localhost:5432/test_db_db_testuniv_80edc1e9
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testuniv_80edc1e9, env_type: EnvironmentType.TEST
+Current version: -1
+Applying 14 pending migrations...
+Applying migration version 000: initial db version
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 000 applied successfully
+Applying migration version 001: initial schema
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 001 applied successfully
+Applying migration version 002: add stock splits table
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 002 applied successfully
+Applying migration version 003: add vendor columns
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 003 applied successfully
+Applying migration version 004: add sector column instruments
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 004 applied successfully
+Applying migration version 005: create universe membership changes
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 005 applied successfully
+Applying migration version 006: create instrument xrefs
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 006 applied successfully
+Applying migration version 013: add instrument id and change pk
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 013 applied successfully
+Applying migration version 014: remove symbol not null
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 014 applied successfully
+Applying migration version 015: change universe membership to timestamp
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 015 applied successfully
+Applying migration version 016: drop instrument aliases and metadata
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 016 applied successfully
+Applying migration version 017: add polygon tables
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividend_polygon', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'stock_splits_polygon', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 017 applied successfully
+Applying migration version 018: create reconciled records
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'reconciled_records', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 018 applied successfully
+Applying migration version 019: create daily prices quandl
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_quandl', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 019 applied successfully
+Migration completed. Current version: 19
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testuniv_80edc1e9, env_type: EnvironmentType.TEST
+Database is up to date (version 19)
+----------------------------- Captured stdout call -----------------------------
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+[DAO DEBUG] UniverseMembershipDAO using db_url: postgresql://postgres:password@localhost:5432/test_db
+--------------------------- Captured stdout teardown ---------------------------
+[DEBUG] Dropping test DB: test_db_db_testuniv_80edc1e9
+______________________ test_daily_prices_polygon_dao_crud ______________________
+
+unit_test_db = 'test_db_db_testdail_51854f7d'
+
+    @pytest.mark.asyncio
+    async def test_daily_prices_polygon_dao_crud(unit_test_db):
+        from config.environment import Environment
+>       async with unit_test_db as db_name:
+E       AttributeError: __aenter__
+
+tests/dao/test_all_daos_with_test_db.py:380: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+[GIN DEBUG] TestDatabaseManager __init__: test_type=unit, database_name=None
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+[GIN DEBUG] TestDatabaseManager using env db_url=postgresql://postgres:password@localhost:5432/test_db
+[DEBUG] Creating test DB: test_db_db_testdail_51854f7d
+[DEBUG] Connecting to postgres DB: postgresql://postgres:password@localhost:5432/postgres
+[DEBUG] Tables in 'test_db_db_testdail_51854f7d' after creation: []
+[DEBUG] Using test DB URL: postgresql://postgres:password@localhost:5432/test_db_db_testdail_51854f7d, base_db_name: test_db, test_db_name: test_db_db_testdail_51854f7d
+[DEBUG] TestDatabaseManager.run_migrations = True
+[DEBUG] Applying migrations to postgresql://postgres:password@localhost:5432/test_db_db_testdail_51854f7d
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testdail_51854f7d, env_type: EnvironmentType.TEST
+Current version: -1
+Applying 14 pending migrations...
+Applying migration version 000: initial db version
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 000 applied successfully
+Applying migration version 001: initial schema
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 001 applied successfully
+Applying migration version 002: add stock splits table
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 002 applied successfully
+Applying migration version 003: add vendor columns
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 003 applied successfully
+Applying migration version 004: add sector column instruments
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 004 applied successfully
+Applying migration version 005: create universe membership changes
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 005 applied successfully
+Applying migration version 006: create instrument xrefs
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 006 applied successfully
+Applying migration version 013: add instrument id and change pk
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 013 applied successfully
+Applying migration version 014: remove symbol not null
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 014 applied successfully
+Applying migration version 015: change universe membership to timestamp
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 015 applied successfully
+Applying migration version 016: drop instrument aliases and metadata
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 016 applied successfully
+Applying migration version 017: add polygon tables
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividend_polygon', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'stock_splits_polygon', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 017 applied successfully
+Applying migration version 018: create reconciled records
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'reconciled_records', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 018 applied successfully
+Applying migration version 019: create daily prices quandl
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_quandl', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 019 applied successfully
+Migration completed. Current version: 19
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testdail_51854f7d, env_type: EnvironmentType.TEST
+Database is up to date (version 19)
+--------------------------- Captured stdout teardown ---------------------------
+[DEBUG] Dropping test DB: test_db_db_testdail_51854f7d
+______________________ test_daily_prices_tiingo_dao_crud _______________________
+
+unit_test_db = 'test_db_db_testdail_d8642fe6'
+
+    @pytest.mark.asyncio
+    async def test_daily_prices_tiingo_dao_crud(unit_test_db):
+        from config.environment import Environment
+        env = Environment(EnvironmentType.TEST)
+        # Create test instrument
+        instruments_dao = InstrumentsDAO(env)
+        symbol = "TESTTIINGO"
+>       instruments = await instruments_dao.list_instruments()
+
+tests/dao/test_all_daos_with_test_db.py:425: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/dao/instruments_dao.py:32: in list_instruments
+    pool = await asyncpg.create_pool(self.db_url)
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:418: in _async__init__
+    await self._initialize()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:445: in _initialize
+    await first_ch.connect()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:132: in connect
+    self._con = await self._pool._get_new_connection()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:517: in _get_new_connection
+    con = await self._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connection.py:2421: in connect
+    return await connect_utils._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:1049: in _connect
+    conn = await _connect_addr(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:886: in _connect_addr
+    return await __connect_addr(params, True, *args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+params = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x11025a7...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+retry = True, addr = ('localhost', 5432)
+loop = <_UnixSelectorEventLoop running=False closed=False debug=False>
+config = ConnectionConfiguration(command_timeout=None, statement_cache_size=100, max_cached_statement_lifetime=300, max_cacheable_statement_size=15360)
+connection_class = <class 'asyncpg.connection.Connection'>
+record_class = <class 'asyncpg.Record'>
+params_input = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x11025a7...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+
+    async def __connect_addr(
+        params,
+        retry,
+        addr,
+        loop,
+        config,
+        connection_class,
+        record_class,
+        params_input,
+    ):
+        connected = _create_future(loop)
+    
+        proto_factory = lambda: protocol.Protocol(
+            addr, connected, params, record_class, loop)
+    
+        if isinstance(addr, str):
+            # UNIX socket
+            connector = loop.create_unix_connection(proto_factory, addr)
+    
+        elif params.ssl and params.ssl_negotiation is SSLNegotiation.direct:
+            # if ssl and ssl_negotiation is `direct`, skip STARTTLS and perform
+            # direct SSL connection
+            connector = loop.create_connection(
+                proto_factory, *addr, ssl=params.ssl
+            )
+    
+        elif params.ssl:
+            connector = _create_ssl_connection(
+                proto_factory, *addr, loop=loop, ssl_context=params.ssl,
+                ssl_is_advisory=params.sslmode == SSLMode.prefer)
+        else:
+            connector = loop.create_connection(proto_factory, *addr)
+    
+        tr, pr = await connector
+    
+        try:
+>           await connected
+E           asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:934: InvalidCatalogNameError
+---------------------------- Captured stdout setup -----------------------------
+[GIN DEBUG] TestDatabaseManager __init__: test_type=unit, database_name=None
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+[GIN DEBUG] TestDatabaseManager using env db_url=postgresql://postgres:password@localhost:5432/test_db
+[DEBUG] Creating test DB: test_db_db_testdail_d8642fe6
+[DEBUG] Connecting to postgres DB: postgresql://postgres:password@localhost:5432/postgres
+[DEBUG] Tables in 'test_db_db_testdail_d8642fe6' after creation: []
+[DEBUG] Using test DB URL: postgresql://postgres:password@localhost:5432/test_db_db_testdail_d8642fe6, base_db_name: test_db, test_db_name: test_db_db_testdail_d8642fe6
+[DEBUG] TestDatabaseManager.run_migrations = True
+[DEBUG] Applying migrations to postgresql://postgres:password@localhost:5432/test_db_db_testdail_d8642fe6
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testdail_d8642fe6, env_type: EnvironmentType.TEST
+Current version: -1
+Applying 14 pending migrations...
+Applying migration version 000: initial db version
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 000 applied successfully
+Applying migration version 001: initial schema
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 001 applied successfully
+Applying migration version 002: add stock splits table
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 002 applied successfully
+Applying migration version 003: add vendor columns
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 003 applied successfully
+Applying migration version 004: add sector column instruments
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 004 applied successfully
+Applying migration version 005: create universe membership changes
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 005 applied successfully
+Applying migration version 006: create instrument xrefs
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 006 applied successfully
+Applying migration version 013: add instrument id and change pk
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 013 applied successfully
+Applying migration version 014: remove symbol not null
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 014 applied successfully
+Applying migration version 015: change universe membership to timestamp
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 015 applied successfully
+Applying migration version 016: drop instrument aliases and metadata
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 016 applied successfully
+Applying migration version 017: add polygon tables
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividend_polygon', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'stock_splits_polygon', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 017 applied successfully
+Applying migration version 018: create reconciled records
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'reconciled_records', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 018 applied successfully
+Applying migration version 019: create daily prices quandl
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_quandl', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 019 applied successfully
+Migration completed. Current version: 19
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testdail_d8642fe6, env_type: EnvironmentType.TEST
+Database is up to date (version 19)
+----------------------------- Captured stdout call -----------------------------
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+--------------------------- Captured stdout teardown ---------------------------
+[DEBUG] Dropping test DB: test_db_db_testdail_d8642fe6
+___________________________ test_db_version_dao_crud ___________________________
+
+unit_test_db = 'test_db_db_testdbve_d032309f'
+
+    @pytest.mark.asyncio
+    async def test_db_version_dao_crud(unit_test_db):
+        from config.environment import Environment
+        env = Environment(EnvironmentType.TEST)
+        dao = DBVersionDAO(env)
+        version = 9999
+        desc = "Test migration"
+        mig = "test_mig.sql"
+        # Insert
+>       await dao.insert_version(version, desc, mig)
+
+tests/dao/test_all_daos_with_test_db.py:458: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/dao/db_version_dao.py:19: in insert_version
+    pool = await asyncpg.create_pool(self.db_url)
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:418: in _async__init__
+    await self._initialize()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:445: in _initialize
+    await first_ch.connect()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:132: in connect
+    self._con = await self._pool._get_new_connection()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:517: in _get_new_connection
+    con = await self._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connection.py:2421: in connect
+    return await connect_utils._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:1049: in _connect
+    conn = await _connect_addr(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:886: in _connect_addr
+    return await __connect_addr(params, True, *args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+params = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x11096d5...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+retry = True, addr = ('localhost', 5432)
+loop = <_UnixSelectorEventLoop running=False closed=False debug=False>
+config = ConnectionConfiguration(command_timeout=None, statement_cache_size=100, max_cached_statement_lifetime=300, max_cacheable_statement_size=15360)
+connection_class = <class 'asyncpg.connection.Connection'>
+record_class = <class 'asyncpg.Record'>
+params_input = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x11096d5...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+
+    async def __connect_addr(
+        params,
+        retry,
+        addr,
+        loop,
+        config,
+        connection_class,
+        record_class,
+        params_input,
+    ):
+        connected = _create_future(loop)
+    
+        proto_factory = lambda: protocol.Protocol(
+            addr, connected, params, record_class, loop)
+    
+        if isinstance(addr, str):
+            # UNIX socket
+            connector = loop.create_unix_connection(proto_factory, addr)
+    
+        elif params.ssl and params.ssl_negotiation is SSLNegotiation.direct:
+            # if ssl and ssl_negotiation is `direct`, skip STARTTLS and perform
+            # direct SSL connection
+            connector = loop.create_connection(
+                proto_factory, *addr, ssl=params.ssl
+            )
+    
+        elif params.ssl:
+            connector = _create_ssl_connection(
+                proto_factory, *addr, loop=loop, ssl_context=params.ssl,
+                ssl_is_advisory=params.sslmode == SSLMode.prefer)
+        else:
+            connector = loop.create_connection(proto_factory, *addr)
+    
+        tr, pr = await connector
+    
+        try:
+>           await connected
+E           asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:934: InvalidCatalogNameError
+---------------------------- Captured stdout setup -----------------------------
+[GIN DEBUG] TestDatabaseManager __init__: test_type=unit, database_name=None
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+[GIN DEBUG] TestDatabaseManager using env db_url=postgresql://postgres:password@localhost:5432/test_db
+[DEBUG] Creating test DB: test_db_db_testdbve_d032309f
+[DEBUG] Connecting to postgres DB: postgresql://postgres:password@localhost:5432/postgres
+[DEBUG] Tables in 'test_db_db_testdbve_d032309f' after creation: []
+[DEBUG] Using test DB URL: postgresql://postgres:password@localhost:5432/test_db_db_testdbve_d032309f, base_db_name: test_db, test_db_name: test_db_db_testdbve_d032309f
+[DEBUG] TestDatabaseManager.run_migrations = True
+[DEBUG] Applying migrations to postgresql://postgres:password@localhost:5432/test_db_db_testdbve_d032309f
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testdbve_d032309f, env_type: EnvironmentType.TEST
+Current version: -1
+Applying 14 pending migrations...
+Applying migration version 000: initial db version
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 000 applied successfully
+Applying migration version 001: initial schema
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 001 applied successfully
+Applying migration version 002: add stock splits table
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 002 applied successfully
+Applying migration version 003: add vendor columns
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 003 applied successfully
+Applying migration version 004: add sector column instruments
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 004 applied successfully
+Applying migration version 005: create universe membership changes
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 005 applied successfully
+Applying migration version 006: create instrument xrefs
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 006 applied successfully
+Applying migration version 013: add instrument id and change pk
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 013 applied successfully
+Applying migration version 014: remove symbol not null
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 014 applied successfully
+Applying migration version 015: change universe membership to timestamp
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 015 applied successfully
+Applying migration version 016: drop instrument aliases and metadata
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 016 applied successfully
+Applying migration version 017: add polygon tables
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividend_polygon', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'stock_splits_polygon', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 017 applied successfully
+Applying migration version 018: create reconciled records
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'reconciled_records', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 018 applied successfully
+Applying migration version 019: create daily prices quandl
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_quandl', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 019 applied successfully
+Migration completed. Current version: 19
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testdbve_d032309f, env_type: EnvironmentType.TEST
+Database is up to date (version 19)
+----------------------------- Captured stdout call -----------------------------
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+--------------------------- Captured stdout teardown ---------------------------
+[DEBUG] Dropping test DB: test_db_db_testdbve_d032309f
+_____________ test_universe_membership_dao_get_membership_changes ______________
+
+unit_test_db = 'test_db_db_testuniv_1a9c63b1'
+
+    @pytest.mark.asyncio
+    async def test_universe_membership_dao_get_membership_changes(unit_test_db):
+        from config.environment import Environment
+        env = Environment(EnvironmentType.TEST)
+        dao = UniverseMembershipDAO(env)
+>       pool = await asyncpg.create_pool(env.get_database_url())
+
+tests/dao/test_all_daos_with_test_db.py:467: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:418: in _async__init__
+    await self._initialize()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:445: in _initialize
+    await first_ch.connect()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:132: in connect
+    self._con = await self._pool._get_new_connection()
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/pool.py:517: in _get_new_connection
+    con = await self._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connection.py:2421: in connect
+    return await connect_utils._connect(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:1049: in _connect
+    conn = await _connect_addr(
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:886: in _connect_addr
+    return await __connect_addr(params, True, *args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+params = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x1103ccb...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+retry = True, addr = ('localhost', 5432)
+loop = <_UnixSelectorEventLoop running=False closed=False debug=False>
+config = ConnectionConfiguration(command_timeout=None, statement_cache_size=100, max_cached_statement_lifetime=300, max_cacheable_statement_size=15360)
+connection_class = <class 'asyncpg.connection.Connection'>
+record_class = <class 'asyncpg.Record'>
+params_input = ConnectionParameters(user='postgres', password='password', database='test_db', ssl=<ssl.SSLContext object at 0x1103ccb...postgres'>, server_settings=None, target_session_attrs=<SessionAttribute.any: 'any'>, krbsrvname=None, gsslib='gssapi')
+
+    async def __connect_addr(
+        params,
+        retry,
+        addr,
+        loop,
+        config,
+        connection_class,
+        record_class,
+        params_input,
+    ):
+        connected = _create_future(loop)
+    
+        proto_factory = lambda: protocol.Protocol(
+            addr, connected, params, record_class, loop)
+    
+        if isinstance(addr, str):
+            # UNIX socket
+            connector = loop.create_unix_connection(proto_factory, addr)
+    
+        elif params.ssl and params.ssl_negotiation is SSLNegotiation.direct:
+            # if ssl and ssl_negotiation is `direct`, skip STARTTLS and perform
+            # direct SSL connection
+            connector = loop.create_connection(
+                proto_factory, *addr, ssl=params.ssl
+            )
+    
+        elif params.ssl:
+            connector = _create_ssl_connection(
+                proto_factory, *addr, loop=loop, ssl_context=params.ssl,
+                ssl_is_advisory=params.sslmode == SSLMode.prefer)
+        else:
+            connector = loop.create_connection(proto_factory, *addr)
+    
+        tr, pr = await connector
+    
+        try:
+>           await connected
+E           asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/asyncpg/connect_utils.py:934: InvalidCatalogNameError
+---------------------------- Captured stdout setup -----------------------------
+[GIN DEBUG] TestDatabaseManager __init__: test_type=unit, database_name=None
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+[GIN DEBUG] TestDatabaseManager using env db_url=postgresql://postgres:password@localhost:5432/test_db
+[DEBUG] Creating test DB: test_db_db_testuniv_1a9c63b1
+[DEBUG] Connecting to postgres DB: postgresql://postgres:password@localhost:5432/postgres
+[DEBUG] Tables in 'test_db_db_testuniv_1a9c63b1' after creation: []
+[DEBUG] Using test DB URL: postgresql://postgres:password@localhost:5432/test_db_db_testuniv_1a9c63b1, base_db_name: test_db, test_db_name: test_db_db_testuniv_1a9c63b1
+[DEBUG] TestDatabaseManager.run_migrations = True
+[DEBUG] Applying migrations to postgresql://postgres:password@localhost:5432/test_db_db_testuniv_1a9c63b1
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testuniv_1a9c63b1, env_type: EnvironmentType.TEST
+Current version: -1
+Applying 14 pending migrations...
+Applying migration version 000: initial db version
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 000 applied successfully
+Applying migration version 001: initial schema
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 001 applied successfully
+Applying migration version 002: add stock splits table
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 002 applied successfully
+Applying migration version 003: add vendor columns
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 003 applied successfully
+Applying migration version 004: add sector column instruments
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 004 applied successfully
+Applying migration version 005: create universe membership changes
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 005 applied successfully
+Applying migration version 006: create instrument xrefs
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 006 applied successfully
+Applying migration version 013: add instrument id and change pk
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 013 applied successfully
+Applying migration version 014: remove symbol not null
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 014 applied successfully
+Applying migration version 015: change universe membership to timestamp
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 015 applied successfully
+Applying migration version 016: drop instrument aliases and metadata
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 016 applied successfully
+Applying migration version 017: add polygon tables
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividend_polygon', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'stock_splits_polygon', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 017 applied successfully
+Applying migration version 018: create reconciled records
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'reconciled_records', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 018 applied successfully
+Applying migration version 019: create daily prices quandl
+[DEBUG] Table prefixing: prefix='test_', tables=['concurrent_test', 'daily_market_cap', 'daily_prices', 'daily_prices_polygon', 'daily_prices_quandl', 'daily_prices_tiingo', 'db_version', 'dividends', 'duplicate_test', 'events', 'first_table', 'fundamentals', 'idempotent', 'instrument_aliases', 'instrument_metadata', 'instrument_polygon', 'instrument_xrefs', 'instruments', 'last_table', 'middle_table', 'posts', 'status_code', 'stock_splits', 'test_complex', 'test_migration_table', 'test_rollback', 'universe', 'universe_membership', 'universe_membership_changes', 'users', 'vendors']
+Migration version 019 applied successfully
+Migration completed. Current version: 19
+[MIGRATION MANAGER INIT] db_url: postgresql://postgres:password@localhost:5432/test_db_db_testuniv_1a9c63b1, env_type: EnvironmentType.TEST
+Database is up to date (version 19)
+----------------------------- Captured stdout call -----------------------------
+[GIN DEBUG] About to load Gin config: config/app.gin, env_type=EnvironmentType.TEST
+[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db
+[DAO DEBUG] UniverseMembershipDAO using db_url: postgresql://postgres:password@localhost:5432/test_db
+--------------------------- Captured stdout teardown ---------------------------
+[DEBUG] Dropping test DB: test_db_db_testuniv_1a9c63b1
+=========================== short test summary info ============================
+FAILED tests/dao/test_all_daos_with_test_db.py::test_instruments_dao_crud - asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+FAILED tests/dao/test_all_daos_with_test_db.py::test_daily_market_cap_dao_crud - asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+FAILED tests/dao/test_all_daos_with_test_db.py::test_daily_prices_dao_crud - asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+FAILED tests/dao/test_all_daos_with_test_db.py::test_universe_dao_crud - asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+FAILED tests/dao/test_all_daos_with_test_db.py::test_universe_membership_dao_universe_isolation - asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+FAILED tests/dao/test_all_daos_with_test_db.py::test_universe_membership_dao_active_memberships - asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+FAILED tests/dao/test_all_daos_with_test_db.py::test_universe_membership_dao_crud - asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+FAILED tests/dao/test_all_daos_with_test_db.py::test_daily_prices_polygon_dao_crud - AttributeError: __aenter__
+FAILED tests/dao/test_all_daos_with_test_db.py::test_daily_prices_tiingo_dao_crud - asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+FAILED tests/dao/test_all_daos_with_test_db.py::test_db_version_dao_crud - asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+FAILED tests/dao/test_all_daos_with_test_db.py::test_universe_membership_dao_get_membership_changes - asyncpg.exceptions.InvalidCatalogNameError: database "test_db" does not exist
+============================= 11 failed in 17.80s ==============================

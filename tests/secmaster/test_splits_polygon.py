@@ -2,7 +2,7 @@ import pytest
 import asyncpg
 from secmaster import splits_polygon
 
-from db.test_db_manager import unit_test_db
+from db.test_db_manager import unit_test_db_clean
 
 @pytest.mark.asyncio
 async def test_insert_splits_polygon_inserts_correctly(unit_test_db):
@@ -25,8 +25,7 @@ async def test_insert_splits_polygon_inserts_correctly(unit_test_db):
         # Patch: Inject DAO with test DB URL
     from dao.stock_splits_polygon_dao import StockSplitsPolygonDAO
     from config.environment import Environment
-    env = Environment()
-    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+    env = Environment(EnvironmentType.TEST)
     dao = StockSplitsPolygonDAO(env)
     await splits_polygon.insert_splits_polygon(splits, ticker, dao=dao)
 

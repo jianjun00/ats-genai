@@ -2,7 +2,7 @@ import pytest
 from datetime import date
 from secmaster.secmaster import SecMaster
 from config.environment import Environment, EnvironmentType
-from db.test_db_manager import unit_test_db
+from db.test_db_manager import unit_test_db_clean
 
 @pytest.mark.asyncio
 async def test_get_spy_membership_real_db(unit_test_db):

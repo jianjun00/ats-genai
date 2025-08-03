@@ -2,7 +2,7 @@ import pytest
 import asyncpg
 from datetime import date
 from config.environment import Environment, EnvironmentType
-from db.test_db_manager import unit_test_db
+from db.test_db_manager import unit_test_db_clean
 from src.app.runner import Runner
 from src.dao.universe_dao import UniverseDAO
 from src.dao.universe_membership_dao import UniverseMembershipDAO

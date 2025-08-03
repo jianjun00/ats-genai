@@ -1,18 +1,23 @@
 import pytest
 import asyncpg
 import os
+import gin
 from datetime import date, timedelta
 from src.universe import universe_creator
-from db.test_db_manager import unit_test_db
+from db.test_db_manager import unit_test_db_clean
 from src.config import Environment, EnvironmentType
 
 @pytest.mark.asyncio
-async def test_universe_add_remove(unit_test_db, monkeypatch):
+async def test_universe_add_remove(unit_test_db_clean, monkeypatch):
     # Use the test DB created by unit_test_db fixture, schema is initialized
-    print(f"[DEBUG] Using test DB URL: {unit_test_db}")
-    assert "test_db_" in unit_test_db, f"Unexpected DB URL: {unit_test_db}"
-    pool = await asyncpg.create_pool(unit_test_db)
-    env = Environment(EnvironmentType.TEST)
+    print(f"[DEBUG] Using test DB URL: {unit_test_db_clean}")
+    assert "test_db_" in unit_test_db_clean, f"Unexpected DB URL: {unit_test_db_clean}"
+    pool = await asyncpg.create_pool(unit_test_db_clean)
+    # Ensure Gin config is loaded before constructing Environment
+    import gin
+    if not gin.config._CONFIG:  # Only parse if not already loaded
+        gin.parse_config_file('config/app.gin')
+    env = Environment(EnvironmentType.TEST, db_url=unit_test_db_clean)
     universe_table = env.get_table_name('universe')
     instrument_table = env.get_table_name('instrument_polygon')
     daily_prices_table = env.get_table_name('daily_prices_tiingo')

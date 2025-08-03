@@ -2,7 +2,7 @@ import pytest
 import asyncpg
 from secmaster import dividend_polygon
 
-from db.test_db_manager import unit_test_db
+from db.test_db_manager import unit_test_db_clean
 
 @pytest.mark.asyncio
 async def test_insert_dividends_polygon_inserts_correctly(unit_test_db):
@@ -23,8 +23,7 @@ async def test_insert_dividends_polygon_inserts_correctly(unit_test_db):
         # Patch: Inject DAO with test DB URL
     from dao.dividend_polygon_dao import DividendPolygonDAO
     from config.environment import Environment
-    env = Environment()
-    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+    env = Environment(EnvironmentType.TEST)
     dao = DividendPolygonDAO(env)
     await dividend_polygon.insert_dividends_polygon(dividends, ticker, dao=dao)
 

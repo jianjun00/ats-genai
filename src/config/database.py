@@ -13,6 +13,6 @@ class Database:
         self.pool_max_size = pool_max_size
         self.command_timeout = command_timeout
 
-    def dsn(self):
+    def get_database_url(self):
         """Return a DSN string for asyncpg or psycopg2."""
         return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"

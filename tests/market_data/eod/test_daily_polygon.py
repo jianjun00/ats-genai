@@ -2,15 +2,15 @@ import pytest
 import asyncio
 from datetime import datetime
 from config.environment import set_environment, EnvironmentType, get_environment
-from db.test_db_manager import unit_test_db
+from db.test_db_manager import unit_test_db_clean
 from dao.instrument_polygon_dao import InstrumentPolygonDAO
 from dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
 from market_data.eod import daily_polygon
 
 @pytest.mark.asyncio
-async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch):
-    set_environment(EnvironmentType.TEST)
-    env = get_environment()
+async def test_daily_polygon_inserts_prices(unit_test_db_clean, monkeypatch):
+    from config.environment import Environment, EnvironmentType
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db_clean)
     instrument_dao = InstrumentPolygonDAO(env)
     prices_dao = DailyPricesPolygonDAO(env)
 

@@ -12,7 +12,7 @@ def gin_clear():
 
 def test_database_configurable_instantiation():
     gin.parse_config_file('config/app.gin')
-    db = Database()
+    db = Database(database='test_db_patch')
     assert db.host == 'localhost'
     assert db.port == 5432
     assert db.user == 'postgres'

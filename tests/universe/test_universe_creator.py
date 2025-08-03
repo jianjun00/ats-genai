@@ -3,7 +3,7 @@ import asyncpg
 import os
 from datetime import date, timedelta
 from src.universe import universe_creator
-from db.test_db_manager import unit_test_db
+from db.test_db_manager import unit_test_db_clean
 from src.config import Environment, EnvironmentType
 
 @pytest.mark.asyncio

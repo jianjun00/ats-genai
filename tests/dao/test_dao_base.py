@@ -46,8 +46,9 @@ from config.environment import get_environment
 from datetime import date
 
 @pytest.mark.asyncio
-async def test_universe_dao_get_universe_by_name_found(monkeypatch):
-    env = get_environment()
+async def test_universe_dao_get_universe_by_name_found(unit_test_db_clean, monkeypatch):
+    from config.environment import Environment, EnvironmentType
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db_clean)
     result_row = {'id': 1, 'name': 'TEST'}
     conn = DummyConn(fetchrow_result=result_row)
     pool = DummyPool(conn)
@@ -57,8 +58,9 @@ async def test_universe_dao_get_universe_by_name_found(monkeypatch):
     assert result == result_row
 
 @pytest.mark.asyncio
-async def test_universe_dao_get_universe_by_name_not_found(monkeypatch):
-    env = get_environment()
+async def test_universe_dao_get_universe_by_name_not_found(unit_test_db_clean, monkeypatch):
+    from config.environment import Environment, EnvironmentType
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db_clean)
     conn = DummyConn(fetchrow_result=None)
     pool = DummyPool(conn)
     monkeypatch.setattr('asyncpg.create_pool', AsyncMock(return_value=pool))
@@ -67,8 +69,9 @@ async def test_universe_dao_get_universe_by_name_not_found(monkeypatch):
     assert result is None
 
 @pytest.mark.asyncio
-async def test_universe_dao_create_and_list(monkeypatch):
-    env = get_environment()
+async def test_universe_dao_create_and_list(unit_test_db_clean, monkeypatch):
+    from config.environment import Environment, EnvironmentType
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db_clean)
     # create_universe returns id
     conn = DummyConn(fetchrow_result={'id': 5})
     pool = DummyPool(conn)
@@ -84,8 +87,9 @@ async def test_universe_dao_create_and_list(monkeypatch):
     assert universes == [{'id': 1}, {'id': 2}]
 
 @pytest.mark.asyncio
-async def test_universe_dao_update_universe(monkeypatch):
-    env = get_environment()
+async def test_universe_dao_update_universe(unit_test_db_clean, monkeypatch):
+    from config.environment import Environment, EnvironmentType
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db_clean)
     conn = DummyConn(execute_result='UPDATE 1')
     pool = DummyPool(conn)
     monkeypatch.setattr('asyncpg.create_pool', AsyncMock(return_value=pool))
@@ -97,8 +101,9 @@ async def test_universe_dao_update_universe(monkeypatch):
     assert updated is False
 
 @pytest.mark.asyncio
-async def test_universe_dao_get_universe(monkeypatch):
-    env = get_environment()
+async def test_universe_dao_get_universe(unit_test_db_clean, monkeypatch):
+    from config.environment import Environment, EnvironmentType
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db_clean)
     conn = DummyConn(fetchrow_result={'id': 2, 'name': 'BAR'})
     pool = DummyPool(conn)
     monkeypatch.setattr('asyncpg.create_pool', AsyncMock(return_value=pool))
@@ -107,8 +112,9 @@ async def test_universe_dao_get_universe(monkeypatch):
     assert result == {'id': 2, 'name': 'BAR'}
 
 @pytest.mark.asyncio
-async def test_universe_membership_dao_add_and_remove(monkeypatch):
-    env = get_environment()
+async def test_universe_membership_dao_add_and_remove(unit_test_db_clean, monkeypatch):
+    from config.environment import Environment, EnvironmentType
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db_clean)
     # add_membership returns id
     conn = DummyConn(fetchrow_result={'id': 11})
     pool = DummyPool(conn)
@@ -126,8 +132,9 @@ async def test_universe_membership_dao_add_and_remove(monkeypatch):
     assert removed is True
 
 @pytest.mark.asyncio
-async def test_universe_membership_dao_update_and_add_full(monkeypatch):
-    env = get_environment()
+async def test_universe_membership_dao_update_and_add_full(unit_test_db_clean, monkeypatch):
+    from config.environment import Environment, EnvironmentType
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db_clean)
     conn = DummyConn(execute_result='UPDATE 1')
     pool = DummyPool(conn)
     monkeypatch.setattr('asyncpg.create_pool', AsyncMock(return_value=pool))
@@ -138,8 +145,9 @@ async def test_universe_membership_dao_update_and_add_full(monkeypatch):
     await dao.add_membership_full(1, 'AAPL', date(2025, 7, 24), None)
 
 @pytest.mark.asyncio
-async def test_universe_membership_dao_getters(monkeypatch):
-    env = get_environment()
+async def test_universe_membership_dao_getters(unit_test_db_clean, monkeypatch):
+    from config.environment import Environment, EnvironmentType
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db_clean)
     memberships = [{'symbol': 'AAPL'}, {'symbol': 'TSLA'}]
     conn = DummyConn(fetch_result=memberships)
     pool = DummyPool(conn)
@@ -156,8 +164,9 @@ async def test_universe_membership_dao_getters(monkeypatch):
     assert result3 == memberships
 
 @pytest.mark.asyncio
-async def test_universe_dao_db_error(monkeypatch):
-    env = get_environment()
+async def test_universe_dao_db_error(unit_test_db_clean, monkeypatch):
+    from config.environment import Environment, EnvironmentType
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db_clean)
     exc = RuntimeError('DB fail')
     conn = DummyConn(raise_exc=exc)
     pool = DummyPool(conn)

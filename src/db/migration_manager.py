@@ -17,28 +17,32 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import List, Tuple, Optional
-from config.environment import get_environment
 
 class MigrationManager:
     def __init__(self, db_url: str = None):
-        self.environment = get_environment()
-        self.db_url = db_url or self.environment.get_database_url()
-        print(f"[MIGRATION MANAGER INIT] db_url: {self.db_url}, env_type: {self.environment.env_type}")
+        self.db_url = db_url
         self.migrations_dir = Path(__file__).parent / "migrations"
-        
-        # Determine environment based on database URL
-        if db_url:
-            if "intg_db" in db_url:
-                from config.environment import Environment, EnvironmentType
-                self.environment = Environment(EnvironmentType.INTEGRATION)
-            elif "prod_db" in db_url:
-                from config.environment import Environment, EnvironmentType
-                self.environment = Environment(EnvironmentType.PRODUCTION)
-            # else use current environment for test_db
-        
-        # Extract table prefix from environment
-        sample_table = self.environment.get_table_name("sample")
-        self.table_prefix = sample_table.replace("sample", "")
+        self.table_prefix = self._extract_table_prefix_from_db_url(db_url)
+
+    def _extract_table_prefix_from_db_url(self, db_url: str) -> str:
+        """
+        Extracts the table prefix from the database name in the db_url.
+        E.g., db_url='postgresql://user:pass@host:port/test_db_abc' → 'test_'
+        """
+        from urllib.parse import urlparse
+        if not db_url:
+            print("[PREFIX DEBUG] No db_url provided.")
+            return ''
+        print(f"[PREFIX DEBUG] Extracting prefix from db_url: {db_url}")
+        parsed = urlparse(db_url)
+        db_name = parsed.path.lstrip('/').split('?')[0]
+        print(f"[PREFIX DEBUG] Extracted db_name: {db_name}")
+        if '_' in db_name:
+            prefix = db_name.split('_')[0] + '_'
+            print(f"[PREFIX DEBUG] Using table_prefix: '{prefix}'")
+            return prefix
+        print("[PREFIX DEBUG] No underscore in db_name, using empty prefix.")
+        return ''
     
     def _get_migration_files(self) -> List[Tuple[int, str, Path]]:
         """Get all migration files sorted by version number."""
@@ -59,6 +63,7 @@ class MigrationManager:
     
     async def get_current_version(self) -> int:
         """Get the current database version."""
+        print(f"[MIGRATION DEBUG] Using table_prefix: '{self.table_prefix}' for db_url: {self.db_url}")
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
@@ -88,7 +93,7 @@ class MigrationManager:
         print(f"Applying migration version {version:03d}: {description}")
         sql_content = migration_file.read_text()
         prefixed_sql = self._apply_table_prefixes(sql_content)
-        
+        print(f"[MIGRATION DEBUG] SQL to execute (with prefix):\n{prefixed_sql}\n---")
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
