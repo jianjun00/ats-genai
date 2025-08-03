@@ -23,7 +23,6 @@ class UniverseManager:
     """
     def __init__(self, env: Optional[Environment] = None):
         self.env = env or Environment()
-        self.universe_id = env.get_universe_id()
         self.logger = logging.getLogger(__name__)
         self.universe_db = UniverseDB(self.env)
 
