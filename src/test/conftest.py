@@ -1,4 +1,4 @@
-from db.test_db_manager import unit_test_db
+from db.test_db_manager import unit_test_db, unit_test_db_clean
 import pytest
 import os
 import gin
