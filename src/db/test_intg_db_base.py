@@ -1,9 +1,9 @@
 import asyncpg
-from config.environment import set_environment, EnvironmentType
+from config.environment import Environment, EnvironmentType
 
-set_environment(EnvironmentType.INTEGRATION)
+
 env = Environment()
-TSDB_URL = env.get_database_url()
+TSDB_URL = "your_database_url_here"
 
 def get_test_db_url():
     """

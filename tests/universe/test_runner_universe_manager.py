@@ -1,15 +1,6 @@
 import state.universe_state_builder as universe_state_builder
-import gin
 from state.universe_state_builder import UniverseStateBuilder
-
 import app.runner
-
-print("Module file:", universe_state_builder.__file__)
-print("Class module:", universe_state_builder.UniverseStateBuilder.__module__)
-
-
-gin.parse_config_file('config/app.gin')
-print("GIN REGISTERED:", gin.config._CONFIG.keys())
 
 import pytest
 import asyncpg
@@ -18,8 +9,6 @@ from config.environment import Environment, EnvironmentType
 from db.test_db_manager import unit_test_db_clean
 from dao.universe_dao import UniverseDAO
 from dao.universe_membership_dao import UniverseMembershipDAO
-
-
 
 @pytest.mark.asyncio
 async def test_runner_universe_manager_sod_eod_real_db(unit_test_db):

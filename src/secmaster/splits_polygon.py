@@ -47,7 +47,7 @@ async def insert_splits_polygon(splits, ticker, dao=None):
             await dao.insert_split(split_row)
 
 from dao.instrument_polygon_dao import InstrumentPolygonDAO
-from config.environment import set_environment, EnvironmentType
+from config.environment import EnvironmentType
 import argparse
 
 async def main():
@@ -55,7 +55,7 @@ async def main():
     parser.add_argument('--environment', type=str, default='intg', choices=['test', 'intg', 'prod'], help='Environment to use (test, intg, prod)')
     parser.add_argument('--start_ticker', type=str, default='', help='Only process tickers > start_ticker (lexical order)')
     args = parser.parse_args()
-    set_environment(EnvironmentType(args.environment))
+    
     env = Environment()
     api_key = env.get_api_key('polygon')
     if not api_key:

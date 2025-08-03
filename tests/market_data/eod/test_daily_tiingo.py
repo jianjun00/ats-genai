@@ -16,7 +16,7 @@ from market_data.eod import daily_tiingo
 
 def test_tiingo_log_fixture(log_fixture):
     """Test loading Tiingo API logs for AAPL from tests/data/daily_prices_tiingo."""
-    req, resp = log_fixture('daily_prices_tiingo', 'aapl', '2024-01-01_2025-07-31')
+    req, resp = log_fixture('daily_prices_tiingo', 'aapl', '')
     assert 'url' in req
     assert isinstance(resp, (list, dict))
     # Check that the response contains at least one price row if not empty
@@ -27,8 +27,8 @@ def test_tiingo_log_fixture(log_fixture):
 async def test_no_prior_instrument_and_xref(unit_test_db):
     """Test when there is no prior instrument and instrument_xref entry."""
     from config.environment import Environment
-    env = Environment()
-    env.config.set('database', 'database', unit_test_db.split('/')[-1])
+    env = Environment(env_type=EnvironmentType.TEST, db_url="postgresql://postgres:password@localhost:5432/test_db")
+    # Environment no longer has a config attribute; ensure db_url is correct in constructor.
     # DB is empty: no instruments, no xrefs
     # Should skip or error gracefully
     # Try running the main logic for a random instrument_id
