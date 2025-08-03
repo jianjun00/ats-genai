@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from config.environment import Environment, EnvironmentType
-env = Environment(env_type=EnvironmentType.INTEGRATION)
+env = Environment(env_type=EnvironmentType.INTEGRATION, db_url="postgresql://postgres:password@localhost:5432/intg_db")
 DB_URL = env.get_database_url()
 SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/secmaster/daily_tiingo.py"
 

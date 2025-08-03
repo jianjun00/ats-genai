@@ -13,12 +13,12 @@ import importlib
 import asyncpg
 from dotenv import load_dotenv
 from db.test_intg_db_base import AsyncPGTestDBBase
-from config.environment import get_environment, set_environment, EnvironmentType
+from config.environment import get_environment, EnvironmentType
 
 load_dotenv()
 
 # Set integration environment for these tests
-set_environment(EnvironmentType.INTEGRATION)
+
 
 SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/secmaster/populate_instrument_polygon.py"
 

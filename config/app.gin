@@ -19,12 +19,15 @@ bind = ['enable_metrics', False]
 bind = ['strict_validation', True]
 
 # Durations for UniverseStateBuilder
-UniverseStateBuilder.base_duration = '5m'
-UniverseStateBuilder.target_durations = '5m,15m,60m'
+# state.universe_state_builder.UniverseStateBuilder.base_duration = '5m'
+# state.universe_state_builder.UniverseStateBuilder.target_durations = '5m,15m,60m'
 
 # Runner
-Runner.callbacks = 'state.universe_state_builder.UniverseStateBuilder'
-UniverseStateManager.base_path = '/tmp/universe_states'
+# app.runner.Runner.base_duration = '5m'
+# app.runner.Runner.callbacks = ["state.universe_state_builder.UniverseStateBuilder"]
+# state.universe_state_manager.UniverseStateManager.base_path = '/tmp/universe_states'
+
+# universe.universe_manager.UniverseManager.universe_id = 1
 
 # Database
 Database.host = 'localhost'
