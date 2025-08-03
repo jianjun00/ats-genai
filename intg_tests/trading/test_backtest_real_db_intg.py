@@ -4,7 +4,7 @@ from datetime import date, timedelta
 import numpy as np
 
 from config.environment import Environment, EnvironmentType
-env = Environment(env_type=EnvironmentType.INTEGRATION)
+env = Environment(env_type=EnvironmentType.INTEGRATION, db_url="postgresql://postgres:password@localhost:5432/intg_db")
 TSDB_URL = env.get_database_url()
 
 @pytest.mark.asyncio

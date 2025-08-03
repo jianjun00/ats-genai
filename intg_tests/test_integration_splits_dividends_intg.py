@@ -10,14 +10,15 @@ src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src'))
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
-from config.environment import get_environment, set_environment, EnvironmentType
+from config.environment import EnvironmentType
 
 # Set integration environment for these tests
-set_environment(EnvironmentType.INTEGRATION)
+
 
 @pytest.mark.asyncio
 async def test_splits_and_dividends_present():
-    env = get_environment()
+    from config.environment import Environment
+    env = Environment(env_type=EnvironmentType.INTEGRATION, db_url="postgresql://postgres:password@localhost:5432/intg_db")
     pool = await asyncpg.create_pool(env.get_database_url())
     async with pool.acquire() as conn:
         splits_table = env.get_table_name("splits")
@@ -31,7 +32,8 @@ async def test_splits_and_dividends_present():
 
 @pytest.mark.asyncio
 async def test_adjusted_prices_not_null():
-    env = get_environment()
+    from config.environment import Environment
+    env = Environment(env_type=EnvironmentType.INTEGRATION, db_url="postgresql://postgres:password@localhost:5432/intg_db")
     pool = await asyncpg.create_pool(env.get_database_url())
     test_date = date(2023, 1, 3)
     async with pool.acquire() as conn:

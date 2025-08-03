@@ -5,7 +5,7 @@ from datetime import date
 import asyncpg
 
 from config.environment import Environment, EnvironmentType
-env = Environment(env_type=EnvironmentType.INTEGRATION)
+env = Environment(env_type=EnvironmentType.INTEGRATION, db_url="postgresql://postgres:password@localhost:5432/intg_db")
 TSDB_URL = env.get_database_url()
 
 @pytest.mark.asyncio
@@ -63,7 +63,7 @@ async def test_trading_universe_update(backup_and_restore_tables, monkeypatch):
 async def test_security_master():
     today = date(2023, 7, 20)
     from config.environment import get_environment
-    env = get_environment()
+    env = Environment(env_type=EnvironmentType.INTEGRATION, db_url="postgresql://postgres:password@localhost:5432/intg_db")
     master = SecurityMaster(env)
     info = await master.get_security_info('AAA', today)
     assert info['close'] == 10
@@ -76,7 +76,7 @@ async def test_security_master():
 async def test_security_master_multiple():
     today = date(2023, 7, 20)
     from config.environment import get_environment
-    env = get_environment()
+    env = Environment(env_type=EnvironmentType.INTEGRATION, db_url="postgresql://postgres:password@localhost:5432/intg_db")
     master = SecurityMaster(env)
     infos = await master.get_multiple_securities_info(['AAA', 'BBB', 'CCC', 'DDD'], today)
     assert 'AAA' in infos
