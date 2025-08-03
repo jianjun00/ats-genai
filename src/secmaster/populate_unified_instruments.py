@@ -1,6 +1,6 @@
 import argparse
 import asyncio
-from config.environment import set_environment, EnvironmentType
+from config.environment import Environment, EnvironmentType
 from dao.instrument_polygon_dao import InstrumentPolygonDAO
 from dao.instruments_dao import InstrumentsDAO
 from dao.universe_membership_dao import UniverseMembershipDAO
@@ -123,8 +123,7 @@ async def process_symbol(symbol, polygon_dao, instruments_dao, xrefs_dao, ticker
         print(f"[INFO] Created instrument and xref for {symbol} (vendor: Polygon).")
 
 async def main(environment: str, tickers=None, debug=True):
-    set_environment(EnvironmentType(environment))
-    env = Environment()
+    env = Environment(env_type=EnvironmentType(environment))
     polygon_dao = InstrumentPolygonDAO(env)
     instruments_dao = InstrumentsDAO(env)
     xrefs_dao = InstrumentXrefsDAO(env)

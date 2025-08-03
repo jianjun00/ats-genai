@@ -3,11 +3,11 @@ import requests
 import asyncpg
 from dotenv import load_dotenv
 from datetime import datetime
-from config.environment import set_environment, EnvironmentType
+from config.environment import Environment, EnvironmentType
 
 load_dotenv()
 
-# set_environment(EnvironmentType.INTEGRATION)
+
 
 # (moved to main)
 # Polygon reference API endpoint for all US stocks (paginated)
@@ -138,8 +138,7 @@ if __name__ == "__main__":
     parser.add_argument('--ticker', type=str, default=None, help='Populate only this ticker (optional, skips bulk)')
     args = parser.parse_args()
 
-    set_environment(EnvironmentType(args.environment))
-    env = Environment()
+    env = Environment(env_type=EnvironmentType(args.environment))
 
     import asyncio
 asyncio.run(fetch_and_store_instruments(start_ticker=args.start_ticker, ticker=args.ticker))

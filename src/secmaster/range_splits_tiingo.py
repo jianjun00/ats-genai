@@ -2,7 +2,7 @@ import argparse
 import asyncio
 import requests
 from datetime import datetime, date
-from config.environment import set_environment, EnvironmentType
+from config.environment import Environment, EnvironmentType
 from dao.stock_splits_tiingo_dao import StockSplitsTiingoDAO
 import asyncpg
 
@@ -72,8 +72,7 @@ async def main():
     parser.add_argument('--start_date', type=str, required=True, help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end_date', type=str, required=True, help='End date (YYYY-MM-DD)')
     args = parser.parse_args()
-    set_environment(EnvironmentType(args.environment))
-    env = Environment()
+    env = Environment(env_type=EnvironmentType(args.environment))
     api_key = env.get_api_key('tiingo')
     if not api_key:
         raise Exception("Please set your TIINGO_API_KEY in your environment or config.")
