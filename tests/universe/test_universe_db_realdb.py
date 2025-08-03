@@ -12,7 +12,7 @@ async def test_add_and_get_universe_members_real_db(unit_test_db):
     Real DB integration: create a universe, add membership, and verify retrieval using isolated test DB.
     """
     # Patch env to use the test DB URL
-    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db_clean)
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     db = UniverseDB(env=env)
 
     # Connect and setup tables if not present (should be handled by migrations)
@@ -82,7 +82,7 @@ async def test_universe_manager_multiday_multiinstrument_real_db(unit_test_db):
     - Day 3: Add AAPL back, remove TSLA
     Verifies correct membership for each day.
     """
-    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db_clean)
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     db = UniverseDB(env=env)
     manager = UniverseManager(env=env)
     pool = await asyncpg.create_pool(unit_test_db)
