@@ -5,7 +5,8 @@ import os
 from datetime import date
 
 from config.environment import Environment, EnvironmentType
-env = Environment(env_type=EnvironmentType.INTEGRATION)
+from intg_tests.db.test_intg_db_base_intg import get_test_db_url
+env = Environment(env_type=EnvironmentType.INTEGRATION, db_url=get_test_db_url())
 TSDB_URL = env.get_database_url()
 
 @pytest.mark.asyncio

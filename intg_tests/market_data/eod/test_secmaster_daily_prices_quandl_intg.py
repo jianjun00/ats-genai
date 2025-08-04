@@ -6,7 +6,8 @@ from market_data.eod import daily_quandl
 
 @pytest.mark.asyncio
 async def test_quandl_ingestion_and_dao(tmp_path, monkeypatch):
-    env = get_environment()
+    from intg_tests.db.test_intg_db_base_intg import get_test_db_url
+    env = Environment(env_type=EnvironmentType.INTEGRATION, db_url=get_test_db_url())
     dao = DailyPricesQuandlDAO(env)
     import asyncpg
     dao.pool = await asyncpg.create_pool(env.get_database_url())

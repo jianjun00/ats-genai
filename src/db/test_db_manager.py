@@ -10,13 +10,14 @@ This module provides:
 
 import asyncio
 import asyncpg
+import os
 import pytest
 import pytest_asyncio
 import uuid
 import hashlib
 from typing import Dict, List, Optional, Any
 from contextlib import asynccontextmanager
-from config.environment import Environment
+from config.environment import Environment, EnvironmentType
 from db.migration_manager import MigrationManager
 import logging
 logger = logging.getLogger(__name__)
@@ -42,7 +43,6 @@ class TestDatabaseManager:
         """
         # Use the appropriate environment based on test type
         logger.debug(f"TestDatabaseManager: test_type={test_type}, run_migrations={run_migrations}, database_obj={database_obj}")
-        
         self.test_type = test_type
         if database_obj:
             # Override DB name in URL
@@ -52,12 +52,16 @@ class TestDatabaseManager:
             self.db_url = re.sub(r"(?<=/)[^/]+$", database_obj.database, url)
             print(f"[GIN DEBUG] TestDatabaseManager using database_name override: {database_obj.database} → db_url={self.db_url}")
         else:
-            self.db_url = self.env.get_database_url()
-            print(f"[GIN DEBUG] TestDatabaseManager using env db_url={self.db_url}")
-
-        if test_type == "integration": 
+            self.db_url = None  # Will be set below
+        if test_type == "integration":
+            if self.db_url is None:
+                # Default integration DB URL
+                from intg_tests.db.test_intg_db_base_intg import get_test_db_url
+                self.db_url = get_test_db_url()
             self.env = Environment(EnvironmentType.INTEGRATION, db_url=self.db_url)
         else:
+            if self.db_url is None:
+                raise ValueError("TestDatabaseManager requires database_obj for unit tests to supply db_url.")
             self.env = Environment(env_type=EnvironmentType.TEST, db_url=self.db_url)
         # Extract table prefix from environment
         sample_table = self.env.get_table_name("sample")
@@ -394,13 +398,17 @@ async def unit_test_db(request):
     import gin
     import uuid
     from config.database import Database
+    test_file = str(request.fspath) if hasattr(request, 'fspath') else "nofile"
+    test_file_base = os.path.splitext(os.path.basename(test_file))[0]
+    test_file_base = ''.join(c for c in test_file_base if c.isalnum())
     test_name = request.node.name if hasattr(request, 'node') else None
     if test_name:
         hash_part = hashlib.sha1(test_name.encode('utf-8')).hexdigest()[:8]
         truncated = ''.join(c for c in test_name if c.isalnum())[:8]
-        db_name = f"test_db_{truncated}_{hash_part}"
+        db_name = f"test_db_{test_file_base}_{truncated}_{hash_part}"
     else:
-        db_name = f"test_db_{uuid.uuid4().hex[:8]}"
+        db_name = f"test_db_{test_file_base}_{uuid.uuid4().hex[:8]}"
+ 
     # Construct Database object for this test
     db_obj = Database(
         host="localhost",
@@ -442,13 +450,16 @@ async def unit_test_db_clean(request):
     import gin
     import uuid
     from config.database import Database
+    test_file = str(request.fspath) if hasattr(request, 'fspath') else "nofile"
+    test_file_base = os.path.splitext(os.path.basename(test_file))[0]
+    test_file_base = ''.join(c for c in test_file_base if c.isalnum())
     test_name = request.node.name if hasattr(request, 'node') else None
     if test_name:
         hash_part = hashlib.sha1(test_name.encode('utf-8')).hexdigest()[:8]
         truncated = ''.join(c for c in test_name if c.isalnum())[:8]
-        db_name = f"test_db_{truncated}_{hash_part}"
+        db_name = f"test_db_{test_file_base}_{truncated}_{hash_part}"
     else:
-        db_name = f"test_db_{uuid.uuid4().hex[:8]}"
+        db_name = f"test_db_{test_file_base}_{uuid.uuid4().hex[:8]}"
     # Construct Database object for this test
     db_obj = Database(
         host="localhost",

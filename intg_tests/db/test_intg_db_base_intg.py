@@ -1,7 +1,7 @@
 import asyncpg
 from config.environment import EnvironmentType
 
-TSDB_URL = "your_database_url_here"
+TSDB_URL = "postgresql://postgres:password@localhost:5432/intg_db"
 
 def get_test_db_url():
     """

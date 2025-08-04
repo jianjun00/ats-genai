@@ -320,5 +320,5 @@ class Environment:
     
     def __repr__(self) -> str:
         """Detailed string representation."""
-        return f"Environment(type={self.env_type.value}, config_sections={list(self.config.sections())})"
+        return f"Environment(type={self.env_type.value}, db_url={self.db_url})"
 

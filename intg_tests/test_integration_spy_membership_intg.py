@@ -10,14 +10,15 @@ src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src'))
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
-from config.environment import get_environment, set_environment, EnvironmentType
+from config.environment import Environment, EnvironmentType
 
 # Set integration environment for these tests
-set_environment(EnvironmentType.INTEGRATION)
+# Environment is set via Gin config or EnvironmentType; set_environment removed.
 
 @pytest.mark.asyncio
 async def test_spy_membership_count_near_500():
-    env = get_environment()
+    from intg_tests.db.test_intg_db_base_intg import get_test_db_url
+    env = Environment(env_type=EnvironmentType.INTEGRATION, db_url=get_test_db_url())
     pool = await asyncpg.create_pool(env.get_database_url())
     test_date = date(2023, 1, 3)
     async with pool.acquire() as conn:
@@ -33,7 +34,8 @@ async def test_spy_membership_count_near_500():
 
 @pytest.mark.asyncio
 async def test_daily_prices_coverage():
-    env = get_environment()
+    from intg_tests.db.test_intg_db_base_intg import get_test_db_url
+    env = Environment(env_type=EnvironmentType.INTEGRATION, db_url=get_test_db_url())
     pool = await asyncpg.create_pool(env.get_database_url())
     async with pool.acquire() as conn:
         daily_prices_table = env.get_table_name("daily_prices")

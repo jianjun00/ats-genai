@@ -3,12 +3,14 @@ from db.test_db_manager import integration_test_db
 from dao.instrument_polygon_dao import InstrumentPolygonDAO
 from dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
 from market_data.eod import daily_polygon
-from config.environment import get_environment
+from config.environment import Environment, EnvironmentType
 from datetime import datetime
 
 @pytest.mark.asyncio
 async def test_daily_polygon_inserts_prices(integration_test_db, monkeypatch):
-    env = get_environment()
+    from config.environment import Environment, EnvironmentType
+    from intg_tests.db.test_intg_db_base_intg import get_test_db_url
+    env = Environment(env_type=EnvironmentType.INTEGRATION, db_url=get_test_db_url())
     instrument_dao = InstrumentPolygonDAO(env)
     prices_dao = DailyPricesPolygonDAO(env)
 

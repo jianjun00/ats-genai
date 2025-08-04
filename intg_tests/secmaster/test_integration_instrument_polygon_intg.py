@@ -13,7 +13,10 @@ import importlib
 import asyncpg
 from dotenv import load_dotenv
 from db.test_intg_db_base import AsyncPGTestDBBase
-from config.environment import get_environment, EnvironmentType
+from config.environment import Environment, EnvironmentType
+from intg_tests.db.test_intg_db_base_intg import get_test_db_url
+
+env = Environment(env_type=EnvironmentType.INTEGRATION, db_url=get_test_db_url())
 
 load_dotenv()
 

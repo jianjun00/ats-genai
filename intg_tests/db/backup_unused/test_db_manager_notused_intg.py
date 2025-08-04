@@ -15,7 +15,6 @@ import pytest_asyncio
 import uuid
 from typing import Dict, List, Optional, Any
 from contextlib import asynccontextmanager
-from config.environment import get_environment
 from db.migration_manager import MigrationManager
 import logging
 logger = logging.getLogger(__name__)

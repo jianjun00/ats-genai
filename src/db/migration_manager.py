@@ -341,17 +341,22 @@ async def main():
     """CLI interface for migration management."""
     import sys
     import argparse
-    from config.environment import set_environment, EnvironmentType
+    from config.environment import EnvironmentType
 
     parser = argparse.ArgumentParser(description="Migration Manager CLI")
     parser.add_argument("command", choices=["migrate", "validate", "version"], help="Migration command to run")
     parser.add_argument("--environment", "-e", choices=["test", "intg", "prod"], default="test", help="Environment to use (test, intg, prod)")
     args = parser.parse_args()
 
-    if args.environment:
-        set_environment(EnvironmentType(args.environment))
+    # Select db_url based on environment
+    if args.environment == "intg":
+        db_url = "postgresql://postgres:password@localhost:5432/intg_db"
+    elif args.environment == "test":
+        db_url = "postgresql://postgres:password@localhost:5432/test_db"
+    else:
+        db_url = None  # Use prod default or raise error if needed
 
-    manager = MigrationManager()
+    manager = MigrationManager(db_url=db_url)
 
     if args.command == "migrate":
         await manager.migrate_to_latest()

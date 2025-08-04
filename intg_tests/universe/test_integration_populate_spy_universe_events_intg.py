@@ -14,10 +14,10 @@ src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
-from config.environment import get_environment, set_environment, EnvironmentType
+from config.environment import Environment, EnvironmentType
 
 # Set integration environment for these tests
-set_environment(EnvironmentType.INTEGRATION)
+# Environment is set via Gin config or EnvironmentType; set_environment removed.
 
 # Use the actual Wikipedia page for integration
 WIKI_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
@@ -25,7 +25,9 @@ SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/universe/spy_events_wik
 
 @pytest.mark.asyncio
 async def test_populate_spy_universe_events(tmp_path, integration_test_db):
-    env = get_environment()
+    from config.environment import Environment, EnvironmentType
+    from intg_tests.db.test_intg_db_base_intg import get_test_db_url
+    env = Environment(env_type=EnvironmentType.INTEGRATION, db_url=get_test_db_url())
     # Patch environment to use integration_test_db URL
     # Ensure the correct intg_db name is set (not test_db)
     db_name = integration_test_db.split('/')[-1]

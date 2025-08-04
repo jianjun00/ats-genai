@@ -8,7 +8,13 @@ tables with proper prefixes (test_, intg_, prod_).
 import asyncio
 import asyncpg
 from typing import List, Dict, Any
-from config.environment import EnvironmentType
+from config.environment import EnvironmentType, Environment
+# Fallback: hardcode the integration DB URL if import fails
+try:
+    from intg_tests.db.test_intg_db_base_intg import get_test_db_url
+except ImportError:
+    def get_test_db_url():
+        return "postgresql://postgres:password@localhost:5432/intg_db"
 
 
 class EnvironmentMigration:
@@ -23,11 +29,13 @@ class EnvironmentMigration:
         Args:
             env_type: Environment type. If None, uses current environment.
         """
-        if env_type:
-            from config.environment import set_environment
-            set_environment(env_type)
-        
-        self.env = Environment()
+        if env_type == EnvironmentType.INTEGRATION:
+            db_url = get_test_db_url()
+            self.env = Environment(env_type=env_type, db_url=db_url)
+        elif env_type:
+            self.env = Environment(env_type=env_type)
+        else:
+            self.env = Environment()
         self.db_config = self.env.get_database_config()
     
     async def create_database_if_not_exists(self):
