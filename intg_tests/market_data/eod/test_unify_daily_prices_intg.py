@@ -9,7 +9,8 @@ import sys
 from pathlib import Path
 from src.config.environment import Environment, EnvironmentType
 
-env = Environment(env_type=EnvironmentType.INTEGRATION)
+from intg_tests.db.test_intg_db_base_intg import get_test_db_url
+env = Environment(env_type=EnvironmentType.INTEGRATION, db_url=get_test_db_url())
 
 load_dotenv()
 

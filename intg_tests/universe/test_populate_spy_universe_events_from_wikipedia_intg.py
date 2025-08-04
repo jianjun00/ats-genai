@@ -24,9 +24,9 @@ async def test_populate_spy_universe_events_and_membership(tmp_path, integration
     assert result.returncode == 0, f"Script failed: {result.stderr}"
     assert "Done populating SPY universe membership events." in result.stdout
     # Connect to integration DB and check universe_membership and universe_membership_changes
-    from config.environment import get_environment, set_environment, EnvironmentType
-    set_environment(EnvironmentType.INTEGRATION)
-    env_obj = get_environment()
+    from config.environment import Environment, EnvironmentType
+    from intg_tests.db.test_intg_db_base_intg import get_test_db_url
+    env = Environment(env_type=EnvironmentType.INTEGRATION, db_url=get_test_db_url())
     # Patch environment to use integration_test_db
     db_url = integration_test_db
     env_obj.config.set('database', 'database', db_name)

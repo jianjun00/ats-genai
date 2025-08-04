@@ -7,7 +7,8 @@ from src.secmaster.secmaster import SecMaster
 from db.test_intg_db_base import AsyncPGTestDBBase
 from intg_tests.secmaster.fixtures_spy_membership import spy_membership_fixture
 
-env = Environment(env_type=EnvironmentType.INTEGRATION)
+from intg_tests.db.test_intg_db_base_intg import get_test_db_url
+env = Environment(env_type=EnvironmentType.INTEGRATION, db_url=get_test_db_url())
 
 class TestIntegrationSecMaster(AsyncPGTestDBBase):
     @pytest.mark.asyncio

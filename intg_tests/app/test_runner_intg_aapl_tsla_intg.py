@@ -14,23 +14,21 @@ UNIVERSE_SYMBOLS = ["AAPL", "TSLA"]
 UNIVERSE_ID = 9999  # Arbitrary test universe ID
 
 @pytest.mark.asyncio
-async def test_runner_with_aapl_tsla(monkeypatch, integration_test_db):
+async def test_runner_with_aapl_tsla(monkeypatch, intg_test_db):
     """
     Integration test: create a universe with AAPL and TSLA, run runner from 2025-07-01 to 2025-07-03,
     and verify correct processing.
     """
     # Patch environment and pool to use integration_test_db fixture URL
-    env = Environment(EnvironmentType.INTEGRATION)
-    env.config.set('database', 'database', integration_test_db.split('/')[-1])
-    pool = await asyncpg.create_pool(integration_test_db)
+    env = Environment(env_type=EnvironmentType.INTEGRATION, db_url=intg_test_db)
+    pool = await asyncpg.create_pool(intg_test_db)
 
     # --- Backup and restore for test isolation ---
     tables = [
         env.get_table_name('universe_membership_changes'),
-        env.get_table_name('universes'),
+        env.get_table_name('universe'),
         env.get_table_name('instruments'),
         env.get_table_name('daily_prices'),
-        env.get_table_name('universe_state'),
     ]
     backups = {}
     async with pool.acquire() as conn:
@@ -59,7 +57,7 @@ async def test_runner_with_aapl_tsla(monkeypatch, integration_test_db):
                     """, symbol, d.date())
             # Insert universe
             await conn.execute(f"""
-                INSERT INTO {env.get_table_name('universes')} (id, name, created_at) VALUES
+                INSERT INTO {env.get_table_name('universe')} (id, name, created_at) VALUES
                 ($1, 'Test Universe', NOW())
             """, UNIVERSE_ID)
             # Insert membership changes (add both symbols effective 2025-07-01)
@@ -70,8 +68,6 @@ async def test_runner_with_aapl_tsla(monkeypatch, integration_test_db):
                 """, symbol, TEST_START_DATE)
 
         # --- Run the runner for the test universe and dates ---
-        # Patch environment to use intg_test
-        monkeypatch.setenv("ENV", "intg_test")
         runner = Runner(
             start_date=TEST_START_DATE,
             end_date=TEST_END_DATE,

@@ -26,7 +26,7 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
     and verify the built universe state is as expected (test env, not intg env).
     Uses isolated test DB via fixture.
     """
-    db_url = unit_test_db
+    db_url = unit_test_db_clean
     # ... rest of test logic, replacing all manual db_url/env setup with this db_url ...
     # (full logic for test data insertion, runner setup, and assertions remains, but all manual backup/restore is removed)
     # See detailed code below for full refactor.
@@ -42,16 +42,7 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
     # Insert test data as needed (no backup/restore required)
     # Insert test data as needed (no backup/restore required)
     from config.environment import Environment
-    env = Environment()
-    env.config.set('database', 'database', unit_test_db.split('/')[-1])
-    env.config.set('database', 'host', 'localhost')
-    env.config.set('database', 'port', '5432')
-
-    if not env.config.has_section('universe'):
-        env.config.add_section('universe')
-    env.config.set('universe', 'base_duration', '1d')
-    env.config.set('universe', 'target_durations', '1d,1w')
-    env.config.set('universe', 'universe_id', '9998')
+    env = Environment(db_url=db_url)
     # Patch callbacks config to inject UniverseStateBuilder as callback
     monkeypatch.setattr(env, 'get', lambda section, key, default=None: ['state.universe_state_builder.UniverseStateBuilder'] if (section, key) == ('runner', 'callbacks') else env.__class__.get(env, section, key, default))
     runner = Runner(TEST_START_DATE, TEST_END_DATE, env, UNIVERSE_ID)

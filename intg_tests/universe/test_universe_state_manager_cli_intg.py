@@ -23,9 +23,9 @@ async def test_universe_state_manager_cli_build_and_inspect_aapl_tsla(tmp_path):
     """
     universe_name = "test_universe"
     symbols = ["AAPL", "TSLA"]
-    from config.environment import get_environment, set_environment, EnvironmentType
-    set_environment(EnvironmentType.INTEGRATION)
-    env = get_environment()
+    from config.environment import Environment, EnvironmentType
+    from intg_tests.db.test_intg_db_base_intg import get_test_db_url
+    env = Environment(env_type=EnvironmentType.INTEGRATION, db_url=get_test_db_url())
     import tempfile
     import subprocess
     db_url = env.get_database_url()

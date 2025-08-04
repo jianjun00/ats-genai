@@ -2,7 +2,7 @@ import asyncpg
 from config.environment import Environment, EnvironmentType
 
 
-env = Environment()
+# NOTE: Do not instantiate Environment globally; always pass db_url explicitly in tests.
 TSDB_URL = "your_database_url_here"
 
 def get_test_db_url():
