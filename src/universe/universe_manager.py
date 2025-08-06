@@ -77,7 +77,20 @@ class UniverseManager:
         """
         as_of_date = current_time.date()
         self.logger.info(f"UniverseManager.update_for_sod called for universe_id={self.universe_id} at {as_of_date}")
-        self.instrument_ids = await self.get_members(self.universe_id, as_of_date)
+        ids = await self.get_members(self.universe_id, as_of_date)
+        # Convert symbols to ints if needed
+        if ids and isinstance(ids[0], str):
+            # Try to get symbol->id mapping from runner.market_data_manager
+            symbol_to_id = None
+            if hasattr(runner, 'market_data_manager') and hasattr(runner.market_data_manager, '_symbol_to_id'):
+                symbol_to_id = runner.market_data_manager._symbol_to_id
+            if symbol_to_id:
+                ids = [symbol_to_id[s] for s in ids if s in symbol_to_id]
+            else:
+                raise ValueError("Cannot convert instrument symbols to ids: no mapping available.")
+        for iid in ids:
+            assert isinstance(iid, int), f"instrument_id must be int, got {type(iid)}: {iid}"
+        self.instrument_ids = ids
         self.logger.info(f"UniverseManager.instrument_ids set to {self.instrument_ids}")
 
     async def update_for_eod(self, runner, current_time) -> None:

@@ -74,7 +74,8 @@ class TestUniverseStateBuilder:
     async def test_build_universe_state_success(self, universe_builder, sample_base_universe):
         pass
 
-    def test_indicator_builder_rolling_cache(self):
+    @pytest.mark.asyncio
+    async def test_indicator_builder_rolling_cache(self):
         """Test that UniverseStateBuilder maintains rolling cache and builds indicator intervals correctly."""
         from state.universe_state_builder import UniverseStateBuilder
         from state.instrument_interval import InstrumentInterval
@@ -98,8 +99,15 @@ class TestUniverseStateBuilder:
                 cfg.add_indicator('OneOneDot', OneOneDot)
                 return cfg
             indicator_rolling_window = 3
+            def get_database_url(self):
+                return "postgresql://dummy:dummy@localhost/dummy"
+            def get_table_name(self, table):
+                return f"test_{table}"
         env = DummyEnv()
         builder = UniverseStateBuilder(env=env, base_duration='5m', target_durations='5m,15m,60m')
+        # Patch DAO to avoid DB
+        from unittest.mock import AsyncMock
+        builder.market_cap_dao.list_market_caps_for_date = AsyncMock(return_value=[{'instrument_id': 1, 'market_cap': 1000.0}, {'instrument_id': 2, 'market_cap': 2000.0}])
         # Mock runner
         class DummyRunner:
             class DummyUniverseManager:
@@ -120,7 +128,7 @@ class TestUniverseStateBuilder:
         now = datetime(2023, 1, 1, 9, 30)
         # Call handleInterval several times to fill and roll the cache
         for i in range(5):
-            builder.handleInterval(runner, now + timedelta(minutes=5*i))
+            await builder.handleInterval(runner, now + timedelta(minutes=5*i))
         # After enough intervals, the cache should only keep the last N
         for inst_id in runner.universe_manager.instrument_ids:
             assert len(builder.instrument_history[inst_id]) == env.indicator_rolling_window

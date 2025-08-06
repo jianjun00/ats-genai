@@ -21,3 +21,4 @@ class InstrumentInterval:
     traded_volume: float
     traded_dollar: float
     status: Optional[str] = None  # 'ok', 'halted', 'unreliable', etc.
+    market_cap: Optional[float] = None  # Market capitalization for the interval

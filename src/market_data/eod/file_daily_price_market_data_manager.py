@@ -18,6 +18,7 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
         mgr = FileDailyPriceMarketDataManager(vendors_dirs)
     """
     def __init__(self, vendors_dirs: Dict[str, str], symbols: Optional[List[str]] = None):
+        print(f"[DEBUG][FileDailyPriceMarketDataManager.__init__] vendors_dirs={vendors_dirs}, symbols={symbols}")
         self.vendors_dirs = vendors_dirs
         self.symbols = symbols  # If None, will infer from files
         self._intervals: Dict[int, InstrumentInterval] = {}
@@ -25,12 +26,15 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
         self._symbol_to_id: Dict[str, int] = {}
         self._id_to_symbol: Dict[int, str] = {}
         self._load_symbol_mappings()
+        print(f"[DEBUG][_load_symbol_mappings] _symbol_to_id: {self._symbol_to_id}, _id_to_symbol: {self._id_to_symbol}")
         self._load_vendor_data()
+        print(f"[DEBUG][_load_vendor_data] Loaded data for symbols: {list(self.vendor_data.keys())}")
         self.unifier = FileDailyPricesUnifier(
             environment=None,  # Not needed for file-based
             tiingo_data=self.vendor_data.get('tiingo', {}),
             polygon_data=self.vendor_data.get('polygon', {})
         )
+
     def _load_symbol_mappings(self):
         # For now, assign instrument_id as 1, 2, ... for each symbol
         if self.symbols is None:
@@ -46,6 +50,9 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
             self.symbols = sorted(found)
         self._symbol_to_id = {s: i+1 for i, s in enumerate(self.symbols)}
         self._id_to_symbol = {i+1: s for i, s in enumerate(self.symbols)}
+        print(f"[DEBUG][_load_symbol_mappings] Loaded symbols: {list(self._symbol_to_id.keys())}")
+        print(f"[DEBUG][_load_symbol_mappings] symbol_to_id: {self._symbol_to_id}")
+        print(f"[DEBUG][_load_symbol_mappings] id_to_symbol: {self._id_to_symbol}")
 
     def _load_vendor_data(self):
         self.vendor_data = {}
@@ -63,7 +70,21 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
                             resp = json.load(f)
                             # Polygon format: { 'results': [ {o,h,l,c,v,t,...}, ... ] }
                             for row in resp.get('results', []):
-                                dt = datetime.utcfromtimestamp(row['t']/1000).date()
+                                # Robustly handle dt from either timestamp or string/date
+                                t_val = row.get('t')
+                                if isinstance(t_val, (int, float)):
+                                    dt = datetime.utcfromtimestamp(t_val/1000).date()
+                                elif isinstance(t_val, str):
+                                    try:
+                                        dt = datetime.strptime(t_val[:10], '%Y-%m-%d').date()
+                                    except Exception:
+                                        dt = datetime.utcnow().date()  # fallback
+                                elif isinstance(t_val, datetime):
+                                    dt = t_val.date()
+                                elif isinstance(t_val, date):
+                                    dt = t_val
+                                else:
+                                    dt = datetime.utcnow().date()  # fallback
                                 data.setdefault(symbol, {})[dt] = {
                                     'open': row['o'],
                                     'high': row['h'],
@@ -75,7 +96,13 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
                             resp = json.load(f)
                             # Tiingo format: [ { 'date': ..., 'open':..., ... }, ... ]
                             for row in resp:
-                                dt = datetime.strptime(row['date'][:10], '%Y-%m-%d').date()
+                                date_val = row['date']
+                                if isinstance(date_val, datetime):
+                                    dt = date_val.date()
+                                elif isinstance(date_val, date):
+                                    dt = date_val
+                                else:
+                                    dt = datetime.strptime(str(date_val)[:10], '%Y-%m-%d').date()
                                 data.setdefault(symbol, {})[dt] = {
                                     'open': row['open'],
                                     'high': row['high'],
@@ -95,27 +122,32 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
         return self._id_to_symbol.get(instrument_id)
 
     def get_ohlc(self, instrument_id: int, start: datetime, end: datetime) -> Optional[Dict[str, float]]:
+        assert isinstance(instrument_id, int), f"instrument_id must be int, got {type(instrument_id)}: {instrument_id}"
         symbol = self.resolve_symbol(instrument_id)
-        if not symbol:
-            return None
-        # Use reconciled result for the date
-        dt = start.date()
-        # Use FileDailyPricesUnifier to get reconciled price
-        results = self.unifier.unify_daily_prices_sync(symbol, dt)
+        print(f"[DEBUG][get_ohlc] Lookup instrument_id={instrument_id}, symbol={symbol}, date={start.date()} to {end.date()}")
+        results = self.unifier.unify_daily_prices_sync(symbol, start.date())
         if not results:
+            print(f"[DEBUG][get_ohlc] No OHLC data for instrument_id={instrument_id} ({symbol}) at {start.date()}")
             return None
-        row = results[0]
+        print(f"[DEBUG][get_ohlc] Found OHLC for instrument_id={instrument_id} ({symbol}) at {start.date()}: {results}")
         return {
-            'open': row.get('open'),
-            'high': row.get('high'),
-            'low': row.get('low'),
-            'close': row.get('close'),
-            'volume': row.get('volume'),
-            'traded_dollar': row.get('close', 0.0) * row.get('volume', 0.0)
+            'open': results[0]['open'],
+            'high': results[0]['high'],
+            'low': results[0]['low'],
+            'close': results[0]['close'],
+            'traded_volume': results[0]['volume'],
+            'traded_dollar': results[0]['close'] * results[0]['volume'],
         }
+        print(f"[DEBUG][get_ohlc] Returning: {ohlc}")
+        return ohlc
 
     def get_ohlc_batch(self, instrument_ids: List[int], start: datetime, end: datetime) -> Dict[int, Optional[Dict[str, float]]]:
-        return {iid: self.get_ohlc(iid, start, end) for iid in instrument_ids}
+        print(f"[DEBUG][get_ohlc_batch] instrument_ids={instrument_ids}, date={start.date()} to {end.date()}")
+        for iid in instrument_ids:
+            assert isinstance(iid, int), f"instrument_ids must be ints, got {type(iid)}: {iid}"
+        batch = {iid: self.get_ohlc(iid, start, end) for iid in instrument_ids}
+        print(f"[DEBUG][get_ohlc_batch] batch result: {batch}")
+        return batch
 
     # Synchronous wrapper for FileDailyPricesUnifier
     # (for integration with existing code expecting sync get_ohlc)

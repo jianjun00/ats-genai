@@ -41,11 +41,18 @@ class DailyPricesUnifierBase:
     def validate_date(self, dt_obj, asof):
         msgs = []
         try:
+            def to_date(val):
+                if isinstance(val, date):
+                    return val
+                elif isinstance(val, datetime):
+                    return val.date()
+                else:
+                    return datetime.strptime(str(val)[:10], "%Y-%m-%d").date()
             if not isinstance(asof, (tuple, list)):
-                s = e = datetime.strptime(str(asof), "%Y-%m-%d").date()
+                s = e = to_date(asof)
             else:
-                s = datetime.strptime(str(asof[0]), "%Y-%m-%d").date()
-                e = datetime.strptime(str(asof[1]), "%Y-%m-%d").date()
+                s = to_date(asof[0])
+                e = to_date(asof[1])
             if not (s <= dt_obj <= e):
                 msgs.append(f"date {dt_obj} not in range {s} to {e}")
         except Exception:
@@ -186,7 +193,12 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
             status = 'valid'
             note = ''
             try:
-                dt_obj = d if isinstance(d, date) else datetime.strptime(str(d), "%Y-%m-%d").date()
+                if isinstance(d, date):
+                    dt_obj = d
+                elif isinstance(d, datetime):
+                    dt_obj = d.date()
+                else:
+                    dt_obj = datetime.strptime(str(d)[:10], "%Y-%m-%d").date()
             except Exception:
                 status = 'invalid'; note = f"Invalid date format: {d}"
                 dt_obj = None

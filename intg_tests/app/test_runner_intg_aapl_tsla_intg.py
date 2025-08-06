@@ -52,8 +52,8 @@ async def test_runner_with_aapl_tsla(monkeypatch, intg_test_db):
             for symbol in UNIVERSE_SYMBOLS:
                 for d in pd.date_range(TEST_START_DATE, TEST_END_DATE):
                     await conn.execute(f"""
-                        INSERT INTO {env.get_table_name('daily_prices')} (symbol, date, close, volume, market_cap) VALUES
-                        ($1, $2, 100.0, 1000000, 2000000000.0)
+                        INSERT INTO {env.get_table_name('daily_prices')} (symbol, date, close, volume) VALUES
+                        ($1, $2, 100.0, 1000000)
                     """, symbol, d.date())
             # Insert universe
             await conn.execute(f"""
