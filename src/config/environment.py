@@ -31,6 +31,31 @@ class EnvironmentType(Enum):
 from signals.indicator_config import IndicatorConfig
 
 class Environment:
+    def get(self, key, default=None):
+        """
+        Get a configuration value by key, supporting both 'section.key' and ('section', 'key') forms for backward compatibility.
+        First attempts to retrieve from Gin, then falls back to configparser if available.
+        """
+        import gin
+        # Support both Environment.get('section.key') and Environment.get(section, key)
+        if isinstance(key, tuple) and len(key) == 2:
+            section, option = key
+            full_key = f"{section}.{option}"
+        else:
+            full_key = key
+        try:
+            value = gin.query_parameter(full_key)
+            if value is not None:
+                return value
+        except Exception:
+            pass
+        # Fallback: configparser (if present)
+        if hasattr(self, 'config'):
+            section, sep, option = full_key.partition('.')
+            if sep and self.config.has_section(section) and self.config.has_option(section, option):
+                return self.config.get(section, option)
+        return default
+
 
     """
     Gin-based Environment configuration manager.

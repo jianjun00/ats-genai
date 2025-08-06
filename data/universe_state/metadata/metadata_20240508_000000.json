@@ -1,0 +1,23 @@
+{
+  "timestamp": "20240508_000000",
+  "record_count": 1,
+  "file_size_bytes": 6878,
+  "checksum": "f27cda3d22d548b6077fea8b66cc3c45",
+  "created_at": "2025-08-05T22:01:52.151609",
+  "columns": [
+    "duration",
+    "instrument_id",
+    "start_date_time",
+    "end_date_time",
+    "open",
+    "high",
+    "low",
+    "close",
+    "traded_volume",
+    "traded_dollar",
+    "status"
+  ],
+  "data_sources": [],
+  "universe_type": "default",
+  "version": "1.0"
+}

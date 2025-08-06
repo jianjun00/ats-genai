@@ -130,9 +130,12 @@ class UniverseStateManager:
         if not self._validate_timestamp_format(timestamp):
             raise ValueError(f"Invalid timestamp format: {timestamp}")
 
+        self.logger.info(f"save_universe_state: Saving DataFrame with shape {universe_data.shape} to {file_path}")
         try:
             universe_data.to_parquet(file_path, index=False)
+            self.logger.info(f"save_universe_state: Successfully saved Parquet file: {file_path}")
         except Exception as e:
+            self.logger.error(f"save_universe_state: Failed to save Parquet file: {file_path}, error: {e}")
             raise IOError(f"Failed to save universe state: {e}")
 
         safe_metadata = metadata if metadata is not None else {}

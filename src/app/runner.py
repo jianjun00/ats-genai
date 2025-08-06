@@ -16,7 +16,9 @@ from state.runner_callback import RunnerCallback
 
 import gin
 
+import logging
 @gin.configurable
+
 class Runner:
     def __init__(self, start_date: str, end_date: str, environment: Environment,
     universe_id: int, callbacks: List[str], base_duration: str):
@@ -39,7 +41,7 @@ class Runner:
         print("_init_callbacks CONFIGURABLE REGISTERED:", gin.config._CONFIG.keys())
         for cb_class in callback_classes:
             if isinstance(cb_class, RunnerCallback):
-                callbacks.append(cb_class())
+                callbacks.append(cb_class)  # Already an instance, do not call
             elif isinstance(cb_class, type) and issubclass(cb_class, RunnerCallback):
                 callbacks.append(cb_class())
             elif isinstance(cb_class, str):
@@ -82,27 +84,34 @@ class Runner:
         while current_time <= self.end_date:
             # SOD event at first second of each date
             sod_time = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
+            logging.debug(f"[Runner.iter_events] Yielding sod: {sod_time}")
             if last_sod_date != current_time.date():
                 yield (sod_time, "sod")
                 last_sod_date = current_time.date()
             # Yield interval event
+            logging.debug(f"[Runner.iter_events] Yielding interval: {current_time}")
+            print(f"[PRINT][Runner.iter_events] Yielding interval: {current_time}")
             yield (current_time, "interval")
             # Check if EOD event should be yielded
             next_time = self._advance_time(current_time)
             # If next_time is a new day or past end_date, yield EOD at last second of current day
             if (next_time.date() != current_time.date()) or next_time > self.end_date:
                 eod_time = current_time.replace(hour=23, minute=59, second=59, microsecond=0)
+                logging.debug(f"[Runner.iter_events] Yielding eod: {eod_time}")
                 if last_eod_date != current_time.date():
                     yield (eod_time, "eod")
                     last_eod_date = current_time.date()
             current_time = next_time
         # END event
         end_time = self.end_date.replace(hour=23, minute=59, second=59, microsecond=0)
+        logging.debug(f"[Runner.iter_events] Yielding end: {end_time}")
         yield (end_time, "end")
 
     async def run(self):
         for event_time, event_type in self.iter_events():
+            print(f"[PRINT][Runner.run] Event: {event_type} at {event_time}")
             if event_type == "start":
+                logging.debug(f"[Runner.run] Handling start event at {event_time}")
                 for cb in self.callbacks:
                     if hasattr(cb, 'handleStart'):
                         cb.handleStart(self, event_time)
@@ -114,8 +123,16 @@ class Runner:
                     if hasattr(cb, 'handleStartOfDay'):
                         cb.handleStartOfDay(self, event_time)
             elif event_type == "interval":
+                print(f"[PRINT][Runner.run] interval event: callbacks={[(type(cb), id(cb)) for cb in self.callbacks]}")
                 for cb in self.callbacks:
-                    cb.handleInterval(self, event_time)
+                    print(f"[PRINT][Runner.run] Checking callback {cb} (type={type(cb)}, id={id(cb)}) for handleInterval")
+                    if hasattr(cb, 'handleInterval'):
+                        print(f"[PRINT][Runner.run] Calling handleInterval on {cb} at {event_time}")
+                        result = cb.handleInterval(self, event_time)
+                        if hasattr(result, '__await__'):
+                            await result
+                    else:
+                        print(f"[PRINT][Runner.run] Callback {cb} has no handleInterval")
             elif event_type == "eod":
                 update = self.update_for_eod(event_time)
                 if hasattr(update, '__await__'):

@@ -20,6 +20,7 @@ from config.environment import Environment
 from calendars.time_duration import TimeDuration
 from state.instrument_interval import InstrumentInterval
 from state.universe_interval import UniverseInterval
+from dao.daily_market_cap_dao import DailyMarketCapDAO
 
 from signals.indicator_builder import IndicatorBuilder
 from signals.indicator_config import IndicatorConfig
@@ -34,7 +35,8 @@ class UniverseStateBuilder(RunnerCallback):
         self.logger.info(f"UniverseStateBuilder.handleEndOfDay called at {current_time}")
         pass
 
-    def handleInterval(self, runner, current_time):
+    async def handleInterval(self, runner, current_time):
+        print(f"[DEBUG][handleInterval] handleInterval CALLED at {current_time}")
         """
         Build UniverseState for base_duration and each target duration, passing each to UniverseStateManager.
         Maintains rolling window cache of InstrumentIntervals and builds indicators via IndicatorBuilder.
@@ -49,9 +51,16 @@ class UniverseStateBuilder(RunnerCallback):
         # --- 1. Always build and update rolling cache for base_duration (assume durations[0] is base) ---
         base_duration = self.base_duration
         base_end_time = base_duration.get_end_time(current_time)
+        print(f"[DEBUG][handleInterval] Calling get_ohlc_batch with instrument_ids: {instrument_ids}, current_time: {current_time}, base_end_time: {base_end_time}")
         ohlc_batch = runner.market_data_manager.get_ohlc_batch(instrument_ids, current_time, base_end_time)
+        print(f"[DEBUG][handleInterval] ohlc_batch result: {ohlc_batch}")
+        # Fetch market_cap for all instruments for current_time
+        rows = await self.market_cap_dao.list_market_caps_for_date(current_time.date())
+        market_caps = {row['instrument_id']: row['market_cap'] for row in rows}
         for inst_id in instrument_ids:
+            print(f"[DEBUG][handleInterval] Checking ohlc for inst_id: {inst_id}")
             ohlc = ohlc_batch.get(inst_id)
+            print(f"[DEBUG][handleInterval] ohlc for inst_id {inst_id}: {ohlc}")
             if ohlc:
                 interval = InstrumentInterval(
                     instrument_id=inst_id,
@@ -63,7 +72,8 @@ class UniverseStateBuilder(RunnerCallback):
                     close=ohlc.get('close', 0.0),
                     traded_volume=ohlc.get('volume', 0.0),
                     traded_dollar=ohlc.get('close', 0.0) * ohlc.get('volume', 0.0),
-                    status='ok'
+                    status='ok',
+                    market_cap=market_caps.get(inst_id)
                 )
                 if inst_id not in self.instrument_history:
                     self.instrument_history[inst_id] = []
@@ -116,6 +126,7 @@ class UniverseStateBuilder(RunnerCallback):
             )
             duration_to_state[duration] = universe_state
         if hasattr(runner, 'universe_state_manager'):
+            print(f"[BUILDER] id(runner.universe_state_manager): {id(runner.universe_state_manager)}")
             runner.universe_state_manager.addUniverseState(duration_to_state, current_time)
         else:
             self.logger.fatal("runner.universe_state_manager not available; skipping addUniverseState.")
@@ -128,6 +139,8 @@ class UniverseStateBuilder(RunnerCallback):
     """
 
     def __init__(self, env: Environment, base_duration: str, target_durations: str):
+        # Inject DailyMarketCapDAO for market_cap sourcing
+        self.market_cap_dao = DailyMarketCapDAO(env)
         """
         Initialize UniverseStateBuilder.
         Args:
