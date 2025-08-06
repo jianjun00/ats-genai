@@ -194,6 +194,7 @@ class UniverseStateManager:
         import pandas as pd
         self.logger.info(f"addUniverseState: Adding UniverseStates for {len(duration_to_state)} durations at {current_time}")
         rows = []
+        seen_keys = set()
         for duration, universe_state in duration_to_state.items():
             duration_str = str(duration)
             # Flatten instrument intervals
@@ -211,6 +212,12 @@ class UniverseStateManager:
                     'traded_dollar': inst_interval.traded_dollar,
                     'status': inst_interval.status,
                 }
+                key = (inst_interval.instrument_id, inst_interval.start_date_time, inst_interval.end_date_time, duration_str)
+                if key in seen_keys:
+                    self.logger.warning(f"[DUPLICATE ROW DETECTED] instrument_id={inst_interval.instrument_id}, start={inst_interval.start_date_time}, end={inst_interval.end_date_time}, duration={duration_str}, row={row}")
+                else:
+                    seen_keys.add(key)
+                self.logger.debug(f"[ROW OUTPUT] idx={len(rows)}, instrument_id={inst_interval.instrument_id}, start={inst_interval.start_date_time}, end={inst_interval.end_date_time}, open={inst_interval.open}, high={inst_interval.high}, low={inst_interval.low}, close={inst_interval.close}, traded_volume={inst_interval.traded_volume}, traded_dollar={inst_interval.traded_dollar}, status={inst_interval.status}, duration={duration_str}")
                 rows.append(row)
             # Flatten indicator intervals (as additional rows per indicator type/instrument)
             for indicator_type, inst_dict in universe_state.indicator_intervals.items():
@@ -227,6 +234,7 @@ class UniverseStateManager:
                         row['indicator_name'] = ind_name
                         row['indicator_value'] = ind_val.get('value')
                         row['indicator_status'] = ind_val.get('status')
+                        self.logger.debug(f"[ROW OUTPUT - INDICATOR] idx={len(rows)}, instrument_id={indicator_interval.instrument_id}, start={indicator_interval.start_date_time}, end={indicator_interval.end_date_time}, indicator_type={indicator_type}, indicator_name={ind_name}, indicator_value={ind_val.get('value')}, indicator_status={ind_val.get('status')}, duration={duration_str}")
                         rows.append(row)
         df = pd.DataFrame(rows)
         if df.empty:
