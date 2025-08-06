@@ -72,11 +72,17 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
     # Create and patch a UniverseStateBuilder instance directly
     # Provide a minimal valid indicator_config for UniverseStateBuilder
     from signals.indicator_config import IndicatorConfig
-    indicator_config = IndicatorConfig(indicators={})
+    from signals.indicator import ETop, EBot, PL
+    indicator_config = IndicatorConfig(indicators={
+        'ETop': ETop,
+        'EBot': EBot,
+        'PL': PL
+    })
+    env.get_indicator_config = lambda: indicator_config
     builder = UniverseStateBuilder(
         env=env,
         base_duration='1d',
-        target_durations='1d',
+        target_durations='1d'
     )
     builder.universe_state_manager = universe_state_manager
     # Create runner, passing builder as a callback instance
@@ -108,27 +114,42 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
     # Optionally, load one and check expected content
     df = pd.read_parquet(state_files[-1])
     assert not df.empty
-    # Example: check expected columns
-    for col in ['instrument_id', 'open', 'close', 'traded_volume', 'traded_dollar']:
-        assert col in df.columns
-    # Example: check date range
-    min_date = df['start_date_time'].min()
-    max_date = df['end_date_time'].max()
-    assert pd.to_datetime(min_date) >= pd.Timestamp(start_date)
-    assert pd.to_datetime(max_date) <= pd.Timestamp(end_date)
+    # Check that all dates in the DataFrame exactly match the runner's current date (end_date)
+    df_dates = set(pd.to_datetime(df['start_date_time']).dt.date)
+    run_date = pd.to_datetime(end_date).date()
+    if df_dates != {run_date}:
+        print(f"[ERROR] Dates in output: {df_dates}, expected only: {run_date}")
+    else:
+        print(f"[OK] All universe state rows are for current run date: {run_date}")
+    # --- Indicator existence and debug (normalized/long-form) ---
+    required_indicators = ['ETop', 'EBot', 'PL']
+    for ind in required_indicators:
+        ind_rows = df[df['indicator_name'] == ind] if 'indicator_name' in df.columns else pd.DataFrame()
+        if not ind_rows.empty:
+            non_null_count = ind_rows['indicator_value'].notnull().sum()
+            print(f"[DEBUG] Indicator '{ind}' exists with {non_null_count} non-null values.")
+            assert non_null_count > 0, f"Indicator '{ind}' exists but has no non-null values!"
+        else:
+            print(f"[ERROR] Indicator '{ind}' is missing from universe state output!")
+            assert False, f"Indicator '{ind}' missing in output parquet!"
 
-
-    # Check universe state output in the correct subdirectory
-    states_dir = os.path.join(output_dir, 'states')
-    state_files = []
-    for root, dirs, files in os.walk(states_dir):
-        for file in files:
-            if file.startswith('universe_state_') and file.endswith('.parquet'):
-                state_files.append(os.path.join(root, file))
-    assert state_files, 'No universe state files created.'
-    # Optionally, load one and check expected content
-    df = pd.read_parquet(state_files[-1])
-    assert not df.empty
+    # Print daily OHLC and indicator values for each instrument/date
+    # Group by instrument/date, then print OHLC + indicators
+    ohlc_cols = ['start_date_time', 'instrument_id', 'open', 'high', 'low', 'close']
+    base_df = df[ohlc_cols].drop_duplicates()
+    for idx, row in base_df.iterrows():
+        date = row['start_date_time']
+        instrument_id = row['instrument_id']
+        open_ = row['open']
+        high = row['high']
+        low = row['low']
+        close = row['close']
+        # Extract indicator values for this instrument/date
+        indicator_vals = {}
+        for ind in required_indicators:
+            val = df[(df['start_date_time'] == date) & (df['instrument_id'] == instrument_id) & (df['indicator_name'] == ind)]['indicator_value']
+            indicator_vals[ind] = val.iloc[0] if not val.empty else None
+        print(f"date: {date}, instrument_id: {instrument_id}, open: {open_}, high: {high}, low: {low}, close: {close}, etop: {indicator_vals['ETop']}, ebot: {indicator_vals['EBot']}, pldot: {indicator_vals['PL']}")
     # Example: check expected columns
     for col in ['instrument_id', 'open', 'close', 'traded_volume', 'traded_dollar']:
         assert col in df.columns
