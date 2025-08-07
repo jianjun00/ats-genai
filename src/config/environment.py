@@ -120,8 +120,14 @@ class Environment:
         from config.logging_config import LoggingConfig
         from config.database import Database
         self.logging_config = LoggingConfig()
+        # Make db_url optional: try argument, then env var, then None
+        if db_url is None:
+            db_url = os.getenv("DATABASE_URL")
+            if db_url:
+                print(f"[GIN DEBUG] Environment auto-discovered db_url from DATABASE_URL env: {db_url}")
+            else:
+                print(f"[GIN DEBUG] No db_url provided and DATABASE_URL env not set. Proceeding with empty Database config.")
         self.db_url = db_url
-        assert db_url is not None, "Environment requires db_url to be passed explicitly."
         print(f"[GIN DEBUG] Environment.__init__ received db_url: {db_url}")
         if db_url:
             import re

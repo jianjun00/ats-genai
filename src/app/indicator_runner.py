@@ -58,11 +58,8 @@ def main():
         print(f"[ERROR] Unknown environment: {args.environment}. Supported: test, intg, prod")
         return
     env_type = env_map[env_key]
-    db_url = args.db_url
-    if db_url is None:
-        # Attempt to use default from config, or error if required
-        print("[ERROR] --db-url must be provided unless your Environment class supports auto-discovery.")
-        return
+    db_url = args.db_url  # may be None
+    # Pass db_url (may be None) to Environment, which will auto-discover if possible
     env = Environment(env_type=env_type, db_url=db_url)
     env.get_table_name = lambda table: f"{args.environment}_" + table
     # Run
