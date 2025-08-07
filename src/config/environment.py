@@ -90,13 +90,10 @@ class Environment:
             else:
                 self.env_type = EnvironmentType.TEST
 
-        # Accept either a gin config path or an environment type (enum or str)
-        config_path = None
-        # If gin_config_path is actually an EnvironmentType or str, treat as env_type
-        if gin_config_path is not None and not isinstance(gin_config_path, str):
-            env_type = gin_config_path
-            gin_config_path = None
-        if gin_config_path is not None:
+        # --- BEGIN PATCH: allow custom gin config path ---
+        import gin
+        import os
+        if gin_config_path:
             config_path = gin_config_path
         elif env_type is not None:
             if isinstance(env_type, EnvironmentType):
@@ -116,9 +113,13 @@ class Environment:
         import logging
         print(f"[GIN DEBUG] Using Gin config: {config_path}, env_type={getattr(self, 'env_type', None)}")
         self.gin_config_path = config_path
-        # Do NOT clear or parse Gin config here; rely on fixture/test setup
-        from config.logging_config import LoggingConfig
+        # Import Database before parsing Gin config to register it as a configurable
         from config.database import Database
+        import gin
+        if config_path:
+            if not (hasattr(gin.config, '_CONFIG') and gin.config._CONFIG.get('was_configured', False)):
+                gin.parse_config_file(config_path)
+        from config.logging_config import LoggingConfig
         self.logging_config = LoggingConfig()
         # Make db_url optional: try argument, then env var, then None
         if db_url is None:
@@ -167,7 +168,12 @@ class Environment:
         self.logger = self._setup_logging()
 
     def get_database_url(self) -> str:
-        return self.db_url
+        # Prefer explicit db_url, else build from Database instance
+        if self.db_url:
+            return self.db_url
+        elif hasattr(self, 'database') and self.database:
+            return self.database.get_database_url()
+        return None
 
     def get_api_key(self, service: str) -> str:
         return gin.query_parameter(f"{service}_api_key")

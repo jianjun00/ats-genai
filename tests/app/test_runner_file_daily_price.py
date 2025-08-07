@@ -64,7 +64,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
     vendors_dirs = {'polygon': polygon_dir, 'tiingo': tiingo_dir}
     # Use FileDailyPriceMarketDataManager to get instrument_ids
     from market_data.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
-    market_data_manager = FileDailyPriceMarketDataManager(vendors_dirs)
+    market_data_manager = FileDailyPriceMarketDataManager(vendors_dirs, env)
     instrument_ids = list(market_data_manager._id_to_symbol.keys())
     output_dir = os.path.join(tmp_path, 'universe_state_30days')
     start_date = '2024-12-02'
@@ -143,7 +143,7 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
 
 
     # Use FileDailyPriceMarketDataManager
-    market_data_manager = FileDailyPriceMarketDataManager(vendors_dirs)
+    market_data_manager = FileDailyPriceMarketDataManager(vendors_dirs, env)
     # Get instrument IDs from the file manager
     instrument_ids = list(market_data_manager._id_to_symbol.keys())
     # Assert all instrument_ids are ints
@@ -329,7 +329,7 @@ async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
     tiingo_dir = os.path.abspath(tiingo_dir)
     vendors_dirs = {'polygon': polygon_dir, 'tiingo': tiingo_dir}
     from market_data.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
-    market_data_manager = FileDailyPriceMarketDataManager(vendors_dirs)
+    market_data_manager = FileDailyPriceMarketDataManager(vendors_dirs, env)
     instrument_ids = list(market_data_manager._id_to_symbol.keys())
     output_dir = os.path.join(tmp_path, 'universe_state_7days')
     start_date = '2025-07-20'

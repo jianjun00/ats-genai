@@ -1,0 +1,21 @@
+# Gin config for secmaster integration environment
+
+# Polygon API key
+polygon_api_key = 'wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD'
+
+set_polygon_api_key.polygon_api_key = 'wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD'
+
+# Database (match integration DB settings)
+Database.host = 'localhost'
+Database.port = 5432
+Database.user = 'postgres'
+Database.password = 'password'
+Database.database = 'intg_db'
+Database.pool_min_size = 1
+Database.pool_max_size = 10
+Database.command_timeout = 60
+
+# Features
+enable_caching = False
+enable_metrics = False
+strict_validation = True
