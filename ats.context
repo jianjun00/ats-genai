@@ -3,7 +3,23 @@
 ## Objective
 Summarize the current project context, integration test refactor status, and DB/test best practices for ATS as a single authoritative context file.
 
-## Current State
+## Universe State Persistence Context (as of 2025-08-07)
+- Universe state uses a normalized TimescaleDB schema:
+  - `universe_state_interval` (unique on universe_id, duration, start_date_time)
+  - `instrument_interval`, `instrument_indicator_interval`, `factor_interval` (children, FK to parent)
+- Migrations are split and ordered to resolve FK dependencies:
+  - `021_create_universe_state_interval.sql` (parent)
+  - `023_create_instrument_interval.sql`, `024_create_instrument_indicator_interval.sql`, `025_create_factor_interval.sql` (children)
+- All migrations use environment-aware table prefixing (e.g., `test_`, `intg_`) via the `Environment` class.
+- All DAOs are fully async and operate on the normalized schema (no protobuf blobs).
+- `UniverseStateIntervalDAO.create()` takes exactly four arguments: `universe_id`, `duration`, `start_date_time`, `end_date_time`.
+- Only normalized CRUD methods remain; all legacy blob/protobuf methods have been removed.
+- All DAO and integration tests use the `unit_test_db` fixture from `src/db/test_db_manager.py`, which creates an isolated, environment-prefixed test database for each test and applies all migrations.
+- All test runs use `PYTHONPATH=src` to ensure correct import resolution.
+- All DAO test files and signatures are updated to match the new DAO API and schema. All tests pass as of this context.
+- MigrationManager and TestDatabaseManager handle versioned migrations, prefixing, and DB isolation. The system is robust for concurrent test runs, CI, and future schema evolution.
+- All future changes must include corresponding tests and ensure pytest passes before submission.
+
 - All integration and unit tests must use the appropriate test DB fixture (`integration_test_db` for integration, `unit_test_db` for unit tests) from `src/db/test_db_manager.py`.
 - All database access in tests must use environment-aware table names via `env.get_table_name()`; no hardcoded names or prefixes are allowed.
 - The canonical way to create a test instrument is via `InstrumentsDAO.create_instrument`, which returns an `instrument_id`. Use this `instrument_id` to create xrefs via `InstrumentXrefsDAO.create_xref`.

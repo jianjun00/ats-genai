@@ -38,6 +38,7 @@ from state.instrument_interval import InstrumentInterval
 from state.indicator_interval import IndicatorInterval
 
 import gin
+from dao.universe_state_interval_dao import UniverseStateIntervalDAO
 
 @gin.configurable
 class UniverseStateManager:
@@ -108,47 +109,61 @@ class UniverseStateManager:
         self._cache_metadata: Dict[str, UniverseStateMetadata] = {}
         self._max_cache_size = 5  # Maximum number of states to cache
         self.logger = logging.getLogger(__name__)
+        # Initialize UniverseStateIntervalDAO for interval persistence
+        self._interval_dao = UniverseStateIntervalDAO(self.env) if self.env else None
     
     async def save_universe_state(self, universe_data: pd.DataFrame, timestamp: str, metadata: Optional[Dict[str, Any]] = None, partition_cols: Optional[List[str]] = None) -> str:
         """
-        Persist universe state DataFrame to TimescaleDB (universe_state table).
-        Each row must have instrument_id and as_of_date (parsed from timestamp).
-        Overwrites existing rows for the same instrument_id/as_of_date.
+        Persist universe state interval using UniverseStateIntervalDAO.
+        Each interval is saved via the DAO, which handles DB logic.
         """
-        import asyncpg
         if universe_data.empty:
             raise ValueError("Cannot save empty universe state")
         if not self._validate_timestamp_format(timestamp):
             raise ValueError(f"Invalid timestamp format: {timestamp}")
-        # Parse as_of_date from timestamp (YYYYMMDD_*)
-        as_of_date = timestamp[:8]
-        as_of_date = f"{as_of_date[:4]}-{as_of_date[4:6]}-{as_of_date[6:8]}"
-        db_url = self.env.get_database_config()['url'] if self.env else os.getenv('TSDB_URL')
-        pool = await asyncpg.create_pool(db_url, min_size=1, max_size=2)
+        if self._interval_dao is None:
+            raise RuntimeError("UniverseStateIntervalDAO is not initialized (env missing)")
+        # Example: Save a single interval for the universe (expand as needed for multiple intervals)
+        # This assumes universe_id, duration, start_date_time, end_date_time columns exist or are provided
+        # You may need to adapt this logic based on your DataFrame structure and interval semantics
+        universe_id = metadata.get('universe_id') if metadata else None
+        duration = metadata.get('duration') if metadata else None
+        start_date_time = metadata.get('start_date_time') if metadata else None
+        end_date_time = metadata.get('end_date_time') if metadata else None
+        if not all([universe_id, duration, start_date_time, end_date_time]):
+            raise ValueError("Missing required interval metadata: universe_id, duration, start_date_time, end_date_time")
         try:
-            async with pool.acquire() as conn:
-                for _, row in universe_data.iterrows():
-                    await conn.execute(
-                        """
-                        INSERT INTO universe_state (instrument_id, as_of_date, symbol, name, exchange, market_cap, close_price, volume, is_active, sector, created_at)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
-                        ON CONFLICT (instrument_id, as_of_date) DO UPDATE SET
-                            symbol=EXCLUDED.symbol, name=EXCLUDED.name, exchange=EXCLUDED.exchange,
-                            market_cap=EXCLUDED.market_cap, close_price=EXCLUDED.close_price, volume=EXCLUDED.volume,
-                            is_active=EXCLUDED.is_active, sector=EXCLUDED.sector, created_at=now()
-                        """,
-                        int(row['instrument_id']), as_of_date, row.get('symbol'), row.get('name'), row.get('exchange'),
-                        row.get('market_cap'), row.get('close_price'), row.get('volume'), row.get('is_active'), row.get('sector')
-                    )
+            # Ensure start_date_time and end_date_time are datetime/date objects
+            from datetime import datetime, date
+            def parse_dt(val):
+                if isinstance(val, (datetime, date)):
+                    return val
+                if isinstance(val, str):
+                    # Try to parse as ISO format
+                    try:
+                        return datetime.fromisoformat(val)
+                    except ValueError:
+                        # Try date only
+                        try:
+                            return datetime.strptime(val, "%Y-%m-%d")
+                        except ValueError:
+                            raise ValueError(f"Invalid date format: {val}")
+                raise TypeError(f"Invalid type for date: {type(val)}")
+            start_dt = parse_dt(start_date_time)
+            end_dt = parse_dt(end_date_time)
+            interval_id = await self._interval_dao.create(
+                universe_id=universe_id,
+                duration=duration,
+                start_date_time=start_dt,
+                end_date_time=end_dt
+            )
             # Optionally update cache (in-memory, not persisted)
             self._update_cache(timestamp, universe_data, metadata or {})
-            self.logger.info(f"Saved universe state to DB for {timestamp} ({len(universe_data)} records)")
-            return f"db://universe_state/{timestamp}"
+            self.logger.info(f"Saved universe state interval to DB for {timestamp} (interval_id={interval_id}, records={len(universe_data)})")
+            return f"db://universe_state_interval/{interval_id}/{timestamp}"
         except Exception as e:
-            self.logger.error(f"Failed to save universe state to DB: {e}")
-            raise IOError(f"Failed to save universe state to DB: {e}")
-        finally:
-            await pool.close()
+            self.logger.error(f"Failed to save universe state interval to DB: {e}")
+            raise IOError(f"Failed to save universe state interval to DB: {e}")
     
     def addIntervals(self, intervals: dict, current_time):
         """
@@ -270,7 +285,8 @@ class UniverseStateManager:
         try:
             async with pool.acquire() as conn:
                 col_clause = ', '.join(columns) if columns else '*'
-                query = f"SELECT {col_clause} FROM universe_state WHERE as_of_date = $1"
+                table_name = self.env.get_table_name('universe_state_interval')
+                query = f"SELECT {col_clause} FROM {table_name} WHERE as_of_date = $1"
                 records = await conn.fetch(query, as_of_date)
                 if not records:
                     raise FileNotFoundError(f"No universe state found for date: {as_of_date}")

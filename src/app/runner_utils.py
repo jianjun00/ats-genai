@@ -27,7 +27,7 @@ async def run_file_daily_price_ohlcv(
     if indicator_config is not None:
         env.get_indicator_config = lambda: indicator_config
 
-    market_data_manager = FileDailyPriceMarketDataManager(vendors_dirs)
+    market_data_manager = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env)
     universe_state_manager = UniverseStateManager(env=env, base_path=output_dir)
     builder = UniverseStateIntervalBuilder(
         env=env,

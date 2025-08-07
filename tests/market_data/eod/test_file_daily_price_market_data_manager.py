@@ -15,22 +15,36 @@ def vendors_dirs():
         "tiingo": tiingo_dir,
     }
 
-@pytest.fixture(scope="module")
-def manager(vendors_dirs):
-    # Only test AAPL and TSLA (should exist in both dirs)
-    return FileDailyPriceMarketDataManager(vendors_dirs, symbols=["AAPL", "TSLA"])
+import pytest_asyncio
+from config.environment import Environment, EnvironmentType
 
-def test_symbol_resolution(manager):
+@pytest_asyncio.fixture(scope="function")
+async def manager(vendors_dirs, unit_test_db):
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
+    env.get_table_name = lambda table: f"test_{table}"
+    # Only test AAPL and TSLA (should exist in both dirs)
+    mgr = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env, symbols=["AAPL", "TSLA"])
+    return mgr
+
+import pytest
+
+import pytest
+import pytest_asyncio
+
+@pytest.mark.asyncio
+async def test_symbol_resolution(manager):
     assert manager.resolve_instrument_id("AAPL") == 1
     assert manager.resolve_instrument_id("TSLA") == 2
     assert manager.resolve_symbol(1) == "AAPL"
     assert manager.resolve_symbol(2) == "TSLA"
 
-def test_get_all_symbols(manager):
+@pytest.mark.asyncio
+async def test_get_all_symbols(manager):
     syms = manager._get_all_symbols()
     assert set(syms) == {"AAPL", "TSLA"}
 
-def test_get_ohlc(manager):
+@pytest.mark.asyncio
+async def test_get_ohlc(manager):
     # Pick a known date in both fixtures
     dt = datetime(2024, 1, 2)
     iid = manager.resolve_instrument_id("AAPL")
@@ -43,7 +57,8 @@ def test_get_ohlc(manager):
     assert ohlc["traded_volume"] > 0
 
 
-def test_get_ohlc_batch(manager):
+@pytest.mark.asyncio
+async def test_get_ohlc_batch(manager):
     dt = datetime(2024, 1, 2)
     ids = [manager.resolve_instrument_id("AAPL"), manager.resolve_instrument_id("TSLA")]
     # Set the last SOD date to match the test date
@@ -57,7 +72,8 @@ def test_get_ohlc_batch(manager):
         assert ohlc["traded_volume"] > 0
 
 
-def test_validate_date_no_warning(manager, caplog):
+@pytest.mark.asyncio
+async def test_validate_date_no_warning(manager, caplog):
     # This test checks that no warning is logged when current_date matches the row date
     dt = datetime(2024, 1, 2)
     iid = manager.resolve_instrument_id("AAPL")

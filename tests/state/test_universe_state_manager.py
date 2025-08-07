@@ -19,27 +19,29 @@ from db.test_db_manager import unit_test_db_clean
 
 
 class TestUniverseStateManager:
-    """Test suite for UniverseStateManager class."""
-    
+    """Async DAO-based tests for UniverseStateManager (DB-backed interval logic only)."""
+
     @pytest.fixture
     def temp_dir(self):
         """Create temporary directory for testing."""
         temp_path = tempfile.mkdtemp()
         yield temp_path
         shutil.rmtree(temp_path)
-    
+
     @pytest.fixture
     def state_manager(self, temp_dir):
         """Create UniverseStateManager instance for testing."""
-        return UniverseStateManager(base_path=temp_dir)
-    
+        manager = UniverseStateManager(base_path=temp_dir)
+        from unittest.mock import AsyncMock
+        manager._interval_dao = AsyncMock()
+        return manager
+
     @pytest.fixture
     def sample_universe_data(self):
         """Create sample universe data for testing."""
         return pd.DataFrame({
             'symbol': ['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'AMZN'],
             'name': ['Apple Inc.', 'Alphabet Inc.', 'Microsoft Corp.', 'Tesla Inc.', 'Amazon.com Inc.'],
-            
             'exchange': ['NASDAQ', 'NASDAQ', 'NASDAQ', 'NASDAQ', 'NASDAQ'],
             'market_cap': [2800000000000, 1600000000000, 2400000000000, 800000000000, 1400000000000],
             'close_price': [150.0, 2500.0, 300.0, 800.0, 3200.0],
@@ -48,39 +50,127 @@ class TestUniverseStateManager:
             'as_of_date': ['2023-12-01'] * 5,
             'sector': ['Technology', 'Technology', 'Technology', 'Finance', 'Finance']
         })
-    
+
     @pytest.fixture
     def valid_timestamp(self):
         """Valid timestamp for testing."""
         return "20231201_120000"
-    
+
     def test_initialization(self, temp_dir):
         """Test UniverseStateManager initialization."""
         manager = UniverseStateManager(base_path=temp_dir)
-        
         assert manager.base_path == Path(temp_dir)
         assert manager.states_dir.exists()
         assert manager.metadata_dir.exists()
         assert manager.cache_dir.exists()
         assert isinstance(manager._cache, dict)
         assert len(manager._cache) == 0
-    
-    def test_initialization_default_path(self):
-        """Test initialization with default path."""
-        # get_environment removed; patch Environment or Gin config if needed
-        manager = UniverseStateManager()
-        assert manager.base_path == Path("data/universe_state")
-    
+
+    @pytest.mark.asyncio
+    async def test_save_universe_state_dao_called(self, state_manager, sample_universe_data, valid_timestamp):
+        """Test that save_universe_state calls DAO with correct arguments and updates cache."""
+        import datetime
+        from unittest.mock import AsyncMock
+        metadata = {
+            'universe_id': 1,
+            'duration': '1d',
+            'start_date_time': '2023-12-01T00:00:00',
+            'end_date_time': '2023-12-01T23:59:59'
+        }
+        # Convert to datetime if needed
+        if isinstance(metadata['start_date_time'], str):
+            metadata['start_date_time'] = datetime.datetime.fromisoformat(metadata['start_date_time'])
+        if isinstance(metadata['end_date_time'], str):
+            metadata['end_date_time'] = datetime.datetime.fromisoformat(metadata['end_date_time'])
+        assert isinstance(metadata['start_date_time'], datetime.datetime)
+        assert isinstance(metadata['end_date_time'], datetime.datetime)
+        state_manager._interval_dao.create = AsyncMock(return_value=42)
+        result = await state_manager.save_universe_state(sample_universe_data, valid_timestamp, metadata)
+        # Assert that the DAO was called with datetime objects
+        args, kwargs = state_manager._interval_dao.create.call_args
+        assert isinstance(kwargs['start_date_time'], datetime.datetime)
+        assert isinstance(kwargs['end_date_time'], datetime.datetime)
+        state_manager._interval_dao.create.assert_called_once_with(
+            universe_id=1,
+            duration='1d',
+            start_date_time=datetime.datetime(2023, 12, 1, 0, 0, 0),
+            end_date_time=datetime.datetime(2023, 12, 1, 23, 59, 59)
+        )
+        assert valid_timestamp in state_manager._cache
+        assert result == "db://universe_state_interval/42/20231201_120000"
+
+    @pytest.mark.asyncio
+    async def test_save_universe_state_missing_metadata(self, state_manager, sample_universe_data, valid_timestamp):
+        """Test save_universe_state raises if required metadata is missing."""
+        with pytest.raises(ValueError):
+            await state_manager.save_universe_state(sample_universe_data, valid_timestamp, metadata={})
+
+    @pytest.mark.asyncio
+    async def test_save_universe_state_empty_df(self, state_manager, valid_timestamp):
+        """Test save_universe_state raises on empty DataFrame."""
+        with pytest.raises(ValueError):
+            await state_manager.save_universe_state(pd.DataFrame(), valid_timestamp, metadata={
+                'universe_id': 1,
+                'duration': '1d',
+                'start_date_time': '2023-12-01T00:00:00',
+                'end_date_time': '2023-12-01T23:59:59'
+            })
+        state_manager._interval_dao.create = MagicMock(return_value=42)
+        result = await state_manager.save_universe_state(sample_universe_data, valid_timestamp, metadata)
+        state_manager._interval_dao.create.assert_called_once_with(
+            universe_id=1,
+            duration='1d',
+            start_date_time='2023-12-01T00:00:00',
+            end_date_time='2023-12-01T23:59:59'
+        )
+        assert valid_timestamp in state_manager._cache
+        assert result == "db://universe_state_interval/42/20231201_120000"
+
+    @pytest.mark.asyncio
+    async def test_save_universe_state_missing_metadata(self, state_manager, sample_universe_data, valid_timestamp):
+        """Test save_universe_state raises if required metadata is missing."""
+        with pytest.raises(ValueError):
+            await state_manager.save_universe_state(sample_universe_data, valid_timestamp, metadata={})
+
+    @pytest.mark.asyncio
+    async def test_save_universe_state_empty_df(self, state_manager, valid_timestamp):
+        """Test save_universe_state raises on empty DataFrame."""
+        with pytest.raises(ValueError):
+            await state_manager.save_universe_state(pd.DataFrame(), valid_timestamp, metadata={
+                'universe_id': 1,
+                'duration': '1d',
+                'start_date_time': '2023-12-01T00:00:00',
+                'end_date_time': '2023-12-01T23:59:59'
+            })
+
+    @pytest.mark.asyncio
+    async def test_save_universe_state_empty_df(self, state_manager, valid_timestamp):
+        """Test save_universe_state raises on empty DataFrame."""
+        with pytest.raises(ValueError):
+            await state_manager.save_universe_state(pd.DataFrame(), valid_timestamp, metadata={
+                'universe_id': 1,
+                'duration': '1d',
+                'start_date_time': '2023-12-01T00:00:00',
+                'end_date_time': '2023-12-01T23:59:59'
+            })
     @pytest.mark.asyncio
     async def test_save_universe_state_success(self, state_manager, sample_universe_data, valid_timestamp):
         """Test successful universe state saving to DB."""
+        state_manager._interval_dao.create.return_value = 42
         db_uri = await state_manager.save_universe_state(
             sample_universe_data, 
             valid_timestamp,
-            metadata={'data_sources': ['test'], 'universe_type': 'equity'}
+            metadata={
+                'universe_id': 1,
+                'duration': '1d',
+                'start_date_time': '2023-12-01T00:00:00',
+                'end_date_time': '2023-12-01T23:59:59',
+                'data_sources': ['test'],
+                'universe_type': 'equity'
+            }
         )
         # Check DB uri returned
-        assert db_uri.startswith("db://universe_state/")
+        assert db_uri.startswith("db://universe_state_interval/")
         # Verify data in cache
         assert valid_timestamp in state_manager._cache
         assert len(state_manager._cache[valid_timestamp]) == 5
@@ -104,114 +194,126 @@ class TestUniverseStateManager:
     async def test_load_universe_state_success(self, state_manager, sample_universe_data, valid_timestamp):
         """Test successful universe state loading from DB."""
         # First save data
-        await state_manager.save_universe_state(sample_universe_data, valid_timestamp)
+        await state_manager.save_universe_state(
+            sample_universe_data,
+            valid_timestamp,
+            metadata={
+                'universe_id': 1,
+                'duration': '1d',
+                'start_date_time': '2023-12-01T00:00:00',
+                'end_date_time': '2023-12-01T23:59:59'
+            }
+        )
         # Then load it
         loaded_data = await state_manager.load_universe_state(valid_timestamp)
         assert len(loaded_data) == 5
         assert set(list(loaded_data['symbol'])) == set(['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'AMZN'])
         assert loaded_data['market_cap'].dtype in ['float64', 'float32', 'int64', 'uint64', 'int32', 'uint32']  # DB may return float
     
-    def test_load_universe_state_with_filters(self, state_manager, sample_universe_data, valid_timestamp):
+    @pytest.mark.asyncio
+    async def test_load_universe_state_with_filters(self, state_manager, sample_universe_data, valid_timestamp):
         """Test loading universe state with filters."""
         # Save data first
-        state_manager.save_universe_state(sample_universe_data, valid_timestamp)
-        
+        await state_manager.save_universe_state(
+            sample_universe_data,
+            valid_timestamp,
+            metadata={
+                'universe_id': 1,
+                'duration': '1d',
+                'start_date_time': '2023-12-01T00:00:00',
+                'end_date_time': '2023-12-01T23:59:59'
+            }
+        )
         # Load with filters (PyArrow filter format)
         filters = [('sector', '=', 'Technology')]
-        loaded_data = state_manager.load_universe_state(valid_timestamp, filters=filters)
-        
+        loaded_data = await state_manager.load_universe_state(valid_timestamp, filters=filters)
         assert len(loaded_data) == 3  # Only Technology stocks
         assert all(loaded_data['sector'] == 'Technology')
-    
-    def test_load_universe_state_with_columns(self, state_manager, sample_universe_data, valid_timestamp):
+
+    @pytest.mark.asyncio
+    async def test_load_universe_state_with_columns(self, state_manager, sample_universe_data, valid_timestamp):
         """Test loading specific columns only."""
         # Save data first
-        state_manager.save_universe_state(sample_universe_data, valid_timestamp)
-        
+        await state_manager.save_universe_state(sample_universe_data, valid_timestamp, metadata={
+            'universe_id': 1,
+            'duration': '1d',
+            'start_date_time': '2023-12-01T00:00:00',
+            'end_date_time': '2023-12-01T23:59:59'
+        })
         # Load specific columns
         columns = ['symbol', 'market_cap']
-        loaded_data = state_manager.load_universe_state(valid_timestamp, columns=columns)
-        
+        loaded_data = await state_manager.load_universe_state(valid_timestamp, columns=columns)
         assert list(loaded_data.columns) == ['symbol', 'market_cap']
         assert len(loaded_data) == 5
-    
+
     def test_load_universe_state_not_found(self, state_manager):
         """Test loading non-existent universe state."""
         with pytest.raises(FileNotFoundError, match="Universe state not found"):
             state_manager.load_universe_state("20231201_999999")
-    
-    def test_load_universe_state_latest(self, state_manager, sample_universe_data):
+
+    @pytest.mark.asyncio
+    async def test_load_universe_state_latest(self, state_manager, sample_universe_data):
         """Test loading latest universe state."""
         # Save multiple states
         timestamps = ["20231201_120000", "20231202_120000", "20231203_120000"]
         for timestamp in timestamps:
-            state_manager.save_universe_state(sample_universe_data, timestamp)
-        
+            await state_manager.save_universe_state(sample_universe_data, timestamp)
         # Load latest (should be the last one)
-        loaded_data = state_manager.load_universe_state()
+        loaded_data = await state_manager.load_universe_state()
         assert len(loaded_data) == 5
-        
         # Verify it's the latest
         latest_timestamp = state_manager.get_latest_timestamp()
         assert latest_timestamp == "20231203_120000"
-    
+
     def test_get_latest_timestamp(self, state_manager, sample_universe_data):
         """Test getting latest timestamp."""
         # No states initially
         assert state_manager.get_latest_timestamp() is None
-        
         # Save states in random order
         timestamps = ["20231201_120000", "20231203_120000", "20231202_120000"]
         for timestamp in timestamps:
             state_manager.save_universe_state(sample_universe_data, timestamp)
-        
         # Should return the latest chronologically
         latest = state_manager.get_latest_timestamp()
         assert latest == "20231203_120000"
-    
+
     def test_list_available_states(self, state_manager, sample_universe_data):
         """Test listing available states."""
         # Save multiple states
         timestamps = ["20231201_120000", "20231202_120000", "20231203_120000"]
         for timestamp in timestamps:
             state_manager.save_universe_state(sample_universe_data, timestamp)
-        
         # List all states
         available = state_manager.list_available_states()
         assert len(available) == 3
         assert available == ["20231203_120000", "20231202_120000", "20231201_120000"]  # Sorted desc
-        
         # List with limit
         limited = state_manager.list_available_states(limit=2)
         assert len(limited) == 2
         assert limited == ["20231203_120000", "20231202_120000"]
-    
+
     def test_cleanup_old_states(self, state_manager, sample_universe_data):
         """Test cleanup of old states."""
         # Create states with different ages
         old_timestamp = (datetime.now() - timedelta(days=35)).strftime("%Y%m%d_%H%M%S")
         recent_timestamp = (datetime.now() - timedelta(days=5)).strftime("%Y%m%d_%H%M%S")
-        
         state_manager.save_universe_state(sample_universe_data, old_timestamp)
         state_manager.save_universe_state(sample_universe_data, recent_timestamp)
-        
         # Cleanup states older than 30 days
         removed_count = state_manager.cleanup_old_states(keep_days=30)
-        
         assert removed_count == 1
         available_states = state_manager.list_available_states()
         assert len(available_states) == 1
         assert available_states[0] == recent_timestamp
-    
-    def test_get_state_metadata(self, state_manager, sample_universe_data, valid_timestamp):
+
+    @pytest.mark.asyncio
+    async def test_get_state_metadata(self, state_manager, sample_universe_data, valid_timestamp):
         """Test getting state metadata."""
         # Save state with metadata
         metadata = {'data_sources': ['test'], 'universe_type': 'equity'}
-        state_manager.save_universe_state(sample_universe_data, valid_timestamp, metadata)
-        
+        await state_manager.save_universe_state(sample_universe_data, valid_timestamp, metadata)
         # Get metadata
         state_metadata = state_manager.get_state_metadata(valid_timestamp)
-        
         assert isinstance(state_metadata, UniverseStateMetadata)
         assert state_metadata.timestamp == valid_timestamp
         assert state_metadata.record_count == 5
@@ -220,21 +322,19 @@ class TestUniverseStateManager:
         assert state_metadata.columns == list(sample_universe_data.columns)
         assert state_metadata.data_sources == ['test']
         assert state_metadata.universe_type == 'equity'
-    
+
     def test_get_state_metadata_not_found(self, state_manager):
         """Test getting metadata for non-existent state."""
         with pytest.raises(FileNotFoundError, match="Metadata not found"):
             state_manager.get_state_metadata("20231201_999999")
-    
+
     def test_get_storage_stats(self, state_manager, sample_universe_data):
         """Test getting storage statistics."""
         # Save multiple states
         timestamps = ["20231201_120000", "20231202_120000"]
         for timestamp in timestamps:
             state_manager.save_universe_state(sample_universe_data, timestamp)
-        
         stats = state_manager.get_storage_stats()
-        
         assert stats['total_states'] == 2
         assert stats['total_size_bytes'] > 0
         assert stats['total_size_mb'] > 0
@@ -242,49 +342,44 @@ class TestUniverseStateManager:
         assert stats['cache_size'] == 2
         assert stats['latest_timestamp'] == "20231202_120000"
         assert stats['oldest_timestamp'] == "20231201_120000"
-    
-    def test_cache_functionality(self, state_manager, sample_universe_data, valid_timestamp):
+
+    @pytest.mark.asyncio
+    async def test_cache_functionality(self, state_manager, sample_universe_data, valid_timestamp):
         """Test caching functionality."""
         # Save data
-        state_manager.save_universe_state(sample_universe_data, valid_timestamp)
-        
+        await state_manager.save_universe_state(sample_universe_data, valid_timestamp)
         # First load (from file)
-        data1 = state_manager.load_universe_state(valid_timestamp, use_cache=True)
-        
+        data1 = await state_manager.load_universe_state(valid_timestamp, use_cache=True)
         # Second load (from cache)
         with patch('pandas.read_parquet') as mock_read:
-            data2 = state_manager.load_universe_state(valid_timestamp, use_cache=True)
+            data2 = await state_manager.load_universe_state(valid_timestamp, use_cache=True)
             mock_read.assert_not_called()  # Should not read from file
-        
         pd.testing.assert_frame_equal(data1, data2)
-    
+
     def test_cache_eviction(self, state_manager, sample_universe_data):
         """Test cache LRU eviction."""
         # Set small cache size for testing
         state_manager._max_cache_size = 2
-        
         # Save more states than cache size
         timestamps = ["20231201_120000", "20231202_120000", "20231203_120000"]
         for timestamp in timestamps:
             state_manager.save_universe_state(sample_universe_data, timestamp)
-        
         # Cache should only contain the last 2
         assert len(state_manager._cache) == 2
         assert "20231201_120000" not in state_manager._cache  # Evicted
         assert "20231202_120000" in state_manager._cache
         assert "20231203_120000" in state_manager._cache
-    
+
     def test_clear_cache(self, state_manager, sample_universe_data, valid_timestamp):
         """Test cache clearing."""
         # Save data and populate cache
         state_manager.save_universe_state(sample_universe_data, valid_timestamp)
         assert len(state_manager._cache) > 0
-        
         # Clear cache
         state_manager.clear_cache()
         assert len(state_manager._cache) == 0
         assert len(state_manager._cache_metadata) == 0
-    
+
     def test_data_type_optimization(self, state_manager):
         """Test data type optimization for better compression."""
         # Create data with suboptimal types
@@ -295,37 +390,40 @@ class TestUniverseStateManager:
             'categorical': ['A', 'B', 'A'],  # Should become category
             'price': [150.5, 2500.0, 300.0]
         })
-        
         optimized = state_manager._optimize_data_types(data.copy())
-        
         # Check optimizations
         assert optimized['small_int'].dtype == 'uint8'
         assert optimized['categorical'].dtype.name == 'category'
         assert optimized['price'].dtype == 'float64'  # Should remain float64
-    
+
     def test_timestamp_validation(self, state_manager):
         """Test timestamp format validation."""
         # Valid formats
         assert state_manager._validate_timestamp_format("20231201_120000")
         assert state_manager._validate_timestamp_format("20240229_235959")  # Leap year
-        
         # Invalid formats
         assert not state_manager._validate_timestamp_format("2023-12-01_12:00:00")
         assert not state_manager._validate_timestamp_format("20231301_120000")  # Invalid month
         assert not state_manager._validate_timestamp_format("20231201_250000")  # Invalid hour
         assert not state_manager._validate_timestamp_format("invalid")
-    
-    def test_metadata_creation_and_saving(self, state_manager, sample_universe_data, valid_timestamp):
+
+    @pytest.mark.asyncio
+    async def test_metadata_creation_and_saving(self, state_manager, sample_universe_data, valid_timestamp):
         """Test metadata creation and saving."""
         additional_metadata = {
             'data_sources': ['polygon', 'tiingo'],
             'universe_type': 'equity',
             'version': '2.0'
         }
-        
         # Save with metadata
-        state_manager.save_universe_state(sample_universe_data, valid_timestamp, additional_metadata)
-        
+        from datetime import datetime
+        if isinstance(additional_metadata.get('start_date_time'), str):
+            additional_metadata['start_date_time'] = datetime.fromisoformat(additional_metadata['start_date_time'])
+        if isinstance(additional_metadata.get('end_date_time'), str):
+            additional_metadata['end_date_time'] = datetime.fromisoformat(additional_metadata['end_date_time'])
+        assert isinstance(additional_metadata['start_date_time'], datetime)
+        assert isinstance(additional_metadata['end_date_time'], datetime)
+        await state_manager.save_universe_state(sample_universe_data, valid_timestamp, additional_metadata)
         # Load and verify metadata
         metadata = state_manager.get_state_metadata(valid_timestamp)
         assert metadata.data_sources == ['polygon', 'tiingo']
@@ -333,26 +431,34 @@ class TestUniverseStateManager:
         assert metadata.version == '2.0'
         assert metadata.record_count == 5
         assert len(metadata.columns) == len(sample_universe_data.columns)
-    
-    def test_error_handling_file_operations(self, state_manager, sample_universe_data, valid_timestamp):
+
+    @pytest.mark.asyncio
+    async def test_error_handling_file_operations(self, state_manager, sample_universe_data, valid_timestamp):
         """Test error handling in file operations."""
         # Mock file operations to raise errors
         with patch('pandas.DataFrame.to_parquet', side_effect=IOError("Disk full")):
             with pytest.raises(IOError, match="Failed to save universe state"):
-                state_manager.save_universe_state(sample_universe_data, valid_timestamp)
-        
+                await state_manager.save_universe_state(sample_universe_data, valid_timestamp, metadata={
+                    'universe_id': 1,
+                    'duration': '1d',
+                    'start_date_time': '2023-12-01T00:00:00',
+                    'end_date_time': '2023-12-01T23:59:59'
+                })
         # Mock read operations to raise errors
-        state_manager.save_universe_state(sample_universe_data, valid_timestamp)
-        
+        await state_manager.save_universe_state(sample_universe_data, valid_timestamp, metadata={
+            'universe_id': 1,
+            'duration': '1d',
+            'start_date_time': '2023-12-01T00:00:00',
+            'end_date_time': '2023-12-01T23:59:59'
+        })
         with patch('pandas.read_parquet', side_effect=IOError("File corrupted")):
             with pytest.raises(IOError, match="Failed to load universe state"):
-                state_manager.load_universe_state(valid_timestamp, use_cache=False)
-    
+                await state_manager.load_universe_state(valid_timestamp, use_cache=False)
+
     def test_concurrent_access_safety(self, state_manager, sample_universe_data):
         """Test thread safety for concurrent access."""
         import threading
         import time
-        
         results = []
         errors = []
         

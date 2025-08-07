@@ -24,8 +24,23 @@ class Runner:
     universe_id: int, callbacks: List[str], base_duration: str):
         self.env = environment
         self.universe_id = universe_id
-        self.start_date = datetime.strptime(start_date, "%Y-%m-%d")
-        self.end_date = datetime.strptime(end_date, "%Y-%m-%d")
+        from datetime import datetime, date
+        print(f"[DEBUG] Runner.__init__ received start_date: {start_date!r} (type: {type(start_date)})")
+        print(f"[DEBUG] Runner.__init__ received end_date: {end_date!r} (type: {type(end_date)})")
+        if isinstance(start_date, str):
+            self.start_date = datetime.strptime(start_date, "%Y-%m-%d")
+        elif isinstance(start_date, (datetime, date)):
+            self.start_date = start_date if isinstance(start_date, datetime) else datetime.combine(start_date, datetime.min.time())
+        else:
+            raise TypeError(f"start_date must be str or date/datetime, got {type(start_date)}")
+        if isinstance(end_date, str):
+            self.end_date = datetime.strptime(end_date, "%Y-%m-%d")
+        elif isinstance(end_date, (datetime, date)):
+            self.end_date = end_date if isinstance(end_date, datetime) else datetime.combine(end_date, datetime.min.time())
+        else:
+            raise TypeError(f"end_date must be str or date/datetime, got {type(end_date)}")
+        print(f"[DEBUG] Runner.__init__ final self.start_date: {self.start_date!r} (type: {type(self.start_date)})")
+        print(f"[DEBUG] Runner.__init__ final self.end_date: {self.end_date!r} (type: {type(self.end_date)})")
         self.duration = TimeDuration(base_duration)  # expects TimeDuration
         self.callbacks: List[RunnerCallback] = self._init_callbacks(callbacks)
         self.security_master = SecurityMaster(self.env)

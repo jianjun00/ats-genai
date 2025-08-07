@@ -4,6 +4,7 @@ import asyncio
 from pathlib import Path
 from signals.indicator_config import IndicatorConfig
 from signals.indicator import ETop, EBot, PL
+from datetime import datetime
 from app.runner_utils import run_file_daily_price_ohlcv
 from market_data.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
 
@@ -29,13 +30,7 @@ def main():
     }
     # Only use the selected vendor for now
     vendors_dirs = {args.vendor: vendors_dirs[args.vendor]}
-    # Get instrument_ids for the symbols
-    market_data_manager = FileDailyPriceMarketDataManager(vendors_dirs)
-    symbol_to_id = {v: k for k, v in market_data_manager._id_to_symbol.items()}
-    instrument_ids = [symbol_to_id[s] for s in args.symbols if s in symbol_to_id]
-    if not instrument_ids:
-        print(f"No instrument IDs found for symbols: {args.symbols}")
-        return
+
     indicator_config = IndicatorConfig(indicators={
         'ETop': ETop,
         'EBot': EBot,
@@ -70,13 +65,29 @@ def main():
     env = Environment(env_type=env_type, db_url=db_url)
     env.get_table_name = lambda table: f"{args.environment}_" + table
     # Run
+    from datetime import datetime, date
+    start_date = datetime.strptime(args.start_date, "%Y-%m-%d").date()
+    end_date = datetime.strptime(args.end_date, "%Y-%m-%d").date()
+    assert isinstance(start_date, date)
+    assert isinstance(end_date, date)
+    # Fetch instrument_ids from universe_membership
+    from dao.universe_membership_dao import UniverseMembershipDAO
+    universe_id = 1  # hardcoded or from args if needed
+    membership_dao = UniverseMembershipDAO(env)
+    import asyncio
+    active_memberships = asyncio.run(membership_dao.get_active_memberships(universe_id, start_date))
+    instrument_ids = [row['instrument_id'] for row in active_memberships if row.get('instrument_id') is not None]
+    print(f"[DEBUG] instrument_ids from universe_membership: {instrument_ids}")
+    if not instrument_ids:
+        print(f"No instrument IDs found in universe_membership for universe_id={universe_id} as_of={start_date}")
+        return
     asyncio.run(run_file_daily_price_ohlcv(
         vendors_dirs=vendors_dirs,
         instrument_ids=instrument_ids,
-        start_date=args.start_date,
-        end_date=args.end_date,
+        start_date=start_date,
+        end_date=end_date,
         env=env,
-        universe_id=1,
+        universe_id=universe_id,
         output_dir=output_dir,
         indicator_config=indicator_config,
         print_ohlcv=True,
