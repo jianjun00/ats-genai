@@ -144,6 +144,17 @@ class UniverseStateIntervalBuilder(RunnerCallback):
                 instrument_indicator_intervals=instrument_indicator_intervals
             )
             duration_to_state[duration] = universe_state
+        # --- Debug: Check for empty intervals before saving ---
+        all_empty = True
+        for dur, state in duration_to_state.items():
+            df = state.to_dataframe()
+            self.logger.debug(f"[DEBUG] UniverseStateIntervalBuilder: duration={dur}, DataFrame shape={df.shape}")
+            if not df.empty:
+                all_empty = False
+            else:
+                self.logger.warning(f"[DEBUG] duration={dur} produced empty DataFrame at {current_time}")
+        if all_empty:
+            self.logger.warning(f"[DEBUG] All intervals produced empty DataFrames at {current_time}. Universe state will not be saved.")
         if hasattr(runner, 'universe_state_manager'):
             print(f"[BUILDER] id(runner.universe_state_manager): {id(runner.universe_state_manager)}")
             runner.universe_state_manager.addUniverseState(duration_to_state, current_time)

@@ -7,6 +7,9 @@ from market_data.market_data_manager import MarketDataManager
 from state.instrument_interval import InstrumentInterval
 from .unify_daily_prices import FileDailyPricesUnifier
 
+from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+from config.environment import Environment
+
 class FileDailyPriceMarketDataManager(MarketDataManager):
     """
     Loads daily prices from file-based vendor directories and reconciles using FileDailyPricesUnifier.
@@ -16,11 +19,12 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
             'polygon': 'tests/data/daily_prices_polygon',
             'tiingo': 'tests/data/daily_prices_tiingo'
         }
-        mgr = FileDailyPriceMarketDataManager(vendors_dirs)
+        mgr = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env)
     """
-    def __init__(self, vendors_dirs: Dict[str, str], symbols: Optional[List[str]] = None):
+    def __init__(self, vendors_dirs: Dict[str, str], env: Environment, symbols: Optional[List[str]] = None):
         print(f"[DEBUG][FileDailyPriceMarketDataManager.__init__2] vendors_dirs={vendors_dirs}, symbols={symbols}")
         self.vendors_dirs = vendors_dirs
+        self.env = env
         self.symbols = symbols  # If None, will infer from files
         self._intervals: Dict[int, InstrumentInterval] = {}
         self._last_prices: Dict[int, Dict[str, float]] = {}
@@ -28,7 +32,12 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
         self._id_to_symbol: Dict[int, str] = {}
         self._last_sod_date: Optional[date] = None  # Track the last SOD event date
         print(f"[DEBUG][FileDailyPriceMarketDataManager.__init__] _last_sod_date initialized to None, id(self)={id(self)}")
-        self._load_symbol_mappings()
+
+    @classmethod
+    async def create_async(cls, vendors_dirs: Dict[str, str], env: Environment, symbols: Optional[List[str]] = None):
+        self = cls.__new__(cls)
+        cls.__init__(self, vendors_dirs, env, symbols)
+        await self._load_symbol_mappings()
         print(f"[DEBUG][_load_symbol_mappings] _symbol_to_id: {self._symbol_to_id}, _id_to_symbol: {self._id_to_symbol}")
         self._load_vendor_data()
         print(f"[DEBUG][_load_vendor_data] Loaded data for symbols: {list(self.vendor_data.keys())}")
@@ -37,6 +46,33 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
             tiingo_data=self.vendor_data.get('tiingo', {}),
             polygon_data=self.vendor_data.get('polygon', {})
         )
+        return self
+
+    async def _load_symbol_mappings(self):
+        # Use InstrumentXrefsDAO to resolve instrument IDs for each symbol
+        xrefs_dao = InstrumentXrefsDAO(self.env)
+        if self.symbols is None:
+            found = set()
+            for vendor, d in self.vendors_dirs.items():
+                for fname in os.listdir(d):
+                    if fname.endswith('_response.json'):
+                        parts = fname.split('_')
+                        symbol = parts[1].upper() if len(parts) > 1 else None
+                        if symbol:
+                            found.add(symbol)
+            self.symbols = sorted(found)
+        self._symbol_to_id = {}
+        self._id_to_symbol = {}
+        for s in self.symbols:
+            instrument_id = await xrefs_dao.resolve_instrument_id(s)
+            if instrument_id is not None:
+                self._symbol_to_id[s] = instrument_id
+                self._id_to_symbol[instrument_id] = s
+            else:
+                print(f"[DEBUG][_load_symbol_mappings] WARNING: Could not resolve instrument_id for symbol {s}")
+        print(f"[DEBUG][_load_symbol_mappings] Loaded symbols: {list(self._symbol_to_id.keys())}")
+        print(f"[DEBUG][_load_symbol_mappings] symbol_to_id: {self._symbol_to_id}")
+        print(f"[DEBUG][_load_symbol_mappings] id_to_symbol: {self._id_to_symbol}")
 
     def set_last_sod_date(self, sod_date: date):
         """Set the last SOD event date for current_date logic (for test or event simulation)."""
@@ -47,45 +83,32 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
         print(f"[DEBUG][get_last_sod_date] Accessing _last_sod_date={self._last_sod_date} on id(self)={id(self)}")
         return self._last_sod_date
 
-    def _load_symbol_mappings(self):
-        # For now, assign instrument_id as 1, 2, ... for each symbol
-        if self.symbols is None:
-            # Infer symbols from files (look for *_response.json)
-            found = set()
-            for vendor, d in self.vendors_dirs.items():
-                for fname in os.listdir(d):
-                    if fname.endswith('_response.json'):
-                        parts = fname.split('_')
-                        symbol = parts[1].upper() if len(parts) > 1 else None
-                        if symbol:
-                            found.add(symbol)
-            self.symbols = sorted(found)
-        self._symbol_to_id = {s: i+1 for i, s in enumerate(self.symbols)}
-        self._id_to_symbol = {i+1: s for i, s in enumerate(self.symbols)}
-        print(f"[DEBUG][_load_symbol_mappings] Loaded symbols: {list(self._symbol_to_id.keys())}")
-        print(f"[DEBUG][_load_symbol_mappings] symbol_to_id: {self._symbol_to_id}")
-        print(f"[DEBUG][_load_symbol_mappings] id_to_symbol: {self._id_to_symbol}")
 
     def _load_vendor_data(self):
+        print(f"[DEBUG][_load_vendor_data] vendors_dirs={self.vendors_dirs}")
         self.vendor_data = {}
         for vendor, d in self.vendors_dirs.items():
+            print(f"[DEBUG][_load_vendor_data] Processing vendor={vendor}, dir={d}")
             data = {}
-            for fname in os.listdir(d):
+            files = os.listdir(d)
+            print(f"[DEBUG][_load_vendor_data] Files in {d}: {files}")
+            for fname in files:
                 if fname.endswith('_response.json'):
+                    print(f"[DEBUG][_load_vendor_data] Found response file: {fname}")
                     parts = fname.split('_')
                     symbol = parts[1].upper() if len(parts) > 1 else None
+                    print(f"[DEBUG][_load_vendor_data] Parsed symbol: {symbol}")
                     if not symbol:
                         continue
                     fpath = os.path.join(d, fname)
                     with open(fpath) as f:
                         if vendor == 'polygon':
                             resp = json.load(f)
-                            # Polygon format: { 'results': [ {o,h,l,c,v,t,...}, ... ] }
+                            print(f"[DEBUG][_load_vendor_data] Loaded polygon JSON for {symbol}, {len(resp.get('results', []))} bars")
                             for row in resp.get('results', []):
-                                # Robustly handle dt from either timestamp or string/date
                                 t_val = row.get('t')
-                                if isinstance(t_val, (int, float)):
-                                    dt = datetime.utcfromtimestamp(t_val/1000).date()
+                                if t_val is not None:
+                                    dt = datetime.utcfromtimestamp(t_val / 1000).date()
                                 elif isinstance(t_val, str):
                                     try:
                                         dt = datetime.strptime(t_val[:10], '%Y-%m-%d').date()
