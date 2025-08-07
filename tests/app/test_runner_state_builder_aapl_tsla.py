@@ -250,11 +250,12 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
         print(f"Full universe state loaded from {full_file}, shape: {full_df.shape}")
         print(full_df)
 
-def test_runner_event_iterator(monkeypatch):
+def test_runner_event_iterator(unit_test_db, monkeypatch):
     """
     Test that Runner.iter_events yields the correct (datetime, type) sequence for interval and EOD events.
     """
-    env = Environment(EnvironmentType.TEST)
+    # Use the provided test DB URL for this non-async test
+    env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     # Patch callbacks config to avoid callback unpacking error
     monkeypatch.setattr(env, 'get', lambda section, key, default=None: [] if (section, key) == ('runner', 'callbacks') else env.__class__.get(env, section, key, default))
     start_date = "2025-07-01"
