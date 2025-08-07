@@ -1,0 +1,12 @@
+syntax = "proto3";
+package state;
+
+import "instrument_interval.proto";
+
+message FactorInterval {
+    int32 id = 1;
+    string name = 2;
+    string start_date_time = 3;
+    string end_date_time = 4;
+    map<int32, InstrumentInterval> instrument_intervals = 5;
+}

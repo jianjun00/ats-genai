@@ -1,0 +1,16 @@
+syntax = "proto3";
+package state;
+
+message InstrumentInterval {
+    int32 instrument_id = 1;
+    string start_date_time = 2;
+    string end_date_time = 3;
+    double open = 4;
+    double high = 5;
+    double low = 6;
+    double close = 7;
+    double traded_volume = 8;
+    double traded_dollar = 9;
+    string status = 10;
+    double market_cap = 11;
+}
