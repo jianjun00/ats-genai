@@ -116,3 +116,33 @@ class InstrumentXrefsDAO:
                 return None
         finally:
             await pool.close()
+
+    async def create_xrefs_batch(self, xrefs: list[dict], pool_min_size: int = 1, pool_max_size: int = 1) -> list[int]:
+        """
+        Batch insert xrefs. Each dict must have keys: instrument_id, vendor_id, symbol, start_at, type, end_at
+        Returns list of inserted IDs (order matches input).
+        """
+        if not xrefs:
+            return []
+        pool = await asyncpg.create_pool(self.db_url, min_size=pool_min_size, max_size=pool_max_size)
+        try:
+            async with pool.acquire() as conn:
+                stmt = f"""
+                    INSERT INTO {self.table_name} (instrument_id, vendor_id, symbol, type, start_at, end_at)
+                    SELECT x.instrument_id, x.vendor_id, x.symbol, x.type, x.start_at, x.end_at
+                    FROM UNNEST(
+                        $1::int[], $2::int[], $3::text[], $4::text[], $5::date[], $6::date[]
+                    ) AS x(instrument_id, vendor_id, symbol, type, start_at, end_at)
+                    ON CONFLICT (instrument_id, vendor_id, start_at) DO NOTHING
+                    RETURNING id
+                """
+                instrument_ids = [x['instrument_id'] for x in xrefs]
+                vendor_ids = [x['vendor_id'] for x in xrefs]
+                symbols = [x['symbol'] for x in xrefs]
+                types = [x.get('type') for x in xrefs]
+                start_ats = [x['start_at'] for x in xrefs]
+                end_ats = [x.get('end_at') for x in xrefs]
+                rows = await conn.fetch(stmt, instrument_ids, vendor_ids, symbols, types, start_ats, end_ats)
+                return [row['id'] for row in rows]
+        finally:
+            await pool.close()

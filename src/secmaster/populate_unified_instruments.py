@@ -209,12 +209,31 @@ async def populate_unified_instruments(polygon_dao, instruments_dao, xrefs_dao, 
     import time
     results = []
     i = 0
+    import asyncpg
+    import time
     while i < len(batches):
         batch_futures = []
         for _ in range(min(RAY_NUM_WORKERS, len(batches)-i)):
             batch_futures.append(process_batch.remote(batches[i], env_args, debug))
             i += 1
-        results.extend(ray.get(batch_futures))
+        # Robust DB overload handling
+        retry_wait = 5  # seconds
+        max_retries = 10
+        for attempt in range(max_retries):
+            try:
+                results.extend(ray.get(batch_futures))
+                break
+            except Exception as e:
+                # Detect asyncpg TooManyConnectionsError in Ray remote error chain
+                err_str = str(e)
+                if "TooManyConnectionsError" in err_str or "too many clients already" in err_str:
+                    print(f"[WARN] DB overloaded (TooManyConnectionsError). Waiting {retry_wait}s before retrying batch (attempt {attempt+1}/{max_retries})...")
+                    time.sleep(retry_wait)
+                else:
+                    raise
+        else:
+            print("[ERROR] TooManyConnectionsError persists after retries. Exiting batch processing.")
+            raise RuntimeError("Database overloaded: TooManyConnectionsError after retries")
         time.sleep(0.1)
     print(f"[INFO] Completed {len(results)} batches, total inserted: {sum(results)}")
 

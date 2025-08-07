@@ -35,3 +35,43 @@ class InstrumentsDAO:
                 return await conn.fetch(f"SELECT * FROM {self.table_name}")
         finally:
             await pool.close()
+
+    async def get_instrument_by_symbol(self, symbol: str):
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                return await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE symbol = $1", symbol)
+        finally:
+            await pool.close()
+
+    async def create_instruments_batch(self, instruments: list[dict], pool_min_size: int = 1, pool_max_size: int = 1) -> list[int]:
+        """
+        Batch insert instruments. Each dict must have keys: symbol, name, exchange, type_, currency, list_date, delist_date
+        Returns list of inserted IDs (order matches input).
+        """
+        if not instruments:
+            return []
+        pool = await asyncpg.create_pool(self.db_url, min_size=pool_min_size, max_size=pool_max_size)
+        try:
+            async with pool.acquire() as conn:
+                stmt = f"""
+                    INSERT INTO {self.table_name} (symbol, name, exchange, type, currency, list_date, delist_date)
+                    SELECT x.symbol, x.name, x.exchange, x.type, x.currency, x.list_date, x.delist_date
+                    FROM UNNEST(
+                        $1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::date[], $7::date[]
+                    ) AS x(symbol, name, exchange, type, currency, list_date, delist_date)
+                    ON CONFLICT (symbol) DO NOTHING
+                    RETURNING id
+                """
+                # Transpose dicts to columns
+                symbols = [i['symbol'] for i in instruments]
+                names = [i.get('name') for i in instruments]
+                exchanges = [i.get('exchange') for i in instruments]
+                types = [i.get('type_') for i in instruments]
+                currencies = [i.get('currency') for i in instruments]
+                list_dates = [i.get('list_date') for i in instruments]
+                delist_dates = [i.get('delist_date') for i in instruments]
+                rows = await conn.fetch(stmt, symbols, names, exchanges, types, currencies, list_dates, delist_dates)
+                return [row['id'] for row in rows]
+        finally:
+            await pool.close()

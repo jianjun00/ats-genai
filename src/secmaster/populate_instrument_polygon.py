@@ -24,80 +24,97 @@ from requests.exceptions import ConnectionError
 
 import ray
 
+import requests, asyncpg, json
+from datetime import datetime
+from requests.exceptions import ConnectionError
+import time
+
+def parse_date(val):
+    if not val:
+        return None
+    try:
+        return datetime.strptime(val[:10], "%Y-%m-%d").date()
+    except Exception:
+        return None
+
+async def batch_upsert_details(details, db_url, table_name):
+    if not details:
+        return
+    pool = await asyncpg.create_pool(db_url, min_size=1, max_size=1)
+    async with pool.acquire() as conn:
+        rows = [
+            (
+                d.get('ticker'),
+                d.get('name'),
+                d.get('primary_exchange'),
+                d.get('type'),
+                d.get('currency_name'),
+                d.get('share_class_figi'),
+                d.get('isin'),
+                d.get('cusip'),
+                d.get('composite_figi'),
+                d.get('active'),
+                parse_date(d.get('list_date')),
+                parse_date(d.get('delisted_utc')),
+                json.dumps(d)
+            )
+            for d in details
+        ]
+        sql = f"""
+            INSERT INTO {table_name} (symbol, name, exchange, type, currency, figi, isin, cusip, composite_figi, active, list_date, delist_date, raw, updated_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now())
+            ON CONFLICT (symbol) DO UPDATE SET
+                name=EXCLUDED.name,
+                exchange=EXCLUDED.exchange,
+                type=EXCLUDED.type,
+                currency=EXCLUDED.currency,
+                figi=EXCLUDED.figi,
+                isin=EXCLUDED.isin,
+                cusip=EXCLUDED.cusip,
+                composite_figi=EXCLUDED.composite_figi,
+                active=EXCLUDED.active,
+                list_date=EXCLUDED.list_date,
+                delist_date=EXCLUDED.delist_date,
+                raw=EXCLUDED.raw,
+                updated_at=now()
+        """
+        await conn.executemany(sql, rows)
+    await pool.close()
+
 @ray.remote
-def fetch_and_upsert_ray(symbol, db_url, table_name, polygon_api_key):
-    import requests, asyncpg, json
-    from datetime import datetime
-    from requests.exceptions import ConnectionError
-    import time
-    def parse_date(val):
-        if not val:
-            return None
-        try:
-            return datetime.strptime(val[:10], "%Y-%m-%d").date()
-        except Exception:
-            return None
-    detail_url = f"https://api.polygon.io/v3/reference/tickers/{symbol}?apiKey={polygon_api_key}"
-    for attempt in range(3):
-        try:
-            resp = requests.get(detail_url)
-            if resp.status_code != 200:
-                print(f"[RAY][ERROR] {symbol}: {resp.status_code} {resp.text}")
-                continue
-            detail = resp.json().get('results', {})
-            # Only upsert if list_date is present
-            if not detail.get('list_date'):
-                print(f"[RAY][INFO] Skipping {symbol} (no list_date)")
-                return (symbol, 'skipped')
-            # DB upsert
-            async def upsert():
-                pool = await asyncpg.create_pool(db_url, min_size=1, max_size=1)
-                async with pool.acquire() as conn:
-                    await conn.execute(
-                        f"""
-                        INSERT INTO {table_name} (symbol, name, exchange, type, currency, figi, isin, cusip, composite_figi, active, list_date, delist_date, raw, updated_at)
-                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now())
-                        ON CONFLICT (symbol) DO UPDATE SET
-                            name=EXCLUDED.name,
-                            exchange=EXCLUDED.exchange,
-                            type=EXCLUDED.type,
-                            currency=EXCLUDED.currency,
-                            figi=EXCLUDED.figi,
-                            isin=EXCLUDED.isin,
-                            cusip=EXCLUDED.cusip,
-                            composite_figi=EXCLUDED.composite_figi,
-                            active=EXCLUDED.active,
-                            list_date=EXCLUDED.list_date,
-                            delist_date=EXCLUDED.delist_date,
-                            raw=EXCLUDED.raw,
-                            updated_at=now()
-                        """,
-                        detail.get('ticker'),
-                        detail.get('name'),
-                        detail.get('primary_exchange'),
-                        detail.get('type'),
-                        detail.get('currency_name'),
-                        detail.get('share_class_figi'),
-                        detail.get('isin'),
-                        detail.get('cusip'),
-                        detail.get('composite_figi'),
-                        detail.get('active'),
-                        parse_date(detail.get('list_date')),
-                        parse_date(detail.get('delisted_utc')),
-                        json.dumps(detail)
-                    )
-                await pool.close()
-            import asyncio
-            asyncio.run(upsert())
-            print(f"[RAY][SUCCESS] {symbol}")
-            return (symbol, 'ok')
-        except ConnectionError as e:
-            print(f"[RAY][ERROR] Connection error for {symbol}: {e}, retrying...")
-            time.sleep(2 ** attempt)
-        except Exception as e:
-            print(f"[RAY][ERROR] {symbol}: {e}")
-            return (symbol, 'fail')
-    return (symbol, 'fail')
+def fetch_and_upsert_ray(symbols, db_url, table_name, polygon_api_key):
+    details = []
+    results = []
+    for symbol in symbols:
+        detail_url = f"https://api.polygon.io/v3/reference/tickers/{symbol}?apiKey={polygon_api_key}"
+        for attempt in range(3):
+            try:
+                resp = requests.get(detail_url)
+                if resp.status_code != 200:
+                    print(f"[RAY][ERROR] {symbol}: {resp.status_code} {resp.text}")
+                    continue
+                detail = resp.json().get('results', {})
+                if not detail.get('list_date'):
+                    print(f"[RAY][INFO] Skipping {symbol} (no list_date)")
+                    results.append((symbol, 'skipped'))
+                    break
+                details.append(detail)
+                results.append((symbol, 'ok'))
+                break
+            except ConnectionError as e:
+                print(f"[RAY][ERROR] Connection error for {symbol}: {e}, retrying...")
+                time.sleep(2 ** attempt)
+            except Exception as e:
+                print(f"[RAY][ERROR] {symbol}: {e}")
+                results.append((symbol, 'fail'))
+                break
+        else:
+            results.append((symbol, 'fail'))
+    import asyncio
+    asyncio.run(batch_upsert_details(details, db_url, table_name))
+    for symbol, status in results:
+        print(f"[RAY][RESULT] {symbol}: {status}")
+    return results
 
 async def fetch_and_store_instruments(start_ticker='', ticker=None):
     import ray
@@ -158,9 +175,13 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
     table_name = env.get_table_name('instrument_polygon')
     print(f"Submitting {len(all_symbols)} Ray tasks...")
     batch_size = 3  # Limit concurrency for DB and rate limits
+    # Group all_symbols into batches
+    def batcher(seq, size):
+        for i in range(0, len(seq), size):
+            yield seq[i:i+size]
     tasks = []
-    for symbol in all_symbols:
-        tasks.append(fetch_and_upsert_ray.remote(symbol, db_url, table_name, POLYGON_API_KEY))
+    for batch in batcher(all_symbols, batch_size):
+        tasks.append(fetch_and_upsert_ray.remote(batch, db_url, table_name, POLYGON_API_KEY))
         if len(tasks) >= batch_size:
             results = ray.get(tasks)
             print(f"Processed batch: {results}")

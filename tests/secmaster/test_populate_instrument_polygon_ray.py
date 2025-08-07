@@ -55,6 +55,8 @@ async def test_ray_remote_db_args(monkeypatch):
         async def __aenter__(self): return fake_conn
         async def __aexit__(self, exc_type, exc, tb): return False
     fake_pool.acquire = MagicMock(return_value=DummyContext())
+    async def fake_close(): return None
+    fake_pool.close = fake_close
     async def fake_create_pool(*args, **kwargs): return fake_pool
     monkeypatch.setattr("asyncpg.create_pool", fake_create_pool)
     # Patch requests.get to return a valid detail
@@ -77,3 +79,35 @@ async def test_ray_remote_db_args(monkeypatch):
     parsed_list_date, parsed_delisted = ray_core_logic(detail, 'dburl', 'table', 'apikey')
     assert isinstance(parsed_list_date, datetime.date)
     assert isinstance(parsed_delisted, datetime.date)
+
+@pytest.mark.asyncio
+async def test_ray_batched_upsert(monkeypatch):
+    # Patch asyncpg.create_pool
+    import secmaster.populate_instrument_polygon as pip
+    fake_pool = MagicMock()
+    fake_conn = MagicMock()
+    fake_pool.acquire = MagicMock(return_value=fake_conn)
+    fake_pool.close = MagicMock()
+    class DummyContext:
+        async def __aenter__(self): return fake_conn
+        async def __aexit__(self, exc_type, exc, tb): return False
+    fake_pool.acquire = MagicMock(return_value=DummyContext())
+    async def fake_close(): return None
+    fake_pool.close = fake_close
+    async def fake_create_pool(*args, **kwargs): return fake_pool
+    monkeypatch.setattr("asyncpg.create_pool", fake_create_pool)
+    # Patch conn.executemany to check batch rows
+    async def fake_executemany(sql, rows):
+        assert len(rows) == 2
+        assert rows[0][0] == "AAPL"
+        assert rows[1][0] == "TSLA"
+        assert isinstance(rows[0][10], datetime.date)
+        assert rows[1][11] is None or isinstance(rows[1][11], datetime.date)
+        return None
+    fake_conn.executemany = fake_executemany
+    # Prepare details as would be collected by Ray fetch
+    details = [
+        {"ticker": "AAPL", "name": "Apple Inc", "primary_exchange": "NASDAQ", "type": "CS", "currency_name": "USD", "share_class_figi": "", "isin": "", "cusip": "", "composite_figi": "", "active": True, "list_date": "2021-06-10", "delisted_utc": "2022-01-01T00:00:00Z"},
+        {"ticker": "TSLA", "name": "Tesla Inc", "primary_exchange": "NASDAQ", "type": "CS", "currency_name": "USD", "share_class_figi": "", "isin": "", "cusip": "", "composite_figi": "", "active": True, "list_date": "2020-01-01", "delisted_utc": None}
+    ]
+    await pip.batch_upsert_details(details, "dburl", "table")
