@@ -55,8 +55,8 @@ async def run_file_daily_price_ohlcv(
     universe_id = env.get_universe_id()
     intervals = await dao.list(
         universe_id=universe_id,
-        start_date=datetime.fromisoformat(start_date),
-        end_date=datetime.fromisoformat(end_date)
+        start_date_time=start_date,
+        end_date_time=end_date
     )
     if not intervals:
         raise RuntimeError('No universe state intervals found in DB.')
