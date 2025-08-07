@@ -213,7 +213,7 @@ class UniverseStateManager:
                     'status': inst_interval.status,
                 }
             # Output indicator values in long format
-            for indicator_type, inst_dict in universe_state.indicator_intervals.items():
+            for indicator_type, inst_dict in universe_state.instrument_indicator_intervals.items():
                 for inst_id, indicator_interval in inst_dict.items():
                     key = (indicator_interval.instrument_id, indicator_interval.start_date_time, indicator_interval.end_date_time, duration_str)
                     if key not in instrument_rows:

@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional, Dict
-from src.state.factor_interval import FactorInterval
-from src.state.instrument_interval import InstrumentInterval
-from src.state.indicator_interval import IndicatorInterval
+from state.factor_interval import FactorInterval
+from state.instrument_interval import InstrumentInterval
+from state.indicator_interval import IndicatorInterval
 
 @dataclass
 class UniverseState:

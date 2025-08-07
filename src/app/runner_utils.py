@@ -48,16 +48,21 @@ async def run_file_daily_price_ohlcv(
     runner.universe_state_manager = universe_state_manager
     await runner.run()
 
-    # Gather state files
-    states_dir = os.path.join(output_dir, 'states')
-    state_files = []
-    for root, dirs, files in os.walk(states_dir):
-        for file in files:
-            if file.startswith('universe_state_') and file.endswith('.parquet'):
-                state_files.append(os.path.join(root, file))
-    if not state_files:
-        raise RuntimeError('No universe state files created.')
-    dfs = [pd.read_parquet(f) for f in sorted(state_files)]
+    # Fetch universe state intervals from DB using DAO
+    from dao.universe_state_interval_dao import UniverseStateIntervalDAO
+    from datetime import datetime
+    dao = UniverseStateIntervalDAO(env)
+    universe_id = env.get_universe_id()
+    intervals = await dao.list(
+        universe_id=universe_id,
+        start_date=datetime.fromisoformat(start_date),
+        end_date=datetime.fromisoformat(end_date)
+    )
+    if not intervals:
+        raise RuntimeError('No universe state intervals found in DB.')
+    # Convert intervals to DataFrame (assuming to_dataframe exists or build manually)
+    dfs = [interval.to_dataframe() for interval in intervals]
+    import pandas as pd
     df = pd.concat(dfs, ignore_index=True)
     if df.empty:
         raise RuntimeError('Universe state DataFrame is empty.')

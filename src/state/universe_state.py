@@ -15,6 +15,45 @@ from .proto import time_duration_pb2
 
 @dataclass
 class UniverseStateInterval:
+    def to_dataframe(self):
+        """
+        Flatten all instrument_intervals and instrument_indicator_intervals into a pandas DataFrame.
+        Returns columns: start_date_time, instrument_id, open, high, low, close, volume, indicator_name, indicator_value
+        """
+        import pandas as pd
+        rows = []
+        # Instrument intervals: OHLCV
+        for inst_id, ii in self.instrument_intervals.items():
+            rows.append({
+                'start_date_time': self.start_date_time,
+                'end_date_time': self.end_date_time,
+                'instrument_id': inst_id,
+                'open': ii.open,
+                'high': ii.high,
+                'low': ii.low,
+                'close': ii.close,
+                'volume': getattr(ii, 'traded_volume', 0),
+                'indicator_name': None,
+                'indicator_value': None
+            })
+        # Instrument indicator intervals
+        for ind_type, ind_map in self.instrument_indicator_intervals.items():
+            for inst_id, ind_int in ind_map.items():
+                for name, val in ind_int.indicators.items():
+                    rows.append({
+                        'start_date_time': ind_int.start_date_time,
+                        'end_date_time': ind_int.end_date_time,
+                        'instrument_id': inst_id,
+                        'open': None,
+                        'high': None,
+                        'low': None,
+                        'close': None,
+                        'volume': None,
+                        'indicator_name': name,
+                        'indicator_value': val.get('value')
+                    })
+        return pd.DataFrame(rows)
+
     # ... existing fields ...
 
     def to_proto(self):
