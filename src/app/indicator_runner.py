@@ -45,8 +45,19 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
     # Setup environment
     from config.environment import Environment, EnvironmentType
-    env_map = {'test': EnvironmentType.TEST, 'intg': EnvironmentType.INTG, 'prod': EnvironmentType.PROD}
-    env_type = env_map[args.environment]
+    # Robust mapping from CLI arg to EnvironmentType
+    env_map = {
+        'test': EnvironmentType.TEST,
+        'intg': EnvironmentType.INTEGRATION,
+        'integration': EnvironmentType.INTEGRATION,
+        'prod': EnvironmentType.PRODUCTION,
+        'production': EnvironmentType.PRODUCTION
+    }
+    env_key = args.environment.lower()
+    if env_key not in env_map:
+        print(f"[ERROR] Unknown environment: {args.environment}. Supported: test, intg, prod")
+        return
+    env_type = env_map[env_key]
     db_url = args.db_url
     if db_url is None:
         # Attempt to use default from config, or error if required
