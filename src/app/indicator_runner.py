@@ -58,8 +58,15 @@ def main():
         print(f"[ERROR] Unknown environment: {args.environment}. Supported: test, intg, prod")
         return
     env_type = env_map[env_key]
-    db_url = args.db_url  # may be None
-    # Pass db_url (may be None) to Environment, which will auto-discover if possible
+    # Determine correct db_url based on environment, unless overridden by --db_url
+    if args.db_url:
+        db_url = args.db_url
+    elif env_type == EnvironmentType.INTEGRATION:
+        db_url = "postgresql://postgres:postgres@localhost:5432/intg_db"  # Integration DB
+    elif env_type == EnvironmentType.TEST:
+        db_url = "postgresql://postgres:postgres@localhost:5432/test_db"  # Test DB
+    else:
+        db_url = None
     env = Environment(env_type=env_type, db_url=db_url)
     env.get_table_name = lambda table: f"{args.environment}_" + table
     # Run

@@ -1,0 +1,32 @@
+--- a/tests/signals/test_indicator_builder.py
++++ b/tests/signals/test_indicator_builder.py
+@@
++
+def test_indicator_builder_7_day_print():
++    from signals.indicator import ETop, EBot, OneOneDot, PL
++    # Setup
++    config = DummyIndicatorConfig()
++    # Add ETop, EBot, and OneOneDot for printout
++    config.indicators['ETop'] = ETop
++    config.indicators['EBot'] = EBot
++    config.indicators['PLDot'] = OneOneDot
++    builder = IndicatorBuilder(config)
++    base_time = datetime(2025, 7, 20)
++    n_days = 8  # 2025-07-20 to 2025-07-27 inclusive
++    rolling_cache = {
++        1: make_intervals(1, base_time, n_days),
++        2: make_intervals(2, base_time, n_days),
++    }
++    # Build indicator intervals (simulate a 1-day window at a time)
++    for i in range(n_days):
++        window_start = base_time + timedelta(days=i)
++        window_end = window_start + timedelta(hours=1)
++        res = builder.build_indicator_intervals({k: v[:i+1] for k,v in rolling_cache.items()}, window_start, window_end)
++        for iid in [1,2]:
++            interval = res[iid]
++            print(f"Instrument {iid} | Date {window_start.date()} | ", end='')
++            print(f"Open={interval.open} High={interval.high} Low={interval.low} Close={interval.close}", end=' ')
++            etop = interval.get_indicator_value('ETop')
++            ebot = interval.get_indicator_value('EBot')
++            pldot = interval.get_indicator_value('PLDot')
++            print(f"ETop={etop} EBot={ebot} PLDot={pldot}")
