@@ -62,3 +62,46 @@ async def test_universe_state_interval_dao_roundtrip(unit_test_db):
 
     # Clean up
     await dao.delete(id)
+
+
+@pytest.mark.asyncio
+async def test_universe_state_interval_dao_list_filters(unit_test_db):
+    """
+    Test UniverseStateIntervalDAO.list with start_date_time and end_date_time filters.
+    """
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
+    dao = UniverseStateIntervalDAO(env)
+    universe_id = 99
+    duration = "1d"
+    base_time = datetime(2025, 8, 7, 9, 0)
+    # Insert 3 intervals, 1h apart
+    ids = []
+    for i in range(3):
+        start = base_time + timedelta(hours=i)
+        end = start + timedelta(hours=1)
+        id = await dao.create(universe_id, duration, start, end)
+        ids.append(id)
+    # Filter: should only get the middle interval
+    filter_start = base_time + timedelta(hours=1)
+    filter_end = base_time + timedelta(hours=2)
+    results = await dao.list(
+        universe_id=universe_id,
+        start_date_time=filter_start,
+        end_date_time=filter_end
+    )
+    assert len(results) == 1
+    assert results[0]["start_date_time"] == filter_start
+    assert results[0]["end_date_time"] == filter_end
+    # Filter: out of range (should return empty)
+    results = await dao.list(
+        universe_id=universe_id,
+        start_date_time=base_time + timedelta(hours=5),
+        end_date_time=base_time + timedelta(hours=6)
+    )
+    assert results == []
+    # Filter: only by universe_id (should return all 3)
+    results = await dao.list(universe_id=universe_id)
+    assert len(results) == 3
+    # Clean up
+    for id in ids:
+        await dao.delete(id)

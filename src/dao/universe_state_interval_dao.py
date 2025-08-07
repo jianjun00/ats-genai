@@ -38,19 +38,25 @@ class UniverseStateIntervalDAO:
         finally:
             await conn.close()
 
-    async def list(self, universe_id: int = None) -> list:
-        """List UniverseStateIntervals, optionally filter by universe_id."""
+    async def list(self, universe_id: int = None, start_date_time: str = None, end_date_time: str = None) -> list:
+        """List UniverseStateIntervals, optionally filter by universe_id, start_date_time, and end_date_time."""
         conn = await asyncpg.connect(self.db_url)
         try:
+            query = f"SELECT * FROM {self.env.get_table_name('universe_state_interval')}"
+            filters = []
+            params = []
             if universe_id is not None:
-                rows = await conn.fetch(
-                    f"SELECT * FROM {self.env.get_table_name('universe_state_interval')} WHERE universe_id = $1",
-                    universe_id
-                )
-            else:
-                rows = await conn.fetch(
-                    f"SELECT * FROM {self.env.get_table_name('universe_state_interval')}"
-                )
+                filters.append("universe_id = $%d" % (len(params) + 1))
+                params.append(universe_id)
+            if start_date_time is not None:
+                filters.append("start_date_time >= $%d" % (len(params) + 1))
+                params.append(start_date_time)
+            if end_date_time is not None:
+                filters.append("end_date_time <= $%d" % (len(params) + 1))
+                params.append(end_date_time)
+            if filters:
+                query += " WHERE " + " AND ".join(filters)
+            rows = await conn.fetch(query, *params)
             return [dict(row) for row in rows]
         finally:
             await conn.close()
