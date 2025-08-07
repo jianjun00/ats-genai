@@ -13,7 +13,7 @@ async def run_file_daily_price_ohlcv(
     instrument_ids: List[int],
     start_date: str,
     end_date: str,
-    db_url: Optional[str] = None,
+    env,
     universe_id: int = 1,
     output_dir: Optional[str] = None,
     indicator_config=None,
@@ -23,9 +23,7 @@ async def run_file_daily_price_ohlcv(
     """
     Run the file-based daily price runner and print OHLCV for each symbol/date.
     """
-    # Setup environment
-    env = Environment(env_type=EnvironmentType.TEST, db_url=db_url)
-    env.get_table_name = lambda table: f"test_{table}"
+    # Use provided environment
     if indicator_config is not None:
         env.get_indicator_config = lambda: indicator_config
 

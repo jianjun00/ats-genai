@@ -15,6 +15,8 @@ def parse_args():
     parser.add_argument('--end-date', required=True, help='End date (YYYY-MM-DD)')
     parser.add_argument('--vendor', default='polygon', choices=['polygon', 'tiingo'], help='Vendor to use for prices')
     parser.add_argument('--data-dir', default=None, help='Base data directory (defaults to ../data/)')
+    parser.add_argument('--environment', default='test', choices=['test', 'intg', 'prod'], help='Environment type')
+    parser.add_argument('--db-url', default=None, help='Database URL (overrides environment default)')
     return parser.parse_args()
 
 
@@ -41,13 +43,24 @@ def main():
     })
     output_dir = os.path.join(os.getcwd(), 'indicator_runner_output')
     os.makedirs(output_dir, exist_ok=True)
+    # Setup environment
+    from config.environment import Environment, EnvironmentType
+    env_map = {'test': EnvironmentType.TEST, 'intg': EnvironmentType.INTG, 'prod': EnvironmentType.PROD}
+    env_type = env_map[args.environment]
+    db_url = args.db_url
+    if db_url is None:
+        # Attempt to use default from config, or error if required
+        print("[ERROR] --db-url must be provided unless your Environment class supports auto-discovery.")
+        return
+    env = Environment(env_type=env_type, db_url=db_url)
+    env.get_table_name = lambda table: f"{args.environment}_" + table
     # Run
     asyncio.run(run_file_daily_price_ohlcv(
         vendors_dirs=vendors_dirs,
         instrument_ids=instrument_ids,
         start_date=args.start_date,
         end_date=args.end_date,
-        db_url=None,  # Use default test DB config
+        env=env,
         universe_id=1,
         output_dir=output_dir,
         indicator_config=indicator_config,
