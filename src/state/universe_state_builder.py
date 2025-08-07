@@ -62,19 +62,35 @@ class UniverseStateBuilder(RunnerCallback):
             ohlc = ohlc_batch.get(inst_id)
             print(f"[DEBUG][handleInterval] ohlc for inst_id {inst_id}: {ohlc}")
             if ohlc:
+                # Use None for missing OHLC fields; mark interval as 'missing' if all are None
+                open_ = ohlc.get('open') if ohlc.get('open') is not None else None
+                high_ = ohlc.get('high') if ohlc.get('high') is not None else None
+                low_ = ohlc.get('low') if ohlc.get('low') is not None else None
+                close_ = ohlc.get('close') if ohlc.get('close') is not None else None
+                volume_ = ohlc.get('volume') if ohlc.get('volume') is not None else None
+                all_none = all(x is None for x in [open_, high_, low_, close_, volume_])
+                status = 'missing' if all_none else 'ok'
+                traded_dollar = (close_ * volume_) if (close_ is not None and volume_ is not None) else None
                 interval = InstrumentInterval(
                     instrument_id=inst_id,
                     start_date_time=current_time,
                     end_date_time=base_end_time,
-                    open=ohlc.get('open', 0.0),
-                    high=ohlc.get('high', 0.0),
-                    low=ohlc.get('low', 0.0),
-                    close=ohlc.get('close', 0.0),
-                    traded_volume=ohlc.get('volume', 0.0),
-                    traded_dollar=ohlc.get('close', 0.0) * ohlc.get('volume', 0.0),
-                    status='ok',
+                    open=open_,
+                    high=high_,
+                    low=low_,
+                    close=close_,
+                    traded_volume=volume_,
+                    traded_dollar=traded_dollar,
+                    status=status,
                     market_cap=market_caps.get(inst_id)
                 )
+                import math
+                ohlc_fields = ['open', 'high', 'low', 'close']
+                ohlc_vals = [getattr(interval, f) for f in ohlc_fields]
+                nan_fields = [f for f, v in zip(ohlc_fields, ohlc_vals) if v is None or (isinstance(v, float) and math.isnan(v))]
+                self.logger.debug(f"[INTERVAL CONSTRUCTED] instrument_id={inst_id}, start={interval.start_date_time}, end={interval.end_date_time}, open={interval.open}, high={interval.high}, low={interval.low}, close={interval.close}, traded_volume={interval.traded_volume}, traded_dollar={interval.traded_dollar}, status={interval.status}, market_cap={interval.market_cap}")
+                if nan_fields:
+                    self.logger.warning(f"[INTERVAL NAN/None] instrument_id={inst_id}, fields_with_nan_or_none={nan_fields}, values={[getattr(interval, f) for f in nan_fields]}, interval={interval}")
                 if inst_id not in self.instrument_history:
                     self.instrument_history[inst_id] = []
                 self.instrument_history[inst_id].append(interval)

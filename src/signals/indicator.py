@@ -38,6 +38,9 @@ class UniverseState:
 
 
 
+import logging
+import math
+
 class Indicator:
     def __init__(self):
         self.status: Optional[str] = None
@@ -64,17 +67,41 @@ class PL(Indicator):
         self.latest_pl: Optional[float] = None
 
     def update(self, intervals: List[InstrumentInterval]):
+        import logging
+        import math
         self.update_at = datetime.now()
+        logging.debug('[PL] update called: intervals=%d, instrument_id=%s', len(intervals), getattr(intervals[-1], 'instrument_id', None) if intervals else None)
         if len(intervals) < 3:
+            logging.debug('[PL] Not enough intervals: %s', intervals)
             self.status = 'invalid'
             self.latest_pl = None
             return
         last_three = intervals[-3:]
-        if any(i.status != 'ok' for i in last_three):
+        for i in last_three:
+            ohlc = {x: getattr(i, x, None) for x in ['high', 'low', 'close']}
+            logging.debug('[PL] interval: instrument_id=%s, date=%s, OHLC=%s, status=%s', getattr(i, 'instrument_id', None), getattr(i, 'start_date_time', None), ohlc, i.status)
+            if i.status != 'ok':
+                logging.debug('[PL] Invalid status: %s', i.status)
+                self.status = 'invalid'
+                self.latest_pl = None
+                return
+            for k, v in ohlc.items():
+                if v is None or (isinstance(v, float) and math.isnan(v)):
+                    logging.debug('[PL] NaN or None detected: %s=%s for instrument_id=%s at %s', k, v, getattr(i, 'instrument_id', None), getattr(i, 'start_date_time', None))
+                    self.status = 'invalid'
+                    self.latest_pl = None
+                    return
+        vals = []
+        for i in last_three:
+            if i.high is None or i.low is None or i.close is None:
+                logging.debug('[PL] Skipping interval with None OHLC: instrument_id=%s, date=%s, high=%s, low=%s, close=%s', getattr(i, 'instrument_id', None), getattr(i, 'start_date_time', None), i.high, i.low, i.close)
+                continue
+            vals.append((i.high + i.low + i.close) / 3.0)
+        if len(vals) < 3:
+            logging.debug('[PL] Not enough valid intervals for PL calculation. vals=%s', vals)
             self.status = 'invalid'
             self.latest_pl = None
             return
-        vals = [(i.high + i.low + i.close) / 3.0 for i in last_three]
         self.latest_pl = sum(vals) / 3.0
         self.status = 'ok'
 
@@ -91,13 +118,31 @@ class OneOneHigh(Indicator):
         self.latest_high: Optional[float] = None
 
     def update(self, intervals: List[InstrumentInterval]):
+        import logging
+        import math
         self.update_at = datetime.now()
+        logging.debug('[OneOneHigh] update called: intervals=%d, instrument_id=%s', len(intervals), getattr(intervals[-1], 'instrument_id', None) if intervals else None)
         if len(intervals) < 1:
+            logging.debug('[OneOneHigh] Not enough intervals: %s', intervals)
             self.status = 'invalid'
             self.latest_high = None
             return
         current = intervals[-1]
+        ohlc = {x: getattr(current, x, None) for x in ['high', 'low', 'close']}
+        logging.debug('[OneOneHigh] interval: instrument_id=%s, date=%s, OHLC=%s, status=%s', getattr(current, 'instrument_id', None), getattr(current, 'start_date_time', None), ohlc, current.status)
         if current.status != 'ok':
+            logging.debug('[OneOneHigh] Invalid status: %s', current.status)
+            self.status = 'invalid'
+            self.latest_high = None
+            return
+        for k, v in ohlc.items():
+            if v is None or (isinstance(v, float) and math.isnan(v)):
+                logging.debug('[OneOneHigh] NaN or None detected: %s=%s for instrument_id=%s at %s', k, v, getattr(current, 'instrument_id', None), getattr(current, 'start_date_time', None))
+                self.status = 'invalid'
+                self.latest_high = None
+                return
+        if any(getattr(current, x, None) is None or (isinstance(getattr(current, x, None), float) and math.isnan(getattr(current, x, None))) for x in ['high', 'low', 'close']):
+            logging.debug('[OneOneHigh] Current interval has None/NaN OHLC: %s', current)
             self.status = 'invalid'
             self.latest_high = None
             return
@@ -118,13 +163,16 @@ class OneOneLow(Indicator):
         self.latest_low: Optional[float] = None
 
     def update(self, intervals: List[InstrumentInterval]):
+        import logging
         self.update_at = datetime.now()
         if len(intervals) < 1:
+            logging.debug('[OneOneLow] Not enough intervals: %s', intervals)
             self.status = 'invalid'
             self.latest_low = None
             return
         current = intervals[-1]
-        if current.status != 'ok':
+        if current.status != 'ok' or any(getattr(current, x, None) is None or (isinstance(getattr(current, x, None), float) and math.isnan(getattr(current, x, None))) for x in ['high', 'low', 'close']):
+            logging.debug('[OneOneLow] Invalid or missing OHLC: %s', current)
             self.status = 'invalid'
             self.latest_low = None
             return
@@ -145,13 +193,23 @@ class OneOneDot(Indicator):
         self.latest_dot: Optional[float] = None
 
     def update(self, intervals: List[InstrumentInterval]):
+        import logging
         self.update_at = datetime.now()
         if len(intervals) < 1:
+            logging.debug('[OneOneDot] Not enough intervals: %s', intervals)
             self.status = 'invalid'
             self.latest_dot = None
             return
+        # Check all intervals for status and OHLC presence
+        for i in intervals:
+            if i.status != 'ok' or any(getattr(i, x, None) is None or (isinstance(getattr(i, x, None), float) and math.isnan(getattr(i, x, None))) for x in ['high', 'low', 'close']):
+                logging.debug('[OneOneDot] Invalid or missing OHLC: %s', i)
+                self.status = 'invalid'
+                self.latest_dot = None
+                return
         last = intervals[-1]
-        if last.status != 'ok':
+        if any(getattr(last, x, None) is None or (isinstance(getattr(last, x, None), float) and math.isnan(getattr(last, x, None))) for x in ['high', 'low', 'close']):
+            logging.debug('[OneOneDot] Last interval has None/NaN OHLC: %s', last)
             self.status = 'invalid'
             self.latest_dot = None
             return
@@ -181,16 +239,27 @@ class EBot(Indicator):
         oneonelows = []
         for i in range(3):
             current = last_three[i]
-            if i == 0:
-                prior_index = -4 if len(intervals) >= 4 else None
-            else:
-                prior_index = -(3 - i + 1)
-            if current.status != 'ok' or prior_index is None or abs(prior_index) > len(intervals):
+            if current.status != 'ok':
+                self.status = 'invalid'
+                self.latest_ebot = None
+                return
+            if any(getattr(current, x, None) is None or (isinstance(getattr(current, x, None), float) and math.isnan(getattr(current, x, None))) for x in ['high', 'low', 'close']):
+                logging.debug('[EBot] Current interval has None/NaN OHLC: %s', current)
+                self.status = 'invalid'
+                self.latest_ebot = None
+                return
+            prior_index = -(3 - i + 1)
+            if prior_index is None or abs(prior_index) > len(intervals):
                 self.status = 'invalid'
                 self.latest_ebot = None
                 return
             prior = intervals[prior_index]
             if prior.status != 'ok':
+                self.status = 'invalid'
+                self.latest_ebot = None
+                return
+            if any(getattr(prior, x, None) is None or (isinstance(getattr(prior, x, None), float) and math.isnan(getattr(prior, x, None))) for x in ['high', 'low', 'close']):
+                logging.debug('[EBot] Prior interval has None/NaN OHLC: %s', prior)
                 self.status = 'invalid'
                 self.latest_ebot = None
                 return
