@@ -83,9 +83,26 @@ class TestDatabaseManager:
             test_db_name = db_config['database']
             print(f"[DEBUG] Creating test DB: {test_db_name}")
             await self._create_test_database(test_db_name)
-            #test_db_url = self.db_url.replace(base_db_name, test_db_name)
             test_db_url = self.db_url
             print(f"[DEBUG] Using test DB URL: {test_db_url}, test_db_name: {test_db_name}")
+            # Run migrations after DB creation
+            if self.run_migrations:
+                print(f"[DEBUG] Running migrations on test DB: {test_db_name}")
+                migration_manager = MigrationManager(self.db_url)
+                await migration_manager.migrate_to_latest()
+                # --- DEBUG: Check table visibility with asyncpg right after migration ---
+                import asyncpg
+                try:
+                    pool = await asyncpg.create_pool(self.db_url)
+                    async with pool.acquire() as conn:
+                        tables = await conn.fetch("""
+                            SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename
+                        """)
+                        print(f"[DEBUG] (asyncpg) Tables in DB after migration: {[t['tablename'] for t in tables]}")
+                    await pool.close()
+                except Exception as e:
+                    print(f"[DEBUG] (asyncpg) Could not list tables after migration: {e}")
+                # --- END DEBUG ---
         else:
             # Use shared integration database
             test_db_url = self.db_url

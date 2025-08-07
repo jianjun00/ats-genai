@@ -4,7 +4,7 @@ from state.instrument_interval import InstrumentInterval
 from state.indicator_interval import IndicatorInterval
 from signals.indicator_builder import IndicatorBuilder
 from signals.indicator_config import IndicatorConfig
-from signals.indicator import PL, OneOneHigh, OneOneLow, OneOneDot
+from signals.indicator import PL, OneOneHigh, OneOneLow, OneOneDot, ETop, EBot
 
 class DummyIndicatorConfig:
     def __init__(self):
@@ -114,3 +114,33 @@ def test_indicator_builder_multiple_instruments_and_edge_cases():
     for name in config.indicators:
         assert res[3].get_indicator_status(name) == 'invalid'
         assert res[3].get_indicator_value(name) is None
+
+def test_indicator_builder_7_day_print():
+    # Setup
+    config = DummyIndicatorConfig()
+    # Add ETop, EBot, and OneOneDot for printout
+    config.indicators['ETop'] = ETop
+    config.indicators['EBot'] = EBot
+    config.indicators['PLDot'] = OneOneDot
+    builder = IndicatorBuilder(config)
+    base_time = datetime(2025, 7, 20)
+    n_days = 8  # 2025-07-20 to 2025-07-27 inclusive
+    rolling_cache = {
+        1: make_intervals(1, base_time, n_days),
+        2: make_intervals(2, base_time, n_days),
+    }
+    # Build indicator intervals (simulate a 1-day window at a time)
+    for i in range(n_days):
+        window_start = base_time + timedelta(days=i)
+        window_end = window_start + timedelta(hours=1)
+        res = builder.build_indicator_intervals({k: v[:i+1] for k,v in rolling_cache.items()}, window_start, window_end)
+        for iid in [1,2]:
+            # Get InstrumentInterval for this instrument/date
+            instr_interval = rolling_cache[iid][i]
+            indicator_interval = res[iid]
+            print(f"Instrument {iid} | Date {window_start.date()} | ", end='')
+            print(f"Open={instr_interval.open} High={instr_interval.high} Low={instr_interval.low} Close={instr_interval.close}", end=' ')
+            etop = indicator_interval.get_indicator_value('ETop')
+            ebot = indicator_interval.get_indicator_value('EBot')
+            pldot = indicator_interval.get_indicator_value('PLDot')
+            print(f"ETop={etop} EBot={ebot} PLDot={pldot}")

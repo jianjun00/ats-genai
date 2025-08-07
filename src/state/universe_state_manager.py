@@ -57,7 +57,7 @@ class UniverseStateManager:
         # Explicitly initialize saved_dir at the very start
         local_saved_dir = saved_dir
         logger.debug(f"handleEnd: ENTRY at {current_time}, saved_dir={local_saved_dir}")
-        print(f"handleEnd: Saving full universe state at {current_time}, saved_dir: {local_saved_dir}")
+        logger.debug(f"handleEnd: Saving full universe state at {current_time}, saved_dir: {local_saved_dir}")
         import pandas as pd
         # Determine input and output directories separately
         search_dir = local_saved_dir if local_saved_dir is not None else self.states_dir
@@ -84,7 +84,7 @@ class UniverseStateManager:
         out_file = out_dir / f"full_universe_state_{timestamp}.parquet"
         logger.debug(f"handleEnd: Writing full universe state to {out_file} ({len(full_df)} records)")
         full_df.to_parquet(out_file, index=False)
-        logger.info(f"handleEnd: Saved full universe state to {out_file} with {len(full_df)} records.")
+        logger.debug(f"handleEnd: Saved full universe state to {out_file} with {len(full_df)} records.")
         logger.debug(f"handleEnd: EXIT at {current_time}")
     
     def __init__(self, env=None, base_path: Optional[str] = None):
@@ -130,10 +130,10 @@ class UniverseStateManager:
         if not self._validate_timestamp_format(timestamp):
             raise ValueError(f"Invalid timestamp format: {timestamp}")
 
-        self.logger.info(f"save_universe_state: Saving DataFrame with shape {universe_data.shape} to {file_path}")
+        self.logger.debug(f"save_universe_state: Saving DataFrame with shape {universe_data.shape} to {file_path}")
         try:
             universe_data.to_parquet(file_path, index=False)
-            self.logger.info(f"save_universe_state: Successfully saved Parquet file: {file_path}")
+            self.logger.debug(f"save_universe_state: Successfully saved Parquet file: {file_path}")
         except Exception as e:
             self.logger.error(f"save_universe_state: Failed to save Parquet file: {file_path}, error: {e}")
             raise IOError(f"Failed to save universe state: {e}")
@@ -160,9 +160,9 @@ class UniverseStateManager:
         import pandas as pd
         rows = []
         for duration_str, universe_interval in intervals.items():
-            self.logger.info(f"addIntervals: Adding intervals for {duration_str} at {current_time}")
+            self.logger.debug(f"addIntervals: Adding intervals for {duration_str} at {current_time}")
             for inst_id, inst_interval in universe_interval.instrument_intervals.items():
-                self.logger.info(f"addIntervals: Adding row for instr:{inst_id}, interval:{inst_interval}")
+                self.logger.debug(f"addIntervals: Adding row for instr:{inst_id}, interval:{inst_interval}")
                 row = {
                     'instrument_id': inst_interval.instrument_id,
                     'duration': duration_str,
@@ -185,23 +185,26 @@ class UniverseStateManager:
             return
         timestamp = current_time.strftime('%Y%m%d_%H%M%S')
         self.save_universe_state(df, timestamp)
-        self.logger.info(f"addIntervals: Saved universe state for {timestamp} with {len(df)} records.")
+        self.logger.debug(f"addIntervals: Saved universe state for {timestamp} with {len(df)} records.")
 
     def addUniverseState(self, duration_to_state: dict, current_time):
         """
         Accepts a dict of TimeDuration -> UniverseState, flattens all states to a DataFrame, and saves using save_universe_state.
         """
         import pandas as pd
-        self.logger.info(f"addUniverseState: Adding UniverseStates for {len(duration_to_state)} durations at {current_time}")
+        self.logger.debug(f"addUniverseState: Adding UniverseStates for {len(duration_to_state)} durations at {current_time}")
         rows = []
         seen_keys = set()
+        long_rows = []
         for duration, universe_state in duration_to_state.items():
             duration_str = str(duration)
-            # Flatten instrument intervals
+            # Build a mapping for instrument intervals
+            instrument_rows = {}
             for inst_id, inst_interval in universe_state.instrument_intervals.items():
-                row = {
-                    'duration': duration_str,
+                key = (inst_interval.instrument_id, inst_interval.start_date_time, inst_interval.end_date_time, duration_str)
+                instrument_rows[key] = {
                     'instrument_id': inst_interval.instrument_id,
+                    'duration': duration_str,
                     'start_date_time': inst_interval.start_date_time,
                     'end_date_time': inst_interval.end_date_time,
                     'open': inst_interval.open,
@@ -212,50 +215,40 @@ class UniverseStateManager:
                     'traded_dollar': inst_interval.traded_dollar,
                     'status': inst_interval.status,
                 }
-                key = (inst_interval.instrument_id, inst_interval.start_date_time, inst_interval.end_date_time, duration_str)
-                if key in seen_keys:
-                    self.logger.warning(f"[DUPLICATE ROW DETECTED] instrument_id={inst_interval.instrument_id}, start={inst_interval.start_date_time}, end={inst_interval.end_date_time}, duration={duration_str}, row={row}")
-                else:
-                    seen_keys.add(key)
-                self.logger.debug(f"[ROW OUTPUT] idx={len(rows)}, instrument_id={inst_interval.instrument_id}, start={inst_interval.start_date_time}, end={inst_interval.end_date_time}, open={inst_interval.open}, high={inst_interval.high}, low={inst_interval.low}, close={inst_interval.close}, traded_volume={inst_interval.traded_volume}, traded_dollar={inst_interval.traded_dollar}, status={inst_interval.status}, duration={duration_str}")
-                rows.append(row)
-            # Flatten indicator intervals (as additional rows per indicator type/instrument)
+            # Output indicator values in long format
             for indicator_type, inst_dict in universe_state.indicator_intervals.items():
                 for inst_id, indicator_interval in inst_dict.items():
-                    base_row = {
-                        'duration': duration_str,
-                        'instrument_id': indicator_interval.instrument_id,
-                        'start_date_time': indicator_interval.start_date_time,
-                        'end_date_time': indicator_interval.end_date_time,
-                        'indicator_type': indicator_type,
-                    }
+                    key = (indicator_interval.instrument_id, indicator_interval.start_date_time, indicator_interval.end_date_time, duration_str)
+                    if key not in instrument_rows:
+                        continue
+                    base_row = instrument_rows[key]
                     for ind_name, ind_val in (indicator_interval.indicators or {}).items():
-                        row = base_row.copy()
-                        row['indicator_name'] = ind_name
-                        row['indicator_value'] = ind_val.get('value')
-                        row['indicator_status'] = ind_val.get('status')
-                        self.logger.debug(f"[ROW OUTPUT - INDICATOR] idx={len(rows)}, instrument_id={indicator_interval.instrument_id}, start={indicator_interval.start_date_time}, end={indicator_interval.end_date_time}, indicator_type={indicator_type}, indicator_name={ind_name}, indicator_value={ind_val.get('value')}, indicator_status={ind_val.get('status')}, duration={duration_str}")
-                        rows.append(row)
-        df = pd.DataFrame(rows)
+                        # Use the indicator name as provided (preserve capitalization)
+                        long_row = base_row.copy()
+                        long_row['indicator_name'] = ind_name
+                        long_row['indicator_value'] = ind_val.get('value')
+                        long_row['indicator_status'] = ind_val.get('status')
+                        long_rows.append(long_row)
+        df = pd.DataFrame(long_rows)
         if df.empty:
             self.logger.warning(f"addUniverseState: No data to save at {current_time}")
             return
         timestamp = current_time.strftime('%Y%m%d_%H%M%S')
         self.save_universe_state(df, timestamp)
-        self.logger.info(f"addUniverseState: Saved universe state for {timestamp} with {len(df)} records.")
+        self.logger.debug(f"addUniverseState: Saved universe state for {timestamp} with {len(df)} records.")
 
     def update_for_sod(self, runner, current_time):
         """
         Start-of-day hook for UniverseStateManager. Implement flushing, finalization, or logging if needed.
         """
-        self.logger.info(f"UniverseStateManager.update_for_sod called at {current_time}")
+        self.logger.debug(f"UniverseStateManager.update_for_sod called at {current_time}")
         # Add EOD logic if needed
 
     def update_for_eod(self, runner, current_time):
         """
         End-of-day hook for UniverseStateManager. Implement flushing, finalization, or logging if needed.
         """
-        self.logger.info(f"UniverseStateManager.update_for_eod called at {current_time}")
+        self.logger.debug(f"UniverseStateManager.update_for_eod called at {current_time}")
         # Add EOD logic if needed
 
     def load_universe_state(self, 
@@ -402,7 +395,7 @@ class UniverseStateManager:
                         del self._cache_metadata[timestamp]
                     
                     removed_count += 1
-                    self.logger.info(f"Removed old universe state: {timestamp}")
+                    self.logger.debug(f"Removed old universe state: {timestamp}")
                     
             except Exception as e:
                 self.logger.warning(f"Failed to remove old state {file_path}: {e}")
@@ -475,7 +468,7 @@ class UniverseStateManager:
         """Clear in-memory cache."""
         self._cache.clear()
         self._cache_metadata.clear()
-        self.logger.info("Universe state cache cleared")
+        self.logger.debug("Universe state cache cleared")
     
     # Private helper methods
     
@@ -613,16 +606,16 @@ if __name__ == "__main__":
                     for table in ["instrument_polygon", "instruments"]:
                         tn = env.get_table_name(table)
                         schema = await conn.fetch(f"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = $1", tn)
-                        print(f"DEBUG (CLI): {tn} columns:", schema)
+                        logger.debug(f"DEBUG (CLI): {tn} columns: {schema}")
                         row = await conn.fetchrow(f"SELECT * FROM {tn} LIMIT 1")
                         if row:
-                            print(f"DEBUG (CLI): {tn} sample row:", dict(row))
+                            logger.debug(f"DEBUG (CLI): {tn} sample row: {dict(row)}")
                         else:
-                            print(f"DEBUG (CLI): {tn} sample row: <empty>")
+                            logger.debug(f"DEBUG (CLI): {tn} sample row: <empty>")
                 await pool.close()
             asyncio.run(print_table_schema())
         except Exception as e:
-            print(f"DEBUG (CLI): Failed to print DB schema: {e}")
+            logger.error(f"DEBUG (CLI): Failed to print DB schema: {e}")
         # --- END DEBUG ---
         # Placeholder: you may want to load a Universe object by universe_id
         import os
@@ -676,14 +669,14 @@ if __name__ == "__main__":
                         self.universe_manager = type('UM', (), {'instrument_ids': instrument_ids})()
                         # Switch between file-based and DB-based managers
                         if os.environ.get('FILE_BASED_PRICES') == '1':
-                            print('DEBUG: Using FileDailyPriceMarketDataManager for prices')
+                            logger.debug('Using FileDailyPriceMarketDataManager for prices')
                             vendors_dirs = {
                                 'polygon': 'tests/data/daily_prices_polygon',
                                 'tiingo': 'tests/data/daily_prices_tiingo'
                             }
                             self.market_data_manager = PatchedFileDailyPriceMarketDataManager(vendors_dirs, symbols=["AAPL", "TSLA"])
                         else:
-                            print('DEBUG: Using DailyPriceMarketDataManager (DB) for prices')
+                            logger.debug('Using DailyPriceMarketDataManager (DB) for prices')
                             self.market_data_manager = PatchedDailyPriceMarketDataManager(env, start_date=cur_date.date())
                         self.universe_state_manager = manager
                         self.env = env
@@ -693,11 +686,11 @@ if __name__ == "__main__":
                 # update_for_sod populates intervals for the day
                 asyncio.run(runner.market_data_manager.update_for_sod(runner, cur_date))
                 builder.handleInterval(runner, cur_date)
-                print(f"Called handleInterval for {date_str}")
+                logger.debug(f"Called handleInterval for {date_str}")
             except Exception as e:
-                print(f"Failed to build/save for {date_str}: {e}")
+                logger.error(f"Failed to build/save for {date_str}: {e}")
             cur_date += timedelta(days=1)
-        print("Build complete.")
+        logger.debug("Build complete.")
 
     elif args.action == "inspect":
         # Inspect mode
@@ -743,16 +736,16 @@ if __name__ == "__main__":
                         series[field].append(row.iloc[0].get(field, None))
                 dates.append(datetime.strptime(ts[:8], "%Y%m%d"))
             except Exception as e:
-                print(f"Failed to load/parse state {ts}: {e}")
+                logger.error(f"Failed to load/parse state {ts}: {e}")
                 for field in args.fields:
                     series[field].append(None)
                 dates.append(None)
         if args.mode == "print":
             for i, d in enumerate(dates):
-                print(f"{d}: ", end="")
+                logger.debug(f"{d}: ", end="")
                 for field in args.fields:
-                    print(f"{field}={series[field][i]}", end=" ")
-                print()
+                    logger.debug(f"{field}={series[field][i]}", end=" ")
+                logger.debug("")
         elif args.mode == "graph":
             import os
             if os.environ.get("PYTEST_CURRENT_TEST"):

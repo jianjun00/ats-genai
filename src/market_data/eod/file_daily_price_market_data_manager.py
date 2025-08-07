@@ -145,13 +145,16 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
             print(f"[DEBUG][get_ohlc] No OHLC data for instrument_id={instrument_id} ({symbol}) at {start.date()}")
             return None
         print(f"[DEBUG][get_ohlc] Found OHLC for instrument_id={instrument_id} ({symbol}) at {start.date()}: {results}")
+        close = results[0]['close']
+        volume = results[0]['volume']
+        traded_dollar = close * volume if close is not None and volume is not None else None
         return {
             'open': results[0]['open'],
             'high': results[0]['high'],
             'low': results[0]['low'],
-            'close': results[0]['close'],
-            'traded_volume': results[0]['volume'],
-            'traded_dollar': results[0]['close'] * results[0]['volume'],
+            'close': close,
+            'traded_volume': volume,
+            'traded_dollar': traded_dollar,
         }
 
 
@@ -159,7 +162,20 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
         print(f"[DEBUG][get_ohlc_batch] instrument_ids={instrument_ids}, date={start.date()} to {end.date()}")
         for iid in instrument_ids:
             assert isinstance(iid, int), f"instrument_ids must be ints, got {type(iid)}: {iid}"
-        batch = {iid: self.get_ohlc(iid, start, end, current_date=current_date) for iid in instrument_ids}
+        batch = {}
+        for iid in instrument_ids:
+            ohlc = self.get_ohlc(iid, start, end, current_date=current_date)
+            print(f"[DEBUG][get_ohlc_batch] iid={iid}, ohlc={ohlc}")
+            if ohlc:
+                close = ohlc.get('close')
+                volume = ohlc.get('traded_volume')
+                print(f"[DEBUG][get_ohlc_batch] iid={iid}, close={close}, volume={volume}")
+                traded_dollar = close * volume if close is not None and volume is not None else None
+                print(f"[DEBUG][get_ohlc_batch] iid={iid}, traded_dollar={traded_dollar}")
+                ohlc['traded_dollar'] = traded_dollar
+            else:
+                print(f"[DEBUG][get_ohlc_batch] iid={iid}, ohlc is None")
+            batch[iid] = ohlc
         print(f"[DEBUG][get_ohlc_batch] batch result: {batch}")
         return batch
 

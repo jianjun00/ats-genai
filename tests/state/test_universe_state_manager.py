@@ -454,3 +454,62 @@ class TestUniverseStateManager:
                 assert call_args[1]['compression'] == 'snappy'  # Default compression
             except Exception:
                 pass  # Expected since we're mocking
+
+    def test_instrument_and_indicator_join(self, state_manager):
+        """
+        Regression test: Ensure instrument and indicator rows are joined by instrument_id and timestamp, and no duplicate/NaN OHLC rows are created.
+        """
+        import pandas as pd
+        import numpy as np
+        from datetime import datetime, timedelta
+        # Simulate two instruments, one interval each, with indicators
+        now = datetime(2023, 12, 1, 10, 0, 0)
+        duration_to_state = {}
+        class DummyInterval:
+            def __init__(self, instrument_id, dt):
+                self.instrument_id = instrument_id
+                self.start_date_time = dt
+                self.end_date_time = dt + timedelta(minutes=5)
+                self.open = 100.0 + instrument_id
+                self.high = 105.0 + instrument_id
+                self.low = 95.0 + instrument_id
+                self.close = 102.0 + instrument_id
+                self.traded_volume = 1000.0 + instrument_id
+                self.traded_dollar = 100000.0 + instrument_id
+                self.status = 'ok'
+        class DummyIndicatorInterval:
+            def __init__(self, instrument_id, dt):
+                self.instrument_id = instrument_id
+                self.start_date_time = dt
+                self.end_date_time = dt + timedelta(minutes=5)
+                self.indicators = {'etop': {'value': 1.23, 'status': 'ok'}, 'ebot': {'value': 0.45, 'status': 'ok'}}
+        class DummyUniverseState:
+            def __init__(self):
+                self.instrument_intervals = {1: DummyInterval(1, now), 2: DummyInterval(2, now)}
+                self.indicator_intervals = {'test': {1: DummyIndicatorInterval(1, now), 2: DummyIndicatorInterval(2, now)}}
+        duration_to_state['5m'] = DummyUniverseState()
+        # Patch logger to avoid clutter
+        state_manager.logger.disabled = True
+        # Call addUniverseState
+        state_manager.addUniverseState(duration_to_state, now)
+        # Load saved state
+        ts = now.strftime('%Y%m%d_%H%M%S')
+        df = state_manager.load_universe_state(ts)
+        # There should be exactly 2 rows (no duplicate/indicator-only rows)
+        assert len(df) == 2, f"Expected 2 rows, got {len(df)}"
+        # All OHLC columns should be non-null
+        for col in ['open', 'high', 'low', 'close']:
+            assert df[col].notnull().all(), f"Null OHLC in column {col}"
+        # Indicator columns should be present and non-null
+        for ind in ['etop', 'ebot']:
+            assert f"test_{ind}_value" in df.columns
+            assert f"test_{ind}_status" in df.columns
+            assert df[f"test_{ind}_value"].notnull().all()
+            assert (df[f"test_{ind}_status"] == 'ok').all()
+        # No duplicate instrument_id+start_date_time rows
+        assert df.duplicated(subset=['instrument_id', 'start_date_time']).sum() == 0
+        # No rows with all OHLC NaN
+        ohlc_nan_rows = df[['open','high','low','close']].isnull().all(axis=1)
+        assert not ohlc_nan_rows.any(), "Found row with all OHLC NaN"
+        # Clean up
+        state_manager.logger.disabled = False

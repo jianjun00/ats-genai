@@ -21,6 +21,17 @@ from db.test_db_manager import unit_test_db_clean
 
 @pytest.mark.asyncio
 async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
+    # Patch UniverseStateBuilder.__init__ to always receive required args for test
+    import state.universe_state_builder as usb_mod
+    orig_init = usb_mod.UniverseStateBuilder.__init__
+    def patched_init(self, env, base_duration=None, target_durations=None):
+        if base_duration is None:
+            base_duration = '1d'
+        if target_durations is None:
+            target_durations = '1d'
+        orig_init(self, env, base_duration, target_durations)
+    monkeypatch.setattr(usb_mod.UniverseStateBuilder, "__init__", patched_init)
+
     """
     Unit test: create a universe with AAPL and TSLA, run runner from 2025-07-01 to 2025-07-03,
     and verify the built universe state is as expected (test env, not intg env).
@@ -43,6 +54,13 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
     # Insert test data as needed (no backup/restore required)
     from config.environment import Environment
     env = Environment(db_url=db_url)
+    # DEBUG: Print all tables in the test DB after migrations and before any inserts
+    async with asyncpg.create_pool(db_url) as pool:
+        async with pool.acquire() as conn:
+            tables = await conn.fetch("""
+                SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name
+            """)
+            print("[TEST DEBUG] Tables in test DB after migration:", [r['table_name'] for r in tables])
     # Patch callbacks config to inject UniverseStateBuilder as callback
     monkeypatch.setattr(env, 'get', lambda section, key, default=None: ['state.universe_state_builder.UniverseStateBuilder'] if (section, key) == ('runner', 'callbacks') else env.__class__.get(env, section, key, default))
     runner = Runner(TEST_START_DATE, TEST_END_DATE, env, UNIVERSE_ID, ['state.universe_state_builder.UniverseStateBuilder'], '1d')

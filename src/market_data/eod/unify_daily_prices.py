@@ -38,25 +38,16 @@ class DailyPricesUnifierBase:
             msgs.append(f"HLCO comparison failed")
         return msgs
 
-    def validate_date(self, dt_obj, asof):
+    def validate_date(self, dt_obj, current_date):
         msgs = []
         try:
-            def to_date(val):
-                if isinstance(val, date):
-                    return val
-                elif isinstance(val, datetime):
-                    return val.date()
-                else:
-                    return datetime.strptime(str(val)[:10], "%Y-%m-%d").date()
-            if not isinstance(asof, (tuple, list)):
-                s = e = to_date(asof)
-            else:
-                s = to_date(asof[0])
-                e = to_date(asof[1])
-            if not (s <= dt_obj <= e):
-                msgs.append(f"date {dt_obj} not in range {s} to {e}")
+            if dt_obj != current_date:
+                from logging import getLogger
+                logger = getLogger(__name__)
+                logger.warning(f"validate_date: date {dt_obj} does not match tracked current_date {current_date}")
+                msgs.append(f"date {dt_obj} does not match tracked current_date {current_date}")
         except Exception:
-            msgs.append("date range check failed")
+            msgs.append("date validation failed")
         return msgs
 
     def validate_sigma(self, close):
@@ -109,7 +100,7 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
         )
         return {row['date']: row for row in rows}
 
-    async def unify_daily_prices(self, symbol, asof):
+    async def unify_daily_prices(self, symbol, asof, current_date):
         # asof can be date or (start, end)
         if isinstance(asof, (tuple, list)):
             start_date, end_date = asof
@@ -132,7 +123,7 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
                     dt_obj = None
                 row = t if t else p
                 row_msgs = self.validate_row(row) if row else []
-                date_msgs = self.validate_date(dt_obj, (start_date, end_date)) if dt_obj else []
+                date_msgs = self.validate_date(dt_obj, current_date) if dt_obj else []
                 sigma_msgs = self.validate_sigma(row['close']) if row and 'close' in row and row['close'] is not None else []
                 diff_msgs = self.validate_diff(t, p) if t and p else []
                 all_msgs = row_msgs + date_msgs + sigma_msgs + diff_msgs
@@ -156,9 +147,9 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
         await pool.close()
 
 class FileDailyPricesUnifier(DailyPricesUnifierBase):
-    def unify_daily_prices_sync(self, symbol, asof):
+    def unify_daily_prices_sync(self, symbol, asof, current_date):
         import asyncio
-        coro = self.unify_daily_prices(symbol, asof)
+        coro = self.unify_daily_prices(symbol, asof, current_date)
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
@@ -177,7 +168,7 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
         self.tiingo_data = tiingo_data
         self.polygon_data = polygon_data
 
-    async def unify_daily_prices(self, symbol, asof):
+    async def unify_daily_prices(self, symbol, asof, current_date):
         # asof can be date or (start, end)
         if isinstance(asof, (tuple, list)):
             start_date, end_date = asof
@@ -185,11 +176,28 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
             start_date = end_date = asof
         tiingo = self.tiingo_data.get(symbol, {})
         polygon = self.polygon_data.get(symbol, {})
-        all_dates = sorted(set(tiingo.keys()) | set(polygon.keys()))
+        # Only process dates within the requested interval
+        # Emit a row for every calendar day in the requested interval (not just trading days)
+        from datetime import timedelta
+        num_days = (end_date - start_date).days + 1
+        all_days = [start_date + timedelta(days=i) for i in range(num_days)]
         results = []
-        for d in all_dates:
+        seen_dates = set()
+        for d in all_days:
             t = tiingo.get(d)
             p = polygon.get(d)
+            if not t and not p:
+                # No vendor data for this trading day
+                print(f"[DEBUG][unify_daily_prices] No vendor data for date={d}, symbol={symbol}")
+                results.append({
+                    'date': d,
+                    'symbol': symbol,
+                    'open': None, 'high': None, 'low': None, 'close': None, 'volume': None,
+                    'source': None,
+                    'status': 'missing',
+                    'note': 'No vendor data'
+                })
+                continue
             status = 'valid'
             note = ''
             try:
@@ -204,7 +212,7 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
                 dt_obj = None
             row = t if t else p
             row_msgs = self.validate_row(row) if row else []
-            date_msgs = self.validate_date(dt_obj, (start_date, end_date)) if dt_obj else []
+            date_msgs = self.validate_date(dt_obj, current_date) if dt_obj else []
             sigma_msgs = self.validate_sigma(row['close']) if row and 'close' in row and row['close'] is not None else []
             diff_msgs = self.validate_diff(t, p) if t and p else []
             all_msgs = row_msgs + date_msgs + sigma_msgs + diff_msgs
@@ -214,6 +222,9 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
             open_, high, low, close, volume = [row.get(k) if row else None for k in ['open','high','low','close','volume']]
             if not t and p:
                 open_, high, low, close, volume = [p.get('o'), p.get('h'), p.get('l'), p.get('c'), p.get('v')]
+            # Log if any OHLC is NaN or None
+            if any(x is None or (isinstance(x, float) and np.isnan(x)) for x in [open_, high, low, close]):
+                print(f"[DEBUG][unify_daily_prices] NaN/None OHLC for date={d}, symbol={symbol}: open={open_}, high={high}, low={low}, close={close}, volume={volume}")
             results.append({
                 'date': d,
                 'symbol': symbol,
@@ -223,6 +234,7 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
                 'note': note
             })
             self.update_close_history(close)
+        print(f"[DEBUG][unify_daily_prices] Final results for symbol={symbol}: {results}")
         return results
 
 
