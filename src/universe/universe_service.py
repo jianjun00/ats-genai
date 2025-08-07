@@ -3,7 +3,7 @@ UniverseService - High-level service orchestrating universe operations.
 
 This module provides a unified interface for universe state management,
 combining the persistence layer (UniverseStateManager) with the business
-logic layer (UniverseStateBuilder).
+logic layer (UniverseStateIntervalBuilder).
 """
 
 import pandas as pd
@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from config.environment import Environment
 from state.universe_state_manager import UniverseStateManager
 from state.universe_state_builder import (
-    UniverseStateBuilder, 
+    UniverseStateIntervalBuilder, 
     UniverseMembershipChange, 
     CorporateAction
 )
@@ -39,7 +39,7 @@ class UniverseService:
         """
         self.env = env or Environment()
         self.state_manager = UniverseStateManager(base_path)
-        self.state_builder = UniverseStateBuilder(self.state_manager, self.env)
+        self.state_builder = UniverseStateIntervalBuilder(self.state_manager, self.env)
         self.logger = logging.getLogger(__name__)
     
     async def get_current_universe(self, 

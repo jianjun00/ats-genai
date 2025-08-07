@@ -11,7 +11,7 @@ import pandas as pd
 from pathlib import Path
 from config.environment import Environment, EnvironmentType
 from app.runner import Runner
-from state.universe_state_builder import UniverseStateBuilder
+from state.universe_state_builder import UniverseStateIntervalBuilder
 from state.universe_state_manager import UniverseStateManager
 from market_data.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
 
@@ -112,11 +112,11 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
         high = row['high']
         low = row['low']
         close = row['close']
-        indicator_vals = {}
+        instrument_indicator_intervals = {}
         for ind in required_indicators:
             val = df[(df['start_date_time'] == date) & (df['instrument_id'] == instrument_id) & (df['indicator_name'] == ind)]['indicator_value']
-            indicator_vals[ind] = val.iloc[0] if not val.empty else None
-        print(f"date: {date}, instrument_id: {instrument_id}, open: {open_}, high: {high}, low: {low}, close: {close}, etop: {indicator_vals['ETop']}, ebot: {indicator_vals['EBot']}, pldot: {indicator_vals['PL']}")
+            instrument_indicator_intervals[ind] = val.iloc[0] if not val.empty else None
+        print(f"date: {date}, instrument_id: {instrument_id}, open: {open_}, high: {high}, low: {low}, close: {close}, etop: {instrument_indicator_intervals['ETop']}, ebot: {instrument_indicator_intervals['EBot']}, pldot: {instrument_indicator_intervals['PL']}")
     for col in ['instrument_id', 'open', 'close', 'traded_volume', 'traded_dollar']:
         assert col in df.columns
     min_date = df['start_date_time'].min()
@@ -182,8 +182,8 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
         await conn.close()
     await insert_test_data()
 
-    # Create and patch a UniverseStateBuilder instance directly
-    # Provide a minimal valid indicator_config for UniverseStateBuilder
+    # Create and patch a UniverseStateIntervalBuilder instance directly
+    # Provide a minimal valid indicator_config for UniverseStateIntervalBuilder
     from signals.indicator_config import IndicatorConfig
     from signals.indicator import ETop, EBot, PL
     indicator_config = IndicatorConfig(indicators={
@@ -192,7 +192,7 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
         'PL': PL
     })
     env.get_indicator_config = lambda: indicator_config
-    builder = UniverseStateBuilder(
+    builder = UniverseStateIntervalBuilder(
         env=env,
         base_duration='1d',
         target_durations='1d'
@@ -258,11 +258,11 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
         low = row['low']
         close = row['close']
         # Extract indicator values for this instrument/date
-        indicator_vals = {}
+        instrument_indicator_intervals = {}
         for ind in required_indicators:
             val = df[(df['start_date_time'] == date) & (df['instrument_id'] == instrument_id) & (df['indicator_name'] == ind)]['indicator_value']
-            indicator_vals[ind] = val.iloc[0] if not val.empty else None
-        print(f"date: {date}, instrument_id: {instrument_id}, open: {open_}, high: {high}, low: {low}, close: {close}, etop: {indicator_vals['ETop']}, ebot: {indicator_vals['EBot']}, pldot: {indicator_vals['PL']}")
+            instrument_indicator_intervals[ind] = val.iloc[0] if not val.empty else None
+        print(f"date: {date}, instrument_id: {instrument_id}, open: {open_}, high: {high}, low: {low}, close: {close}, etop: {instrument_indicator_intervals['ETop']}, ebot: {instrument_indicator_intervals['EBot']}, pldot: {instrument_indicator_intervals['PL']}")
     # Example: check expected columns
     for col in ['instrument_id', 'open', 'close', 'traded_volume', 'traded_dollar']:
         assert col in df.columns

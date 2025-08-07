@@ -7,7 +7,7 @@ from config.environment import Environment
 from market_data.market_data_manager import MarketDataManager
 from market_data.eod.daily_price_market_data_manager import DailyPriceMarketDataManager
 from secmaster.security_master import SecurityMaster
-from state.universe_state_builder import UniverseStateBuilder
+from state.universe_state_builder import UniverseStateIntervalBuilder
 from state.universe_state_manager import UniverseStateManager
 from calendars.time_duration import TimeDuration
 from universe.universe_manager import UniverseManager

@@ -4,7 +4,7 @@ import asyncio
 import asyncpg
 from datetime import datetime, date
 
-from state.universe_state_builder import UniverseStateBuilder
+from state.universe_state_builder import UniverseStateIntervalBuilder
 from state.universe_state_manager import UniverseStateManager
 from config.environment import Environment, EnvironmentType
 from db.test_db_manager import unit_test_db_clean
@@ -12,9 +12,9 @@ from db.test_db_manager import unit_test_db_clean
 @pytest.mark.asyncio
 async def test_universe_state_builder_real_db(unit_test_db, tmp_path):
     """
-    Real database test: UniverseStateBuilder end-to-end with test DB.
+    Real database test: UniverseStateIntervalBuilder end-to-end with test DB.
     - Sets up required tables and test data in a real (prefixed) test database
-    - Runs UniverseStateBuilder logic for a single day
+    - Runs UniverseStateIntervalBuilder logic for a single day
     - Verifies output universe state is persisted and correct
     """
     # Setup environment for test DB
@@ -25,7 +25,7 @@ async def test_universe_state_builder_real_db(unit_test_db, tmp_path):
     env.get_indicator_config = lambda: IndicatorConfig.default_config()
     base_path = tmp_path / "universe_state"
     state_manager = UniverseStateManager(env=env, base_path=base_path)
-    builder = UniverseStateBuilder(env=env, target_durations='5m,15m,60m', base_duration='5m')
+    builder = UniverseStateIntervalBuilder(env=env, target_durations='5m,15m,60m', base_duration='5m')
 
     symbols = ["AAPL", "TSLA"]
     # Insert test instruments and get their ids
