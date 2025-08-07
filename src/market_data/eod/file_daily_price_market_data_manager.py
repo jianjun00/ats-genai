@@ -1,5 +1,6 @@
 import os
 import json
+print(f"[IMPORT_DEBUG] Loaded file_daily_price_market_data_manager.py from {__file__}")
 from datetime import datetime, date, time
 from typing import List, Dict, Optional, Any
 from market_data.market_data_manager import MarketDataManager
@@ -18,13 +19,15 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
         mgr = FileDailyPriceMarketDataManager(vendors_dirs)
     """
     def __init__(self, vendors_dirs: Dict[str, str], symbols: Optional[List[str]] = None):
-        print(f"[DEBUG][FileDailyPriceMarketDataManager.__init__] vendors_dirs={vendors_dirs}, symbols={symbols}")
+        print(f"[DEBUG][FileDailyPriceMarketDataManager.__init__2] vendors_dirs={vendors_dirs}, symbols={symbols}")
         self.vendors_dirs = vendors_dirs
         self.symbols = symbols  # If None, will infer from files
         self._intervals: Dict[int, InstrumentInterval] = {}
         self._last_prices: Dict[int, Dict[str, float]] = {}
         self._symbol_to_id: Dict[str, int] = {}
         self._id_to_symbol: Dict[int, str] = {}
+        self._last_sod_date: Optional[date] = None  # Track the last SOD event date
+        print(f"[DEBUG][FileDailyPriceMarketDataManager.__init__] _last_sod_date initialized to None, id(self)={id(self)}")
         self._load_symbol_mappings()
         print(f"[DEBUG][_load_symbol_mappings] _symbol_to_id: {self._symbol_to_id}, _id_to_symbol: {self._id_to_symbol}")
         self._load_vendor_data()
@@ -34,6 +37,15 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
             tiingo_data=self.vendor_data.get('tiingo', {}),
             polygon_data=self.vendor_data.get('polygon', {})
         )
+
+    def set_last_sod_date(self, sod_date: date):
+        """Set the last SOD event date for current_date logic (for test or event simulation)."""
+        print(f"[DEBUG][set_last_sod_date] Setting _last_sod_date to {sod_date} on id(self)={id(self)}")
+        self._last_sod_date = sod_date
+
+    def get_last_sod_date(self) -> Optional[date]:
+        print(f"[DEBUG][get_last_sod_date] Accessing _last_sod_date={self._last_sod_date} on id(self)={id(self)}")
+        return self._last_sod_date
 
     def _load_symbol_mappings(self):
         # For now, assign instrument_id as 1, 2, ... for each symbol
@@ -121,11 +133,14 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
     def resolve_symbol(self, instrument_id: int) -> Optional[str]:
         return self._id_to_symbol.get(instrument_id)
 
-    def get_ohlc(self, instrument_id: int, start: datetime, end: datetime) -> Optional[Dict[str, float]]:
+    def get_ohlc(self, instrument_id: int, start: datetime, end: datetime, current_date: Optional[date] = None) -> Optional[Dict[str, float]]:
         assert isinstance(instrument_id, int), f"instrument_id must be int, got {type(instrument_id)}: {instrument_id}"
         symbol = self.resolve_symbol(instrument_id)
         print(f"[DEBUG][get_ohlc] Lookup instrument_id={instrument_id}, symbol={symbol}, date={start.date()} to {end.date()}")
-        results = self.unifier.unify_daily_prices_sync(symbol, start.date())
+        sod_date = current_date if current_date is not None else self._last_sod_date
+        if sod_date is None:
+            sod_date = start.date()  # fallback for legacy/test, but should be set
+        results = self.unifier.unify_daily_prices_sync(symbol, start.date(), sod_date)
         if not results:
             print(f"[DEBUG][get_ohlc] No OHLC data for instrument_id={instrument_id} ({symbol}) at {start.date()}")
             return None
@@ -138,22 +153,28 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
             'traded_volume': results[0]['volume'],
             'traded_dollar': results[0]['close'] * results[0]['volume'],
         }
-        print(f"[DEBUG][get_ohlc] Returning: {ohlc}")
-        return ohlc
 
-    def get_ohlc_batch(self, instrument_ids: List[int], start: datetime, end: datetime) -> Dict[int, Optional[Dict[str, float]]]:
+
+    def get_ohlc_batch(self, instrument_ids: List[int], start: datetime, end: datetime, current_date: Optional[date] = None) -> Dict[int, Optional[Dict[str, float]]]:
         print(f"[DEBUG][get_ohlc_batch] instrument_ids={instrument_ids}, date={start.date()} to {end.date()}")
         for iid in instrument_ids:
             assert isinstance(iid, int), f"instrument_ids must be ints, got {type(iid)}: {iid}"
-        batch = {iid: self.get_ohlc(iid, start, end) for iid in instrument_ids}
+        batch = {iid: self.get_ohlc(iid, start, end, current_date=current_date) for iid in instrument_ids}
         print(f"[DEBUG][get_ohlc_batch] batch result: {batch}")
         return batch
 
     # Synchronous wrapper for FileDailyPricesUnifier
     # (for integration with existing code expecting sync get_ohlc)
-    def unify_daily_prices_sync(self, symbol, asof):
+    def unify_daily_prices_sync(self, symbol, asof, current_date: Optional[date] = None):
         import asyncio
-        coro = self.unifier.unify_daily_prices(symbol, asof)
+        sod_date = current_date if current_date is not None else self._last_sod_date
+        if sod_date is None:
+            # fallback for legacy/test
+            if isinstance(asof, (tuple, list)):
+                sod_date = asof[-1] if asof else None
+            else:
+                sod_date = asof
+        coro = self.unifier.unify_daily_prices(symbol, asof, sod_date)
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
@@ -167,3 +188,4 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
             return loop.run_until_complete(fut)
         else:
             return loop.run_until_complete(coro)
+
