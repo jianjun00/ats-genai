@@ -96,27 +96,70 @@ class MigrationManager:
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
-                async with conn.transaction():
-                    try:
-                        await conn.execute(prefixed_sql)
-                    except Exception as exec_sql_exc:
-                        print(f"[ERROR] Exception executing migration SQL for version {version}: {exec_sql_exc}")
-                        print(f"[DEBUG] --- Failing SQL for version {version} ---")
-                        print(prefixed_sql)
-                        print(f"[DEBUG] --- END Failing SQL for version {version} ---")
-                        import traceback
-                        traceback.print_exc()
-                        return False
-                    
-                    # Record migration (skip for version 0 as it records itself)
-                    if version > 0:
-                        checksum = self._calculate_checksum(migration_file)
-                        await conn.execute(f"""
-                            INSERT INTO {self.table_prefix}db_version (version, description, applied_at, checksum, migration_file)
-                            VALUES ($1, $2, NOW(), $3, $4)
-                        """, version, description, checksum, migration_file.name)
-                    print(f"Migration version {version:03d} applied successfully")
-                    return True
+                db_name = await conn.fetchval("SELECT current_database()")
+                print(f"[MIGRATION DEBUG] Connected to DB: {db_name}")
+            # Use psycopg2 to apply migration as a full script
+            import psycopg2
+            from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+            from urllib.parse import urlparse
+            import re
+            # Parse db_url for psycopg2
+            parsed = urlparse(self.db_url)
+            db_kwargs = {
+                'dbname': parsed.path.lstrip('/'),
+                'user': parsed.username,
+                'password': parsed.password,
+                'host': parsed.hostname,
+                'port': parsed.port
+            }
+            print(f"[MIGRATION DEBUG] psycopg2 connecting with: {db_kwargs}")
+            try:
+                with psycopg2.connect(**db_kwargs) as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("SELECT current_database()")
+                        print(f"[MIGRATION DEBUG] psycopg2 connected to DB: {cur.fetchone()[0]}")
+                        import sqlparse
+                        import sqlparse
+                        stmts = list(sqlparse.split(prefixed_sql))
+                        for idx, stmt in enumerate(stmts):
+                            stmt_orig = stmt
+                            # Remove lines that are comments or blank
+                            lines = [line for line in stmt_orig.splitlines() if line.strip() and not line.strip().startswith('--')]
+                            cleaned_stmt = '\n'.join(lines).strip()
+                            print(f"[MIGRATION DEBUG] Statement {idx} (cleaned): {cleaned_stmt[:80]}")
+                            if not cleaned_stmt:
+                                print(f"[MIGRATION DEBUG] Skipping empty/only-comment statement at index {idx}")
+                                continue
+                            try:
+                                print(f"[MIGRATION DEBUG] Executing statement {idx}: {cleaned_stmt[:80]}...")
+                                cur.execute(cleaned_stmt)
+                            except Exception as e:
+                                print(f"[MIGRATION ERROR] Failed on statement {idx}: {cleaned_stmt[:120]}\nError: {e}")
+                                raise
+                        conn.commit()
+                        print("[MIGRATION DEBUG] Transaction committed.")
+                        # Print list of tables after migration
+                        cur.execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+                        tables = cur.fetchall()
+                        print(f"[MIGRATION DEBUG] Tables in DB after migration: {[t[0] for t in tables]}")
+            except Exception as exec_sql_exc:
+                print(f"[ERROR] Exception executing migration SQL for version {version}: {exec_sql_exc}")
+                print(f"[DEBUG] --- Failing SQL for version {version} ---")
+                print(prefixed_sql)
+                print(f"[DEBUG] --- END Failing SQL for version {version} ---")
+                import traceback
+                traceback.print_exc()
+                return False
+            # Record migration (skip for version 0 as it records itself)
+            async with pool.acquire() as conn:
+                if version > 0:
+                    checksum = self._calculate_checksum(migration_file)
+                    await conn.execute(f"""
+                        INSERT INTO {self.table_prefix}db_version (version, description, applied_at, checksum, migration_file)
+                        VALUES ($1, $2, NOW(), $3, $4)
+                    """, version, description, checksum, migration_file.name)
+            print(f"Migration version {version:03d} applied successfully")
+            return True
         finally:
             await pool.close()
     

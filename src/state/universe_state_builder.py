@@ -28,21 +28,21 @@ from signals.indicator_config import IndicatorConfig
 @gin.configurable
 class UniverseStateBuilder(RunnerCallback):
     def handleStartOfDay(self, runner, current_time):
-        self.logger.info(f"UniverseStateBuilder.handleStartOfDay called at {current_time}")
+        self.logger.debug(f"UniverseStateBuilder.handleStartOfDay called at {current_time}")
         pass
 
     def handleEndOfDay(self, runner, current_time):
-        self.logger.info(f"UniverseStateBuilder.handleEndOfDay called at {current_time}")
+        self.logger.debug(f"UniverseStateBuilder.handleEndOfDay called at {current_time}")
         pass
 
     async def handleInterval(self, runner, current_time):
-        print(f"[DEBUG][handleInterval] handleInterval CALLED at {current_time}")
+        self.logger.debug(f"[handleInterval] handleInterval CALLED at {current_time}")
         """
         Build UniverseState for base_duration and each target duration, passing each to UniverseStateManager.
         Maintains rolling window cache of InstrumentIntervals and builds indicators via IndicatorBuilder.
         """
         from state.universe_state import UniverseState
-        self.logger.info(f"UniverseStateBuilder.handleInterval called at {current_time}")
+        self.logger.debug(f"UniverseStateBuilder.handleInterval called at {current_time}")
         durations = self.target_durations
         if not durations:
             self.logger.error("No target durations configured.")
@@ -209,13 +209,13 @@ class UniverseStateBuilder(RunnerCallback):
         Returns a dict mapping duration string to UniverseInterval.
         """
         intervals = {}
-        self.logger.info(f"Building intervals for {len(self.target_durations)} durations at {start_time}")
+        self.logger.debug(f"Building intervals for {len(self.target_durations)} durations at {start_time}")
         for duration in self.target_durations:
             end_time = duration.get_end_time(start_time)
             instrument_intervals = {}
             instrument_ids = runner.universe_manager.instrument_ids
             ohlc_batch = runner.market_data_manager.get_ohlc_batch(instrument_ids, start_time, end_time)
-            self.logger.info(f"Built ohlc_batch for {ohlc_batch} instruments at {start_time}, instrument_ids: {instrument_ids}")
+            self.logger.debug(f"Built ohlc_batch for {ohlc_batch} instruments at {start_time}, instrument_ids: {instrument_ids}")
             for inst_id in instrument_ids:
                 ohlc = ohlc_batch.get(inst_id)
                 if ohlc:
@@ -231,7 +231,7 @@ class UniverseStateBuilder(RunnerCallback):
                         traded_dollar=ohlc.get('close', 0.0) * ohlc.get('volume', 0.0),
                         status='ok'
                     )
-            self.logger.info('Built interval for %s at %s, instrument_ids: %s', duration.get_duration_string(), start_time, instrument_ids)
+            self.logger.debug('Built interval for %s at %s, instrument_ids: %s', duration.get_duration_string(), start_time, instrument_ids)
             intervals[duration.get_duration_string()] = UniverseInterval(
                 start_date_time=start_time,
                 end_date_time=end_time,

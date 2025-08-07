@@ -22,6 +22,43 @@ def test_pl_ok(three_ok_intervals):
     assert abs(pl.get_value() - expected) < 1e-8
 
 def test_pl_invalid():
+    pass
+
+
+def test_pl_missing_ohlc():
+    from signals.indicator import PL
+    from state.instrument_interval import InstrumentInterval
+    from datetime import datetime, timedelta
+    base = datetime(2023, 1, 1)
+    # Missing high
+    intervals = [
+        InstrumentInterval(1, base, base, 10, None, 9, 14, 100, 1000, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 12, 16, 11, 15, 120, 1200, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 13, 17, 12, 16, 130, 1300, 'ok'),
+    ]
+    pl = PL()
+    pl.update(intervals)
+    assert pl.status == 'invalid'
+    assert pl.get_value() is None
+    # Missing low
+    intervals = [
+        InstrumentInterval(1, base, base, 10, 15, None, 14, 100, 1000, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 12, 16, 11, 15, 120, 1200, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 13, 17, 12, 16, 130, 1300, 'ok'),
+    ]
+    pl.update(intervals)
+    assert pl.status == 'invalid'
+    assert pl.get_value() is None
+    # Missing close
+    intervals = [
+        InstrumentInterval(1, base, base, 10, 15, 9, None, 100, 1000, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 12, 16, 11, 15, 120, 1200, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 13, 17, 12, 16, 130, 1300, 'ok'),
+    ]
+    pl.update(intervals)
+    assert pl.status == 'invalid'
+    assert pl.get_value() is None
+
     base = datetime(2023, 1, 1)
     intervals = [
         InstrumentInterval(1, base, base, 10, 15, 9, 14, 100, 1000, 'ok'),
@@ -44,6 +81,43 @@ def test_oneonehigh_ok(three_ok_intervals):
     assert abs(indicator.get_value() - expected) < 1e-8
 
 def test_oneonehigh_invalid():
+    pass
+
+
+def test_oneonehigh_missing_ohlc():
+    from signals.indicator import OneOneHigh
+    from state.instrument_interval import InstrumentInterval
+    from datetime import datetime, timedelta
+    base = datetime(2023, 1, 1)
+    # Missing high
+    intervals = [
+        InstrumentInterval(1, base, base, 10, 15, 9, 14, 100, 1000, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 12, 16, 11, 15, 120, 1200, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 13, None, 12, 16, 130, 1300, 'ok'),
+    ]
+    indicator = OneOneHigh()
+    indicator.update(intervals)
+    assert indicator.status == 'invalid'
+    assert indicator.get_value() is None
+    # Missing low
+    intervals = [
+        InstrumentInterval(1, base, base, 10, 15, 9, 14, 100, 1000, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 12, 16, 11, 15, 120, 1200, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 13, 17, None, 16, 130, 1300, 'ok'),
+    ]
+    indicator.update(intervals)
+    assert indicator.status == 'invalid'
+    assert indicator.get_value() is None
+    # Missing close
+    intervals = [
+        InstrumentInterval(1, base, base, 10, 15, 9, 14, 100, 1000, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 12, 16, 11, 15, 120, 1200, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 13, 17, 12, None, 130, 1300, 'ok'),
+    ]
+    indicator.update(intervals)
+    assert indicator.status == 'invalid'
+    assert indicator.get_value() is None
+
     base = datetime(2023, 1, 1)
     intervals = [
         InstrumentInterval(1, base, base, 10, 15, 9, 14, 100, 1000, 'ok'),
@@ -80,6 +154,40 @@ def test_oneonedot_ok():
     assert abs(dot.get_value() - expected) < 1e-8
 
 def test_oneonedot_invalid_status():
+    pass
+
+
+def test_oneonedot_missing_ohlc():
+    from signals.indicator import OneOneDot
+    from state.instrument_interval import InstrumentInterval
+    from datetime import datetime, timedelta
+    base = datetime(2023, 1, 1)
+    # Missing high
+    intervals = [
+        InstrumentInterval(1, base, base, 10, None, 9, 14, 100, 1000, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 12, 16, 11, 15, 120, 1200, 'ok'),
+    ]
+    dot = OneOneDot()
+    dot.update(intervals)
+    assert dot.status == 'invalid'
+    assert dot.get_value() is None
+    # Missing low
+    intervals = [
+        InstrumentInterval(1, base, base, 10, 15, None, 14, 100, 1000, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 12, 16, 11, 15, 120, 1200, 'ok'),
+    ]
+    dot.update(intervals)
+    assert dot.status == 'invalid'
+    assert dot.get_value() is None
+    # Missing close
+    intervals = [
+        InstrumentInterval(1, base, base, 10, 15, 9, None, 100, 1000, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 12, 16, 11, 15, 120, 1200, 'ok'),
+    ]
+    dot.update(intervals)
+    assert dot.status == 'invalid'
+    assert dot.get_value() is None
+
     from signals.indicator import OneOneDot
     base = datetime(2023, 1, 1)
     intervals = [
@@ -99,6 +207,43 @@ def test_oneonedot_invalid_empty():
     assert dot.get_value() is None
 
 def test_oneonelow_invalid():
+    pass
+
+
+def test_oneonelow_missing_ohlc():
+    from signals.indicator import OneOneLow
+    from state.instrument_interval import InstrumentInterval
+    from datetime import datetime, timedelta
+    base = datetime(2023, 1, 1)
+    # Missing high
+    intervals = [
+        InstrumentInterval(1, base, base, 10, 15, 9, 14, 100, 1000, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 12, 16, 11, 15, 120, 1200, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 13, None, 12, 16, 130, 1300, 'ok'),
+    ]
+    indicator = OneOneLow()
+    indicator.update(intervals)
+    assert indicator.status == 'invalid'
+    assert indicator.get_value() is None
+    # Missing low
+    intervals = [
+        InstrumentInterval(1, base, base, 10, 15, 9, 14, 100, 1000, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 12, 16, 11, 15, 120, 1200, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 13, 17, None, 16, 130, 1300, 'ok'),
+    ]
+    indicator.update(intervals)
+    assert indicator.status == 'invalid'
+    assert indicator.get_value() is None
+    # Missing close
+    intervals = [
+        InstrumentInterval(1, base, base, 10, 15, 9, 14, 100, 1000, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 12, 16, 11, 15, 120, 1200, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 13, 17, 12, None, 130, 1300, 'ok'),
+    ]
+    indicator.update(intervals)
+    assert indicator.status == 'invalid'
+    assert indicator.get_value() is None
+
     from signals.indicator import OneOneLow
     base = datetime(2023, 1, 1)
     intervals = [
