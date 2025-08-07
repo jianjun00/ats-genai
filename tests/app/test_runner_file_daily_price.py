@@ -74,7 +74,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
         instrument_ids=instrument_ids,
         start_date=start_date,
         end_date=end_date,
-        db_url=unit_test_db,
+        env=env,
         universe_id=1,
         output_dir=output_dir,
         indicator_config=indicator_config,
@@ -334,12 +334,15 @@ async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
     output_dir = os.path.join(tmp_path, 'universe_state_7days')
     start_date = '2025-07-20'
     end_date = '2025-07-27'
+    from config.environment import Environment, EnvironmentType
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
+    env.get_table_name = lambda table: f"test_{table}"
     df = await run_file_daily_price_ohlcv(
         vendors_dirs=vendors_dirs,
         instrument_ids=instrument_ids,
         start_date=start_date,
         end_date=end_date,
-        db_url=unit_test_db,
+        env=env,
         universe_id=1,
         output_dir=output_dir,
         indicator_config=indicator_config,
