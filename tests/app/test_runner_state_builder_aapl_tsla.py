@@ -23,14 +23,14 @@ from db.test_db_manager import unit_test_db_clean
 async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
     # Patch UniverseStateBuilder.__init__ to always receive required args for test
     import state.universe_state_builder as usb_mod
-    orig_init = usb_mod.UniverseStateBuilder.__init__
+    orig_init = usb_mod.UniverseStateIntervalBuilder.__init__
     def patched_init(self, env, base_duration=None, target_durations=None):
         if base_duration is None:
             base_duration = '1d'
         if target_durations is None:
             target_durations = '1d'
         orig_init(self, env, base_duration, target_durations)
-    monkeypatch.setattr(usb_mod.UniverseStateBuilder, "__init__", patched_init)
+    monkeypatch.setattr(usb_mod.UniverseStateIntervalBuilder, "__init__", patched_init)
 
     """
     Unit test: create a universe with AAPL and TSLA, run runner from 2025-07-01 to 2025-07-03,
@@ -62,8 +62,8 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
             """)
             print("[TEST DEBUG] Tables in test DB after migration:", [r['table_name'] for r in tables])
     # Patch callbacks config to inject UniverseStateBuilder as callback
-    monkeypatch.setattr(env, 'get', lambda section, key, default=None: ['state.universe_state_builder.UniverseStateBuilder'] if (section, key) == ('runner', 'callbacks') else env.__class__.get(env, section, key, default))
-    runner = Runner(TEST_START_DATE, TEST_END_DATE, env, UNIVERSE_ID, ['state.universe_state_builder.UniverseStateBuilder'], '1d')
+    monkeypatch.setattr(env, 'get', lambda section, key, default=None: ['state.universe_state_builder.UniverseStateIntervalBuilder'] if (section, key) == ('runner', 'callbacks') else env.__class__.get(env, section, key, default))
+    runner = Runner(TEST_START_DATE, TEST_END_DATE, env, UNIVERSE_ID, ['state.universe_state_builder.UniverseStateIntervalBuilder'], '1d')
     # Insert test daily prices for AAPL/TSLA for each test date using the provided db_url
     async with asyncpg.create_pool(db_url) as pool:
         async with pool.acquire() as conn:
@@ -136,8 +136,8 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
     # (Assertions and verification would go here)
     # No manual cleanup needed, DB is dropped after test
     # Patch callbacks config to inject UniverseStateBuilder as callback
-    monkeypatch.setattr(env, 'get', lambda section, key, default=None: ['state.universe_state_builder.UniverseStateBuilder'] if (section, key) == ('runner', 'callbacks') else env.__class__.get(env, section, key, default))
-    runner = Runner(TEST_START_DATE, TEST_END_DATE, env, UNIVERSE_ID, ['state.universe_state_builder.UniverseStateBuilder'], '1d')
+    monkeypatch.setattr(env, 'get', lambda section, key, default=None: ['state.universe_state_builder.UniverseStateIntervalBuilder'] if (section, key) == ('runner', 'callbacks') else env.__class__.get(env, section, key, default))
+    runner = Runner(TEST_START_DATE, TEST_END_DATE, env, UNIVERSE_ID, ['state.universe_state_builder.UniverseStateIntervalBuilder'], '1d')
     # Insert test daily prices for AAPL/TSLA for each test date
     from dao.daily_prices_dao import DailyPricesDAO
     dao = DailyPricesDAO(env)

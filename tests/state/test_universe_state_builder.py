@@ -1,5 +1,5 @@
 """
-Comprehensive unit tests for UniverseStateBuilder.
+Comprehensive unit tests for UniverseStateIntervalBuilder.
 
 Tests cover business logic, data validation, corporate actions,
 membership changes, and integration with data sources.
@@ -16,14 +16,14 @@ import asyncpg
 from secmaster.security_master import CorporateActionType
 from secmaster.security_master import CorporateAction
 from state.universe_state_builder import (
-    UniverseStateBuilder, 
+    UniverseStateIntervalBuilder, 
 )
 from state.universe_state_manager import UniverseStateManager
 from config.environment import Environment, EnvironmentType
 from db.test_db_manager import unit_test_db
 
-class TestUniverseStateBuilder:
-    """Test suite for UniverseStateBuilder class."""
+class TestUniverseStateIntervalBuilder:
+    """Test suite for UniverseStateIntervalBuilder class."""
     
     @pytest.fixture
     def mock_env(self):
@@ -40,8 +40,8 @@ class TestUniverseStateBuilder:
     
     @pytest.fixture
     def universe_builder(self, mock_state_manager, mock_env):
-        """Create UniverseStateBuilder instance for testing."""
-        return UniverseStateBuilder(env=mock_env, base_duration='5m', target_durations='5m,15m,60m')
+        """Create UniverseStateIntervalBuilder instance for testing."""
+        return UniverseStateIntervalBuilder(env=mock_env, base_duration='5m', target_durations='5m,15m,60m')
     
     @pytest.fixture
     def sample_base_universe(self):
@@ -59,9 +59,9 @@ class TestUniverseStateBuilder:
         })
     
     def test_initialization(self, mock_state_manager, mock_env):
-        """Test UniverseStateBuilder initialization."""
+        """Test UniverseStateIntervalBuilder initialization."""
         universe = MagicMock(name='Universe')
-        builder = UniverseStateBuilder(env=mock_env, base_duration='5m', target_durations='5m,15m,60m' )
+        builder = UniverseStateIntervalBuilder(env=mock_env, base_duration='5m', target_durations='5m,15m,60m' )
         
         assert builder.env == mock_env
         assert builder.min_market_cap == 100_000_000
@@ -69,18 +69,18 @@ class TestUniverseStateBuilder:
         assert builder.max_universe_size == 3000
         assert isinstance(builder.data_source_priorities, dict)
     
-    @pytest.mark.skip(reason="UniverseStateBuilder no longer owns _apply_membership_changes or _apply_corporate_actions; integration now handled via runner and managers.")
+    @pytest.mark.skip(reason="UniverseStateIntervalBuilder no longer owns _apply_membership_changes or _apply_corporate_actions; integration now handled via runner and managers.")
     @pytest.mark.asyncio
     async def test_build_universe_state_success(self, universe_builder, sample_base_universe):
         pass
 
     @pytest.mark.asyncio
     async def test_indicator_builder_rolling_cache(self):
-        """Test that UniverseStateBuilder maintains rolling cache and builds indicator intervals correctly."""
-        from state.universe_state_builder import UniverseStateBuilder
+        """Test that UniverseStateIntervalBuilder maintains rolling cache and builds indicator intervals correctly."""
+        from state.universe_state_builder import UniverseStateIntervalBuilder
         from state.instrument_interval import InstrumentInterval
-        from state.universe_interval import UniverseInterval
-        from state.universe_state import UniverseState
+        from state.universe_interval import FactorInterval
+        from state.universe_state import UniverseStateInterval
         from state.indicator_interval import IndicatorInterval
         from datetime import datetime, timedelta
         from types import SimpleNamespace
@@ -104,7 +104,7 @@ class TestUniverseStateBuilder:
             def get_table_name(self, table):
                 return f"test_{table}"
         env = DummyEnv()
-        builder = UniverseStateBuilder(env=env, base_duration='5m', target_durations='5m,15m,60m')
+        builder = UniverseStateIntervalBuilder(env=env, base_duration='5m', target_durations='5m,15m,60m')
         # Patch DAO to avoid DB
         from unittest.mock import AsyncMock
         builder.market_cap_dao.list_market_caps_for_date = AsyncMock(return_value=[{'instrument_id': 1, 'market_cap': 1000.0}, {'instrument_id': 2, 'market_cap': 2000.0}])
@@ -121,7 +121,7 @@ class TestUniverseStateBuilder:
             class DummyUniverseStateManager:
                 def __init__(self):
                     self.last_state = None
-                def addUniverseState(self, universe_state, current_time):
+                def addUniverseStateInterval(self, universe_state, current_time):
                     self.last_state = universe_state
             universe_state_manager = DummyUniverseStateManager()
         runner = DummyRunner()
@@ -132,15 +132,15 @@ class TestUniverseStateBuilder:
         # After enough intervals, the cache should only keep the last N
         for inst_id in runner.universe_manager.instrument_ids:
             assert len(builder.instrument_history[inst_id]) == env.indicator_rolling_window
-        # The last state should have indicator_intervals built
+        # The last state should have instrument_indicator_intervals built
         state_dict = runner.universe_state_manager.last_state
         assert isinstance(state_dict, dict)
         # Expect only one duration in DummyEnv
         assert len(state_dict) == 3
         state = list(state_dict.values())[0]
-        assert type(state).__name__ == 'UniverseState'
-        assert 'default' in state.indicator_intervals
-        for inst_id, indicator_interval in state.indicator_intervals['default'].items():
+        assert type(state).__name__ == 'UniverseStateInterval'
+        assert 'default' in state.instrument_indicator_intervals
+        for inst_id, indicator_interval in state.instrument_indicator_intervals['default'].items():
             assert type(indicator_interval).__name__ == 'IndicatorInterval'
             # Should have OneOneDot computed
             assert 'OneOneDot' in indicator_interval.indicators
@@ -148,12 +148,12 @@ class TestUniverseStateBuilder:
             if len(builder.instrument_history[inst_id]) >= 1:
                 assert indicator_interval.get_indicator_status('OneOneDot') in ('ok', 'invalid')
     
-    @pytest.mark.skip(reason="build_universe_state removed from UniverseStateBuilder in refactor; test obsolete.")
+    @pytest.mark.skip(reason="build_universe_state removed from UniverseStateIntervalBuilder in refactor; test obsolete.")
     @pytest.mark.asyncio
     async def test_build_universe_state_invalid_date(self, universe_builder):
         pass
     
-    @pytest.mark.skip(reason="UniverseStateBuilder no longer owns _apply_membership_changes or _apply_corporate_actions; integration now handled via runner and managers.")
+    @pytest.mark.skip(reason="UniverseStateIntervalBuilder no longer owns _apply_membership_changes or _apply_corporate_actions; integration now handled via runner and managers.")
     @pytest.mark.asyncio
     async def test_build_universe_state_validation_failure(self, universe_builder, sample_base_universe):
         pass
@@ -206,14 +206,14 @@ class TestUniverseStateBuilder:
     def test_apply_corporate_actions_delisting(self, universe_builder, sample_base_universe):
         pass
     
-    @pytest.mark.skip(reason="calculate_derived_fields removed from UniverseStateBuilder in refactor; test obsolete.")
+    @pytest.mark.skip(reason="calculate_derived_fields removed from UniverseStateIntervalBuilder in refactor; test obsolete.")
     def test_calculate_derived_fields(self, universe_builder, sample_base_universe):
         pass
     
-    @pytest.mark.skip(reason="calculate_changes removed from UniverseStateBuilder in refactor; test obsolete.")
+    @pytest.mark.skip(reason="calculate_changes removed from UniverseStateIntervalBuilder in refactor; test obsolete.")
     def test_calculate_changes_additions(self, universe_builder):
         pass
     
-    @pytest.mark.skip(reason="_apply_business_rules removed from UniverseStateBuilder in refactor; test obsolete.")
+    @pytest.mark.skip(reason="_apply_business_rules removed from UniverseStateIntervalBuilder in refactor; test obsolete.")
     def test_apply_business_rules(self, universe_builder):
         pass

@@ -33,10 +33,9 @@ class UniverseStateMetadata:
     version: str = "1.0"
 
 
-from state.universe_state import UniverseState
+from state.universe_state import UniverseStateInterval
 from state.instrument_interval import InstrumentInterval
 from state.indicator_interval import IndicatorInterval
-from state.universe_interval import UniverseInterval
 
 import gin
 
@@ -110,48 +109,46 @@ class UniverseStateManager:
         self._max_cache_size = 5  # Maximum number of states to cache
         self.logger = logging.getLogger(__name__)
     
-    def save_universe_state(self, 
-                          universe_data: pd.DataFrame, 
-                          timestamp: str,
-                          metadata: Optional[Dict[str, Any]] = None,
-                          partition_cols: Optional[List[str]] = None) -> str:
+    async def save_universe_state(self, universe_data: pd.DataFrame, timestamp: str, metadata: Optional[Dict[str, Any]] = None, partition_cols: Optional[List[str]] = None) -> str:
         """
-        Save universe state with optimized format and compression.
-        Writes a Parquet file to self.states_dir/universe_state_{timestamp}.parquet.
-        Also generates and saves corresponding metadata JSON file.
+        Persist universe state DataFrame to TimescaleDB (universe_state table).
+        Each row must have instrument_id and as_of_date (parsed from timestamp).
+        Overwrites existing rows for the same instrument_id/as_of_date.
         """
-        self.states_dir.mkdir(parents=True, exist_ok=True)
-        self.metadata_dir.mkdir(parents=True, exist_ok=True)
-        file_path = self.states_dir / f"universe_state_{timestamp}.parquet"
-
-        # Validate input
+        import asyncpg
         if universe_data.empty:
             raise ValueError("Cannot save empty universe state")
         if not self._validate_timestamp_format(timestamp):
             raise ValueError(f"Invalid timestamp format: {timestamp}")
-
-        self.logger.debug(f"save_universe_state: Saving DataFrame with shape {universe_data.shape} to {file_path}")
+        # Parse as_of_date from timestamp (YYYYMMDD_*)
+        as_of_date = timestamp[:8]
+        as_of_date = f"{as_of_date[:4]}-{as_of_date[4:6]}-{as_of_date[6:8]}"
+        db_url = self.env.get_database_config()['url'] if self.env else os.getenv('TSDB_URL')
+        pool = await asyncpg.create_pool(db_url, min_size=1, max_size=2)
         try:
-            universe_data.to_parquet(file_path, index=False)
-            self.logger.debug(f"save_universe_state: Successfully saved Parquet file: {file_path}")
+            async with pool.acquire() as conn:
+                for _, row in universe_data.iterrows():
+                    await conn.execute(
+                        """
+                        INSERT INTO universe_state (instrument_id, as_of_date, symbol, name, exchange, market_cap, close_price, volume, is_active, sector, created_at)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
+                        ON CONFLICT (instrument_id, as_of_date) DO UPDATE SET
+                            symbol=EXCLUDED.symbol, name=EXCLUDED.name, exchange=EXCLUDED.exchange,
+                            market_cap=EXCLUDED.market_cap, close_price=EXCLUDED.close_price, volume=EXCLUDED.volume,
+                            is_active=EXCLUDED.is_active, sector=EXCLUDED.sector, created_at=now()
+                        """,
+                        int(row['instrument_id']), as_of_date, row.get('symbol'), row.get('name'), row.get('exchange'),
+                        row.get('market_cap'), row.get('close_price'), row.get('volume'), row.get('is_active'), row.get('sector')
+                    )
+            # Optionally update cache (in-memory, not persisted)
+            self._update_cache(timestamp, universe_data, metadata or {})
+            self.logger.info(f"Saved universe state to DB for {timestamp} ({len(universe_data)} records)")
+            return f"db://universe_state/{timestamp}"
         except Exception as e:
-            self.logger.error(f"save_universe_state: Failed to save Parquet file: {file_path}, error: {e}")
-            raise IOError(f"Failed to save universe state: {e}")
-
-        safe_metadata = metadata if metadata is not None else {}
-        meta_obj = self._create_metadata(
-            timestamp=timestamp,
-            data=universe_data,
-            file_path=file_path,
-            additional_metadata=safe_metadata
-        )
-        try:
-            self._save_metadata(timestamp, meta_obj)
-        except Exception as e:
-            raise IOError(f"Failed to save universe state metadata: {e}")
-        # Update cache after successful save
-        self._update_cache(timestamp, universe_data, meta_obj)
-        return str(file_path)
+            self.logger.error(f"Failed to save universe state to DB: {e}")
+            raise IOError(f"Failed to save universe state to DB: {e}")
+        finally:
+            await pool.close()
     
     def addIntervals(self, intervals: dict, current_time):
         """
@@ -251,64 +248,42 @@ class UniverseStateManager:
         self.logger.debug(f"UniverseStateManager.update_for_eod called at {current_time}")
         # Add EOD logic if needed
 
-    def load_universe_state(self, 
-                          timestamp: Optional[str] = None,
-                          filters: Optional[List] = None,
-                          columns: Optional[List[str]] = None,
-                          use_cache: bool = True) -> pd.DataFrame:
+    async def load_universe_state(self, timestamp: Optional[str] = None, filters: Optional[List] = None, columns: Optional[List[str]] = None, use_cache: bool = True) -> pd.DataFrame:
         """
-        Load universe state with fast filtering and caching.
-        
-        Args:
-            timestamp: Specific timestamp to load (latest if None)
-            filters: PyArrow filters for fast data filtering
-            columns: Specific columns to load (all if None)
-            use_cache: Whether to use in-memory cache
-            
-        Returns:
-            DataFrame containing universe state data
-            
-        Raises:
-            FileNotFoundError: If no universe states found or timestamp doesn't exist
-            IOError: If file cannot be read
+        Load universe state from TimescaleDB for the given timestamp (as_of_date).
+        Optionally filter by columns.
         """
+        import asyncpg
+        import pandas as pd
         if timestamp is None:
-            timestamp = self.get_latest_timestamp()
-        
+            timestamp = await self.get_latest_timestamp()
         if not timestamp:
-            raise FileNotFoundError("No universe state files found")
-        
-        # Check cache first
+            raise FileNotFoundError("No universe state records found")
+        # Check cache
         if use_cache and filters is None and columns is None and timestamp in self._cache:
             self.logger.debug(f"Loading universe state from cache: {timestamp}")
             return self._cache[timestamp].copy()
-        
-        file_path = self.states_dir / f"universe_state_{timestamp}.parquet"
-        
-        if not file_path.exists():
-            raise FileNotFoundError(f"Universe state not found: {timestamp}")
-        
+        as_of_date = timestamp[:8]
+        as_of_date = f"{as_of_date[:4]}-{as_of_date[4:6]}-{as_of_date[6:8]}"
+        db_url = self.env.get_database_config()['url'] if self.env else os.getenv('TSDB_URL')
+        pool = await asyncpg.create_pool(db_url, min_size=1, max_size=2)
         try:
-            # Fast filtered reading with column pruning
-            data = pd.read_parquet(
-                file_path,
-                engine='pyarrow',
-                filters=filters,
-                columns=columns,
-                use_threads=True  # Parallel reading
-            )
-            
-            # Update cache if using full data load
-            if use_cache and filters is None and columns is None:
-                metadata = self.get_state_metadata(timestamp)
-                self._update_cache(timestamp, data, metadata)
-            
-            self.logger.debug(f"Loaded universe state: {timestamp} ({len(data)} records)")
-            return data
-            
+            async with pool.acquire() as conn:
+                col_clause = ', '.join(columns) if columns else '*'
+                query = f"SELECT {col_clause} FROM universe_state WHERE as_of_date = $1"
+                records = await conn.fetch(query, as_of_date)
+                if not records:
+                    raise FileNotFoundError(f"No universe state found for date: {as_of_date}")
+                data = pd.DataFrame([dict(r) for r in records])
+                if use_cache and filters is None and columns is None:
+                    self._update_cache(timestamp, data, {})
+                self.logger.info(f"Loaded universe state from DB for {timestamp} ({len(data)} records)")
+                return data
         except Exception as e:
-            self.logger.error(f"Failed to load universe state {timestamp}: {e}")
-            raise IOError(f"Failed to load universe state {timestamp}: {e}")
+            self.logger.error(f"Failed to load universe state from DB: {e}")
+            raise IOError(f"Failed to load universe state from DB: {e}")
+        finally:
+            await pool.close()
     
     def get_latest_timestamp(self) -> Optional[str]:
         """
@@ -568,7 +543,7 @@ if __name__ == "__main__":
     import pandas as pd
     from datetime import datetime, timedelta
     import matplotlib.pyplot as plt
-    from state.universe_state_builder import UniverseStateBuilder
+    from state.universe_state_builder import UniverseStateIntervalBuilder
     # Assume Universe and other dependencies are available or stubbed for now
 
     parser = argparse.ArgumentParser(description="Universe State Manager CLI")
@@ -627,8 +602,8 @@ if __name__ == "__main__":
             builder_mod = importlib.import_module(module_name)
             BuilderClass = getattr(builder_mod, class_name)
         else:
-            from state.universe_state_builder import UniverseStateBuilder
-            BuilderClass = UniverseStateBuilder
+            from state.universe_state_builder import UniverseStateIntervalBuilder
+            BuilderClass = UniverseStateIntervalBuilder
         # TODO: Load actual Universe object by universe_id
         universe = None  # Replace with actual loading logic
         builder = BuilderClass(env=env)

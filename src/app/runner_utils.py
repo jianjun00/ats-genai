@@ -4,7 +4,7 @@ import pandas as pd
 from pathlib import Path
 from config.environment import Environment, EnvironmentType
 from state.universe_state_manager import UniverseStateManager
-from state.universe_state_builder import UniverseStateBuilder
+from state.universe_state_builder import UniverseStateIntervalBuilder
 from market_data.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
 from app.runner import Runner
 
@@ -29,7 +29,7 @@ async def run_file_daily_price_ohlcv(
 
     market_data_manager = FileDailyPriceMarketDataManager(vendors_dirs)
     universe_state_manager = UniverseStateManager(env=env, base_path=output_dir)
-    builder = UniverseStateBuilder(
+    builder = UniverseStateIntervalBuilder(
         env=env,
         base_duration='1d',
         target_durations='1d'

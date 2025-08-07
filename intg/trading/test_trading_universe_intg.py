@@ -62,7 +62,6 @@ async def test_trading_universe_update(backup_and_restore_tables, monkeypatch):
 @pytest.mark.asyncio
 async def test_security_master():
     today = date(2023, 7, 20)
-    from config.environment import get_environment
     env = Environment(env_type=EnvironmentType.INTEGRATION, db_url="postgresql://postgres:password@localhost:5432/intg_db")
     master = SecurityMaster(env)
     info = await master.get_security_info('AAA', today)
@@ -75,7 +74,6 @@ async def test_security_master():
 @pytest.mark.asyncio
 async def test_security_master_multiple():
     today = date(2023, 7, 20)
-    from config.environment import get_environment
     env = Environment(env_type=EnvironmentType.INTEGRATION, db_url="postgresql://postgres:password@localhost:5432/intg_db")
     master = SecurityMaster(env)
     infos = await master.get_multiple_securities_info(['AAA', 'BBB', 'CCC', 'DDD'], today)

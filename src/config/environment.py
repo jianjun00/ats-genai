@@ -28,7 +28,7 @@ class EnvironmentType(Enum):
     PRODUCTION = "prod"
 
 
-from signals.indicator_config import IndicatorConfig
+from src.signals.indicator_config import IndicatorConfig
 
 class Environment:
     def get(self, key, default=None):

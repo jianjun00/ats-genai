@@ -1,23 +1,23 @@
 import pytest
 from datetime import datetime, date
 from unittest.mock import Mock
-from state.universe_state_builder import UniverseStateBuilder
+from state.universe_state_builder import UniverseStateIntervalBuilder
 from db.test_db_manager import unit_test_db_clean
 from calendars.time_duration import TimeDuration
 from signals.indicator_config import IndicatorConfig
-from state.universe_interval import UniverseInterval
+from src.state.factor_interval import FactorInterval
 from state.instrument_interval import InstrumentInterval
 
 
 import pytest
 
-@pytest.mark.skip(reason="Duration logic moved to Environment; UniverseStateBuilder no longer manages durations.")
+@pytest.mark.skip(reason="Duration logic moved to Environment; UniverseStateIntervalBuilder no longer manages durations.")
 def test_multi_duration_initialization():
-    """Test UniverseStateBuilder initialization with multi-duration support."""
+    """Test UniverseStateIntervalBuilder initialization with multi-duration support."""
     universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1, 2])
     
     # Test with default durations
-    builder = UniverseStateBuilder()
+    builder = UniverseStateIntervalBuilder()
     assert builder.get_base_duration().get_duration_string() == "5m"
     assert len(builder.get_target_durations()) == 1
     assert builder.get_target_durations()[0].get_duration_string() == "5m"
@@ -30,14 +30,14 @@ def test_multi_duration_initialization():
         TimeDuration.create_60_minutes()
     ]
     
-    builder_custom = UniverseStateBuilder()
+    builder_custom = UniverseStateIntervalBuilder()
     
     assert builder_custom.get_base_duration().get_duration_string() == "5m"
     target_strings = [d.get_duration_string() for d in builder_custom.get_target_durations()]
     assert target_strings == ["5m", "15m", "60m"]
 
 
-@pytest.mark.skip(reason="Duration logic moved to Environment; UniverseStateBuilder no longer manages durations.")
+@pytest.mark.skip(reason="Duration logic moved to Environment; UniverseStateIntervalBuilder no longer manages durations.")
 def test_duration_compatibility_validation():
     """Test validation of duration compatibility."""
     universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1])
@@ -51,7 +51,7 @@ def test_duration_compatibility_validation():
     ]
     
     # Should not raise an exception
-    builder = UniverseStateBuilder(
+    builder = UniverseStateIntervalBuilder(
         universe,
         base_duration=base_duration,
         target_durations=valid_targets
@@ -73,7 +73,7 @@ def test_duration_compatibility_validation():
     assert target_strings == ["5m", "15m", "1d"]
 
 
-@pytest.mark.skip(reason="Duration logic moved to Environment; UniverseStateBuilder no longer manages durations.")
+@pytest.mark.skip(reason="Duration logic moved to Environment; UniverseStateIntervalBuilder no longer manages durations.")
 def test_build_multi_duration_intervals():
     """Test building intervals for multiple durations."""
     universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1, 2])
@@ -92,7 +92,7 @@ def test_build_multi_duration_intervals():
         TimeDuration.create_60_minutes()
     ]
     
-    builder = UniverseStateBuilder(
+    builder = UniverseStateIntervalBuilder(
         universe,
         market_data_manager=mock_manager,
         base_duration=TimeDuration.create_5_minutes(),
@@ -124,7 +124,7 @@ def test_build_multi_duration_intervals():
     assert mock_manager.get_ohlc_batch.call_count == 3
 
 
-@pytest.mark.skip(reason="Duration logic moved to Environment; UniverseStateBuilder no longer manages durations.")
+@pytest.mark.skip(reason="Duration logic moved to Environment; UniverseStateIntervalBuilder no longer manages durations.")
 def test_add_multi_duration_intervals():
     """Test adding intervals for multiple durations to the builder."""
     universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1])
@@ -139,7 +139,7 @@ def test_add_multi_duration_intervals():
         TimeDuration.create_15_minutes()
     ]
     
-    builder = UniverseStateBuilder(
+    builder = UniverseStateIntervalBuilder(
         universe,
         market_data_manager=mock_manager,
         target_durations=target_durations
@@ -187,11 +187,11 @@ def test_add_multi_duration_intervals():
 
 
 
-@pytest.mark.skip(reason="Duration logic moved to Environment; UniverseStateBuilder no longer manages durations.")
+@pytest.mark.skip(reason="Duration logic moved to Environment; UniverseStateIntervalBuilder no longer manages durations.")
 def test_set_target_durations():
     """Test setting new target durations."""
     universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1])
-    builder = UniverseStateBuilder(universe)    
+    builder = UniverseStateIntervalBuilder(universe)    
     
     # Initially has default 5m duration
     assert len(builder.get_target_durations()) == 1
@@ -210,7 +210,7 @@ def test_set_target_durations():
     assert target_strings == ["5m", "15m", "1d"]
 
 
-@pytest.mark.skip(reason="Duration logic moved to Environment; UniverseStateBuilder no longer manages durations.")
+@pytest.mark.skip(reason="Duration logic moved to Environment; UniverseStateIntervalBuilder no longer manages durations.")
 def test_multi_duration_with_universe_advance():
     """Test multi-duration intervals with universe advancement."""
     universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1])
@@ -221,7 +221,7 @@ def test_multi_duration_with_universe_advance():
     }
     
     target_durations = [TimeDuration.create_5_minutes(), TimeDuration.create_15_minutes()]
-    builder = UniverseStateBuilder(
+    builder = UniverseStateIntervalBuilder(
         universe,
         market_data_manager=mock_manager,
         target_durations=target_durations
@@ -245,7 +245,7 @@ def test_multi_duration_with_universe_advance():
         assert 1 not in interval.instrument_intervals  # Old instrument not present
 
 
-@pytest.mark.skip(reason="Duration logic moved to Environment; UniverseStateBuilder no longer manages durations.")
+@pytest.mark.skip(reason="Duration logic moved to Environment; UniverseStateIntervalBuilder no longer manages durations.")
 def test_multi_duration_integration_with_indicators():
     """Test multi-duration functionality with indicator computation."""
     universe = Universe(current_date=date(2023, 1, 1), instrument_ids=[1])
@@ -257,7 +257,7 @@ def test_multi_duration_integration_with_indicators():
     }
     
     target_durations = [TimeDuration.create_5_minutes(), TimeDuration.create_15_minutes()]
-    builder = UniverseStateBuilder(
+    builder = UniverseStateIntervalBuilder(
         universe,
         indicator_config=indicator_config,
         market_data_manager=mock_manager,

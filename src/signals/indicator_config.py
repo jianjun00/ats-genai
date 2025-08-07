@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Type, Optional
-from signals.indicator import Indicator, PL, OneOneHigh, OneOneLow, OneOneDot, EBot, ETop
+from src.signals.indicator import Indicator, PL, OneOneHigh, OneOneLow, OneOneDot, EBot, ETop
 
 
 @dataclass

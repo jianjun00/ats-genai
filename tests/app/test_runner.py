@@ -3,12 +3,12 @@ import tempfile
 from datetime import datetime, timedelta
 from config.environment import Environment
 from app.runner import Runner
-from state.universe_state_builder import UniverseStateBuilder
+from state.universe_state_builder import UniverseStateIntervalBuilder
 import logging
 
 class DummyUniverse:
     instrument_ids = ['AAPL', 'TSLA']
-    # Add any other fields required by UniverseStateBuilder
+    # Add any other fields required by UniverseStateIntervalBuilder
 
 class DummyStateManager:
     pass
@@ -23,7 +23,7 @@ async def test_runner_with_universe_state_builder(tmp_path, caplog, unit_test_db
     with open(config_path, "w") as f:
         f.write("""
 [runner]
-callbacks=state.universe_state_builder.UniverseStateBuilder
+callbacks=state.universe_state_builder.UniverseStateIntervalBuilder
 """)
     import os
     from config.environment import EnvironmentType
@@ -34,23 +34,23 @@ callbacks=state.universe_state_builder.UniverseStateBuilder
     # Setup logger to capture output
     caplog.set_level(logging.INFO)
 
-    # Instantiate UniverseStateBuilder (callback)
+    # Instantiate UniverseStateIntervalBuilder (callback)
     universe = DummyUniverse()
     state_manager = DummyStateManager()
     from state.runner_callback import RunnerCallback
-    class DummyUniverseStateBuilder(RunnerCallback):
+    class DummyUniverseStateIntervalBuilder(RunnerCallback):
         def __init__(self):
             self.env = env
             self.base_duration = '1d'
             self.target_durations = '1d'
             self.logger = logging.getLogger(__name__)
         def handleStartOfDay(self, runner, current_time):
-            self.logger.info(f"DummyUniverseStateBuilder.handleStartOfDay called at {current_time}")
+            self.logger.info(f"DummyUniverseStateIntervalBuilder.handleStartOfDay called at {current_time}")
         def handleEndOfDay(self, runner, current_time):
-            self.logger.info(f"DummyUniverseStateBuilder.handleEndOfDay called at {current_time}")
+            self.logger.info(f"DummyUniverseStateIntervalBuilder.handleEndOfDay called at {current_time}")
         def handleInterval(self, runner, current_time):
-            self.logger.info(f"DummyUniverseStateBuilder.handleInterval called at {current_time}")
-    callback_class = DummyUniverseStateBuilder
+            self.logger.info(f"DummyUniverseStateIntervalBuilder.handleInterval called at {current_time}")
+    callback_class = DummyUniverseStateIntervalBuilder
 
     # Patch env.get_base_duration to return a 1-day duration
     class DummyDuration:

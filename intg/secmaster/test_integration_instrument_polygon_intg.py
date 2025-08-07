@@ -28,7 +28,7 @@ SCRIPT_PATH = Path(__file__).parent.parent.parent / "src/secmaster/populate_inst
 class TestIntegrationInstrumentPolygon(AsyncPGTestDBBase):
     @pytest.mark.asyncio
     async def test_download_and_verify_instrument_polygon(self, tmp_path):
-        env = get_environment()
+        # env = Environment()  # Use appropriate environment setup here
         test_symbols = ["AAPL", "TSLA", "CRWV"]
         # Clean up any old rows
         pool = await asyncpg.create_pool(env.get_database_url())

@@ -71,51 +71,45 @@ class TestUniverseStateManager:
         manager = UniverseStateManager()
         assert manager.base_path == Path("data/universe_state")
     
-    def test_save_universe_state_success(self, state_manager, sample_universe_data, valid_timestamp):
-        """Test successful universe state saving."""
-        file_path = state_manager.save_universe_state(
+    @pytest.mark.asyncio
+    async def test_save_universe_state_success(self, state_manager, sample_universe_data, valid_timestamp):
+        """Test successful universe state saving to DB."""
+        db_uri = await state_manager.save_universe_state(
             sample_universe_data, 
             valid_timestamp,
             metadata={'data_sources': ['test'], 'universe_type': 'equity'}
         )
-        
-        # Check file was created
-        assert Path(file_path).exists()
-        assert Path(file_path).suffix == '.parquet'
-        
-        # Check metadata was created
-        metadata_file = state_manager.metadata_dir / f"metadata_{valid_timestamp}.json"
-        assert metadata_file.exists()
-        
+        # Check DB uri returned
+        assert db_uri.startswith("db://universe_state/")
         # Verify data in cache
         assert valid_timestamp in state_manager._cache
         assert len(state_manager._cache[valid_timestamp]) == 5
     
-    def test_save_universe_state_empty_data(self, state_manager, valid_timestamp):
+    @pytest.mark.asyncio
+    async def test_save_universe_state_empty_data(self, state_manager, valid_timestamp):
         """Test saving empty universe state raises error."""
+        import pandas as pd
         empty_data = pd.DataFrame()
-        
         with pytest.raises(ValueError, match="Cannot save empty universe state"):
-            state_manager.save_universe_state(empty_data, valid_timestamp)
+            await state_manager.save_universe_state(empty_data, valid_timestamp)
     
-    def test_save_universe_state_invalid_timestamp(self, state_manager, sample_universe_data):
+    @pytest.mark.asyncio
+    async def test_save_universe_state_invalid_timestamp(self, state_manager, sample_universe_data):
         """Test saving with invalid timestamp format."""
         invalid_timestamp = "invalid_format"
-        
         with pytest.raises(ValueError, match="Invalid timestamp format"):
-            state_manager.save_universe_state(sample_universe_data, invalid_timestamp)
+            await state_manager.save_universe_state(sample_universe_data, invalid_timestamp)
     
-    def test_load_universe_state_success(self, state_manager, sample_universe_data, valid_timestamp):
-        """Test successful universe state loading."""
+    @pytest.mark.asyncio
+    async def test_load_universe_state_success(self, state_manager, sample_universe_data, valid_timestamp):
+        """Test successful universe state loading from DB."""
         # First save data
-        state_manager.save_universe_state(sample_universe_data, valid_timestamp)
-        
+        await state_manager.save_universe_state(sample_universe_data, valid_timestamp)
         # Then load it
-        loaded_data = state_manager.load_universe_state(valid_timestamp)
-        
+        loaded_data = await state_manager.load_universe_state(valid_timestamp)
         assert len(loaded_data) == 5
-        assert list(loaded_data['symbol']) == ['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'AMZN']
-        assert loaded_data['market_cap'].dtype in ['int64', 'uint64', 'int32', 'uint32']  # Optimized type
+        assert set(list(loaded_data['symbol'])) == set(['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'AMZN'])
+        assert loaded_data['market_cap'].dtype in ['float64', 'float32', 'int64', 'uint64', 'int32', 'uint32']  # DB may return float
     
     def test_load_universe_state_with_filters(self, state_manager, sample_universe_data, valid_timestamp):
         """Test loading universe state with filters."""
@@ -483,15 +477,15 @@ class TestUniverseStateManager:
                 self.start_date_time = dt
                 self.end_date_time = dt + timedelta(minutes=5)
                 self.indicators = {'etop': {'value': 1.23, 'status': 'ok'}, 'ebot': {'value': 0.45, 'status': 'ok'}}
-        class DummyUniverseState:
+        class DummyUniverseStateInterval:
             def __init__(self):
                 self.instrument_intervals = {1: DummyInterval(1, now), 2: DummyInterval(2, now)}
-                self.indicator_intervals = {'test': {1: DummyIndicatorInterval(1, now), 2: DummyIndicatorInterval(2, now)}}
-        duration_to_state['5m'] = DummyUniverseState()
+                self.instrument_indicator_intervals = {'test': {1: DummyIndicatorInterval(1, now), 2: DummyIndicatorInterval(2, now)}}
+        duration_to_state['5m'] = DummyUniverseStateInterval()
         # Patch logger to avoid clutter
         state_manager.logger.disabled = True
-        # Call addUniverseState
-        state_manager.addUniverseState(duration_to_state, now)
+        # Call addUniverseStateInterval
+        state_manager.addUniverseStateInterval(duration_to_state, now)
         # Load saved state
         ts = now.strftime('%Y%m%d_%H%M%S')
         df = state_manager.load_universe_state(ts)
