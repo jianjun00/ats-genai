@@ -92,7 +92,6 @@ class Environment:
 
         # --- BEGIN PATCH: allow custom gin config path ---
         import gin
-        import os
         if gin_config_path:
             config_path = gin_config_path
         elif env_type is not None:
@@ -115,12 +114,16 @@ class Environment:
         self.gin_config_path = config_path
         # Import Database before parsing Gin config to register it as a configurable
         from config.database import Database
+        from config.polygon import set_polygon_api_key, POLYGON_API_KEY
+
         import gin
         if config_path:
             if not (hasattr(gin.config, '_CONFIG') and gin.config._CONFIG.get('was_configured', False)):
                 gin.parse_config_file(config_path)
         from config.logging_config import LoggingConfig
         self.logging_config = LoggingConfig()
+        set_polygon_api_key()  # This will set POLYGON_API_KEY from Gin config
+        print(f"[DEBUG] POLYGON_API_KEY after Gin load: {POLYGON_API_KEY}")
         # Make db_url optional: try argument, then env var, then None
         if db_url is None:
             db_url = os.getenv("DATABASE_URL")
@@ -175,9 +178,9 @@ class Environment:
             return self.database.get_database_url()
         return None
 
-    def get_api_key(self, service: str) -> str:
-        return gin.query_parameter(f"{service}_api_key")
-
+    def get_polygon_api_key(self) -> str:
+        from config.polygon import POLYGON_API_KEY
+        return POLYGON_API_KEY
 
     def _setup_logging(self) -> logging.Logger:
         logger = logging.getLogger("market-forecast-app")

@@ -5,13 +5,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 from config.environment import Environment, EnvironmentType
 
-import gin
-
-POLYGON_API_KEY = None
-@gin.configurable
-def set_polygon_api_key(polygon_api_key=None):
-    global POLYGON_API_KEY
-    POLYGON_API_KEY = polygon_api_key
+from config.polygon import set_polygon_api_key, POLYGON_API_KEY
 
 load_dotenv()
 
