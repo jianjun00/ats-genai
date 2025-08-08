@@ -2,7 +2,25 @@ from config.environment import Environment
 import asyncpg
 from typing import Optional, List, Dict, Any
 
+from .vendors_dao import VendorsDAO
+
 class InstrumentXrefsDAO:
+    async def get_all_symbols(self):
+        # Find vendor_id for name='ticker'
+        vendors_dao = VendorsDAO(self.env)
+        vendor_row = await vendors_dao.get_vendor_by_name('ticker')
+        if not vendor_row:
+            return []
+        ticker_vendor_id = vendor_row['id']
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(f"SELECT DISTINCT symbol FROM {self.table_name} WHERE vendor_id = $1", ticker_vendor_id)
+                symbols = [row['symbol'] for row in rows]
+                return symbols
+        finally:
+            await pool.close()
+
     async def resolve_instrument_id(self, symbol, vendor_id=None, at_date=None):
         """
         Lookup instrument_id from instrument_xrefs using symbol (and vendor_id, at_date if provided).

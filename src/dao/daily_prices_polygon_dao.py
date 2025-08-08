@@ -43,3 +43,39 @@ class DailyPricesPolygonDAO:
                 return await conn.fetch(f"SELECT * FROM {self.table_name} WHERE instrument_id = $1", instrument_id)
         finally:
             await pool.close()
+
+    async def batch_insert_prices(self, prices):
+        """
+        Batch insert prices. Each item in prices should be a dict with keys:
+        date, instrument_id, open, high, low, close, volume, market_cap
+        """
+        if not prices:
+            return
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                await conn.executemany(f"""
+                    INSERT INTO {self.table_name} (date, instrument_id, open, high, low, close, volume, market_cap)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    ON CONFLICT (date, instrument_id) DO UPDATE SET
+                        open=EXCLUDED.open,
+                        high=EXCLUDED.high,
+                        low=EXCLUDED.low,
+                        close=EXCLUDED.close,
+                        volume=EXCLUDED.volume,
+                        market_cap=EXCLUDED.market_cap
+                """,
+                [
+                    (
+                        p['date'],
+                        p['instrument_id'],
+                        p.get('open'),
+                        p.get('high'),
+                        p.get('low'),
+                        p.get('close'),
+                        p.get('volume'),
+                        p.get('market_cap'),
+                    ) for p in prices
+                ])
+        finally:
+            await pool.close()
