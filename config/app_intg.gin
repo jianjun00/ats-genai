@@ -22,8 +22,8 @@ bind = ['strict_validation', True]
 #bind = ['saved_dir', '/tmp/intg_universe_states']
 
 # Durations for UniverseStateBuilder
-state.universe_state_builder.UniverseStateBuilder.base_duration = '5m'
-state.universe_state_builder.UniverseStateBuilder.target_durations = '5m,15m,60m'
+state.universe_state_builder.UniverseStateIntervalBuilder.base_duration = '5m'
+state.universe_state_builder.UniverseStateIntervalBuilder.target_durations = '5m,15m,60m'
 
 # Database
 bind = ['database.host', 'localhost']

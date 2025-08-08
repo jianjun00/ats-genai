@@ -18,6 +18,7 @@ def parse_args():
     parser.add_argument('--data-dir', default=None, help='Base data directory (defaults to ../data/)')
     parser.add_argument('--environment', default='test', choices=['test', 'intg', 'prod'], help='Environment type')
     parser.add_argument('--db-url', default=None, help='Database URL (overrides environment default)')
+    parser.add_argument('--gin_config', default=None, help='Path to Gin config file (optional)')
     return parser.parse_args()
 
 
@@ -62,7 +63,7 @@ def main():
         db_url = "postgresql://postgres:postgres@localhost:5432/test_db"  # Test DB
     else:
         db_url = None
-    env = Environment(env_type=env_type, db_url=db_url)
+    env = Environment(args.gin_config, env_type, db_url)
     env.get_table_name = lambda table: f"{args.environment}_" + table
     # Run
     from datetime import datetime, date
