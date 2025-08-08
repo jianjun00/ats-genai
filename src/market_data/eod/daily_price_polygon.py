@@ -312,23 +312,37 @@ async def main():
         print("[ERROR] No valid tickers with instrument_id found. Exiting.")
         return
 
-    import ray
-    from market_data.eod.daily_polygon_ray_utils import ray_ingest_polygon_instrument
-    ray.init(ignore_reinit_error=True)
-    ray_tasks = []
+    from dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+    prices_dao = DailyPricesPolygonDAO(env)
+    total_success = 0
+    total_fail = 0
     for ticker, instrument_id in ticker_to_instrument_id.items():
         polygon_api_key = env.get_polygon_api_key()
         if not polygon_api_key:
             print(f"[ERROR] No Polygon API key found in Gin config or environment. Please set 'polygon_api_key' in your Gin config.")
-            raise RuntimeError("Missing Polygon API key for ticker {}".format(ticker))
-        # Download daily prices only (shares outstanding not fetched)
-        ray_tasks.append(ray_ingest_polygon_instrument.remote(
-            args.gin_config, ticker, instrument_id, None, args.start_date, args.end_date, polygon_api_key, args.logging, tickers if args.tickers else None, args.log_dir
-        ))
-    import asyncio
-    results = ray.get(ray_tasks)
-    print(f"[INFO] Ray Polygon ingestion complete. Results: {results}")
-    ray.shutdown()
+            continue
+        try:
+            print(f"[INFO] Processing {ticker} (instrument_id={instrument_id})...")
+            prices = download_prices_polygon(
+                ticker,
+                args.start_date,
+                args.end_date,
+                polygon_api_key,
+                logging=args.logging,
+                log_tickers=tickers if args.tickers else None,
+                log_dir=args.log_dir
+            )
+            if not prices:
+                print(f"[WARN] No prices fetched for {ticker}")
+                total_fail += 1
+                continue
+            await insert_prices(prices, instrument_id, None, prices_dao, env=env)
+            print(f"[INFO] Inserted {len(prices)} prices for {ticker}")
+            total_success += 1
+        except Exception as e:
+            print(f"[ERROR] Failed to process {ticker}: {e}")
+            total_fail += 1
+    print(f"[INFO] Polygon ingestion complete. Success: {total_success}, Failures: {total_fail}")
 
 
 if __name__ == "__main__":

@@ -30,21 +30,45 @@ class InstrumentPolygonDAO:
                         updated_at=now()
                 """, symbol, name, exchange, type_, currency, figi, isin, cusip, composite_figi, active, list_date, delist_date, raw)
         finally:
-            await pool.close()
+            import asyncio
+            try:
+                await asyncio.wait_for(pool.close(), timeout=2.0)
+            except asyncio.TimeoutError:
+                print("[WARN] pool.close() timed out after 2 seconds")
 
     async def get_instrument_by_symbol(self, symbol):
+        print(f"[DEBUG][get_instrument_by_symbol] Creating pool for db_url={self.db_url}")
         pool = await asyncpg.create_pool(self.db_url)
         try:
+            print(f"[DEBUG][get_instrument_by_symbol] Acquiring connection for symbol={symbol}")
             async with pool.acquire() as conn:
-                return await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE symbol = $1", symbol)
+                print(f"[DEBUG][get_instrument_by_symbol] Executing fetchrow for symbol={symbol}")
+                result = await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE symbol = $1", symbol)
+                print(f"[DEBUG][get_instrument_by_symbol] Fetchrow result: {result}")
+                return result
         finally:
-            await pool.close()
+            print(f"[DEBUG][get_instrument_by_symbol] Closing pool")
+            import asyncio
+            try:
+                await asyncio.wait_for(pool.close(), timeout=2.0)
+            except asyncio.TimeoutError:
+                print("[WARN] pool.close() timed out after 2 seconds")
 
     async def get_all_symbols(self):
+        print(f"[DEBUG][get_all_symbols] Creating pool for db_url={self.db_url}")
         pool = await asyncpg.create_pool(self.db_url)
         try:
+            print(f"[DEBUG][get_all_symbols] Acquiring connection")
             async with pool.acquire() as conn:
+                print(f"[DEBUG][get_all_symbols] Executing fetch for all symbols from {self.table_name}")
                 rows = await conn.fetch(f"SELECT symbol FROM {self.table_name}")
-                return [row['symbol'] for row in rows]
+                symbols = [row['symbol'] for row in rows]
+                print(f"[DEBUG][get_all_symbols] Symbols fetched: {symbols}")
+                return symbols
         finally:
-            await pool.close()
+            print(f"[DEBUG][get_all_symbols] Pool closed")
+            import asyncio
+            try:
+                await asyncio.wait_for(pool.close(), timeout=2.0)
+            except asyncio.TimeoutError:
+                print("[WARN] pool.close() timed out after 2 seconds")
