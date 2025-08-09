@@ -30,7 +30,9 @@ class DailyPricesTiingoDAO:
         pool = await asyncpg.create_pool(self.db_url, min_size=1, max_size=1)
         try:
             async with pool.acquire() as conn:
-                return await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE date = $1 AND instrument_id = $2", date, instrument_id)
+                row = await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE date = $1 AND instrument_id = $2", date, instrument_id)
+                print(f"[DEBUG] get_price result for instrument_id={instrument_id}, date={date}: {row}")
+                return row
         finally:
             await pool.close()
 
@@ -38,7 +40,9 @@ class DailyPricesTiingoDAO:
         pool = await asyncpg.create_pool(self.db_url, min_size=1, max_size=1)
         try:
             async with pool.acquire() as conn:
-                return await conn.fetch(f"SELECT * FROM {self.table_name} WHERE instrument_id = $1", instrument_id)
+                rows = await conn.fetch(f"SELECT * FROM {self.table_name} WHERE instrument_id = $1", instrument_id)
+                print(f"[DEBUG] list_prices result for instrument_id={instrument_id}: {rows}")
+                return rows
         finally:
             await pool.close()
 
