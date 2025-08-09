@@ -1,7 +1,7 @@
 import os
 import asyncpg
 import numpy as np
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from dotenv import load_dotenv
 from config.environment import Environment
 
@@ -41,14 +41,18 @@ class DailyPricesUnifierBase:
     def validate_date(self, dt_obj, current_date):
         msgs = []
         try:
-            if dt_obj != current_date:
+            # Patch: compare only date part if either is datetime
+            d1 = dt_obj.date() if hasattr(dt_obj, 'date') else dt_obj
+            d2 = current_date.date() if hasattr(current_date, 'date') else current_date
+            if d1 != d2:
                 from logging import getLogger
                 logger = getLogger(__name__)
                 logger.warning(f"validate_date: date {dt_obj} does not match tracked current_date {current_date}")
                 msgs.append(f"date {dt_obj} does not match tracked current_date {current_date}")
-        except Exception:
-            msgs.append("date validation failed")
-        return msgs
+        except Exception as e:
+            msgs.append(f"date validation failed: {str(e)}")
+        finally:
+            return msgs
 
     def validate_sigma(self, close):
         msgs = []
@@ -91,6 +95,7 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
         super().__init__(environment)
 
     async def fetch_prices_by_instrument_id(self, conn, table, instrument_id, start_date, end_date):
+        print(f"[DEBUG][fetch_prices_by_instrument_id] Querying table={table} for instrument_id={instrument_id}, start_date={start_date}, end_date={end_date}")
         rows = await conn.fetch(
             f"""
             SELECT date, open, high, low, close, volume FROM {table}
@@ -98,9 +103,15 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
             """,
             instrument_id, start_date, end_date
         )
+        print(f"[DEBUG][fetch_prices_by_instrument_id] Got {len(rows)} rows for instrument_id={instrument_id} in {table}")
+        if not rows:
+            # Print all available dates for this instrument_id in this table
+            all_dates = await conn.fetch(f"SELECT date FROM {table} WHERE instrument_id = $1 ORDER BY date", instrument_id)
+            print(f"[DEBUG][fetch_prices_by_instrument_id] Available dates for instrument_id={instrument_id} in {table}: {[r['date'] for r in all_dates]}")
         return {row['date']: row for row in rows}
 
     async def unify_daily_prices(self, symbol, asof, current_date):
+        print(f"[DEBUG][unify_daily_prices] Called with symbol={symbol}, asof={asof}, current_date={current_date}")
         # asof can be date or (start, end)
         if isinstance(asof, (tuple, list)):
             start_date, end_date = asof
@@ -110,6 +121,7 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
         from dao.instrument_xrefs_dao import InstrumentXrefsDAO
         xrefs_dao = InstrumentXrefsDAO(self.environment)
         instrument_id = await xrefs_dao.resolve_instrument_id_by_symbol(symbol)
+        print(f"[DEBUG][unify_daily_prices] Resolved instrument_id={instrument_id} for symbol={symbol}")
         if instrument_id is None:
             print(f"[DEBUG][unify_daily_prices] Could not resolve instrument_id for symbol={symbol}")
             return []
@@ -120,7 +132,14 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
             # Fetch by instrument_id, not symbol
             tiingo = await self.fetch_prices_by_instrument_id(conn, self.environment.get_table_name('daily_prices_tiingo'), instrument_id, start_date, end_date)
             polygon = await self.fetch_prices_by_instrument_id(conn, self.environment.get_table_name('daily_prices_polygon'), instrument_id, start_date, end_date)
-            all_dates = sorted(set(tiingo.keys()) | set(polygon.keys()))
+            print(f"[DEBUG][unify_daily_prices] tiingo keys: {list(tiingo.keys())}, polygon keys: {list(polygon.keys())}")
+            # Only process dates in the requested range
+            requested_dates = set()
+            curr = start_date
+            while curr <= end_date:
+                requested_dates.add(curr)
+                curr += timedelta(days=1)
+            all_dates = sorted((set(tiingo.keys()) | set(polygon.keys())) & requested_dates)
             for d in all_dates:
                 t = tiingo.get(d)
                 p = polygon.get(d)
@@ -143,6 +162,7 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
                 open_, high, low, close, volume = [row.get(k) if row else None for k in ['open','high','low','close','volume']]
                 if not t and p:
                     open_, high, low, close, volume = [p.get('o'), p.get('h'), p.get('l'), p.get('c'), p.get('v')]
+                print(f"[DEBUG][unify_daily_prices] Date={d}, open={open_}, high={high}, low={low}, close={close}, volume={volume}, status={status}, note={note}")
                 await conn.execute(
                     f"""
                     INSERT INTO {self.environment.get_table_name('daily_prices')} (date, instrument_id, symbol, open, high, low, close, volume, source, status, note)
@@ -167,6 +187,7 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
                     'note': note
                 })
         await pool.close()
+        print(f"[DEBUG][unify_daily_prices] Final results for symbol={symbol}: {results}")
         return results
 
 class FileDailyPricesUnifier(DailyPricesUnifierBase):
