@@ -21,7 +21,8 @@ import logging
 
 class Runner:
     def __init__(self, start_date: str, end_date: str, environment: Environment,
-    universe_id: int, callbacks: List[str], base_duration: str):
+    universe_id: int, callbacks: List[str], base_duration: str,
+    security_master=None, universe_state_manager=None, universe_manager=None, market_data_manager=None):
         self.env = environment
         self.universe_id = universe_id
         from datetime import datetime, date
@@ -43,10 +44,10 @@ class Runner:
         print(f"[DEBUG] Runner.__init__ final self.end_date: {self.end_date!r} (type: {type(self.end_date)})")
         self.duration = TimeDuration(base_duration)  # expects TimeDuration
         self.callbacks: List[RunnerCallback] = self._init_callbacks(callbacks)
-        self.security_master = SecurityMaster(self.env)
-        self.universe_state_manager = UniverseStateManager(self.env)
-        self.universe_manager = UniverseManager(self.env, self.universe_id)
-        self.market_data_manager = DailyPriceMarketDataManager(self.env)
+        self.security_master = security_master if security_master is not None else SecurityMaster(self.env)
+        self.universe_state_manager = universe_state_manager if universe_state_manager is not None else UniverseStateManager(self.env)
+        self.universe_manager = universe_manager if universe_manager is not None else UniverseManager(self.env, self.universe_id)
+        self.market_data_manager = market_data_manager if market_data_manager is not None else DailyPriceMarketDataManager(self.env)
 
     def _init_callbacks(self, callbacks: List[str]) -> List[RunnerCallback]:
         # Expect config to contain a list of callback classes/instances
