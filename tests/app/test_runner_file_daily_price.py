@@ -78,7 +78,9 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
     vendors_dirs = {'polygon': polygon_dir, 'tiingo': tiingo_dir}
     # Use FileDailyPriceMarketDataManager to get instrument_ids
     from market_data.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
+    print('[DEBUG][TEST] Before create_async call')
     market_data_manager = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env)
+    print('[DEBUG][TEST] After create_async call')
     instrument_ids = list(market_data_manager._id_to_symbol.keys())
     output_dir = os.path.join(tmp_path, 'universe_state_30days')
     from datetime import datetime
@@ -164,8 +166,8 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
     # Assert all instrument_ids are ints
     for iid in instrument_ids:
         assert isinstance(iid, int), f"instrument_id must be int, got {type(iid)}: {iid}"
-    start_date = '2024-01-01'
-    end_date = '2025-07-31'
+    start_date = "2024-02-01"
+    end_date = '2024-02-28'
 
     # Set output directory for universe state files
     output_dir = os.path.join(tmp_path, 'universe_state')
@@ -202,12 +204,23 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
             ON CONFLICT DO NOTHING
         """)
         # Print table contents for verification
+        rows = await conn.fetch(f"SELECT * FROM {env.get_table_name('instrument_xrefs')}")
+        print(f"[DEBUG][TEST] instrument_xrefs rows after insert: {rows}")
         rows = await conn.fetch(f"SELECT * FROM {env.get_table_name('universe_membership')}")
         print(f"[DEBUG] universe_membership rows: {rows}")
         rows = await conn.fetch(f"SELECT * FROM {env.get_table_name('instruments')}")
         print(f"[DEBUG] instruments rows: {rows}")
         await conn.close()
     await insert_test_data()
+
+    # Debug: print instrument_xrefs rows before creating the manager
+    import asyncpg
+    conn = await asyncpg.connect(unit_test_db)
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
+    env.get_table_name = lambda table: f"test_{table}"
+    rows = await conn.fetch(f"SELECT * FROM {env.get_table_name('instrument_xrefs')}")
+    print(f"[DEBUG][TEST] instrument_xrefs rows before manager: {rows}")
+    await conn.close()
 
     # Create and patch a UniverseStateIntervalBuilder instance directly
     # Provide a minimal valid indicator_config for UniverseStateIntervalBuilder

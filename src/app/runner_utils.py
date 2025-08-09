@@ -71,6 +71,22 @@ async def run_file_daily_price_ohlcv(
     df = pd.concat(dfs, ignore_index=True)
     if df.empty:
         raise RuntimeError('Universe state DataFrame is empty.')
+
+    # Guarantee all requested dates are present for each instrument_id
+    from datetime import datetime, timedelta
+    all_dates = pd.date_range(start=start_date, end=end_date).date
+    instrument_ids_unique = df['instrument_id'].unique()
+    # Build full index for all (date, instrument_id) pairs
+    full_index = pd.MultiIndex.from_product([all_dates, instrument_ids_unique], names=['start_date_time', 'instrument_id'])
+    # If indicator_name exists, include all indicators as well
+    if 'indicator_name' in df.columns:
+        indicators = df['indicator_name'].unique()
+        full_index = pd.MultiIndex.from_product([all_dates, instrument_ids_unique, indicators], names=['start_date_time', 'instrument_id', 'indicator_name'])
+        df = df.set_index(['start_date_time', 'instrument_id', 'indicator_name'])
+    else:
+        df = df.set_index(['start_date_time', 'instrument_id'])
+    df = df.reindex(full_index).reset_index()
+
     # Print OHLCV (and indicators if required)
     ohlc_cols = ['start_date_time', 'instrument_id', 'open', 'high', 'low', 'close', 'volume']
     # If 'volume' is missing, fill with 0
@@ -87,7 +103,7 @@ async def run_file_daily_price_ohlcv(
             close = row['close']
             volume = row['volume']
             out = f"date: {date}, instrument_id: {instrument_id}, open: {open_}, high: {high}, low: {low}, close: {close}, volume: {volume}"
-            if required_indicators:
+            if required_indicators and 'indicator_name' in df.columns:
                 indicator_vals = {}
                 for ind in required_indicators:
                     val = df[(df['start_date_time'] == date) & (df['instrument_id'] == instrument_id) & (df['indicator_name'] == ind)]['indicator_value']

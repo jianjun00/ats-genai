@@ -80,14 +80,16 @@ class UniverseManager:
         ids = await self.get_members(self.universe_id, as_of_date)
         # Convert symbols to ints if needed
         if ids and isinstance(ids[0], str):
-            # Try to get symbol->id mapping from runner.market_data_manager
-            symbol_to_id = None
-            if hasattr(runner, 'market_data_manager') and hasattr(runner.market_data_manager, '_symbol_to_id'):
-                symbol_to_id = runner.market_data_manager._symbol_to_id
-            if symbol_to_id:
-                ids = [symbol_to_id[s] for s in ids if s in symbol_to_id]
-            else:
-                raise ValueError("Cannot convert instrument symbols to ids: no mapping available.")
+            from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+            xrefs_dao = InstrumentXrefsDAO(self.env)
+            resolved_ids = []
+            for s in ids:
+                instrument_id = await xrefs_dao.resolve_instrument_id(s)
+                if instrument_id is None:
+                    self.logger.error(f"[UniverseManager] Could not resolve instrument_id for symbol: {s}")
+                    raise ValueError(f"Cannot resolve instrument_id for symbol: {s}")
+                resolved_ids.append(instrument_id)
+            ids = resolved_ids
         for iid in ids:
             assert isinstance(iid, int), f"instrument_id must be int, got {type(iid)}: {iid}"
         self.instrument_ids = ids
