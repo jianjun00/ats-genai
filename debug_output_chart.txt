@@ -1,0 +1,71 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.10.11, pytest-8.4.1, pluggy-1.6.0 -- /Library/Frameworks/Python.framework/Versions/3.10/bin/python3.10
+cachedir: .pytest_cache
+rootdir: /Users/jianjunchen/CascadeProjects/market-forecast-app
+configfile: pytest.ini
+plugins: env-1.1.5, asyncio-1.1.0, anyio-3.7.1
+asyncio: mode=auto, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 2 items
+
+tests/app/test_indicator_runner_output.py::test_indicator_runner_df PASSED [ 50%]
+tests/app/test_indicator_runner_output.py::test_indicator_runner_chart FAILED [100%]
+
+=================================== FAILURES ===================================
+_________________________ test_indicator_runner_chart __________________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x12b73cf10>
+
+    @pytest.mark.asyncio
+    def test_indicator_runner_chart(monkeypatch):
+        """
+        Test that indicator_runner.py saves chart file for known symbol/date.
+        """
+        runner_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src/app/indicator_runner.py'))
+        spec = importlib.util.spec_from_file_location("indicator_runner", runner_path)
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["indicator_runner"] = mod
+        spec.loader.exec_module(mod)
+        # Prepare args
+        with tempfile.TemporaryDirectory() as tmpdir:
+            chart_path = os.path.join(tmpdir, "out.png")
+            test_args = [
+                "indicator_runner.py",
+                "--symbols", "AAPL",
+                "--start-date", "2025-07-29",
+                "--end-date", "2025-07-29",
+                "--environment", "test",
+                "--output-format", "chart",
+                "--output-chart-path", chart_path
+            ]
+            with patch.object(sys, 'argv', test_args):
+                try:
+                    mod.__main__
+                except AttributeError:
+                    pass
+>           assert os.path.exists(chart_path), f"Chart file {chart_path} was not created."
+E           AssertionError: Chart file /var/folders/w2/t1zg_btx4994q5ldyg0r5mrh0000gn/T/tmp79_5vbux/out.png was not created.
+E           assert False
+E            +  where False = <function exists at 0x10e8b24d0>('/var/folders/w2/t1zg_btx4994q5ldyg0r5mrh0000gn/T/tmp79_5vbux/out.png')
+E            +    where <function exists at 0x10e8b24d0> = <module 'posixpath' from '/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/posixpath.py'>.exists
+E            +      where <module 'posixpath' from '/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/posixpath.py'> = os.path
+
+tests/app/test_indicator_runner_output.py:66: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+GIN REGISTERED1: dict_keys([('bind', 'gin.macro'), ('finnhub_api_key', 'gin.macro'), ('iex_api_key', 'gin.macro'), ('quandl_api_key', 'gin.macro'), ('fmp_api_key', 'gin.macro'), ('polygon_api_key', 'gin.macro'), ('tiingo_api_key', 'gin.macro'), ('', 'config.logging_config.LoggingConfig'), ('', 'config.database.Database')])
+=============================== warnings summary ===============================
+tests/app/test_indicator_runner_output.py::test_indicator_runner_df
+  tests/app/test_indicator_runner_output.py:11: PytestWarning: The test <Function test_indicator_runner_df> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+    @pytest.mark.asyncio
+
+tests/app/test_indicator_runner_output.py::test_indicator_runner_chart
+  tests/app/test_indicator_runner_output.py:39: PytestWarning: The test <Function test_indicator_runner_chart> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+    @pytest.mark.asyncio
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/app/test_indicator_runner_output.py::test_indicator_runner_chart - AssertionError: Chart file /var/folders/w2/t1zg_btx4994q5ldyg0r5mrh0000gn/T/tmp79_5vbux/out.png was not created.
+assert False
+ +  where False = <function exists at 0x10e8b24d0>('/var/folders/w2/t1zg_btx4994q5ldyg0r5mrh0000gn/T/tmp79_5vbux/out.png')
+ +    where <function exists at 0x10e8b24d0> = <module 'posixpath' from '/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/posixpath.py'>.exists
+ +      where <module 'posixpath' from '/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/posixpath.py'> = os.path
+=================== 1 failed, 1 passed, 2 warnings in 1.41s ====================

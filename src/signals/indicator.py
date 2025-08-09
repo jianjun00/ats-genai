@@ -1,3 +1,4 @@
+import gin
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional, Dict
@@ -58,6 +59,7 @@ class Indicator:
             self.status = 'ok'
         # Subclass should override and implement logic here
 
+@gin.configurable
 class PL(Indicator):
     """
     PLDot indicator: for each interval, compute the average of (high, low, close) for the past three intervals, then average these three values.
@@ -108,6 +110,7 @@ class PL(Indicator):
     def get_value(self) -> Optional[float]:
         return self.latest_pl
 
+@gin.configurable
 class OneOneHigh(Indicator):
     """
     Indicator that computes OneOneHigh = 2*OneOneDot - last low.
@@ -153,6 +156,7 @@ class OneOneHigh(Indicator):
     def get_value(self) -> Optional[float]:
         return self.latest_high
 
+@gin.configurable
 class OneOneLow(Indicator):
     """
     Indicator that computes OneOneLow = 2*OneOneDot - last high.
@@ -183,6 +187,7 @@ class OneOneLow(Indicator):
     def get_value(self) -> Optional[float]:
         return self.latest_low
 
+@gin.configurable
 class OneOneDot(Indicator):
     """
     Indicator that computes the average of the most recent interval's high, low, and close.
@@ -220,6 +225,7 @@ class OneOneDot(Indicator):
         return self.latest_dot
 
 
+@gin.configurable
 class EBot(Indicator):
     """
     Indicator that computes the average of OneOneLow values for the past three intervals.
@@ -273,6 +279,7 @@ class EBot(Indicator):
         return self.latest_ebot
 
 
+@gin.configurable
 class ETop(Indicator):
     """
     Indicator that computes the average of OneOneHigh values for the past three intervals.

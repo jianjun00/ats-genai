@@ -1,7 +1,9 @@
 import gin
 
+from dataclasses import dataclass
+
 @gin.configurable
+@dataclass
 class LoggingConfig:
-    def __init__(self, level="INFO", format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"):
-        self.level = level
-        self.format = format
+    log_level: str = "INFO"
+    log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
