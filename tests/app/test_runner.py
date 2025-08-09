@@ -99,11 +99,11 @@ callbacks=state.universe_state_builder.UniverseStateIntervalBuilder
                 environment=environment,
                 universe_id=universe_id,
                 callbacks=[callback_class],
-                base_duration='1d'
+                base_duration='1d',
+                universe_manager=DummyUniverseManager(environment, universe_id),
+                market_data_manager=DummyMarketDataManager()
             )
-            self.universe_manager = DummyUniverseManager(self.env, universe_id)
             self.universe_manager.universe_db = DummyUniverseDB()
-            self.market_data_manager = DummyMarketDataManager()
 
     # Run for two days
     runner = TestRunner(start_date="2025-07-23", end_date="2025-07-24", environment=env, universe_id=1)
