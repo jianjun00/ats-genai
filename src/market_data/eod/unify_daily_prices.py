@@ -104,11 +104,13 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
             instrument_id, start_date, end_date
         )
         print(f"[DEBUG][fetch_prices_by_instrument_id] Got {len(rows)} rows for instrument_id={instrument_id} in {table}")
+        for idx, row in enumerate(rows):
+            print(f"[DEBUG][fetch_prices_by_instrument_id] Row {idx}: {dict(row)} (types: {[type(v) for v in dict(row).values()]})")
         if not rows:
             # Print all available dates for this instrument_id in this table
             all_dates = await conn.fetch(f"SELECT date FROM {table} WHERE instrument_id = $1 ORDER BY date", instrument_id)
             print(f"[DEBUG][fetch_prices_by_instrument_id] Available dates for instrument_id={instrument_id} in {table}: {[r['date'] for r in all_dates]}")
-        return {row['date']: row for row in rows}
+        return {row['date']: dict(row) for row in rows}
 
     async def unify_daily_prices(self, symbol, asof, current_date):
         print(f"[DEBUG][unify_daily_prices] Called with symbol={symbol}, asof={asof}, current_date={current_date}")
@@ -159,9 +161,8 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
                 if all_msgs:
                     status = 'invalid' if row_msgs or date_msgs or sigma_msgs else 'conflict'
                     note = "; ".join(all_msgs)
+                print(f"[DEBUG][unify_daily_prices] For date={d}: t={t}, p={p}, row={row}")
                 open_, high, low, close, volume = [row.get(k) if row else None for k in ['open','high','low','close','volume']]
-                if not t and p:
-                    open_, high, low, close, volume = [p.get('o'), p.get('h'), p.get('l'), p.get('c'), p.get('v')]
                 print(f"[DEBUG][unify_daily_prices] Date={d}, open={open_}, high={high}, low={low}, close={close}, volume={volume}, status={status}, note={note}")
                 await conn.execute(
                     f"""
