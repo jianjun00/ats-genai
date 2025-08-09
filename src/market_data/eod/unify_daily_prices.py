@@ -90,13 +90,13 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
     def __init__(self, environment):
         super().__init__(environment)
 
-    async def fetch_prices(self, conn, table, symbol, start_date, end_date):
+    async def fetch_prices_by_instrument_id(self, conn, table, instrument_id, start_date, end_date):
         rows = await conn.fetch(
             f"""
             SELECT date, open, high, low, close, volume FROM {table}
-            WHERE symbol = $1 AND date >= $2 AND date <= $3
+            WHERE instrument_id = $1 AND date >= $2 AND date <= $3
             """,
-            symbol, start_date, end_date
+            instrument_id, start_date, end_date
         )
         return {row['date']: row for row in rows}
 
@@ -106,10 +106,20 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
             start_date, end_date = asof
         else:
             start_date = end_date = asof
+
+        from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+        xrefs_dao = InstrumentXrefsDAO(self.environment)
+        instrument_id = await xrefs_dao.resolve_instrument_id_by_symbol(symbol)
+        if instrument_id is None:
+            print(f"[DEBUG][unify_daily_prices] Could not resolve instrument_id for symbol={symbol}")
+            return []
+
         pool = await asyncpg.create_pool(self.environment.get_database_url())
+        results = []
         async with pool.acquire() as conn:
-            tiingo = await self.fetch_prices(conn, self.environment.get_table_name('daily_prices_tiingo'), symbol, start_date, end_date)
-            polygon = await self.fetch_prices(conn, self.environment.get_table_name('daily_prices_polygon'), symbol, start_date, end_date)
+            # Fetch by instrument_id, not symbol
+            tiingo = await self.fetch_prices_by_instrument_id(conn, self.environment.get_table_name('daily_prices_tiingo'), instrument_id, start_date, end_date)
+            polygon = await self.fetch_prices_by_instrument_id(conn, self.environment.get_table_name('daily_prices_polygon'), instrument_id, start_date, end_date)
             all_dates = sorted(set(tiingo.keys()) | set(polygon.keys()))
             for d in all_dates:
                 t = tiingo.get(d)
@@ -135,16 +145,29 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
                     open_, high, low, close, volume = [p.get('o'), p.get('h'), p.get('l'), p.get('c'), p.get('v')]
                 await conn.execute(
                     f"""
-                    INSERT INTO {self.environment.get_table_name('daily_prices')} (date, symbol, open, high, low, close, volume, source, status, note)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                    ON CONFLICT (date, symbol) DO UPDATE SET open=EXCLUDED.open, high=EXCLUDED.high, low=EXCLUDED.low, close=EXCLUDED.close, volume=EXCLUDED.volume, source=EXCLUDED.source, status=EXCLUDED.status, note=EXCLUDED.note
+                    INSERT INTO {self.environment.get_table_name('daily_prices')} (date, instrument_id, symbol, open, high, low, close, volume, source, status, note)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                    ON CONFLICT (date, instrument_id) DO UPDATE SET symbol=EXCLUDED.symbol, open=EXCLUDED.open, high=EXCLUDED.high, low=EXCLUDED.low, close=EXCLUDED.close, volume=EXCLUDED.volume, source=EXCLUDED.source, status=EXCLUDED.status, note=EXCLUDED.note
                     """,
-                    d, symbol, open_, high, low, close, volume,
+                    d, instrument_id, symbol, open_, high, low, close, volume,
                     ('tiingo' if t and not p else 'polygon' if p and not t else 'both'),
                     status, note
                 )
                 self.update_close_history(close)
+                results.append({
+                    'date': d,
+                    'symbol': symbol,
+                    'open': open_,
+                    'high': high,
+                    'low': low,
+                    'close': close,
+                    'volume': volume,
+                    'source': ('tiingo' if t and not p else 'polygon' if p and not t else 'both'),
+                    'status': status,
+                    'note': note
+                })
         await pool.close()
+        return results
 
 class FileDailyPricesUnifier(DailyPricesUnifierBase):
     def unify_daily_prices_sync(self, symbol, asof, current_date):

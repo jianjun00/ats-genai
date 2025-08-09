@@ -19,10 +19,22 @@ class DailyPricesDAO:
         self.db_url = self.env.get_database_url()
 
     async def list_prices_for_instruments_and_date(self, instrument_ids, as_of_date):
+        print(f"[DEBUG][list_prices_for_instruments_and_date] Called with instrument_ids={instrument_ids}, as_of_date={as_of_date}")
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
-                return await conn.fetch(f"SELECT * FROM {self.table_name} WHERE date = $1 AND instrument_id = ANY($2)", as_of_date, instrument_ids)
+                rows = await conn.fetch(f"SELECT * FROM {self.table_name} WHERE date = $1 AND instrument_id = ANY($2)", as_of_date, instrument_ids)
+                print(f"[DEBUG][list_prices_for_instruments_and_date] Query returned {len(rows)} rows for date={as_of_date}")
+                if not rows:
+                    # Also print all available dates for these instrument_ids
+                    all_rows = await conn.fetch(f"SELECT date, instrument_id FROM {self.table_name} WHERE instrument_id = ANY($1) ORDER BY date", instrument_ids)
+                    date_map = {}
+                    for r in all_rows:
+                        iid = r['instrument_id']
+                        d = r['date']
+                        date_map.setdefault(iid, []).append(str(d))
+                    print(f"[DEBUG][list_prices_for_instruments_and_date] Available dates per instrument_id: {date_map}")
+                return rows
         finally:
             await pool.close()
 

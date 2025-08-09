@@ -29,10 +29,16 @@ class BaseDailyPriceMarketDataManager(MarketDataManager, ABC):
         return self._last_sod_date
 
     def resolve_instrument_id(self, symbol: str) -> Optional[int]:
+        """
+        Deprecated: Use InstrumentXrefsDAO.resolve_instrument_id_by_symbol for DB-based lookup.
+        This method only uses in-memory mapping (for legacy/testing).
+        """
         return self._symbol_to_id.get(symbol.upper())
 
-    def resolve_symbol(self, instrument_id: int) -> Optional[str]:
-        return self._id_to_symbol.get(instrument_id)
+    async def resolve_symbol(self, instrument_id: int) -> Optional[str]:
+        from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+        xrefs_dao = InstrumentXrefsDAO(self.env)
+        return await xrefs_dao.get_symbol_by_instrument_id_vendor_name(instrument_id, vendor_name="ticker")
 
     @abstractmethod
     async def get_ohlc(self, instrument_id: int, start: datetime, end: datetime, current_date: Optional[date] = None) -> Optional[Dict[str, float]]:

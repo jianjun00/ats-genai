@@ -38,21 +38,24 @@ class DBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
         self._symbol_to_id = {}
         self._id_to_symbol = {}
         for s in self.symbols:
-            instrument_id = await self.xrefs_dao.resolve_instrument_id(s)
+            instrument_id = await self.xrefs_dao.resolve_instrument_id_by_symbol(s)
             if instrument_id is not None:
                 self._symbol_to_id[s] = instrument_id
                 self._id_to_symbol[instrument_id] = s
             else:
                 logging.warning(f"[DBDailyPriceMarketDataManager] Could not resolve instrument_id for symbol {s}")
 
-
+    
     async def get_ohlc(self, instrument_id: int, start: datetime, end: datetime, current_date: Optional[date] = None) -> Optional[Dict[str, float]]:
-        symbol = self.resolve_symbol(instrument_id)
+        print(f"[DEBUG][get_ohlc] Called with instrument_id={instrument_id}, start={start}, end={end}, current_date={current_date}")
+        symbol = await self.resolve_symbol(instrument_id)
+        print(f"[DEBUG][get_ohlc] Resolved symbol={symbol} for instrument_id={instrument_id}")
         if not symbol:
             logging.warning(f"[DBDailyPriceMarketDataManager] No symbol for instrument_id={instrument_id}")
             return None
         # Fetch daily price from DB for the date range (typically only one row per day)
         results = await self.prices_dao.list_prices_for_instruments_and_date([instrument_id], start.date())
+        print(f"[DEBUG][get_ohlc] Query results for instrument_id={instrument_id}, date={start.date()}: {results}")
         if not results:
             logging.info(f"[DBDailyPriceMarketDataManager] No price data for instrument_id={instrument_id} ({symbol}) at {start.date()}")
             return None
