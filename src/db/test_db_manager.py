@@ -174,10 +174,7 @@ class TestDatabaseManager:
         db_config = self.env.get_database_config()
         base_db_name = db_config['database']
         postgres_url = self.db_url.replace(f"/{base_db_name}", "/postgres")
-        import traceback
         print(f"[DEBUG][DROP_DB] About to drop test DB: {db_name}")
-        print('[DEBUG][DROP_DB] Stack trace before drop:')
-        traceback.print_stack()
         try:
             pool = await asyncpg.create_pool(postgres_url)
             try:

@@ -1,0 +1,3 @@
+config.environment.Environment.logging_config = @config.logging_config.LoggingConfig()
+config.logging_config.LoggingConfig.log_level = "WARNING"
+config.logging_config.LoggingConfig.log_format = "%(message)s"

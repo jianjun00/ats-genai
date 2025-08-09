@@ -29,7 +29,12 @@ class EnvironmentType(Enum):
 
 
 from signals.indicator_config import IndicatorConfig
+from config.logging_config import LoggingConfig
 
+import gin
+
+@gin.configurable
+@gin.configurable
 class Environment:
     def get(self, key, default=None):
         """
@@ -62,7 +67,7 @@ class Environment:
     Loads config from Gin config file (e.g., config/app.gin).
     All config values are bound as module-level variables.
     """
-    def __init__(self, gin_config_path: Optional[str] = None, env_type: Optional[object] = None, db_url: Optional[str] = None):
+    def __init__(self, gin_config_path: Optional[str] = None, env_type: Optional[object] = None, db_url: Optional[str] = None, logging_config: LoggingConfig = LoggingConfig()):
         print(f"[GIN DEBUG] Environment.__init__ received db_url: {db_url}")
         # Accept either a gin config path or an environment type (enum or str)
         config_path = None
@@ -117,7 +122,7 @@ class Environment:
         from config.polygon import set_polygon_api_key, POLYGON_API_KEY
 
         import gin
-        if config_path:
+        if config_path and os.environ.get('GIN_LOAD_DEFAULT_CONFIG', '1') == '1':
             if not (hasattr(gin.config, '_CONFIG') and gin.config._CONFIG.get('was_configured', False)):
                 gin.parse_config_file(config_path)
         from config.logging_config import LoggingConfig
@@ -241,19 +246,6 @@ class Environment:
         else:
             raise FileNotFoundError(f"Configuration file not found: {env_config}")
     
-    def _setup_logging(self) -> logging.Logger:
-        """Setup logging based on environment configuration."""
-        logger = logging.getLogger("market-forecast-app")
-        
-        level_str = self.logging_config.level
-        level = getattr(logging, level_str.upper(), logging.INFO)
-        logger.setLevel(level)
-        
-        if not logger.handlers:
-            handler = logging.StreamHandler()
-            format_str = self.logging_config.format
-            formatter = logging.Formatter(format_str)
-            handler.setFormatter(formatter)
     def get_table_name(self, base_table_name: str):
         """
         Get prefixed table name for current environment (Gin-based, uses env_type if present).

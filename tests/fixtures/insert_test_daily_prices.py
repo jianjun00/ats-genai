@@ -13,8 +13,6 @@ async def insert_test_daily_prices(json_path, symbol, instrument_id, unit_test_d
         data = json.load(f)
     for row in data['results']:
         row_date = datetime.utcfromtimestamp(row['t'] // 1000).date()
-        if not (date(2024, 2, 1) <= row_date <= date(2024, 3, 31)):
-            continue
         await dao.insert_price(
             date=row_date,
             instrument_id=instrument_id,
