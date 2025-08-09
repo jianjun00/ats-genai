@@ -7,7 +7,6 @@ from signals.indicator_config import IndicatorConfig
 from signals.indicator import ETop, EBot, PL
 from datetime import datetime, timedelta
 from app.runner_utils import run_file_daily_price_ohlcv
-from market_data.eod.db_daily_price_market_data_manager import DBDailyPriceMarketDataManager
 
 
 def parse_args():
@@ -22,6 +21,8 @@ def parse_args():
     parser.add_argument('--environment', default='test', choices=['test', 'intg', 'prod'], help='Environment type')
     parser.add_argument('--db-url', default=None, help='Database URL (overrides environment default)')
     parser.add_argument('--gin_config', default=None, help='Path to Gin config file (optional)')
+    parser.add_argument('--output-format', default='df', choices=['df', 'chart'], help='Output format: df (default) or chart')
+    parser.add_argument('--output-chart-path', default=None, help='If set, save chart PNG to this path (default: indicator_chart_<symbol>.png)')
     return parser.parse_args()
 
 
@@ -80,23 +81,87 @@ class IndicatorRunner(Runner):
             base_duration=base_duration,
         )
 
-    async def run_indicators(self):
-        # Use Runner's event loop, but print OHLC for each instrument/date
+    async def run_indicators(self, output_format='df', output_chart_path=None):
+        import pandas as pd
+        import matplotlib.pyplot as plt
+        import mplfinance as mpf
         from datetime import datetime, timedelta
-        from market_data.eod.db_daily_price_market_data_manager import DBDailyPriceMarketDataManager
-        manager = await DBDailyPriceMarketDataManager.create_async(self.env, symbols=self.symbols)
+        from market_data.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
+        manager = await UnifiedDBDailyPriceMarketDataManager.create_async(self.env, symbols=self.symbols)
         if not self.instrument_ids:
             print("[DEBUG] No instrument_ids to process, exiting.")
             return
         print(f"[INFO] Ready to run indicators for instrument_ids: {self.instrument_ids}")
         print(f"[DEBUG] Date range: {self.start_date} to {self.end_date}")
+        all_rows = []
+        # For each instrument, collect OHLC and indicators
         for instrument_id in self.instrument_ids:
-            print(f"[DEBUG] Looping instrument_id: {instrument_id}")
+            symbol = None
+            if self.symbol_to_id:
+                for s, iid in self.symbol_to_id.items():
+                    if iid == instrument_id:
+                        symbol = s
+                        break
+            if symbol is None:
+                symbol = str(instrument_id)
             for single_date in range((self.end_date - self.start_date).days + 1):
                 d = self.start_date + timedelta(days=single_date)
-                print(f"[DEBUG] Fetching OHLC for instrument_id={instrument_id} on {d}")
                 ohlc = await manager.get_ohlc(instrument_id, datetime.combine(d, datetime.min.time()), datetime.combine(d, datetime.min.time()))
-                print(f"{d} | instrument_id={instrument_id}: {ohlc}")
+                if ohlc is None:
+                    continue
+                # Compute indicators
+                row = {
+                    'date': d,
+                    'symbol': symbol,
+                    **ohlc
+                }
+                # Compute ETop, EBot, PL using indicator_config
+                # These are expected to be functions/classes in indicator_config.indicators
+                for ind_name, ind_cls in (self.indicator_config.indicators.items() if self.indicator_config else []):
+                    try:
+                        # Expect indicator to be callable: ind_cls(ohlc)
+                        row[ind_name] = ind_cls(ohlc) if callable(ind_cls) else None
+                    except Exception as e:
+                        row[ind_name] = None
+                all_rows.append(row)
+        if not all_rows:
+            print("[WARN] No data collected for the given range and instruments.")
+            return
+        df = pd.DataFrame(all_rows)
+        # Output as DataFrame
+        if output_format == 'df':
+            print(df.to_string(index=False))
+            return
+        # Output as chart
+        # For each symbol, plot OHLC with overlays
+        for symbol, sdf in df.groupby('symbol'):
+            sdf = sdf.sort_values('date')
+            sdf = sdf.set_index('date')
+            if sdf.empty:
+                print(f"[WARN] No data for symbol {symbol}, skipping chart.")
+                continue
+            # Prepare OHLC DataFrame for mplfinance
+            mpf_df = sdf[['open', 'high', 'low', 'close']].copy()
+            mpf_df.index = pd.DatetimeIndex(mpf_df.index)
+            if mpf_df.empty:
+                print(f"[WARN] No OHLC data for symbol {symbol}, skipping chart.")
+                continue
+            # Prepare overlays
+            addplots = []
+            for ind in ['ETop', 'EBot', 'PL']:
+                if ind in sdf.columns:
+                    addplots.append(mpf.make_addplot(sdf[ind], panel=0, color={'ETop':'g','EBot':'r','PL':'b'}.get(ind,'k'), width=1.0))
+            # Chart file name
+            chart_path = output_chart_path or f"indicator_chart_{symbol}.png"
+            fig, axlist = mpf.plot(mpf_df, type='candle', style='charles', title=f"{symbol} OHLC with Indicators", addplot=addplots, ylabel='Price', returnfig=True)
+            if chart_path:
+                try:
+                    print(f"[DEBUG] Attempting to save chart to {chart_path}")
+                    fig.savefig(chart_path)
+                    print(f"[INFO] Chart saved to {chart_path}")
+                except Exception as e:
+                    print(f"[ERROR] Failed to save chart to {chart_path}: {e}")
+            plt.show()
 
 if __name__ == "__main__":
     args = parse_args()
@@ -140,4 +205,5 @@ if __name__ == "__main__":
         base_duration='1d',
     )
     import asyncio
-    asyncio.run(runner.run_indicators())
+    # Pass output_format and output_chart_path to runner
+    asyncio.run(runner.run_indicators(output_format=args.output_format, output_chart_path=args.output_chart_path))
