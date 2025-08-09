@@ -42,7 +42,10 @@ class InstrumentXrefsDAO:
                     else:
                         q += " AND (start_at <= $2 AND (end_at IS NULL OR end_at >= $2))"
                         params.append(at_date)
+                print(f"[DEBUG][resolve_instrument_id] symbol={symbol}, vendor_id={vendor_id}, at_date={at_date}")
+                print(f"[DEBUG][resolve_instrument_id] query={q}, params={params}")
                 row = await conn.fetchrow(q, *params)
+                print(f"[DEBUG][resolve_instrument_id] result row: {row}")
                 if row:
                     return row['instrument_id']
                 return None
