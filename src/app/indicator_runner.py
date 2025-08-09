@@ -220,7 +220,15 @@ class IndicatorRunner(Runner):
                         addplots.append(mpf.make_addplot(sdf[ind], panel=0, color=opts['color'], width=opts['width'], type='scatter', marker='o', markersize=6))
             # Chart file name
             chart_path = output_chart_path or f"indicator_chart_{symbol}.png"
-            fig, axlist = mpf.plot(mpf_df, type='candle', style='charles', title=f"{symbol} OHLC with Indicators", addplot=addplots, ylabel='Price', returnfig=True)
+            # Customize market colors and candle/wick linewidths for larger open/close visual
+            mc = mpf.make_marketcolors(up='g', down='r', edge='inherit', wick='inherit', volume='inherit', ohlc='inherit')
+            s = mpf.make_mpf_style(marketcolors=mc, base_mpf_style='charles', rc={'lines.linewidth': 2.5})
+            # Note: mplfinance does not support candle_linewidth/wick_linewidth as kwargs in some versions.
+            # Use rc param in style for thicker lines, but not all versions render candle body thicker.
+            fig, axlist = mpf.plot(
+                mpf_df, type='candle', style=s, title=f"{symbol} OHLC with Indicators",
+                addplot=addplots, ylabel='Price', returnfig=True
+            )
             if chart_path:
                 try:
                     print(f"[DEBUG] Attempting to save chart to {chart_path}")
