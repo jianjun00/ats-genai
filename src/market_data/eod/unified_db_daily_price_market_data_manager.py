@@ -22,6 +22,7 @@ class UnifiedDBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
 
     @classmethod
     async def create_async(cls, env: Environment, symbols: Optional[List[str]] = None):
+        print(f"[DEBUG_UDDM_CREATE_ASYNC] Creating UnifiedDBDailyPriceMarketDataManager with env: {env}, symbols: {symbols}")
         self = cls.__new__(cls)
         cls.__init__(self, env, symbols)
         await self._load_symbol_mappings()
