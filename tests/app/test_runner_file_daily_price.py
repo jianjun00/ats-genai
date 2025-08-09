@@ -134,7 +134,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
             val = df[(df['start_date_time'] == date) & (df['instrument_id'] == instrument_id) & (df['indicator_name'] == ind)]['indicator_value']
             instrument_indicator_intervals[ind] = val.iloc[0] if not val.empty else None
         print(f"date: {date}, instrument_id: {instrument_id}, open: {open_}, high: {high}, low: {low}, close: {close}, etop: {instrument_indicator_intervals['ETop']}, ebot: {instrument_indicator_intervals['EBot']}, pldot: {instrument_indicator_intervals['PL']}")
-    for col in ['instrument_id', 'open', 'close', 'traded_volume', 'traded_dollar']:
+    for col in ['instrument_id', 'open', 'close', 'volume']:
         assert col in df.columns
     min_date = df['start_date_time'].min()
     max_date = df['end_date_time'].max()
@@ -304,7 +304,7 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
             instrument_indicator_intervals[ind] = val.iloc[0] if not val.empty else None
         print(f"date: {date}, instrument_id: {instrument_id}, open: {open_}, high: {high}, low: {low}, close: {close}, etop: {instrument_indicator_intervals['ETop']}, ebot: {instrument_indicator_intervals['EBot']}, pldot: {instrument_indicator_intervals['PL']}")
     # Example: check expected columns
-    for col in ['instrument_id', 'open', 'close', 'traded_volume', 'traded_dollar']:
+    for col in ['instrument_id', 'open', 'close', 'volume']:
         assert col in df.columns
     # Example: check date range
     min_date = df['start_date_time'].min()

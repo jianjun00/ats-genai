@@ -5,6 +5,30 @@ from typing import Optional, List, Dict, Any
 from .vendors_dao import VendorsDAO
 
 class InstrumentXrefsDAO:
+    async def get_symbol_by_instrument_id_vendor_name(self, instrument_id: int, vendor_name: str = "ticker") -> Optional[str]:
+        """
+        Lookup symbol from instrument_xrefs using instrument_id and vendor_id (looked up by vendor_name).
+        """
+        from .vendors_dao import VendorsDAO
+        vendors_dao = VendorsDAO(self.env)
+        vendor_row = await vendors_dao.get_vendor_by_name(vendor_name)
+        print(f"[DEBUG][get_symbol_by_instrument_id_vendor_name] instrument_id={instrument_id}, vendor_name={vendor_name}, vendor_row={vendor_row}")
+        if not vendor_row:
+            return None
+        vendor_id = vendor_row['id']
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                print(f"[DEBUG][get_symbol_by_instrument_id_vendor_name] Querying for instrument_id={instrument_id}, vendor_id={vendor_id} in {self.table_name}")
+                row = await conn.fetchrow(
+                    f"SELECT symbol FROM {self.table_name} WHERE instrument_id = $1 AND vendor_id = $2",
+                    instrument_id, vendor_id
+                )
+                print(f"[DEBUG][get_symbol_by_instrument_id_vendor_name] Fetched row: {row}")
+                return row['symbol'] if row else None
+        finally:
+            await pool.close()
+
     async def get_all_symbols(self):
         # Find vendor_id for name='ticker'
         vendors_dao = VendorsDAO(self.env)
@@ -21,35 +45,33 @@ class InstrumentXrefsDAO:
         finally:
             await pool.close()
 
-    async def resolve_instrument_id(self, symbol, vendor_id=None, at_date=None):
-        print(f"[DEBUG][resolve_instrument_id][ARGS] symbol={symbol}, vendor_id={vendor_id}, at_date={at_date}")
+    async def resolve_instrument_id_by_symbol(self, symbol, at_date=None):
+        print(f"[DEBUG][resolve_instrument_id_by_symbol][ARGS] symbol={symbol}, at_date={at_date}")
         """
-        Lookup instrument_id from instrument_xrefs using symbol (and vendor_id, at_date if provided).
+        Lookup instrument_id from instrument_xrefs using symbol and vendor_id for 'ticker'.
         """
+        from .vendors_dao import VendorsDAO
+        vendors_dao = VendorsDAO(self.env)
+        vendor_row = await vendors_dao.get_vendor_by_name("ticker")
+        if not vendor_row:
+            print(f"[DEBUG][resolve_instrument_id_by_symbol] vendor 'ticker' not found!")
+            return None
+        vendor_id = vendor_row['id']
+        print(f"[DEBUG][resolve_instrument_id_by_symbol] Using vendor_id={vendor_id} for symbol={symbol}")
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
                 table_name = self.table_name
-                q = f"SELECT instrument_id FROM {table_name} WHERE symbol = $1"
-                params = [symbol]
-                if vendor_id is not None:
-                    q += " AND vendor_id = $2"
-                    params.append(vendor_id)
+                q = f"SELECT instrument_id FROM {table_name} WHERE symbol = $1 AND vendor_id = $2"
+                params = [symbol, vendor_id]
                 if at_date is not None:
                     # at_date must be a datetime.date object for asyncpg
-                    if vendor_id is not None:
-                        q += " AND (start_at <= $3 AND (end_at IS NULL OR end_at >= $3))"
-                        params.append(at_date)
-                    else:
-                        q += " AND (start_at <= $2 AND (end_at IS NULL OR end_at >= $2))"
-                        params.append(at_date)
-                print(f"[DEBUG][resolve_instrument_id] symbol={symbol}, vendor_id={vendor_id}, at_date={at_date}")
-                print(f"[DEBUG][resolve_instrument_id] query={q}, params={params}")
+                    q += " AND (start_at <= $3 AND (end_at IS NULL OR end_at >= $3))"
+                    params.append(at_date)
+                print(f"[DEBUG][resolve_instrument_id_by_symbol] Executing: {q} with params {params}")
                 row = await conn.fetchrow(q, *params)
-                print(f"[DEBUG][resolve_instrument_id] result row: {row}")
-                if row:
-                    return row['instrument_id']
-                return None
+                print(f"[DEBUG][resolve_instrument_id_by_symbol] Fetched row: {row}")
+                return row['instrument_id'] if row else None
         finally:
             await pool.close()
 

@@ -48,7 +48,36 @@ Summarize the current project context, integration test refactor status, and DB/
 - Ensure all test and migration code is robust to schema changes and table prefixing.
 - Maintain and update this context file as the single source of truth for ATS integration test and DB best practices.
 
-## UniverseMembershipDAO Test Fix Context Summary (2025-07-26)
+---
+
+## Daily Price Unification Logic & Test Coverage Context (as of 2025-08-09)
+
+### Objective
+- Ensure unified daily price retrieval works robustly across vendors (Tiingo, Polygon) using canonical instrument_id, with all test and production code using environment-aware table names and isolated test DBs.
+
+### Key Refactors & Fixes
+- **DatabaseDailyPricesUnifier.unify_daily_prices** now resolves instrument_id using InstrumentXrefsDAO for the given symbol, then queries vendor tables by instrument_id (not symbol).
+- Unified price insertions now use (date, instrument_id) as the ON CONFLICT constraint, matching the schema.
+- All test and production code uses env.get_table_name() for environment-aware table access.
+- All price ingestion, xref, and test setup uses canonical DAOs and instrument_id.
+- All test runs use PYTHONPATH=src for correct import resolution.
+
+### Test Coverage
+- Added/updated async tests for DatabaseDailyPricesUnifier:
+  - Verifies unification works when price rows are present for the instrument_id.
+  - Verifies empty result if instrument_id cannot be resolved from symbol.
+  - All tests use the unit_test_db fixture for DB isolation and correct prefixing.
+  - All tests pass as of this context.
+
+### Best Practices
+- Always use instrument_id for all xref and price operations.
+- Always use the appropriate test DB fixture for all integration/unit tests and PYTHONPATH=src.
+- Never hardcode DB names or table prefixes; always use env.get_table_name().
+- Ensure all code changes have corresponding test coverage and pass all tests before merging.
+- Maintain strict test isolation and clean environment setup for every test run.
+
+---
+
 
 ### Objective
 Fix integration test failures for `UniverseMembershipDAO` by ensuring correct argument usage in DAO method calls and robust test data setup, so all tests pass reliably.

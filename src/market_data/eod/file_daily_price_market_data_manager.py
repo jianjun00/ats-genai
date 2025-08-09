@@ -74,7 +74,7 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
         print(f"[DEBUG][_load_symbol_mappings] Using ticker_vendor_id={ticker_vendor_id}")
         for s in self.symbols:
             print(f"[DEBUG][_load_symbol_mappings] Attempting to resolve instrument_id for symbol: {s} with vendor_id={ticker_vendor_id}")
-            instrument_id = await xrefs_dao.resolve_instrument_id(s, vendor_id=ticker_vendor_id)
+            instrument_id = await xrefs_dao.resolve_instrument_id_by_symbol(s)
             if instrument_id is not None:
                 self._symbol_to_id[s] = instrument_id
                 self._id_to_symbol[instrument_id] = s
@@ -217,15 +217,17 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
     def _get_all_symbols(self) -> List[str]:
         return self.symbols
 
-    def resolve_instrument_id(self, symbol: str) -> Optional[int]:
-        return self._symbol_to_id.get(symbol.upper())
+    async def resolve_instrument_id(self, symbol: str) -> Optional[int]:
+        xrefs_dao = InstrumentXrefsDAO(self.env)
+        return await xrefs_dao.resolve_instrument_id_by_symbol(symbol)
 
-    def resolve_symbol(self, instrument_id: int) -> Optional[str]:
-        return self._id_to_symbol.get(instrument_id)
+    async def resolve_symbol(self, instrument_id: int) -> Optional[str]:
+        xrefs_dao = InstrumentXrefsDAO(self.env)
+        return await xrefs_dao.get_symbol_by_instrument_id_vendor_name(instrument_id, vendor_name="ticker")
 
-    def get_ohlc(self, instrument_id: int, start: datetime, end: datetime, current_date: Optional[date] = None) -> Optional[Dict[str, float]]:
+    async def get_ohlc(self, instrument_id: int, start: datetime, end: datetime, current_date: Optional[date] = None) -> Optional[Dict[str, float]]:
         assert isinstance(instrument_id, int), f"instrument_id must be int, got {type(instrument_id)}: {instrument_id}"
-        symbol = self.resolve_symbol(instrument_id)
+        symbol = await self.resolve_symbol(instrument_id)
         print(f"[DEBUG][get_ohlc] Lookup instrument_id={instrument_id}, symbol={symbol}, date={start.date()} to {end.date()}")
         sod_date = current_date if current_date is not None else self._last_sod_date
         if sod_date is None:

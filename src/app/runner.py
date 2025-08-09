@@ -84,40 +84,45 @@ class Runner:
     def iter_events(self):
         """
         Yields (datetime, type) tuples for each simulation event.
+        Only for exchange trading days.
         'start' at the first second of the start date,
         'interval' for each interval step,
-        'sod' at the first second of each day,
-        'eod' at the last second of each day,
+        'sod' at the first second of each trading day,
+        'eod' at the last second of each trading day,
         'end' at the last second of the end date.
         """
+        from calendars.exchange_calendar import ExchangeCalendar
+        exchange = getattr(self.market_data_manager, 'exchange', 'NYSE')
+        cal = ExchangeCalendar(exchange)
+        trading_days = list(cal.all_trading_days(self.start_date.date(), self.end_date.date()))
+        if not trading_days:
+            logging.warning(f"[Runner.iter_events] No trading days found for {exchange} between {self.start_date} and {self.end_date}")
+            return
         # START event
         start_time = self.start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         yield (start_time, "start")
-        current_time = self.start_date
         last_eod_date = None
         last_sod_date = None
-        while current_time <= self.end_date:
-            # SOD event at first second of each date
-            sod_time = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
+        for day in trading_days:
+            sod_time = datetime.combine(day, datetime.min.time())
             logging.debug(f"[Runner.iter_events] Yielding sod: {sod_time}")
-            if last_sod_date != current_time.date():
+            if last_sod_date != day:
                 yield (sod_time, "sod")
-                last_sod_date = current_time.date()
-            # Yield interval event
-            logging.debug(f"[Runner.iter_events] Yielding interval: {current_time}")
-            print(f"[PRINT][Runner.iter_events] Yielding interval: {current_time}")
-            yield (current_time, "interval")
-            # Check if EOD event should be yielded
-            next_time = self._advance_time(current_time)
-            # If next_time is a new day or past end_date, yield EOD at last second of current day
-            if (next_time.date() != current_time.date()) or next_time > self.end_date:
-                eod_time = current_time.replace(hour=23, minute=59, second=59, microsecond=0)
-                logging.debug(f"[Runner.iter_events] Yielding eod: {eod_time}")
-                if last_eod_date != current_time.date():
-                    yield (eod_time, "eod")
-                    last_eod_date = current_time.date()
-            current_time = next_time
+                last_sod_date = day
+            # Yield interval event (at SOD for now, can adjust for intraday if needed)
+            logging.debug(f"[Runner.iter_events] Yielding interval: {sod_time}")
+            print(f"[PRINT][Runner.iter_events] Yielding interval: {sod_time}")
+            yield (sod_time, "interval")
+            # EOD event
+            eod_time = sod_time.replace(hour=23, minute=59, second=59, microsecond=0)
+            logging.debug(f"[Runner.iter_events] Yielding eod: {eod_time}")
+            if last_eod_date != day:
+                yield (eod_time, "eod")
+                last_eod_date = day
         # END event
+        end_time = self.end_date.replace(hour=23, minute=59, second=59, microsecond=0)
+        logging.debug(f"[Runner.iter_events] Yielding end: {end_time}")
+        yield (end_time, "end")
         end_time = self.end_date.replace(hour=23, minute=59, second=59, microsecond=0)
         logging.debug(f"[Runner.iter_events] Yielding end: {end_time}")
         yield (end_time, "end")
