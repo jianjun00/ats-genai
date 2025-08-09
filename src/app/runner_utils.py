@@ -61,7 +61,12 @@ async def run_file_daily_price_ohlcv(
     if not intervals:
         raise RuntimeError('No universe state intervals found in DB.')
     # Convert intervals to DataFrame (assuming to_dataframe exists or build manually)
-    dfs = [interval.to_dataframe() for interval in intervals]
+    dfs = []
+    for idx, interval in enumerate(intervals):
+        print(f"[runner_utils] interval idx={idx}, type={type(interval)}")
+        assert hasattr(interval, 'to_dataframe'), (
+            f"[runner_utils] interval idx={idx} type={type(interval)} does not have .to_dataframe(). Value: {interval}")
+        dfs.append(interval.to_dataframe())
     import pandas as pd
     df = pd.concat(dfs, ignore_index=True)
     if df.empty:

@@ -39,6 +39,9 @@ from state.indicator_interval import IndicatorInterval
 
 import gin
 from dao.universe_state_interval_dao import UniverseStateIntervalDAO
+from dao.instrument_interval_dao import InstrumentIntervalDAO
+from dao.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
+from dao.factor_interval_dao import FactorIntervalDAO
 
 @gin.configurable
 class UniverseStateManager:
@@ -133,6 +136,7 @@ class UniverseStateManager:
         if not all([universe_id, duration, start_date_time, end_date_time]):
             raise ValueError("Missing required interval metadata: universe_id, duration, start_date_time, end_date_time")
         try:
+            self.logger.debug(f"[save_universe_state] Called with metadata={metadata}, universe_data.shape={universe_data.shape}, timestamp={timestamp}")
             # Ensure start_date_time and end_date_time are datetime/date objects
             from datetime import datetime, date
             def parse_dt(val):
@@ -151,12 +155,60 @@ class UniverseStateManager:
                 raise TypeError(f"Invalid type for date: {type(val)}")
             start_dt = parse_dt(start_date_time)
             end_dt = parse_dt(end_date_time)
+            self.logger.debug(f"[save_universe_state] Creating interval: universe_id={universe_id}, duration={duration}, start_dt={start_dt}, end_dt={end_dt}")
             interval_id = await self._interval_dao.create(
                 universe_id=universe_id,
                 duration=duration,
                 start_date_time=start_dt,
                 end_date_time=end_dt
             )
+            self.logger.debug(f"[save_universe_state] Created interval_id={interval_id}")
+            # --- Persist nested intervals ---
+            # 1. Instrument intervals
+            instrument_interval_dao = InstrumentIntervalDAO(self.env)
+            instrument_interval_id_map = {}
+            universe_state = metadata.get('universe_state') if metadata and 'universe_state' in metadata else None
+            if universe_state is not None:
+                # Persist instrument intervals
+                for inst_id, inst_interval in universe_state.instrument_intervals.items():
+                    instrument_interval_id = await instrument_interval_dao.create(
+                        universe_state_interval_id=interval_id,
+                        instrument_id=inst_interval.instrument_id,
+                        open=inst_interval.open,
+                        high=inst_interval.high,
+                        low=inst_interval.low,
+                        close=inst_interval.close,
+                        traded_volume=inst_interval.traded_volume,
+                        traded_dollar=inst_interval.traded_dollar,
+                        status=inst_interval.status,
+                        market_cap=inst_interval.market_cap
+                    )
+                    instrument_interval_id_map[inst_id] = instrument_interval_id
+                # 2. Instrument indicator intervals
+                indicator_interval_dao = InstrumentIndicatorIntervalDAO(self.env)
+                for ind_type, inst_dict in universe_state.instrument_indicator_intervals.items():
+                    for inst_id, indicator_interval in inst_dict.items():
+                        instrument_interval_id = instrument_interval_id_map.get(inst_id)
+                        if instrument_interval_id is None:
+                            continue
+                        for ind_name, ind_val in (indicator_interval.indicators or {}).items():
+                            await indicator_interval_dao.create(
+                                instrument_interval_id=instrument_interval_id,
+                                indicator_name=ind_name,
+                                indicator_value=ind_val.get('value'),
+                                indicator_status=ind_val.get('status')
+                            )
+                # 3. Factor intervals
+                factor_interval_dao = FactorIntervalDAO(self.env)
+                for factor_interval in universe_state.factor_intervals:
+                    # If factor_name/factor_value are available, persist; else skip
+                    if hasattr(factor_interval, 'factor_name') and hasattr(factor_interval, 'factor_value'):
+                        await factor_interval_dao.create(
+                            universe_state_interval_id=interval_id,
+                            factor_name=factor_interval.factor_name,
+                            factor_value=factor_interval.factor_value
+                        )
+            # --- End persist nested intervals ---
             # Optionally update cache (in-memory, not persisted)
             self._update_cache(timestamp, universe_data, metadata or {})
             self.logger.info(f"Saved universe state interval to DB for {timestamp} (interval_id={interval_id}, records={len(universe_data)})")
@@ -165,41 +217,8 @@ class UniverseStateManager:
             self.logger.error(f"Failed to save universe state interval to DB: {e}")
             raise IOError(f"Failed to save universe state interval to DB: {e}")
     
-    def addIntervals(self, intervals: dict, current_time):
-        """
-        Accepts a dict of duration string -> UniverseInterval, flattens to DataFrame, and saves using save_universe_state.
-        """
-        import pandas as pd
-        rows = []
-        for duration_str, universe_interval in intervals.items():
-            self.logger.debug(f"addIntervals: Adding intervals for {duration_str} at {current_time}")
-            for inst_id, inst_interval in universe_interval.instrument_intervals.items():
-                self.logger.debug(f"addIntervals: Adding row for instr:{inst_id}, interval:{inst_interval}")
-                row = {
-                    'instrument_id': inst_interval.instrument_id,
-                    'duration': duration_str,
-                    'start_date_time': inst_interval.start_date_time,
-                    'end_date_time': inst_interval.end_date_time,
-                    'open': inst_interval.open,
-                    'high': inst_interval.high,
-                    'low': inst_interval.low,
-                    'close': inst_interval.close,
-                    'traded_volume': inst_interval.traded_volume,
-                    'traded_dollar': inst_interval.traded_dollar,
-                    'status': inst_interval.status,
-                }
-                if hasattr(inst_interval, 'symbol'):
-                    row['symbol'] = inst_interval.symbol
-                rows.append(row)
-        df = pd.DataFrame(rows)
-        if df.empty:
-            self.logger.warning(f"addIntervals: No intervals to save at {current_time}")
-            return
-        timestamp = current_time.strftime('%Y%m%d_%H%M%S')
-        self.save_universe_state(df, timestamp)
-        self.logger.debug(f"addIntervals: Saved universe state for {timestamp} with {len(df)} records.")
 
-    def addUniverseState(self, duration_to_state: dict, current_time):
+    async def addUniverseState(self, duration_to_state: dict, current_time):
         """
         Accepts a dict of TimeDuration -> UniverseState, flattens all states to a DataFrame, and saves using save_universe_state.
         """
@@ -209,7 +228,7 @@ class UniverseStateManager:
         seen_keys = set()
         long_rows = []
         for duration, universe_state in duration_to_state.items():
-            duration_str = str(duration)
+            duration_str = duration.get_duration_string()
             # Build a mapping for instrument intervals
             instrument_rows = {}
             for inst_id, inst_interval in universe_state.instrument_intervals.items():
@@ -241,13 +260,28 @@ class UniverseStateManager:
                         long_row['indicator_value'] = ind_val.get('value')
                         long_row['indicator_status'] = ind_val.get('status')
                         long_rows.append(long_row)
-        df = pd.DataFrame(long_rows)
-        if df.empty:
-            self.logger.warning(f"addUniverseState: No data to save at {current_time}")
-            return
         timestamp = current_time.strftime('%Y%m%d_%H%M%S')
-        self.save_universe_state(df, timestamp)
-        self.logger.debug(f"addUniverseState: Saved universe state for {timestamp} with {len(df)} records.")
+        saved_any = False
+        for duration, universe_state in duration_to_state.items():
+            self.logger.debug(f"[addUniverseState] duration={duration}, universe_state type={type(universe_state)}")
+            assert hasattr(universe_state, 'to_dataframe'), (
+                f"[addUniverseState] duration={duration} value type={type(universe_state)} does not have .to_dataframe(). Value: {universe_state}")
+            df = universe_state.to_dataframe()
+            if df.empty:
+                self.logger.warning(f"addUniverseState: No data to save for duration {duration} at {current_time}")
+                continue
+            metadata = {
+                "universe_id": getattr(universe_state, "universe_id", None),
+                "duration": duration.get_duration_string(),
+                "start_date_time": getattr(universe_state, "start_date_time", None),
+                "end_date_time": getattr(universe_state, "end_date_time", None),
+                "universe_state": universe_state,
+            }
+            await self.save_universe_state(df, timestamp, metadata=metadata)
+            self.logger.debug(f"addUniverseState: Saved universe state for duration {duration} at {timestamp} with {len(df)} records.")
+            saved_any = True
+        if not saved_any:
+            self.logger.warning(f"addUniverseState: No data saved for any duration at {current_time}")
 
     def update_for_sod(self, runner, current_time):
         """

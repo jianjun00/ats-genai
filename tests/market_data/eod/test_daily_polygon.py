@@ -5,7 +5,7 @@ from config.environment import Environment, EnvironmentType
 from db.test_db_manager import unit_test_db
 from dao.instrument_polygon_dao import InstrumentPolygonDAO
 from dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
-from market_data.eod import daily_polygon
+from market_data.eod import daily_price_polygon
 
 @pytest.mark.asyncio
 async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch, polygon_vendor_id):

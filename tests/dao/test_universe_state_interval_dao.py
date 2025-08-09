@@ -27,6 +27,7 @@ async def test_universe_state_interval_dao_roundtrip(unit_test_db):
     # Create a UniverseStateInterval
     from state.instrument_interval import InstrumentInterval
     interval = UniverseStateInterval(
+        universe_id=universe_id,
         duration=duration,
         start_date_time=start_date_time,
         end_date_time=end_date_time,
@@ -55,10 +56,17 @@ async def test_universe_state_interval_dao_roundtrip(unit_test_db):
     # Read back
     fetched = await dao.get(id)
     assert fetched is not None, "Fetched interval is None"
-    assert fetched["universe_id"] == universe_id
-    assert fetched["duration"] == str(duration)
-    assert fetched["start_date_time"] == start_date_time
-    assert fetched["end_date_time"] == end_date_time
+    # If fetched is a dict, keep as is; if it's a UniverseStateInterval, use attribute access
+    if isinstance(fetched, dict):
+        assert fetched["universe_id"] == universe_id
+        assert fetched["duration"] == str(duration)
+        assert fetched["start_date_time"] == start_date_time
+        assert fetched["end_date_time"] == end_date_time
+    else:
+        assert fetched.universe_id == universe_id
+        assert str(fetched.duration) == str(duration)
+        assert fetched.start_date_time == start_date_time
+        assert fetched.end_date_time == end_date_time
 
     # Clean up
     await dao.delete(id)
@@ -90,8 +98,14 @@ async def test_universe_state_interval_dao_list_filters(unit_test_db):
         end_date_time=filter_end
     )
     assert len(results) == 1
-    assert results[0]["start_date_time"] == filter_start
-    assert results[0]["end_date_time"] == filter_end
+    result = results[0]
+    # If result is a dict, use subscript; if object, use attribute
+    if isinstance(result, dict):
+        assert result["start_date_time"] == filter_start
+        assert result["end_date_time"] == filter_end
+    else:
+        assert result.start_date_time == filter_start
+        assert result.end_date_time == filter_end
     # Filter: out of range (should return empty)
     results = await dao.list(
         universe_id=universe_id,
