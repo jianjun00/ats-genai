@@ -15,6 +15,7 @@ from .proto import time_duration_pb2
 
 @dataclass
 class UniverseStateInterval:
+    universe_id: int
     def to_dataframe(self):
         """
         Flatten all instrument_intervals and instrument_indicator_intervals into a pandas DataFrame.

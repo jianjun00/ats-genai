@@ -136,6 +136,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
                 end_date_time=d_end_time
             )
             universe_state = UniverseStateInterval(
+                universe_id=runner.universe_id,
                 duration=duration,
                 start_date_time=current_time,
                 end_date_time=d_end_time,
@@ -147,6 +148,9 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         # --- Debug: Check for empty intervals before saving ---
         all_empty = True
         for dur, state in duration_to_state.items():
+            self.logger.debug(f"[handleInterval] duration={dur}, state type={type(state)}")
+            assert hasattr(state, 'to_dataframe'), (
+                f"[handleInterval] duration={dur} value type={type(state)} does not have .to_dataframe(). Value: {state}")
             df = state.to_dataframe()
             self.logger.debug(f"[DEBUG] UniverseStateIntervalBuilder: duration={dur}, DataFrame shape={df.shape}")
             if not df.empty:
@@ -157,7 +161,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
             self.logger.warning(f"[DEBUG] All intervals produced empty DataFrames at {current_time}. Universe state will not be saved.")
         if hasattr(runner, 'universe_state_manager'):
             print(f"[BUILDER] id(runner.universe_state_manager): {id(runner.universe_state_manager)}")
-            runner.universe_state_manager.addUniverseState(duration_to_state, current_time)
+            await runner.universe_state_manager.addUniverseState(duration_to_state, current_time)
         else:
             self.logger.fatal("runner.universe_state_manager not available; skipping addUniverseStateInterval.")
 

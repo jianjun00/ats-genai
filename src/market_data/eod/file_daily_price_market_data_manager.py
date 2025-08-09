@@ -3,14 +3,14 @@ import json
 print(f"[IMPORT_DEBUG] Loaded file_daily_price_market_data_manager.py from {__file__}")
 from datetime import datetime, date, time
 from typing import List, Dict, Optional, Any
-from market_data.market_data_manager import MarketDataManager
+from .base_daily_price_market_data_manager import BaseDailyPriceMarketDataManager
 from state.instrument_interval import InstrumentInterval
 from .unify_daily_prices import FileDailyPricesUnifier
 
 from dao.instrument_xrefs_dao import InstrumentXrefsDAO
 from config.environment import Environment
 
-class FileDailyPriceMarketDataManager(MarketDataManager):
+class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
     """
     Loads daily prices from file-based vendor directories and reconciles using FileDailyPricesUnifier.
     Accepts a dict of vendor -> directory with daily price request/response files.
@@ -22,15 +22,10 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
         mgr = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env)
     """
     def __init__(self, vendors_dirs: Dict[str, str], env: Environment, symbols: Optional[List[str]] = None):
+        super().__init__(symbols)
         print(f"[DEBUG][FileDailyPriceMarketDataManager.__init__2] vendors_dirs={vendors_dirs}, symbols={symbols}")
         self.vendors_dirs = vendors_dirs
         self.env = env
-        self.symbols = symbols  # If None, will infer from files
-        self._intervals: Dict[int, InstrumentInterval] = {}
-        self._last_prices: Dict[int, Dict[str, float]] = {}
-        self._symbol_to_id: Dict[str, int] = {}
-        self._id_to_symbol: Dict[int, str] = {}
-        self._last_sod_date: Optional[date] = None  # Track the last SOD event date
         print(f"[DEBUG][FileDailyPriceMarketDataManager.__init__] _last_sod_date initialized to None, id(self)={id(self)}")
 
     @classmethod
@@ -49,7 +44,11 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
         return self
 
     async def _load_symbol_mappings(self):
-        # Use InstrumentXrefsDAO to resolve instrument IDs for each symbol
+        print(f"[DEBUG][_load_symbol_mappings] Called. vendors_dirs={self.vendors_dirs}, symbols={self.symbols}")
+        """
+        Always use InstrumentXrefsDAO to resolve instrument IDs for each symbol.
+        This is the only supported mapping method for correctness and testability.
+        """
         xrefs_dao = InstrumentXrefsDAO(self.env)
         if self.symbols is None:
             found = set()
@@ -64,6 +63,8 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
         self._symbol_to_id = {}
         self._id_to_symbol = {}
         for s in self.symbols:
+            print(f"[DEBUG][_load_symbol_mappings] Attempting to resolve instrument_id for symbol: {s}")
+            # Always resolve instrument_id through InstrumentXrefsDAO
             instrument_id = await xrefs_dao.resolve_instrument_id(s)
             if instrument_id is not None:
                 self._symbol_to_id[s] = instrument_id
@@ -73,18 +74,11 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
         print(f"[DEBUG][_load_symbol_mappings] Loaded symbols: {list(self._symbol_to_id.keys())}")
         print(f"[DEBUG][_load_symbol_mappings] symbol_to_id: {self._symbol_to_id}")
         print(f"[DEBUG][_load_symbol_mappings] id_to_symbol: {self._id_to_symbol}")
-
-    def set_last_sod_date(self, sod_date: date):
-        """Set the last SOD event date for current_date logic (for test or event simulation)."""
-        print(f"[DEBUG][set_last_sod_date] Setting _last_sod_date to {sod_date} on id(self)={id(self)}")
-        self._last_sod_date = sod_date
-
-    def get_last_sod_date(self) -> Optional[date]:
-        print(f"[DEBUG][get_last_sod_date] Accessing _last_sod_date={self._last_sod_date} on id(self)={id(self)}")
-        return self._last_sod_date
-
+        print(f"[DEBUG][_load_symbol_mappings] symbol_to_id: {self._symbol_to_id}")
+        print(f"[DEBUG][_load_symbol_mappings] id_to_symbol: {self._id_to_symbol}")
 
     def _load_vendor_data(self):
+        print(f"[DEBUG][_load_vendor_data] Called. vendors_dirs={self.vendors_dirs}")
         print(f"[DEBUG][_load_vendor_data] vendors_dirs={self.vendors_dirs}")
         self.vendor_data = {}
         for vendor, d in self.vendors_dirs.items():
@@ -93,11 +87,28 @@ class FileDailyPriceMarketDataManager(MarketDataManager):
             files = os.listdir(d)
             print(f"[DEBUG][_load_vendor_data] Files in {d}: {files}")
             for fname in files:
+                print(f"[DEBUG][_load_vendor_data] Checking file: {fname}")
                 if fname.endswith('_response.json'):
                     print(f"[DEBUG][_load_vendor_data] Found response file: {fname}")
                     parts = fname.split('_')
                     symbol = parts[1].upper() if len(parts) > 1 else None
                     print(f"[DEBUG][_load_vendor_data] Parsed symbol: {symbol}")
+                    # Print the date range in this file
+                    try:
+                        with open(os.path.join(d, fname), 'r') as f_tmp:
+                            resp_tmp = json.load(f_tmp)
+                            dates = []
+                            for row in resp_tmp.get('results', []):
+                                t_val = row.get('t')
+                                if t_val is not None:
+                                    dt = datetime.utcfromtimestamp(t_val / 1000).date()
+                                    dates.append(dt)
+                            if dates:
+                                print(f"[DEBUG][_load_vendor_data] {fname}: {symbol} covers {min(dates)} to {max(dates)} ({len(dates)} bars)")
+                            else:
+                                print(f"[DEBUG][_load_vendor_data] {fname}: {symbol} has NO bars")
+                    except Exception as e:
+                        print(f"[DEBUG][_load_vendor_data] Error reading {fname} for date range: {e}")
                     if not symbol:
                         continue
                     fpath = os.path.join(d, fname)

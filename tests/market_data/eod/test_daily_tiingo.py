@@ -11,7 +11,7 @@ from dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
 import asyncio
 
 # Helper to run the main logic from daily_tiingo.py (should be refactored for direct import)
-from market_data.eod import daily_tiingo
+from market_data.eod import daily_price_tiingo
 
 
 def test_tiingo_log_fixture(log_fixture):
