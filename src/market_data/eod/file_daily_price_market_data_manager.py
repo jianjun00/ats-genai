@@ -30,6 +30,7 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
 
     @classmethod
     async def create_async(cls, vendors_dirs: Dict[str, str], env: Environment, symbols: Optional[List[str]] = None):
+        print(f"[DEBUG][create_async] Called with vendors_dirs={vendors_dirs}, env={env}, symbols={symbols}")
         self = cls.__new__(cls)
         cls.__init__(self, vendors_dirs, env, symbols)
         await self._load_symbol_mappings()
@@ -62,20 +63,25 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
             self.symbols = sorted(found)
         self._symbol_to_id = {}
         self._id_to_symbol = {}
+        print(f"[DEBUG][_load_symbol_mappings] self.symbols before mapping: {self.symbols}")
+        if not self.symbols:
+            print(f"[DEBUG][_load_symbol_mappings] WARNING: self.symbols is empty, skipping mapping.")
+        # Look up vendor_id for 'ticker' using VendorsDAO
+        from dao.vendors_dao import VendorsDAO
+        vendors_dao = VendorsDAO(self.env)
+        vendor_row = await vendors_dao.get_vendor_by_name('ticker')
+        ticker_vendor_id = vendor_row['id'] if vendor_row else None
+        print(f"[DEBUG][_load_symbol_mappings] Using ticker_vendor_id={ticker_vendor_id}")
         for s in self.symbols:
-            print(f"[DEBUG][_load_symbol_mappings] Attempting to resolve instrument_id for symbol: {s}")
-            # Always resolve instrument_id through InstrumentXrefsDAO
-            instrument_id = await xrefs_dao.resolve_instrument_id(s)
+            print(f"[DEBUG][_load_symbol_mappings] Attempting to resolve instrument_id for symbol: {s} with vendor_id={ticker_vendor_id}")
+            instrument_id = await xrefs_dao.resolve_instrument_id(s, vendor_id=ticker_vendor_id)
             if instrument_id is not None:
                 self._symbol_to_id[s] = instrument_id
                 self._id_to_symbol[instrument_id] = s
             else:
-                print(f"[DEBUG][_load_symbol_mappings] WARNING: Could not resolve instrument_id for symbol {s}")
+                print(f"[DEBUG][_load_symbol_mappings] WARNING: Could not resolve instrument_id for symbol {s} and vendor_id={ticker_vendor_id}")
         print(f"[DEBUG][_load_symbol_mappings] Loaded symbols: {list(self._symbol_to_id.keys())}")
-        print(f"[DEBUG][_load_symbol_mappings] symbol_to_id: {self._symbol_to_id}")
-        print(f"[DEBUG][_load_symbol_mappings] id_to_symbol: {self._id_to_symbol}")
-        print(f"[DEBUG][_load_symbol_mappings] symbol_to_id: {self._symbol_to_id}")
-        print(f"[DEBUG][_load_symbol_mappings] id_to_symbol: {self._id_to_symbol}")
+        print(f"[DEBUG][_load_symbol_mappings] FINAL MAPPINGS: symbol_to_id={self._symbol_to_id}, id_to_symbol={self._id_to_symbol}")
 
     def _load_vendor_data(self):
         print(f"[DEBUG][_load_vendor_data] Called. vendors_dirs={self.vendors_dirs}")
@@ -97,12 +103,30 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                     try:
                         with open(os.path.join(d, fname), 'r') as f_tmp:
                             resp_tmp = json.load(f_tmp)
+                            print(f"[DEBUG][_load_vendor_data] {fname}: type={type(resp_tmp)}, keys/len={list(resp_tmp.keys()) if isinstance(resp_tmp, dict) else len(resp_tmp) if isinstance(resp_tmp, list) else 'N/A'}")
                             dates = []
-                            for row in resp_tmp.get('results', []):
-                                t_val = row.get('t')
-                                if t_val is not None:
-                                    dt = datetime.utcfromtimestamp(t_val / 1000).date()
-                                    dates.append(dt)
+                            if isinstance(resp_tmp, dict) and 'results' in resp_tmp:
+                                for row in resp_tmp.get('results', []):
+                                    print(f"[DEBUG][_load_vendor_data] {fname}: row={row} (type={type(row)})")
+                                    t_val = row.get('t')
+                                    if t_val is not None:
+                                        dt = datetime.utcfromtimestamp(t_val / 1000).date()
+                                        dates.append(dt)
+                            elif isinstance(resp_tmp, list):
+                                for row in resp_tmp:
+                                    print(f"[DEBUG][_load_vendor_data] {fname}: row={row} (type={type(row)})")
+                                    t_val = row.get('t') if isinstance(row, dict) else None
+                                    if t_val is not None:
+                                        dt = datetime.utcfromtimestamp(t_val / 1000).date()
+                                        dates.append(dt)
+                                    elif isinstance(row, dict) and 'date' in row:
+                                        try:
+                                            dt = datetime.strptime(row['date'][:10], '%Y-%m-%d').date()
+                                            dates.append(dt)
+                                        except Exception as e:
+                                            print(f"[DEBUG][_load_vendor_data] {fname}: Failed to parse date from {row['date']}: {e}")
+                            else:
+                                print(f"[DEBUG][_load_vendor_data] {fname}: UNSUPPORTED FORMAT for date debug")
                             if dates:
                                 print(f"[DEBUG][_load_vendor_data] {fname}: {symbol} covers {min(dates)} to {max(dates)} ({len(dates)} bars)")
                             else:
@@ -140,22 +164,54 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                                 }
                         elif vendor == 'tiingo':
                             resp = json.load(f)
-                            # Tiingo format: [ { 'date': ..., 'open':..., ... }, ... ]
-                            for row in resp:
-                                date_val = row['date']
-                                if isinstance(date_val, datetime):
-                                    dt = date_val.date()
-                                elif isinstance(date_val, date):
-                                    dt = date_val
+                            # Accept both dict (with 'bars') and list at top-level for tiingo
+                            if isinstance(resp, dict) and 'bars' in resp:
+                                rows = resp['bars']
+                            elif isinstance(resp, list):
+                                rows = resp
+                            else:
+                                print(f"[DEBUG][_load_vendor_data] Unexpected tiingo format in {fname}: {type(resp)}")
+                                rows = []
+                            for row in rows:
+                                if not isinstance(row, dict):
+                                    print(f"[DEBUG][_load_vendor_data] Skipping non-dict row: {row}")
+                                    continue
+                                # Accept either 'date' or 't' (for mixed or malformed test data)
+                                dt = None
+                                if 'date' in row:
+                                    date_val = row['date']
+                                    try:
+                                        if isinstance(date_val, datetime):
+                                            dt = date_val.date()
+                                        elif isinstance(date_val, date):
+                                            dt = date_val
+                                        else:
+                                            dt = datetime.strptime(str(date_val)[:10], '%Y-%m-%d').date()
+                                    except Exception as e:
+                                        print(f"[DEBUG][_load_vendor_data] Skipping row with malformed date: {row}, error: {e}")
+                                        continue
+                                elif 't' in row:
+                                    t_val = row['t']
+                                    try:
+                                        dt = datetime.utcfromtimestamp(t_val / 1000).date()
+                                    except Exception as e:
+                                        print(f"[DEBUG][_load_vendor_data] Skipping row with malformed t: {row}, error: {e}")
+                                        continue
                                 else:
-                                    dt = datetime.strptime(str(date_val)[:10], '%Y-%m-%d').date()
-                                data.setdefault(symbol, {})[dt] = {
-                                    'open': row['open'],
-                                    'high': row['high'],
-                                    'low': row['low'],
-                                    'close': row['close'],
-                                    'volume': row['volume']
-                                }
+                                    print(f"[DEBUG][_load_vendor_data] Skipping row missing date/t: {row}")
+                                    continue
+                                # Defensive extraction of OHLCV fields
+                                try:
+                                    data.setdefault(symbol, {})[dt] = {
+                                        'open': row.get('open'),
+                                        'high': row.get('high'),
+                                        'low': row.get('low'),
+                                        'close': row.get('close'),
+                                        'volume': row.get('volume')
+                                    }
+                                except Exception as e:
+                                    print(f"[DEBUG][_load_vendor_data] Error extracting fields from row: {row}, error: {e}")
+                                    continue
             self.vendor_data[vendor] = data
 
     def _get_all_symbols(self) -> List[str]:

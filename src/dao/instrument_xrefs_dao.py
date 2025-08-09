@@ -22,6 +22,7 @@ class InstrumentXrefsDAO:
             await pool.close()
 
     async def resolve_instrument_id(self, symbol, vendor_id=None, at_date=None):
+        print(f"[DEBUG][resolve_instrument_id][ARGS] symbol={symbol}, vendor_id={vendor_id}, at_date={at_date}")
         """
         Lookup instrument_id from instrument_xrefs using symbol (and vendor_id, at_date if provided).
         """
