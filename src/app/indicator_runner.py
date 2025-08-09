@@ -111,6 +111,8 @@ class IndicatorRunner(Runner):
         from datetime import datetime, timedelta
         from market_data.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
         manager = await UnifiedDBDailyPriceMarketDataManager.create_async(self.env, symbols=self.symbols)
+        print(f"[DEBUG_RUN_INDICATORS] manager type: {type(manager)}, repr: {repr(manager)}")
+        print(f"[DEBUG_RUN_INDICATORS] Using instrument_ids: {self.instrument_ids}, symbols: {self.symbols}, date range: {self.start_date} to {self.end_date}")
         if not self.instrument_ids:
             print(f"[DEBUG_RUN_INDICATORS] No instrument_ids to process: {self.instrument_ids}, exiting.")
             return
@@ -127,27 +129,50 @@ class IndicatorRunner(Runner):
                         break
             if symbol is None:
                 symbol = str(instrument_id)
+            # Maintain rolling history of InstrumentInterval for each instrument
+            instrument_history = []
             for single_date in range((self.end_date - self.start_date).days + 1):
                 d = self.start_date + timedelta(days=single_date)
-                ohlc = await manager.get_ohlc(instrument_id, datetime.combine(d, datetime.min.time()), datetime.combine(d, datetime.min.time()))
+                ohlc = await manager.get_ohlc(instrument_id, datetime.combine(d, datetime.min.time()), datetime.combine(d, datetime.min.time()), current_date=d)
                 if ohlc is None:
                     continue
-                # Compute indicators
+                # Construct InstrumentInterval for this day
+                from state.instrument_interval import InstrumentInterval
+                interval = InstrumentInterval(
+                    instrument_id=instrument_id,
+                    start_date_time=datetime.combine(d, datetime.min.time()),
+                    end_date_time=datetime.combine(d, datetime.max.time()),
+                    open=ohlc['open'],
+                    high=ohlc['high'],
+                    low=ohlc['low'],
+                    close=ohlc['close'],
+                    traded_volume=ohlc.get('traded_volume', 0.0),
+                    traded_dollar=ohlc.get('traded_dollar', 0.0),
+                    status=('ok' if ohlc.get('status') in (None, '', 'ok', 'valid') else ohlc.get('status')),
+                    market_cap=ohlc.get('market_cap')
+                )
+                instrument_history.append(interval)
+                # Compute indicators with rolling window
                 row = {
                     'date': d,
                     'symbol': symbol,
                     **ohlc
                 }
-                # Compute ETop, EBot, PL using indicator_config
-                # These are expected to be functions/classes in indicator_config.indicators
                 for ind_name, ind_cls in (self.indicator_config.indicators.items() if self.indicator_config else []):
                     try:
-                        # Expect indicator to be callable: ind_cls(ohlc)
-                        row[ind_name] = ind_cls(ohlc) if callable(ind_cls) else None
+                        ind = ind_cls() if callable(ind_cls) else None
+                        if ind is not None:
+                            # Pass window of history (last N intervals)
+                            ind.update(instrument_history)
+                            row[ind_name] = ind.get_value()
+                            print(f"[DEBUG_INDICATOR] {ind_name}({symbol}, {d}): input_len={len(instrument_history)}, value={row[ind_name]}")
+                        else:
+                            row[ind_name] = None
                     except Exception as e:
+                        print(f"[ERROR_INDICATOR] {ind_name}({symbol}, {d}): {e}")
                         row[ind_name] = None
                 all_rows.append(row)
-        print(f"[DEBUG] Collected {len(all_rows)} rows. First 3 rows: {all_rows[:3]}")
+            print(f"[DEBUG] Collected {len(all_rows)} rows. First 3 rows: {all_rows[:3]}")
         if not all_rows:
             print(f"[DEBUG_RUN_INDICATORS] No data collected for the given range and instruments. start_date={self.start_date}, end_date={self.end_date}, instrument_ids={self.instrument_ids}")
             print("[WARN] No data collected for the given range and instruments.")
@@ -172,11 +197,27 @@ class IndicatorRunner(Runner):
             if mpf_df.empty:
                 print(f"[WARN] No OHLC data for symbol {symbol}, skipping chart.")
                 continue
+            # Sanitize indicator columns: replace None with np.nan for mplfinance compatibility
+            import numpy as np
+            overlay_defs = [
+                ('ETop', {'color': 'g', 'width': 1.0, 'secondary_y': False, 'type': 'line'}),
+                ('EBot', {'color': 'r', 'width': 1.0, 'secondary_y': False, 'type': 'line'}),
+                ('PL', {'color': 'b', 'width': 1.0, 'secondary_y': False, 'type': 'line'}),
+                ('ETopDot', {'color': 'g', 'width': 1.5, 'secondary_y': False, 'type': 'dot'}),
+                ('EBotDot', {'color': 'r', 'width': 1.5, 'secondary_y': False, 'type': 'dot'}),
+                ('PLDot', {'color': 'b', 'width': 1.5, 'secondary_y': False, 'type': 'dot'}),
+            ]
+            for ind, _ in overlay_defs:
+                if ind in sdf.columns:
+                    sdf[ind] = sdf[ind].where(sdf[ind].notna(), np.nan)
             # Prepare overlays
             addplots = []
-            for ind in ['ETop', 'EBot', 'PL']:
-                if ind in sdf.columns:
-                    addplots.append(mpf.make_addplot(sdf[ind], panel=0, color={'ETop':'g','EBot':'r','PL':'b'}.get(ind,'k'), width=1.0))
+            for ind, opts in overlay_defs:
+                if ind in sdf.columns and sdf[ind].notna().any():
+                    if opts['type'] == 'line':
+                        addplots.append(mpf.make_addplot(sdf[ind], panel=0, color=opts['color'], width=opts['width']))
+                    elif opts['type'] == 'dot':
+                        addplots.append(mpf.make_addplot(sdf[ind], panel=0, color=opts['color'], width=opts['width'], type='scatter', marker='o', markersize=6))
             # Chart file name
             chart_path = output_chart_path or f"indicator_chart_{symbol}.png"
             fig, axlist = mpf.plot(mpf_df, type='candle', style='charles', title=f"{symbol} OHLC with Indicators", addplot=addplots, ylabel='Price', returnfig=True)
