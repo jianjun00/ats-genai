@@ -45,6 +45,46 @@ from dao.factor_interval_dao import FactorIntervalDAO
 
 @gin.configurable
 class UniverseStateManager:
+    def get_lag_prices(self, instrument_id: int, cur_date, lag_days: int) -> pd.DataFrame:
+        """
+        Return a DataFrame of features (open, high, low, close, etop, ebot, pldot) for the previous lag_days up to (not including) cur_date.
+        Assumes self._cache or load_universe_state provides all data for the instrument.
+        """
+        df = self._get_instrument_history(instrument_id)
+        mask = (df['date'] < cur_date)
+        lag_df = df[mask].sort_values('date').tail(lag_days)
+        features = ['open', 'high', 'low', 'close', 'etop', 'ebot', 'pldot']
+        return lag_df[features].reset_index(drop=True)
+
+    def get_lead_prices(self, instrument_id: int, cur_date, lead_days: int) -> pd.DataFrame:
+        """
+        Return a DataFrame of labels (high, low) for the next lead_days after cur_date.
+        """
+        df = self._get_instrument_history(instrument_id)
+        mask = (df['date'] > cur_date)
+        lead_df = df[mask].sort_values('date').head(lead_days)
+        labels = ['high', 'low']
+        return lead_df[labels].reset_index(drop=True)
+
+    def _get_instrument_history(self, instrument_id: int) -> pd.DataFrame:
+        """
+        Helper to fetch full DataFrame for an instrument from cache or storage.
+        Assumes a 'date' column of type datetime/date.
+        """
+        # Try to get from cache, else load full universe state and filter
+        for ts, df in self._cache.items():
+            inst_df = df[df['instrument_id'] == instrument_id]
+            if not inst_df.empty:
+                return inst_df
+        # Fallback: load latest universe state
+        latest_ts = self.get_latest_timestamp()
+        if latest_ts:
+            df = self.load_universe_state(timestamp=latest_ts)
+            inst_df = df[df['instrument_id'] == instrument_id]
+            if not inst_df.empty:
+                return inst_df
+        raise ValueError(f"No data found for instrument_id={instrument_id}")
+
     """
     Handles fast persistence and retrieval of universe state data.
     
