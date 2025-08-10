@@ -6,6 +6,7 @@ from calendars.time_duration import TimeDuration
 from .factor_interval import FactorInterval
 from .instrument_interval import InstrumentInterval
 from .indicator_interval import IndicatorInterval
+from .forecast_interval import ForecastInterval
 
 from .proto import universe_state_interval_pb2
 from .proto import factor_interval_pb2
@@ -52,6 +53,22 @@ class UniverseStateInterval:
                         'volume': None,
                         'indicator_name': name,
                         'indicator_value': val.get('value')
+                    })
+        # Forecast intervals (optional)
+        if hasattr(self, 'instrument_forecast_intervals') and self.instrument_forecast_intervals:
+            for inst_id, f_int in self.instrument_forecast_intervals.items():
+                for idx, val in enumerate(f_int.forecasts):
+                    rows.append({
+                        'start_date_time': f_int.start_date_time,
+                        'end_date_time': f_int.end_date_time,
+                        'instrument_id': inst_id,
+                        'open': None,
+                        'high': None,
+                        'low': None,
+                        'close': None,
+                        'volume': None,
+                        'indicator_name': f'forecast_t+{idx+1}',
+                        'indicator_value': val
                     })
         return pd.DataFrame(rows)
 
@@ -202,3 +219,5 @@ class UniverseStateInterval:
     factor_intervals: List[FactorInterval]
     instrument_intervals: Dict[int, InstrumentInterval] = field(default_factory=dict)
     instrument_indicator_intervals: Dict[str, Dict[int, IndicatorInterval]] = field(default_factory=dict)
+    # Optional forecasts produced by modeling callbacks
+    instrument_forecast_intervals: Dict[int, ForecastInterval] = field(default_factory=dict)

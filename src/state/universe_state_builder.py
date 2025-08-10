@@ -145,6 +145,17 @@ class UniverseStateIntervalBuilder(RunnerCallback):
                 instrument_intervals=interval_map,
                 instrument_indicator_intervals=instrument_indicator_intervals
             )
+            # Optional: augment with forecasts via forecast callback
+            if hasattr(self, 'forecast_callback') and self.forecast_callback is not None:
+                try:
+                    self.forecast_callback.augment_universe_state(
+                        universe_state=universe_state,
+                        instrument_ids=instrument_ids,
+                        instrument_history=self.instrument_history,
+                        current_time=current_time
+                    )
+                except Exception as e:
+                    self.logger.error(f"Forecast augmentation failed: {e}")
             duration_to_state[duration] = universe_state
         # --- Debug: Check for empty intervals before saving ---
         all_empty = True
@@ -173,7 +184,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
     Handles data collection, validation, corporate actions, and derived calculations.
     """
 
-    def __init__(self, env: Environment, base_duration: str, target_durations: str):
+    def __init__(self, env: Environment, base_duration: str, target_durations: str, forecast_callback=None):
         # Inject DailyMarketCapDAO for market_cap sourcing
         self.market_cap_dao = DailyMarketCapDAO(env)
         """
@@ -209,6 +220,8 @@ class UniverseStateIntervalBuilder(RunnerCallback):
             'tiingo': 2,
             'quandl': 3
         }
+        # Optional modeling callback for forecasts
+        self.forecast_callback = forecast_callback
 
     def validate_universe_state(self, df):
         required_cols = {'symbol', 'market_cap', 'avg_volume', 'sector', 'exchange', 'is_active', 'as_of_date'}
