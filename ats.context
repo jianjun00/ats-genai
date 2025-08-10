@@ -136,3 +136,29 @@ Fix failing universe membership tests by ensuring correct DB setup, test isolati
 - Normalize types when comparing DB and Python objects.
 - Add debug output for all filter and DB logic in tests.
 - Ensure test DB is isolated and cleaned before inserts.
+
+---
+
+## Training Data Generation Fixes & Expectations (2025-08-09)
+
+### Objective
+- Fix universe state data loading and training data generation to make tests reliable and outputs consistent.
+
+### Key Changes
+- Universe state DataFrame must include a `date` column (normalized from `as_of_date` when needed) and expected OHLC feature columns.
+- TrainDataCallback:
+  - Supports optional prefetched OHLC data to avoid async calls during interval handling.
+  - Always appends a row per instrument per date; fills missing features with NaN to keep shapes consistent.
+  - When data is insufficient to form standard rolling windows, creates a single padded window so batch size >= 1 (avoids empty tensors and indexing errors). Saves tensors with keys: `X`, `y`, `mask`.
+- Test `tests/examples/test_pytorch_runner_train_data_generator.py` prints saved train data file contents (keys, shapes, small sample slices) immediately after generation for debugging.
+
+### Environment & DB Isolation
+- All pytest runs must set PYTHONPATH=src.
+- Use environment-aware table prefixing via `Environment` (e.g., `test_`), and always resolve table names using `env.get_table_name()`.
+- Unit/integration tests must use the fixtures from `src/db/test_db_manager.py` to ensure isolated databases with proper migrations and prefixing.
+
+### TimescaleDB Universe State Schema Reminder
+- Universe state persistence uses a fixed schema with columns including: `instrument_id`, `as_of_date`, `symbol`, `name`, `exchange`, `market_cap`, `close_price`, `volume`, `is_active`, `sector`, `created_at`. Retrieval and persistence should rely on this normalized schema, not dynamic Parquet.
+
+### Result
+- `test_generate_train_data_shapes` passes and produces a saved train data file with valid shapes. Prints provide immediate visibility into generated tensors during tests.
