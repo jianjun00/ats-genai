@@ -46,6 +46,56 @@ class InstrumentXrefsDAO:
             await pool.close()
 
     async def resolve_instrument_id_by_symbol(self, symbol, at_date=None):
+        """
+        Lookup instrument_id from instrument_xrefs using symbol and vendor_id for 'ticker'.
+        """
+        from .vendors_dao import VendorsDAO
+        vendors_dao = VendorsDAO(self.env)
+        vendor_row = await vendors_dao.get_vendor_by_name("ticker")
+        if not vendor_row:
+            print(f"[DEBUG][resolve_instrument_id_by_symbol] vendor 'ticker' not found!")
+            return None
+        vendor_id = vendor_row['id']
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                table_name = self.table_name
+                q = f"SELECT instrument_id FROM {table_name} WHERE symbol = $1 AND vendor_id = $2"
+                params = [symbol, vendor_id]
+                if at_date is not None:
+                    # at_date must be a datetime.date object for asyncpg
+                    q += " AND (start_at <= $3 AND (end_at IS NULL OR end_at >= $3))"
+                    params.append(at_date)
+                print(f"[DEBUG][resolve_instrument_id_by_symbol] Executing: {q} with params {params}")
+                row = await conn.fetchrow(q, *params)
+                print(f"[DEBUG][resolve_instrument_id_by_symbol] Fetched row: {row}")
+                return row['instrument_id'] if row else None
+        finally:
+            await pool.close()
+
+    async def resolve_instrument_id(self, symbol, vendor_id=None, at_date=None):
+        """
+        Resolve instrument_id for a symbol, optionally for a specific vendor and/or date.
+        If vendor_id is None, defaults to 'ticker'.
+        """
+        if vendor_id is None:
+            return await self.resolve_instrument_id_by_symbol(symbol, at_date)
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                table_name = self.table_name
+                q = f"SELECT instrument_id FROM {table_name} WHERE symbol = $1 AND vendor_id = $2"
+                params = [symbol, vendor_id]
+                if at_date is not None:
+                    q += " AND (start_at <= $3 AND (end_at IS NULL OR end_at >= $3))"
+                    params.append(at_date)
+                print(f"[DEBUG][resolve_instrument_id] Executing: {q} with params {params}")
+                row = await conn.fetchrow(q, *params)
+                print(f"[DEBUG][resolve_instrument_id] Fetched row: {row}")
+                return row['instrument_id'] if row else None
+        finally:
+            await pool.close()
+
         print(f"[DEBUG][resolve_instrument_id_by_symbol][ARGS] symbol={symbol}, at_date={at_date}")
         """
         Lookup instrument_id from instrument_xrefs using symbol and vendor_id for 'ticker'.

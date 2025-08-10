@@ -50,7 +50,7 @@ from app.runner import Runner
 
 @gin.configurable
 class IndicatorRunner(Runner):
-    def __init__(self, start_date, end_date, environment, universe_id=None, symbols=None, vendor='polygon', indicator_config=None, callbacks=None, base_duration='1d'):
+    def __init__(self, start_date, end_date, environment, universe_id=None, symbols=None, vendor='polygon', indicator_config=None, callbacks=None, base_duration='1d', market_data_manager=None):
         print(f"[DEBUG_INIT] IndicatorRunner.__init__ called with start_date={start_date}, end_date={end_date}, environment={environment}, universe_id={universe_id}, symbols={symbols}, vendor={vendor}, indicator_config={indicator_config}, callbacks={callbacks}, base_duration={base_duration}")
         # Parse dates
         from datetime import datetime, date
@@ -67,29 +67,8 @@ class IndicatorRunner(Runner):
         self.universe_id = universe_id
         self.start_date = start_date
         self.end_date = end_date
-        # Resolve instrument_ids
-        if universe_id is not None:
-            from dao.universe_membership_dao import UniverseMembershipDAO
-            membership_dao = UniverseMembershipDAO(environment)
-            import asyncio
-            active_memberships = asyncio.run(membership_dao.get_active_memberships(universe_id, start_date))
-            self.instrument_ids = [row['instrument_id'] for row in active_memberships if row.get('instrument_id') is not None]
-            print(f"[DEBUG] instrument_ids from universe_membership: {self.instrument_ids}")
-        elif symbols:
-            from dao.instrument_xrefs_dao import InstrumentXrefsDAO
-            xrefs_dao = InstrumentXrefsDAO(environment)
-            import asyncio
-            async def resolve_ids():
-                mapping = {}
-                for s in symbols:
-                    iid = await xrefs_dao.resolve_instrument_id_by_symbol(s)
-                    mapping[s] = iid
-                return mapping
-            self.symbol_to_id = asyncio.run(resolve_ids())
-            print(f"[DEBUG] symbol_to_id mapping: {self.symbol_to_id}")
-            self.instrument_ids = [iid for iid in self.symbol_to_id.values() if iid is not None]
-        else:
-            self.instrument_ids = []
+        # Defer resolving instrument_ids to the injected market data manager (async mapping loaded there)
+        self.instrument_ids = []
 
         # Compose callbacks if needed
         if callbacks is None:
@@ -101,6 +80,7 @@ class IndicatorRunner(Runner):
             universe_id=universe_id if universe_id is not None else 1,
             callbacks=callbacks,
             base_duration=base_duration,
+            market_data_manager=market_data_manager
         )
 
     async def run_indicators(self, output_format='df', output_chart_path=None):
@@ -109,8 +89,21 @@ class IndicatorRunner(Runner):
         import matplotlib.pyplot as plt
         import mplfinance as mpf
         from datetime import datetime, timedelta
-        from market_data.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
-        manager = await UnifiedDBDailyPriceMarketDataManager.create_async(self.env, symbols=self.symbols)
+        manager = self.market_data_manager
+        if isinstance(manager, type(None)):
+            print(f"[DEBUG_RUN_INDICATORS] No market data manager set on IndicatorRunner.")
+            return
+        # If instrument_ids are empty but symbols are provided, derive from manager's symbol mapping
+        try:
+            if (not self.instrument_ids) and self.symbols and hasattr(manager, '_symbol_to_id') and isinstance(manager._symbol_to_id, dict):
+                self.instrument_ids = [iid for s in self.symbols if (iid := manager._symbol_to_id.get(s.upper())) is not None]
+                print(f"[DEBUG_RUN_INDICATORS] Derived instrument_ids from manager mapping: {self.instrument_ids}")
+        except Exception as e:
+            print(f"[DEBUG_RUN_INDICATORS] Failed to derive instrument_ids from manager: {e}")
+        if isinstance(manager, object):
+            print(f"[DEBUG_RUN_INDICATORS] Using UnifiedDBDailyPriceMarketDataManager: {manager}")
+        else:
+            print(f"[DEBUG_RUN_INDICATORS] WARNING: Not using UnifiedDBDailyPriceMarketDataManager! Actual type: {type(manager)}, repr: {repr(manager)}")
         print(f"[DEBUG_RUN_INDICATORS] manager type: {type(manager)}, repr: {repr(manager)}")
         print(f"[DEBUG_RUN_INDICATORS] Using instrument_ids: {self.instrument_ids}, symbols: {self.symbols}, date range: {self.start_date} to {self.end_date}")
         if not self.instrument_ids:
@@ -288,9 +281,16 @@ if __name__ == "__main__":
     env.get_table_name = lambda table: f"{args.environment}_" + table
     print('[DEBUG_ULTRA] after get_table_name lambda')
     try:
-        print("[DEBUG_ULTRA] About to construct IndicatorRunner...")
-        print(f"[DEBUG_ULTRA] IndicatorRunner args: start_date={args.start_date}, end_date={args.end_date}, environment={env}, universe_id={args.universe_id}, symbols={args.symbols}, vendor={args.vendor}, indicator_config={indicator_config}, callbacks=[], base_duration='1d'")
-        try:
+        print("[DEBUG_ULTRA] Preparing manager and runner...")
+        print(f"[DEBUG_ULTRA] Args: start_date={args.start_date}, end_date={args.end_date}, environment={env}, universe_id={args.universe_id}, symbols={args.symbols}, vendor={args.vendor}, indicator_config={indicator_config}, callbacks=[], base_duration='1d'")
+        import asyncio
+        from market_data.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
+        print('[DEBUG_ULTRA] Imported asyncio and manager class')
+        async def _main_async():
+            # Create manager asynchronously
+            manager = await UnifiedDBDailyPriceMarketDataManager.create_async(env, symbols=args.symbols)
+            print(f"[DEBUG_ULTRA] Created UnifiedDBDailyPriceMarketDataManager: {manager}")
+            # Inject manager into runner
             runner = IndicatorRunner(
                 start_date=args.start_date,
                 end_date=args.end_date,
@@ -301,23 +301,15 @@ if __name__ == "__main__":
                 indicator_config=indicator_config,
                 callbacks=[],
                 base_duration='1d',
+                market_data_manager=manager,
             )
-            print("[DEBUG_ULTRA] Constructed IndicatorRunner")
-        except Exception as e:
-            print(f"[ERROR_ULTRA] Exception constructing IndicatorRunner: {e}")
-            import traceback as tb
-            tb.print_exc()
-            raise
-        import asyncio
-        print('[DEBUG_ULTRA] after import asyncio (main block)')
-        try:
+            print("[DEBUG_ULTRA] Constructed IndicatorRunner with injected manager")
+            # Run indicators
             print("[DEBUG_ULTRA] About to call run_indicators")
-            asyncio.run(runner.run_indicators(output_format=args.output_format, output_chart_path=args.output_chart_path))
+            await runner.run_indicators(output_format=args.output_format, output_chart_path=args.output_chart_path)
             print("[DEBUG_ULTRA] Finished run_indicators")
-        except Exception as e:
-            print(f"[ERROR_ULTRA] Exception in run_indicators: {e}")
-            import traceback as tb
-            tb.print_exc()
+
+        asyncio.run(_main_async())
     except Exception as e:
         print(f"[ERROR_ULTRA] Exception after environment creation: {e}")
         import traceback as tb
