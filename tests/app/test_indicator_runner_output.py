@@ -13,46 +13,10 @@ from tests.fixtures.insert_test_daily_prices import insert_test_daily_prices
 
 
 import pytest_asyncio
+from tests.fixtures.setup_test_universe_data import setup_test_universe_data
 
-@pytest_asyncio.fixture(scope='function', autouse=True)
-async def setup_test_data(unit_test_db):
-    # Insert required instrument row for AAPL (id=1) and xref
-    import asyncpg
-    from datetime import date, timedelta
-    conn = await asyncpg.connect(unit_test_db)
-    # Insert vendor and get id
-    vendor_name = 'ticker'
-    vendor_row = await conn.fetchrow("SELECT id FROM test_vendors WHERE name=$1", vendor_name)
-    if vendor_row is None:
-        vendor_id = (await conn.fetchrow("INSERT INTO test_vendors (name) VALUES ($1) RETURNING id", vendor_name))["id"]
-    else:
-        vendor_id = vendor_row["id"]
-    # Insert instrument
-    await conn.execute('''
-        INSERT INTO test_instruments (id, symbol, name, exchange, type, currency, active)
-        VALUES (1, 'AAPL', 'Apple Inc.', 'NASDAQ', 'stock', 'USD', TRUE)
-        ON CONFLICT (id) DO NOTHING;
-    ''')
-    # Insert xref with vendor_id
-    await conn.execute('''
-        INSERT INTO test_instrument_xrefs (instrument_id, symbol, vendor_id)
-        VALUES ($1, $2, $3)
-    ''', 1, 'AAPL', vendor_id)
-    # Insert daily prices for AAPL for the full test date range into test_daily_prices_tiingo
-    start = date(2024, 1, 2)
-    end = date(2024, 1, 7)
-    d = start
-    while d <= end:
-        await conn.execute('''
-            INSERT INTO test_daily_prices_tiingo (date, instrument_id, open, high, low, close, volume)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ''', d, 1, 100.0, 110.0, 90.0, 105.0, 1000)
-        d += timedelta(days=1)
-    await conn.close()
-    yield
-    # Optionally, clean up test DB after tests
 
-def test_indicator_runner_df(unit_test_db):
+def test_indicator_runner_df(unit_test_db, setup_test_universe_data):
     """
     Test that indicator_runner.py outputs DataFrame correctly for a known symbol/date.
     """
@@ -158,7 +122,7 @@ def test_indicator_runner_df(unit_test_db):
     instrument_interval.InstrumentInterval.__init__ = orig_init
 
 
-def test_indicator_runner_chart(tmp_path, unit_test_db):
+def test_indicator_runner_chart(tmp_path, unit_test_db, setup_test_universe_data):
     """
     Test that indicator_runner.py creates a chart PNG file for a known symbol/date.
     """
