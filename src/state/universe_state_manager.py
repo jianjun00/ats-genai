@@ -50,6 +50,13 @@ class UniverseStateManager:
         Return a DataFrame of features (open, high, low, close, etop, ebot, pldot) for the previous lag_days up to (not including) cur_date.
         Assumes self._cache or load_universe_state provides all data for the instrument.
         """
+        # Normalize cur_date to a date to avoid datetime vs date comparison issues
+        try:
+            from datetime import datetime as _dt
+            if isinstance(cur_date, _dt):
+                cur_date = cur_date.date()
+        except Exception:
+            pass
         df = self._get_instrument_history(instrument_id)
         try:
             self.logger.debug(f"[get_lag_prices] instrument_id={instrument_id} cur_date={cur_date} lag_days={lag_days} df.shape={df.shape} cols={list(df.columns)}")
@@ -58,7 +65,10 @@ class UniverseStateManager:
         # Determine date column
         date_series = None
         if 'date' in df.columns:
-            date_series = df['date']
+            try:
+                date_series = pd.to_datetime(df['date']).dt.date
+            except Exception:
+                date_series = df['date']
         elif 'as_of_date' in df.columns:
             try:
                 date_series = pd.to_datetime(df['as_of_date']).dt.date
@@ -78,7 +88,8 @@ class UniverseStateManager:
             raise KeyError("No date/as_of_date column found in universe state data")
         mask = (date_series < cur_date)
         lag_df = df[mask].copy()
-        lag_df['__date__'] = date_series[mask]
+        # Ensure __date__ is sortable datetime
+        lag_df['__date__'] = pd.to_datetime(date_series[mask])
         lag_df = lag_df.sort_values('__date__').tail(lag_days)
         # Derive 'close' from 'close_price' if needed
         if 'close' not in lag_df.columns and 'close_price' in lag_df.columns:
@@ -90,9 +101,11 @@ class UniverseStateManager:
         try:
             self.logger.debug(f"[get_lag_prices] after mask/sort: lag_df.shape={lag_df.shape} existing_features={existing} out_df.shape={out_df.shape}")
             if out_df.empty:
-                self.logger.warning(f"[get_lag_prices] No lag data rows for instrument_id={instrument_id} before {cur_date}. Available dates range: "
-                                    f"{lag_df['__date__'].min() if '__date__' in lag_df.columns and not lag_df.empty else None} - "
-                                    f"{lag_df['__date__'].max() if '__date__' in lag_df.columns and not lag_df.empty else None}")
+                self.logger.warning(
+                    f"[get_lag_prices] No lag data rows for instrument_id={instrument_id} before {cur_date}. Available dates range: "
+                    f"{lag_df['__date__'].min() if '__date__' in lag_df.columns and not lag_df.empty else None} - "
+                    f"{lag_df['__date__'].max() if '__date__' in lag_df.columns and not lag_df.empty else None}"
+                )
         except Exception:
             pass
         return out_df
@@ -389,7 +402,12 @@ class UniverseStateManager:
         Accepts a dict of TimeDuration -> UniverseState, flattens all states to a DataFrame, and saves using save_universe_state.
         """
         import pandas as pd
-        self.logger.debug(f"addUniverseState: Adding UniverseStates for {len(duration_to_state)} durations at {current_time}")
+        # Promote to INFO and add print to ensure visibility during tests
+        self.logger.info(f"addUniverseState: Adding UniverseStates for {len(duration_to_state)} durations at {current_time}")
+        try:
+            print(f"[USM.addUniverseState] durations={len(duration_to_state)} at {current_time}")
+        except Exception:
+            pass
         rows = []
         seen_keys = set()
         long_rows = []
@@ -433,6 +451,10 @@ class UniverseStateManager:
             assert hasattr(universe_state, 'to_dataframe'), (
                 f"[addUniverseState] duration={duration} value type={type(universe_state)} does not have .to_dataframe(). Value: {universe_state}")
             df = universe_state.to_dataframe()
+            try:
+                self.logger.debug(f"[addUniverseState] incoming df.shape={df.shape} cols={list(df.columns)}")
+            except Exception:
+                pass
             if df.empty:
                 self.logger.warning(f"addUniverseState: No data to save for duration {duration} at {current_time}")
                 continue
@@ -447,6 +469,15 @@ class UniverseStateManager:
                         local_df['date'] = pd.to_datetime(local_df['as_of_datetime']).dt.date
                     elif 'start_date_time' in local_df.columns:
                         local_df['date'] = pd.to_datetime(local_df['start_date_time']).dt.date
+                # Log normalized date coverage/instrument counts for visibility
+                try:
+                    date_min = local_df['date'].min() if 'date' in local_df.columns else None
+                    date_max = local_df['date'].max() if 'date' in local_df.columns else None
+                    uniq_dates = int(local_df['date'].nunique()) if 'date' in local_df.columns else 0
+                    uniq_inst = int(local_df['instrument_id'].nunique()) if 'instrument_id' in local_df.columns else 0
+                    self.logger.debug(f"[addUniverseState] normalized dates range: {date_min}..{date_max} unique_dates={uniq_dates} instruments={uniq_inst}")
+                except Exception:
+                    pass
                 if 'instrument_id' in local_df.columns and 'date' in local_df.columns:
                     # Keep only relevant cols to minimize memory
                     keep_cols = list(local_df.columns)
@@ -464,6 +495,16 @@ class UniverseStateManager:
                     try:
                         self.logger.debug(f"[addUniverseState] Updated _instrument_history for {local_df['instrument_id'].nunique()} instruments. Sample sizes: "
                                           f"{ {iid: len(self._instrument_history[iid]) for iid in list(self._instrument_history.keys())[:5]} }")
+                        # Also show cached date coverage for first few instruments
+                        sample_iids = list(self._instrument_history.keys())[:5]
+                        for sid in sample_iids:
+                            try:
+                                cdf = self._instrument_history[sid]
+                                cmin = cdf['date'].min() if 'date' in cdf.columns and not cdf.empty else None
+                                cmax = cdf['date'].max() if 'date' in cdf.columns and not cdf.empty else None
+                                self.logger.debug(f"[addUniverseState] cache coverage iid={sid} rows={len(cdf)} date_min={cmin} date_max={cmax}")
+                            except Exception:
+                                pass
                     except Exception:
                         pass
                 else:
@@ -477,6 +518,13 @@ class UniverseStateManager:
                 "end_date_time": getattr(universe_state, "end_date_time", None),
                 "universe_state": universe_state,
             }
+            # Log the intended UniverseStateInterval date coverage to be saved
+            try:
+                save_min = local_df['date'].min() if 'date' in locals().get('local_df', pd.DataFrame()).columns else None
+                save_max = local_df['date'].max() if 'date' in locals().get('local_df', pd.DataFrame()).columns else None
+                self.logger.debug(f"[addUniverseState] saving UniverseStateInterval for dates {save_min}..{save_max} at timestamp={timestamp}")
+            except Exception:
+                pass
             await self.save_universe_state(df, timestamp, metadata=metadata)
             self.logger.debug(f"addUniverseState: Saved universe state for duration {duration} at {timestamp} with {len(df)} records.")
             saved_any = True

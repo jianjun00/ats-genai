@@ -10,12 +10,14 @@ import torch
 import numpy as np
 import pandas as pd
 from app.indicator_runner import IndicatorRunner
+from state.universe_state_builder import UniverseStateIntervalBuilder
 from config.environment import Environment, EnvironmentType
 
 # --- CONFIG ---
-LAG_STEPS = 30
-LEAD_STEPS = 7
-FEATURE_COLS = ['open', 'high', 'low', 'close', 'etop', 'ebot', 'pldot']
+LAG_STEPS = 10
+LEAD_STEPS = 5
+# Limit to OHLC to ensure availability during tests (indicator columns may be absent)
+FEATURE_COLS = ['open', 'high', 'low', 'close']
 TARGET_COL = 'close'
 
 # --- DATA GENERATOR ---
@@ -43,13 +45,15 @@ async def generate_train_data_async(start_date, end_date, environment, universe_
     symbols_from_memberships = [row['symbol'] for row in active_memberships if row.get('symbol')]
     # Create unified DB daily price market data manager (async) and inject into runner
     manager = await UnifiedDBDailyPriceMarketDataManager.create_async(environment, symbols=symbols_from_memberships or symbols)
+    # Add UniverseStateIntervalBuilder so UniverseStateManager receives intervals via addUniverseState
+    builder = UniverseStateIntervalBuilder(environment, base_duration='1d', target_durations='1d')
     runner = IndicatorRunner(
         start_date=start_date,
         end_date=end_date,
         environment=environment,
         vendor=vendor,
         indicator_config=None,
-        callbacks=[callback],
+        callbacks=[builder, callback],
         base_duration='1d',
         market_data_manager=manager,
     )
