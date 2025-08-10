@@ -52,8 +52,9 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         base_duration = self.base_duration
         base_end_time = base_duration.get_end_time(current_time)
         print(f"[DEBUG][handleInterval] Calling get_ohlc_batch with instrument_ids: {instrument_ids}, current_time: {current_time}, base_end_time: {base_end_time}")
-        ohlc_batch = runner.market_data_manager.get_ohlc_batch(instrument_ids, current_time, base_end_time)
-        print(f"[DEBUG][handleInterval] ohlc_batch result: {ohlc_batch}")
+        # Await async market data fetch
+        ohlc_batch = await runner.market_data_manager.get_ohlc_batch(instrument_ids, current_time, base_end_time)
+        print(f"[DEBUG][handleInterval] ohlc_batch keys: {list(ohlc_batch.keys()) if hasattr(ohlc_batch, 'keys') else type(ohlc_batch)}")
         # Fetch market_cap for all instruments for current_time
         rows = await self.market_cap_dao.list_market_caps_for_date(current_time.date())
         market_caps = {row['instrument_id']: row['market_cap'] for row in rows}

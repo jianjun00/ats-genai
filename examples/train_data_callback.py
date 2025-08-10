@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import pandas as pd
 from state.runner_callback import RunnerCallback
 from state.universe_state_manager import UniverseStateManager
 
@@ -71,12 +72,21 @@ class TrainDataCallback(RunnerCallback):
                 'symbol': symbol if symbol is not None else str(instrument_id),
             }
             if lag_df.empty:
-                print(f"[DEBUG][handleInterval] No lag data: instrument_id={instrument_id}, symbol={symbol}, date={cur_date}; filling NaNs")
-                for col in self.feature_cols:
-                    row[col] = np.nan
-            else:
-                for col in self.feature_cols:
-                    row[col] = lag_df.iloc[-1][col] if col in lag_df.columns else np.nan
+                print(f"[DEBUG][handleInterval] No lag data: instrument_id={instrument_id}, symbol={symbol}, date={cur_date}; skipping row to avoid NaNs")
+                continue
+            # Only include the row if all required feature columns are present and non-null
+            values = {}
+            valid = True
+            for col in self.feature_cols:
+                if col in lag_df.columns and pd.notna(lag_df.iloc[-1][col]):
+                    values[col] = lag_df.iloc[-1][col]
+                else:
+                    valid = False
+                    break
+            if not valid:
+                print(f"[DEBUG][handleInterval] Missing feature columns for instrument_id={instrument_id} on {cur_date}; skipping row")
+                continue
+            row.update(values)
             self._df_rows.append(row)
 
     def handleEnd(self, runner, current_time):

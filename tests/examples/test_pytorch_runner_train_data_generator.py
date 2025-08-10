@@ -74,6 +74,8 @@ async def test_generate_train_data_shapes(unit_test_db, setup_test_universe_data
     assert mask.shape == y.shape
     # Optionally check that mask is 1 where y is not nan
     assert torch.all((mask == 1) | (mask == 0))
+    # Assert there are no NaNs in feature tensor X
+    assert not torch.isnan(X).any(), "X contains NaNs; lag data likely missing before current date"
     # Optionally print stats
     print(f"X shape: {X.shape}, y shape: {y.shape}, mask shape: {mask.shape}")
     print(f"X sample: {X[0,0,0,:]}")
