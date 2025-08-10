@@ -203,6 +203,8 @@ class MigrationManager:
             'universe_membership_changes', 'stock_splits', 'dividends',
             # Instrument xrefs table for membership resolution
             'instrument_xrefs',
+            # Universe state schema tables
+            'universe_state_interval', 'instrument_interval', 'instrument_indicator_interval', 'factor_interval',
         ])
         table_names.update(static_table_names)
         

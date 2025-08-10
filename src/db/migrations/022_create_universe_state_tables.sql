@@ -1,5 +1,18 @@
 -- Migration 022: Create normalized universe state tables
 
+-- Ensure universe_state_interval has an 'id' primary key even if an older schema exists without it
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'universe_state_interval' AND column_name = 'id'
+    ) THEN
+        -- Add the id column and primary key; safe when table is empty or has no PK
+        ALTER TABLE universe_state_interval ADD COLUMN id SERIAL;
+        ALTER TABLE universe_state_interval ADD PRIMARY KEY (id);
+    END IF;
+END $$;
+
 -- 1. UniverseStateInterval: top-level interval per universe, duration, and time
 CREATE TABLE IF NOT EXISTS universe_state_interval (
     id SERIAL PRIMARY KEY,

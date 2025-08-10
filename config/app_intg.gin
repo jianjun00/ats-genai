@@ -26,6 +26,16 @@ bind = ['strict_validation', True]
 state.universe_state_builder.UniverseStateIntervalBuilder.base_duration = '5m'
 state.universe_state_builder.UniverseStateIntervalBuilder.target_durations = '5m,15m,60m'
 
+# Database (match integration DB settings)
+Database.host = 'localhost'
+Database.port = 5432
+Database.user = 'postgres'
+Database.password = 'password'
+Database.database = 'intg_db'
+Database.pool_min_size = 1
+Database.pool_max_size = 10
+Database.command_timeout = 60
+
 # Database
 bind = ['database.host', 'localhost']
 bind = ['database.port', 5432]

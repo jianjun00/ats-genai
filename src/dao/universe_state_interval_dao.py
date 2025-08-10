@@ -30,7 +30,8 @@ class UniverseStateIntervalDAO:
             end_date_time = datetime.fromisoformat(end_date_time)
         # --- Load instrument intervals ---
         instrument_interval_dao = InstrumentIntervalDAO(self.env)
-        instrument_rows = await instrument_interval_dao.list(universe_state_interval_id=row['id'])
+        interval_pk = row.get('id', row.get('interval_id'))
+        instrument_rows = await instrument_interval_dao.list(universe_state_interval_id=interval_pk)
         instrument_intervals = {}
         for irow in instrument_rows:
             ii = InstrumentInterval(
@@ -70,7 +71,7 @@ class UniverseStateIntervalDAO:
                 instrument_indicator_intervals[ind_type][irow['instrument_id']] = indicator_interval
         # --- Load factor intervals ---
         factor_interval_dao = FactorIntervalDAO(self.env)
-        factor_rows = await factor_interval_dao.list(universe_state_interval_id=row['id'])
+        factor_rows = await factor_interval_dao.list(universe_state_interval_id=interval_pk)
         factor_intervals = []
         for frow in factor_rows:
             factor_intervals.append(FactorInterval(
@@ -117,31 +118,54 @@ class UniverseStateIntervalDAO:
         self.db_url = env.get_database_url()
 
     async def create(self, universe_id: int, duration: str, start_date_time, end_date_time) -> int:
-        """Insert a new UniverseStateInterval record. Returns the new id."""
+        """Insert a new UniverseStateInterval record. Returns the new id (or interval_id)."""
         conn = await asyncpg.connect(self.db_url)
         try:
-            row = await conn.fetchrow(
-                f"""
-                INSERT INTO {self.env.get_table_name('universe_state_interval')} (
+            try:
+                row = await conn.fetchrow(
+                    f"""
+                    INSERT INTO {self.env.get_table_name('universe_state_interval')} (
+                        universe_id, duration, start_date_time, end_date_time
+                    ) VALUES ($1, $2, $3, $4)
+                    RETURNING id
+                    """,
                     universe_id, duration, start_date_time, end_date_time
-                ) VALUES ($1, $2, $3, $4)
-                RETURNING id
-                """,
-                universe_id, duration, start_date_time, end_date_time
-            )
-            return row['id']
+                )
+                return row['id']
+            except asyncpg.UndefinedColumnError:
+                row = await conn.fetchrow(
+                    f"""
+                    INSERT INTO {self.env.get_table_name('universe_state_interval')} (
+                        universe_id, duration, start_date_time, end_date_time
+                    ) VALUES ($1, $2, $3, $4)
+                    RETURNING interval_id
+                    """,
+                    universe_id, duration, start_date_time, end_date_time
+                )
+                return row['interval_id']
         finally:
             await conn.close()
 
     async def get(self, id: int) -> Optional[dict]:
-        """Fetch a UniverseStateInterval by id."""
+        """Fetch a UniverseStateInterval by id, supporting schemas with 'id' or 'interval_id'."""
         conn = await asyncpg.connect(self.db_url)
         try:
-            row = await conn.fetchrow(
-                f"SELECT * FROM {self.env.get_table_name('universe_state_interval')} WHERE id = $1",
-                id
-            )
-            return dict(row) if row else None
+            try:
+                row = await conn.fetchrow(
+                    f"SELECT * FROM {self.env.get_table_name('universe_state_interval')} WHERE id = $1",
+                    id
+                )
+            except asyncpg.UndefinedColumnError:
+                row = await conn.fetchrow(
+                    f"SELECT * FROM {self.env.get_table_name('universe_state_interval')} WHERE interval_id = $1",
+                    id
+                )
+            if not row:
+                return None
+            d = dict(row)
+            if 'id' not in d and 'interval_id' in d:
+                d['id'] = d['interval_id']
+            return d
         finally:
             await conn.close()
 
@@ -165,20 +189,33 @@ class UniverseStateIntervalDAO:
             if filters:
                 query += " WHERE " + " AND ".join(filters)
             rows = await conn.fetch(query, *params)
+            # Normalize PK key for downstream usage
+            norm_rows = []
+            for row in rows:
+                d = dict(row)
+                if 'id' not in d and 'interval_id' in d:
+                    d['id'] = d['interval_id']
+                norm_rows.append(d)
             # Use async_load_row_to_interval for each row
-            tasks = [self.async_load_row_to_interval(dict(row)) for row in rows]
+            tasks = [self.async_load_row_to_interval(d) for d in norm_rows]
             return await asyncio.gather(*tasks)
         finally:
             await conn.close()
 
     async def delete(self, id: int) -> bool:
-        """Delete a UniverseStateInterval by id."""
+        """Delete a UniverseStateInterval by id, supporting 'id' or 'interval_id'."""
         conn = await asyncpg.connect(self.db_url)
         try:
-            result = await conn.execute(
-                f"DELETE FROM {self.env.get_table_name('universe_state_interval')} WHERE id = $1",
-                id
-            )
+            try:
+                result = await conn.execute(
+                    f"DELETE FROM {self.env.get_table_name('universe_state_interval')} WHERE id = $1",
+                    id
+                )
+            except asyncpg.UndefinedColumnError:
+                result = await conn.execute(
+                    f"DELETE FROM {self.env.get_table_name('universe_state_interval')} WHERE interval_id = $1",
+                    id
+                )
             return result.startswith("DELETE")
         finally:
             await conn.close()

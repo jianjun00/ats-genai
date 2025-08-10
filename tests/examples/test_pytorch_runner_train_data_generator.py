@@ -1,7 +1,13 @@
 import pytest
 import torch
 from config.environment import Environment, EnvironmentType
-from examples.pytorch_runner_train_data_generator import generate_train_data, LAG_STEPS, LEAD_STEPS, FEATURE_COLS, TARGET_COL
+from modeling.pytorch_runner_train_data_generator import (
+    generate_train_data,
+    LAG_STEPS,
+    LEAD_STEPS,
+    FEATURE_COLS,
+    TARGET_COL,
+)
 
 import pytest
 from src.db.test_db_manager import unit_test_db
@@ -12,7 +18,13 @@ from tests.fixtures.setup_test_universe_data import setup_test_universe_data
 async def test_generate_train_data_shapes(unit_test_db, setup_test_universe_data):
     import os
     from config.environment import Environment, EnvironmentType
-    from examples.pytorch_runner_train_data_generator import generate_train_data, LAG_STEPS, LEAD_STEPS, FEATURE_COLS, TARGET_COL
+    from modeling.pytorch_runner_train_data_generator import (
+        generate_train_data,
+        LAG_STEPS,
+        LEAD_STEPS,
+        FEATURE_COLS,
+        TARGET_COL,
+    )
     import torch
     # Use a very short date range for a fast test
     start_date = "2024-01-01"
