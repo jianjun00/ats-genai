@@ -1,0 +1,1 @@
+{"timestamp": "20240108_000000", "record_count": 1, "file_size_bytes": 6889, "checksum": "d37ca5fc43df6dc494d344beaebac42d", "created_at": "2025-08-10T14:28:42.439197", "columns": ["start_date_time", "end_date_time", "instrument_id", "open", "high", "low", "close", "volume", "indicator_name", "indicator_value"], "data_sources": [], "universe_type": "default", "version": "1.0"}

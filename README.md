@@ -10,9 +10,12 @@ A server-side application for unified market data, event ingestion, signal compu
 - Deep learning time series forecasting (PyTorch LSTM)
 - REST API (FastAPI)
 - Automated setup with Docker and .env
-- Kubernetes-ready deployment for GCP
+- Multi-environment Kubernetes deployment (dev/intg/prod)
+- GitOps CI/CD with Argo CD and GitHub Actions
+- Weekly automated release cycles
 - Multi-duration interval support for trading analysis
 - Database migration tools for environment setup
+- Container-based deployment with uv package management
 
 ## Project Structure
 

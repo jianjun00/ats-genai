@@ -1,0 +1,142 @@
+name: ATS GenAI CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Weekly release cut every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg15
+        env:
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_USER: testuser
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Set up Python
+      run: uv python install 3.11
+    
+    - name: Install dependencies
+      run: uv sync
+    
+    - name: Run tests
+      env:
+        PYTHONPATH: src
+        DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+      run: uv run pytest -v --tb=short
+    
+    - name: Run linting
+      run: |
+        uv run ruff check src/ tests/
+        uv run mypy src/ --ignore-missing-imports
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-tag: ${{ steps.meta.outputs.tags }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=schedule,pattern={{date 'YYYY.WW'}}
+          type=sha,prefix={{branch}}-
+    
+    - name: Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  deploy-intg:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'schedule'
+    environment: integration
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Update integration image tag
+      run: |
+        cd k8s/environments/intg
+        sed -i "s/newTag: .*/newTag: ${{ github.sha }}/" kustomization.yaml
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add .
+        git commit -m "Update intg image to ${{ github.sha }}" || exit 0
+        git push
+
+  deploy-prod:
+    needs: [build, deploy-intg]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'  # Only on weekly schedule
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Wait for integration validation
+      run: |
+        echo "Integration deployment completed. Manual approval required for production."
+        # Add integration test validation here
+    
+    - name: Update production image tag
+      run: |
+        cd k8s/environments/prod
+        sed -i "s/newTag: .*/newTag: ${{ github.sha }}/" kustomization.yaml
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add .
+        git commit -m "Update prod image to ${{ github.sha }}" || exit 0
+        git push
