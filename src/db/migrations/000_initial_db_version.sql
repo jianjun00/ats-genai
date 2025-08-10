@@ -3,8 +3,7 @@
 -- This migration just records that version 0 has been applied
 
 ALTER TABLE db_version
-  ADD COLUMN IF NOT EXISTS description TEXT;
-ALTER TABLE db_version
+  ADD COLUMN IF NOT EXISTS description TEXT,
   ADD COLUMN IF NOT EXISTS migration_file TEXT;
 
 ALTER TABLE db_version ALTER COLUMN checksum DROP NOT NULL;

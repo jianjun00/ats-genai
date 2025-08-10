@@ -5,7 +5,10 @@ class DailyPricesDAO:
     def __init__(self, db_url=None, env=None):
         self.db_url = db_url or (env.get_database_url() if env else None)
         self.env = env
+        self.table_name = self.env.get_table_name('daily_prices_polygon') if self.env else None
         print(f"[DAO DEBUG] DailyPricesDAO using db_url: {self.db_url}")
+        print(f"[DAO DEBUG] DailyPricesDAO env_type: {getattr(self.env, 'env_type', None)}")
+        print(f"[DAO DEBUG] DailyPricesDAO table_name: {self.table_name}")
     async def list_prices_for_date(self, as_of_date):
         pool = await asyncpg.create_pool(self.db_url)
         try:
