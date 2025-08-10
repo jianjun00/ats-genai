@@ -51,30 +51,138 @@ class UniverseStateManager:
         Assumes self._cache or load_universe_state provides all data for the instrument.
         """
         df = self._get_instrument_history(instrument_id)
-        mask = (df['date'] < cur_date)
-        lag_df = df[mask].sort_values('date').tail(lag_days)
+        try:
+            self.logger.debug(f"[get_lag_prices] instrument_id={instrument_id} cur_date={cur_date} lag_days={lag_days} df.shape={df.shape} cols={list(df.columns)}")
+        except Exception:
+            pass
+        # Determine date column
+        date_series = None
+        if 'date' in df.columns:
+            date_series = df['date']
+        elif 'as_of_date' in df.columns:
+            try:
+                date_series = pd.to_datetime(df['as_of_date']).dt.date
+            except Exception:
+                pass
+        elif 'as_of_datetime' in df.columns:
+            try:
+                date_series = pd.to_datetime(df['as_of_datetime']).dt.date
+            except Exception:
+                pass
+        elif 'start_date_time' in df.columns:
+            try:
+                date_series = pd.to_datetime(df['start_date_time']).dt.date
+            except Exception:
+                pass
+        if date_series is None:
+            raise KeyError("No date/as_of_date column found in universe state data")
+        mask = (date_series < cur_date)
+        lag_df = df[mask].copy()
+        lag_df['__date__'] = date_series[mask]
+        lag_df = lag_df.sort_values('__date__').tail(lag_days)
+        # Derive 'close' from 'close_price' if needed
+        if 'close' not in lag_df.columns and 'close_price' in lag_df.columns:
+            lag_df = lag_df.copy()
+            lag_df['close'] = lag_df['close_price']
         features = ['open', 'high', 'low', 'close', 'etop', 'ebot', 'pldot']
-        return lag_df[features].reset_index(drop=True)
+        existing = [c for c in features if c in lag_df.columns]
+        out_df = lag_df[existing].reset_index(drop=True)
+        try:
+            self.logger.debug(f"[get_lag_prices] after mask/sort: lag_df.shape={lag_df.shape} existing_features={existing} out_df.shape={out_df.shape}")
+            if out_df.empty:
+                self.logger.warning(f"[get_lag_prices] No lag data rows for instrument_id={instrument_id} before {cur_date}. Available dates range: "
+                                    f"{lag_df['__date__'].min() if '__date__' in lag_df.columns and not lag_df.empty else None} - "
+                                    f"{lag_df['__date__'].max() if '__date__' in lag_df.columns and not lag_df.empty else None}")
+        except Exception:
+            pass
+        return out_df
 
     def get_lead_prices(self, instrument_id: int, cur_date, lead_days: int) -> pd.DataFrame:
         """
         Return a DataFrame of labels (high, low) for the next lead_days after cur_date.
         """
         df = self._get_instrument_history(instrument_id)
-        mask = (df['date'] > cur_date)
-        lead_df = df[mask].sort_values('date').head(lead_days)
-        labels = ['high', 'low']
-        return lead_df[labels].reset_index(drop=True)
+        # Determine date column
+        date_series = None
+        if 'date' in df.columns:
+            date_series = df['date']
+        elif 'as_of_date' in df.columns:
+            try:
+                date_series = pd.to_datetime(df['as_of_date']).dt.date
+            except Exception:
+                pass
+        elif 'as_of_datetime' in df.columns:
+            try:
+                date_series = pd.to_datetime(df['as_of_datetime']).dt.date
+            except Exception:
+                pass
+        elif 'start_date_time' in df.columns:
+            try:
+                date_series = pd.to_datetime(df['start_date_time']).dt.date
+            except Exception:
+                pass
+        if date_series is None:
+            raise KeyError("No date/as_of_date column found in universe state data")
+        mask = (date_series > cur_date)
+        lead_df = df[mask].copy()
+        lead_df['__date__'] = date_series[mask]
+        lead_df = lead_df.sort_values('__date__').head(lead_days)
+        # Provide common label columns; include 'close' to align with TARGET_COL
+        if 'close' not in lead_df.columns and 'close_price' in lead_df.columns:
+            lead_df = lead_df.copy()
+            lead_df['close'] = lead_df['close_price']
+        labels = ['close', 'high', 'low']
+        existing = [c for c in labels if c in lead_df.columns]
+        return lead_df[existing].reset_index(drop=True)
 
     def _get_instrument_history(self, instrument_id: int) -> pd.DataFrame:
         """
         Helper to fetch full DataFrame for an instrument from cache or storage.
         Assumes a 'date' column of type datetime/date.
         """
+        # First, consult per-instrument history accumulated during this run
+        try:
+            hist_df = self._instrument_history.get(int(instrument_id))
+            if hist_df is not None and not hist_df.empty:
+                # Ensure date column exists/normalized
+                if 'date' not in hist_df.columns:
+                    tmp = hist_df.copy()
+                    if 'as_of_date' in tmp.columns:
+                        tmp['date'] = pd.to_datetime(tmp['as_of_date']).dt.date
+                    elif 'as_of_datetime' in tmp.columns:
+                        tmp['date'] = pd.to_datetime(tmp['as_of_datetime']).dt.date
+                    elif 'start_date_time' in tmp.columns:
+                        tmp['date'] = pd.to_datetime(tmp['start_date_time']).dt.date
+                    hist_df = tmp
+                try:
+                    self.logger.debug(f"[_get_instrument_history][run-cache] inst_id={instrument_id} shape={hist_df.shape} "
+                                      f"date_min={hist_df.get('date').min() if 'date' in hist_df.columns else None} "
+                                      f"date_max={hist_df.get('date').max() if 'date' in hist_df.columns else None}")
+                except Exception:
+                    pass
+                return hist_df
+        except Exception:
+            pass
         # Try to get from cache, else load full universe state and filter
         for ts, df in self._cache.items():
             inst_df = df[df['instrument_id'] == instrument_id]
             if not inst_df.empty:
+                # Normalize date column if needed
+                if 'date' not in inst_df.columns:
+                    try:
+                        inst_df = inst_df.copy()
+                        if 'as_of_date' in inst_df.columns:
+                            inst_df['date'] = pd.to_datetime(inst_df['as_of_date']).dt.date
+                        elif 'as_of_datetime' in inst_df.columns:
+                            inst_df['date'] = pd.to_datetime(inst_df['as_of_datetime']).dt.date
+                        elif 'start_date_time' in inst_df.columns:
+                            inst_df['date'] = pd.to_datetime(inst_df['start_date_time']).dt.date
+                    except Exception:
+                        pass
+                try:
+                    self.logger.debug(f"[_get_instrument_history][cache hit ts={ts}] inst_df.shape={inst_df.shape} cols={list(inst_df.columns)} date_min={inst_df.get('date').min() if 'date' in inst_df.columns else None} date_max={inst_df.get('date').max() if 'date' in inst_df.columns else None}")
+                except Exception:
+                    pass
                 return inst_df
         # Fallback: load latest universe state
         latest_ts = self.get_latest_timestamp()
@@ -82,6 +190,22 @@ class UniverseStateManager:
             df = self.load_universe_state(timestamp=latest_ts)
             inst_df = df[df['instrument_id'] == instrument_id]
             if not inst_df.empty:
+                # Normalize date column if needed
+                if 'date' not in inst_df.columns:
+                    try:
+                        inst_df = inst_df.copy()
+                        if 'as_of_date' in inst_df.columns:
+                            inst_df['date'] = pd.to_datetime(inst_df['as_of_date']).dt.date
+                        elif 'as_of_datetime' in inst_df.columns:
+                            inst_df['date'] = pd.to_datetime(inst_df['as_of_datetime']).dt.date
+                        elif 'start_date_time' in inst_df.columns:
+                            inst_df['date'] = pd.to_datetime(inst_df['start_date_time']).dt.date
+                    except Exception:
+                        pass
+                try:
+                    self.logger.debug(f"[_get_instrument_history][latest ts={latest_ts}] inst_df.shape={inst_df.shape} cols={list(inst_df.columns)} date_min={inst_df.get('date').min() if 'date' in inst_df.columns else None} date_max={inst_df.get('date').max() if 'date' in inst_df.columns else None}")
+                except Exception:
+                    pass
                 return inst_df
         raise ValueError(f"No data found for instrument_id={instrument_id}")
 
@@ -151,6 +275,8 @@ class UniverseStateManager:
         self._cache: Dict[str, pd.DataFrame] = {}
         self._cache_metadata: Dict[str, UniverseStateMetadata] = {}
         self._max_cache_size = 5  # Maximum number of states to cache
+        # In-memory rolling history per instrument (across addUniverseState calls)
+        self._instrument_history: Dict[int, pd.DataFrame] = {}
         self.logger = logging.getLogger(__name__)
         # Initialize UniverseStateIntervalDAO for interval persistence
         self._interval_dao = UniverseStateIntervalDAO(self.env) if self.env else None
@@ -310,6 +436,40 @@ class UniverseStateManager:
             if df.empty:
                 self.logger.warning(f"addUniverseState: No data to save for duration {duration} at {current_time}")
                 continue
+            # Update rolling per-instrument history cache to provide prior history during a run
+            try:
+                local_df = df.copy()
+                # Normalize a 'date' column if possible
+                if 'date' not in local_df.columns:
+                    if 'as_of_date' in local_df.columns:
+                        local_df['date'] = pd.to_datetime(local_df['as_of_date']).dt.date
+                    elif 'as_of_datetime' in local_df.columns:
+                        local_df['date'] = pd.to_datetime(local_df['as_of_datetime']).dt.date
+                    elif 'start_date_time' in local_df.columns:
+                        local_df['date'] = pd.to_datetime(local_df['start_date_time']).dt.date
+                if 'instrument_id' in local_df.columns and 'date' in local_df.columns:
+                    # Keep only relevant cols to minimize memory
+                    keep_cols = list(local_df.columns)
+                    for inst_id, inst_group in local_df.groupby('instrument_id'):
+                        hist = self._instrument_history.get(int(inst_id))
+                        if hist is None or hist.empty:
+                            self._instrument_history[int(inst_id)] = inst_group[keep_cols].copy()
+                        else:
+                            combined = pd.concat([hist, inst_group[keep_cols]], ignore_index=True)
+                            # Drop duplicates based on instrument_id + date
+                            if 'date' in combined.columns:
+                                combined = combined.sort_values('date')
+                                combined = combined.drop_duplicates(subset=['instrument_id', 'date'], keep='last')
+                            self._instrument_history[int(inst_id)] = combined.reset_index(drop=True)
+                    try:
+                        self.logger.debug(f"[addUniverseState] Updated _instrument_history for {local_df['instrument_id'].nunique()} instruments. Sample sizes: "
+                                          f"{ {iid: len(self._instrument_history[iid]) for iid in list(self._instrument_history.keys())[:5]} }")
+                    except Exception:
+                        pass
+                else:
+                    self.logger.debug("[addUniverseState] Skipped history cache update (instrument_id/date missing)")
+            except Exception as e:
+                self.logger.warning(f"[addUniverseState] Failed to update history cache: {e}")
             metadata = {
                 "universe_id": getattr(universe_state, "universe_id", None),
                 "duration": duration.get_duration_string(),
@@ -337,43 +497,54 @@ class UniverseStateManager:
         self.logger.debug(f"UniverseStateManager.update_for_eod called at {current_time}")
         # Add EOD logic if needed
 
-    async def load_universe_state(self, timestamp: Optional[str] = None, filters: Optional[List] = None, columns: Optional[List[str]] = None, use_cache: bool = True) -> pd.DataFrame:
+    def load_universe_state(self, timestamp: Optional[str] = None, filters: Optional[List] = None, columns: Optional[List[str]] = None, use_cache: bool = True) -> pd.DataFrame:
         """
-        Load universe state from TimescaleDB for the given timestamp (as_of_date).
-        Optionally filter by columns.
+        Load universe state for the given timestamp from local storage/cache.
+        This synchronous implementation avoids async/coroutine usage so it can be
+        safely called from synchronous contexts (e.g., callbacks, feature builders).
+
+        If a cache entry is available for the full dataset at the timestamp and no
+        filters/columns are requested, it will be returned. Otherwise, attempts to
+        load a Parquet file from the states directory following the naming pattern
+        'universe_state_<timestamp>.parquet'.
         """
-        import asyncpg
         import pandas as pd
         if timestamp is None:
-            timestamp = await self.get_latest_timestamp()
+            timestamp = self.get_latest_timestamp()
         if not timestamp:
             raise FileNotFoundError("No universe state records found")
         # Check cache
         if use_cache and filters is None and columns is None and timestamp in self._cache:
             self.logger.debug(f"Loading universe state from cache: {timestamp}")
             return self._cache[timestamp].copy()
-        as_of_date = timestamp[:8]
-        as_of_date = f"{as_of_date[:4]}-{as_of_date[4:6]}-{as_of_date[6:8]}"
-        db_url = self.env.get_database_config()['url'] if self.env else os.getenv('TSDB_URL')
-        pool = await asyncpg.create_pool(db_url, min_size=1, max_size=2)
+        # Load from Parquet storage
+        file_path = self.states_dir / f"universe_state_{timestamp}.parquet"
+        if not file_path.exists():
+            raise FileNotFoundError(f"Universe state file not found: {file_path}")
         try:
-            async with pool.acquire() as conn:
-                col_clause = ', '.join(columns) if columns else '*'
-                table_name = self.env.get_table_name('universe_state_interval')
-                query = f"SELECT {col_clause} FROM {table_name} WHERE as_of_date = $1"
-                records = await conn.fetch(query, as_of_date)
-                if not records:
-                    raise FileNotFoundError(f"No universe state found for date: {as_of_date}")
-                data = pd.DataFrame([dict(r) for r in records])
-                if use_cache and filters is None and columns is None:
-                    self._update_cache(timestamp, data, {})
-                self.logger.info(f"Loaded universe state from DB for {timestamp} ({len(data)} records)")
-                return data
+            df = pd.read_parquet(file_path)
         except Exception as e:
-            self.logger.error(f"Failed to load universe state from DB: {e}")
-            raise IOError(f"Failed to load universe state from DB: {e}")
-        finally:
-            await pool.close()
+            self.logger.error(f"Failed to read universe state file {file_path}: {e}")
+            raise IOError(f"Failed to read universe state file {file_path}: {e}")
+        # Apply column selection if requested
+        if columns is not None:
+            existing = [c for c in columns if c in df.columns]
+            df = df[existing]
+        # Basic filtering support (caller provides boolean mask or callable)
+        if filters is not None:
+            try:
+                for f in filters:
+                    if callable(f):
+                        df = df[f(df)]
+                    else:
+                        # Assume f is a boolean mask aligned with df
+                        df = df[f]
+            except Exception as e:
+                self.logger.warning(f"Failed to apply filters, returning unfiltered data: {e}")
+        if use_cache and filters is None and columns is None:
+            self._update_cache(timestamp, df, {})
+        self.logger.info(f"Loaded universe state for {timestamp} from file ({len(df)} records)")
+        return df
     
     def get_latest_timestamp(self) -> Optional[str]:
         """
