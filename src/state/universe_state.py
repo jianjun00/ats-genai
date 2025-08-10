@@ -126,6 +126,16 @@ class UniverseStateInterval:
                 proto_ind.end_date_time = ind_int.end_date_time.isoformat()
                 for name, val in ind_int.indicators.items():
                     proto_ind.indicators[name] = str(val.get('value'))
+        # Serialize forecasts as a special indicator map entry to avoid proto changes
+        if hasattr(self, 'instrument_forecast_intervals') and self.instrument_forecast_intervals:
+            forecast_map = msg.instrument_indicator_intervals['forecast']
+            for iid, f_int in self.instrument_forecast_intervals.items():
+                proto_ind = forecast_map.value[iid]
+                proto_ind.instrument_id = iid
+                proto_ind.start_date_time = f_int.start_date_time.isoformat()
+                proto_ind.end_date_time = f_int.end_date_time.isoformat()
+                for idx, val in enumerate(f_int.forecasts):
+                    proto_ind.indicators[f't+{idx+1}'] = str(val)
         return msg
 
     @staticmethod
@@ -194,13 +204,34 @@ class UniverseStateInterval:
                     indicators=indicators
                 )
             instrument_indicator_intervals[ind_type] = indicator_dict
+        # Rebuild forecasts from the special 'forecast' indicator map if present
+        instrument_forecast_intervals = {}
+        if 'forecast' in instrument_indicator_intervals:
+            from state.forecast_interval import ForecastInterval
+            for iid, ind_int in instrument_indicator_intervals['forecast'].items():
+                # Sort keys like t+1, t+2
+                keys = sorted(ind_int.indicators.keys(), key=lambda k: int(k.split('+')[1]) if '+' in k else 0)
+                forecasts = []
+                for k in keys:
+                    try:
+                        forecasts.append(float(ind_int.indicators[k]['value']))
+                    except Exception:
+                        continue
+                instrument_forecast_intervals[iid] = ForecastInterval(
+                    instrument_id=iid,
+                    start_date_time=ind_int.start_date_time,
+                    end_date_time=ind_int.end_date_time,
+                    forecasts=forecasts
+                )
         return UniverseStateInterval(
+            universe_id=0,
             duration=duration,
             start_date_time=start_date_time,
             end_date_time=end_date_time,
             factor_intervals=factor_intervals,
             instrument_intervals=instrument_intervals,
-            instrument_indicator_intervals=instrument_indicator_intervals
+            instrument_indicator_intervals=instrument_indicator_intervals,
+            instrument_forecast_intervals=instrument_forecast_intervals
         )
 
     """
