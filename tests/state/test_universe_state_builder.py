@@ -13,11 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, date
 import asyncpg
 
-from secmaster.security_master import CorporateActionType
-from secmaster.security_master import CorporateAction
-from state.universe_state_builder import (
-    UniverseStateIntervalBuilder, 
-)
+from state.universe_state_builder import UniverseStateIntervalBuilder
 from state.universe_state_manager import UniverseStateManager
 from config.environment import Environment, EnvironmentType
 from db.test_db_manager import unit_test_db
@@ -79,7 +75,7 @@ class TestUniverseStateIntervalBuilder:
         """Test that UniverseStateIntervalBuilder maintains rolling cache and builds indicator intervals correctly."""
         from state.universe_state_builder import UniverseStateIntervalBuilder
         from state.instrument_interval import InstrumentInterval
-        from state.universe_interval import FactorInterval
+        from state.factor_interval import FactorInterval
         from state.universe_state import UniverseStateInterval
         from state.indicator_interval import IndicatorInterval
         from datetime import datetime, timedelta
@@ -113,16 +109,19 @@ class TestUniverseStateIntervalBuilder:
             class DummyUniverseManager:
                 instrument_ids = [1, 2]
             class DummyMarketDataManager:
-                def get_ohlc_batch(self, instrument_ids, current_time, end_time):
+                async def get_ohlc_batch(self, instrument_ids, current_time, end_time):
                     # Return deterministic but distinct data for each call
                     return {iid: {'open': float(iid), 'high': float(iid)+1, 'low': float(iid)-1, 'close': float(iid)+0.5, 'volume': 100.0+random.random()} for iid in instrument_ids}
             universe_manager = DummyUniverseManager()
             market_data_manager = DummyMarketDataManager()
+            # Universe identifier required by builder when creating UniverseStateInterval
+            universe_id = 1
             class DummyUniverseStateManager:
                 def __init__(self):
                     self.last_state = None
-                def addUniverseStateInterval(self, universe_state, current_time):
-                    self.last_state = universe_state
+                async def addUniverseState(self, duration_to_state, current_time):
+                    # Match builder's awaited method and capture the produced state
+                    self.last_state = duration_to_state
             universe_state_manager = DummyUniverseStateManager()
         runner = DummyRunner()
         now = datetime(2023, 1, 1, 9, 30)
