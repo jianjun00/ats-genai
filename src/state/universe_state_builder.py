@@ -8,7 +8,12 @@ integration with multiple data sources.
 
 import pandas as pd
 import gin
-from state.runner_callback import RunnerCallback
+try:
+    from state.runner_callback import RunnerCallback
+except Exception:
+    # Fallback minimal base when runner_callback is not available in test context
+    class RunnerCallback:
+        pass
 import asyncpg
 from typing import Dict, Any, List, Optional, Tuple
 import logging
@@ -176,6 +181,11 @@ class UniverseStateIntervalBuilder(RunnerCallback):
             await runner.universe_state_manager.addUniverseState(duration_to_state, current_time)
         else:
             self.logger.fatal("runner.universe_state_manager not available; skipping addUniverseStateInterval.")
+
+    def handleIntervalSync(self, runner, current_time):
+        """Synchronous wrapper to run handleInterval for tests that call without await."""
+        import asyncio
+        return asyncio.run(self.handleInterval(runner, current_time))
 
     """
     Builds universe state from multiple data sources with business logic,

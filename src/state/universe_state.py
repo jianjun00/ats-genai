@@ -16,7 +16,6 @@ from .proto import time_duration_pb2
 
 @dataclass
 class UniverseStateInterval:
-    universe_id: int
     def to_dataframe(self):
         """
         Flatten all instrument_intervals and instrument_indicator_intervals into a pandas DataFrame.
@@ -252,3 +251,5 @@ class UniverseStateInterval:
     instrument_indicator_intervals: Dict[str, Dict[int, IndicatorInterval]] = field(default_factory=dict)
     # Optional forecasts produced by modeling callbacks
     instrument_forecast_intervals: Dict[int, ForecastInterval] = field(default_factory=dict)
+    # Optional: universe identifier (kept for backward compatibility)
+    universe_id: int = 0
