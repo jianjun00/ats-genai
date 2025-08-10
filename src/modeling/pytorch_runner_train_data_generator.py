@@ -22,8 +22,8 @@ TARGET_COL = 'close'
 
 # --- DATA GENERATOR ---
 async def generate_train_data_async(start_date, end_date, environment, universe_id, symbols=None, vendor='polygon', output_path="train_data.pt"):
-    from examples.train_data_callback import TrainDataCallback
-    from src.dao.universe_membership_dao import UniverseMembershipDAO
+    from modeling.train_data_callback import TrainDataCallback
+    from dao.universe_membership_dao import UniverseMembershipDAO
     from market_data.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
     callback = TrainDataCallback(
         lag_steps=LAG_STEPS,
@@ -73,16 +73,74 @@ async def generate_train_data(*args, **kwargs):
 
 
 
-# --- Example usage ---
+# --- CLI usage ---
 if __name__ == "__main__":
-    # Example: test environment, universe_id=1
-    env = Environment(None, EnvironmentType.TEST, db_url=None)
-    X, y, mask = generate_train_data(
-        start_date="2024-01-01",
-        end_date="2024-03-31",
-        environment=env,
-        universe_id=1,
-        symbols=None,
-        vendor='polygon',
+    import argparse
+    import os
+    import asyncio
+
+    def parse_env_type(val: str):
+        v = (val or '').strip().lower()
+        if v in {"test", "t"}:
+            return EnvironmentType.TEST
+        if v in {"intg", "integration", "i"}:
+            # Some repos name this INTEGRATION; adapt if enum uses INTG
+            return getattr(EnvironmentType, "INTEGRATION", getattr(EnvironmentType, "INTG", EnvironmentType.TEST))
+        if v in {"prod", "production", "p"}:
+            return getattr(EnvironmentType, "PRODUCTION", EnvironmentType.TEST)
+        return EnvironmentType.TEST
+
+    parser = argparse.ArgumentParser(description="Generate PyTorch training data from universe/indicator pipeline")
+    parser.add_argument("--start-date", dest="start_date", required=True, help="Start date YYYY-MM-DD")
+    parser.add_argument("--end-date", dest="end_date", required=True, help="End date YYYY-MM-DD")
+    parser.add_argument("--symbols", dest="symbols", default=None, help="Comma-separated symbols (optional)")
+    parser.add_argument("--universe-id", dest="universe_id", type=int, default=1, help="Universe ID (default: 1)")
+    parser.add_argument("--environment", dest="environment", default="test", help="Environment: test|intg|prod")
+    parser.add_argument("--gin-config", dest="gin_config", default=None, help="Path to Gin config file (overrides default)")
+    parser.add_argument("--vendor", dest="vendor", default="polygon", help="Vendor source (default: polygon)")
+    parser.add_argument("--output-path", dest="output_path", default="train_data.pt", help="Where to save the generated tensors")
+    parser.add_argument("--db-url", dest="db_url", default=None, help="Database URL to override Gin DB config (e.g., postgresql://user:pass@host:5432/db)")
+
+    args = parser.parse_args()
+
+    # Set GIN config if provided, otherwise choose based on environment
+    if args.gin_config:
+        os.environ["GIN_CONFIG"] = args.gin_config
+    else:
+        env_key = (args.environment or "test").strip().lower()
+        # common filenames: app_test.gin, app_intg.gin, app_prod.gin
+        default_map = {
+            "test": "config/app_test.gin",
+            "t": "config/app_test.gin",
+            "intg": "config/app_intg.gin",
+            "integration": "config/app_intg.gin",
+            "i": "config/app_intg.gin",
+            "prod": "config/app_prod.gin",
+            "production": "config/app_prod.gin",
+            "p": "config/app_prod.gin",
+        }
+        chosen = default_map.get(env_key)
+        if chosen:
+            os.environ["GIN_CONFIG"] = chosen
+
+    env_type = parse_env_type(args.environment)
+    # Prefer explicit --db-url, then env var DATABASE_URL, else None (Gin config must supply DB settings)
+    db_url = args.db_url or os.environ.get("DATABASE_URL")
+    if db_url:
+        os.environ["DATABASE_URL"] = db_url  # make available to any downstream code expecting env var
+    env = Environment(None, env_type, db_url=db_url)
+
+    symbols_list = [s.strip() for s in args.symbols.split(",")] if args.symbols else None
+
+    X, y, mask = asyncio.run(
+        generate_train_data_async(
+            start_date=args.start_date,
+            end_date=args.end_date,
+            environment=env,
+            universe_id=args.universe_id,
+            symbols=symbols_list,
+            vendor=args.vendor,
+            output_path=args.output_path,
+        )
     )
-    print(f"X shape: {X.shape}, y shape: {y.shape}, mask shape: {mask.shape}")
+    print(f"X shape: {getattr(X, 'shape', None)}, y shape: {getattr(y, 'shape', None)}, mask shape: {getattr(mask, 'shape', None)}")
