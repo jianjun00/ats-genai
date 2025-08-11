@@ -1,10 +1,13 @@
-# moved from project root
-import psycopg2
+# Database setup script
 import os
+import sys
+import psycopg2
+from psycopg2 import OperationalError
 
 # Connection parameters for postgres superuser (to create database)
 PG_SUPER_URL = os.getenv('PG_SUPER_URL', 'postgresql://postgres@localhost:5432/postgres')
-TRADING_DB = 'trading_db'
+TRADING_DB = os.getenv('POSTGRES_DB', 'trading_db')
+SKIP_DB_SETUP = os.getenv('SKIP_DB_SETUP', 'false').lower() == 'true'
 
 # SQL for required tables
 CREATE_DAILY_PRICES = """
@@ -44,23 +47,43 @@ CREATE_HYPERTABLE_MARKET_CAP = "SELECT create_hypertable('daily_market_cap', 'da
 
 
 def create_database(force=False):
-    # Connect to postgres maintenance DB as superuser
-    conn = psycopg2.connect(PG_SUPER_URL)
-    conn.autocommit = True
-    cur = conn.cursor()
-    cur.execute(f"SELECT 1 FROM pg_database WHERE datname = '{TRADING_DB}'")
-    exists = cur.fetchone() is not None
-    if exists and force:
-        cur.execute(f"DROP DATABASE {TRADING_DB}")
-        cur.execute(f"CREATE DATABASE {TRADING_DB}")
-        print(f"Database '{TRADING_DB}' dropped and recreated.")
-    elif not exists:
-        cur.execute(f"CREATE DATABASE {TRADING_DB}")
-        print(f"Database '{TRADING_DB}' created.")
-    else:
-        print(f"Database '{TRADING_DB}' already exists. Skipping drop/create.")
-    cur.close()
-    conn.close()
+    """Create the trading database and required tables."""
+    if SKIP_DB_SETUP:
+        print("Skipping database setup as SKIP_DB_SETUP is true")
+        return True
+        
+    try:
+        # Connect to postgres database
+        conn = psycopg2.connect(PG_SUPER_URL)
+        conn.autocommit = True
+        cursor = conn.cursor()
+        
+        # Drop database if force is True
+        if force:
+            try:
+                cursor.execute(f"DROP DATABASE IF EXISTS {TRADING_DB}")
+                print(f"Dropped database {TRADING_DB}")
+            except Exception as e:
+                print(f"Error dropping database: {e}")
+        
+        # Create database
+        try:
+            cursor.execute(f"CREATE DATABASE {TRADING_DB}")
+            print(f"Created database {TRADING_DB}")
+        except Exception as e:
+            print(f"Database {TRADING_DB} already exists or could not be created: {e}")
+        
+        cursor.close()
+        conn.close()
+        return True
+        
+    except OperationalError as e:
+        print(f"Warning: Could not connect to database at {PG_SUPER_URL}")
+        print("Database setup will be skipped. Set SKIP_DB_SETUP=true to suppress this warning.")
+        return False
+    except Exception as e:
+        print(f"Error setting up database: {e}")
+        return False
 
 CREATE_FUNDAMENTALS = """
 CREATE TABLE IF NOT EXISTS fundamentals (
@@ -72,22 +95,65 @@ CREATE TABLE IF NOT EXISTS fundamentals (
 """
 
 def setup_tables():
-    # Connect to trading_db
-    db_url = os.getenv('TSDB_URL', f'postgresql://localhost:5432/{TRADING_DB}')
-    conn = psycopg2.connect(db_url)
-    conn.autocommit = True
-    cur = conn.cursor()
-    # Enable TimescaleDB
+    if SKIP_DB_SETUP:
+        print("Skipping table setup as SKIP_DB_SETUP is true")
+        return True
+        
     try:
-        cur.execute(CREATE_EXTENSION)
+        # Connect to trading_db
+        db_url = os.getenv('TSDB_URL', f'postgresql://localhost:5432/{TRADING_DB}')
+        conn = psycopg2.connect(db_url)
+        cur = conn.cursor()
+        
+        # Create tables
+        cur.execute(CREATE_DAILY_PRICES)
+        cur.execute(CREATE_FUNDAMENTALS)
+        
+        # Commit changes and close connection
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("Created tables: daily_prices, fundamentals")
+        return True
+        
+    except OperationalError as e:
+        print(f"Warning: Could not connect to database at {db_url} to set up tables")
+        print("Table setup will be skipped. Set SKIP_DB_SETUP=true to suppress this warning.")
+        return False
     except Exception as e:
-        print(f"Extension creation skipped or failed: {e}")
-    # Convert to hypertables
+        print(f"Error setting up tables: {e}")
+        return False
+
     try:
-        cur.execute(CREATE_HYPERTABLE_DAILY_PRICES)
+        # Connect to trading_db
+        db_url = os.getenv('TSDB_URL', f'postgresql://localhost:5432/{TRADING_DB}')
+        conn = psycopg2.connect(db_url)
+        cur = conn.cursor()
+        
+        # Enable TimescaleDB
+        try:
+            cur.execute(CREATE_EXTENSION)
+        except Exception as e:
+            print(f"Extension creation skipped or failed: {e}")
+        # Convert to hypertables
+        try:
+            cur.execute(CREATE_HYPERTABLE_DAILY_PRICES)
+        except Exception as e:
+            print(f"Hypertable creation for daily_prices failed: {e}")
+        try:
+            cur.execute(CREATE_HYPERTABLE_MARKET_CAP)
+        except Exception as e:
+            print(f"Hypertable creation for daily_market_cap failed: {e}")
+        cur.close()
+        conn.close()
+        print("All tables created and hypertables set up (if TimescaleDB is enabled).")
+    except OperationalError as e:
+        print(f"Warning: Could not connect to database at {db_url} to set up hypertables")
+        print("Hypertable setup will be skipped. Set SKIP_DB_SETUP=true to suppress this warning.")
+        return False
     except Exception as e:
-        print(f"Hypertable creation for daily_prices failed: {e}")
-    try:
+        print(f"Error setting up hypertables: {e}")
+        return False
         cur.execute(CREATE_HYPERTABLE_MARKET_CAP)
     except Exception as e:
         print(f"Hypertable creation for daily_market_cap failed: {e}")

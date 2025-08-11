@@ -25,3 +25,14 @@ curl http://localhost:8080/health
 
 # Check logs if needed
 kubectl logs -l app=ats-api -n ats-dev --tail=20
+
+docker build -t ats-genai:test -f Dockerfile.test . && docker run -p 8080:8080 --name ats-test ats-genai:test
+docker stop ats-test 2>/dev/null || true && docker rm ats-test 2>/dev/null || true
+
+docker run -d -p 8081:8080 --name ats-test ats-genai:test
+
+docker ps -a | grep ats-test
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install uvicorn fastapi

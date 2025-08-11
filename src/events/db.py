@@ -1,5 +1,5 @@
 from config.environment import Environment
-from db.dao.events_dao import EventsDAO
+from dao.events_dao import EventsDAO
 from .schemas import EventIn
 from typing import Optional
 

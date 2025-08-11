@@ -2,20 +2,28 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ats-api
+  namespace: ats-dev
   labels:
     app: ats-api
     component: api
+    environment: dev
 spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ats-api
   template:
+    metadata:
+      labels:
+        app: ats-api
+        component: api
+        environment: dev
     spec:
       containers:
       - name: ats-api
-        # Use our simple FastAPI app for testing
-        command: ["uvicorn", "src.simple_main:app", "--host", "0.0.0.0", "--port", "8080"]
-        args: []
-        # Use local image
         image: ats-genai:dev-latest
         imagePullPolicy: Never  # Use local image
+        command: ["/bin/sh", "-c", "while true; do echo 'Debugging container is running...'; sleep 30; done"]
         ports:
         - containerPort: 8080
           name: http
@@ -33,3 +41,21 @@ spec:
           limits:
             memory: "512Mi"
             cpu: "250m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ats-api
+  namespace: ats-dev
+  labels:
+    app: ats-api
+    component: api
+    environment: dev
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    name: http
+  selector:
+    app: ats-api
