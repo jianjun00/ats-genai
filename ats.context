@@ -35,6 +35,52 @@ Summarize the current project context, integration test refactor status, and DB/
 - Fixed all AsyncMock/patching issues in DAO tests for correct await/assertion tracking.
 - Patched all DB environment setup to use fixture DB names (with `intg_` or `test_` prefix as appropriate).
 
+## Infrastructure and Deployment (as of 2025-08-10)
+
+### Docker Configuration
+- Base image: `python:3.12-slim` for both development and production
+- Multi-stage build process:
+  - Builder stage installs build dependencies
+  - Production stage creates a minimal final image
+- Environment variables:
+  - `PYTHONPATH=/app/src` for module resolution
+  - `PYTHONUNBUFFERED=1` for proper logging
+  - `PYTHONDONTWRITEBYTECODE=1` to prevent .pyc files
+
+### Minimal Working Configuration
+- `Dockerfile.minimal` provides a working base configuration:
+  - Installs system dependencies (gcc, python3-dev)
+  - Sets up proper Python environment
+  - Copies only necessary files (pyproject.toml and src/)
+  - Uses non-root user for security
+  - Includes health checks
+
+### Fixed Import Issues
+- Updated import paths to match project structure:
+  - Changed `db.dao.events_dao` to `dao.events_dao`
+  - Ensured all imports are relative to `src/` directory
+- Added proper `__init__.py` files to make packages importable
+
+### Kubernetes Deployment
+- Local development uses Kind (Kubernetes in Docker)
+- Namespace: `ats-dev` for development environment
+- Deployment strategy:
+  - Single replica for development
+  - Resource limits: 256Mi memory, 100m CPU (requests), 512Mi memory, 250m CPU (limits)
+- Service type: ClusterIP with port 8080 exposed
+
+### Development Workflow
+1. Build image: `docker build -t ats-genai:dev-latest .`
+2. Test locally: `docker run -p 8081:8080 --name ats-test ats-genai:test`
+3. Deploy to local cluster: `kubectl apply -f k8s/simple-deployment.yaml`
+4. Access service: `kubectl port-forward svc/ats-api 8081:8080 -n ats-dev`
+
+### Best Practices
+- Always use `timeout` with docker/kubectl commands to prevent hanging
+- Keep development and production environments consistent (Python 3.12)
+- Use environment variables for configuration
+- Keep container images minimal and secure (non-root user)
+
 ## Best Practices
 - Always use the appropriate test DB fixture for all integration/unit tests.
 - Always use canonical DAOs for test setup and teardown.
