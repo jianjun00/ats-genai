@@ -8,6 +8,7 @@ resources:
 
 patchesStrategicMerge:
 - deployment-patch.yaml
+- deployment-override.yaml
 
 images:
 - name: ats-genai
