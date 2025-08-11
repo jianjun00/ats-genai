@@ -14,8 +14,10 @@ RUN /bin/uv venv /opt/venv
 # Copy dependency files
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies
-RUN /bin/uv sync --frozen --no-install-project --no-dev
+# Install dependencies (including uvicorn and all project dependencies)
+RUN /bin/uv sync --frozen --no-dev
+# Explicitly install uvicorn using uv to ensure it's available
+RUN /bin/uv add uvicorn --no-sync
 
 # Production stage
 FROM python:3.11-slim
