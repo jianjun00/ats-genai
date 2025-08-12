@@ -36,3 +36,6 @@ docker ps -a | grep ats-test
 python3 -m venv .venv
 source .venv/bin/activate
 pip install uvicorn fastapi
+
+
+export DATABASE_URL=postgresql://test_user:test_password@localhost:5432/test_db && echo $DATABASE_URL

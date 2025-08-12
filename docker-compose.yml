@@ -27,9 +27,10 @@ services:
       - .env
     environment:
       TSDB_URL: postgresql://postgres:postgres@db:5432/trading_db
+      GIN_CONFIG: /app/config/app_docker.gin
     ports:
-      - "8080:8080"
-    command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
+      - "8090:8090"
+    command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8090"]
     volumes:
       - .:/app
 
