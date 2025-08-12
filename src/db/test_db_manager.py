@@ -409,16 +409,27 @@ async def unit_test_db(request):
         db_name = db_name[:63]
  
     # Construct Database object for this test
+    # Use test_user credentials explicitly for test database
+    db_host = "localhost"
+    db_port = 5432
+    db_user = "test_user"
+    db_password = "test_password"
+    db_pool_min = 1
+    db_pool_max = 10
+    db_cmd_timeout = 60
+    
+    print(f"[ENV DEBUG] Using database credentials: host={db_host}, port={db_port}, user={db_user}, database={db_name}")
+    
     db_obj = Database(
-        host="localhost",
-        port=5432,
-        user="postgres",
-        password="password",
+        host=db_host,
+        port=db_port,
+        user=db_user,
+        password=db_password,
         database=db_name,
         base_database=db_name,
-        pool_min_size=1,
-        pool_max_size=10,
-        command_timeout=60
+        pool_min_size=db_pool_min,
+        pool_max_size=db_pool_max,
+        command_timeout=db_cmd_timeout
     )
     db_manager = gin.get_configurable(TestDatabaseManager)("unit", database_obj=db_obj)
     test_db_url = await db_manager.setup_test_database()
@@ -488,16 +499,27 @@ async def unit_test_db_clean(request):
     if len(db_name) > 63:
         db_name = db_name[:63]
     # Construct Database object for this test
+    # Use test_user credentials explicitly for test database
+    db_host = "localhost"
+    db_port = 5432
+    db_user = "test_user"
+    db_password = "test_password"
+    db_pool_min = 1
+    db_pool_max = 10
+    db_cmd_timeout = 60
+    
+    print(f"[ENV DEBUG] Using database credentials: host={db_host}, port={db_port}, user={db_user}, database={db_name}")
+    
     db_obj = Database(
-        host="localhost",
-        port=5432,
-        user="postgres",
-        password="password",
+        host=db_host,
+        port=db_port,
+        user=db_user,
+        password=db_password,
         database=db_name,
         base_database=db_name,
-        pool_min_size=1,
-        pool_max_size=10,
-        command_timeout=60
+        pool_min_size=db_pool_min,
+        pool_max_size=db_pool_max,
+        command_timeout=db_cmd_timeout
     )
     db_manager = gin.get_configurable(TestDatabaseManager)("unit", database_obj=db_obj)
     test_db_url = await db_manager.setup_test_database()
