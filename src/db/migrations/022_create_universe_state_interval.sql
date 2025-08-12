@@ -1,1 +1,0 @@
--- (intentionally left blank, see 021_create_universe_state_interval.sql)
