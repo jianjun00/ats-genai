@@ -262,10 +262,10 @@ async def test_apply_migration_success(pristine_test_db):
         pool = await asyncpg.create_pool(db_url)
         try:
             async with pool.acquire() as conn:
-                # Check table exists
+                # Check table exists (should have a single prefix)
                 result = await conn.fetchval("""
                     SELECT COUNT(*) FROM information_schema.tables 
-                    WHERE table_name = 'test_test_migration_table'
+                    WHERE table_name = 'test_migration_table'
                 """)
                 assert result == 1
                 
@@ -587,18 +587,18 @@ async def test_complex_sql_migration(pristine_test_db):
                 # Check table
                 table_exists = await conn.fetchval("""
                     SELECT COUNT(*) FROM information_schema.tables 
-                    WHERE table_name = 'test_test_complex'
+                    WHERE table_name = 'test_complex'
                 """)
-                assert table_exists == 1
+                assert table_exists == 1, "Table 'test_complex' not found"
                 
                 # Check data
-                row_count = await conn.fetchval("SELECT COUNT(*) FROM test_test_complex")
-                assert row_count == 2
+                row_count = await conn.fetchval("SELECT COUNT(*) FROM test_complex")
+                assert row_count == 2, f"Expected 2 rows in test_complex, found {row_count}"
                 
                 # Check index
                 index_exists = await conn.fetchval("""
                     SELECT COUNT(*) FROM pg_indexes 
-                    WHERE tablename = 'test_test_complex' AND indexname LIKE '%name%'
+                    WHERE indexname = 'idx_test_complex_name'
                 """)
                 assert index_exists >= 1
                 
