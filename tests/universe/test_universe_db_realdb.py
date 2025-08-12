@@ -64,7 +64,7 @@ async def test_add_and_get_universe_members_real_db(unit_test_db):
 
     # Retrieve members (UniverseDB.get_universe_members does not take vendor_id, but membership resolution will now work)
     members = await db.get_universe_members(universe_id, date(2025, 7, 25))
-    assert "AAPL" in members
+    assert instrument_id in members
 
     # Clean up
     async with pool.acquire() as conn:
@@ -150,9 +150,9 @@ async def test_universe_manager_multiday_multiinstrument_real_db(unit_test_db):
     members_day1 = await db.get_universe_members(universe_id, date(2025, 7, 1))
     members_day2 = await db.get_universe_members(universe_id, date(2025, 7, 2))
     members_day3 = await db.get_universe_members(universe_id, date(2025, 7, 3))
-    assert set(members_day1) == {"AAPL", "TSLA"}
-    assert set(members_day2) == {"TSLA"}
-    assert set(members_day3) == {"AAPL"}
+    assert set(members_day1) == {instrument_ids["AAPL"], instrument_ids["TSLA"]}
+    assert set(members_day2) == {instrument_ids["TSLA"]}
+    assert set(members_day3) == {instrument_ids["AAPL"]}
     # Clean up
     async with pool.acquire() as conn:
         await conn.execute(f"DELETE FROM {env.get_table_name('universe_membership')}")
