@@ -31,6 +31,14 @@ jobs:
         ports:
           - 5432:5432
 
+    # Add these environment variables to your job steps
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: testuser
+      DB_PASSWORD: testpass
+      DB_NAME: testdb
+    
     steps:
     - uses: actions/checkout@v4
     
