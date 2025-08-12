@@ -3,9 +3,8 @@
 from config.environment import Environment
 from dao.universe_dao import UniverseDAO
 from dao.universe_membership_dao import UniverseMembershipDAO
-from dao.instruments_dao import InstrumentsDAO
 from datetime import date
-from typing import List, Optional, Dict
+from typing import List, Optional
 
 class UniverseDB:
     async def get_membership_changes(self, universe_id: int, as_of: date):
@@ -21,29 +20,19 @@ class UniverseDB:
         universe = await self.universe_dao.get_universe_by_name(universe_name)
         return universe['id'] if universe else None
 
-    async def get_universe_members(self, universe_id: int, as_of: date) -> List[str]:
+    async def get_universe_members(self, universe_id: int, as_of: date) -> List[int]:
         """
-        Get the list of symbols for a universe as of a specific date.
+        Get the list of instrument IDs for a universe as of a specific date.
         
         Args:
             universe_id: ID of the universe
             as_of: Date to check membership for
             
         Returns:
-            List of symbols that are members of the universe on the given date
+            List of instrument IDs that are members of the universe on the given date
         """
         memberships = await self.universe_membership_dao.get_active_memberships(universe_id, as_of)
-        instrument_ids = [row['instrument_id'] for row in memberships if row.get('instrument_id') is not None]
-        
-        if not instrument_ids:
-            return []
-            
-        # Resolve instrument IDs to symbols
-        instruments_dao = InstrumentsDAO(self.env)
-        id_to_symbol = await instruments_dao.get_symbols_by_ids(instrument_ids)
-        
-        # Return symbols in the same order as the instrument IDs
-        return [id_to_symbol.get(iid) for iid in instrument_ids if id_to_symbol.get(iid) is not None]
+        return [row['instrument_id'] for row in memberships if row.get('instrument_id') is not None]
 
 
     async def add_universe(self, name: str, description: Optional[str] = None) -> int:

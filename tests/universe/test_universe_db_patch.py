@@ -39,5 +39,5 @@ async def test_get_universe_members(monkeypatch):
     db.universe_membership_dao.get_active_memberships = AsyncMock(return_value=[{'instrument_id': 1}, {'instrument_id': 2}])
 
     members = await db.get_universe_members(1, date(2025, 7, 24))
-    assert members == ['AAPL', 'TSLA']
+    assert members == [1, 2]
     db.universe_membership_dao.get_active_memberships.assert_awaited_once_with(1, date(2025, 7, 24))

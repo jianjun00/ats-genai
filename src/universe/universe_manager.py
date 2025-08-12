@@ -65,9 +65,9 @@ class UniverseManager:
             date.today()
         )
 
-    async def get_members(self, universe_id: int, as_of_date: date) -> List[str]:
+    async def get_members(self, universe_id: int, as_of_date: date) -> List[int]:
         """
-        Get the list of member symbols for a universe as of a specific date.
+        Get the list of instrument IDs for a universe as of a specific date.
         """
         return await self.universe_db.get_universe_members(universe_id, as_of_date)
 
@@ -78,18 +78,7 @@ class UniverseManager:
         as_of_date = current_time.date()
         self.logger.info(f"UniverseManager.update_for_sod called for universe_id={self.universe_id} at {as_of_date}")
         ids = await self.get_members(self.universe_id, as_of_date)
-        # Convert symbols to ints if needed
-        if ids and isinstance(ids[0], str):
-            from dao.instrument_xrefs_dao import InstrumentXrefsDAO
-            xrefs_dao = InstrumentXrefsDAO(self.env)
-            resolved_ids = []
-            for s in ids:
-                instrument_id = await xrefs_dao.resolve_instrument_id(s)
-                if instrument_id is None:
-                    self.logger.error(f"[UniverseManager] Could not resolve instrument_id for symbol: {s}")
-                    raise ValueError(f"Cannot resolve instrument_id for symbol: {s}")
-                resolved_ids.append(instrument_id)
-            ids = resolved_ids
+        # Ensure all IDs are integers
         for iid in ids:
             assert isinstance(iid, int), f"instrument_id must be int, got {type(iid)}: {iid}"
         self.instrument_ids = ids

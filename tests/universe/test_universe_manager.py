@@ -39,7 +39,7 @@ async def test_update_universe_membership_no_changes(monkeypatch, unit_test_db):
 async def test_get_members(monkeypatch, unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     manager = UniverseManager(env=env, universe_id=1)
-    expected = ['AAPL', 'TSLA']
+    expected = [1, 2]  # Instrument IDs instead of symbols
     manager.universe_db.get_universe_members = AsyncMock(return_value=expected)
     members = await manager.get_members(1, date(2025, 7, 15))
     assert members == expected
@@ -79,7 +79,7 @@ async def test_update_for_eod(monkeypatch, unit_test_db):
 async def test_update_for_sod(monkeypatch, caplog, unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     manager = UniverseManager(env=env, universe_id=1)
-    expected_ids = ['AAPL', 'TSLA', 'GOOG']
+    expected_ids = [1, 2, 3]  # Instrument IDs instead of symbols
     # Patch get_members to return expected_ids
     manager.get_members = AsyncMock(return_value=expected_ids)
     class DummyRunner:
