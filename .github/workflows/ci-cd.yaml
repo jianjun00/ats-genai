@@ -52,7 +52,21 @@ jobs:
     
     - name: Install dependencies
       run: uv sync
-    
+
+    - name: Create PostgreSQL test user
+      run: |
+        # Wait for PostgreSQL to be ready
+        sleep 5
+        
+        # Create test_user with password and grant necessary permissions
+        PGPASSWORD=password psql -h localhost -U postgres -d postgres -c "
+          CREATE USER test_user WITH PASSWORD 'test_password';
+          ALTER USER test_user WITH SUPERUSER;
+        "
+        
+        # Verify the user was created successfully
+        PGPASSWORD=test_password psql -h localhost -U test_user -d postgres -c "SELECT 'Test user connection successful';"    
+
     - name: Run tests
       env:
         PYTHONPATH: src
