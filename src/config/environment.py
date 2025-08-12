@@ -136,6 +136,13 @@ class Environment:
                 print(f"[GIN DEBUG] Environment auto-discovered db_url from DATABASE_URL env: {db_url}")
             else:
                 print(f"[GIN DEBUG] No db_url provided and DATABASE_URL env not set. Proceeding with empty Database config.")
+                
+        # Check for individual database credential environment variables
+        self.db_host = os.getenv("DB_HOST")
+        self.db_port = os.getenv("DB_PORT")
+        self.db_user = os.getenv("DB_USER")
+        self.db_password = os.getenv("DB_PASSWORD")
+        self.db_name = os.getenv("DB_NAME")
         self.db_url = db_url
         print(f"[GIN DEBUG] Environment.__init__ received db_url: {db_url}")
         if db_url:
@@ -167,7 +174,25 @@ class Environment:
             else:
                 raise ValueError(f"Could not parse db_url: {db_url}")
         else:
-            self.database = Database()
+            # Use environment variables if available, otherwise use Gin config
+            host = os.getenv("DB_HOST") or None
+            port = os.getenv("DB_PORT") or None
+            user = os.getenv("DB_USER") or None
+            password = os.getenv("DB_PASSWORD") or None
+            database = os.getenv("DB_NAME") or None
+            base_database = database
+            
+            # Log what we're using (mask password)
+            print(f"[ENV DEBUG] Using database credentials from environment variables: host={host}, port={port}, user={user}, password={'*****' if password else None}, database={database}")
+            
+            self.database = Database(
+                host=host,
+                port=port,
+                user=user,
+                password=password,
+                database=database,
+                base_database=base_database
+            )
         try:
             print(f"[GIN DEBUG] Loaded database config from Gin: host={self.database.host}, db={self.database.database}")
         except Exception as e:
