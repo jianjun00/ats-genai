@@ -1,5 +1,6 @@
 from config.environment import Environment
 import asyncpg
+from typing import List, Dict, Optional
 
 class InstrumentsDAO:
     def __init__(self, env: Environment):
@@ -73,5 +74,26 @@ class InstrumentsDAO:
                 delist_dates = [i.get('delist_date') for i in instruments]
                 rows = await conn.fetch(stmt, symbols, names, exchanges, types, currencies, list_dates, delist_dates)
                 return [row['id'] for row in rows]
+        finally:
+            await pool.close()
+            
+    async def get_symbols_by_ids(self, instrument_ids: List[int]) -> Dict[int, str]:
+        """
+        Get symbols for a list of instrument IDs
+        
+        Args:
+            instrument_ids: List of instrument IDs to look up
+            
+        Returns:
+            Dictionary mapping instrument_id to symbol
+        """
+        if not instrument_ids:
+            return {}
+            
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(f"SELECT id, symbol FROM {self.table_name} WHERE id = ANY($1)", instrument_ids)
+                return {row['id']: row['symbol'] for row in rows}
         finally:
             await pool.close()
