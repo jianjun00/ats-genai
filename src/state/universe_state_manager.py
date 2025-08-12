@@ -275,13 +275,15 @@ class UniverseStateManager:
         logger.debug(f"handleEnd: Saved full universe state to {out_file} with {len(full_df)} records.")
         logger.debug(f"handleEnd: EXIT at {current_time}")
     
-    def __init__(self, env=None, base_path: Optional[str] = None):
+    def __init__(self, env=None, base_path: Optional[str] = None, write_metadata: bool = True):
         """
         Initialize UniverseStateManager.
 
         Args:
             env: Environment instance (optional)
             base_path: Base directory for universe state files. If None, uses environment config.
+            write_metadata: Whether to write metadata files (can be disabled for tests)
+            write_metadata: Whether to write metadata files (can be disabled for tests)
         """
         self.env = env
         self.base_path = Path(base_path) if base_path else Path("data/universe_state")
@@ -301,6 +303,10 @@ class UniverseStateManager:
         self.logger = logging.getLogger(__name__)
         # Initialize UniverseStateIntervalDAO for interval persistence
         self._interval_dao = UniverseStateIntervalDAO(self.env) if self.env else None
+        # Flag to control metadata file writing
+        self.write_metadata = write_metadata
+        # Flag to control metadata file writing
+        self.write_metadata = write_metadata
     
     async def save_universe_state(self, universe_data: pd.DataFrame, timestamp: str, metadata: Optional[Dict[str, Any]] = None, partition_cols: Optional[List[str]] = None) -> str:
         """
@@ -401,9 +407,11 @@ class UniverseStateManager:
                 pq.write_table(pa.Table.from_pandas(optimized_data), file_path, compression='snappy')
                 meta = self._create_metadata(timestamp, optimized_data, file_path, metadata or {})
                 self._update_cache(timestamp, optimized_data, meta)
-                md_file = self.metadata_dir / f"metadata_{timestamp}.json"
-                with open(md_file, 'w') as f:
-                    json.dump(asdict(meta), f)
+                # Only write metadata files if enabled
+                if self.write_metadata:
+                    md_file = self.metadata_dir / f"metadata_{timestamp}.json"
+                    with open(md_file, 'w') as f:
+                        json.dump(asdict(meta), f)
                 self.logger.info(f"Saved universe state interval to DB for {timestamp} (interval_id={interval_id}, records={len(universe_data)}) and wrote parquet -> {file_path}")
                 return f"db://universe_state_interval/{interval_id}/{timestamp}"
             else:
@@ -417,9 +425,11 @@ class UniverseStateManager:
                 # Create and store metadata
                 meta = self._create_metadata(timestamp, optimized_data, file_path, metadata or {})
                 self._update_cache(timestamp, optimized_data, meta)
-                md_file = self.metadata_dir / f"metadata_{timestamp}.json"
-                with open(md_file, 'w') as f:
-                    json.dump(asdict(meta), f)
+                # Only write metadata files if enabled
+                if self.write_metadata:
+                    md_file = self.metadata_dir / f"metadata_{timestamp}.json"
+                    with open(md_file, 'w') as f:
+                        json.dump(asdict(meta), f)
                 self.logger.info(f"Saved universe state to file for {timestamp} ({len(optimized_data)} records) -> {file_path}")
                 return str(file_path)
         except Exception as e:

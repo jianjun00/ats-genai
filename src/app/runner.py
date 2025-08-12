@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import List, Callable, Optional, Any
 
 
-from config.environment import Environment
+from config.environment import Environment, EnvironmentType
 from market_data.market_data_manager import MarketDataManager
 from market_data.eod.daily_price_market_data_manager import DailyPriceMarketDataManager
 from secmaster.security_master import SecurityMaster
@@ -45,7 +45,9 @@ class Runner:
         self.duration = TimeDuration(base_duration)  # expects TimeDuration
         self.callbacks: List[RunnerCallback] = self._init_callbacks(callbacks)
         self.security_master = security_master if security_master is not None else SecurityMaster(self.env)
-        self.universe_state_manager = universe_state_manager if universe_state_manager is not None else UniverseStateManager(self.env)
+        # Disable metadata generation during tests
+        is_test_env = self.env and self.env.env_type == EnvironmentType.TEST
+        self.universe_state_manager = universe_state_manager if universe_state_manager is not None else UniverseStateManager(self.env, write_metadata=not is_test_env)
         self.universe_manager = universe_manager if universe_manager is not None else UniverseManager(self.env, self.universe_id)
         self.market_data_manager = market_data_manager if market_data_manager is not None else DailyPriceMarketDataManager(self.env)
 
