@@ -353,8 +353,8 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
 
     # Set output directory for universe state files
     output_dir = os.path.join(tmp_path, 'universe_state')
-    # Create UniverseStateManager with test output dir
-    universe_state_manager = UniverseStateManager(env=env, base_path=output_dir)
+    # Create UniverseStateManager with test output dir and disable metadata generation
+    universe_state_manager = UniverseStateManager(env=env, base_path=output_dir, write_metadata=False)
 
     import asyncpg
     import asyncio
