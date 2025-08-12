@@ -84,7 +84,12 @@ def test_unify_daily_prices_discrepancies(symbol, start_date, end_date):
     unifier = FileDailyPricesUnifier(environment=None, tiingo_data=tiingo_data, polygon_data=polygon_data)
     # Run unification for the date range
     import asyncio
-    results = asyncio.run(unifier.unify_daily_prices(symbol, (start_date, end_date)))
+    from datetime import datetime, date
+    # Convert string dates to date objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+    current_date = end_date_obj  # Use end_date as current_date for testing
+    results = asyncio.run(unifier.unify_daily_prices(symbol, (start_date_obj, end_date_obj), current_date))
     # Analyze results
     import pandas as pd
     from pandas.tseries.holiday import USFederalHolidayCalendar

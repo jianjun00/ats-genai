@@ -15,17 +15,21 @@ async def test_instrument_xrefs_mapping_debug(unit_test_db):
         # Insert two instruments
         iid1 = (await conn.fetchrow(f"INSERT INTO {env.get_table_name('instruments')} (symbol) VALUES ('AAPL') RETURNING id")).get('id')
         iid2 = (await conn.fetchrow(f"INSERT INTO {env.get_table_name('instruments')} (symbol) VALUES ('TSLA') RETURNING id")).get('id')
-        # Insert three vendors
+        # Insert four vendors, including 'ticker' which is required by resolve_instrument_id_by_symbol
+        vid_ticker = (await conn.fetchrow(f"INSERT INTO {env.get_table_name('vendors')} (name) VALUES ('ticker') RETURNING id")).get('id')
         vid1 = (await conn.fetchrow(f"INSERT INTO {env.get_table_name('vendors')} (name) VALUES ('test') RETURNING id")).get('id')
         vid2 = (await conn.fetchrow(f"INSERT INTO {env.get_table_name('vendors')} (name) VALUES ('polygon') RETURNING id")).get('id')
         vid3 = (await conn.fetchrow(f"INSERT INTO {env.get_table_name('vendors')} (name) VALUES ('tiingo') RETURNING id")).get('id')
-        # Insert xrefs for all combinations
-        await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol) VALUES ($1, $2, $3)", iid1, vid2, 'AAPL')
-        await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol) VALUES ($1, $2, $3)", iid2, vid2, 'TSLA')
-        await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol) VALUES ($1, $2, $3)", iid1, vid3, 'AAPL')
-        await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol) VALUES ($1, $2, $3)", iid2, vid3, 'TSLA')
-        await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol) VALUES ($1, $2, $3)", iid1, vid1, 'AAPL')
-        await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol) VALUES ($1, $2, $3)", iid2, vid1, 'TSLA')
+        # Insert xrefs for all combinations, including 'ticker' vendor
+        start_date = date(2000, 1, 1)
+        await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol, start_at) VALUES ($1, $2, $3, $4)", iid1, vid_ticker, 'AAPL', start_date)
+        await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol, start_at) VALUES ($1, $2, $3, $4)", iid2, vid_ticker, 'TSLA', start_date)
+        await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol, start_at) VALUES ($1, $2, $3, $4)", iid1, vid2, 'AAPL', start_date)
+        await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol, start_at) VALUES ($1, $2, $3, $4)", iid2, vid2, 'TSLA', start_date)
+        await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol, start_at) VALUES ($1, $2, $3, $4)", iid1, vid3, 'AAPL', start_date)
+        await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol, start_at) VALUES ($1, $2, $3, $4)", iid2, vid3, 'TSLA', start_date)
+        await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol, start_at) VALUES ($1, $2, $3, $4)", iid1, vid1, 'AAPL', start_date)
+        await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol, start_at) VALUES ($1, $2, $3, $4)", iid2, vid1, 'TSLA', start_date)
     await pool.close()
     # Debug: print all xrefs for AAPL
     pool = await asyncpg.create_pool(env.get_database_url())

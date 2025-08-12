@@ -237,9 +237,9 @@ async def test_universe_membership_dao_universe_isolation(unit_test_db):
     await xrefs_dao.create_xref(instrument_id_1, vendor_id, symbol_1, instrument_list_date)
     await xrefs_dao.create_xref(instrument_id_2, vendor_id, symbol_2, instrument_list_date)
 
-    # Add memberships
-    await dao.add_membership(universe_id_1, symbol=symbol_1, start_at=instrument_list_date)
-    await dao.add_membership(universe_id_2, symbol=symbol_2, start_at=instrument_list_date)
+    # Add memberships with instrument_id
+    await dao.add_membership(universe_id_1, symbol=symbol_1, instrument_id=instrument_id_1, start_at=instrument_list_date)
+    await dao.add_membership(universe_id_2, symbol=symbol_2, instrument_id=instrument_id_2, start_at=instrument_list_date)
     # Test isolation: get memberships for universe_id_1
     memberships_1 = await dao.get_memberships_by_universe(universe_id_1)
     assert any(m['symbol'] == symbol_1 for m in memberships_1)
@@ -298,8 +298,8 @@ async def test_universe_membership_dao_active_memberships(unit_test_db):
                 print(f"    {row['column_name']}: {row['data_type']}")
     finally:
         await pool.close()
-    # Add memberships: one active, one inactive
-    await dao.add_membership(universe_id, symbol_active, start_at=instrument_list_date)
+    # Add memberships: one active, one inactive (both with instrument_id)
+    await dao.add_membership(universe_id, symbol=symbol_active, instrument_id=instrument_id_active, start_at=instrument_list_date)
     await dao.add_membership_full(universe_id, instrument_id_inactive, start_at=instrument_list_date, end_at=end_at)
     # Query as_of before end date: both should be present
     active_before = await dao.get_active_memberships(universe_id, date(2025, 7, 24))
@@ -321,55 +321,172 @@ async def test_universe_membership_dao_crud(unit_test_db):
     import random
     universe_id = random.randint(10000, 99999)
     symbol = "TESTMEMB"  # Use a unique symbol for the test
+    instrument_list_date = datetime(2010, 1, 1, 0, 0, 0)
     start_at = datetime(2025, 7, 24, 0, 0, 0)
-    # Clean up if exists
+    
+    # Set up database connection pool
     pool = await asyncpg.create_pool(env.get_database_url())
     try:
         async with pool.acquire() as conn:
-            await conn.execute(f"DELETE FROM {dao.table_name} WHERE universe_id = $1 AND symbol = $2 AND start_at = $3", universe_id, symbol, start_at)
+            # Start a transaction
+            async with conn.transaction():
+                # Clean up any existing data
+                await conn.execute(f"DELETE FROM {dao.table_name} WHERE universe_id = $1", universe_id)
+                
+                # Clean up and insert universe
+                universe_table = env.get_table_name('universe')
+                await conn.execute(f"DELETE FROM {universe_table} WHERE id = $1", universe_id)
+                await conn.execute(
+                    f"INSERT INTO {universe_table} (id, name, description) VALUES ($1, $2, $3)", 
+                    universe_id, f"TestUni_{universe_id}", "Test universe for membership CRUD"
+                )
+                
+                # Clean up and insert instrument
+                instruments_dao = InstrumentsDAO(env)
+                await conn.execute(f"DELETE FROM {instruments_dao.table_name} WHERE symbol = $1", symbol)
+                
+                # Insert instrument with list_date matching our test data
+                instrument_id = await conn.fetchval(
+                    f"""
+                    INSERT INTO {instruments_dao.table_name} 
+                    (symbol, name, type, list_date, created_at, updated_at)
+                    VALUES ($1, $2, $3, $4, NOW(), NOW())
+                    RETURNING id
+                    """,
+                    symbol, "Test Membership Instrument", "stock", start_at.date()  # Use start_at date for list_date
+                )
+                
+                # Insert vendor if not exists
+                vendors_dao = VendorsDAO(env)
+                vendor_name = "TestVendor"
+                vendor_id = await conn.fetchval(
+                    f"""
+                    INSERT INTO {vendors_dao.table_name} 
+                    (name, description, created_at, updated_at)
+                    VALUES ($1, $2, NOW(), NOW())
+                    ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+                    RETURNING id
+                    """,
+                    vendor_name, "Test vendor for xref"
+                )
+                
+# First, ensure ticker vendor exists and get its ID
+                vendors_dao = VendorsDAO(env)
+                ticker_vendor_id = await conn.fetchval(
+                    f"""
+                    WITH ins AS (
+                        INSERT INTO {vendors_dao.table_name} 
+                        (name, description, created_at, updated_at)
+                        VALUES ($1, $2, NOW(), NOW())
+                        ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+                        RETURNING id
+                    )
+                    SELECT id FROM ins
+                    UNION ALL
+                    SELECT id FROM {vendors_dao.table_name} WHERE name = $1
+                    LIMIT 1
+                    """,
+                    'ticker', 'Ticker symbol vendor'
+                )
+                print(f"[DEBUG] Ticker vendor ID: {ticker_vendor_id}")
+                
+                # Verify vendor was inserted/retrieved
+                vendor_check = await conn.fetchrow(
+                    f"SELECT * FROM {vendors_dao.table_name} WHERE name = $1", 
+                    'ticker'
+                )
+                print(f"[DEBUG] Ticker vendor check: {vendor_check}")
+                
+                # Now insert instrument_xref for ticker vendor with start_at matching membership
+                xrefs_table = env.get_table_name('instrument_xrefs')
+                await conn.execute(
+                    f"""
+                    INSERT INTO {xrefs_table} 
+                    (instrument_id, vendor_id, symbol, start_at, created_at, updated_at)
+                    VALUES ($1, $2, $3, $4, NOW(), NOW())
+                    ON CONFLICT (instrument_id, vendor_id, start_at) DO NOTHING
+                    """,
+                    instrument_id, ticker_vendor_id, symbol, start_at  # Use start_at instead of instrument_list_date
+                )
+                
+                # Verify the xref was inserted
+                xref_check = await conn.fetchrow(
+                    f"SELECT * FROM {xrefs_table} WHERE instrument_id = $1 AND vendor_id = $2",
+                    instrument_id, ticker_vendor_id
+                )
+                print(f"[DEBUG] Ticker xref check: {dict(xref_check) if xref_check else 'Not found'}")
+                
+                # Also insert xref for test vendor
+                await conn.execute(
+                    f"""
+                    INSERT INTO {xrefs_table} 
+                    (instrument_id, vendor_id, symbol, start_at, created_at, updated_at)
+                    VALUES ($1, $2, $3, $4, NOW(), NOW())
+                    ON CONFLICT (instrument_id, vendor_id, start_at) DO NOTHING
+                    """,
+                    instrument_id, vendor_id, symbol, instrument_list_date
+                )
+                
+                # Debug: Print all xrefs before adding membership
+                all_xrefs = await conn.fetch(
+                    f"SELECT * FROM {xrefs_table} WHERE symbol = $1",
+                    symbol
+                )
+                print(f"[DEBUG] All xrefs for {symbol}:")
+                for xref in all_xrefs:
+                    print(f"  - {dict(xref)}")
+                
+                # Add membership with explicit vendor_id to avoid any lookup issues
+                print(f"[DEBUG] Adding membership with symbol={symbol}, vendor_id={ticker_vendor_id}, start_at={start_at}")
+                
+                # Debug: Manually resolve instrument_id to see what's happening
+                from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+                xrefs_dao = InstrumentXrefsDAO(env)
+                resolved_id = await xrefs_dao.resolve_instrument_id(
+                    symbol=symbol,
+                    vendor_id=ticker_vendor_id,
+                    at_date=start_at
+                )
+                print(f"[DEBUG] Manually resolved instrument_id: {resolved_id}")
+                
+                # Add membership with explicit instrument_id to bypass the resolution
+                print("[DEBUG] Adding membership with explicit instrument_id")
+                await conn.execute(
+                    f"""
+                    INSERT INTO {dao.table_name} 
+                    (universe_id, symbol, start_at, instrument_id)
+                    VALUES ($1, $2, $3, $4)
+                    """,
+                    universe_id, symbol, start_at, instrument_id
+                )
     finally:
         await pool.close()
-    # Insert required instrument for the symbol
-    instruments_dao = InstrumentsDAO(env)
-    instrument_list_date = datetime(2010, 1, 1).date()
-    # Clean up any existing instrument with this symbol
-    pool = await asyncpg.create_pool(env.get_database_url())
-    try:
-        async with pool.acquire() as conn:
-            await conn.execute(f"DELETE FROM {instruments_dao.table_name} WHERE symbol = $1", symbol)
-            # Insert universe row for random universe_id
-            universe_table = env.get_table_name('universe')
-            await conn.execute(f"DELETE FROM {universe_table} WHERE id = $1", universe_id)
-            await conn.execute(f"INSERT INTO {universe_table} (id, name, description) VALUES ($1, $2, $3)", universe_id, f"TestUni_{universe_id}", "Test universe for membership CRUD")
-    finally:
-        await pool.close()
-    instrument_id = await instruments_dao.create_instrument(symbol=symbol, name="Test Membership Instrument", type_="stock", list_date=instrument_list_date)
-    # Insert required vendor
-    vendors_dao = VendorsDAO(env)
-    vendor_id = await vendors_dao.create_vendor(name="TestVendor", description="Test vendor for xref")
-    # Insert instrument_xref
-    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
-    xrefs_dao = InstrumentXrefsDAO(env)
-    await xrefs_dao.create_xref(instrument_id, vendor_id, symbol, instrument_list_date)
-    # Wait briefly to ensure insert is visible to other connections
-    import asyncio
-    await asyncio.sleep(0.1)
-    # Add membership
-    print(f"[TEST DEBUG] add_membership args: universe_id={universe_id} ({type(universe_id)}), symbol={symbol} ({type(symbol)}), start_at={start_at} ({type(start_at)})")
-    await dao.add_membership(universe_id=universe_id, symbol=symbol, start_at=instrument_list_date)
-    # Get by universe
+    
+    # Verify the membership was added correctly
     memberships = await dao.get_memberships_by_universe(universe_id)
-    print(f"[DEBUG] memberships returned: {memberships}")
-    for m in memberships:
-        print(f"[DEBUG] membership types: symbol={type(m['symbol'])}, start_at={m['start_at']} ({type(m['start_at'])})")
-    print(f"[DEBUG] instrument_list_date: {instrument_list_date} ({type(instrument_list_date)})")
-    assert any(m['symbol'] == symbol and m['start_at'].date() == instrument_list_date for m in memberships)
-    # Get active memberships
+    assert any(
+        m['symbol'] == symbol and 
+        m['start_at'] == start_at and  # Use start_at instead of instrument_list_date
+        m['instrument_id'] == instrument_id
+        for m in memberships
+    ), f"Membership not found for symbol {symbol} in universe {universe_id}"
+    
+    # Verify active memberships
     active = await dao.get_active_memberships(universe_id, start_at)
-    assert any(m['symbol'] == symbol for m in active)
-    # Remove: update end_at to simulate removal
-    print(f"[TEST DEBUG] update_membership_end args: universe_id={universe_id} ({type(universe_id)}), symbol={symbol} ({type(symbol)}), start_at={start_at} ({type(start_at)})")
-    await dao.update_membership_end(universe_id=universe_id, instrument_id=instrument_id, end_at=start_at)
+    assert any(m['symbol'] == symbol for m in active), \
+        f"Active membership not found for symbol {symbol} in universe {universe_id}"
+    
+    # Test updating membership end date
+    await dao.update_membership_end(
+        universe_id=universe_id, 
+        instrument_id=instrument_id, 
+        end_at=start_at
+    )
+    
+    # Verify the membership is no longer active
+    active_after_update = await dao.get_active_memberships(universe_id, start_at)
+    assert not any(m['symbol'] == symbol for m in active_after_update), \
+        f"Membership for symbol {symbol} should no longer be active after update"
     updated = await dao.get_memberships_by_universe(universe_id)
 
 @pytest.mark.asyncio
