@@ -122,6 +122,8 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
 
         from dao.instrument_xrefs_dao import InstrumentXrefsDAO
         xrefs_dao = InstrumentXrefsDAO(self.environment)
+        
+        # Use the standard method which uses 'ticker' vendor
         instrument_id = await xrefs_dao.resolve_instrument_id_by_symbol(symbol)
         print(f"[DEBUG][unify_daily_prices] Resolved instrument_id={instrument_id} for symbol={symbol}")
         if instrument_id is None:

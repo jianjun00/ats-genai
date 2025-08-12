@@ -5,6 +5,24 @@ from typing import Optional, List, Dict, Any
 from .vendors_dao import VendorsDAO
 
 class InstrumentXrefsDAO:
+    async def get_symbol_by_instrument_id(self, instrument_id: int) -> Optional[str]:
+        """
+        Lookup symbol from instrument_xrefs using instrument_id, without requiring a specific vendor.
+        Returns the first symbol found for the instrument_id.
+        """
+        print(f"[DEBUG][get_symbol_by_instrument_id] Looking up symbol for instrument_id={instrument_id}")
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                row = await conn.fetchrow(
+                    f"SELECT symbol FROM {self.table_name} WHERE instrument_id = $1 LIMIT 1",
+                    instrument_id
+                )
+                print(f"[DEBUG][get_symbol_by_instrument_id] Fetched row: {row}")
+                return row['symbol'] if row else None
+        finally:
+            await pool.close()
+
     async def get_symbol_by_instrument_id_vendor_name(self, instrument_id: int, vendor_name: str = "ticker") -> Optional[str]:
         """
         Lookup symbol from instrument_xrefs using instrument_id and vendor_id (looked up by vendor_name).
