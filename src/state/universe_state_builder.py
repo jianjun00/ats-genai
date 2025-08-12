@@ -102,8 +102,14 @@ class UniverseStateIntervalBuilder(RunnerCallback):
                 self.instrument_history[inst_id].append(interval)
                 if len(self.instrument_history[inst_id]) > self.rolling_window:
                     self.instrument_history[inst_id] = self.instrument_history[inst_id][-self.rolling_window:]
+                self.logger.debug(f"[INSTRUMENT HISTORY] instrument_id={inst_id}, history_size={len(self.instrument_history[inst_id])}, latest_interval={self.instrument_history[inst_id][-1] if self.instrument_history[inst_id] else 'None'}")
             else:
-                self.logger.warning(f"No ohlc data for instrument_id: {inst_id}")
+                self.logger.warning(f"No ohlc data for instrument_id: {inst_id}, current_time={current_time}")
+                # Log available data for this instrument
+                if inst_id in self.instrument_history and self.instrument_history[inst_id]:
+                    self.logger.warning(f"Available history for instrument_id {inst_id}: {[(i.start_date_time, i.end_date_time, i.status) for i in self.instrument_history[inst_id]]}")
+                else:
+                    self.logger.warning(f"No history available for instrument_id: {inst_id}")
         # --- 2. For each duration, build FactorInterval, instrument_indicator_intervals, UniverseStateInterval, emit ---
         duration_to_state = {}
         for duration in self.target_durations:

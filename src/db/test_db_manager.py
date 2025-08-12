@@ -88,17 +88,36 @@ class TestDatabaseManager:
             # Run migrations after DB creation
             if self.run_migrations:
                 print(f"[DEBUG] Running migrations on test DB: {test_db_name}")
+                # Create migration manager with explicit table prefix
                 migration_manager = MigrationManager(self.db_url)
+                # Ensure we're using the correct table prefix for test environment
+                migration_manager.table_prefix = self.table_prefix
+                print(f"[DEBUG] Using table prefix for migrations: '{migration_manager.table_prefix}'")
+                
+                # Run migrations
                 await migration_manager.migrate_to_latest()
+                
                 # --- DEBUG: Check table visibility with asyncpg right after migration ---
                 import asyncpg
                 try:
                     pool = await asyncpg.create_pool(self.db_url)
                     async with pool.acquire() as conn:
+                        # List all tables
                         tables = await conn.fetch("""
-                            SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename
+                            SELECT tablename FROM pg_tables 
+                            WHERE schemaname = 'public' 
+                            ORDER BY tablename
                         """)
                         print(f"[DEBUG] (asyncpg) Tables in DB after migration: {[t['tablename'] for t in tables]}")
+                        
+                        # Check if instrument_xrefs table exists with prefix
+                        prefixed_table = f"{self.table_prefix}instrument_xrefs"
+                        table_exists = await conn.fetchval(
+                            "SELECT 1 FROM pg_tables WHERE tablename = $1",
+                            prefixed_table
+                        )
+                        print(f"[DEBUG] (asyncpg) Table '{prefixed_table}' exists: {bool(table_exists)}")
+                        
                     await pool.close()
                 except Exception as e:
                     print(f"[DEBUG] (asyncpg) Could not list tables after migration: {e}")
@@ -442,9 +461,33 @@ async def unit_test_db(request):
     db_manager = gin.get_configurable(TestDatabaseManager)("unit", database_obj=db_obj)
     test_db_url = await db_manager.setup_test_database()
 
+    # Get the table prefix from the db_manager's env
+    table_prefix = db_manager.table_prefix
+    print(f"[DEBUG] Using table prefix from db_manager: '{table_prefix}'")
+    
+    # Create migration manager with the correct table prefix
     migration_manager = MigrationManager(test_db_url)
-    print(f"[DEBUG] Applying migrations to {test_db_url}")    # Apply migrations to ensure latest schema for both unit and integration tests
-    await migration_manager.migrate_to_latest()
+    migration_manager.table_prefix = table_prefix  # Ensure we use the same prefix
+    print(f"[DEBUG] Applying migrations to {test_db_url} with table prefix: '{table_prefix}'")    
+    
+    # Run migrations with the correct prefix
+    success = await migration_manager.migrate_to_latest()
+    if not success:
+        raise RuntimeError("Failed to apply migrations to test database")
+        
+    # Verify tables were created with the correct prefix
+    print(f"[DEBUG] Verifying tables with prefix: '{table_prefix}'")
+    conn = await asyncpg.connect(test_db_url)
+    try:
+        tables = await conn.fetch("""
+            SELECT tablename 
+            FROM pg_tables 
+            WHERE schemaname = 'public' 
+            ORDER BY tablename
+        """)
+        print(f"[DEBUG] Tables in database after migration: {[t['tablename'] for t in tables]}")
+    finally:
+        await conn.close()
 
     yield test_db_url
     await db_manager.teardown_test_database()

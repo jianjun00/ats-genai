@@ -290,34 +290,60 @@ class ETop(Indicator):
         self.latest_etop: Optional[float] = None
 
     def update(self, intervals: List[InstrumentInterval]):
+        import logging
         self.update_at = datetime.now()
+        
+        # Debug log all intervals
+        logging.debug(f'[ETop] Received {len(intervals)} intervals')
+        for i, interval in enumerate(intervals):
+            logging.debug(f'[ETop] Interval {i}: status={interval.status}, start={interval.start_date_time}, end={interval.end_date_time}, OHLC=({interval.open}, {interval.high}, {interval.low}, {interval.close})')
+        
+        # We need at least 3 valid intervals to compute ETop
         if len(intervals) < 3:
+            logging.debug('[ETop] Not enough intervals (need at least 3)')
             self.status = 'invalid'
             self.latest_etop = None
             return
+        
+        # Take the last 3 intervals
         last_three = intervals[-3:]
-        oneonehighs = []
-        for i in range(3):
-            # For each of the last 3 intervals, compute OneOneHigh as per current OneOneHigh logic
-            current = last_three[i]
-            if i == 0:
-                prior_index = -4 if len(intervals) >= 4 else None
-            else:
-                prior_index = -(3 - i + 1)
-            if current.status != 'ok' or prior_index is None or abs(prior_index) > len(intervals):
+        logging.debug(f'[ETop] Last 3 intervals: {[i.start_date_time for i in last_three]}')
+        
+        # Check if any of the last 3 intervals are invalid
+        for i, interval in enumerate(last_three):
+            if interval.status != 'ok':
+                logging.debug(f'[ETop] Interval {i} has invalid status: {interval.status}')
                 self.status = 'invalid'
                 self.latest_etop = None
                 return
-            prior = intervals[prior_index]
-            if prior.status != 'ok':
-                self.status = 'invalid'
-                self.latest_etop = None
-                return
-            oneonedot = (current.high + current.low + current.close) / 3.0
-            oneonehigh = 2 * oneonedot - current.low
-            oneonehighs.append(oneonehigh)
-        self.latest_etop = sum(oneonehighs) / 3.0
-        self.status = 'ok'
+                
+            # Check for None or NaN values in OHLC
+            for field in ['high', 'low', 'close']:
+                val = getattr(interval, field, None)
+                if val is None or (isinstance(val, float) and math.isnan(val)):
+                    logging.debug(f'[ETop] Interval {i} has invalid {field}: {val}')
+                    self.status = 'invalid'
+                    self.latest_etop = None
+                    return
+        
+        try:
+            # Calculate OneOneHigh for each of the last 3 intervals
+            oneonehighs = []
+            for interval in last_three:
+                oneonedot = (interval.high + interval.low + interval.close) / 3.0
+                oneonehigh = 2 * oneonedot - interval.low
+                oneonehighs.append(oneonehigh)
+                logging.debug(f'[ETop] Calculated OneOneHigh: {oneonehigh} for interval {interval.start_date_time}')
+            
+            # Calculate the average of the last 3 OneOneHigh values
+            self.latest_etop = sum(oneonehighs) / 3.0
+            self.status = 'ok'
+            logging.debug(f'[ETop] Calculated ETop: {self.latest_etop}')
+            
+        except Exception as e:
+            logging.error(f'[ETop] Error calculating ETop: {str(e)}')
+            self.status = 'invalid'
+            self.latest_etop = None
 
     def get_value(self) -> Optional[float]:
         return self.latest_etop

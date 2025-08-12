@@ -35,14 +35,14 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
         conn = await asyncpg.connect(unit_test_db)
         await conn.execute(f"""
             INSERT INTO {env.get_table_name('instruments')} (id, symbol, name, type, list_date)
-            VALUES (1, 'AAPL', 'Apple Inc.', 'stock', '2020-01-01'),
-                   (2, 'TSLA', 'Tesla Inc.', 'stock', '2020-01-01')
+            VALUES (1, 'TSLA', 'Tesla Inc.', 'stock', '2020-01-01'),
+                   (2, 'AAPL', 'Apple Inc.', 'stock', '2020-01-01')
             ON CONFLICT (id) DO NOTHING
         """)
         await conn.execute(f"""
             INSERT INTO {env.get_table_name('universe_membership')} (universe_id, instrument_id, symbol, start_at, end_at)
-            VALUES (1, 1, 'AAPL', '2024-01-01', '2025-12-31'),
-                   (1, 2, 'TSLA', '2024-01-01', '2025-12-31')
+            VALUES (1, 1, 'TSLA', '2024-01-01', '2025-12-31'),
+                   (1, 2, 'AAPL', '2024-01-01', '2025-12-31')
             ON CONFLICT DO NOTHING
         """)
         await conn.execute(f"""
@@ -78,14 +78,116 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
     vendors_dirs = {'polygon': polygon_dir, 'tiingo': tiingo_dir}
     # Use FileDailyPriceMarketDataManager to get instrument_ids
     from market_data.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
+    import json
+    
+    print('\n' + '='*80)
     print('[DEBUG][TEST] Before create_async call')
+    print(f'[DEBUG][TEST] Environment: {env.__dict__}')
+    print(f'[DEBUG][TEST] Vendors dirs: {vendors_dirs}')
+    
+    # Check if vendor directories exist and are accessible
+    for vendor, dir_path in vendors_dirs.items():
+        print(f'\n[DEBUG][TEST] Checking {vendor} directory: {dir_path}')
+        print(f'[DEBUG][TEST]   Exists: {os.path.exists(dir_path)}')
+        print(f'[DEBUG][TEST]   Is directory: {os.path.isdir(dir_path)}')
+        if os.path.exists(dir_path):
+            files = os.listdir(dir_path)
+            print(f'[DEBUG][TEST]   Contents ({len(files)} files): {files}')
+            
+            # Check a sample file
+            sample_file = next((f for f in files if f.endswith('.json')), None)
+            if sample_file:
+                sample_path = os.path.join(dir_path, sample_file)
+                print(f'[DEBUG][TEST]   Sample file: {sample_file}')
+                print(f'[DEBUG][TEST]   Sample file exists: {os.path.exists(sample_path)}')
+                print(f'[DEBUG][TEST]   Sample file size: {os.path.getsize(sample_path) if os.path.exists(sample_path) else 0} bytes')
+                
+                # Try to read and parse the sample file
+                try:
+                    with open(sample_path, 'r') as f:
+                        content = f.read()
+                        print(f'[DEBUG][TEST]   Sample file content (first 200 chars): {content[:200]}...')
+                        try:
+                            json_content = json.loads(content)
+                            print(f'[DEBUG][TEST]   Successfully parsed JSON, type: {type(json_content)}')
+                            if isinstance(json_content, dict):
+                                print(f'[DEBUG][TEST]   JSON keys: {list(json_content.keys())}')
+                        except json.JSONDecodeError as e:
+                            print(f'[DEBUG][TEST]   Failed to parse JSON: {e}')
+                except Exception as e:
+                    print(f'[DEBUG][TEST]   Error reading sample file: {e}')
+    
+    print('\n' + '='*80)
+    print('[DEBUG][TEST] Creating FileDailyPriceMarketDataManager instance...')
     market_data_manager = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env)
+    
+    print('\n' + '='*80)
     print('[DEBUG][TEST] After create_async call')
+    print(f'[DEBUG][TEST] Market data manager: {market_data_manager}')
+    print(f'[DEBUG][TEST] Market data manager symbols: {market_data_manager._id_to_symbol if hasattr(market_data_manager, "_id_to_symbol") else "N/A"}')
+    
+    # Check if vendor_data was loaded
+    if hasattr(market_data_manager, 'vendor_data'):
+        print(f'[DEBUG][TEST] Vendor data loaded for: {list(market_data_manager.vendor_data.keys())}')
+        for vendor, data in market_data_manager.vendor_data.items():
+            print(f'[DEBUG][TEST]   {vendor}: {len(data)} symbols loaded')
+            for symbol, prices in data.items():
+                print(f'[DEBUG][TEST]     {symbol}: {len(prices)} price points')
+                if prices:
+                    dates = sorted(prices.keys())
+                    print(f'[DEBUG][TEST]       Date range: {dates[0]} to {dates[-1]}')
+                    print(f'[DEBUG][TEST]       Sample data: {next(iter(prices.items()))}')
+                    break
+    
+    # Debug: Check what's in the universe_membership table
+    conn = await asyncpg.connect(unit_test_db)
+    try:
+        universe_members = await conn.fetch(f"""
+            SELECT * FROM {env.get_table_name('universe_membership')}
+            WHERE universe_id = 1
+        """)
+        print(f'[DEBUG][TEST] Universe membership: {universe_members}')
+        
+        # Check instrument_xrefs
+        xrefs = await conn.fetch(f"""
+            SELECT * FROM {env.get_table_name('instrument_xrefs')}
+        """)
+        print(f'[DEBUG][TEST] Instrument xrefs: {xrefs}')
+        
+        # Check instruments
+        instruments = await conn.fetch(f"""
+            SELECT * FROM {env.get_table_name('instruments')}
+        """)
+        print(f'[DEBUG][TEST] Instruments: {instruments}')
+    finally:
+        await conn.close()
+    
     instrument_ids = list(market_data_manager._id_to_symbol.keys())
     output_dir = os.path.join(tmp_path, 'universe_state_30days')
     from datetime import datetime
-    start_date = datetime.strptime('2024-12-02', '%Y-%m-%d').date()
-    end_date = datetime.strptime('2024-12-31', '%Y-%m-%d').date()
+    # Update to use a date range that's covered by the test data
+    start_date = datetime.strptime('2024-01-02', '%Y-%m-%d').date()
+    end_date = datetime.strptime('2024-01-31', '%Y-%m-%d').date()
+    # Add debug logging for instrument IDs and symbols
+    print(f"[DEBUG] Running test with instrument_ids: {instrument_ids}")
+    print(f"[DEBUG] Symbol to ID mapping: {market_data_manager._symbol_to_id}")
+    print(f"[DEBUG] ID to symbol mapping: {market_data_manager._id_to_symbol}")
+    
+    # Add debug logging for vendor data
+    for vendor, data in market_data_manager.vendor_data.items():
+        print(f"[DEBUG] Vendor: {vendor}")
+        for symbol, dates in data.items():
+            print(f"[DEBUG]   {symbol}: {len(dates)} dates from {min(dates.keys())} to {max(dates.keys())}")
+            # Print first and last few date entries for each symbol
+            sorted_dates = sorted(dates.items())
+            print(f"[DEBUG]     First 3 entries: {sorted_dates[:3]}")
+            print(f"[DEBUG]     Last 3 entries: {sorted_dates[-3:]}")
+    
+    # Print instrument IDs and symbols
+    print(f"[DEBUG] Instrument IDs: {instrument_ids}")
+    print(f"[DEBUG] Symbol to ID mapping: {market_data_manager._symbol_to_id}")
+    print(f"[DEBUG] ID to symbol mapping: {market_data_manager._id_to_symbol}")
+    
     df = await run_file_daily_price_ohlcv(
         vendors_dirs=vendors_dirs,
         instrument_ids=instrument_ids,
@@ -95,7 +197,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
         universe_id=1,
         output_dir=output_dir,
         indicator_config=indicator_config,
-        print_ohlcv=False,
+        print_ohlcv=True,  # Enable OHLCV printing for debugging
         required_indicators=['ETop', 'EBot', 'PL']
     )
     assert not df.empty
