@@ -139,7 +139,9 @@ def test_unify_daily_prices_discrepancies(symbol, start_date, end_date):
         print("Sample invalid notes:")
         for n in stats['invalid_notes']:
             print(f"Invalid on {n['date']}: {n['note']}")
-    assert stats['total_dates'] == (stats['only_tiingo'] + stats['only_polygon'] + stats['close_enough'] + stats['conflict'] + stats['invalid'])
+    # Add 'missing' count to the assertion to account for dates with no vendor data
+    stats['missing'] = len([r for r in results if r['status'] == 'missing'])
+    assert stats['total_dates'] == (stats['only_tiingo'] + stats['only_polygon'] + stats['close_enough'] + stats['conflict'] + stats['invalid'] + stats['missing'])
     if stats['conflict'] > 0:
         for c in stats['conflicts']:
             print(f"Conflict on {c['date']}: {c['note']}")
