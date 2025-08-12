@@ -44,15 +44,22 @@ class UnifiedDBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                 self._id_to_symbol[instrument_id] = s
 
     async def get_ohlc(self, instrument_id: int, start: datetime, end: datetime, current_date: Optional[date] = None) -> Optional[Dict[str, float]]:
+        print(f"[DEBUG][get_ohlc] Called with instrument_id={instrument_id}, start={start}, end={end}, current_date={current_date}")
         symbol = await self.resolve_symbol(instrument_id)
+        print(f"[DEBUG][get_ohlc] Resolved symbol={symbol} for instrument_id={instrument_id}")
         if not symbol:
+            print(f"[DEBUG][get_ohlc] Could not resolve symbol for instrument_id={instrument_id}")
             return None
         # Use unify_daily_prices to get unified price for the date
-        result = await self.unifier.unify_daily_prices(symbol, start.date(), current_date)
+        # Pass a tuple of (start_date, end_date) as asof parameter
+        print(f"[DEBUG][get_ohlc] Calling unify_daily_prices with symbol={symbol}, asof=({start.date()}, {end.date()})")
+        result = await self.unifier.unify_daily_prices(symbol, (start.date(), end.date()), current_date)
+        print(f"[DEBUG][get_ohlc] unify_daily_prices returned {len(result)} rows: {result}")
         # unify_daily_prices returns a list of dicts, one per date
         for row in result:
+            print(f"[DEBUG][get_ohlc] Checking row with date={row['date']}, start.date()={start.date()}, match={row['date'] == start.date()}")
             if row['date'] == start.date():
-                return {
+                price_dict = {
                     'open': row['open'],
                     'high': row['high'],
                     'low': row['low'],
@@ -62,6 +69,9 @@ class UnifiedDBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                     'status': row.get('status'),
                     'note': row.get('note'),
                 }
+                print(f"[DEBUG][get_ohlc] Returning price_dict: {price_dict}")
+                return price_dict
+        print(f"[DEBUG][get_ohlc] No matching row found for date={start.date()}, returning None")
         return None
 
     async def get_ohlc_batch(self, instrument_ids: List[int], start: datetime, end: datetime, current_date: Optional[date] = None) -> Dict[int, Optional[Dict[str, float]]]:

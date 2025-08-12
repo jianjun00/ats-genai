@@ -7,7 +7,16 @@ from src.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
 from src.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
 from src.dao.instruments_dao import InstrumentsDAO
 from src.dao.instrument_xrefs_dao import InstrumentXrefsDAO
+from src.dao.vendors_dao import VendorsDAO
 from src.db.test_db_manager import unit_test_db
+
+async def get_or_create_vendor(vendors_dao, name, description=None):
+    """Helper function to get a vendor by name or create it if it doesn't exist"""
+    vendor = await vendors_dao.get_vendor_by_name(name)
+    if not vendor:
+        vendor_id = await vendors_dao.create_vendor(name=name, description=description)
+        return {"id": vendor_id, "name": name}
+    return vendor
 
 @pytest.mark.asyncio
 async def test_unified_manager_returns_unified_price(unit_test_db):
@@ -21,8 +30,19 @@ async def test_unified_manager_returns_unified_price(unit_test_db):
     # Create instrument and xref
     symbol = "AAPL"
     instrument_id = await instruments_dao.create_instrument(symbol=symbol)
-    await xrefs_dao.create_xref(instrument_id=instrument_id, vendor_name="tiingo", symbol=symbol)
-    await xrefs_dao.create_xref(instrument_id=instrument_id, vendor_name="polygon", symbol=symbol)
+    
+    # Get or create vendor IDs for tiingo, polygon, and ticker
+    vendors_dao = VendorsDAO(env)
+    tiingo_vendor = await get_or_create_vendor(vendors_dao, "tiingo", "Tiingo data provider")
+    polygon_vendor = await get_or_create_vendor(vendors_dao, "polygon", "Polygon data provider")
+    ticker_vendor = await get_or_create_vendor(vendors_dao, "ticker", "Standard ticker symbols")
+    
+    # Create xrefs with vendor_id and start_at
+    from datetime import date
+    today = date.today()
+    await xrefs_dao.create_xref(instrument_id=instrument_id, vendor_id=tiingo_vendor['id'], symbol=symbol, start_at=today)
+    await xrefs_dao.create_xref(instrument_id=instrument_id, vendor_id=polygon_vendor['id'], symbol=symbol, start_at=today)
+    await xrefs_dao.create_xref(instrument_id=instrument_id, vendor_id=ticker_vendor['id'], symbol=symbol, start_at=today)
 
     # Insert prices into tiingo and polygon tables for the same date
     test_date = date(2025, 7, 18)
