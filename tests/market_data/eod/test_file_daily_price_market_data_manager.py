@@ -17,11 +17,33 @@ def vendors_dirs():
 
 import pytest_asyncio
 from config.environment import Environment, EnvironmentType
+from dao.vendors_dao import VendorsDAO
+from dao.instruments_dao import InstrumentsDAO
+from dao.instrument_xrefs_dao import InstrumentXrefsDAO
 
 @pytest_asyncio.fixture(scope="function")
 async def manager(vendors_dirs, unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     env.get_table_name = lambda table: f"test_{table}"
+    
+    # Set up vendors, instruments, and xrefs
+    vendors_dao = VendorsDAO(env)
+    instruments_dao = InstrumentsDAO(env)
+    xrefs_dao = InstrumentXrefsDAO(env)
+    
+    # Add ticker vendor
+    ticker_vendor_id = await vendors_dao.create_vendor("ticker")
+    
+    # Add instruments
+    aapl_id = await instruments_dao.create_instrument("AAPL", "Apple Inc.")
+    tsla_id = await instruments_dao.create_instrument("TSLA", "Tesla Inc.")
+    
+    # Add xrefs for ticker vendor
+    from datetime import date
+    today = date.today()
+    await xrefs_dao.create_xref(aapl_id, ticker_vendor_id, "AAPL", start_at=today)
+    await xrefs_dao.create_xref(tsla_id, ticker_vendor_id, "TSLA", start_at=today)
+    
     # Only test AAPL and TSLA (should exist in both dirs)
     mgr = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env, symbols=["AAPL", "TSLA"])
     return mgr
@@ -33,10 +55,10 @@ import pytest_asyncio
 
 @pytest.mark.asyncio
 async def test_symbol_resolution(manager):
-    assert manager.resolve_instrument_id("AAPL") == 1
-    assert manager.resolve_instrument_id("TSLA") == 2
-    assert manager.resolve_symbol(1) == "AAPL"
-    assert manager.resolve_symbol(2) == "TSLA"
+    assert await manager.resolve_instrument_id("AAPL") == 1
+    assert await manager.resolve_instrument_id("TSLA") == 2
+    assert await manager.resolve_symbol(1) == "AAPL"
+    assert await manager.resolve_symbol(2) == "TSLA"
 
 @pytest.mark.asyncio
 async def test_get_all_symbols(manager):
@@ -47,10 +69,10 @@ async def test_get_all_symbols(manager):
 async def test_get_ohlc(manager):
     # Pick a known date in both fixtures
     dt = datetime(2024, 1, 2)
-    iid = manager.resolve_instrument_id("AAPL")
+    iid = await manager.resolve_instrument_id("AAPL")
     # Set the last SOD date to match the test date
     manager.set_last_sod_date(dt.date())
-    ohlc = manager.get_ohlc(iid, dt, dt)
+    ohlc = await manager.get_ohlc(iid, dt, dt)
     assert ohlc is not None
     assert ohlc["open"] > 0
     assert ohlc["close"] > 0
@@ -60,10 +82,13 @@ async def test_get_ohlc(manager):
 @pytest.mark.asyncio
 async def test_get_ohlc_batch(manager):
     dt = datetime(2024, 1, 2)
-    ids = [manager.resolve_instrument_id("AAPL"), manager.resolve_instrument_id("TSLA")]
+    # Await the async resolve_instrument_id calls
+    aapl_id = await manager.resolve_instrument_id("AAPL")
+    tsla_id = await manager.resolve_instrument_id("TSLA")
+    ids = [aapl_id, tsla_id]
     # Set the last SOD date to match the test date
     manager.set_last_sod_date(dt.date())
-    batch = manager.get_ohlc_batch(ids, dt, dt)
+    batch = await manager.get_ohlc_batch(ids, dt, dt)
     assert set(batch.keys()) == set(ids)
     for ohlc in batch.values():
         assert ohlc is not None

@@ -92,195 +92,154 @@ class TestDatabaseManager:
                 migration_manager = MigrationManager(self.db_url)
                 # Ensure we're using the correct table prefix for test environment
                 migration_manager.table_prefix = self.table_prefix
-                print(f"[DEBUG] Using table prefix for migrations: '{migration_manager.table_prefix}'")
-                
-                # Run migrations
-                await migration_manager.migrate_to_latest()
-                
-                # --- DEBUG: Check table visibility with asyncpg right after migration ---
-                import asyncpg
-                try:
-                    pool = await asyncpg.create_pool(self.db_url)
-                    async with pool.acquire() as conn:
-                        # List all tables
-                        tables = await conn.fetch("""
-                            SELECT tablename FROM pg_tables 
-                            WHERE schemaname = 'public' 
-                            ORDER BY tablename
-                        """)
-                        print(f"[DEBUG] (asyncpg) Tables in DB after migration: {[t['tablename'] for t in tables]}")
-                        
-                        # Check if instrument_xrefs table exists with prefix
-                        prefixed_table = f"{self.table_prefix}instrument_xrefs"
-                        table_exists = await conn.fetchval(
-                            "SELECT 1 FROM pg_tables WHERE tablename = $1",
-                            prefixed_table
-                        )
-                        print(f"[DEBUG] (asyncpg) Table '{prefixed_table}' exists: {bool(table_exists)}")
-                        
-                    await pool.close()
-                except Exception as e:
-                    print(f"[DEBUG] (asyncpg) Could not list tables after migration: {e}")
-                # --- END DEBUG ---
+                print(f"[DEBUG] Running migrations with table prefix: '{self.table_prefix}'")
+                success = await migration_manager.migrate_to_latest()
+                if not success:
+                    raise RuntimeError("Failed to apply migrations to test database")
         else:
-            # Use shared integration database
+            # For integration tests, we use a shared database
             test_db_url = self.db_url
-        
-        print(f"[DEBUG] TestDatabaseManager.run_migrations = {self.run_migrations}")
+            print(f"[DEBUG] Using shared integration DB URL: {test_db_url}")
         return test_db_url
+
     
     async def teardown_test_database(self):
         """Clean up test database after test completion."""
         if self.test_type == "unit":
-            # Drop the entire test database
+            # Drop isolated unit test database
             db_config = self.env.get_database_config()
-            base_db_name = db_config['database']
-            test_db_name = f"{base_db_name}"
+            test_db_name = db_config['database']
             print(f"[DEBUG] Dropping test DB: {test_db_name}")
             await self._drop_test_database(test_db_name)
         else:
-            # For integration tests, clean up test data but keep schema
+            # For integration tests, we clean up test data but keep the database
             await self.cleanup_test_data()
+
     
     async def _create_test_database(self, db_name: str):
         """Create a new test database."""
-        # Connect to postgres database to create new database
-        db_config = self.env.get_database_config()
-        base_db_name = db_config['database']
-        postgres_url = self.db_url.replace(f"/{base_db_name}", "/postgres")
-        print(f"[DEBUG] Connecting to postgres DB: {postgres_url}")
-        pool = await asyncpg.create_pool(postgres_url)
+        # Connect to default postgres database to create test database
         try:
-            async with pool.acquire() as conn:
-                # Drop DB if it exists (for clean test isolation)
-                exists = await conn.fetchval(
-                    "SELECT 1 FROM pg_database WHERE datname = $1", db_name
-                )
-                if exists:
-                    # Debug: List tables before drop
-                    print(f"[DEBUG] Database '{db_name}' exists. Checking tables before drop...")
-                    try:
-                        temp_db_url = self.db_url.replace(f"/{base_db_name}", f"/{db_name}")
-                        temp_pool = await asyncpg.create_pool(temp_db_url)
-                        async with temp_pool.acquire() as temp_conn:
-                            tables = await temp_conn.fetch("""
-                                SELECT tablename FROM pg_tables WHERE schemaname = 'public'
-                            """)
-                            print(f"[DEBUG] Tables in '{db_name}' before drop: {[t['tablename'] for t in tables]}")
-                    except Exception as e:
-                        print(f"[DEBUG] Could not list tables in '{db_name}': {e}")
-                    # Terminate connections and drop
-                    await conn.execute(f'''SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}' AND pid <> pg_backend_pid()''')
-                    await conn.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
-                await conn.execute(f'CREATE DATABASE "{db_name}"')
-                # Debug: List tables after creation (should be empty)
-                try:
-                    temp_db_url = self.db_url.replace(f"/{base_db_name}", f"/{db_name}")
-                    temp_pool = await asyncpg.create_pool(temp_db_url)
-                    async with temp_pool.acquire() as temp_conn:
-                        tables = await temp_conn.fetch("""
-                            SELECT tablename FROM pg_tables WHERE schemaname = 'public'
-                        """)
-                        print(f"[DEBUG] Tables in '{db_name}' after creation: {[t['tablename'] for t in tables]}")
-                except Exception as e:
-                    print(f"[DEBUG] Could not list tables in '{db_name}' after creation: {e}")
-        finally:
-            await pool.close()
+            # Extract connection parameters from the database URL
+            from urllib.parse import urlparse
+            url_parts = urlparse(self.db_url)
+            host = url_parts.hostname or "localhost"
+            port = url_parts.port or 5432
+            user = url_parts.username or "postgres"
+            password = url_parts.password or "password"
+            
+            # Connect to postgres database
+            conn = await asyncpg.connect(
+                host=host,
+                port=port,
+                user=user,
+                password=password,
+                database="postgres"
+            )
+            # Check if database already exists
+            exists = await conn.fetchval(
+                "SELECT 1 FROM pg_database WHERE datname = $1",
+                db_name
+            )
+            if exists:
+                # Drop existing database
+                await conn.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
+            # Create new database
+            await conn.execute(f'CREATE DATABASE "{db_name}"')
+            await conn.close()
+        except Exception as e:
+            print(f"[ERROR] Failed to create test database: {e}")
+            raise
+
     
     async def _drop_test_database(self, db_name: str):
         """Drop a test database."""
-        import asyncpg
-        db_config = self.env.get_database_config()
-        base_db_name = db_config['database']
-        postgres_url = self.db_url.replace(f"/{base_db_name}", "/postgres")
-        print(f"[DEBUG][DROP_DB] About to drop test DB: {db_name}")
         try:
-            pool = await asyncpg.create_pool(postgres_url)
-            try:
-                async with pool.acquire() as conn:
-                    # Terminate active connections to the database
-                    await conn.execute("""
-                        SELECT pg_terminate_backend(pid)
-                        FROM pg_stat_activity
-                        WHERE datname = $1 AND pid <> pg_backend_pid()
-                    """, db_name)
-                    # Drop the database
-                    await conn.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
-            finally:
-                await pool.close()
-        except asyncpg.exceptions.InvalidCatalogNameError as e:
-            # Ignore if database does not exist (including pool creation)
-            print(f"[DEBUG] Database '{db_name}' does not exist or could not connect, ignoring drop: {e}")
+            # Extract connection parameters from the database URL
+            from urllib.parse import urlparse
+            url_parts = urlparse(self.db_url)
+            host = url_parts.hostname or "localhost"
+            port = url_parts.port or 5432
+            user = url_parts.username or "postgres"
+            password = url_parts.password or "password"
+            
+            # Connect to postgres database
+            conn = await asyncpg.connect(
+                host=host,
+                port=port,
+                user=user,
+                password=password,
+                database="postgres"
+            )
+            # Drop database
+            await conn.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
+            await conn.close()
+        except Exception as e:
+            print(f"[ERROR] Failed to drop test database: {e}")
+            # Don't raise, as this is cleanup code
+
     
     async def cleanup_test_data(self):
         """Clean up test data from integration test database."""
-        logger.debug(f"Cleaning up test data from {self.db_url}")
-        pool = await asyncpg.create_pool(self.db_url)
         try:
-            async with pool.acquire() as conn:
-                async with conn.transaction():
-                    # Define cleanup order (respecting foreign key constraints)
-                    cleanup_tables = [
-                        'universe_membership',
-                        'instrument_aliases',
-                        'instrument_metadata',
-                        'daily_prices',
-                        'daily_prices_tiingo',
-                        'daily_prices_polygon',
-                        'daily_market_cap',
-                        'fundamentals',
-                        'events',
-                        'instruments',
-                        'instrument_polygon',
-                        'universe',
-                        'vendors'
-                    ]
-                    
-                    for table in cleanup_tables:
-                        # Only clean up test data, not reference data
-                        if table in ['status_code']:  # Skip reference tables
-                            continue
-                        
-                        full_table_name = f"{self.table_prefix}{table}"
-                        logger.debug(f"Deleted test data from {full_table_name}")
-                        await conn.execute(f"DELETE FROM {full_table_name}")
-                        # Reset sequences for tables with serial primary keys
-                        if table in ['vendors', 'instruments', 'universe', 'events']:
-                            await conn.execute(f"""
-                                SELECT setval(pg_get_serial_sequence('{full_table_name}', 'id'), 1, false)
-                            """)
-        finally:
-            await pool.close()
+            # Connect to the integration test database
+            conn = await asyncpg.connect(self.db_url)
+            
+            # Get all tables in the database
+            tables = await conn.fetch("""
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public'
+                AND table_type = 'BASE TABLE'
+            """)
+            
+            # Truncate all tables (except migration tables)
+            for table in tables:
+                table_name = table['table_name']
+                if not table_name.startswith('_'):  # Skip migration tables
+                    try:
+                        await conn.execute(f'TRUNCATE TABLE "{table_name}" CASCADE')
+                    except Exception as e:
+                        print(f"[WARNING] Failed to truncate {table_name}: {e}")
+            
+            await conn.close()
+        except Exception as e:
+            print(f"[ERROR] Failed to clean up test data: {e}")
+            # Don't raise, as this is cleanup code
+
     
     async def backup_tables(self, tables: List[str]):
         """Backup tables by copying their contents to *_backup tables."""
-        pool = await asyncpg.create_pool(self.db_url)
-        try:
-            async with pool.acquire() as conn:
-                for table in tables:
-                    full_table_name = f"{self.table_prefix}{table}"
-                    backup_table_name = f"{full_table_name}_backup"
-                    # Drop backup table if exists, then create
-                    await conn.execute(f"DROP TABLE IF EXISTS {backup_table_name}")
-                    await conn.execute(f"CREATE TABLE {backup_table_name} AS TABLE {full_table_name}")
-        finally:
-            await pool.close()
+        conn = await asyncpg.connect(self.db_url)
+        for table in tables:
+            backup_table = f"{table}_backup"
+            try:
+                # Drop backup table if it exists
+                await conn.execute(f'DROP TABLE IF EXISTS "{backup_table}"')
+                # Create backup table with same structure
+                await conn.execute(f'CREATE TABLE "{backup_table}" AS SELECT * FROM "{table}"')
+            except Exception as e:
+                print(f"[ERROR] Failed to backup table {table}: {e}")
+        await conn.close()
 
+    
     async def restore_tables(self, tables: List[str]):
         """Restore tables from their *_backup tables and drop the backups."""
-        pool = await asyncpg.create_pool(self.db_url)
-        try:
-            async with pool.acquire() as conn:
-                for table in tables:
-                    full_table_name = f"{self.table_prefix}{table}"
-                    backup_table_name = f"{full_table_name}_backup"
-                    # Truncate original table and restore from backup
-                    await conn.execute(f"TRUNCATE {full_table_name} RESTART IDENTITY CASCADE")
-                    await conn.execute(f"INSERT INTO {full_table_name} SELECT * FROM {backup_table_name}")
-                    await conn.execute(f"DROP TABLE IF EXISTS {backup_table_name}")
-        finally:
-            await pool.close()
+        conn = await asyncpg.connect(self.db_url)
+        for table in tables:
+            backup_table = f"{table}_backup"
+            try:
+                # Truncate original table
+                await conn.execute(f'TRUNCATE TABLE "{table}" CASCADE')
+                # Copy data from backup
+                await conn.execute(f'INSERT INTO "{table}" SELECT * FROM "{backup_table}"')
+                # Drop backup table
+                await conn.execute(f'DROP TABLE IF EXISTS "{backup_table}"')
+            except Exception as e:
+                print(f"[ERROR] Failed to restore table {table}: {e}")
+        await conn.close()
 
+    
     async def load_test_fixtures(self, fixtures: Dict[str, List[Dict[str, Any]]]):
         """
         Load test data fixtures into the database.
@@ -288,56 +247,59 @@ class TestDatabaseManager:
         Args:
             fixtures: Dictionary mapping table names to lists of row data
         """
-        date_fields = {"date", "start_at", "end_at", "created_at", "updated_at"}
-        tables = list(fixtures.keys())
-        await self.backup_tables(tables)
-        pool = await asyncpg.create_pool(self.db_url)
-        try:
-            async with pool.acquire() as conn:
-                async with conn.transaction():
-                    for table_name, rows in fixtures.items():
-                        if not rows:
-                            continue
-                        full_table_name = f"{self.table_prefix}{table_name}"
-                        columns = list(rows[0].keys())
-                        placeholders = ', '.join(f'${i+1}' for i in range(len(columns)))
-                        column_names = ', '.join(columns)
-                        insert_sql = f"""
-                            INSERT INTO {full_table_name} ({column_names})
-                            VALUES ({placeholders})
-                        """
-                        for row in rows:
-                            values = []
-                            for col in columns:
-                                val = row[col]
-                                if col in date_fields and isinstance(val, str):
-                                    try:
-                                        dt = date_parser.parse(val)
-                                        if dt.time() == datetime.time(0, 0):
-                                            val = dt.date()
-                                        else:
-                                            val = dt
-                                    except Exception:
-                                        pass
-                                values.append(val)
-                            # Debug logging
-                            logger.debug(f"[DEBUG] Inserting row into table: {full_table_name}")
-                            logger.debug(f"[DEBUG] insert_sql: {insert_sql}")
-                            logger.debug(f"[DEBUG] columns: {columns}")
-                            logger.debug(f"[DEBUG] values: {values}")
-                            logger.debug(f"[DEBUG] value types: {[type(v) for v in values]}")
-                            try:
-                                await conn.execute(insert_sql, *values)
-                            except Exception as e:
-                                logger.error(f"[ERROR] Exception inserting into {full_table_name}: {e}")
-                                logger.error(f"[ERROR] insert_sql: {insert_sql}")
-                                logger.error(f"[ERROR] values: {values}")
-                                logger.error(f"[ERROR] value types: {[type(v) for v in values]}")
-                                import traceback
-                                logger.error(traceback.format_exc())
-                                raise
-        finally:
-            await pool.close()
+        conn = await asyncpg.connect(self.db_url)
+        
+        for table, rows in fixtures.items():
+            if not rows:
+                continue
+                
+            # Process each row to convert string dates to Python objects
+            processed_rows = []
+            for row in rows:
+                processed_row = {}
+                for key, value in row.items():
+                    if isinstance(value, str) and (
+                        key.endswith('_at') or 
+                        key.endswith('_date') or 
+                        key == 'date' or 
+                        key == 'datetime'
+                    ):
+                        try:
+                            # Try to parse as date/datetime
+                            dt = date_parser.parse(value)
+                            if any(x in key for x in ['date', 'day']):
+                                # Use date object for date fields
+                                processed_row[key] = dt.date()
+                            else:
+                                # Use datetime for timestamp fields
+                                processed_row[key] = dt
+                        except Exception:
+                            # If parsing fails, keep original value
+                            processed_row[key] = value
+                    else:
+                        processed_row[key] = value
+                processed_rows.append(processed_row)
+                
+            # Insert rows into table
+            columns = list(processed_rows[0].keys())
+            values = [tuple(row[col] for col in columns) for row in processed_rows]
+            
+            # Build INSERT statement
+            placeholders = [f'${i+1}' for i in range(len(columns))]
+            columns_str = ', '.join(f'"{col}"' for col in columns)
+            placeholders_str = ', '.join(placeholders)
+            
+            # Execute INSERT for each row
+            for row_values in values:
+                try:
+                    await conn.execute(
+                        f'INSERT INTO "{table}" ({columns_str}) VALUES ({placeholders_str})',
+                        *row_values
+                    )
+                except Exception as e:
+                    print(f"[ERROR] Failed to insert into {table}: {e}")
+                    
+        await conn.close()
 
 
 class IntegrationTestSession:
@@ -349,52 +311,49 @@ class IntegrationTestSession:
     _session_id = None
     
     @classmethod
-    async def get_instance(cls):
+    def get_instance(cls):
         """Get or create the singleton integration test session."""
         if cls._instance is None:
-            cls._instance = cls()
-            cls._session_id = uuid.uuid4().hex[:8]
+            cls._instance = IntegrationTestSession()
             cls._db_manager = TestDatabaseManager("integration")
-            cls._test_db_url = await cls._db_manager.setup_test_database()
+            cls._test_db_url = asyncio.run(cls._db_manager.setup_test_database())
+            cls._session_id = uuid.uuid4().hex
         return cls._instance
     
     @classmethod
-    async def cleanup(cls):
+    def cleanup(cls):
         """Clean up the integration test session."""
-        if cls._db_manager:
-            await cls._db_manager.teardown_test_database()
+        if cls._instance is not None:
+            if cls._db_manager is not None:
+                asyncio.run(cls._db_manager.cleanup_test_data())
             cls._instance = None
             cls._db_manager = None
             cls._test_db_url = None
-            cls._session_id = None
     
-    @property
-    def db_url(self) -> str:
+    def db_url(self):
         """Get the test database URL."""
         return self._test_db_url
     
-    @property
-    def session_id(self) -> str:
+    def session_id(self):
         """Get the session ID for this test run."""
         return self._session_id
 
 
-@pytest_asyncio.fixture(scope="session")
-async def integration_test_db():
+@pytest.fixture(scope="session")
+def integration_test_db():
     """Fixture for integration tests - provides shared database for session."""
-    session = await IntegrationTestSession.get_instance()
-    
-    yield session.db_url
-    
-    # Cleanup happens at session end
+    session = IntegrationTestSession.get_instance()
+    yield session.db_url()
+    # Cleanup happens at end of session
+    IntegrationTestSession.cleanup()
 
 
-@pytest_asyncio.fixture
-async def clean_integration_db(integration_test_db):
+@pytest.fixture
+def clean_integration_db(integration_test_db):
     """Fixture that cleans integration database before each test."""
-    session = await IntegrationTestSession.get_instance()
-    await session._db_manager.cleanup_test_data()
-    
+    session = IntegrationTestSession.get_instance()
+    db_manager = TestDatabaseManager("integration")
+    asyncio.run(db_manager.cleanup_test_data())
     yield integration_test_db
 
 
@@ -408,10 +367,9 @@ async def test_database_context(test_type: str = "unit"):
             # Use db_url for testing
     """
     db_manager = TestDatabaseManager(test_type)
-    test_db_url = await db_manager.setup_test_database()
-    
+    db_url = await db_manager.setup_test_database()
     try:
-        yield test_db_url
+        yield db_url
     finally:
         await db_manager.teardown_test_database()
 
@@ -436,15 +394,19 @@ async def unit_test_db(request):
     import uuid
     from config.database import Database
     test_file = str(request.fspath) if hasattr(request, 'fspath') else "nofile"
+    # Take only first 8 chars of file name to keep DB name short
     test_file_base = os.path.splitext(os.path.basename(test_file))[0]
-    test_file_base = ''.join(c for c in test_file_base if c.isalnum())
+    test_file_base = ''.join(c for c in test_file_base if c.isalnum())[:8]
     test_name = request.node.name if hasattr(request, 'node') else None
     if test_name:
         hash_part = hashlib.sha1(test_name.encode('utf-8')).hexdigest()[:8]
-        truncated = ''.join(c for c in test_name if c.isalnum())[:8]
-        db_name = f"test_db_{test_file_base}_{truncated}_{hash_part}"
+        # Use shorter name format to avoid PostgreSQL's 63-char limit
+        db_name = f"test_db_{test_file_base}_{hash_part}"
     else:
         db_name = f"test_db_{test_file_base}_{uuid.uuid4().hex[:8]}"
+    # Ensure DB name doesn't exceed PostgreSQL's 63-char limit
+    if len(db_name) > 63:
+        db_name = db_name[:63]
  
     # Construct Database object for this test
     db_obj = Database(
@@ -512,15 +474,19 @@ async def unit_test_db_clean(request):
     import uuid
     from config.database import Database
     test_file = str(request.fspath) if hasattr(request, 'fspath') else "nofile"
+    # Take only first 8 chars of file name to keep DB name short
     test_file_base = os.path.splitext(os.path.basename(test_file))[0]
-    test_file_base = ''.join(c for c in test_file_base if c.isalnum())
+    test_file_base = ''.join(c for c in test_file_base if c.isalnum())[:8]
     test_name = request.node.name if hasattr(request, 'node') else None
     if test_name:
         hash_part = hashlib.sha1(test_name.encode('utf-8')).hexdigest()[:8]
-        truncated = ''.join(c for c in test_name if c.isalnum())[:8]
-        db_name = f"test_db_{test_file_base}_{truncated}_{hash_part}"
+        # Use shorter name format to avoid PostgreSQL's 63-char limit
+        db_name = f"test_db_{test_file_base}_{hash_part}"
     else:
         db_name = f"test_db_{test_file_base}_{uuid.uuid4().hex[:8]}"
+    # Ensure DB name doesn't exceed PostgreSQL's 63-char limit
+    if len(db_name) > 63:
+        db_name = db_name[:63]
     # Construct Database object for this test
     db_obj = Database(
         host="localhost",
