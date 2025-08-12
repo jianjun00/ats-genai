@@ -194,6 +194,34 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
 class FileDailyPricesUnifier(DailyPricesUnifierBase):
     def unify_daily_prices_sync(self, symbol, asof, current_date):
         import asyncio
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Debug: Log input parameters
+        print(f"[DEBUG][unify_daily_prices_sync] ENTER: symbol={symbol}, asof={asof}, current_date={current_date}")
+        print(f"[DEBUG][unify_daily_prices_sync] tiingo_data keys: {list(self.tiingo_data.keys())}")
+        print(f"[DEBUG][unify_daily_prices_sync] polygon_data keys: {list(self.polygon_data.keys())}")
+        
+        # Debug: Check if symbol exists in either data source
+        if symbol not in self.tiingo_data and symbol not in self.polygon_data:
+            print(f"[ERROR][unify_daily_prices_sync] Symbol {symbol} not found in tiingo or polygon data")
+            print(f"[DEBUG][unify_daily_prices_sync] tiingo_data: {self.tiingo_data}")
+            print(f"[DEBUG][unify_daily_prices_sync] polygon_data: {self.polygon_data}")
+            return []
+        
+        # Debug: Log data for the symbol if found
+        if symbol in self.tiingo_data:
+            print(f"[DEBUG][unify_daily_prices_sync] Found {symbol} in tiingo_data with {len(self.tiingo_data[symbol])} records")
+            dates = sorted(self.tiingo_data[symbol].keys())
+            if dates:
+                print(f"[DEBUG][unify_daily_prices_sync] Tiingo date range for {symbol}: {dates[0]} to {dates[-1]} ({len(dates)} days)")
+        
+        if symbol in self.polygon_data:
+            print(f"[DEBUG][unify_daily_prices_sync] Found {symbol} in polygon_data with {len(self.polygon_data[symbol])} records")
+            dates = sorted(self.polygon_data[symbol].keys())
+            if dates:
+                print(f"[DEBUG][unify_daily_prices_sync] Polygon date range for {symbol}: {dates[0]} to {dates[-1]} ({len(dates)} days)")
+        
         coro = self.unify_daily_prices(symbol, asof, current_date)
         try:
             loop = asyncio.get_event_loop()
@@ -204,9 +232,22 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
             import nest_asyncio
             nest_asyncio.apply()
             fut = asyncio.ensure_future(coro)
-            return loop.run_until_complete(fut)
+            result = loop.run_until_complete(fut)
         else:
-            return loop.run_until_complete(coro)
+            result = loop.run_until_complete(coro)
+            
+        # Debug: Log results
+        print(f"[DEBUG][unify_daily_prices_sync] Results for {symbol} on {asof}:")
+        if not result:
+            print("[DEBUG][unify_daily_prices_sync]   No results returned from unify_daily_prices")
+        else:
+            print(f"[DEBUG][unify_daily_prices_sync]   Found {len(result)} records")
+            for i, r in enumerate(result[:3], 1):
+                print(f"[DEBUG][unify_daily_prices_sync]   Result {i}: {r}")
+            if len(result) > 3:
+                print(f"[DEBUG][unify_daily_prices_sync]   ... and {len(result) - 3} more records")
+        
+        return result
 
     def __init__(self, environment, tiingo_data, polygon_data):
         super().__init__(environment)
@@ -214,13 +255,72 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
         self.polygon_data = polygon_data
 
     async def unify_daily_prices(self, symbol, asof, current_date):
+        import logging
+        from datetime import timedelta
+        logger = logging.getLogger(__name__)
+        
+        # Debug: Log input parameters
+        print(f"[DEBUG][unify_daily_prices] ENTER: symbol={symbol}, asof={asof}, current_date={current_date}")
+        
         # asof can be date or (start, end)
         if isinstance(asof, (tuple, list)):
             start_date, end_date = asof
         else:
             start_date = end_date = asof
+            
+        # Ensure dates are date objects, not datetime
+        if hasattr(start_date, 'date'):
+            start_date = start_date.date()
+        if hasattr(end_date, 'date'):
+            end_date = end_date.date()
+            
+        # Debug: Log date range
+        print(f"[DEBUG][unify_daily_prices] Processing date range: {start_date} to {end_date}")
+        
         tiingo = self.tiingo_data.get(symbol, {})
         polygon = self.polygon_data.get(symbol, {})
+        
+        # Debug: Log available dates in each data source
+        print(f"[DEBUG][unify_daily_prices] Tiingo data for {symbol}: {len(tiingo)} dates")
+        if tiingo:
+            tiingo_dates = sorted(tiingo.keys())
+            print(f"[DEBUG][unify_daily_prices] Tiingo date range: {tiingo_dates[0]} to {tiingo_dates[-1]} ({len(tiingo_dates)} days)")
+            
+        print(f"[DEBUG][unify_daily_prices] Polygon data for {symbol}: {len(polygon)} dates")
+        if polygon:
+            polygon_dates = sorted(polygon.keys())
+            print(f"[DEBUG][unify_daily_prices] Polygon date range: {polygon_dates[0]} to {polygon_dates[-1]} ({len(polygon_dates)} days)")
+        
+        # Debug: Check if we have data for the requested date range
+        all_dates = set()
+        if tiingo:
+            all_dates.update(tiingo.keys())
+        if polygon:
+            all_dates.update(polygon.keys())
+            
+        if not all_dates:
+            print(f"[ERROR][unify_daily_prices] No price data available for {symbol} in any data source")
+            return []
+            
+        # Generate all dates in the requested range
+        date_range = []
+        current = start_date
+        while current <= end_date:
+            date_range.append(current)
+            current += timedelta(days=1)
+            
+        print(f"[DEBUG][unify_daily_prices] Checking {len(date_range)} dates from {start_date} to {end_date}")
+        
+        # Check which dates have data
+        missing_dates = [d for d in date_range if d not in all_dates]
+        if missing_dates:
+            print(f"[DEBUG][unify_daily_prices] Missing data for {len(missing_dates)}/{len(date_range)} dates")
+            if len(missing_dates) <= 10:
+                print(f"[DEBUG][unify_daily_prices] Missing dates: {missing_dates}")
+            else:
+                print(f"[DEBUG][unify_daily_prices] Missing dates (first 10): {missing_dates[:10]}...")
+        else:
+            print(f"[DEBUG][unify_daily_prices] Data available for all {len(date_range)} dates")
         # Only process dates within the requested interval
         # Emit a row for every calendar day in the requested interval (not just trading days)
         from datetime import timedelta

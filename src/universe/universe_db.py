@@ -20,21 +20,19 @@ class UniverseDB:
         universe = await self.universe_dao.get_universe_by_name(universe_name)
         return universe['id'] if universe else None
 
-    async def get_universe_members(self, universe_id: int, as_of: date) -> List[str]:
+    async def get_universe_members(self, universe_id: int, as_of: date) -> List[int]:
+        """
+        Get the list of instrument IDs for a universe as of a specific date.
+        
+        Args:
+            universe_id: ID of the universe
+            as_of: Date to check membership for
+            
+        Returns:
+            List of instrument IDs that are members of the universe on the given date
+        """
         memberships = await self.universe_membership_dao.get_active_memberships(universe_id, as_of)
-        instrument_ids = [row['instrument_id'] for row in memberships if row.get('instrument_id') is not None]
-        if not instrument_ids:
-            return []
-        # Query all symbols for instrument_ids in one go
-        instruments_dao = __import__('dao.instruments_dao', fromlist=['InstrumentsDAO']).InstrumentsDAO(self.env)
-        pool = await __import__('asyncpg').create_pool(self.env.get_database_url())
-        try:
-            async with pool.acquire() as conn:
-                rows = await conn.fetch(f"SELECT id, symbol FROM {instruments_dao.table_name} WHERE id = ANY($1)", instrument_ids)
-                id_to_symbol = {row['id']: row['symbol'] for row in rows}
-            return [id_to_symbol.get(instrument_id) for instrument_id in instrument_ids]
-        finally:
-            await pool.close()
+        return [row['instrument_id'] for row in memberships if row.get('instrument_id') is not None]
 
 
     async def add_universe(self, name: str, description: Optional[str] = None) -> int:

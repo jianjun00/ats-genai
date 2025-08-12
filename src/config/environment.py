@@ -246,16 +246,39 @@ class Environment:
         else:
             raise FileNotFoundError(f"Configuration file not found: {env_config}")
     
-    def get_table_name(self, base_table_name: str):
+    def get_table_name(self, base_table_name: str, with_prefix: bool = True):
         """
-        Get prefixed table name for current environment (Gin-based, uses env_type if present).
+        Get prefixed table name for current environment.
+        
+        Args:
+            base_table_name: The base name of the table
+            with_prefix: Whether to include the environment prefix (default: True)
+            
+        Returns:
+            str: The table name with appropriate prefix if with_prefix is True,
+                 otherwise returns the base table name
         """
-        # If env_type is not set, default to 'test'
-        prefix = getattr(self, "env_type", None)
-        if prefix is None:
+        # If no prefix is requested, return the base table name
+        if not with_prefix:
+            return base_table_name
+            
+        # Get the environment prefix
+        env_type = getattr(self, "env_type", None)
+        if env_type is None:
             prefix = "test"
         else:
-            prefix = prefix.value if hasattr(prefix, "value") else str(prefix)
+            # Handle both enum and string environment types
+            prefix = env_type.value if hasattr(env_type, "value") else str(env_type)
+            
+        # Special case: if we're in test environment, always use 'test_' prefix
+        # regardless of the actual env_type value to ensure test isolation
+        if os.getenv('PYTEST_CURRENT_TEST'):
+            prefix = "test"
+            
+        # Remove any existing prefix to prevent double-prefixing
+        if base_table_name.startswith(f"{prefix}_"):
+            return base_table_name
+            
         return f"{prefix}_{base_table_name}"
 
     def get_api_key(self, service: str) -> Optional[str]:

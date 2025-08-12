@@ -53,11 +53,20 @@ async def run_file_daily_price_ohlcv(
     from datetime import datetime
     dao = UniverseStateIntervalDAO(env)
     universe_id = env.get_universe_id()
+    
+    # Debug: Print the query parameters
+    print(f"[DEBUG][run_file_daily_price_ohlcv] Fetching intervals for universe_id={universe_id}, start_date={start_date}, end_date={end_date}")
+    
     intervals = await dao.list(
         universe_id=universe_id,
         start_date_time=start_date,
         end_date_time=end_date
     )
+    
+    print(f"[DEBUG][run_file_daily_price_ohlcv] Found {len(intervals)} intervals")
+    for i, interval in enumerate(intervals):
+        print(f"[DEBUG][run_file_daily_price_ohlcv] Interval {i}: {interval}")
+    
     if not intervals:
         raise RuntimeError('No universe state intervals found in DB.')
     # Convert intervals to DataFrame (assuming to_dataframe exists or build manually)
