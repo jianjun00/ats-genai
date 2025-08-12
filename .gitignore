@@ -49,13 +49,13 @@ coverage.xml
 *.pot
 
 # Kubernetes
-k8s/
-*.yml
+# Keeping templates accessible
 !k8s/templates/
 
 # Local development
 .venv/
 venv/
+.atsenv/
 .env
 .env.local
 
