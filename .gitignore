@@ -48,6 +48,33 @@ coverage.xml
 *.mo
 *.pot
 
+# Kubernetes
+k8s/
+*.yaml
+*.yml
+!k8s/templates/
+
+# Local development
+.venv/
+venv/
+.env
+.env.local
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local development
+local_settings.py
+local_config.py
+
+# Logs
+logs/
+*.log
+
 # Django stuff:
 *.log
 local_settings.py
