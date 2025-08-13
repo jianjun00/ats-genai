@@ -38,6 +38,10 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
     Uses isolated test DB via fixture.
     """
     db_url = unit_test_db_clean
+    
+    # Ensure all required test tables exist
+    from tests.app.ensure_test_tables import ensure_test_tables
+    env = await ensure_test_tables(db_url)
     # ... rest of test logic, replacing all manual db_url/env setup with this db_url ...
     # (full logic for test data insertion, runner setup, and assertions remains, but all manual backup/restore is removed)
     # See detailed code below for full refactor.
@@ -154,7 +158,7 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
     await setup_prices()
 
     # Patch in a real DailyPriceMarketDataManager
-    from market_data.daily_price_market_data_manager import DailyPriceMarketDataManager
+    from market_data.eod.daily_price_market_data_manager import DailyPriceMarketDataManager
     class TestDailyPriceMarketDataManager(DailyPriceMarketDataManager):
         def _get_all_symbols(self):
             return UNIVERSE_SYMBOLS
@@ -250,17 +254,44 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
         print(f"Full universe state loaded from {full_file}, shape: {full_df.shape}")
         print(full_df)
 
-def test_runner_event_iterator(unit_test_db, monkeypatch):
-    """
-    Test that Runner.iter_events yields the correct (datetime, type) sequence for interval and EOD events.
-    """
-    # Use the provided test DB URL for this non-async test
-    env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
-    # Patch callbacks config to avoid callback unpacking error
-    monkeypatch.setattr(env, 'get', lambda section, key, default=None: [] if (section, key) == ('runner', 'callbacks') else env.__class__.get(env, section, key, default))
-    start_date = "2025-07-01"
-    end_date = "2025-07-03"
-    runner = Runner(start_date, end_date, env, UNIVERSE_ID)
+@pytest.mark.asyncio
+async def test_runner_event_iterator(unit_test_db_clean):
+    """Test the event iterator functionality of Runner."""
+    # Ensure all required test tables exist
+    from tests.app.ensure_test_tables import ensure_test_tables
+    env = await ensure_test_tables(unit_test_db_clean)
+    
+    # Create a mock callback class that implements the RunnerCallback interface
+    from app.runner import RunnerCallback
+    
+    class MockCallback(RunnerCallback):
+        def __init__(self, env=None):
+            self.env = env
+            
+        async def on_start(self):
+            pass
+            
+        async def on_end(self):
+            pass
+            
+        async def on_interval(self, date):
+            pass
+    
+    # Create a callback instance directly
+    mock_callback = MockCallback(env)
+    
+    # Use the callback instance directly instead of strings
+    callbacks = [mock_callback]
+    base_duration = '1d'  # Daily intervals
+    
+    runner = Runner(
+        environment=env,
+        universe_id=UNIVERSE_ID,
+        start_date=date.fromisoformat(TEST_START_DATE),
+        end_date=date.fromisoformat(TEST_END_DATE),
+        callbacks=callbacks,
+        base_duration=base_duration
+    )
     # Patch duration to daily
     class DummyDuration:
         def is_daily_or_longer(self): return True
@@ -277,6 +308,6 @@ def test_runner_event_iterator(unit_test_db, monkeypatch):
     for dt, typ in eod_events:
         assert dt.hour == 23 and dt.minute == 59 and dt.second == 59, f"EOD event not at last second: {dt}"
     # Dates should be correct
-    expected_dates = pd.date_range(start_date, end_date)
+    expected_dates = pd.date_range(TEST_START_DATE, TEST_END_DATE)
     assert [e[0].date() for e in interval_events] == list(expected_dates.date), "Interval event dates mismatch"
     assert [e[0].date() for e in eod_events] == list(expected_dates.date), "EOD event dates mismatch"

@@ -133,4 +133,14 @@ class DailyPriceMarketDataManager(MarketDataManager):
         # Placeholder: in production, this should return all symbols in the universe
         # For now, returns an empty list
         return []
+        
+    async def get_ohlc_batch(self, instrument_ids: List[int], start: datetime, end: datetime) -> Dict[int, Optional[Dict[str, float]]]:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"get_ohlc_batch: instrument_ids={instrument_ids}, start={start}, end={end}")
+        result = {}
+        for iid in instrument_ids:
+            result[iid] = self.get_ohlc(iid, start, end)
+        logger.debug(f"get_ohlc_batch: returning {len(result)} results")
+        return result
 

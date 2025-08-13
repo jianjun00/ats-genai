@@ -7,19 +7,33 @@ class InstrumentIntervalDAO:
         self.env = env
         self.db_url = env.get_database_url()
 
-    async def create(self, universe_state_interval_id: int, instrument_id: int, open: float, high: float, low: float, close: float, traded_volume: float, traded_dollar: float, status: str, market_cap: float) -> int:
+    async def create(self, universe_state_interval_id: int, instrument_id: int, open: float, high: float, low: float, close: float, traded_volume: float, traded_dollar: float, status: str, market_cap: float, start_date_time=None, end_date_time=None) -> int:
         """Insert a new InstrumentInterval. Returns new id."""
         conn = await asyncpg.connect(self.db_url)
         try:
-            row = await conn.fetchrow(
-                f"""
-                INSERT INTO {self.env.get_table_name('instrument_interval')} (
+            # Include start_date_time and end_date_time if provided
+            if start_date_time is not None and end_date_time is not None:
+                row = await conn.fetchrow(
+                    f"""
+                    INSERT INTO {self.env.get_table_name('instrument_interval')} (
+                        universe_state_interval_id, instrument_id, open, high, low, close, traded_volume, traded_dollar, status, market_cap,
+                        start_date_time, end_date_time
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                    RETURNING id
+                    """,
+                    universe_state_interval_id, instrument_id, open, high, low, close, traded_volume, traded_dollar, status, market_cap,
+                    start_date_time, end_date_time
+                )
+            else:
+                row = await conn.fetchrow(
+                    f"""
+                    INSERT INTO {self.env.get_table_name('instrument_interval')} (
+                        universe_state_interval_id, instrument_id, open, high, low, close, traded_volume, traded_dollar, status, market_cap
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    RETURNING id
+                    """,
                     universe_state_interval_id, instrument_id, open, high, low, close, traded_volume, traded_dollar, status, market_cap
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                RETURNING id
-                """,
-                universe_state_interval_id, instrument_id, open, high, low, close, traded_volume, traded_dollar, status, market_cap
-            )
+                )
             return row['id']
         finally:
             await conn.close()

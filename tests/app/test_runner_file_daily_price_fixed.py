@@ -24,7 +24,12 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
     tiingo_dir = os.path.join(os.path.dirname(__file__), '../data/daily_prices_tiingo')
     tiingo_dir = os.path.abspath(tiingo_dir)
     vendors_dirs = {'polygon': polygon_dir, 'tiingo': tiingo_dir}
-    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
+    
+    # Ensure all required test tables exist
+    from tests.app.ensure_test_tables import ensure_test_tables
+    print(f"\n[DEBUG] Test DB URL: {unit_test_db}")
+    env = await ensure_test_tables(unit_test_db)
+    
     from signals.indicator_config import IndicatorConfig
     env.get_indicator_config = lambda: IndicatorConfig(indicators={})
 
@@ -69,26 +74,24 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
         await conn.execute(f"TRUNCATE TABLE {env.get_table_name('vendors')} CASCADE")
         await conn.execute(f"TRUNCATE TABLE {env.get_table_name('instrument_xrefs')} CASCADE")
         
-        # Ensure the instrument_xrefs table has the correct unique constraint
+        # Check if the instrument_xrefs table already has a primary key
         table_name = env.get_table_name('instrument_xrefs')
         base_table_name = env.get_table_name('instrument_xrefs', with_prefix=False)
-        await conn.execute(f"""
-        DO $$
-        BEGIN
-            -- Drop existing unique constraint if it exists
-            IF EXISTS (
-                SELECT 1 FROM information_schema.table_constraints 
-                WHERE table_name = '{base_table_name}'
-                AND constraint_name = '{base_table_name}_pkey'
-            ) THEN
-                EXECUTE format('ALTER TABLE %I DROP CONSTRAINT {base_table_name}_pkey', '{base_table_name}');
-            END IF;
-            
-            -- Add new unique constraint on (instrument_id, vendor_id)
-            EXECUTE format('ALTER TABLE %I ADD CONSTRAINT {base_table_name}_pkey PRIMARY KEY (instrument_id, vendor_id)', 
-                          '{base_table_name}');
-        END $$;
+        
+        # First check if the table has any primary key
+        has_pk = await conn.fetchval(f"""
+            SELECT COUNT(*) FROM information_schema.table_constraints 
+            WHERE table_name = '{table_name}'
+            AND constraint_type = 'PRIMARY KEY'
         """)
+        
+        if has_pk:
+            print(f"[DEBUG] Table {table_name} already has a primary key, skipping primary key creation")
+        else:
+            print(f"[DEBUG] Adding primary key to {table_name}")
+            # Only add primary key if it doesn't exist
+            await conn.execute(f"ALTER TABLE {table_name} ADD PRIMARY KEY (instrument_id, vendor_id)")
+        
         
         # Insert instruments
         await conn.execute(f"""
@@ -114,13 +117,15 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
         # Insert instrument xrefs with correct mapping and table prefix
         table_name = env.get_table_name('instrument_xrefs')
         base_table_name = env.get_table_name('instrument_xrefs', with_prefix=False)
+        
+        # First delete any existing records
+        await conn.execute(f"DELETE FROM {table_name} WHERE instrument_id IN (1, 2) AND vendor_id = 1")
+        
+        # Then insert new records
         await conn.execute(f"""
             INSERT INTO {table_name} (instrument_id, vendor_id, symbol, start_at)
             VALUES (1, 1, 'TSLA', '2020-01-01'),
                    (2, 1, 'AAPL', '2020-01-01')
-            ON CONFLICT (instrument_id, vendor_id) DO UPDATE 
-            SET symbol = EXCLUDED.symbol, 
-                start_at = LEAST({base_table_name}.start_at, EXCLUDED.start_at)
         """)
         
         await conn.close()
@@ -209,8 +214,9 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
         print(f'[DEBUG][TEST] Universe membership: {universe_members}')
         
         # Check instrument_xrefs
+        xrefs_table = env.get_table_name('instrument_xrefs')
         xrefs = await conn.fetch(f"""
-            SELECT * FROM {env.get_table_name('instrument_xrefs')}
+            SELECT * FROM {xrefs_table}
         """)
         print(f'[DEBUG][TEST] Instrument xrefs: {xrefs}')
         
@@ -258,11 +264,19 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
         universe_id=1,
         output_dir=output_dir,
         indicator_config=indicator_config,
-        print_ohlcv=True,  # Enable OHLCV printing for debugging
-        debug=True  # Enable debug output
+        print_ohlcv=True  # Enable OHLCV printing for debugging
     )
     
     # Verify the output
     assert not df.empty, "Output DataFrame is empty"
-    assert 'ETop' in df.columns, "ETop column not found in output"
-    assert df['ETop'].notna().any(), "No non-null ETop values found"
+    
+    # Check if indicators are in the DataFrame in long format
+    if 'indicator_name' in df.columns and 'indicator_value' in df.columns:
+        # Check if ETop exists as an indicator_name
+        etop_values = df[df['indicator_name'] == 'ETop']
+        assert not etop_values.empty, "ETop indicator not found in output"
+        assert etop_values['indicator_value'].notna().any(), "No non-null ETop values found"
+    else:
+        # Fall back to checking for ETop as a direct column
+        assert 'ETop' in df.columns, "ETop column not found in output"
+        assert df['ETop'].notna().any(), "No non-null ETop values found"
