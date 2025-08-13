@@ -211,4 +211,15 @@ For deployment to a development environment:
 
 For detailed information about monitoring, metrics, alerting, and operational features, see the dedicated documentation:
 
-- [README_MONITORING.md](./README_MONITORING.md) - Comprehensive guide to monitoring and operational features
+[README_MONITORING.md](./README_MONITORING.md) - Comprehensive guide to monitoring and operational features
+
+## Kubernetes & ArgoCD Deployment
+
+For GitOps-based deployment with ArgoCD, Kubernetes manifests are available in the `k8s/data-agent/` directory. This includes:
+
+- Data Agent deployment with monitoring enabled
+- Prometheus for metrics collection
+- Grafana with pre-configured dashboards
+- ArgoCD Application configuration
+
+See the [k8s/data-agent/README.md](/k8s/data-agent/README.md) for detailed deployment instructions.
