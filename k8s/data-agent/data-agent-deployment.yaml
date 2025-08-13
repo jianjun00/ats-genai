@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-agent
+  namespace: market-data
+  labels:
+    app: data-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-agent
+  template:
+    metadata:
+      labels:
+        app: data-agent
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: data-agent
+        image: ${DOCKER_REGISTRY}/ats-genai/data-agent:${IMAGE_TAG}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: metrics
+        - containerPort: 8080
+          name: health
+        env:
+        - name: ENABLE_PROMETHEUS
+          value: "true"
+        - name: PROMETHEUS_PORT
+          value: "8000"
+        - name: ENABLE_HEALTH_API
+          value: "true"
+        - name: HEALTH_API_PORT
+          value: "8080"
+        - name: DATA_AGENT_LOG_LEVEL
+          value: "INFO"
+        - name: DATA_AGENT_JSON_LOGS
+          value: "true"
+        - name: POLYGON_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: data-agent-secrets
+              key: polygon-api-key
+        - name: TIINGO_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: data-agent-secrets
+              key: tiingo-api-key
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: data-agent-secrets
+              key: openai-api-key
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: data-agent-secrets
+              key: database-url
+        - name: SLACK_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: data-agent-secrets
+              key: slack-webhook-url
+              optional: true
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 15
