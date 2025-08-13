@@ -1,0 +1,62 @@
+# Argo CD Deployment Summary for ATS-GenAI
+
+## Environment Overview
+- **Dev Environment**: Configured and deployed with automated sync
+- **Integration Environment**: Configured and deployed with automated sync
+- **Production Environment**: Configured with manual sync
+
+## Kubernetes Cluster Details
+- **Nodes**: 3 nodes (1 control-plane, 2 workers)
+- **Node IPs**: 172.18.0.2, 172.18.0.3, 172.18.0.4
+- **Kubernetes Version**: v1.27.3
+- **OS**: Debian GNU/Linux 11 (bullseye)
+
+## Argo CD Configuration
+- **Namespace**: argocd
+- **Applications**: 
+  - ats-dev (Healthy)
+  - ats-intg (Healthy)
+  - ats-prod (Healthy)
+- **Sync Status**: Unknown (manual sync may be required)
+- **GitHub Access**: Configured with private repository token
+
+## Dev Environment Details
+- **Namespace**: ats-dev
+- **Deployment**: ats-api-6cbbb6d794-mjr26 (Running)
+- **Service**: ats-api (NodePort, port 80 → 8080, NodePort 32708)
+- **Pod IP**: 10.244.2.16
+- **Entrypoint**: uvicorn src.simple_main:app --host 0.0.0.0 --port 8080
+- **Environment Variables**: PYTHONPATH=src, ENVIRONMENT=dev, LOG_LEVEL=DEBUG
+
+## Access Methods
+1. **Port Forwarding** (temporary):
+   ```bash
+   kubectl port-forward service/ats-api -n ats-dev 8888:80
+   ```
+   or directly to pod:
+   ```bash
+   kubectl port-forward pod/ats-api-6cbbb6d794-mjr26 -n ats-dev 9999:8080
+   ```
+
+2. **NodePort** (configured):
+   ```
+   http://<node-ip>:32708
+   ```
+   Node IPs: 172.18.0.2, 172.18.0.3, 172.18.0.4
+
+3. **Ingress** (not configured yet):
+   Consider setting up an Ingress controller for more stable access
+
+## Known Issues
+- Direct localhost access to NodePort (32708) doesn't work due to cluster networking restrictions
+- Port forwarding attempts have been inconsistent
+- Service was initially named "ats-api-service" in config but "ats-api" in cluster; fixed by updating config
+
+## Recent Changes
+- Updated service name from "ats-api-service" to "ats-api" in k8s/base/service.yaml
+- Changed service type from ClusterIP to NodePort
+- Added .atsenv to .gitignore to prevent Argo CD symlink errors
+
+## Health Status
+- API is running and responding to /health checks internally
+- Logs show successful health check responses
