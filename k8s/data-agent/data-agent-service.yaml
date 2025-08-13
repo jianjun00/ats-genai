@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-agent
+  namespace: market-data
+  labels:
+    app: data-agent
+spec:
+  selector:
+    app: data-agent
+  ports:
+  - port: 8000
+    name: metrics
+    targetPort: metrics
+  - port: 8080
+    name: health
+    targetPort: health
+  type: ClusterIP
