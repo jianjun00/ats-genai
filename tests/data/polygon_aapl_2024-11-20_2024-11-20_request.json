@@ -1,0 +1,3 @@
+{
+  "url": "https://api.polygon.io/v2/aggs/ticker/AAPL/range/1/day/2024-11-20/2024-11-20?adjusted=true&sort=asc&limit=50000&apiKey=test_key"
+}
