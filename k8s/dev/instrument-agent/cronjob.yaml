@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: instrument-agent-daily
+  namespace: ats-dev
+spec:
+  schedule: "0 18 * * 1-5"  # 6:00 PM Eastern Time, Monday-Friday (after market close)
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: instrument-agent
+            image: ats-registry.dev/instrument-data-agent:dev
+            command: ["python", "-m", "src.market_data.agent.instrument_data_agent", "daily_update", "--environment", "dev"]
+            envFrom:
+            - configMapRef:
+                name: instrument-agent-config
+            - secretRef:
+                name: instrument-agent-secrets
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "500m"
+            volumeMounts:
+            - name: logs
+              mountPath: /var/log/instrument-agent
+            - name: reports
+              mountPath: /app/reports
+          volumes:
+          - name: logs
+            persistentVolumeClaim:
+              claimName: instrument-agent-logs
+          - name: reports
+            persistentVolumeClaim:
+              claimName: instrument-agent-reports
+          restartPolicy: OnFailure

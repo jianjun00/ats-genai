@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: instrument-agent-config
+  namespace: ats-dev
+data:
+  # Database configuration
+  DB_HOST: "postgres.ats-dev.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "ats_dev"
+  TABLE_PREFIX: "dev_"
+  
+  # Environment and logging
+  ENVIRONMENT: "dev"
+  LOG_LEVEL: "INFO"
+  
+  # Agent configuration
+  DRY_RUN: "false"  # Set to "true" for initial testing
+  REPORT_DIR: "/app/reports"
+  TZ: "America/New_York"
