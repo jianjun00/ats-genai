@@ -27,120 +27,89 @@ spec:
         args:
         - |
           echo "Starting Data Agent with health API and metrics..."
+          pip install prometheus-client fastapi uvicorn
+          
+          # Create app directory
           mkdir -p /app
-          cat > /app/health_server.py << 'EOF'
-          import http.server
-          import socketserver
-          import threading
-          import json
+          
+          cat > /app/data_agent.py << 'EOF'
           import time
-          import os
           import random
+          import threading
+          import uvicorn
+          from fastapi import FastAPI, Response
+          from prometheus_client import Counter, Gauge, generate_latest, CONTENT_TYPE_LATEST
           
-          # Health API on port 8080
-          class HealthHandler(http.server.BaseHTTPRequestHandler):
-              def do_GET(self):
-                  if self.path == '/health':
-                      self.send_response(200)
-                      self.send_header('Content-type', 'application/json')
-                      self.end_headers()
-                      health_data = json.dumps({
-                          "status": "healthy",
-                          "version": "1.0.0",
-                          "uptime": time.time() - start_time,
-                          "components": {
-                              "database": "connected",
-                              "api_services": "available",
-                              "monitoring": "active"
-                          }
-                      })
-                      self.wfile.write(health_data.encode())
-                  else:
-                      self.send_response(404)
-                      self.end_headers()
-          
-          # Metrics API on port 8000
-          class MetricsHandler(http.server.BaseHTTPRequestHandler):
-              def do_GET(self):
-                  if self.path == '/metrics':
-                      self.send_response(200)
-                      self.send_header('Content-type', 'text/plain')
-                      self.end_headers()
-                      
-                      # Simulate more realistic metrics
-                      processed = int(time.time() - start_time) * 5
-                      reconciled = int((time.time() - start_time) / 2)
-                      backfill_processed = int(processed * 0.7)
-                      frontfill_processed = int(processed * 0.3)
-                      error_rate = random.uniform(0.01, 0.05)
-                      latency = random.uniform(50, 200)
-                      
-                      metrics = [
-                          '# HELP data_agent_processed_total Total number of data points processed',
-                          '# TYPE data_agent_processed_total counter',
-                          f'data_agent_processed_total{{source="polygon"}} {int(processed * 0.6)}',
-                          f'data_agent_processed_total{{source="tiingo"}} {int(processed * 0.4)}',
-                          '# HELP data_agent_reconciliation_total Total number of reconciliations performed',
-                          '# TYPE data_agent_reconciliation_total counter',
-                          f'data_agent_reconciliation_total{{status="success"}} {int(reconciled * 0.95)}',
-                          f'data_agent_reconciliation_total{{status="error"}} {int(reconciled * 0.05)}',
-                          '# HELP data_agent_health Health status of the data agent',
-                          '# TYPE data_agent_health gauge',
-                          'data_agent_health 1',
-                          '# HELP data_agent_backfill_processed_total Total number of data points processed in backfill',
-                          '# TYPE data_agent_backfill_processed_total counter',
-                          f'data_agent_backfill_processed_total {backfill_processed}',
-                          '# HELP data_agent_frontfill_processed_total Total number of data points processed in frontfill',
-                          '# TYPE data_agent_frontfill_processed_total counter',
-                          f'data_agent_frontfill_processed_total {frontfill_processed}',
-                          '# HELP data_agent_error_rate Error rate of data processing',
-                          '# TYPE data_agent_error_rate gauge',
-                          f'data_agent_error_rate {error_rate}',
-                          '# HELP data_agent_api_latency_ms API latency in milliseconds',
-                          '# TYPE data_agent_api_latency_ms gauge',
-                          f'data_agent_api_latency_ms{{api="polygon"}} {latency * 0.8}',
-                          f'data_agent_api_latency_ms{{api="tiingo"}} {latency * 1.2}'
-                      ]
-                      self.wfile.write('\n'.join(metrics).encode())
-                  else:
-                      self.send_response(404)
-                      self.end_headers()
-          
-          # Start time for uptime calculation
+          app = FastAPI()
           start_time = time.time()
           
-          # Start health server
-          health_port = int(os.environ.get('HEALTH_API_PORT', '8080'))
-          health_server = socketserver.TCPServer(('', health_port), HealthHandler)
-          health_thread = threading.Thread(target=health_server.serve_forever)
-          health_thread.daemon = True
-          health_thread.start()
-          print(f"Health API server started on port {health_port}")
+          # Define Prometheus metrics
+          processed_counter = Counter('data_agent_processed_total', 'Total number of data points processed', ['source'])
+          reconciliation_counter = Counter('data_agent_reconciliation_total', 'Total number of reconciliations performed', ['status'])
+          health_gauge = Gauge('data_agent_health', 'Health status of the data agent')
+          backfill_counter = Counter('data_agent_backfill_processed_total', 'Total number of data points processed in backfill')
+          frontfill_counter = Counter('data_agent_frontfill_processed_total', 'Total number of data points processed in frontfill')
+          error_rate = Gauge('data_agent_error_rate', 'Error rate of data processing')
+          api_latency = Gauge('data_agent_api_latency_ms', 'API latency in milliseconds', ['api'])
           
-          # Start metrics server
-          metrics_port = int(os.environ.get('PROMETHEUS_PORT', '8000'))
-          metrics_server = socketserver.TCPServer(('', metrics_port), MetricsHandler)
-          metrics_thread = threading.Thread(target=metrics_server.serve_forever)
-          metrics_thread.daemon = True
-          metrics_thread.start()
-          print(f"Metrics server started on port {metrics_port}")
+          # Set initial values
+          health_gauge.set(1)
           
-          # Main loop - simulate data agent work
-          try:
-              print("Data Agent running... Press Ctrl+C to stop")
-              counter = 0
+          @app.get('/health')
+          async def health():
+              return {
+                  "status": "healthy",
+                  "version": "1.0.0",
+                  "uptime": time.time() - start_time,
+                  "components": {
+                      "database": "connected",
+                      "api_services": "available",
+                      "monitoring": "active"
+                  }
+              }
+          
+          @app.get('/metrics')
+          async def metrics():
+              return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+          
+          # Background task to simulate data processing
+          def background_task():
               while True:
-                  counter += 1
-                  if counter % 10 == 0:
-                      print(f"Data Agent heartbeat: processed {counter} data points")
+                  # Simulate data processing
+                  processed_counter.labels(source='polygon').inc(random.randint(1, 5))
+                  processed_counter.labels(source='tiingo').inc(random.randint(1, 3))
+                  
+                  # Simulate reconciliation
+                  if random.random() > 0.05:  # 95% success rate
+                      reconciliation_counter.labels(status='success').inc()
+                  else:
+                      reconciliation_counter.labels(status='error').inc()
+                  
+                  # Simulate backfill and frontfill
+                  if random.random() > 0.3:  # 70% backfill, 30% frontfill
+                      backfill_counter.inc()
+                  else:
+                      frontfill_counter.inc()
+                  
+                  # Update error rate and API latency
+                  error_rate.set(random.uniform(0.01, 0.05))
+                  api_latency.labels(api='polygon').set(random.uniform(40, 160))
+                  api_latency.labels(api='tiingo').set(random.uniform(60, 240))
+                  
                   time.sleep(1)
-          except KeyboardInterrupt:
-              print("Shutting down...")
-              health_server.shutdown()
-              metrics_server.shutdown()
+          
+          # Start background task
+          bg_thread = threading.Thread(target=background_task)
+          bg_thread.daemon = True
+          bg_thread.start()
+          
+          if __name__ == "__main__":
+              uvicorn.run(app, host="0.0.0.0", port=8080)
           EOF
           
-          python /app/health_server.py
+          mkdir -p /app
+          cd /app
+          python -m uvicorn data_agent:app --host 0.0.0.0 --port 8080
         ports:
         - containerPort: 8000
           name: metrics
