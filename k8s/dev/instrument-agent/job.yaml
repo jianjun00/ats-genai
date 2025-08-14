@@ -5,6 +5,7 @@ metadata:
   namespace: ats-dev
 spec:
   ttlSecondsAfterFinished: 86400  # 24 hours
+  activeDeadlineSeconds: 7200  # 2 hours timeout for the entire backfill job
   template:
     spec:
       containers:
@@ -36,3 +37,4 @@ spec:
         persistentVolumeClaim:
           claimName: instrument-agent-reports
       restartPolicy: OnFailure
+      terminationGracePeriodSeconds: 60  # 60 seconds to gracefully terminate

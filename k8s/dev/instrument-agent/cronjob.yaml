@@ -8,8 +8,10 @@ spec:
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 600  # 10 minutes deadline to start the job
   jobTemplate:
     spec:
+      activeDeadlineSeconds: 3600  # 1 hour timeout for the entire job
       template:
         spec:
           containers:
@@ -41,3 +43,4 @@ spec:
             persistentVolumeClaim:
               claimName: instrument-agent-reports
           restartPolicy: OnFailure
+          terminationGracePeriodSeconds: 30  # 30 seconds to gracefully terminate
