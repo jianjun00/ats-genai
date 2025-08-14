@@ -1,0 +1,4 @@
+asyncpg==0.27.0
+pytz==2023.3
+ib-insync==0.9.85
+python-dotenv==1.0.0
