@@ -1,0 +1,151 @@
+# WSL Kubernetes Autostart Setup - Deployment Context
+
+## Overview
+This document provides a comprehensive overview of the WSL Kubernetes autostart setup implemented for the ATS GenAI project. The setup automates the startup of a KinD Kubernetes cluster within WSL on Windows, ensuring the cluster and data agent services deploy correctly after reboot.
+
+## System Architecture
+
+### Components
+1. **KinD Kubernetes Cluster**
+   - Local development cluster running in Docker within WSL
+   - Configured with custom resource allocations and networking
+   - Automatically starts after Windows reboot
+
+2. **Data Agent**
+   - Deployed in the `market-data` namespace
+   - Exposes health endpoint on port 8080
+   - Exposes metrics endpoint on port 8080
+   - Uses Kubernetes secrets for API keys and credentials
+
+3. **Grafana**
+   - Deployed in the `market-data` namespace
+   - Accessible via ingress at `/grafana`
+   - Used for visualization of metrics and monitoring
+
+4. **NGINX Ingress Controller**
+   - Provides external access to services
+   - Configured with path-based routing
+   - Handles traffic for data agent, Grafana, and metrics endpoints
+
+### Startup Flow
+1. Windows starts WSL via batch or PowerShell script
+2. WSL systemd service starts Kubernetes
+3. KinD cluster is created or started
+4. NGINX ingress controller is deployed
+5. Data agent and Grafana are deployed
+6. Services and ingress routes are configured
+
+## Key Files and Their Purposes
+
+### Kubernetes Configuration
+- `k8s/data-agent/data-agent-deployment.yaml`: Data agent deployment manifest
+- `k8s/data-agent/data-agent-secrets.yaml`: Template for Kubernetes secrets
+- `k8s/data-agent/SECRETS-MANAGEMENT.md`: Documentation for secrets management
+- `scripts/k8s-config.yaml`: KinD cluster configuration
+- `scripts/k8s-services.yaml`: Services and ingress configuration
+
+### Startup Scripts
+- `scripts/start-kubernetes.sh`: Main script for starting Kubernetes and deploying components
+- `scripts/stop-kubernetes.sh`: Script for gracefully stopping Kubernetes
+- `scripts/wsl-kubernetes.service`: Systemd service for autostarting Kubernetes
+- `scripts/update-secrets.sh`: Script for securely updating credentials
+
+### Windows Integration
+- `scripts/start-wsl-kubernetes.bat`: Windows batch script for starting WSL and Kubernetes
+- `scripts/start-wsl-kubernetes.ps1`: PowerShell script with advanced features
+- `scripts/WSL-KUBERNETES-SETUP.md`: Documentation for Windows setup
+
+## Deployment Instructions
+
+### Initial Setup
+1. Install WSL and Docker on Windows
+2. Clone the repository to WSL
+3. Install the systemd service:
+   ```bash
+   sudo cp scripts/wsl-kubernetes.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable wsl-kubernetes.service
+   ```
+4. Update secrets with real credentials:
+   ```bash
+   bash scripts/update-secrets.sh
+   ```
+
+### Windows Integration
+1. Copy Windows scripts to a convenient location
+2. Create a shortcut to the PowerShell script in the Windows startup folder
+3. Configure Windows Task Scheduler to run the script at startup (optional)
+
+### Manual Start/Stop
+- Start: `bash scripts/start-kubernetes.sh`
+- Stop: `bash scripts/stop-kubernetes.sh`
+
+## Endpoints and Access
+
+### Data Agent
+- Health: `http://localhost/data-agent/health`
+- API: `http://localhost/data-agent/api`
+- Metrics: `http://localhost/metrics`
+
+### Grafana
+- Dashboard: `http://localhost/grafana`
+- Default credentials: admin/admin
+
+## Troubleshooting
+
+### Common Issues
+1. **Cluster fails to start**
+   - Check Docker service is running
+   - Verify port 6443 is available
+   - Check logs: `cat /home/jianjun/ats-genai/logs/kubernetes-startup.log`
+
+2. **Services not accessible**
+   - Verify ingress controller is running: `kubectl get pods -n ingress-nginx`
+   - Check ingress configuration: `kubectl get ingress -n market-data`
+   - Verify service endpoints: `kubectl get endpoints -n market-data`
+
+3. **Permission issues**
+   - Ensure proper permissions for log directories
+   - Run scripts with appropriate privileges
+
+### Logs and Monitoring
+- Kubernetes startup: `/home/jianjun/ats-genai/logs/kubernetes-startup.log`
+- Kubernetes shutdown: `/home/jianjun/ats-genai/logs/kubernetes-shutdown.log`
+- Data agent logs: `kubectl logs -n market-data deployment/data-agent`
+- Grafana logs: `kubectl logs -n market-data deployment/grafana`
+
+## Security Considerations
+
+### Credentials Management
+- API keys and credentials stored as Kubernetes secrets
+- Secret template provided, but real values must be added
+- Update script available for secure credential management
+- Restricted file permissions for sensitive files
+
+### Network Security
+- Services only exposed on localhost
+- No external access by default
+- Ingress controller handles all routing
+
+## Maintenance and Updates
+
+### Updating Components
+- Data agent: Update the deployment YAML and apply changes
+- Grafana: Update the deployment YAML and apply changes
+- KinD: Update the cluster configuration in `k8s-config.yaml`
+
+### Backup and Recovery
+- Export Kubernetes resources before major changes
+- Back up secret values securely
+- Document any custom configurations
+
+## Future Improvements
+1. Implement monitoring for the autostart process
+2. Add alerting for cluster or service failures
+3. Enhance metrics collection and visualization
+4. Improve log rotation and management
+5. Add support for multiple environments (dev, test, prod)
+
+## Contributors
+- Project implemented by the ATS GenAI team
+- Last updated: August 13, 2025
