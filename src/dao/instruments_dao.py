@@ -7,6 +7,16 @@ class InstrumentsDAO:
         self.env = env
         self.table_name = self.env.get_table_name('instruments')
         self.db_url = self.env.get_database_url()
+        
+    async def count_instruments(self) -> int:
+        """Count the total number of instruments."""
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                row = await conn.fetchrow(f"SELECT COUNT(*) as count FROM {self.table_name}")
+                return row['count'] if row else 0
+        finally:
+            await pool.close()
 
     async def create_instrument(self, symbol: str, name: str = None, exchange: str = None, type_: str = None, currency: str = None, list_date=None, delist_date=None) -> int:
         pool = await asyncpg.create_pool(self.db_url)

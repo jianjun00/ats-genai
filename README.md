@@ -32,9 +32,10 @@ src/
   main.py            # FastAPI app entrypoint
 ```
 
-## Environment Variables
-- Copy `.env.example` to `.env` and fill in your API keys and DB URL.
+## Environment Variables and Secret Management
+- Environment-specific configuration files (`.env.dev`, `.env.test`, `.env.prod`) are used as the source of truth for secrets.
 - All secrets/keys are loaded via environment variables for security.
+- See [Secret Management Documentation](./k8s/SECRET_MANAGEMENT.md) for details on the automated secret creation process.
 
 ## Automated Setup (Recommended)
 

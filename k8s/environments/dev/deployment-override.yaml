@@ -13,9 +13,9 @@ spec:
         # Use our simple FastAPI app for testing
         command: ["uvicorn", "src.simple_main:app", "--host", "0.0.0.0", "--port", "8080"]
         args: []
-        # Use local image
-        image: ats-genai:dev-latest
-        imagePullPolicy: Never  # Use local image
+        # Use Docker Hub image
+        image: jianjun00/ats-genai:dev-latest
+        imagePullPolicy: Always  # Pull from Docker Hub
         ports:
         - containerPort: 8080
           name: http

@@ -3,6 +3,11 @@ kind: Application
 metadata:
   name: data-agent
   namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app: data-agent
+    environment: dev
 spec:
   project: default
   source:
@@ -14,7 +19,16 @@ spec:
     namespace: market-data
   syncPolicy:
     automated:
-      prune: true
-      selfHeal: true
+      prune: true      # Automatically delete resources that are no longer defined in Git
+      selfHeal: true   # Automatically sync resources when they drift from Git definition
+      allowEmpty: false # Don't allow sync to an empty directory
     syncOptions:
     - CreateNamespace=true
+    - PrunePropagationPolicy=foreground
+    - PruneLast=true
+    retry:
+      limit: 5         # Number of retries
+      backoff:
+        duration: 5s   # Initial backoff duration
+        factor: 2      # Factor to multiply duration for each retry
+        maxDuration: 3m # Maximum backoff duration

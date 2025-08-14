@@ -56,7 +56,8 @@ coverage.xml
 .venv/
 venv/
 .atsenv/
-.env
+# .env files are now allowed to be committed
+# .env
 .env.local
 
 # IDEs and editors

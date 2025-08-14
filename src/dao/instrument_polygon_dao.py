@@ -6,6 +6,34 @@ class InstrumentPolygonDAO:
         self.env = env
         self.table_name = self.env.get_table_name('instrument_polygon')
         self.db_url = self.env.get_database_url()
+        
+    async def count_instruments(self) -> int:
+        """Count the total number of instruments in the polygon table."""
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                row = await conn.fetchrow(f"SELECT COUNT(*) as count FROM {self.table_name}")
+                return row['count'] if row else 0
+        finally:
+            import asyncio
+            try:
+                await asyncio.wait_for(pool.close(), timeout=2.0)
+            except asyncio.TimeoutError:
+                print("[WARN] pool.close() timed out after 2 seconds")
+                
+    async def get_latest_update_timestamp(self):
+        """Get the timestamp of the most recently updated instrument."""
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                row = await conn.fetchrow(f"SELECT MAX(updated_at) as latest FROM {self.table_name}")
+                return row['latest'] if row else None
+        finally:
+            import asyncio
+            try:
+                await asyncio.wait_for(pool.close(), timeout=2.0)
+            except asyncio.TimeoutError:
+                print("[WARN] pool.close() timed out after 2 seconds")
 
     async def insert_instrument(self, symbol, name, exchange, type_, currency, figi, isin, cusip, composite_figi, active, list_date, delist_date, raw):
         pool = await asyncpg.create_pool(self.db_url)

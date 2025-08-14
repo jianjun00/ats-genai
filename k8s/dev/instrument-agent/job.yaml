@@ -8,9 +8,11 @@ spec:
   activeDeadlineSeconds: 7200  # 2 hours timeout for the entire backfill job
   template:
     spec:
+      imagePullSecrets:
+      - name: registry-credentials
       containers:
       - name: instrument-agent-backfill
-        image: ats-registry.dev/instrument-data-agent:dev
+        image: gcr.io/ats-genai/instrument-data-agent:dev
         command: ["python", "-m", "src.market_data.agent.instrument_data_agent", "backfill", "--environment", "dev"]
         envFrom:
         - configMapRef:

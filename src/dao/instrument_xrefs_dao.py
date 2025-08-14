@@ -5,6 +5,16 @@ from typing import Optional, List, Dict, Any
 from .vendors_dao import VendorsDAO
 
 class InstrumentXrefsDAO:
+    async def count_xrefs(self) -> int:
+        """Count the total number of instrument xrefs."""
+        pool = await asyncpg.create_pool(self.db_url)
+        try:
+            async with pool.acquire() as conn:
+                row = await conn.fetchrow(f"SELECT COUNT(*) as count FROM {self.table_name}")
+                return row['count'] if row else 0
+        finally:
+            await pool.close()
+            
     async def get_symbol_by_instrument_id(self, instrument_id: int) -> Optional[str]:
         """
         Lookup symbol from instrument_xrefs using instrument_id, without requiring a specific vendor.

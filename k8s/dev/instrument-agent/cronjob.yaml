@@ -14,9 +14,11 @@ spec:
       activeDeadlineSeconds: 3600  # 1 hour timeout for the entire job
       template:
         spec:
+          imagePullSecrets:
+          - name: registry-credentials
           containers:
           - name: instrument-agent
-            image: ats-registry.dev/instrument-data-agent:dev
+            image: gcr.io/ats-genai/instrument-data-agent:dev
             command: ["python", "-m", "src.market_data.agent.instrument_data_agent", "daily_update", "--environment", "dev"]
             envFrom:
             - configMapRef:

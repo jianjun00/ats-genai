@@ -12,7 +12,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/jianjun00/ats-genai.git
-    targetRevision: main
+    targetRevision: dev
     path: k8s/dev/instrument-agent
     # Use kustomize for deployment
     kustomize:
