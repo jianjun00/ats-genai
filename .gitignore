@@ -132,3 +132,6 @@ temp/
 # Ignore migration backups
 src/db/migrations/backups/
 
+# Ignore tar files
+*.tar
+
