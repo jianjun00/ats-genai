@@ -145,32 +145,38 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
         raise
     total = 0
     if ticker:
-        symbol = ticker
-        logger.info(f"Fetching single ticker: {ticker}")
-        detail_url = f"https://api.polygon.io/v3/reference/tickers/{symbol}?apiKey={POLYGON_API_KEY}"
-        # Log URL with masked API key for security
-        logger.debug(f"Fetching https://api.polygon.io/v3/reference/tickers/{symbol}?apiKey={'*****' if POLYGON_API_KEY else 'None'}")
-        for attempt in range(3):
-            try:
-                logger.debug(f"Fetching ticker details with API key: {'*****' if POLYGON_API_KEY else 'None'}")
-                detail_resp = requests.get(detail_url)
-                logger.debug(f"Response status code: {detail_resp.status_code}")
-                logger.debug(f"Response text: {detail_resp.text}")
-                if detail_resp.status_code != 200:
-                    logger.error(f"Failed to fetch detail for {symbol}: {detail_resp.status_code} {detail_resp.text}")
+        # Handle comma-separated ticker symbols
+        tickers = [t.strip() for t in ticker.split(',')]
+        logger.info(f"Processing {len(tickers)} tickers: {tickers}")
+        
+        for symbol in tickers:
+            logger.info(f"Fetching ticker: {symbol}")
+            detail_url = f"https://api.polygon.io/v3/reference/tickers/{symbol}?apiKey={POLYGON_API_KEY}"
+            # Log URL with masked API key for security
+            logger.debug(f"Fetching https://api.polygon.io/v3/reference/tickers/{symbol}?apiKey={'*****' if POLYGON_API_KEY else 'None'}")
+            for attempt in range(3):
+                try:
+                    logger.debug(f"Fetching ticker details with API key: {'*****' if POLYGON_API_KEY else 'None'}")
+                    detail_resp = requests.get(detail_url)
+                    logger.debug(f"Response status code: {detail_resp.status_code}")
+                    logger.debug(f"Response text: {detail_resp.text}")
+                    if detail_resp.status_code != 200:
+                        logger.error(f"Failed to fetch detail for {symbol}: {detail_resp.status_code} {detail_resp.text}")
+                        break
+                    detail = detail_resp.json().get('results', {})
+                    logger.debug(f"Detail parsed: {detail}")
+                    logger.info(f"Ticker: {symbol}, list_date: {detail.get('list_date')}, delisted_utc: {detail.get('delisted_utc')}")
+                    logger.debug(f"Calling upsert_instrument(pool, detail)")
+                    await upsert_instrument(pool, detail)
+                    total += 1
                     break
-                detail = detail_resp.json().get('results', {})
-                logger.debug(f"Detail parsed: {detail}")
-                logger.info(f"Ticker: {symbol}, list_date: {detail.get('list_date')}, delisted_utc: {detail.get('delisted_utc')}")
-                logger.debug(f"Calling upsert_instrument(pool, detail)")
-                await upsert_instrument(pool, detail)
-                total += 1
-                break
-            except ConnectionError as e:
-                logger.error(f"Connection error for {symbol}: {e}, retrying...")
-                time.sleep(2 ** attempt)  # Exponential backoff
-            except Exception as e:
-                logger.error(f"Exception in fetch_and_store_instruments for {symbol}: {e}")
+                except ConnectionError as e:
+                    logger.error(f"Connection error for {symbol}: {e}, retrying...")
+                    time.sleep(2 ** attempt)  # Exponential backoff
+                except Exception as e:
+                    logger.error(f"Exception in fetch_and_store_instruments for {symbol}: {e}")
+            # Add a small delay between API calls to avoid rate limiting
+            time.sleep(0.5)
         logger.info(f"Total tickers processed: {total}")
         await pool.close()
         return

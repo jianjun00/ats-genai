@@ -111,11 +111,12 @@ async def test_populate_instrument_polygon():
         # Replace the function temporarily
         module.fetch_and_store_instruments = patched_function
         
-        # Test with a specific ticker
-        ticker = "AAPL"
-        logger.info(f"Testing fetch_and_store_instruments with ticker: {ticker}")
-        # Call our patched function
-        await patched_function(ticker=ticker)
+        # Test with multiple tickers
+        tickers = ["MSFT", "TSLA", "AMZN", "GOOGL"]
+        for ticker in tickers:
+            logger.info(f"Testing fetch_and_store_instruments with ticker: {ticker}")
+            # Call our patched function
+            await patched_function(ticker=ticker)
         
         # Restore the original env if it existed
         if 'original_env' in locals():

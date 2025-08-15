@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: test-populate-instrument-polygon
+  name: test-populate-instrument-polygon-multi
   namespace: ats-dev
 spec:
   ttlSecondsAfterFinished: 86400  # Keep job for 24 hours after completion
@@ -15,7 +15,7 @@ spec:
         - "-m"
         - "src.secmaster.populate_instrument_polygon"
         - "--ticker"
-        - "AAPL"
+        - "NFLX,GOOG,AVGO,ADBE,COST"
         - "--environment"
         - "dev"
         - "--gin_config"
