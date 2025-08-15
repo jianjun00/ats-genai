@@ -1,0 +1,76 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: instrument-agent-job
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      containers:
+      - name: instrument-agent
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "Installing required packages..."
+          pip install asyncpg psycopg2-binary
+          
+          echo "Checking database connection..."
+          python3 -c "
+          import asyncio
+          import asyncpg
+          
+          async def check_db():
+              try:
+                  conn = await asyncpg.connect(
+                      host='postgres',
+                      port=5432,
+                      user='postgres',
+                      password='postgres',
+                      database='ats_dev'
+                  )
+                  
+                  # Check if instrument tables exist
+                  tables = await conn.fetch(
+                      \"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE 'dev\\_%' ORDER BY table_name\"
+                  )
+                  
+                  print('Found tables:')
+                  for table in tables:
+                      print(f\"- {table['table_name']}\")
+                      
+                      # Count rows in each table
+                      count = await conn.fetchval(f\"SELECT COUNT(*) FROM {table['table_name']}\")
+                      print(f\"  Count: {count} rows\")
+                  
+                  # Insert a test instrument
+                  if 'dev_instruments' in [t['table_name'] for t in tables]:
+                      print('\\nInserting test instrument...')
+                      instrument_id = await conn.fetchval(
+                          \"INSERT INTO dev_instruments (symbol, name, exchange, is_active) VALUES ('AAPL', 'Apple Inc.', 'NASDAQ', true) RETURNING id\"
+                      )
+                      print(f\"Inserted instrument with ID: {instrument_id}\")
+                      
+                      # Insert instrument xref
+                      if 'dev_vendors' in [t['table_name'] for t in tables] and 'dev_instrument_xrefs' in [t['table_name'] for t in tables]:
+                          vendor_id = await conn.fetchval(\"SELECT id FROM dev_vendors WHERE name = 'polygon'\")
+                          if vendor_id:
+                              xref_id = await conn.fetchval(
+                                  \"INSERT INTO dev_instrument_xrefs (instrument_id, vendor_id, vendor_symbol) VALUES ($1, $2, 'AAPL') RETURNING id\",
+                                  instrument_id, vendor_id
+                              )
+                              print(f\"Inserted instrument xref with ID: {xref_id}\")
+                  
+                  await conn.close()
+                  print('\\nDatabase check completed successfully!')
+              except Exception as e:
+                  print(f\"Error connecting to database: {e}\")
+          
+          asyncio.run(check_db())
+          "
+          
+          echo "Instrument agent job completed!"
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+      restartPolicy: OnFailure
