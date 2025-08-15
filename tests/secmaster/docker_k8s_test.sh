@@ -27,7 +27,7 @@ docker run --rm \
     -e PYTHONPATH=/app/src \
     -e LOG_LEVEL=INFO \
     $IMAGE \
-    python -m src.secmaster.populate_instrument_polygon --environment test --ticker AAPL --help
+    python -m src.secmaster.populate_instrument_polygon --environment test --gin_config /app/config/app_docker.gin --ticker AAPL --help
 
 # Capture exit code
 TEST_EXIT_CODE=$?
@@ -45,7 +45,7 @@ docker run --rm \
     -e PYTHONPATH=/app/src \
     -e LOG_LEVEL=INFO \
     $IMAGE \
-    python -m src.secmaster.populate_instrument_polygon --environment test --help
+    python -m src.secmaster.populate_instrument_polygon --environment test --gin_config /app/config/app_docker.gin --help
 
 # Capture exit code
 BACKFILL_EXIT_CODE=$?
@@ -59,10 +59,10 @@ fi
 
 echo -e "${GREEN}✅ All tests passed! Safe to deploy to Kubernetes with the following configurations:${NC}"
 echo -e "${YELLOW}1. Single ticker job:${NC}"
-echo "command: [\"python\", \"-m\", \"src.secmaster.populate_instrument_polygon\", \"--environment\", \"dev\", \"--ticker\", \"AAPL\"]"
+echo "command: [\"python\", \"-m\", \"src.secmaster.populate_instrument_polygon\", \"--environment\", \"dev\", \"--gin_config\", \"/app/config/app_docker.gin\", \"--ticker\", \"AAPL\"]"
 echo -e "${YELLOW}2. Backfill job:${NC}"
-echo "command: [\"python\", \"-m\", \"src.secmaster.populate_instrument_polygon\", \"--environment\", \"dev\"]"
-echo -e "${YELLOW}Note: Using 'test' environment for Docker tests since 'dev' is not supported in the container.${NC}"
+echo "command: [\"python\", \"-m\", \"src.secmaster.populate_instrument_polygon\", \"--environment\", \"dev\", \"--gin_config\", \"/app/config/app_docker.gin\"]"
+echo -e "${YELLOW}Note: Using 'test' environment for Docker tests since 'dev' is not supported in the current Docker image.${NC}"
 echo -e "${YELLOW}      The Kubernetes YAML files are correctly configured with 'dev' environment.${NC}"
 echo -e "${YELLOW}Note: Only testing with --help flag since database connection is not available in this test environment.${NC}"
 

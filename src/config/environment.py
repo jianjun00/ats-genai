@@ -24,6 +24,7 @@ import logging
 class EnvironmentType(Enum):
     """Supported environment types."""
     TEST = "test"
+    DEV = "dev"
     INTEGRATION = "intg"
     PRODUCTION = "prod"
 
@@ -92,8 +93,15 @@ class Environment:
                 self.env_type = EnvironmentType.INTEGRATION
             elif "prod" in gin_cfg:
                 self.env_type = EnvironmentType.PRODUCTION
+            elif "dev" in gin_cfg:
+                self.env_type = EnvironmentType.DEV
             else:
-                self.env_type = EnvironmentType.TEST
+                # Check ENVIRONMENT environment variable
+                env_str = os.getenv("ENVIRONMENT", "test").lower()
+                try:
+                    self.env_type = EnvironmentType(env_str)
+                except Exception:
+                    self.env_type = EnvironmentType.TEST
 
         # --- BEGIN PATCH: allow custom gin config path ---
         import gin
@@ -106,6 +114,8 @@ class Environment:
                 env_type_str = str(env_type)
             if env_type_str in ("test", "TEST"):
                 config_path = "config/app.gin"
+            elif env_type_str in ("dev", "DEV"):
+                config_path = "config/app_docker.gin"
             elif env_type_str in ("intg", "integration", "INTEGRATION"):
                 config_path = "config/app_intg.gin"
             elif env_type_str in ("prod", "production", "PRODUCTION"):
@@ -143,6 +153,20 @@ class Environment:
         self.db_user = os.getenv("DB_USER")
         self.db_password = os.getenv("DB_PASSWORD")
         self.db_name = os.getenv("DB_NAME")
+        
+        # Set database host based on environment type
+        if self.env_type == EnvironmentType.DEV:
+            # In dev environment (Kubernetes), use timescaledb service
+            if not self.db_host:
+                self.db_host = 'timescaledb.ats-dev.svc.cluster.local'
+                print(f"[ENV DEBUG] Setting database host to {self.db_host} for DEV environment")
+        elif self.env_type == EnvironmentType.INTEGRATION:
+            # In integration environment, use timescaledb service in intg namespace
+            if not self.db_host:
+                self.db_host = 'timescaledb.ats-intg.svc.cluster.local'
+                print(f"[ENV DEBUG] Setting database host to {self.db_host} for INTEGRATION environment")
+        
+        print(f"[ENV DEBUG] Using database credentials from environment variables: host={self.db_host}, port={self.db_port}, user={self.db_user}, password={'*****' if self.db_password else None}, database={self.db_name}")
         self.db_url = db_url
         print(f"[GIN DEBUG] Environment.__init__ received db_url: {db_url}")
         if db_url:

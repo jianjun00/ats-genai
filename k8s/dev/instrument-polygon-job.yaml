@@ -17,12 +17,30 @@ spec:
       containers:
       - name: instrument-polygon-updater
         image: dragonflyer762/ats-genai:dev-latest
-        command: ["python", "-m", "src.secmaster.populate_instrument_polygon", "--environment", "dev", "--ticker", "AAPL"]
+        imagePullPolicy: Always
+        command: ["python", "-m", "src.secmaster.populate_instrument_polygon", "--environment", "dev", "--gin_config", "/app/config/app_docker.gin", "--ticker", "AAPL"]
         env:
         - name: PYTHONPATH
           value: "/app/src"
         - name: LOG_LEVEL
           value: "INFO"
+        - name: ENVIRONMENT
+          value: "dev"
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_PASSWORD
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_NAME
         resources:
           requests:
             memory: "256Mi"

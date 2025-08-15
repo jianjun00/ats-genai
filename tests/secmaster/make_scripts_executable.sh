@@ -6,6 +6,9 @@ chmod +x /home/jianjun/ats-genai/tests/secmaster/run_polygon_test.sh
 chmod +x /home/jianjun/ats-genai/tests/secmaster/test_k8s_environment.sh
 chmod +x /home/jianjun/ats-genai/tests/secmaster/docker_k8s_test.sh
 chmod +x /home/jianjun/ats-genai/tests/secmaster/verify_k8s_job.sh
+chmod +x /home/jianjun/ats-genai/tests/secmaster/update_docker_image.sh
+chmod +x /home/jianjun/ats-genai/tests/secmaster/check_k8s_jobs.sh
+chmod +x /home/jianjun/ats-genai/tests/secmaster/recreate_k8s_jobs.sh
 
 echo "All test scripts are now executable"
 echo "Run the verification script first:"

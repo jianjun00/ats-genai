@@ -21,6 +21,7 @@ class TestEnvironment:
     def test_environment_type_enum(self):
         """Test EnvironmentType enum values."""
         assert EnvironmentType.TEST.value == "test"
+        assert EnvironmentType.DEV.value == "dev"
         assert EnvironmentType.INTEGRATION.value == "intg"
         assert EnvironmentType.PRODUCTION.value == "prod"
     
@@ -29,6 +30,12 @@ class TestEnvironment:
         """Test environment detection from ENVIRONMENT variable."""
         env = Environment(db_url="postgresql://postgres:password@localhost:5432/test_db_dummy")
         assert env.env_type == EnvironmentType.TEST
+        
+    @patch.dict(os.environ, {"ENVIRONMENT": "dev"})
+    def test_detect_dev_environment_from_env_var(self):
+        """Test dev environment detection from ENVIRONMENT variable."""
+        env = Environment(db_url="postgresql://postgres:password@localhost:5432/test_db_dummy")
+        assert env.env_type == EnvironmentType.DEV
     
     @pytest.mark.skip(reason="Skipped: Gin cannot bind multiple Database.database values for different env types in one run. Needs per-env Gin config or test refactor.")
     @patch.dict(os.environ, {"ENVIRONMENT": "intg"})

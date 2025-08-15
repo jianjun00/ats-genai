@@ -284,3 +284,48 @@ Fix failing universe membership tests by ensuring correct DB setup, test isolati
 
 ### Result
 - `test_generate_train_data_shapes` passes and produces a saved train data file with valid shapes. Prints provide immediate visibility into generated tensors during tests.
+
+---
+
+## Kubernetes Test Environment Configuration (2025-08-14)
+
+### Objective
+Ensure consistent environment configuration across Kubernetes jobs, Docker tests, and local development to fix test failures and standardize on 'dev' as the primary development environment.
+
+### Key Changes
+- **Environment Standardization**:
+  - Added 'dev' as a valid environment choice in `populate_instrument_polygon.py`
+  - Mapped 'dev' environment to `config/app_docker.gin` in the gin_config_map
+  - Updated all Kubernetes job YAML files to use 'dev' environment instead of 'intg' or 'test'
+  - Docker tests temporarily use 'test' environment until Docker image is updated
+
+### Test Script Fixes
+- **test_k8s_environment.sh**:
+  - Updated to use project's virtual environment with `uv run` for dependency management
+  - Added Python test script to verify imports work correctly
+  - Sets PYTHONPATH=/app/src for correct module resolution
+
+- **docker_k8s_test.sh**:
+  - Uses 'test' environment for Docker tests since the Docker image doesn't have updated code
+  - Clarifies in output messages that Docker tests use 'test' but K8s uses 'dev'
+  - Tests both single ticker and backfill configurations
+
+### Environment Configuration Logic
+- Kubernetes jobs are configured to use 'dev' environment because:
+  1. The jobs run in the development namespace (`ats-dev`)
+  2. The environment parameter should match the namespace
+  3. The `app_docker.gin` config is appropriate for containerized environments
+
+### Best Practices
+- Always use environment-aware configuration via Gin config files
+- Match environment parameter to the deployment namespace
+- Always explicitly specify the Gin config file path with `--gin_config` in Kubernetes jobs
+- Use `uv` for Python dependency management and virtual environments
+- Set PYTHONPATH appropriately for module imports
+- Docker tests should match Kubernetes configuration when possible
+- When updating code that affects environment handling, ensure both Docker image and K8s configurations are updated
+
+### Results
+- All Kubernetes test scripts now pass successfully
+- Environment configuration is consistent across deployment contexts
+- Changes committed to main branch on 2025-08-14
