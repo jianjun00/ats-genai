@@ -21,8 +21,8 @@ spec:
     spec:
       containers:
       - name: ats-api
-        image: ats-genai:dev-latest
-        imagePullPolicy: IfNotPresent
+        image: dragonflyer762/ats-genai:dev-latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080
           name: http
