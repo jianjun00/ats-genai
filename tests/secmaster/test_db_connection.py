@@ -2,44 +2,65 @@
 import os
 import sys
 import asyncio
-import asyncpg
+import logging
 
-async def test_connection():
-    """Test database connection with different parameters."""
-    print("Testing database connection...")
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("test_db_connection")
+
+async def test_centralized_connection():
+    """Test database connection using the centralized Database class."""
+    logger.info("Testing database connection using centralized Database class...")
     
-    # Set environment variables
-    os.environ["ENVIRONMENT"] = "dev"
+    # Set database credentials from environment variables
+    # For local testing
+    os.environ["DB_USER"] = "postgres"
+    os.environ["DB_PASSWORD"] = "password"  # Using password from .env file
+    os.environ["DB_PORT"] = "5432"
     
-    # Database connection parameters
-    host = "timescaledb"
-    port = 5432
-    user = "postgres"
-    password = "postgres"
-    database = "trading_db"
+    # Test with localhost first
+    os.environ["DB_HOST"] = "localhost"
+    os.environ["DB_NAME"] = "trading_db"
     
-    # Try different connection strings
-    connection_strings = [
-        f"postgresql://{user}:{password}@{host}:{port}/{database}",
-        f"postgresql://{user}:{password}@{host}:{port}/{database}?sslmode=disable",
-        f"postgresql://{user}:{password}@{host}:{port}/{database}?sslmode=allow",
-        f"postgresql://{user}:{password}@{host}.ats-dev.svc.cluster.local:{port}/{database}?sslmode=disable",
-    ]
+    # Import after setting environment variables to ensure they're picked up
+    from config.database import Database
+    from config.environment import Environment, EnvironmentType
     
-    for i, conn_str in enumerate(connection_strings):
-        print(f"\nAttempt {i+1}: Trying connection with: {conn_str}")
+    # Test only the test environment
+    environments = ["test"]
+    success = False
+    
+    for env_type in environments:
+        logger.info(f"\nTesting with environment: {env_type}")
+        os.environ["ENVIRONMENT"] = env_type
+        
         try:
-            conn = await asyncpg.connect(conn_str)
-            version = await conn.fetchval("SELECT version();")
-            print(f"✅ Connection successful!")
-            print(f"PostgreSQL version: {version}")
-            await conn.close()
-            return True
+            # Create a connection pool using the centralized logic
+            logger.info(f"Creating connection pool for {env_type} environment")
+            pool = await Database.create_connection_pool(max_retries=2, initial_delay=1.0, timeout=5.0)
+            
+            # Test the connection by executing a simple query
+            async with pool.acquire() as conn:
+                version = await conn.fetchval("SELECT version();")
+                logger.info(f"✅ Connection successful for {env_type}!")
+                logger.info(f"PostgreSQL version: {version}")
+                
+                # Get database name
+                db_name = await conn.fetchval("SELECT current_database();")
+                logger.info(f"Connected to database: {db_name}")
+                
+                # Get connection info
+                conn_info = await conn.fetchrow("SELECT inet_server_addr() as host, inet_server_port() as port;")
+                logger.info(f"Connected to server: {conn_info['host']}:{conn_info['port']}")
+            
+            await pool.close()
+            success = True
+            break
         except Exception as e:
-            print(f"❌ Connection failed: {str(e)}")
+            logger.error(f"❌ Connection failed for {env_type}: {str(e)}")
     
-    return False
+    return success
 
 if __name__ == "__main__":
-    success = asyncio.run(test_connection())
+    success = asyncio.run(test_centralized_connection())
     sys.exit(0 if success else 1)
