@@ -9,7 +9,7 @@ spec:
     spec:
       containers:
       - name: test-populate-instrument-polygon
-        image: ats-genai:dev-latest  # Use your dev image
+        image: dragonflyer762/ats-genai:dev-latest-multi-ticker  # Updated image with multi-ticker support
         command:
         - "python"
         - "-m"
