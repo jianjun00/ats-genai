@@ -59,11 +59,11 @@ fi
 
 echo -e "${GREEN}✅ All tests passed! Safe to deploy to Kubernetes with the following configurations:${NC}"
 echo -e "${YELLOW}1. Single ticker job:${NC}"
-echo "command: [\"python\", \"-m\", \"src.secmaster.populate_instrument_polygon\", \"--environment\", \"test\", \"--ticker\", \"AAPL\"]"
+echo "command: [\"python\", \"-m\", \"src.secmaster.populate_instrument_polygon\", \"--environment\", \"dev\", \"--ticker\", \"AAPL\"]"
 echo -e "${YELLOW}2. Backfill job:${NC}"
-echo "command: [\"python\", \"-m\", \"src.secmaster.populate_instrument_polygon\", \"--environment\", \"test\"]"
+echo "command: [\"python\", \"-m\", \"src.secmaster.populate_instrument_polygon\", \"--environment\", \"dev\"]"
 echo -e "${YELLOW}Note: Using 'test' environment for Docker tests since 'dev' is not supported in the container.${NC}"
-echo -e "${YELLOW}      The Kubernetes YAML files are still correctly configured with 'dev' environment.${NC}"
+echo -e "${YELLOW}      The Kubernetes YAML files are correctly configured with 'dev' environment.${NC}"
 echo -e "${YELLOW}Note: Only testing with --help flag since database connection is not available in this test environment.${NC}"
 
 exit 0

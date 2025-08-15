@@ -242,7 +242,7 @@ import os
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Populate instrument_polygon from Polygon bulk and detail endpoints.")
     parser.add_argument('--start_ticker', type=str, default='', help='Only update/add instrument_polygon if symbol > start_ticker (lexical order)')
-    parser.add_argument('--environment', type=str, default='intg', choices=['test', 'intg', 'prod'], help='Environment to use (test/intg/prod)')
+    parser.add_argument('--environment', type=str, default='dev', choices=['test', 'intg', 'prod', 'dev'], help='Environment to use (test/intg/prod/dev)')
     parser.add_argument('--ticker', type=str, default=None, help='Populate only this ticker (optional, skips bulk)')
     parser.add_argument('--gin_config', type=str, default=None, help='Path to Gin config file (optional)')
     args = parser.parse_args()
@@ -255,6 +255,7 @@ if __name__ == "__main__":
             'test': 'config/app_test.gin',
             'intg': 'config/app_intg.gin',
             'prod': 'config/app_prod.gin',
+            'dev': 'config/app_docker.gin',
         }
         gin_config_path = gin_config_map.get(args.environment)
     if not os.path.exists(gin_config_path):

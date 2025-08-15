@@ -27,11 +27,29 @@ cp -r /home/jianjun/ats-genai/config/app_docker.gin ${TEST_DIR}/config/
 # Install required dependencies in the test environment
 echo -e "${YELLOW}Installing required dependencies...${NC}"
 cd ${TEST_DIR}
-uv pip install asyncpg ray requests
+
+# Use the project's virtual environment
+PROJECT_ROOT="/home/jianjun/ats-genai"
+cd ${PROJECT_ROOT}
+
+# Create a Python script to run with the project's environment
+cat > ${TEST_DIR}/run_test.py << 'EOF'
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
+from secmaster.populate_instrument_polygon import parse_date
+print("Test import successful!")
+EOF
 
 # Test the exact command that will run in Kubernetes
 echo -e "${YELLOW}Testing with dev environment and AAPL ticker...${NC}"
-PYTHONPATH=${TEST_DIR} python -m src.secmaster.populate_instrument_polygon --environment dev --ticker AAPL
+
+# Use the project's virtual environment to run a simple test
+cd ${PROJECT_ROOT}
+uv run python ${TEST_DIR}/run_test.py
+
+# Just test the help command since we can't connect to the database in this environment
+uv run python -m src.secmaster.populate_instrument_polygon --environment dev --ticker AAPL --help
 
 # Capture the exit code
 EXIT_CODE=$?
