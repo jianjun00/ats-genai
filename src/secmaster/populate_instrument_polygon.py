@@ -203,8 +203,8 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
     if not all_symbols:
         logger.info("No symbols to process.")
         return
-    # Ray parallel processing
-    ray.init(ignore_reinit_error=True)
+    # Ray parallel processing - configured for Kubernetes environment
+    ray.init(ignore_reinit_error=True, num_cpus=1, _system_config={"worker_register_timeout_seconds": 60}, local_mode=True)
     table_name = env.get_table_name('instrument_polygon')
     logger.info(f"Submitting {len(all_symbols)} Ray tasks with API key: {POLYGON_API_KEY is not None}")
     batch_size = 3  # Limit concurrency for DB and rate limits
