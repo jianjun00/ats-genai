@@ -1,0 +1,241 @@
+---
+# Database Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-credentials
+  namespace: ats-dev
+type: Opaque
+stringData:
+  DB_USER: postgres
+  DB_PASSWORD: dev_password
+  DB_NAME: dev_db
+---
+# Database ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: ats-dev
+data:
+  POSTGRES_DB: "dev_db"
+  POSTGRES_USER: "postgres"
+---
+# Database Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: ats-dev
+  labels:
+    app: postgres
+spec:
+  ports:
+  - port: 5432
+    targetPort: 5432
+  selector:
+    app: postgres
+---
+# Database Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: ats-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: timescale/timescaledb:latest-pg14
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5432
+        envFrom:
+        - configMapRef:
+            name: postgres-config
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: DB_PASSWORD
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-data
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+---
+# Persistent Volume Claim for Database
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: ats-dev
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Database Initialization Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-init
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      containers:
+      - name: db-init
+        image: postgres:14
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "Waiting for PostgreSQL to be ready..."
+          until PGPASSWORD=$POSTGRES_PASSWORD psql -h $POSTGRES_HOST -U $POSTGRES_USER -d $POSTGRES_DB -c "SELECT 1" > /dev/null 2>&1; do
+            echo "PostgreSQL is not ready yet. Waiting..."
+            sleep 2
+          done
+          
+          echo "PostgreSQL is ready. Creating schema..."
+          
+          # Create the instruments table
+          PGPASSWORD=$POSTGRES_PASSWORD psql -h $POSTGRES_HOST -U $POSTGRES_USER -d $POSTGRES_DB -c "
+          CREATE TABLE IF NOT EXISTS dev_instruments (
+            id SERIAL PRIMARY KEY,
+            symbol VARCHAR(20) NOT NULL,
+            name VARCHAR(255),
+            exchange VARCHAR(20),
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          );
+          
+          CREATE TABLE IF NOT EXISTS dev_instrument_aliases (
+            id SERIAL PRIMARY KEY,
+            instrument_id INTEGER NOT NULL REFERENCES dev_instruments(id),
+            alias VARCHAR(20) NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            UNIQUE(instrument_id, alias)
+          );
+          
+          CREATE TABLE IF NOT EXISTS dev_instrument_metadata (
+            id SERIAL PRIMARY KEY,
+            instrument_id INTEGER NOT NULL REFERENCES dev_instruments(id),
+            key VARCHAR(50) NOT NULL,
+            value TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            UNIQUE(instrument_id, key)
+          );
+          
+          CREATE TABLE IF NOT EXISTS dev_vendors (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(50) NOT NULL UNIQUE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          );
+          
+          CREATE TABLE IF NOT EXISTS dev_instrument_xrefs (
+            id SERIAL PRIMARY KEY,
+            instrument_id INTEGER NOT NULL REFERENCES dev_instruments(id),
+            vendor_id INTEGER NOT NULL REFERENCES dev_vendors(id),
+            vendor_symbol VARCHAR(20) NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            UNIQUE(vendor_id, vendor_symbol)
+          );
+          
+          -- Insert default vendors
+          INSERT INTO dev_vendors (name) VALUES ('polygon'), ('tiingo')
+          ON CONFLICT (name) DO NOTHING;
+          "
+          
+          echo "Database schema created successfully!"
+        env:
+        - name: POSTGRES_HOST
+          value: "postgres"
+        - name: POSTGRES_DB
+          value: "dev_db"
+        - name: POSTGRES_USER
+          value: "postgres"
+        - name: POSTGRES_PASSWORD
+          value: "dev_password"
+      restartPolicy: OnFailure
+---
+# Database Debug Pod
+apiVersion: v1
+kind: Pod
+metadata:
+  name: db-debug
+  namespace: ats-dev
+spec:
+  containers:
+  - name: db-debug
+    image: dragonflyer762/ats-genai:dev-latest
+    command: ["sleep", "3600"]
+    env:
+    - name: PYTHONPATH
+      value: "/app/src"
+    - name: LOG_LEVEL
+      value: "DEBUG"
+    - name: ENVIRONMENT
+      value: "dev"
+    - name: DB_USER
+      valueFrom:
+        secretKeyRef:
+          name: db-credentials
+          key: DB_USER
+    - name: DB_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: db-credentials
+          key: DB_PASSWORD
+    - name: DB_NAME
+      valueFrom:
+        secretKeyRef:
+          name: db-credentials
+          key: DB_NAME
+  restartPolicy: Never
