@@ -1,0 +1,63 @@
+Scripts Reorganization Plan
+
+1. kubernetes/ - Kubernetes-related scripts
+   - k8s_job_generator.py
+   - run_k8s_job.py
+   - instrument_polygon_job_generator.py
+   - demo_job_generator.py
+   - custom_job_generator.py
+   - setup-cluster.sh
+   - setup_docker_desktop_k8s.sh
+   - setup_kind_k8s.sh
+   - setup_minikube_k8s.sh
+   - setup_minikube_autostart.sh
+   - start-kubernetes.sh
+   - stop-kubernetes.sh
+   - start_minikube_wsl.sh
+   - update_k8s_scripts.py
+   - test_minikube_job.py
+   - k8s-config.yaml
+   - k8s-services.yaml
+   - README_k8s_job_runner.md
+   - README_job_generator.md
+   - WSL-KUBERNETES-SETUP.md
+
+2. database/ - Database management scripts
+   - backup_db.py
+   - db_seed_tsla_membership.py
+   - delete_test_symbols.py
+   - drop_empty_tables.py
+   - inspect_database.py
+   - inspect_existing_db.py
+   - inspect_prices_5037.py
+   - lookup_instrument_id.py
+   - migrate_intg_to_prod.py
+   - migrate_test_intg_only.py
+   - migrate_to_environment_structure.py
+   - verify_db_data.py
+   - verify_db_setup.py
+   - setup_db_env.sh
+   - db_checks/ (directory)
+
+3. flyte/ - Flyte workflow scripts
+   - flyte_db_connection_test.py
+   - flyte_instrument_polygon_workflow.py
+
+4. testing/ - Testing scripts
+   - test_api_connectivity.py
+   - test_populate_instrument_polygon.py
+   - integration_test_run.py
+   - api_verification/ (directory)
+   - automated_dev_tests/ (directory)
+
+5. deployment/ - Deployment scripts
+   - create_prod_simple.py
+
+6. utils/ - Utility scripts
+   - print_env_logging.py
+   - wsl-kubernetes.service
+   - minikube-autostart.service
+   - start-wsl-kubernetes.bat
+   - start-wsl-kubernetes.ps1
+
+Each directory will have a README.md file explaining the purpose of the scripts in that directory.

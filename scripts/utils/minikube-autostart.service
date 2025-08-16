@@ -1,0 +1,13 @@
+[Unit]
+Description=Minikube Kubernetes Cluster
+After=network.target
+
+[Service]
+Type=oneshot
+User=jianjun
+ExecStart=/usr/local/bin/minikube start
+ExecStop=/usr/local/bin/minikube stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
