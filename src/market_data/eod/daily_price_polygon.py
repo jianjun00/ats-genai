@@ -25,8 +25,6 @@ async def get_all_polygon_tickers(env):
     return await instrument_dao.get_all_symbols()
 
 def download_prices_polygon(ticker, start, end, api_key, logging=False, log_start=None, log_end=None, log_tickers=None, log_dir=None):
-    # Debug: print the datetime being used
-    print(f'[DEBUG] datetime in download_prices_polygon: {dt.datetime} ({type(dt.datetime)})')
     url = BASE_URL.format(ticker=ticker, start=start, end=end, api_key=api_key)
     resp = requests.get(url)
     import json, os
@@ -72,14 +70,12 @@ async def insert_prices(prices, instrument_id, shares_outstanding, dao: DailyPri
         known_args, _ = parser.parse_known_args()
         env = Environment(gin_config_path=getattr(known_args, 'gin_config', 'config/app.gin'))
     table_name = env.get_table_name('daily_prices_polygon')
-    print(f"[DEBUG] Inserting into table: {table_name}, ENVIRONMENT: {env.env_type.value}")
     if not prices:
         return
     # Batch version for efficiency
     batch_rows = []
     for row in prices:
         date_val = dt.datetime.utcfromtimestamp(row['t']/1000).date()
-        print(f"[DEBUG] insert_prices date_val type: {type(date_val)}, value: {date_val}")
         batch_rows.append({
             'date': date_val,
             'instrument_id': instrument_id,
@@ -129,13 +125,10 @@ async def run_ingestion(tickers, start_date, end_date, environment=None, instrum
     from config.environment import Environment
     import requests
 
-    print(f"[DEBUG] run_ingestion start_date type: {type(start_date)}, value: {start_date}")
-    print(f"[DEBUG] run_ingestion end_date type: {type(end_date)}, value: {end_date}")
     if environment:
         env = environment
     else:
         env = Environment()
-    print(f"[DEBUG] ENVIRONMENT at start of run_ingestion: {env.env_type.value}")
     if not polygon_api_key:
         polygon_api_key = env.get_polygon_api_key() or os.getenv("POLYGON_API_KEY")
     if not polygon_api_key:
@@ -172,13 +165,10 @@ async def run_ingestion(tickers, start_date, end_date, environment=None, instrum
     ray.shutdown()
     return results
 
-    print(f"[DEBUG] run_ingestion start_date type: {type(start_date)}, value: {start_date}")
-    print(f"[DEBUG] run_ingestion end_date type: {type(end_date)}, value: {end_date}")
     if environment:
         env = environment
     else:
         env = Environment()
-    print(f"[DEBUG] ENVIRONMENT at start of run_ingestion: {env.env_type.value}")
     if not polygon_api_key:
         polygon_api_key = os.getenv("POLYGON_API_KEY")
     if not polygon_api_key:
@@ -276,7 +266,7 @@ async def main():
     parser.add_argument('--tickers', type=str, default=None, help='Comma-separated list of tickers to process and log (optional, maps to instrument_id)')
     parser.add_argument('--start_date', type=str, required=True, help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end_date', type=str, required=True, help='End date (YYYY-MM-DD)')
-    parser.add_argument('--environment', type=str, default='intg', choices=['test', 'intg', 'prod'], help='Environment to use (test, intg, prod)')
+    parser.add_argument('--environment', type=str, default='intg', choices=['test', 'intg', 'prod', 'dev'], help='Environment to use (test, intg, prod, dev)')
     parser.add_argument('--logging', action='store_true', help='Enable logging of Polygon API requests/responses for specified tickers in date range')
     parser.add_argument('--log_dir', type=str, default='test/data/daily_prices_polygon', help='Directory to store Polygon API logs (default: test/data/daily_prices_polygon)')
     parser.add_argument('--gin_config', type=str, default='config/app.gin', help='Path to Gin config file (default: config/app.gin)')
@@ -317,9 +307,9 @@ async def main():
     total_success = 0
     total_fail = 0
     for ticker, instrument_id in ticker_to_instrument_id.items():
-        polygon_api_key = env.get_polygon_api_key()
+        polygon_api_key = env.get_polygon_api_key() or os.getenv("POLYGON_API_KEY")
         if not polygon_api_key:
-            print(f"[ERROR] No Polygon API key found in Gin config or environment. Please set 'polygon_api_key' in your Gin config.")
+            print(f"[ERROR] No Polygon API key found in Gin config or environment. Please set 'polygon_api_key' in your Gin config or POLYGON_API_KEY env var.")
             continue
         try:
             print(f"[INFO] Processing {ticker} (instrument_id={instrument_id})...")

@@ -30,6 +30,102 @@ def parse_date(val):
 
 # This function has been integrated into the Ray worker function
 
+# Non-Ray version for direct execution
+async def fetch_and_upsert_direct(symbols, env_type, table_name, polygon_api_key):
+    import logging
+    direct_logger = logging.getLogger("direct_worker")
+    direct_logger.setLevel(logging.INFO)
+    
+    details = []
+    results = []
+    for symbol in symbols:
+        detail_url = f"https://api.polygon.io/v3/reference/tickers/{symbol}?apiKey={polygon_api_key}"
+        for attempt in range(3):
+            try:
+                resp = requests.get(detail_url)
+                if resp.status_code != 200:
+                    direct_logger.error(f"{symbol}: {resp.status_code} {resp.text}")
+                    continue
+                detail = resp.json().get('results', {})
+                if not detail.get('list_date'):
+                    direct_logger.info(f"Skipping {symbol} (no list_date)")
+                    results.append((symbol, 'skipped'))
+                    break
+                details.append(detail)
+                results.append((symbol, 'ok'))
+                break
+            except ConnectionError as e:
+                direct_logger.error(f"Connection error for {symbol}: {e}, retrying...")
+                time.sleep(2 ** attempt)
+            except Exception as e:
+                direct_logger.error(f"{symbol}: {e}")
+                results.append((symbol, 'fail'))
+                break
+        else:
+            results.append((symbol, 'fail'))
+    
+    # Use the centralized database connection logic
+    from config.database import Database
+    from config.environment import Environment, EnvironmentType
+    if details:
+        try:
+            # Set environment type in os.environ for Database class to use
+            import os
+            os.environ["ENVIRONMENT"] = env_type.value if hasattr(env_type, 'value') else str(env_type)
+            
+            # Create a connection pool using the centralized logic
+            pool = await Database.create_connection_pool(max_retries=3, initial_delay=1.0, timeout=10.0)
+            
+            # Process the details
+            async with pool.acquire() as conn:
+                rows = [
+                    (
+                        d.get('ticker'),
+                        d.get('name'),
+                        d.get('primary_exchange'),
+                        d.get('type'),
+                        d.get('currency_name'),
+                        d.get('share_class_figi'),
+                        d.get('isin'),
+                        d.get('cusip'),
+                        d.get('composite_figi'),
+                        d.get('active'),
+                        parse_date(d.get('list_date')),
+                        parse_date(d.get('delisted_utc')),
+                        json.dumps(d)
+                    )
+                    for d in details
+                ]
+                sql = f"""
+                    INSERT INTO {table_name} (symbol, name, exchange, type, currency, figi, isin, cusip, composite_figi, active, list_date, delist_date, raw, updated_at)
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now())
+                    ON CONFLICT (symbol) DO UPDATE SET
+                        name=EXCLUDED.name,
+                        exchange=EXCLUDED.exchange,
+                        type=EXCLUDED.type,
+                        currency=EXCLUDED.currency,
+                        figi=EXCLUDED.figi,
+                        isin=EXCLUDED.isin,
+                        cusip=EXCLUDED.cusip,
+                        composite_figi=EXCLUDED.composite_figi,
+                        active=EXCLUDED.active,
+                        list_date=EXCLUDED.list_date,
+                        delist_date=EXCLUDED.delist_date,
+                        raw=EXCLUDED.raw,
+                        updated_at=now()
+                """
+                await conn.executemany(sql, rows)
+            await pool.close()
+            direct_logger.info(f"Successfully processed {len(details)} details")
+        except Exception as e:
+            direct_logger.error(f"Error processing details: {e}")
+            import traceback
+            direct_logger.error(traceback.format_exc())
+    
+    for symbol, status in results:
+        direct_logger.info(f"RESULT {symbol}: {status}")
+    return results
+
 @ray.remote
 def fetch_and_upsert_ray(symbols, env_type, table_name, polygon_api_key):
     import logging
@@ -203,27 +299,29 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
     if not all_symbols:
         logger.info("No symbols to process.")
         return
-    # Ray parallel processing - configured for Kubernetes environment
-    ray.init(ignore_reinit_error=True, num_cpus=1, _system_config={"worker_register_timeout_seconds": 60}, local_mode=True)
+    # Use simple sequential processing instead of Ray to avoid working_dir issues
     table_name = env.get_table_name('instrument_polygon')
-    logger.info(f"Submitting {len(all_symbols)} Ray tasks with API key: {POLYGON_API_KEY is not None}")
-    batch_size = 3  # Limit concurrency for DB and rate limits
-    # Group all_symbols into batches
+    logger.info(f"Processing {len(all_symbols)} instruments sequentially with API key: {POLYGON_API_KEY is not None}")
+    
+    # Process in smaller batches to manage rate limits
+    batch_size = 10
     def batcher(seq, size):
         for i in range(0, len(seq), size):
             yield seq[i:i+size]
-    tasks = []
+    
+    processed_count = 0
     for batch in batcher(all_symbols, batch_size):
-        tasks.append(fetch_and_upsert_ray.remote(batch, env.env_type, table_name, POLYGON_API_KEY))
-        if len(tasks) >= batch_size:
-            results = ray.get(tasks)
-            logger.info(f"Processed batch: {results}")
-            tasks = []
-            time.sleep(1.0)  # Sleep between batches for rate limits
-    if tasks:
-        results = ray.get(tasks)
-        logger.info(f"Processed final batch: {results}")
-    logger.info(f"Total tickers processed: {len(all_symbols)}")
+        try:
+            # Call the async version with await
+            result = await fetch_and_upsert_direct(batch, env.env_type, table_name, POLYGON_API_KEY)
+            logger.info(f"Processed batch of {len(batch)} instruments: {result}")
+            processed_count += len(batch)
+            time.sleep(2.0)  # Sleep between batches for rate limits
+        except Exception as e:
+            logger.error(f"Failed to process batch: {e}")
+            continue
+    
+    logger.info(f"Total instruments processed: {processed_count}/{len(all_symbols)}")
 
 
 
