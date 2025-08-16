@@ -10,7 +10,7 @@ The Kubernetes jobs were failing because:
 ## Solution Implemented
 
 ### 1. Kubernetes Job Configuration Updates
-- Updated `instrument-polygon-job.yaml` and `instrument-polygon-backfill-job.yaml` to:
+- Updated Flyte workflow job generation to:
   - Use 'dev' environment explicitly
   - Specify the Gin config file path with `--gin_config /app/config/app_docker.gin`
 

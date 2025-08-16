@@ -32,10 +32,19 @@ kubectl delete job instrument-polygon-backfill -n ats-dev --ignore-not-found
 echo -e "\n${YELLOW}Waiting for jobs to be deleted...${NC}"
 sleep 5
 
-# Apply new job configurations
-echo -e "\n${YELLOW}Step 2: Creating new jobs...${NC}"
-kubectl apply -f /home/jianjun/ats-genai/k8s/dev/instrument-polygon-job.yaml
-kubectl apply -f /home/jianjun/ats-genai/k8s/dev/instrument-polygon-backfill-job.yaml
+# Generate and apply new job configurations using Flyte workflow
+echo -e "\n${YELLOW}Step 2: Creating new jobs using Flyte workflow...${NC}"
+
+# Path to Flyte workflow script
+FLYTE_SCRIPT="/home/jianjun/ats-genai/scripts/flyte_instrument_polygon_workflow.py"
+
+# Generate and apply test job
+echo -e "Generating and applying test job..."
+python $FLYTE_SCRIPT --job-type test --tickers "AAPL,MSFT,GOOG" --apply
+
+# Generate and apply backfill job
+echo -e "Generating and applying backfill job..."
+python $FLYTE_SCRIPT --job-type backfill --apply
 
 # Check job status
 echo -e "\n${YELLOW}Step 3: Checking job status...${NC}"

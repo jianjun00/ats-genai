@@ -413,7 +413,7 @@ do_install() {
 	if is_wsl; then
 		echo
 		echo "WSL DETECTED: We recommend using Docker Desktop for Windows."
-		echo "Please get Docker Desktop from https://www.docker.com/products/docker-desktop/"
+		echo "Please get Docker Desktop from https://www.docker.com/products/minikube/"
 		echo
 		cat >&2 <<-'EOF'
 
@@ -678,7 +678,7 @@ do_install() {
 				if is_darwin; then
 					echo
 					echo "ERROR: Unsupported operating system 'macOS'"
-					echo "Please get Docker Desktop from https://www.docker.com/products/docker-desktop"
+					echo "Please get Docker Desktop from https://www.docker.com/products/minikube"
 					echo
 					exit 1
 				fi

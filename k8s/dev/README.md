@@ -90,6 +90,37 @@ kubectl create job --from=cronjob/db-backup db-backup-manual -n ats-dev
 
 The database deployment includes both readiness and liveness probes to ensure the database is healthy. The probes use `pg_isready` to check the database status.
 
+## Job Management with Flyte Workflow
+
+We now use Flyte workflow to dynamically generate and apply Kubernetes jobs for instrument polygon operations. This approach replaces the static YAML files that were previously stored in this directory.
+
+### Using the Flyte Workflow
+
+```bash
+# Generate a test job YAML
+python scripts/flyte_instrument_polygon_workflow.py \
+  --job-type test \
+  --tickers "AAPL,MSFT,GOOG"
+
+# Generate and apply a backfill job
+python scripts/flyte_instrument_polygon_workflow.py \
+  --job-type backfill \
+  --apply
+
+# Generate a job with custom resources
+python scripts/flyte_instrument_polygon_workflow.py \
+  --job-type test \
+  --tickers "AAPL" \
+  --memory-request "512Mi" \
+  --memory-limit "1Gi" \
+  --cpu-request "200m" \
+  --cpu-limit "500m"
+```
+
+Generated YAML files are saved to the `k8s/generated/` directory by default.
+
+See `docs/FLYTE_WORKFLOW_USAGE.md` for detailed documentation.
+
 ## Cleanup Notes
 
 The following files have been archived to `k8s/dev/archive/`:
@@ -101,3 +132,12 @@ The following files have been archived to `k8s/dev/archive/`:
 - `postgres-deployment.yaml`
 
 These files have been consolidated into the `database.yaml` file for easier management.
+
+The following job YAML files have been archived to `k8s/dev/archive/jobs/` as they are now generated dynamically using the Flyte workflow:
+
+- `instrument-polygon-backfill-job.yaml`
+- `instrument-polygon-job.yaml`
+- `instrument-polygon-job-backup.yaml`
+- `populate-instrument-polygon-job.yaml`
+- `test-populate-instrument-polygon-job.yaml`
+- `instrument-polygon-cronjob.yaml`

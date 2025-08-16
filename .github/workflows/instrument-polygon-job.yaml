@@ -86,7 +86,7 @@ jobs:
         id: generate
         run: |
           # Create command with required parameters
-          CMD="python scripts/run_k8s_job.py --job-type ${{ github.event.inputs.job_type }}"
+          CMD="python scripts/flyte_instrument_polygon_workflow.py --job-type ${{ github.event.inputs.job_type }}"
           
           # Add optional parameters if provided
           if [ "${{ github.event.inputs.job_type }}" == "test" ] && [ -n "${{ github.event.inputs.tickers }}" ]; then
@@ -113,10 +113,13 @@ jobs:
             CMD="$CMD --cpu-limit ${{ github.event.inputs.cpu_limit }}"
           fi
           
-          # Add output file parameter
+          # Create output directory if it doesn't exist
+          mkdir -p k8s/generated
+          
+          # Add output directory parameter
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-          OUTPUT_FILE="k8s/generated/job_${TIMESTAMP}.yaml"
-          CMD="$CMD --output $OUTPUT_FILE"
+          OUTPUT_DIR="k8s/generated"
+          CMD="$CMD --output-dir $OUTPUT_DIR"
           
           # Add apply flag if requested
           if [ "${{ github.event.inputs.apply }}" == "true" ]; then
@@ -126,6 +129,9 @@ jobs:
           # Run the command
           echo "Running: $CMD"
           eval $CMD
+          
+          # Find the most recently created YAML file in the output directory
+          OUTPUT_FILE=$(ls -t $OUTPUT_DIR/*.yaml | head -n1)
           
           # Save the output file path for artifact upload
           echo "output_file=$OUTPUT_FILE" >> $GITHUB_OUTPUT

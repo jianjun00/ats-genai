@@ -329,3 +329,43 @@ Ensure consistent environment configuration across Kubernetes jobs, Docker tests
 - All Kubernetes test scripts now pass successfully
 - Environment configuration is consistent across deployment contexts
 - Changes committed to main branch on 2025-08-14
+
+---
+
+## Polygon API Integration for Dev Environment (2025-08-15)
+
+### Objective
+Implement robust Polygon API integration for the dev environment with proper table naming conventions and automated testing.
+
+### Key Changes
+- **Database Table Naming**:
+  - Standardized on `dev_instrument_polygon` table name for dev environment
+  - Fixed environment-aware table name resolution in test scripts
+  - Created proper table schema matching the production requirements
+
+### Automated Testing Infrastructure
+- **Port Forwarding**:
+  - Created `setup_port_forwarded_db.py` to establish connection to dev database
+  - Implemented automatic port-forward setup in test scripts
+
+- **Test Scripts**:
+  - Created `scripts/automated_dev_tests/test_polygon_integration_dev.py` for automated testing
+  - Added environment override to ensure correct table name resolution
+  - Implemented verification steps to confirm data insertion
+
+- **Kubernetes Jobs**:
+  - Using Flyte workflow (`scripts/flyte_instrument_polygon_workflow.py`) to dynamically generate and apply job YAML files
+  - Generated files are stored in `k8s/generated/` directory
+
+### Best Practices
+- Use `uv` for Python dependency management (`uv run python`, `uv run pytest`)
+- Set `PYTHONPATH=src` for all test and script execution
+- Always use environment-aware table names via `env.get_table_name()`
+- Override environment settings when needed for testing specific environments
+- Create automated tests for all integrations
+- Use port forwarding for local testing against remote databases
+
+### Results
+- Successfully integrated Polygon API with dev environment
+- Automated tests verify data insertion into the correct tables
+- All changes committed to main branch on 2025-08-15

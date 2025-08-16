@@ -60,6 +60,6 @@ echo -e "\n${BLUE}=== Status Check Complete ===${NC}"
 echo -e "${YELLOW}If you're having issues with kubectl access, ensure:${NC}"
 echo -e "1. You're connected to the right cluster"
 echo -e "2. You have permissions to access the ats-dev namespace"
-echo -e "3. The jobs have been deployed with: kubectl apply -f k8s/dev/instrument-polygon-job.yaml"
+echo -e "3. The jobs have been deployed with: python scripts/flyte_instrument_polygon_workflow.py --job-type test --tickers \"AAPL,MSFT\" --apply"
 
 exit 0

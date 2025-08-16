@@ -40,7 +40,7 @@ python scripts/run_k8s_job.py --job-type test --tickers "AAPL,MSFT" --apply
 
 ### GitHub Actions Workflow
 
-The GitHub Actions workflow (`.github/workflows/instrument-polygon-job.yaml`) will continue to work as before. It uses kubectl context configuration that is independent of your local setup.
+The GitHub Actions workflow (`.github/workflows/instrument-polygon-job.yaml`) will continue to work as before. It now uses the Flyte workflow to dynamically generate job YAML files. It uses kubectl context configuration that is independent of your local setup.
 
 ## Testing Your Setup
 
