@@ -215,7 +215,7 @@ As a Backend Engineer for our portfolio GPT platform, help me [task]. Consider:
 - Monitoring and alerting for [performance metric] thresholds
 ```
 
-### c
+### Data Engineer
 
 **Responsibilities:**
 - Design and implement data pipelines for multi-modal market data and news feeds
