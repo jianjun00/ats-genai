@@ -147,9 +147,16 @@ class CrossVendorReconciler:
         bars = []
         for item in data:
             try:
+                # Normalize timestamp to UTC timezone-aware
+                timestamp = pd.to_datetime(item['timestamp'])
+                if timestamp.tz is None:
+                    timestamp = timestamp.tz_localize('UTC')
+                else:
+                    timestamp = timestamp.tz_convert('UTC')
+                
                 bar = VendorBar(
                     symbol=symbol,
-                    timestamp=pd.to_datetime(item['timestamp']),
+                    timestamp=timestamp,
                     open=float(item['open']),
                     high=float(item['high']),
                     low=float(item['low']),
@@ -178,9 +185,16 @@ class CrossVendorReconciler:
         bars = []
         for item in data:
             try:
+                # Normalize timestamp to UTC timezone-aware
+                timestamp = pd.to_datetime(item['timestamp'])
+                if timestamp.tz is None:
+                    timestamp = timestamp.tz_localize('UTC')
+                else:
+                    timestamp = timestamp.tz_convert('UTC')
+                
                 bar = VendorBar(
                     symbol=symbol,
-                    timestamp=pd.to_datetime(item['timestamp']),
+                    timestamp=timestamp,
                     open=float(item['open']),
                     high=float(item['high']),
                     low=float(item['low']),
