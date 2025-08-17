@@ -165,7 +165,7 @@ class TiingoIntradayAdapter(VendorAdapter):
                     high=float(item['high']),
                     low=float(item['low']),
                     close=float(item['close']),
-                    volume=int(item['volume'])
+                    volume=int(item.get('volume', 0))
                 )
                 bars.append(bar)
                 
@@ -227,7 +227,7 @@ class TiingoIntradayAdapter(VendorAdapter):
                     high=float(item['high']),
                     low=float(item['low']),
                     close=float(item['close']),
-                    volume=int(item['volume'])
+                    volume=int(item.get('volume', 0))
                 )
                 bars.append(bar)
                 
