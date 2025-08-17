@@ -16,12 +16,20 @@ import flytekit
 from flytekit import task, workflow, dynamic
 from flytekit.types.file import FlyteFile
 
-# Import from local module if running directly
+# Import job generator utilities
 try:
-    from scripts.kubernetes.k8s_job_generator import JobConfig, create_backfill_job, create_test_job
+    from scripts.kubernetes.instrument_polygon_job_generator import (
+        JobConfig,
+        create_backfill_job,
+        create_test_job,
+    )
 except ImportError:
-    # For Flyte registration, use absolute import
-    from scripts.kubernetes.k8s_job_generator import JobConfig, create_backfill_job, create_test_job
+    # Fallback for different PYTHONPATH contexts
+    from scripts.kubernetes.instrument_polygon_job_generator import (
+        JobConfig,
+        create_backfill_job,
+        create_test_job,
+    )
 
 
 @task

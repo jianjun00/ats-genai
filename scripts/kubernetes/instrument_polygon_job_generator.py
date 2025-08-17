@@ -136,9 +136,20 @@ def create_backfill_job() -> JobConfig:
     )
     
     # Add environment variables
-    job.add_env_var("PYTHONPATH", "/app/src")
+    # Use src to match project layout and prior fixes
+    job.add_env_var("PYTHONPATH", "src")
     job.add_env_var("LOG_LEVEL", "INFO")
     job.add_env_var("ENVIRONMENT", "dev")
+    # Ensure DB connection overrides are respected
+    job.add_env_var("DB_CONNECTION_PARAMS", "sslmode=disable")
+    # Ray stability in K8s single-pod local mode
+    job.add_env_var("RAY_TMPDIR", "/tmp/ray")
+    job.add_env_var("RAY_DISABLE_DASHBOARD", "1")
+    job.add_env_var("RAY_USAGE_STATS_ENABLED", "0")
+    job.add_env_var("RAY_WORKER_REGISTER_TIMEOUT_SECONDS", "60")
+    job.add_env_var("PYTHONUNBUFFERED", "1")
+    # Force local Ray to prevent autoscaler attempts
+    job.add_env_var("RAY_ADDRESS", "local")
     
     # Add secrets
     job.add_secret_env_var("DB_USER", "db-credentials-dev", "DB_USER")

@@ -371,6 +371,40 @@ Implement robust Polygon API integration for the dev environment with proper tab
 - All changes committed to main branch on 2025-08-15
 # ATS Project Context Summary
 
+## ATS-Dev Environment Setup Progress (2025-08-16)
+
+### Objective
+Set up ats-dev environment with 3000 instruments and 5 years of daily price backfill using port-forward approach for local development against K8s database.
+
+### Progress Status
+1. **Database Connection Established** ✅
+   - Port-forward setup: `kubectl port-forward -n ats-dev service/postgres 5433:5432`
+   - Connection successful with: `postgresql://postgres:postgres@localhost:5433/dev_db`
+   - Database `dev_db` exists and is accessible
+
+2. **Migration Issue Identified** 🔄
+   - Migration 028 (create_auth_tables.sql) uses incorrect `{env}_` placeholder format
+   - Current migration system expects standard table names for automatic prefixing
+   - Need to fix migration file to use standard format (e.g., `api_keys` instead of `{env}_api_keys`)
+
+3. **Current Migration Status**
+   - Database at version 27 (out of 29 total migrations)
+   - 2 pending migrations: 028 (auth tables) and 029
+   - Migration 028 failing due to syntax error with `{env}_` placeholders
+
+### Next Steps
+1. Fix migration 028 table naming format
+2. Complete remaining migrations (028, 029)
+3. Run instrument population for 3000 stocks
+4. Execute daily price backfill (5 years)
+
+### Key Findings
+- Database credentials: postgres/postgres (not dev_password as in secrets)
+- Service name: `postgres` (not `timescaledb` as expected)
+- Database name: `dev_db` (correct as per environment config)
+
+---
+
 ## Database Connection Issue in Kubernetes Jobs (2025-08-15)
 
 ### Objective

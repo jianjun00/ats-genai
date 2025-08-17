@@ -20,6 +20,7 @@ def parse_env_type(env_str):
         'test': EnvironmentType.TEST,
         'intg': EnvironmentType.INTEGRATION,
         'prod': EnvironmentType.PRODUCTION,
+        'dev': EnvironmentType.DEV,
     }
     return env_map.get(env_str.lower(), EnvironmentType.INTEGRATION)
 
@@ -305,7 +306,7 @@ async def main():
     parser.add_argument('--start_date', type=str, required=True, help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end_date', type=str, required=True, help='End date (YYYY-MM-DD)')
     parser.add_argument('--tickers', type=str, default=None, help='Comma-separated list of tickers to process and log (optional, maps to instrument_id)')
-    parser.add_argument('--environment', type=str, default='intg', choices=['test', 'intg', 'prod'], help='Environment to use (test, intg, prod)')
+    parser.add_argument('--environment', type=str, default='intg', choices=['test', 'intg', 'prod', 'dev'], help='Environment to use (test, intg, prod, dev)')
     parser.add_argument('--logging', action='store_true', help='Enable logging of Tiingo API requests/responses for specified tickers in date range')
     parser.add_argument('--log_dir', type=str, default='test/data/daily_prices_tiingo', help='Directory to store Tiingo API logs (default: test/data/daily_prices_tiingo)')
     parser.add_argument('--gin_config', type=str, default='config/app.gin', help='Path to Gin config file (default: config/app.gin)')
@@ -333,25 +334,16 @@ async def main():
     ok_status_id = await get_status_id(pool, 'OK', env)
     no_data_status_id = await get_status_id(pool, 'NO_DATA', env)
 
-    import ray
-    from market_data.eod.daily_tiingo_ray_utils import ray_ingest_instrument
-    ray.init(ignore_reinit_error=True)
-    env_dict = env.__dict__
-    BATCH_SIZE = 2
-    for i in range(0, len(tickers), BATCH_SIZE):
-        batch = tickers[i:i+BATCH_SIZE]
-        ray_tasks = []
-        for ticker in batch:
-            instrument_id = await xrefs_dao.resolve_instrument_id(ticker)
-            if instrument_id is None:
-                print(f"[ERROR] Could not resolve instrument_id for ticker {ticker}. Skipping.")
-                continue
-            print(f"[INFO] Running ingestion for {ticker} (instrument_id={instrument_id}) from {args.start_date} to {args.end_date}")
-            ray_tasks.append(ray_ingest_instrument.remote(env_dict, instrument_id, ticker, args.start_date, args.end_date, ok_status_id, no_data_status_id))
-        results = ray.get(ray_tasks)
-        print(f"[INFO] Ray ingestion batch complete. Results: {results}")
+    # Sequential processing (avoid Ray runtime env issues)
+    for ticker in tickers:
+        instrument_id = await xrefs_dao.resolve_instrument_id(ticker)
+        if instrument_id is None:
+            print(f"[ERROR] Could not resolve instrument_id for ticker {ticker}. Skipping.")
+            continue
+        print(f"[INFO] Running ingestion for {ticker} (instrument_id={instrument_id}) from {args.start_date} to {args.end_date}")
+        await ingest_ticker(env, dao, instrument_id, ticker, args.start_date, args.end_date, ok_status_id, no_data_status_id)
+        print(f"[INFO] Completed ingestion for {ticker}")
     await pool.close()
-    ray.shutdown()
 
 
 if __name__ == "__main__":

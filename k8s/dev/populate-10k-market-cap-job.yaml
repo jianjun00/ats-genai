@@ -1,0 +1,261 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: populate-10k-market-cap
+  namespace: ats-dev
+spec:
+  ttlSecondsAfterFinished: 86400  # Keep job for 24 hours after completion
+  template:
+    spec:
+      containers:
+      - name: populate-10k-market-cap
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "Installing required packages..."
+          pip install asyncpg requests python-dotenv
+          
+          echo "Creating working directory..."
+          mkdir -p /app
+          
+          echo "Creating 10K+ market cap population script..."
+          cat > /app/populate_10k_market_cap.py << 'EOF'
+          import os
+          import requests
+          import asyncpg
+          import asyncio
+          import time
+          import logging
+          from datetime import datetime, date
+          from typing import Optional, List, Dict, Any
+          
+          # Configure logging
+          logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+          logger = logging.getLogger("populate_10k_market_cap")
+          
+          # Polygon API key
+          POLYGON_API_KEY = "wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"
+          
+          class PolygonMarketCapFetcher:
+              def __init__(self, api_key: str):
+                  self.api_key = api_key
+                  self.base_url = "https://api.polygon.io"
+                  
+              def fetch_ticker_details(self, symbol: str) -> Optional[Dict[str, Any]]:
+                  """
+                  Fetch ticker details including market cap from Polygon API.
+                  """
+                  url = f"{self.base_url}/v3/reference/tickers/{symbol}"
+                  params = {"apikey": self.api_key}
+                  
+                  try:
+                      response = requests.get(url, params=params)
+                      if response.status_code == 429:
+                          # Rate limit hit, wait and retry
+                          logger.warning(f"Rate limit hit for {symbol}, waiting 12 seconds...")
+                          time.sleep(12)
+                          response = requests.get(url, params=params)
+                      
+                      response.raise_for_status()
+                      
+                      data = response.json()
+                      if data.get("status") == "OK" and "results" in data:
+                          return data["results"]
+                      else:
+                          logger.debug(f"No data returned for {symbol}: {data.get('status', 'No status')}")
+                          return None
+                          
+                  except requests.exceptions.RequestException as e:
+                      logger.error(f"Failed to fetch data for {symbol}: {e}")
+                      return None
+                  except Exception as e:
+                      logger.error(f"Unexpected error fetching {symbol}: {e}")
+                      return None
+          
+          async def populate_all_market_caps(batch_size: int = 100, db_delay: float = 0.05) -> bool:
+              """
+              Populate market cap data for ALL instruments in dev_instrument_polygon.
+              """
+              fetcher = PolygonMarketCapFetcher(POLYGON_API_KEY)
+              
+              # Database connection
+              try:
+                  conn = await asyncpg.connect(
+                      host=os.getenv('DB_HOST', 'postgres'),
+                      port=int(os.getenv('DB_PORT', 5432)),
+                      user=os.getenv('DB_USER', 'postgres'),
+                      password=os.getenv('DB_PASSWORD', 'dev_password'),
+                      database=os.getenv('DB_NAME', 'dev_db')
+                  )
+                  logger.info("Connected to database successfully")
+                  
+                  # Get ALL instruments from dev_instrument_polygon (this has 11,582 instruments)
+                  instruments = await conn.fetch("""
+                      SELECT symbol, name
+                      FROM dev_instrument_polygon
+                      WHERE active = true AND symbol IS NOT NULL
+                      ORDER BY symbol
+                  """)
+                  
+                  logger.info(f"Found {len(instruments)} instruments in dev_instrument_polygon to process")
+                  
+                  if not instruments:
+                      logger.warning("No instruments found to process")
+                      await conn.close()
+                      return False
+                  
+                  # Also get mapping to dev_instruments for instrument_id
+                  instrument_id_map = {}
+                  existing_instruments = await conn.fetch("""
+                      SELECT id, symbol FROM dev_instruments
+                  """)
+                  for inst in existing_instruments:
+                      instrument_id_map[inst['symbol']] = inst['id']
+                  
+                  logger.info(f"Found {len(instrument_id_map)} mapped instruments in dev_instruments")
+                  
+                  # Process in larger batches for efficiency
+                  total_success = 0
+                  total_fail = 0
+                  total_no_mapping = 0
+                  current_date = date.today()
+                  
+                  # Split into batches
+                  for batch_start in range(0, len(instruments), batch_size):
+                      batch_end = min(batch_start + batch_size, len(instruments))
+                      batch = instruments[batch_start:batch_end]
+                      
+                      logger.info(f"Processing batch {batch_start//batch_size + 1}: items {batch_start+1}-{batch_end} of {len(instruments)}")
+                      
+                      batch_records = []
+                      
+                      for inst in batch:
+                          symbol = inst['symbol']
+                          
+                          # Get instrument_id from dev_instruments mapping
+                          instrument_id = instrument_id_map.get(symbol)
+                          if instrument_id is None:
+                              # Create new instrument in dev_instruments if not exists
+                              try:
+                                  instrument_id = await conn.fetchval("""
+                                      INSERT INTO dev_instruments (symbol, name, exchange, is_active)
+                                      VALUES ($1, $2, 'UNKNOWN', true)
+                                      ON CONFLICT (symbol) DO UPDATE SET
+                                      name = EXCLUDED.name
+                                      RETURNING id
+                                  """, symbol, inst['name'])
+                                  instrument_id_map[symbol] = instrument_id
+                                  logger.debug(f"Created/updated instrument {symbol} with ID {instrument_id}")
+                              except Exception as e:
+                                  logger.error(f"Failed to create instrument for {symbol}: {e}")
+                                  total_no_mapping += 1
+                                  continue
+                          
+                          try:
+                              # Fetch ticker details from Polygon
+                              ticker_data = fetcher.fetch_ticker_details(symbol)
+                              
+                              if not ticker_data:
+                                  total_fail += 1
+                                  continue
+                              
+                              # Extract market cap
+                              market_cap = ticker_data.get('market_cap')
+                              if market_cap is None:
+                                  total_fail += 1
+                                  continue
+                              
+                              # Store for batch insertion
+                              batch_records.append({
+                                  'date': current_date,
+                                  'instrument_id': instrument_id,
+                                  'market_cap': market_cap,
+                                  'symbol': symbol
+                              })
+                              
+                              # Rate limiting for API calls - more aggressive for large scale
+                              await asyncio.sleep(0.05)  # 50ms between calls = 20 calls/second
+                              
+                          except Exception as e:
+                              logger.error(f"Failed to process {symbol}: {e}")
+                              total_fail += 1
+                      
+                      # Batch insert all records for this batch
+                      if batch_records:
+                          try:
+                              # Use executemany for better performance
+                              await conn.executemany("""
+                                  INSERT INTO dev_daily_market_cap 
+                                  (date, instrument_id, market_cap)
+                                  VALUES ($1, $2, $3)
+                                  ON CONFLICT (instrument_id, date) DO UPDATE SET
+                                  market_cap = EXCLUDED.market_cap
+                              """, [(r['date'], r['instrument_id'], r['market_cap']) for r in batch_records])
+                              
+                              total_success += len(batch_records)
+                              logger.info(f"Batch inserted {len(batch_records)} market cap records. Total success: {total_success}")
+                              
+                              # Rate limiting after batch database operation
+                              await asyncio.sleep(db_delay)
+                              
+                          except Exception as e:
+                              logger.error(f"Failed to batch insert records: {e}")
+                              total_fail += len(batch_records)
+                              
+                      # Progress reporting every 10 batches
+                      if (batch_start // batch_size + 1) % 10 == 0:
+                          logger.info(f"PROGRESS: Processed {batch_end}/{len(instruments)} instruments. Success: {total_success}, Failures: {total_fail}, No mapping: {total_no_mapping}")
+                          
+                      # Delay between batches - shorter for large scale
+                      if batch_end < len(instruments):
+                          await asyncio.sleep(1.0)  # 1 second between batches
+                  
+                  logger.info(f"10K+ Market cap population complete. Success: {total_success}, Failures: {total_fail}, No mapping: {total_no_mapping}")
+                  logger.info(f"Success rate: {(total_success/(total_success+total_fail+total_no_mapping)*100):.1f}%")
+                  await conn.close()
+                  return total_success > 0
+                  
+              except Exception as e:
+                  logger.error(f"Database connection error: {e}")
+                  return False
+          
+          async def main():
+              logger.info("Starting 10K+ instrument market cap population...")
+              success = await populate_all_market_caps(batch_size=100, db_delay=0.05)
+              
+              if success:
+                  logger.info("10K+ market cap population completed successfully")
+              else:
+                  logger.error("10K+ market cap population failed")
+          
+          if __name__ == "__main__":
+              asyncio.run(main())
+          EOF
+          
+          echo "Running 10K+ market cap population..."
+          cd /app
+          python populate_10k_market_cap.py
+          
+          echo "10K+ market cap population completed!"
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: DB_HOST
+          value: "postgres"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"  
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      restartPolicy: OnFailure
