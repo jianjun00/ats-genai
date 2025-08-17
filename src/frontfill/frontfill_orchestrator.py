@@ -20,6 +20,7 @@ from frontfill.economic_events_frontfill import (
     create_economic_events_frontfill_jobs, 
     create_instruments_frontfill_job
 )
+from frontfill.validation_integration import ValidationIntegration, ValidationConfig
 
 logger = logging.getLogger(__name__)
 
@@ -43,12 +44,24 @@ class FrontfillOrchestrator:
         self.api_keys = api_keys
         self.connection_pool = None
         self.checkpoint_manager = None
+        self.validation_integration = None
         self.running = False
         self.tasks = []
         
         # Job registry
         self.daily_jobs = []  # Run once after market close
         self.frequent_jobs = []  # Run every 5 minutes
+        
+        # Validation configuration
+        self.validation_config = ValidationConfig(
+            enable_post_frontfill_validation=True,
+            enable_missing_data_detection=True,
+            enable_automatic_backfill=True,
+            quality_threshold=80.0,
+            backfill_priority_threshold=3,
+            max_concurrent_backfills=5,
+            validation_delay_hours=1  # Run validation 1 hour after daily jobs
+        )
         
         # Schedule configurations
         self.schedules = {
@@ -67,6 +80,11 @@ class FrontfillOrchestrator:
                 job_name="daily_prices_tiingo",
                 cron_expression="30 19 * * 1-5",  # 7:30 PM Monday-Friday 
                 max_runtime_minutes=120
+            ),
+            "post_frontfill_validation": ScheduleConfig(
+                job_name="post_frontfill_validation",
+                cron_expression="00 21 * * 1-5",  # 9:00 PM Monday-Friday (after daily jobs)
+                max_runtime_minutes=30
             ),
             
             # Frequent jobs (every 5 minutes during market hours + extended)
@@ -94,6 +112,12 @@ class FrontfillOrchestrator:
         # Get database connection
         self.connection_pool = await get_connection_pool(self.env)
         self.checkpoint_manager = CheckpointManager(self.connection_pool, self.env)
+        
+        # Initialize validation integration
+        self.validation_integration = ValidationIntegration(
+            self.connection_pool, self.env, self.api_keys, self.validation_config
+        )
+        await self.validation_integration.initialize()
         
         # Initialize checkpoint tables
         await self.checkpoint_manager.initialize_tables()
@@ -148,6 +172,7 @@ class FrontfillOrchestrator:
         self.tasks = [
             asyncio.create_task(self._daily_job_scheduler()),
             asyncio.create_task(self._frequent_job_scheduler()),
+            asyncio.create_task(self._validation_scheduler()),
             asyncio.create_task(self._monitoring_task())
         ]
         
@@ -237,6 +262,9 @@ class FrontfillOrchestrator:
                 
             except Exception as e:
                 logger.error(f"Error running daily job {job.config.job_name}: {e}")
+        
+        # Schedule validation to run after daily jobs complete
+        await self._schedule_post_frontfill_validation()
     
     async def _run_frequent_jobs(self):
         """Run all frequent jobs."""
@@ -320,6 +348,88 @@ class FrontfillOrchestrator:
         except Exception as e:
             logger.error(f"Error logging system status: {e}")
     
+    async def _validation_scheduler(self):
+        """Scheduler for validation tasks."""
+        logger.info("Starting validation scheduler")
+        
+        while self.running:
+            try:
+                current_time = datetime.now().time()
+                current_weekday = datetime.now().weekday()
+                
+                # Only run on weekdays after validation time (9:00 PM)
+                if current_weekday < 5:
+                    validation_time = time(21, 0)  # 9:00 PM
+                    
+                    if current_time >= validation_time:
+                        await self._run_post_frontfill_validation()
+                        
+                        # Wait until next day
+                        await self._wait_until_next_day()
+                
+                # Check every hour
+                await asyncio.sleep(3600)
+                
+            except Exception as e:
+                logger.error(f"Error in validation scheduler: {e}")
+                await asyncio.sleep(300)
+    
+    async def _schedule_post_frontfill_validation(self):
+        """Schedule validation to run after daily jobs with delay."""
+        delay_seconds = self.validation_config.validation_delay_hours * 3600
+        logger.info(f"Scheduling post-frontfill validation in {delay_seconds/3600:.1f} hours")
+        
+        # Schedule validation task
+        asyncio.create_task(self._delayed_validation(delay_seconds))
+    
+    async def _delayed_validation(self, delay_seconds: int):
+        """Run validation after a delay."""
+        await asyncio.sleep(delay_seconds)
+        
+        if self.running:
+            await self._run_post_frontfill_validation()
+    
+    async def _run_post_frontfill_validation(self):
+        """Run post-frontfill validation."""
+        try:
+            # Get yesterday's date for validation
+            validation_date = datetime.now().date() - timedelta(days=1)
+            
+            logger.info(f"Running post-frontfill validation for {validation_date}")
+            
+            # Run validation
+            results = await self.validation_integration.run_post_frontfill_validation(
+                validation_date
+            )
+            
+            # Log results
+            quality_score = results["quality_score"]
+            passed = results["validation_passed"]
+            actions = results["actions_taken"]
+            
+            logger.info(f"Validation completed - Quality: {quality_score:.2f}, "
+                       f"Passed: {passed}, Actions: {actions}")
+            
+            # Log critical issues
+            if not passed:
+                logger.warning(f"Validation failed for {validation_date} - "
+                              f"quality score {quality_score:.2f} below threshold")
+            
+            # Store validation results in checkpoint
+            await self.checkpoint_manager.update_checkpoint(
+                "daily_validation_results",
+                validation_date.isoformat(),
+                {
+                    "quality_score": quality_score,
+                    "validation_passed": passed,
+                    "actions_taken": actions,
+                    "backfill_results": results.get("backfill_results")
+                }
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in post-frontfill validation: {e}")
+    
     async def _wait_until_next_day(self):
         """Wait until the next day."""
         now = datetime.now()
@@ -352,13 +462,30 @@ class FrontfillOrchestrator:
         logger.info(f"Manual job completed: {stats}")
         return stats
     
+    async def run_manual_validation(self, validation_date: date = None) -> Dict[str, Any]:
+        """Run validation manually for a specific date."""
+        if validation_date is None:
+            validation_date = datetime.now().date() - timedelta(days=1)
+        
+        logger.info(f"Running manual validation for {validation_date}")
+        
+        if not self.validation_integration:
+            raise RuntimeError("Validation integration not initialized")
+        
+        results = await self.validation_integration.run_post_frontfill_validation(validation_date)
+        logger.info(f"Manual validation completed: quality score {results['quality_score']:.2f}")
+        
+        return results
+    
     async def get_job_status(self) -> Dict[str, Any]:
         """Get status of all jobs."""
         status = {
             "orchestrator_running": self.running,
             "daily_jobs": len(self.daily_jobs),
             "frequent_jobs": len(self.frequent_jobs),
-            "recent_runs": []
+            "validation_enabled": self.validation_integration is not None,
+            "recent_runs": [],
+            "recent_validations": []
         }
         
         # Get recent job runs
@@ -372,6 +499,22 @@ class FrontfillOrchestrator:
                 "records_processed": run.records_processed,
                 "records_inserted": run.records_inserted
             })
+        
+        # Get recent validation results
+        try:
+            validation_checkpoints = await self.checkpoint_manager.get_checkpoints_by_job(
+                "daily_validation_results", limit=5
+            )
+            for checkpoint in validation_checkpoints:
+                checkpoint_data = checkpoint.checkpoint_data
+                status["recent_validations"].append({
+                    "date": checkpoint_data.get("validation_date"),
+                    "quality_score": checkpoint_data.get("quality_score"),
+                    "validation_passed": checkpoint_data.get("validation_passed"),
+                    "actions_taken": checkpoint_data.get("actions_taken", [])
+                })
+        except Exception as e:
+            logger.warning(f"Could not get recent validation results: {e}")
         
         return status
 
