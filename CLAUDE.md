@@ -339,3 +339,4 @@ As a Model Developer for our portfolio GPT platform, help me [task]. Consider:
 - Inference optimization for [latency/throughput] requirements
 - Ensemble strategy for [signal combination/model diversity]
 ```
+- PGPASSWORD=postgres should be dev_password
