@@ -5,7 +5,9 @@ Comprehensive set of indicators including EMAs, ATR, RSI, VWAP, and volume analy
 
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, Optional
+import pytz
+from datetime import time, datetime, timedelta
+from typing import Dict, Any, Optional, List, Tuple
 from .indicator import Indicator
 
 
@@ -237,6 +239,196 @@ class VWAPIndicator(Indicator):
             return {'value': None, 'status': f'calculation_error: {str(e)}'}
 
 
+class SessionVWAPIndicator(Indicator):
+    """Session-based VWAP indicator for specific market times and durations."""
+    
+    def __init__(self, session_type: str = 'us_open', duration_minutes: int = 30):
+        """
+        Initialize session VWAP indicator.
+        
+        Args:
+            session_type: 'us_open', 'us_close', or 'london_close'
+            duration_minutes: 30 or 60 minutes
+        """
+        super().__init__()
+        self.session_type = session_type
+        self.duration_minutes = duration_minutes
+        self.name = f"SessionVWAP_{session_type}_{duration_minutes}min"
+        
+        # Define session times (in respective timezones)
+        self.session_times = {
+            'us_open': {
+                'time': time(9, 30),  # 9:30 AM ET
+                'timezone': pytz.timezone('US/Eastern'),
+                'name': 'US Market Open'
+            },
+            'us_close': {
+                'time': time(16, 0),  # 4:00 PM ET  
+                'timezone': pytz.timezone('US/Eastern'),
+                'name': 'US Market Close'
+            },
+            'london_close': {
+                'time': time(16, 30),  # 4:30 PM GMT
+                'timezone': pytz.timezone('Europe/London'),
+                'name': 'London Market Close'
+            }
+        }
+    
+    def calculate(self, price_history: pd.DataFrame) -> Dict[str, Any]:
+        """Calculate session-based VWAP."""
+        if price_history.empty or 'volume' not in price_history.columns:
+            return {'value': None, 'status': 'no_volume_data'}
+        
+        try:
+            # Ensure we have timestamp information
+            if hasattr(price_history.index, 'tz_localize'):
+                timestamps = price_history.index
+            elif 'timestamp' in price_history.columns:
+                timestamps = pd.to_datetime(price_history['timestamp'])
+            else:
+                return {'value': None, 'status': 'no_timestamp_data'}
+            
+            # Get session configuration
+            session_config = self.session_times[self.session_type]
+            session_tz = session_config['timezone']
+            session_time = session_config['time']
+            
+            # Convert timestamps to session timezone if needed
+            if timestamps.tz is None:
+                # Assume UTC if no timezone info
+                timestamps = timestamps.tz_localize('UTC')
+            
+            # Convert to session timezone
+            timestamps_local = timestamps.tz_convert(session_tz)
+            
+            # Find session windows
+            session_data = self._extract_session_windows(
+                price_history, timestamps_local, session_time
+            )
+            
+            if session_data.empty:
+                return {'value': None, 'status': 'no_session_data'}
+            
+            # Calculate VWAP for session data
+            vwap_result = self._calculate_session_vwap(session_data)
+            
+            return vwap_result
+            
+        except Exception as e:
+            return {'value': None, 'status': f'calculation_error: {str(e)}'}
+    
+    def _extract_session_windows(self, price_history: pd.DataFrame, 
+                                timestamps: pd.DatetimeIndex, 
+                                session_time: time) -> pd.DataFrame:
+        """Extract data within session windows."""
+        
+        session_data_list = []
+        
+        # Group by date to find session periods
+        for date in timestamps.date:
+            day_data = price_history[timestamps.date == date].copy()
+            if day_data.empty:
+                continue
+                
+            day_timestamps = timestamps[timestamps.date == date]
+            
+            # Create session start datetime
+            session_start = datetime.combine(date, session_time)
+            session_start = pytz.timezone(timestamps.tz.zone).localize(session_start)
+            
+            # Define session window
+            session_end = session_start + timedelta(minutes=self.duration_minutes)
+            
+            # Filter data within session window
+            mask = (day_timestamps >= session_start) & (day_timestamps <= session_end)
+            session_window_data = day_data[mask]
+            
+            if not session_window_data.empty:
+                # Add session metadata
+                session_window_data = session_window_data.copy()
+                session_window_data['session_start'] = session_start
+                session_window_data['session_end'] = session_end
+                session_window_data['session_date'] = date
+                
+                session_data_list.append(session_window_data)
+        
+        if session_data_list:
+            return pd.concat(session_data_list, ignore_index=False)
+        else:
+            return pd.DataFrame()
+    
+    def _calculate_session_vwap(self, session_data: pd.DataFrame) -> Dict[str, Any]:
+        """Calculate VWAP metrics for session data."""
+        
+        # Calculate typical price
+        typical_price = (
+            session_data['high'] + 
+            session_data['low'] + 
+            session_data['close']
+        ) / 3
+        
+        volume = session_data['volume']
+        
+        # Calculate VWAP for the entire session period
+        total_vol_price = (typical_price * volume).sum()
+        total_volume = volume.sum()
+        
+        if total_volume == 0:
+            return {'value': None, 'status': 'no_volume_in_session'}
+        
+        session_vwap = total_vol_price / total_volume
+        
+        # Current price (last close in session data)
+        current_price = session_data['close'].iloc[-1]
+        
+        # Price vs Session VWAP
+        price_vs_session_vwap = (current_price / session_vwap) - 1
+        
+        # Calculate session volume metrics
+        above_vwap_volume = volume[session_data['close'] > session_vwap].sum()
+        below_vwap_volume = volume[session_data['close'] <= session_vwap].sum()
+        session_volume_balance = (above_vwap_volume - below_vwap_volume) / total_volume
+        
+        # Session VWAP trend (if enough data points)
+        session_vwap_trend = 0
+        if len(session_data) >= 3:
+            # Calculate rolling VWAP within session
+            rolling_vol_price = (typical_price * volume).rolling(window=3).sum()
+            rolling_volume = volume.rolling(window=3).sum()
+            rolling_vwap = rolling_vol_price / rolling_volume
+            
+            if len(rolling_vwap.dropna()) >= 2:
+                session_vwap_trend = (rolling_vwap.iloc[-1] - rolling_vwap.iloc[-2]) / rolling_vwap.iloc[-2]
+        
+        # Session participation metrics
+        session_bar_count = len(session_data)
+        avg_volume_per_bar = total_volume / session_bar_count if session_bar_count > 0 else 0
+        
+        # Session price range analysis
+        session_high = session_data['high'].max()
+        session_low = session_data['low'].min()
+        session_range = session_high - session_low
+        vwap_position_in_range = (session_vwap - session_low) / session_range if session_range > 0 else 0.5
+        
+        return {
+            'value': session_vwap,
+            'session_vwap': session_vwap,
+            'price_vs_session_vwap': price_vs_session_vwap,
+            'session_volume_balance': session_volume_balance,
+            'session_vwap_trend': session_vwap_trend,
+            'total_session_volume': total_volume,
+            'session_bar_count': session_bar_count,
+            'avg_volume_per_bar': avg_volume_per_bar,
+            'session_range': session_range,
+            'vwap_position_in_range': vwap_position_in_range,
+            'session_high': session_high,
+            'session_low': session_low,
+            'session_type': self.session_type,
+            'duration_minutes': self.duration_minutes,
+            'status': 'valid'
+        }
+
+
 class VolumeIndicators(Indicator):
     """Volume analysis indicators."""
     
@@ -369,6 +561,240 @@ class PriceActionIndicators(Indicator):
             return {'value': None, 'status': f'calculation_error: {str(e)}'}
 
 
+class CumulativeVolumeIndicator(Indicator):
+    """Cumulative Volume indicator for session and interval analysis."""
+    
+    def __init__(self, reset_interval: str = 'daily'):
+        super().__init__()
+        self.reset_interval = reset_interval  # 'daily', 'session', 'never'
+        self.name = f"CumVolume_{reset_interval}"
+    
+    def calculate(self, price_history: pd.DataFrame) -> Dict[str, Any]:
+        """Calculate cumulative volume indicators."""
+        if price_history.empty or 'volume' not in price_history.columns:
+            return {'value': None, 'status': 'no_volume_data'}
+        
+        try:
+            volume = price_history['volume']
+            timestamp = price_history.index if hasattr(price_history.index, 'date') else pd.to_datetime(price_history.get('timestamp', range(len(price_history))))
+            
+            # Calculate cumulative volume based on reset interval
+            if self.reset_interval == 'daily':
+                # Reset cumsum at start of each trading day
+                if hasattr(timestamp, 'date'):
+                    # Create daily groups and apply cumsum within each group
+                    daily_groups = timestamp.normalize()  # Use normalize instead of dt.date
+                    volume_with_groups = pd.DataFrame({'volume': volume, 'date': daily_groups})
+                    cum_volume = volume_with_groups.groupby('date')['volume'].cumsum()
+                else:
+                    cum_volume = volume.cumsum()
+            elif self.reset_interval == 'session':
+                # Reset at market open (9:30 AM ET)
+                if hasattr(timestamp, 'time'):
+                    session_times = pd.Series(timestamp).dt.time
+                    session_reset = session_times >= pd.Timestamp('09:30:00').time()
+                    session_groups = session_reset.cumsum()
+                    volume_with_groups = pd.DataFrame({'volume': volume, 'session': session_groups})
+                    cum_volume = volume_with_groups.groupby('session')['volume'].cumsum()
+                else:
+                    cum_volume = volume.cumsum()
+            else:  # 'never'
+                cum_volume = volume.cumsum()
+            
+            current_cum_volume = cum_volume.iloc[-1]
+            
+            # Volume flow analysis
+            close_prices = price_history['close']
+            price_changes = close_prices.diff()
+            
+            # Positive/negative volume flow
+            positive_volume = volume[price_changes > 0].sum()
+            negative_volume = volume[price_changes < 0].sum()
+            neutral_volume = volume[price_changes == 0].sum()
+            
+            total_volume = volume.sum()
+            if total_volume > 0:
+                positive_flow_ratio = positive_volume / total_volume
+                negative_flow_ratio = negative_volume / total_volume
+                volume_balance = (positive_volume - negative_volume) / total_volume
+            else:
+                positive_flow_ratio = 0
+                negative_flow_ratio = 0
+                volume_balance = 0
+            
+            # Volume acceleration
+            if len(price_history) >= 10:
+                recent_volume = volume.tail(5).sum()
+                prev_volume = volume.iloc[-10:-5].sum()
+                volume_acceleration = (recent_volume - prev_volume) / prev_volume if prev_volume > 0 else 0
+            else:
+                volume_acceleration = 0
+            
+            # Volume percentile (relative to recent history)
+            if len(price_history) >= 20:
+                volume_percentile = (volume.iloc[-1] > volume.tail(20)).sum() / 20
+            else:
+                volume_percentile = 0.5
+            
+            # Volume trend
+            if len(price_history) >= 20:
+                try:
+                    volume_trend = volume.tail(20).corr(pd.Series(range(20)))
+                    if np.isnan(volume_trend) or volume_trend is None:
+                        volume_trend = 0
+                except:
+                    volume_trend = 0
+            else:
+                volume_trend = 0
+            
+            return {
+                'value': current_cum_volume,
+                'cumulative_volume': current_cum_volume,
+                'positive_flow_ratio': positive_flow_ratio,
+                'negative_flow_ratio': negative_flow_ratio,
+                'volume_balance': volume_balance,
+                'volume_acceleration': volume_acceleration,
+                'volume_percentile': volume_percentile,
+                'volume_trend': volume_trend,
+                'total_session_volume': total_volume,
+                'status': 'valid'
+            }
+            
+        except Exception as e:
+            return {'value': None, 'status': f'calculation_error: {str(e)}'}
+
+
+class CumulativeDollarsIndicator(Indicator):
+    """Cumulative Dollar Volume (price * volume) indicator for liquidity analysis."""
+    
+    def __init__(self, reset_interval: str = 'daily', price_method: str = 'typical'):
+        super().__init__()
+        self.reset_interval = reset_interval  # 'daily', 'session', 'never'
+        self.price_method = price_method  # 'typical', 'close', 'vwap'
+        self.name = f"CumDollars_{reset_interval}_{price_method}"
+    
+    def calculate(self, price_history: pd.DataFrame) -> Dict[str, Any]:
+        """Calculate cumulative dollar volume indicators."""
+        if price_history.empty or 'volume' not in price_history.columns:
+            return {'value': None, 'status': 'no_volume_data'}
+        
+        try:
+            volume = price_history['volume']
+            timestamp = price_history.index if hasattr(price_history.index, 'date') else pd.to_datetime(price_history.get('timestamp', range(len(price_history))))
+            
+            # Calculate price based on method
+            if self.price_method == 'typical':
+                price = (price_history['high'] + price_history['low'] + price_history['close']) / 3
+            elif self.price_method == 'close':
+                price = price_history['close']
+            elif self.price_method == 'vwap':
+                # Calculate VWAP if possible
+                typical_price = (price_history['high'] + price_history['low'] + price_history['close']) / 3
+                cum_vol_price = (typical_price * volume).cumsum()
+                cum_volume = volume.cumsum()
+                price = cum_vol_price / cum_volume
+            else:
+                price = price_history['close']
+            
+            # Calculate dollar volume
+            dollar_volume = price * volume
+            
+            # Calculate cumulative dollar volume based on reset interval
+            if self.reset_interval == 'daily':
+                if hasattr(timestamp, 'date'):
+                    # Create daily groups and apply cumsum within each group
+                    daily_groups = timestamp.normalize()  # Use normalize instead of dt.date
+                    dollar_with_groups = pd.DataFrame({'dollar_volume': dollar_volume, 'date': daily_groups})
+                    cum_dollar_volume = dollar_with_groups.groupby('date')['dollar_volume'].cumsum()
+                else:
+                    cum_dollar_volume = dollar_volume.cumsum()
+            elif self.reset_interval == 'session':
+                if hasattr(timestamp, 'time'):
+                    session_times = pd.Series(timestamp).dt.time
+                    session_reset = session_times >= pd.Timestamp('09:30:00').time()
+                    session_groups = session_reset.cumsum()
+                    dollar_with_groups = pd.DataFrame({'dollar_volume': dollar_volume, 'session': session_groups})
+                    cum_dollar_volume = dollar_with_groups.groupby('session')['dollar_volume'].cumsum()
+                else:
+                    cum_dollar_volume = dollar_volume.cumsum()
+            else:  # 'never'
+                cum_dollar_volume = dollar_volume.cumsum()
+            
+            current_cum_dollars = cum_dollar_volume.iloc[-1]
+            
+            # Dollar flow analysis
+            close_prices = price_history['close']
+            price_changes = close_prices.diff()
+            
+            # Positive/negative dollar flow
+            positive_dollar_flow = dollar_volume[price_changes > 0].sum()
+            negative_dollar_flow = dollar_volume[price_changes < 0].sum()
+            neutral_dollar_flow = dollar_volume[price_changes == 0].sum()
+            
+            total_dollar_volume = dollar_volume.sum()
+            if total_dollar_volume > 0:
+                positive_dollar_ratio = positive_dollar_flow / total_dollar_volume
+                negative_dollar_ratio = negative_dollar_flow / total_dollar_volume
+                dollar_balance = (positive_dollar_flow - negative_dollar_flow) / total_dollar_volume
+            else:
+                positive_dollar_ratio = 0
+                negative_dollar_ratio = 0
+                dollar_balance = 0
+            
+            # Average dollar per share
+            avg_dollar_per_share = total_dollar_volume / volume.sum() if volume.sum() > 0 else 0
+            
+            # Dollar volume acceleration
+            if len(price_history) >= 10:
+                recent_dollars = dollar_volume.tail(5).sum()
+                prev_dollars = dollar_volume.iloc[-10:-5].sum()
+                dollar_acceleration = (recent_dollars - prev_dollars) / prev_dollars if prev_dollars > 0 else 0
+            else:
+                dollar_acceleration = 0
+            
+            # Dollar volume percentile
+            if len(price_history) >= 20:
+                dollar_percentile = (dollar_volume.iloc[-1] > dollar_volume.tail(20)).sum() / 20
+            else:
+                dollar_percentile = 0.5
+            
+            # Liquidity score (higher dollar volume = higher liquidity)
+            if len(price_history) >= 20:
+                avg_dollar_volume = dollar_volume.tail(20).mean()
+                liquidity_score = min(current_cum_dollars / avg_dollar_volume, 5.0) if avg_dollar_volume > 0 else 0
+            else:
+                liquidity_score = 1.0
+            
+            # Money flow trend
+            if len(price_history) >= 20:
+                try:
+                    dollar_trend = dollar_volume.tail(20).corr(pd.Series(range(20)))
+                    if np.isnan(dollar_trend) or dollar_trend is None:
+                        dollar_trend = 0
+                except:
+                    dollar_trend = 0
+            else:
+                dollar_trend = 0
+            
+            return {
+                'value': current_cum_dollars,
+                'cumulative_dollars': current_cum_dollars,
+                'positive_dollar_ratio': positive_dollar_ratio,
+                'negative_dollar_ratio': negative_dollar_ratio,
+                'dollar_balance': dollar_balance,
+                'avg_dollar_per_share': avg_dollar_per_share,
+                'dollar_acceleration': dollar_acceleration,
+                'dollar_percentile': dollar_percentile,
+                'liquidity_score': liquidity_score,
+                'dollar_trend': dollar_trend,
+                'total_session_dollars': total_dollar_volume,
+                'status': 'valid'
+            }
+            
+        except Exception as e:
+            return {'value': None, 'status': f'calculation_error: {str(e)}'}
+
+
 # Enhanced configuration for comprehensive technical analysis
 from .indicator_config import IndicatorConfig
 from dataclasses import dataclass
@@ -396,6 +822,24 @@ class ResidualReturnIndicatorConfig(IndicatorConfig):
         config.add_indicator('VWAP', VWAPIndicator)
         config.add_indicator('Volume_20', lambda: VolumeIndicators(20))
         config.add_indicator('PriceAction', PriceActionIndicators)
+        
+        # Session VWAP indicators
+        config.add_indicator('SessionVWAP_us_open_30min', lambda: SessionVWAPIndicator('us_open', 30))
+        config.add_indicator('SessionVWAP_us_open_60min', lambda: SessionVWAPIndicator('us_open', 60))
+        config.add_indicator('SessionVWAP_us_close_30min', lambda: SessionVWAPIndicator('us_close', 30))
+        config.add_indicator('SessionVWAP_us_close_60min', lambda: SessionVWAPIndicator('us_close', 60))
+        config.add_indicator('SessionVWAP_london_close_30min', lambda: SessionVWAPIndicator('london_close', 30))
+        config.add_indicator('SessionVWAP_london_close_60min', lambda: SessionVWAPIndicator('london_close', 60))
+        
+        # Cumulative volume indicators
+        config.add_indicator('CumVolume_daily', lambda: CumulativeVolumeIndicator('daily'))
+        config.add_indicator('CumVolume_session', lambda: CumulativeVolumeIndicator('session'))
+        config.add_indicator('CumVolume_never', lambda: CumulativeVolumeIndicator('never'))
+        
+        # Cumulative dollars indicators  
+        config.add_indicator('CumDollars_daily_typical', lambda: CumulativeDollarsIndicator('daily', 'typical'))
+        config.add_indicator('CumDollars_daily_close', lambda: CumulativeDollarsIndicator('daily', 'close'))
+        config.add_indicator('CumDollars_session_vwap', lambda: CumulativeDollarsIndicator('session', 'vwap'))
         
         return config
     

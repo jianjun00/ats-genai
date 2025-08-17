@@ -1,0 +1,1 @@
+"""Corporate action DAOs for dividends, splits, and other events."""

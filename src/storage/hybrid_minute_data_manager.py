@@ -282,7 +282,600 @@ class HybridMinuteDataManager:
     
     async def _store_cold_data(self, symbol: str, data: List[Dict[str, Any]]) -> int:
         """Store cold data to disk in Parquet format (compressed)."""
-        return await self._store_parquet_data(symbol, data, "cold", compress=True)\n    \n    async def _store_parquet_data(\n        self, \n        symbol: str, \n        data: List[Dict[str, Any]], \n        tier: str,\n        compress: bool = True\n    ) -> int:\n        \"\"\"Store data to Parquet files.\"\"\"\n        if not data:\n            return 0\n        \n        # Group data by partition\n        partitions = {}\n        for bar in data:\n            timestamp = bar['timestamp']\n            if isinstance(timestamp, str):\n                timestamp = pd.to_datetime(timestamp)\n            \n            partition_key = self._get_partition_key(timestamp)\n            if partition_key not in partitions:\n                partitions[partition_key] = []\n            partitions[partition_key].append(bar)\n        \n        total_stored = 0\n        \n        # Store each partition\n        for partition_key, partition_data in partitions.items():\n            try:\n                stored = await self._write_parquet_partition(\n                    symbol, partition_data, tier, compress\n                )\n                total_stored += stored\n            except Exception as e:\n                logger.error(f\"Error writing partition {partition_key} for {symbol}: {e}\")\n                continue\n        \n        return total_stored\n    \n    def _get_partition_key(self, timestamp: datetime) -> str:\n        \"\"\"Generate partition key based on timestamp.\"\"\"\n        if self.config.partition_by == \"year\":\n            return f\"{timestamp.year}\"\n        elif self.config.partition_by == \"year_month\":\n            return f\"{timestamp.year}_{timestamp.month:02d}\"\n        else:  # year_month_day\n            return f\"{timestamp.year}_{timestamp.month:02d}_{timestamp.day:02d}\"\n    \n    async def _write_parquet_partition(\n        self,\n        symbol: str,\n        data: List[Dict[str, Any]], \n        tier: str,\n        compress: bool\n    ) -> int:\n        \"\"\"Write a partition of data to Parquet file.\"\"\"\n        if not data:\n            return 0\n        \n        # Convert to DataFrame\n        df = pd.DataFrame(data)\n        \n        # Ensure proper data types\n        df['timestamp'] = pd.to_datetime(df['timestamp'])\n        df = df.sort_values('timestamp')\n        \n        # Get file path\n        file_path = self._get_file_path(symbol, df['timestamp'].iloc[0], tier)\n        \n        # Compression settings\n        compression = self.config.compression if compress else None\n        \n        # Write to file in thread pool to avoid blocking\n        loop = asyncio.get_event_loop()\n        await loop.run_in_executor(\n            self.executor,\n            self._write_parquet_file,\n            df, file_path, compression\n        )\n        \n        return len(df)\n    \n    def _write_parquet_file(self, df: pd.DataFrame, file_path: Path, compression: str):\n        \"\"\"Write DataFrame to Parquet file (runs in thread pool).\"\"\"\n        # Handle existing file (append or overwrite)\n        if file_path.exists():\n            # Read existing data\n            existing_df = pd.read_parquet(file_path)\n            \n            # Merge with new data (deduplicate by timestamp)\n            combined_df = pd.concat([existing_df, df])\n            combined_df = combined_df.drop_duplicates(subset=['timestamp'], keep='last')\n            combined_df = combined_df.sort_values('timestamp')\n            df = combined_df\n        \n        # Write to Parquet\n        df.to_parquet(\n            file_path,\n            compression=compression,\n            index=False,\n            engine='pyarrow'\n        )\n        \n        logger.debug(f\"Wrote {len(df)} records to {file_path}\")\n    \n    async def query_minute_data(\n        self,\n        symbol: str,\n        start_date: datetime,\n        end_date: datetime,\n        columns: Optional[List[str]] = None\n    ) -> pd.DataFrame:\n        \"\"\"Query minute data across hot and cold storage.\"\"\"\n        \n        # Determine which storage tiers to query\n        hot_cutoff = datetime.now() - timedelta(days=self.config.hot_data_days)\n        \n        hot_data = None\n        cold_data = None\n        \n        # Query hot data (database) if needed\n        if end_date > hot_cutoff:\n            hot_start = max(start_date, hot_cutoff)\n            try:\n                hot_data = await self._query_hot_data(symbol, hot_start, end_date, columns)\n            except Exception as e:\n                logger.error(f\"Error querying hot data: {e}\")\n        \n        # Query cold data (files) if needed  \n        if start_date < hot_cutoff:\n            cold_end = min(end_date, hot_cutoff)\n            try:\n                cold_data = await self._query_cold_data(symbol, start_date, cold_end, columns)\n            except Exception as e:\n                logger.error(f\"Error querying cold data: {e}\")\n        \n        # Combine results\n        dfs = []\n        if cold_data is not None and not cold_data.empty:\n            dfs.append(cold_data)\n        if hot_data is not None and not hot_data.empty:\n            dfs.append(hot_data)\n        \n        if not dfs:\n            return pd.DataFrame()\n        \n        combined_df = pd.concat(dfs, ignore_index=True)\n        combined_df = combined_df.sort_values('timestamp')\n        combined_df = combined_df.drop_duplicates(subset=['timestamp'], keep='last')\n        \n        return combined_df\n    \n    async def _query_hot_data(\n        self,\n        symbol: str,\n        start_date: datetime,\n        end_date: datetime,\n        columns: Optional[List[str]] = None\n    ) -> pd.DataFrame:\n        \"\"\"Query hot data from database.\"\"\"\n        table_name = env.get_table_name('minute_bars')\n        \n        if columns:\n            column_list = ', '.join(columns)\n        else:\n            column_list = '*'\n        \n        query = f\"\"\"\n        SELECT {column_list}\n        FROM {table_name}\n        WHERE symbol = $1 \n          AND timestamp >= $2 \n          AND timestamp <= $3\n        ORDER BY timestamp\n        \"\"\"\n        \n        async with self.pool.acquire() as conn:\n            rows = await conn.fetch(query, symbol, start_date, end_date)\n        \n        if not rows:\n            return pd.DataFrame()\n        \n        # Convert to DataFrame\n        df = pd.DataFrame([dict(row) for row in rows])\n        return df\n    \n    async def _query_cold_data(\n        self,\n        symbol: str,\n        start_date: datetime,\n        end_date: datetime,\n        columns: Optional[List[str]] = None\n    ) -> pd.DataFrame:\n        \"\"\"Query cold data from Parquet files.\"\"\"\n        \n        # Find relevant files\n        files_to_read = self._find_relevant_files(symbol, start_date, end_date)\n        \n        if not files_to_read:\n            return pd.DataFrame()\n        \n        # Read files in parallel\n        dfs = []\n        for file_path in files_to_read:\n            try:\n                df = await self._read_parquet_file(file_path, columns)\n                if df is not None and not df.empty:\n                    # Filter by date range\n                    df = df[\n                        (df['timestamp'] >= start_date) &\n                        (df['timestamp'] <= end_date) &\n                        (df['symbol'] == symbol)\n                    ]\n                    if not df.empty:\n                        dfs.append(df)\n            except Exception as e:\n                logger.error(f\"Error reading {file_path}: {e}\")\n                continue\n        \n        if not dfs:\n            return pd.DataFrame()\n        \n        # Combine all DataFrames\n        combined_df = pd.concat(dfs, ignore_index=True)\n        combined_df = combined_df.sort_values('timestamp')\n        combined_df = combined_df.drop_duplicates(subset=['timestamp'], keep='last')\n        \n        return combined_df\n    \n    def _find_relevant_files(\n        self,\n        symbol: str,\n        start_date: datetime,\n        end_date: datetime\n    ) -> List[Path]:\n        \"\"\"Find Parquet files that might contain data in the date range.\"\"\"\n        files = []\n        \n        # Check both warm and cold storage\n        for tier in ['warm', 'cold']:\n            base_path = Path(self.config.base_data_path) / tier / symbol\n            \n            if not base_path.exists():\n                continue\n            \n            # Walk directory structure based on partitioning scheme\n            if self.config.partition_by == \"year\":\n                for year in range(start_date.year, end_date.year + 1):\n                    year_path = base_path / str(year)\n                    if year_path.exists():\n                        files.extend(year_path.glob(\"*.parquet\"))\n            \n            elif self.config.partition_by == \"year_month\":\n                current = start_date.replace(day=1)\n                end = end_date.replace(day=1)\n                \n                while current <= end:\n                    month_path = base_path / str(current.year) / f\"{current.month:02d}\"\n                    if month_path.exists():\n                        files.extend(month_path.glob(\"*.parquet\"))\n                    \n                    # Move to next month\n                    if current.month == 12:\n                        current = current.replace(year=current.year + 1, month=1)\n                    else:\n                        current = current.replace(month=current.month + 1)\n            \n            else:  # year_month_day\n                current = start_date.date()\n                while current <= end_date.date():\n                    day_path = base_path / str(current.year) / f\"{current.month:02d}\"\n                    if day_path.exists():\n                        pattern = f\"*_{current.year}_{current.month:02d}_{current.day:02d}.parquet\"\n                        files.extend(day_path.glob(pattern))\n                    \n                    current += timedelta(days=1)\n        \n        return sorted(set(files))\n    \n    async def _read_parquet_file(\n        self,\n        file_path: Path,\n        columns: Optional[List[str]] = None\n    ) -> Optional[pd.DataFrame]:\n        \"\"\"Read Parquet file in thread pool.\"\"\"\n        loop = asyncio.get_event_loop()\n        \n        try:\n            df = await loop.run_in_executor(\n                self.executor,\n                self._read_parquet_sync,\n                file_path, columns\n            )\n            return df\n        except Exception as e:\n            logger.error(f\"Error reading {file_path}: {e}\")\n            return None\n    \n    def _read_parquet_sync(self, file_path: Path, columns: Optional[List[str]]) -> pd.DataFrame:\n        \"\"\"Synchronous Parquet file read.\"\"\"\n        return pd.read_parquet(file_path, columns=columns)\n    \n    async def archive_old_data(self, days_old: int = 365) -> Dict[str, Any]:\n        \"\"\"Archive data older than specified days.\"\"\"\n        cutoff_date = datetime.now() - timedelta(days=days_old)\n        \n        # Move data from hot to cold storage\n        hot_archived = await self._archive_hot_data(cutoff_date)\n        \n        # Compress warm storage files\n        warm_compressed = await self._compress_warm_data(cutoff_date)\n        \n        return {\n            'cutoff_date': cutoff_date,\n            'hot_records_archived': hot_archived,\n            'warm_files_compressed': warm_compressed\n        }\n    \n    async def _archive_hot_data(self, cutoff_date: datetime) -> int:\n        \"\"\"Move old data from database to cold storage.\"\"\"\n        table_name = env.get_table_name('minute_bars')\n        \n        # Query old data\n        query = f\"\"\"\n        SELECT * FROM {table_name}\n        WHERE timestamp < $1\n        ORDER BY symbol, timestamp\n        \"\"\"\n        \n        archived_count = 0\n        \n        async with self.pool.acquire() as conn:\n            # Process in batches to avoid memory issues\n            async with conn.transaction():\n                cursor = await conn.cursor(query, cutoff_date)\n                \n                batch = []\n                current_symbol = None\n                \n                async for row in cursor:\n                    row_dict = dict(row)\n                    symbol = row_dict['symbol']\n                    \n                    # Process batches by symbol\n                    if current_symbol and current_symbol != symbol:\n                        if batch:\n                            await self._store_cold_data(current_symbol, batch)\n                            archived_count += len(batch)\n                            batch = []\n                    \n                    current_symbol = symbol\n                    batch.append(row_dict)\n                    \n                    if len(batch) >= self.config.batch_size:\n                        await self._store_cold_data(current_symbol, batch)\n                        archived_count += len(batch)\n                        batch = []\n                \n                # Process remaining batch\n                if batch and current_symbol:\n                    await self._store_cold_data(current_symbol, batch)\n                    archived_count += len(batch)\n                \n                # Delete archived data from database\n                if archived_count > 0:\n                    delete_query = f\"DELETE FROM {table_name} WHERE timestamp < $1\"\n                    await conn.execute(delete_query, cutoff_date)\n        \n        return archived_count\n    \n    async def _compress_warm_data(self, cutoff_date: datetime) -> int:\n        \"\"\"Compress warm data files to cold storage.\"\"\"\n        warm_path = Path(self.config.base_data_path) / \"warm\"\n        compressed_count = 0\n        \n        if not warm_path.exists():\n            return 0\n        \n        # Find old warm files\n        for parquet_file in warm_path.rglob(\"*.parquet\"):\n            try:\n                # Check file modification time\n                file_mtime = datetime.fromtimestamp(parquet_file.stat().st_mtime)\n                \n                if file_mtime < cutoff_date:\n                    # Read, compress, and move to cold storage\n                    df = pd.read_parquet(parquet_file)\n                    \n                    if not df.empty:\n                        symbol = df['symbol'].iloc[0]\n                        data = df.to_dict('records')\n                        \n                        # Store in cold storage (compressed)\n                        await self._store_cold_data(symbol, data)\n                        \n                        # Remove from warm storage\n                        parquet_file.unlink()\n                        compressed_count += 1\n                        \n                        logger.info(f\"Compressed and moved {parquet_file} to cold storage\")\n                        \n            except Exception as e:\n                logger.error(f\"Error compressing {parquet_file}: {e}\")\n                continue\n        \n        return compressed_count\n    \n    async def get_storage_stats(self) -> Dict[str, Any]:\n        \"\"\"Get storage statistics across all tiers.\"\"\"\n        stats = {\n            'hot_storage': await self._get_hot_storage_stats(),\n            'cold_storage': await self._get_cold_storage_stats()\n        }\n        \n        return stats\n    \n    async def _get_hot_storage_stats(self) -> Dict[str, Any]:\n        \"\"\"Get hot storage (database) statistics.\"\"\"\n        table_name = env.get_table_name('minute_bars')\n        \n        queries = {\n            'total_records': f\"SELECT COUNT(*) FROM {table_name}\",\n            'unique_symbols': f\"SELECT COUNT(DISTINCT symbol) FROM {table_name}\",\n            'date_range': f\"SELECT MIN(timestamp), MAX(timestamp) FROM {table_name}\",\n            'table_size': f\"SELECT pg_total_relation_size('{table_name}')\" \n        }\n        \n        stats = {}\n        \n        async with self.pool.acquire() as conn:\n            for stat_name, query in queries.items():\n                try:\n                    result = await conn.fetchval(query)\n                    stats[stat_name] = result\n                except Exception as e:\n                    logger.error(f\"Error getting {stat_name}: {e}\")\n                    stats[stat_name] = None\n        \n        return stats\n    \n    async def _get_cold_storage_stats(self) -> Dict[str, Any]:\n        \"\"\"Get cold storage (disk) statistics.\"\"\"\n        base_path = Path(self.config.base_data_path)\n        \n        stats = {\n            'total_files': 0,\n            'total_size_bytes': 0,\n            'symbols': set(),\n            'tiers': {}\n        }\n        \n        for tier in ['warm', 'cold', 'archive']:\n            tier_path = base_path / tier\n            tier_stats = {'files': 0, 'size_bytes': 0, 'symbols': set()}\n            \n            if tier_path.exists():\n                for parquet_file in tier_path.rglob(\"*.parquet\"):\n                    tier_stats['files'] += 1\n                    tier_stats['size_bytes'] += parquet_file.stat().st_size\n                    \n                    # Extract symbol from path\n                    symbol = parquet_file.parts[-3] if len(parquet_file.parts) >= 3 else 'unknown'\n                    tier_stats['symbols'].add(symbol)\n                    stats['symbols'].add(symbol)\n            \n            stats['tiers'][tier] = {\n                'files': tier_stats['files'],\n                'size_bytes': tier_stats['size_bytes'],\n                'size_mb': tier_stats['size_bytes'] / (1024 * 1024),\n                'symbols': len(tier_stats['symbols'])\n            }\n            \n            stats['total_files'] += tier_stats['files']\n            stats['total_size_bytes'] += tier_stats['size_bytes']\n        \n        stats['total_size_mb'] = stats['total_size_bytes'] / (1024 * 1024)\n        stats['total_symbols'] = len(stats['symbols'])\n        \n        return stats\n    \n    async def close(self):\n        \"\"\"Clean up resources.\"\"\"\n        self.executor.shutdown(wait=True)
+        return await self._store_parquet_data(symbol, data, "cold", compress=True)
+    
+    async def _store_parquet_data(
+        self, 
+        symbol: str, 
+        data: List[Dict[str, Any]], 
+        tier: str,
+        compress: bool = True
+    ) -> int:
+        """Store data to Parquet files."""
+        if not data:
+            return 0
+        
+        # Group data by partition
+        partitions = {}
+        for bar in data:
+            timestamp = bar['timestamp']
+            if isinstance(timestamp, str):
+                timestamp = pd.to_datetime(timestamp)
+            
+            partition_key = self._get_partition_key(timestamp)
+            if partition_key not in partitions:
+                partitions[partition_key] = []
+            partitions[partition_key].append(bar)
+        
+        total_stored = 0
+        
+        # Store each partition
+        for partition_key, partition_data in partitions.items():
+            try:
+                stored = await self._write_parquet_partition(
+                    symbol, partition_data, tier, compress
+                )
+                total_stored += stored
+            except Exception as e:
+                logger.error(f"Error writing partition {partition_key} for {symbol}: {e}")
+                continue
+        
+        return total_stored
+    
+    def _get_partition_key(self, timestamp: datetime) -> str:
+        """Generate partition key based on timestamp."""
+        if self.config.partition_by == "year":
+            return f"{timestamp.year}"
+        elif self.config.partition_by == "year_month":
+            return f"{timestamp.year}_{timestamp.month:02d}"
+        else:  # year_month_day
+            return f"{timestamp.year}_{timestamp.month:02d}_{timestamp.day:02d}"
+    
+    async def _write_parquet_partition(
+        self,
+        symbol: str,
+        data: List[Dict[str, Any]], 
+        tier: str,
+        compress: bool
+    ) -> int:
+        """Write a partition of data to Parquet file."""
+        if not data:
+            return 0
+        
+        # Convert to DataFrame
+        df = pd.DataFrame(data)
+        
+        # Ensure proper data types
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df = df.sort_values('timestamp')
+        
+        # Get file path
+        file_path = self._get_file_path(symbol, df['timestamp'].iloc[0], tier)
+        
+        # Compression settings
+        compression = self.config.compression if compress else None
+        
+        # Write to file in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            self.executor,
+            self._write_parquet_file,
+            df, file_path, compression
+        )
+        
+        return len(df)
+    
+    def _write_parquet_file(self, df: pd.DataFrame, file_path: Path, compression: str):
+        """Write DataFrame to Parquet file (runs in thread pool)."""
+        # Handle existing file (append or overwrite)
+        if file_path.exists():
+            # Read existing data
+            existing_df = pd.read_parquet(file_path)
+            
+            # Merge with new data (deduplicate by timestamp)
+            combined_df = pd.concat([existing_df, df])
+            combined_df = combined_df.drop_duplicates(subset=['timestamp'], keep='last')
+            combined_df = combined_df.sort_values('timestamp')
+            df = combined_df
+        
+        # Write to Parquet
+        df.to_parquet(
+            file_path,
+            compression=compression,
+            index=False,
+            engine='pyarrow'
+        )
+        
+        logger.debug(f"Wrote {len(df)} records to {file_path}")
+    
+    async def query_minute_data(
+        self,
+        symbol: str,
+        start_date: datetime,
+        end_date: datetime,
+        columns: Optional[List[str]] = None
+    ) -> pd.DataFrame:
+        """Query minute data across hot and cold storage."""
+        
+        # Determine which storage tiers to query
+        hot_cutoff = datetime.now() - timedelta(days=self.config.hot_data_days)
+        
+        hot_data = None
+        cold_data = None
+        
+        # Query hot data (database) if needed
+        if end_date > hot_cutoff:
+            hot_start = max(start_date, hot_cutoff)
+            try:
+                hot_data = await self._query_hot_data(symbol, hot_start, end_date, columns)
+            except Exception as e:
+                logger.error(f"Error querying hot data: {e}")
+        
+        # Query cold data (files) if needed  
+        if start_date < hot_cutoff:
+            cold_end = min(end_date, hot_cutoff)
+            try:
+                cold_data = await self._query_cold_data(symbol, start_date, cold_end, columns)
+            except Exception as e:
+                logger.error(f"Error querying cold data: {e}")
+        
+        # Combine results
+        dfs = []
+        if cold_data is not None and not cold_data.empty:
+            dfs.append(cold_data)
+        if hot_data is not None and not hot_data.empty:
+            dfs.append(hot_data)
+        
+        if not dfs:
+            return pd.DataFrame()
+        
+        combined_df = pd.concat(dfs, ignore_index=True)
+        combined_df = combined_df.sort_values('timestamp')
+        combined_df = combined_df.drop_duplicates(subset=['timestamp'], keep='last')
+        
+        return combined_df
+    
+    async def _query_hot_data(
+        self,
+        symbol: str,
+        start_date: datetime,
+        end_date: datetime,
+        columns: Optional[List[str]] = None
+    ) -> pd.DataFrame:
+        """Query hot data from database."""
+        table_name = env.get_table_name('minute_bars')
+        
+        if columns:
+            column_list = ', '.join(columns)
+        else:
+            column_list = '*'
+        
+        query = f"""
+        SELECT {column_list}
+        FROM {table_name}
+        WHERE symbol = $1 
+          AND timestamp >= $2 
+          AND timestamp <= $3
+        ORDER BY timestamp
+        """
+        
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(query, symbol, start_date, end_date)
+        
+        if not rows:
+            return pd.DataFrame()
+        
+        # Convert to DataFrame
+        df = pd.DataFrame([dict(row) for row in rows])
+        return df
+    
+    async def _query_cold_data(
+        self,
+        symbol: str,
+        start_date: datetime,
+        end_date: datetime,
+        columns: Optional[List[str]] = None
+    ) -> pd.DataFrame:
+        """Query cold data from Parquet files."""
+        
+        # Find relevant files
+        files_to_read = self._find_relevant_files(symbol, start_date, end_date)
+        
+        if not files_to_read:
+            return pd.DataFrame()
+        
+        # Read files in parallel
+        dfs = []
+        for file_path in files_to_read:
+            try:
+                df = await self._read_parquet_file(file_path, columns)
+                if df is not None and not df.empty:
+                    # Filter by date range
+                    df = df[
+                        (df['timestamp'] >= start_date) &
+                        (df['timestamp'] <= end_date) &
+                        (df['symbol'] == symbol)
+                    ]
+                    if not df.empty:
+                        dfs.append(df)
+            except Exception as e:
+                logger.error(f"Error reading {file_path}: {e}")
+                continue
+        
+        if not dfs:
+            return pd.DataFrame()
+        
+        # Combine all DataFrames
+        combined_df = pd.concat(dfs, ignore_index=True)
+        combined_df = combined_df.sort_values('timestamp')
+        combined_df = combined_df.drop_duplicates(subset=['timestamp'], keep='last')
+        
+        return combined_df
+    
+    def _find_relevant_files(
+        self,
+        symbol: str,
+        start_date: datetime,
+        end_date: datetime
+    ) -> List[Path]:
+        """Find Parquet files that might contain data in the date range."""
+        files = []
+        
+        # Check both warm and cold storage
+        for tier in ['warm', 'cold']:
+            base_path = Path(self.config.base_data_path) / tier / symbol
+            
+            if not base_path.exists():
+                continue
+            
+            # Walk directory structure based on partitioning scheme
+            if self.config.partition_by == "year":
+                for year in range(start_date.year, end_date.year + 1):
+                    year_path = base_path / str(year)
+                    if year_path.exists():
+                        files.extend(year_path.glob("*.parquet"))
+            
+            elif self.config.partition_by == "year_month":
+                current = start_date.replace(day=1)
+                end = end_date.replace(day=1)
+                
+                while current <= end:
+                    month_path = base_path / str(current.year) / f"{current.month:02d}"
+                    if month_path.exists():
+                        files.extend(month_path.glob("*.parquet"))
+                    
+                    # Move to next month
+                    if current.month == 12:
+                        current = current.replace(year=current.year + 1, month=1)
+                    else:
+                        current = current.replace(month=current.month + 1)
+            
+            else:  # year_month_day
+                current = start_date.date()
+                while current <= end_date.date():
+                    day_path = base_path / str(current.year) / f"{current.month:02d}"
+                    if day_path.exists():
+                        pattern = f"*_{current.year}_{current.month:02d}_{current.day:02d}.parquet"
+                        files.extend(day_path.glob(pattern))
+                    
+                    current += timedelta(days=1)
+        
+        return sorted(set(files))
+    
+    async def _read_parquet_file(
+        self,
+        file_path: Path,
+        columns: Optional[List[str]] = None
+    ) -> Optional[pd.DataFrame]:
+        """Read Parquet file in thread pool."""
+        loop = asyncio.get_event_loop()
+        
+        try:
+            df = await loop.run_in_executor(
+                self.executor,
+                self._read_parquet_sync,
+                file_path, columns
+            )
+            return df
+        except Exception as e:
+            logger.error(f"Error reading {file_path}: {e}")
+            return None
+    
+    def _read_parquet_sync(self, file_path: Path, columns: Optional[List[str]]) -> pd.DataFrame:
+        """Synchronous Parquet file read."""
+        return pd.read_parquet(file_path, columns=columns)
+    
+    async def archive_old_data(self, days_old: int = 365) -> Dict[str, Any]:
+        """Archive data older than specified days."""
+        cutoff_date = datetime.now() - timedelta(days=days_old)
+        
+        # Move data from hot to cold storage
+        hot_archived = await self._archive_hot_data(cutoff_date)
+        
+        # Compress warm storage files
+        warm_compressed = await self._compress_warm_data(cutoff_date)
+        
+        return {
+            'cutoff_date': cutoff_date,
+            'hot_records_archived': hot_archived,
+            'warm_files_compressed': warm_compressed
+        }
+    
+    async def _archive_hot_data(self, cutoff_date: datetime) -> int:
+        """Move old data from database to cold storage."""
+        table_name = env.get_table_name('minute_bars')
+        
+        # Query old data
+        query = f"""
+        SELECT * FROM {table_name}
+        WHERE timestamp < $1
+        ORDER BY symbol, timestamp
+        """
+        
+        archived_count = 0
+        
+        async with self.pool.acquire() as conn:
+            # Process in batches to avoid memory issues
+            async with conn.transaction():
+                cursor = await conn.cursor(query, cutoff_date)
+                
+                batch = []
+                current_symbol = None
+                
+                async for row in cursor:
+                    row_dict = dict(row)
+                    symbol = row_dict['symbol']
+                    
+                    # Process batches by symbol
+                    if current_symbol and current_symbol != symbol:
+                        if batch:
+                            await self._store_cold_data(current_symbol, batch)
+                            archived_count += len(batch)
+                            batch = []
+                    
+                    current_symbol = symbol
+                    batch.append(row_dict)
+                    
+                    if len(batch) >= self.config.batch_size:
+                        await self._store_cold_data(current_symbol, batch)
+                        archived_count += len(batch)
+                        batch = []
+                
+                # Process remaining batch
+                if batch and current_symbol:
+                    await self._store_cold_data(current_symbol, batch)
+                    archived_count += len(batch)
+                
+                # Delete archived data from database
+                if archived_count > 0:
+                    delete_query = f"DELETE FROM {table_name} WHERE timestamp < $1"
+                    await conn.execute(delete_query, cutoff_date)
+        
+        return archived_count
+    
+    async def _compress_warm_data(self, cutoff_date: datetime) -> int:
+        """Compress warm data files to cold storage."""
+        warm_path = Path(self.config.base_data_path) / "warm"
+        compressed_count = 0
+        
+        if not warm_path.exists():
+            return 0
+        
+        # Find old warm files
+        for parquet_file in warm_path.rglob("*.parquet"):
+            try:
+                # Check file modification time
+                file_mtime = datetime.fromtimestamp(parquet_file.stat().st_mtime)
+                
+                if file_mtime < cutoff_date:
+                    # Read, compress, and move to cold storage
+                    df = pd.read_parquet(parquet_file)
+                    
+                    if not df.empty:
+                        symbol = df['symbol'].iloc[0]
+                        data = df.to_dict('records')
+                        
+                        # Store in cold storage (compressed)
+                        await self._store_cold_data(symbol, data)
+                        
+                        # Remove from warm storage
+                        parquet_file.unlink()
+                        compressed_count += 1
+                        
+                        logger.info(f"Compressed and moved {parquet_file} to cold storage")
+                        
+            except Exception as e:
+                logger.error(f"Error compressing {parquet_file}: {e}")
+                continue
+        
+        return compressed_count
+    
+    async def get_storage_stats(self) -> Dict[str, Any]:
+        """Get storage statistics across all tiers."""
+        stats = {
+            'hot_storage': await self._get_hot_storage_stats(),
+            'cold_storage': await self._get_cold_storage_stats()
+        }
+        
+        return stats
+    
+    async def _get_hot_storage_stats(self) -> Dict[str, Any]:
+        """Get hot storage (database) statistics."""
+        table_name = env.get_table_name('minute_bars')
+        
+        queries = {
+            'total_records': f"SELECT COUNT(*) FROM {table_name}",
+            'unique_symbols': f"SELECT COUNT(DISTINCT symbol) FROM {table_name}",
+            'date_range': f"SELECT MIN(timestamp), MAX(timestamp) FROM {table_name}",
+            'table_size': f"SELECT pg_total_relation_size('{table_name}')" 
+        }
+        
+        stats = {}
+        
+        async with self.pool.acquire() as conn:
+            for stat_name, query in queries.items():
+                try:
+                    result = await conn.fetchval(query)
+                    stats[stat_name] = result
+                except Exception as e:
+                    logger.error(f"Error getting {stat_name}: {e}")
+                    stats[stat_name] = None
+        
+        return stats
+    
+    async def _get_cold_storage_stats(self) -> Dict[str, Any]:
+        """Get cold storage (disk) statistics."""
+        base_path = Path(self.config.base_data_path)
+        
+        stats = {
+            'total_files': 0,
+            'total_size_bytes': 0,
+            'symbols': set(),
+            'tiers': {}
+        }
+        
+        for tier in ['warm', 'cold', 'archive']:
+            tier_path = base_path / tier
+            tier_stats = {'files': 0, 'size_bytes': 0, 'symbols': set()}
+            
+            if tier_path.exists():
+                for parquet_file in tier_path.rglob("*.parquet"):
+                    tier_stats['files'] += 1
+                    tier_stats['size_bytes'] += parquet_file.stat().st_size
+                    
+                    # Extract symbol from path
+                    symbol = parquet_file.parts[-3] if len(parquet_file.parts) >= 3 else 'unknown'
+                    tier_stats['symbols'].add(symbol)
+                    stats['symbols'].add(symbol)
+            
+            stats['tiers'][tier] = {
+                'files': tier_stats['files'],
+                'size_bytes': tier_stats['size_bytes'],
+                'size_mb': tier_stats['size_bytes'] / (1024 * 1024),
+                'symbols': len(tier_stats['symbols'])
+            }
+            
+            stats['total_files'] += tier_stats['files']
+            stats['total_size_bytes'] += tier_stats['size_bytes']
+        
+        stats['total_size_mb'] = stats['total_size_bytes'] / (1024 * 1024)
+        stats['total_symbols'] = len(stats['symbols'])
+        
+        return stats
+    
+    async def close(self):
+        """Clean up resources."""
+        self.executor.shutdown(wait=True)
 
 
-# Convenience functions\nasync def create_hybrid_manager(\n    db_url: str,\n    config: StorageConfig = None\n) -> HybridMinuteDataManager:\n    \"\"\"Create hybrid storage manager with database connection.\"\"\"\n    pool = await asyncpg.create_pool(db_url, min_size=5, max_size=20)\n    return HybridMinuteDataManager(pool, config)\n\n\nasync def migrate_existing_data(\n    manager: HybridMinuteDataManager,\n    source_path: str,\n    symbol_mapping: Dict[str, str] = None\n) -> Dict[str, Any]:\n    \"\"\"Migrate existing data from /home/jianjun/ats to new storage format.\"\"\"\n    source_base = Path(source_path)\n    migrated = {'symbols': 0, 'files': 0, 'records': 0}\n    \n    if not source_base.exists():\n        logger.warning(f\"Source path {source_path} does not exist\")\n        return migrated\n    \n    # Process futures data (convert to stock-like format)\n    futures_path = source_base / \"FUT\" / \"30min\"\n    if futures_path.exists():\n        for symbol_dir in futures_path.iterdir():\n            if symbol_dir.is_dir():\n                symbol = symbol_dir.name\n                \n                # Map futures symbols if needed\n                if symbol_mapping and symbol in symbol_mapping:\n                    target_symbol = symbol_mapping[symbol]\n                else:\n                    target_symbol = symbol\n                \n                logger.info(f\"Migrating futures data for {symbol} -> {target_symbol}\")\n                \n                try:\n                    records = await _process_futures_symbol(symbol_dir, target_symbol)\n                    if records:\n                        # Store as cold data (historical)\n                        await manager.store_minute_data(target_symbol, records, force_tier='cold')\n                        migrated['records'] += len(records)\n                        migrated['files'] += 1\n                    \n                    migrated['symbols'] += 1\n                    \n                except Exception as e:\n                    logger.error(f\"Error migrating {symbol}: {e}\")\n                    continue\n    \n    return migrated\n\n\nasync def _process_futures_symbol(symbol_dir: Path, target_symbol: str) -> List[Dict[str, Any]]:\n    \"\"\"Process futures data files for a symbol.\"\"\"\n    records = []\n    \n    for month_dir in symbol_dir.iterdir():\n        if month_dir.is_dir():\n            for parquet_file in month_dir.glob(\"*.parquet\"):\n                try:\n                    df = pd.read_parquet(parquet_file)\n                    \n                    # Convert 30-minute to 1-minute (interpolate)\n                    df_1min = _interpolate_to_1min(df, target_symbol)\n                    \n                    if not df_1min.empty:\n                        records.extend(df_1min.to_dict('records'))\n                        \n                except Exception as e:\n                    logger.error(f\"Error processing {parquet_file}: {e}\")\n                    continue\n    \n    return records\n\n\ndef _interpolate_to_1min(df: pd.DataFrame, symbol: str) -> pd.DataFrame:\n    \"\"\"Interpolate 30-minute data to 1-minute bars.\"\"\"\n    if df.empty:\n        return df\n    \n    # Create 1-minute time index\n    start_time = df.index.min()\n    end_time = df.index.max()\n    \n    minute_index = pd.date_range(\n        start=start_time,\n        end=end_time,\n        freq='1min'\n    )\n    \n    # Reindex and interpolate\n    df_reindexed = df.reindex(minute_index)\n    \n    # Forward fill OHLC data within each 30-minute period\n    df_reindexed['open'] = df_reindexed['open'].fillna(method='ffill')\n    df_reindexed['high'] = df_reindexed['high'].fillna(method='ffill')\n    df_reindexed['low'] = df_reindexed['low'].fillna(method='ffill')\n    df_reindexed['close'] = df_reindexed['close'].fillna(method='ffill')\n    \n    # Distribute volume evenly across 30 minutes\n    df_reindexed['volume'] = df_reindexed['volume'].fillna(0) / 30\n    \n    # Add required fields\n    df_reindexed['symbol'] = symbol\n    df_reindexed['vendor'] = 'futures_converted'\n    df_reindexed['timestamp'] = df_reindexed.index\n    \n    return df_reindexed.dropna(subset=['open', 'high', 'low', 'close'])
+# Convenience functions
+async def create_hybrid_manager(
+    db_url: str,
+    config: StorageConfig = None
+) -> HybridMinuteDataManager:
+    """Create hybrid storage manager with database connection."""
+    pool = await asyncpg.create_pool(db_url, min_size=5, max_size=20)
+    return HybridMinuteDataManager(pool, config)
+
+
+async def migrate_existing_data(
+    manager: HybridMinuteDataManager,
+    source_path: str,
+    symbol_mapping: Dict[str, str] = None
+) -> Dict[str, Any]:
+    """Migrate existing data from /home/jianjun/ats to new storage format."""
+    source_base = Path(source_path)
+    migrated = {'symbols': 0, 'files': 0, 'records': 0}
+    
+    if not source_base.exists():
+        logger.warning(f"Source path {source_path} does not exist")
+        return migrated
+    
+    # Process futures data (convert to stock-like format)
+    futures_path = source_base / "FUT" / "30min"
+    if futures_path.exists():
+        for symbol_dir in futures_path.iterdir():
+            if symbol_dir.is_dir():
+                symbol = symbol_dir.name
+                
+                # Map futures symbols if needed
+                if symbol_mapping and symbol in symbol_mapping:
+                    target_symbol = symbol_mapping[symbol]
+                else:
+                    target_symbol = symbol
+                
+                logger.info(f"Migrating futures data for {symbol} -> {target_symbol}")
+                
+                try:
+                    records = await _process_futures_symbol(symbol_dir, target_symbol)
+                    if records:
+                        # Store as cold data (historical)
+                        await manager.store_minute_data(target_symbol, records, force_tier='cold')
+                        migrated['records'] += len(records)
+                        migrated['files'] += 1
+                    
+                    migrated['symbols'] += 1
+                    
+                except Exception as e:
+                    logger.error(f"Error migrating {symbol}: {e}")
+                    continue
+    
+    return migrated
+
+
+async def _process_futures_symbol(symbol_dir: Path, target_symbol: str) -> List[Dict[str, Any]]:
+    """Process futures data files for a symbol."""
+    records = []
+    
+    for month_dir in symbol_dir.iterdir():
+        if month_dir.is_dir():
+            for parquet_file in month_dir.glob("*.parquet"):
+                try:
+                    df = pd.read_parquet(parquet_file)
+                    
+                    # Convert 30-minute to 1-minute (interpolate)
+                    df_1min = _interpolate_to_1min(df, target_symbol)
+                    
+                    if not df_1min.empty:
+                        records.extend(df_1min.to_dict('records'))
+                        
+                except Exception as e:
+                    logger.error(f"Error processing {parquet_file}: {e}")
+                    continue
+    
+    return records
+
+
+def _interpolate_to_1min(df: pd.DataFrame, symbol: str) -> pd.DataFrame:
+    """Interpolate 30-minute data to 1-minute bars."""
+    if df.empty:
+        return df
+    
+    # Create 1-minute time index
+    start_time = df.index.min()
+    end_time = df.index.max()
+    
+    minute_index = pd.date_range(
+        start=start_time,
+        end=end_time,
+        freq='1min'
+    )
+    
+    # Reindex and interpolate
+    df_reindexed = df.reindex(minute_index)
+    
+    # Forward fill OHLC data within each 30-minute period
+    df_reindexed['open'] = df_reindexed['open'].fillna(method='ffill')
+    df_reindexed['high'] = df_reindexed['high'].fillna(method='ffill')
+    df_reindexed['low'] = df_reindexed['low'].fillna(method='ffill')
+    df_reindexed['close'] = df_reindexed['close'].fillna(method='ffill')
+    
+    # Distribute volume evenly across 30 minutes
+    df_reindexed['volume'] = df_reindexed['volume'].fillna(0) / 30
+    
+    # Add required fields
+    df_reindexed['symbol'] = symbol
+    df_reindexed['vendor'] = 'futures_converted'
+    df_reindexed['timestamp'] = df_reindexed.index
+    
+    return df_reindexed.dropna(subset=['open', 'high', 'low', 'close'])

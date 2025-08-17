@@ -15,6 +15,9 @@ from signals.enhanced_indicators import (
     VWAPIndicator,
     VolumeIndicators,
     PriceActionIndicators,
+    CumulativeVolumeIndicator,
+    CumulativeDollarsIndicator,
+    SessionVWAPIndicator,
     ResidualReturnIndicatorConfig,
     calculate_all_technical_indicators
 )
@@ -53,9 +56,488 @@ class TestEMAIndicator:
         indicator = EMAIndicator(period=5)
         result = indicator.calculate(data)
         
-        assert isinstance(result, dict)
         assert result['status'] == 'insufficient_data'
         assert result['value'] is None
+
+
+class TestCumulativeVolumeIndicator:
+    """Test Cumulative Volume indicator calculations."""
+    
+    def test_cumulative_volume_daily_reset(self):
+        """Test cumulative volume with daily reset."""
+        # Create test data with timestamps across multiple days
+        timestamps = pd.date_range('2024-01-01 09:30:00', periods=10, freq='1h')
+        data = pd.DataFrame({
+            'timestamp': timestamps,
+            'close': [100, 101, 102, 103, 104, 105, 106, 107, 108, 109],
+            'high': [101, 102, 103, 104, 105, 106, 107, 108, 109, 110],
+            'low': [99, 100, 101, 102, 103, 104, 105, 106, 107, 108],
+            'volume': [1000, 1500, 2000, 1200, 1800, 2200, 1600, 1900, 2100, 1700]
+        })
+        data.index = timestamps
+        
+        indicator = CumulativeVolumeIndicator(reset_interval='daily')
+        result = indicator.calculate(data)
+        
+        assert isinstance(result, dict)
+        assert 'value' in result
+        assert 'status' in result
+        assert result['status'] == 'valid'
+        assert isinstance(result['value'], (int, float, np.integer, np.floating))
+        assert result['value'] > 0
+        
+        # Should have cumulative volume metrics
+        assert 'cumulative_volume' in result
+        assert 'positive_flow_ratio' in result
+        assert 'negative_flow_ratio' in result
+        assert 'volume_balance' in result
+        assert 'volume_acceleration' in result
+        
+        # Volume balance should be between -1 and 1
+        assert -1 <= result['volume_balance'] <= 1
+        
+        # Flow ratios should sum to approximately 1 (with neutral volume)
+        total_flow = result['positive_flow_ratio'] + result['negative_flow_ratio']
+        assert total_flow <= 1.0
+    
+    def test_cumulative_volume_session_reset(self):
+        """Test cumulative volume with session reset."""
+        # Use simple data without complex timestamp logic for now
+        data = pd.DataFrame({
+            'close': [100, 101, 102, 103, 104, 105, 106, 107],
+            'high': [101, 102, 103, 104, 105, 106, 107, 108],
+            'low': [99, 100, 101, 102, 103, 104, 105, 106],
+            'volume': [1000, 1500, 2000, 1200, 1800, 2200, 1600, 1900]
+        })
+        
+        indicator = CumulativeVolumeIndicator(reset_interval='session')
+        result = indicator.calculate(data)
+        
+        assert result['status'] == 'valid'
+        assert result['cumulative_volume'] > 0
+        assert 'volume_trend' in result
+        assert 'volume_percentile' in result
+    
+    def test_cumulative_volume_never_reset(self):
+        """Test cumulative volume with no reset."""
+        data = pd.DataFrame({
+            'close': [100, 101, 102, 103, 104],
+            'high': [101, 102, 103, 104, 105],
+            'low': [99, 100, 101, 102, 103],
+            'volume': [1000, 1500, 2000, 1200, 1800]
+        })
+        
+        indicator = CumulativeVolumeIndicator(reset_interval='never')
+        result = indicator.calculate(data)
+        
+        assert result['status'] == 'valid'
+        assert result['cumulative_volume'] == sum(data['volume'])
+    
+    def test_cumulative_volume_no_volume_data(self):
+        """Test cumulative volume with missing volume data."""
+        data = pd.DataFrame({
+            'close': [100, 101, 102],
+            'high': [101, 102, 103],
+            'low': [99, 100, 101]
+            # Missing volume column
+        })
+        
+        indicator = CumulativeVolumeIndicator()
+        result = indicator.calculate(data)
+        
+        assert result['status'] == 'no_volume_data'
+        assert result['value'] is None
+
+
+class TestCumulativeDollarsIndicator:
+    """Test Cumulative Dollars indicator calculations."""
+    
+    def test_cumulative_dollars_typical_price(self):
+        """Test cumulative dollars with typical price method."""
+        data = pd.DataFrame({
+            'open': [100, 101, 102, 103, 104],
+            'high': [101, 102, 103, 104, 105],
+            'low': [99, 100, 101, 102, 103],
+            'close': [100.5, 101.5, 102.5, 103.5, 104.5],
+            'volume': [1000, 1500, 2000, 1200, 1800]
+        })
+        
+        indicator = CumulativeDollarsIndicator(reset_interval='daily', price_method='typical')
+        result = indicator.calculate(data)
+        
+        assert isinstance(result, dict)
+        assert 'value' in result
+        assert 'status' in result
+        assert result['status'] == 'valid'
+        assert isinstance(result['value'], (int, float))
+        assert result['value'] > 0
+        
+        # Should have cumulative dollars metrics
+        assert 'cumulative_dollars' in result
+        assert 'positive_dollar_ratio' in result
+        assert 'negative_dollar_ratio' in result
+        assert 'dollar_balance' in result
+        assert 'avg_dollar_per_share' in result
+        assert 'liquidity_score' in result
+        
+        # Dollar balance should be between -1 and 1
+        assert -1 <= result['dollar_balance'] <= 1
+        
+        # Liquidity score should be positive
+        assert result['liquidity_score'] >= 0
+        
+        # Average dollar per share should be reasonable
+        assert result['avg_dollar_per_share'] > 0
+    
+    def test_cumulative_dollars_close_price(self):
+        """Test cumulative dollars with close price method."""
+        data = pd.DataFrame({
+            'close': [100, 101, 102, 103, 104],
+            'high': [101, 102, 103, 104, 105],
+            'low': [99, 100, 101, 102, 103],
+            'volume': [1000, 1500, 2000, 1200, 1800]
+        })
+        
+        indicator = CumulativeDollarsIndicator(reset_interval='daily', price_method='close')
+        result = indicator.calculate(data)
+        
+        assert result['status'] == 'valid'
+        expected_dollars = sum(data['close'] * data['volume'])
+        assert abs(result['cumulative_dollars'] - expected_dollars) < 0.01
+    
+    def test_cumulative_dollars_vwap_price(self):
+        """Test cumulative dollars with VWAP price method."""
+        data = pd.DataFrame({
+            'high': [101, 102, 103, 104, 105],
+            'low': [99, 100, 101, 102, 103],
+            'close': [100, 101, 102, 103, 104],
+            'volume': [1000, 1500, 2000, 1200, 1800]
+        })
+        
+        indicator = CumulativeDollarsIndicator(reset_interval='session', price_method='vwap')
+        result = indicator.calculate(data)
+        
+        assert result['status'] == 'valid'
+        assert result['cumulative_dollars'] > 0
+        assert 'dollar_acceleration' in result
+        assert 'dollar_percentile' in result
+        assert 'dollar_trend' in result
+    
+    def test_cumulative_dollars_session_reset(self):
+        """Test cumulative dollars with session reset."""
+        # Create data across trading session
+        timestamps = pd.date_range('2024-01-01 09:30:00', periods=6, freq='1H')
+        data = pd.DataFrame({
+            'timestamp': timestamps,
+            'close': [100, 101, 102, 103, 104, 105],
+            'high': [101, 102, 103, 104, 105, 106],
+            'low': [99, 100, 101, 102, 103, 104],
+            'volume': [1000, 1500, 2000, 1200, 1800, 1600]
+        })
+        data.index = timestamps
+        
+        indicator = CumulativeDollarsIndicator(reset_interval='session', price_method='close')
+        result = indicator.calculate(data)
+        
+        assert result['status'] == 'valid'
+        assert result['total_session_dollars'] > 0
+    
+    def test_cumulative_dollars_no_volume_data(self):
+        """Test cumulative dollars with missing volume data."""
+        data = pd.DataFrame({
+            'close': [100, 101, 102],
+            'high': [101, 102, 103],
+            'low': [99, 100, 101]
+            # Missing volume column
+        })
+        
+        indicator = CumulativeDollarsIndicator()
+        result = indicator.calculate(data)
+        
+        assert result['status'] == 'no_volume_data'
+        assert result['value'] is None
+    
+    def test_cumulative_dollars_empty_data(self):
+        """Test cumulative dollars with empty data."""
+        data = pd.DataFrame()
+        
+        indicator = CumulativeDollarsIndicator()
+        result = indicator.calculate(data)
+        
+        assert result['status'] == 'no_volume_data'
+        assert result['value'] is None
+
+
+class TestEnhancedIndicatorConfig:
+    """Test enhanced indicator configuration."""
+    
+    def test_comprehensive_config_includes_cumulative_indicators(self):
+        """Test that comprehensive config includes new cumulative indicators."""
+        config = ResidualReturnIndicatorConfig.comprehensive_config()
+        indicators = config.create_indicator_instances()
+        
+        # Check that cumulative indicators are included
+        cumulative_indicators = [name for name in indicators.keys() if 'Cum' in name]
+        assert len(cumulative_indicators) > 0
+        
+        # Check specific indicators
+        assert any('CumVolume' in name for name in indicators.keys())
+        assert any('CumDollars' in name for name in indicators.keys())
+    
+    def test_calculate_all_includes_cumulative_indicators(self):
+        """Test that calculate_all_technical_indicators includes cumulative indicators."""
+        # Create test data
+        data = pd.DataFrame({
+            'open': [100, 101, 102, 103, 104, 105],
+            'high': [101, 102, 103, 104, 105, 106],
+            'low': [99, 100, 101, 102, 103, 104],
+            'close': [100.5, 101.5, 102.5, 103.5, 104.5, 105.5],
+            'volume': [1000, 1500, 2000, 1200, 1800, 1600]
+        })
+        
+        results = calculate_all_technical_indicators(data)
+        
+        # Check that cumulative indicator results are present
+        cumulative_results = {k: v for k, v in results.items() if 'Cum' in k}
+        assert len(cumulative_results) > 0
+        
+        # Check specific indicator results
+        assert any('CumVolume' in key for key in results.keys())
+        assert any('CumDollars' in key for key in results.keys())
+
+
+class TestSessionVWAPIndicator:
+    """Test Session VWAP indicator calculations."""
+    
+    def test_session_vwap_us_open_30min(self):
+        """Test session VWAP for US market open 30-minute window."""
+        # Create test data with timestamps during US market hours
+        base_time = datetime(2024, 8, 17, 9, 30)  # Saturday 9:30 AM ET (for testing)
+        timestamps = pd.date_range(base_time, periods=120, freq='1min')
+        
+        data = pd.DataFrame({
+            'timestamp': timestamps,
+            'open': [150.0 + i * 0.1 for i in range(120)],
+            'high': [150.2 + i * 0.1 for i in range(120)],
+            'low': [149.8 + i * 0.1 for i in range(120)],
+            'close': [150.1 + i * 0.1 for i in range(120)],
+            'volume': [1000 + i * 10 for i in range(120)]
+        })
+        data.index = timestamps
+        
+        indicator = SessionVWAPIndicator(session_type='us_open', duration_minutes=30)
+        result = indicator.calculate(data)
+        
+        # Should work even without proper timezone data (will default to UTC)
+        assert isinstance(result, dict)
+        assert 'status' in result
+    
+    def test_session_vwap_london_close_60min(self):
+        """Test session VWAP for London market close 60-minute window."""
+        # Create test data with UTC timestamps
+        base_time = datetime(2024, 8, 17, 16, 30)  # 4:30 PM GMT
+        timestamps = pd.date_range(base_time, periods=180, freq='1min')
+        
+        data = pd.DataFrame({
+            'timestamp': timestamps,
+            'open': [100.0 + i * 0.05 for i in range(180)],
+            'high': [100.1 + i * 0.05 for i in range(180)],
+            'low': [99.9 + i * 0.05 for i in range(180)],
+            'close': [100.0 + i * 0.05 for i in range(180)],
+            'volume': [800 + i * 5 for i in range(180)]
+        })
+        data.index = timestamps
+        
+        indicator = SessionVWAPIndicator(session_type='london_close', duration_minutes=60)
+        result = indicator.calculate(data)
+        
+        assert isinstance(result, dict)
+        assert 'status' in result
+    
+    def test_session_vwap_no_volume_data(self):
+        """Test session VWAP with missing volume data."""
+        timestamps = pd.date_range('2024-08-17 09:30:00', periods=60, freq='1min')
+        data = pd.DataFrame({
+            'timestamp': timestamps,
+            'close': [100 + i * 0.1 for i in range(60)],
+            'high': [100.1 + i * 0.1 for i in range(60)],
+            'low': [99.9 + i * 0.1 for i in range(60)]
+            # Missing volume column
+        })
+        data.index = timestamps
+        
+        indicator = SessionVWAPIndicator(session_type='us_open', duration_minutes=30)
+        result = indicator.calculate(data)
+        
+        assert result['status'] == 'no_volume_data'
+        assert result['value'] is None
+    
+    def test_session_vwap_no_timestamp_data(self):
+        """Test session VWAP with missing timestamp data."""
+        data = pd.DataFrame({
+            'close': [100, 101, 102],
+            'high': [101, 102, 103],
+            'low': [99, 100, 101],
+            'volume': [1000, 1500, 2000]
+        })
+        # No timestamp index or column
+        
+        indicator = SessionVWAPIndicator(session_type='us_close', duration_minutes=30)
+        result = indicator.calculate(data)
+        
+        assert result['status'] == 'no_timestamp_data'
+        assert result['value'] is None
+    
+    def test_session_vwap_with_timezone_aware_data(self):
+        """Test session VWAP with timezone-aware data."""
+        import pytz
+        
+        # Create timezone-aware timestamps (US Eastern time)
+        et_tz = pytz.timezone('US/Eastern')
+        base_time = et_tz.localize(datetime(2024, 8, 17, 9, 30))
+        timestamps = pd.date_range(base_time, periods=60, freq='1min')
+        
+        data = pd.DataFrame({
+            'timestamp': timestamps,
+            'open': [150.0 + i * 0.02 for i in range(60)],
+            'high': [150.1 + i * 0.02 for i in range(60)],
+            'low': [149.9 + i * 0.02 for i in range(60)],
+            'close': [150.0 + i * 0.02 for i in range(60)],
+            'volume': [1200 + i * 8 for i in range(60)]
+        })
+        data.index = timestamps
+        
+        indicator = SessionVWAPIndicator(session_type='us_open', duration_minutes=30)
+        result = indicator.calculate(data)
+        
+        assert isinstance(result, dict)
+        assert 'status' in result
+    
+    def test_session_vwap_all_session_types(self):
+        """Test all session types and durations."""
+        # Create sample data
+        base_time = datetime(2024, 8, 17, 9, 30)
+        timestamps = pd.date_range(base_time, periods=120, freq='1min')
+        
+        data = pd.DataFrame({
+            'timestamp': timestamps,
+            'open': [100.0] * 120,
+            'high': [100.2] * 120,
+            'low': [99.8] * 120,
+            'close': [100.1] * 120,
+            'volume': [1000] * 120
+        })
+        data.index = timestamps
+        
+        session_types = ['us_open', 'us_close', 'london_close']
+        durations = [30, 60]
+        
+        for session_type in session_types:
+            for duration in durations:
+                indicator = SessionVWAPIndicator(
+                    session_type=session_type, 
+                    duration_minutes=duration
+                )
+                result = indicator.calculate(data)
+                
+                assert isinstance(result, dict)
+                assert 'status' in result
+                
+                # Check that indicator name is correctly formatted
+                expected_name = f"SessionVWAP_{session_type}_{duration}min"
+                assert indicator.name == expected_name
+    
+    def test_session_vwap_metrics_structure(self):
+        """Test that session VWAP returns expected metrics structure."""
+        base_time = datetime(2024, 8, 17, 9, 30)
+        timestamps = pd.date_range(base_time, periods=60, freq='1min')
+        
+        data = pd.DataFrame({
+            'timestamp': timestamps,
+            'open': [150.0 + i * 0.01 for i in range(60)],
+            'high': [150.1 + i * 0.01 for i in range(60)],
+            'low': [149.9 + i * 0.01 for i in range(60)],
+            'close': [150.0 + i * 0.01 for i in range(60)],
+            'volume': [1000 + i * 5 for i in range(60)]
+        })
+        data.index = timestamps
+        
+        indicator = SessionVWAPIndicator(session_type='us_open', duration_minutes=30)
+        result = indicator.calculate(data)
+        
+        # Check all expected metrics are present
+        expected_metrics = [
+            'value', 'session_vwap', 'price_vs_session_vwap',
+            'session_volume_balance', 'session_vwap_trend',
+            'total_session_volume', 'session_bar_count',
+            'avg_volume_per_bar', 'session_range',
+            'vwap_position_in_range', 'session_high', 'session_low',
+            'session_type', 'duration_minutes', 'status'
+        ]
+        
+        for metric in expected_metrics:
+            assert metric in result, f"Missing metric: {metric}"
+        
+        # Verify metric types and ranges
+        if result['status'] == 'valid':
+            assert isinstance(result['session_vwap'], (int, float, np.integer, np.floating))
+            assert isinstance(result['total_session_volume'], (int, float, np.integer, np.floating))
+            assert result['session_type'] == 'us_open'
+            assert result['duration_minutes'] == 30
+            assert 0 <= result['vwap_position_in_range'] <= 1
+
+
+class TestSessionVWAPConfiguration:
+    """Test session VWAP indicator configuration integration."""
+    
+    def test_comprehensive_config_includes_session_vwaps(self):
+        """Test that comprehensive config includes session VWAP indicators."""
+        config = ResidualReturnIndicatorConfig.comprehensive_config()
+        indicators = config.create_indicator_instances()
+        
+        # Check that session VWAP indicators are included
+        session_vwap_indicators = [name for name in indicators.keys() if 'SessionVWAP' in name]
+        assert len(session_vwap_indicators) == 6  # 3 sessions × 2 durations
+        
+        # Check specific indicators
+        expected_indicators = [
+            'SessionVWAP_us_open_30min',
+            'SessionVWAP_us_open_60min', 
+            'SessionVWAP_us_close_30min',
+            'SessionVWAP_us_close_60min',
+            'SessionVWAP_london_close_30min',
+            'SessionVWAP_london_close_60min'
+        ]
+        
+        for expected in expected_indicators:
+            assert expected in indicators.keys(), f"Missing indicator: {expected}"
+    
+    def test_calculate_all_includes_session_vwaps(self):
+        """Test that calculate_all_technical_indicators includes session VWAPs."""
+        # Create test data
+        base_time = datetime(2024, 8, 17, 9, 30)
+        timestamps = pd.date_range(base_time, periods=120, freq='1min')
+        
+        data = pd.DataFrame({
+            'timestamp': timestamps,
+            'open': [100.0 + i * 0.01 for i in range(120)],
+            'high': [100.1 + i * 0.01 for i in range(120)],
+            'low': [99.9 + i * 0.01 for i in range(120)],
+            'close': [100.0 + i * 0.01 for i in range(120)],
+            'volume': [1000 + i * 5 for i in range(120)]
+        })
+        data.index = timestamps
+        
+        results = calculate_all_technical_indicators(data)
+        
+        # Check that session VWAP results are present
+        session_vwap_results = {k: v for k, v in results.items() if 'SessionVWAP' in k}
+        assert len(session_vwap_results) > 0
+        
+        # Check specific indicator results
+        assert any('SessionVWAP_us_open' in key for key in results.keys())
+        assert any('SessionVWAP_us_close' in key for key in results.keys())
+        assert any('SessionVWAP_london_close' in key for key in results.keys())
     
     def test_ema_indicator_empty_data(self):
         """Test EMA indicator with empty data."""

@@ -61,6 +61,22 @@ class TimingLogger:
     def __init__(self, logger: logging.Logger):
         self.logger = logger
     
+    # Delegate standard logging methods to the underlying logger
+    def debug(self, message, *args, **kwargs):
+        return self.logger.debug(message, *args, **kwargs)
+    
+    def info(self, message, *args, **kwargs):
+        return self.logger.info(message, *args, **kwargs)
+    
+    def warning(self, message, *args, **kwargs):
+        return self.logger.warning(message, *args, **kwargs)
+    
+    def error(self, message, *args, **kwargs):
+        return self.logger.error(message, *args, **kwargs)
+    
+    def critical(self, message, *args, **kwargs):
+        return self.logger.critical(message, *args, **kwargs)
+    
     @contextmanager
     def timer(self, operation: str, **context):
         """Context manager for timing operations."""
