@@ -139,3 +139,6 @@ src/db/migrations/backups/
 k8s/generated/*
 !k8s/generated/.gitkeep
 
+# Ignore data directory
+data/
+
