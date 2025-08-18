@@ -25,7 +25,51 @@ PYTHONPATH=src uv run pytest -m database
 
 # Run with verbose output
 PYTHONPATH=src uv run pytest -v --tb=short
+
+# Test specific functionality (integration tests)
+PYTHONPATH=src uv run pytest tests/integration/ -v
 ```
+
+### Testing Best Practices (CRITICAL)
+**EVERY change must follow Test-Driven Development (TDD):**
+
+1. **Test Before Fix**: If there's an issue, FIRST create a test that reproduces the failure
+2. **Test Before Code**: Every new feature must have a test written first that fails
+3. **Test After Change**: Every change must pass all relevant tests before claiming success
+4. **Integration Testing**: Always test actual service startup, not just unit tests
+
+```bash
+# Example workflow for fixing a bug:
+# 1. Write a test that reproduces the bug (should fail)
+PYTHONPATH=src pytest tests/integration/test_bug_reproduction.py -v
+
+# 2. Fix the code
+# (make your changes)
+
+# 3. Verify the test now passes
+PYTHONPATH=src pytest tests/integration/test_bug_reproduction.py -v
+
+# 4. Run full test suite to ensure no regressions
+PYTHONPATH=src pytest tests/ -v
+```
+
+**Integration Test Examples:**
+```bash
+# Test actual service startup (catches real issues)
+PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py::TestAnalyticsPlatformIntegration::test_backend_api_can_start -v
+
+# Test database connectivity (catches auth issues)  
+PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py::TestRealWorldScenarios::test_database_connectivity -v
+
+# Test frontend dependencies (catches npm issues)
+PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py::TestAnalyticsPlatformIntegration::test_frontend_dependencies_can_install -v
+```
+
+**NEVER claim functionality works without:**
+- [ ] Writing a test that verifies the claim
+- [ ] Running the test and seeing it pass
+- [ ] Testing in a clean environment
+- [ ] Verifying actual URLs/services respond
 
 ### Database Operations
 ```bash
@@ -132,6 +176,61 @@ src/
 
 ## Development Guidelines
 
+### Test-Driven Development (TDD) Workflow - MANDATORY
+
+**EVERY change must follow this exact workflow:**
+
+#### 1. **Red Phase** - Write Failing Test First
+```bash
+# Before fixing any bug or adding any feature, write a test that fails
+# Example: If service startup is broken, write a test that tries to start it
+
+# Create test file
+touch tests/integration/test_new_feature.py
+
+# Write test that reproduces the issue/tests the new feature
+PYTHONPATH=src pytest tests/integration/test_new_feature.py -v
+# ✅ Test should FAIL - this proves you can detect the issue
+```
+
+#### 2. **Green Phase** - Fix The Code
+```bash
+# Now fix the actual code to make the test pass
+# Make minimal changes needed to pass the test
+# Don't add extra features
+
+# Run the test again
+PYTHONPATH=src pytest tests/integration/test_new_feature.py -v  
+# ✅ Test should now PASS
+```
+
+#### 3. **Refactor Phase** - Clean Up
+```bash
+# Clean up code while keeping tests passing
+# Run full test suite to prevent regressions
+PYTHONPATH=src pytest tests/ -v
+# ✅ All tests should still pass
+```
+
+#### 4. **Integration Verification**
+```bash
+# Test actual service functionality (not just unit tests)
+# For web services: test actual HTTP endpoints
+# For databases: test actual connections
+# For frontends: test actual browser loading
+
+# Example integration tests:
+PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py -v
+```
+
+**Critical Rules:**
+- 🚫 **NEVER** claim something works without a passing test
+- 🚫 **NEVER** fix code without first writing a failing test  
+- 🚫 **NEVER** write tests after the code (except for legacy code)
+- ✅ **ALWAYS** write the test first, see it fail, then fix
+- ✅ **ALWAYS** test actual integration (services, databases, APIs)
+- ✅ **ALWAYS** verify URLs actually work in a browser
+
 ### Database Schema Changes
 1. Create new migration SQL file in `src/db/migrations/` with sequential numbering
 2. Update `src/db/migration_manager.py` if needed
@@ -158,11 +257,34 @@ src/
 
 ## Important Notes
 
+### Development Rules (CRITICAL)
+- **ALWAYS use Test-Driven Development** - Write failing test first, then fix
+- **NEVER claim functionality works** without passing integration tests
+- **ALWAYS test actual service startup** - not just unit tests
+- **ALWAYS verify URLs work in browser** before claiming success
+- **Test database connectivity** before claiming backend works
+- **Test npm install success** before claiming frontend works
+
+### Technical Notes
 - Always use `PYTHONPATH=src` when running Python scripts
 - Database connections require `sslmode=disable` in Kubernetes environments
 - Ray jobs should use local mode in Kubernetes to avoid autoscaling issues
 - Environment table prefixing is critical for multi-environment deployments
 - All secrets/API keys are managed through environment variables and Kubernetes secrets
+
+### Testing Expectations
+- **Integration tests are mandatory** for any new service or feature
+- **Tests must actually start services** to catch real startup issues
+- **Tests must verify external dependencies** (database, npm packages)
+- **Tests must fail when things are broken** - no false positives
+- **Every bug fix must start with a reproducing test**
+
+### Kubernetes Verification Process
+- **ALWAYS test jobs in actual cluster** before claiming they work
+- **Verify secret configurations** match actual Kubernetes secret keys
+- **Monitor pod logs** to catch startup failures and configuration errors
+- **Test database connectivity** from within Kubernetes environment
+- **Only claim success** when `kubectl logs` shows successful execution
 
 ## Fintech Team Roles and Responsibilities
 

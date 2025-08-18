@@ -260,8 +260,40 @@ spec:
         command: ["python"]
         args: ["/app/webapp/simple_backtest_webapp.py"]
         env:
+        # Standard environment configuration
         - name: PYTHONPATH
           value: /app/src
+        - name: ENVIRONMENT
+          value: dev
+        - name: DB_CONNECTION_PARAMS
+          value: sslmode=disable
+        
+        # Database credentials from centralized secret (standardized)
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_HOST
+        - name: DB_PORT
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_PORT
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_PASSWORD
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_NAME
         ports:
         - containerPort: 8000
         volumeMounts:
