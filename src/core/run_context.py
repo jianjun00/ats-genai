@@ -126,6 +126,11 @@ class RunContextManager:
         for dir_path in [run_base_dir, artifacts_dir, universe_state_dir, logs_dir]:
             dir_path.mkdir(parents=True, exist_ok=True)
         
+        # Create universe state subdirectories for compatibility
+        universe_state_subdirs = ["states", "metadata", "cache"]
+        for subdir in universe_state_subdirs:
+            (universe_state_dir / subdir).mkdir(parents=True, exist_ok=True)
+        
         # Default metadata
         if metadata is None:
             metadata = {}
@@ -180,7 +185,8 @@ class RunContextManager:
         # Find all run directories
         for run_dir in sorted(self.base_artifacts_dir.iterdir(), reverse=True):
             if run_dir.is_dir() and run_dir.name.startswith('run_'):
-                metadata_file = run_dir / "run_metadata.json"
+                # Look for metadata file in artifacts subdirectory
+                metadata_file = run_dir / "artifacts" / "run_metadata.json"
                 if metadata_file.exists():
                     try:
                         with open(metadata_file, 'r') as f:
@@ -190,6 +196,24 @@ class RunContextManager:
                             break
                     except Exception as e:
                         logger.warning(f"Failed to read metadata for {run_dir}: {e}")
+                else:
+                    # Fallback: create basic metadata if file doesn't exist
+                    try:
+                        timestamp = RunIdGenerator.extract_timestamp(run_dir.name)
+                        basic_metadata = {
+                            'run_id': run_dir.name,
+                            'start_time': timestamp.isoformat() if timestamp else 'unknown',
+                            'base_dir': str(run_dir),
+                            'artifacts_dir': str(run_dir / "artifacts"),
+                            'universe_state_dir': str(run_dir / "universe_state"),
+                            'logs_dir': str(run_dir / "logs"),
+                            'metadata': {'created_at': 'unknown', 'source': 'fallback'}
+                        }
+                        runs.append(basic_metadata)
+                        if len(runs) >= limit:
+                            break
+                    except Exception as e:
+                        logger.warning(f"Failed to create fallback metadata for {run_dir}: {e}")
         
         return runs
     
@@ -208,13 +232,18 @@ class RunContextManager:
                 run_id = run_dir.name
                 run_time = RunIdGenerator.extract_timestamp(run_id)
                 
-                if run_time and run_time < cutoff_time:
-                    try:
-                        shutil.rmtree(run_dir)
-                        removed_count += 1
-                        logger.info(f"Removed old run: {run_id}")
-                    except Exception as e:
-                        logger.warning(f"Failed to remove {run_dir}: {e}")
+                if run_time:
+                    # Make run_time timezone-aware for comparison
+                    if run_time.tzinfo is None:
+                        run_time = run_time.replace(tzinfo=timezone.utc)
+                    
+                    if run_time < cutoff_time:
+                        try:
+                            shutil.rmtree(run_dir)
+                            removed_count += 1
+                            logger.info(f"Removed old run: {run_id}")
+                        except Exception as e:
+                            logger.warning(f"Failed to remove {run_dir}: {e}")
         
         logger.info(f"Cleanup complete: removed {removed_count} old runs")
 
