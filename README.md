@@ -206,6 +206,41 @@ print(f"Long Positions: {len(recommendation.long_positions)}")
 print(f"Short Positions: {len(recommendation.short_positions)}")
 ```
 
+## 🗃️ Database Configuration & Real Data
+
+### **Critical: Real Data Only**
+⚠️ **This system uses REAL market data only - no mock, fake, or synthetic data for modeling.**
+- All portfolio optimization uses actual market prices and volumes
+- Technical indicators compute from real intraday and daily data  
+- Smart Money Zone analysis requires authentic institutional flow data
+- Performance metrics reflect actual trading scenarios
+
+### **Database Setup for Development**
+```bash
+# ATS Development Environment
+Database Host: localhost:5432
+Database User: postgres
+Database Password: dev_password  # For ats-dev environment
+Database Name: dev_db
+
+# Environment Variables
+export ENVIRONMENT=dev
+export DB_HOST=localhost
+export DB_PORT=5432  
+export DB_USER=postgres
+export DB_PASSWORD=dev_password
+export DB_NAME=dev_db
+```
+
+### **Initialize Database**
+```bash
+# Run migrations to set up schema
+PYTHONPATH=src ENVIRONMENT=dev DB_HOST=localhost DB_PORT=5432 DB_USER=postgres DB_PASSWORD=dev_password DB_NAME=dev_db uv run python src/db/migration_manager.py migrate
+
+# Verify setup
+PYTHONPATH=src ENVIRONMENT=dev DB_HOST=localhost DB_PORT=5432 DB_USER=postgres DB_PASSWORD=dev_password DB_NAME=dev_db uv run python src/db/migration_manager.py version
+```
+
 ## 📖 Component Documentation
 
 ### 🌟 **Core Systems**
