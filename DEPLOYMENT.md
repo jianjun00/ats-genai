@@ -153,6 +153,12 @@ http://analytics-api-service.ats-dev.svc.cluster.local:8000/
    - Connects to Kubernetes-hosted database
    - For testing with real infrastructure
 
+3. **🚀 Volume Mount Pattern** (RECOMMENDED for Python development):
+   - Mount Python scripts via ConfigMaps or volumes
+   - No Docker image rebuilding required
+   - Perfect for rapid Python iteration in Kubernetes
+   - See examples in `k8s/modeling-universe-with-mount.yaml`
+
 **DO NOT** mix local and Kubernetes approaches - choose one based on your testing needs.
 
 ---
@@ -195,6 +201,55 @@ kubectl apply -f production_analytics_api.yaml -n ats-prod
 kubectl get pods -n ats-prod -l app=ats-analytics
 kubectl logs deployment/analytics-api -n ats-prod
 ```
+
+### **🚀 Volume Mount Pattern for Python Development:**
+```bash
+# Example: Deploy Python script without Docker image rebuild
+# 1. Create ConfigMap with your Python script
+kubectl create configmap my-python-script --from-file=script.py -n ats-dev
+
+# 2. Deploy job with mounted script
+cat << EOF | kubectl apply -f -
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: python-job-with-mount
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      containers:
+      - name: python-runner
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          pip install asyncpg  # Install required packages
+          python /scripts/script.py  # Run mounted script
+        env:
+        - name: DB_HOST
+          value: "postgres"
+        # ... database credentials from secrets
+        volumeMounts:
+        - name: script-volume
+          mountPath: /scripts
+      volumes:
+      - name: script-volume
+        configMap:
+          name: my-python-script
+      restartPolicy: Never
+EOF
+
+# 3. Update script and redeploy quickly
+kubectl create configmap my-python-script --from-file=script.py -n ats-dev --dry-run=client -o yaml | kubectl apply -f -
+```
+
+### **Benefits of Volume Mount Pattern:**
+- ✅ **No Docker rebuilds** - Update scripts in seconds
+- ✅ **Rapid iteration** - Test changes immediately  
+- ✅ **Version control** - Scripts tracked in git
+- ✅ **Database access** - Full access to k8s resources
+- ✅ **Dependency management** - Install packages as needed
 
 ---
 

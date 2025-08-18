@@ -1,0 +1,364 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: modeling-universe-script
+  namespace: ats-dev
+data:
+  modeling_universe_creator.py: |
+    """
+    Modeling Universe Creator - Mounted version
+
+    Creates universes for modeling based on specific market cap and volume criteria.
+    """
+
+    import asyncio
+    import asyncpg
+    import logging
+    import os
+    from datetime import date, datetime, timedelta
+    from typing import List, Dict, Optional
+    from dataclasses import dataclass
+
+    @dataclass
+    class ModelingStock:
+        """Represents a stock qualifying for modeling universe"""
+        symbol: str
+        instrument_id: Optional[int]
+        avg_market_cap: Optional[float]  
+        avg_dollar_volume: Optional[float]  
+        avg_volume: Optional[float]  
+        avg_price: Optional[float]  
+        trading_days: int
+        first_date: date
+        last_date: date
+
+    class ModelingUniverseCreator:
+        """Creates universes for modeling based on market cap and liquidity criteria."""
+        
+        def __init__(self):
+            self.logger = logging.getLogger(__name__)
+            
+        def get_database_url(self):
+            """Get database URL from environment variables"""
+            db_host = os.getenv('DB_HOST', 'postgres')
+            db_port = os.getenv('DB_PORT', '5432')
+            db_user = os.getenv('DB_USER', 'postgres')
+            db_password = os.getenv('DB_PASSWORD', 'dev_password')
+            db_name = os.getenv('DB_NAME', 'dev_db')
+            
+            return f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+        
+        def get_table_name(self, base_name: str) -> str:
+            """Get environment-specific table name"""
+            env = os.getenv('ENVIRONMENT', 'dev')
+            return f"{env}_{base_name}"
+            
+        async def create_modeling_universe(
+            self,
+            universe_name: str,
+            min_market_cap_millions: float = 400,  
+            min_dollar_volume_millions: float = 100,  
+            min_trading_days: int = 20,  
+            lookback_days: int = 30,  
+            max_stocks: Optional[int] = None  
+        ) -> int:
+            """Create a modeling universe based on market cap and volume criteria."""
+            
+            self.logger.info(f"Creating modeling universe: {universe_name}")
+            self.logger.info(f"Criteria: market_cap>${min_market_cap_millions}M, "
+                            f"dollar_volume>${min_dollar_volume_millions}M, "
+                            f"min_trading_days={min_trading_days}")
+            
+            # Get qualifying stocks
+            qualifying_stocks = await self.get_qualifying_stocks(
+                min_market_cap_millions, min_dollar_volume_millions, 
+                min_trading_days, lookback_days
+            )
+            
+            self.logger.info(f"Found {len(qualifying_stocks)} qualifying stocks")
+            
+            # Apply size limit if specified
+            if max_stocks and len(qualifying_stocks) > max_stocks:
+                qualifying_stocks = self._rank_stocks_for_modeling(qualifying_stocks)[:max_stocks]
+                self.logger.info(f"Limited to top {max_stocks} stocks by modeling score")
+            
+            # Create universe and populate
+            universe_id = await self._create_universe_with_stocks(
+                universe_name, qualifying_stocks, min_market_cap_millions, 
+                min_dollar_volume_millions
+            )
+            
+            return universe_id
+        
+        async def get_qualifying_stocks(
+            self,
+            min_market_cap_millions: float,
+            min_dollar_volume_millions: float,
+            min_trading_days: int,
+            lookback_days: int
+        ) -> List[ModelingStock]:
+            """Get stocks that meet the modeling criteria based on recent trading data."""
+            
+            pool = await asyncpg.create_pool(self.get_database_url())
+            try:
+                async with pool.acquire() as conn:
+                    return await self._query_qualifying_stocks(
+                        conn, min_market_cap_millions, min_dollar_volume_millions,
+                        min_trading_days, lookback_days
+                    )
+            finally:
+                await pool.close()
+        
+        async def _query_qualifying_stocks(
+            self,
+            conn,
+            min_market_cap_millions: float,
+            min_dollar_volume_millions: float,
+            min_trading_days: int,
+            lookback_days: int
+        ) -> List[ModelingStock]:
+            """Query for stocks meeting modeling criteria"""
+            
+            end_date = date.today()
+            start_date = end_date - timedelta(days=lookback_days)
+            
+            # Simple query focusing on polygon data
+            query = f"""
+            WITH recent_trading AS (
+                SELECT 
+                    symbol,
+                    date,
+                    close,
+                    volume,
+                    close * volume as dollar_volume
+                FROM {self.get_table_name('daily_prices_polygon')}
+                WHERE date >= $1 AND date <= $2
+                  AND volume > 0 
+                  AND close > 0
+            ),
+            stock_metrics AS (
+                SELECT 
+                    symbol,
+                    COUNT(*) as trading_days,
+                    AVG(close) as avg_price,
+                    AVG(volume) as avg_volume,
+                    AVG(dollar_volume) as avg_dollar_volume,
+                    -- Estimate market cap as close * volume * 500 (rough approximation)
+                    AVG(close * volume * 500) as estimated_market_cap,
+                    MIN(date) as first_date,
+                    MAX(date) as last_date
+                FROM recent_trading
+                GROUP BY symbol
+            ),
+            instruments AS (
+                SELECT id, symbol 
+                FROM {self.get_table_name('instruments')}
+            )
+            SELECT 
+                sm.symbol,
+                i.id as instrument_id,
+                sm.estimated_market_cap as avg_market_cap,
+                sm.avg_dollar_volume,
+                sm.avg_volume,
+                sm.avg_price,
+                sm.trading_days,
+                sm.first_date,
+                sm.last_date
+            FROM stock_metrics sm
+            LEFT JOIN instruments i ON sm.symbol = i.symbol
+            WHERE sm.trading_days >= $3
+              AND sm.estimated_market_cap >= $4  
+              AND sm.avg_dollar_volume >= $5  
+              AND sm.avg_price > 1.0  
+              AND sm.avg_price < 5000  
+              AND sm.symbol ~ '^[A-Z]{{1,5}}$'  
+            ORDER BY sm.estimated_market_cap DESC, sm.avg_dollar_volume DESC
+            """
+            
+            min_market_cap = min_market_cap_millions * 1_000_000
+            min_dollar_volume = min_dollar_volume_millions * 1_000_000
+            
+            try:
+                rows = await conn.fetch(
+                    query, start_date, end_date, min_trading_days, 
+                    min_market_cap, min_dollar_volume
+                )
+                
+                stocks = []
+                for row in rows:
+                    stocks.append(ModelingStock(
+                        symbol=row['symbol'],
+                        instrument_id=row['instrument_id'],
+                        avg_market_cap=row['avg_market_cap'],
+                        avg_dollar_volume=row['avg_dollar_volume'],
+                        avg_volume=row['avg_volume'],
+                        avg_price=row['avg_price'],
+                        trading_days=row['trading_days'],
+                        first_date=row['first_date'],
+                        last_date=row['last_date']
+                    ))
+                
+                return stocks
+                
+            except Exception as e:
+                self.logger.error(f"Error querying qualifying stocks: {e}")
+                return []
+        
+        def _rank_stocks_for_modeling(self, stocks: List[ModelingStock]) -> List[ModelingStock]:
+            """Rank stocks by modeling suitability based on market cap and liquidity."""
+            def modeling_score(stock):
+                market_cap_score = (stock.avg_market_cap or 0) / 1_000_000  
+                dollar_volume_score = (stock.avg_dollar_volume or 0) / 1_000_000  
+                return 0.6 * market_cap_score + 0.4 * dollar_volume_score
+            
+            return sorted(stocks, key=modeling_score, reverse=True)
+        
+        async def _create_universe_with_stocks(
+            self,
+            universe_name: str,
+            stocks: List[ModelingStock],
+            min_market_cap_millions: float,
+            min_dollar_volume_millions: float
+        ) -> int:
+            """Create universe and populate with modeling stocks"""
+            
+            pool = await asyncpg.create_pool(self.get_database_url())
+            try:
+                async with pool.acquire() as conn:
+                    universe_id = await self._create_universe(
+                        conn, universe_name, min_market_cap_millions, min_dollar_volume_millions
+                    )
+                    await self._add_modeling_members(conn, universe_id, stocks)
+                    return universe_id
+            finally:
+                await pool.close()
+        
+        async def _create_universe(
+            self, 
+            conn, 
+            universe_name: str, 
+            min_market_cap_millions: float,
+            min_dollar_volume_millions: float
+        ) -> int:
+            """Create a new modeling universe"""
+            
+            description = (f"Modeling universe: market cap > ${min_market_cap_millions}M, "
+                          f"dollar volume > ${min_dollar_volume_millions}M "
+                          f"(created {date.today()})")
+            
+            query = f"""
+            INSERT INTO {self.get_table_name('universe')} (name, description)
+            VALUES ($1, $2)
+            ON CONFLICT (name) DO UPDATE SET 
+                description = EXCLUDED.description,
+                updated_at = NOW()
+            RETURNING id
+            """
+            
+            row = await conn.fetchrow(query, universe_name, description)
+            universe_id = row['id']
+            
+            self.logger.info(f"Created universe '{universe_name}' with ID: {universe_id}")
+            return universe_id
+        
+        async def _add_modeling_members(
+            self, 
+            conn, 
+            universe_id: int,
+            stocks: List[ModelingStock]
+        ) -> None:
+            """Add modeling stocks to universe membership"""
+            
+            membership_table = self.get_table_name('universe_membership')
+            membership_start = date.today()
+            
+            for stock in stocks:
+                query = f"""
+                INSERT INTO {membership_table} (universe_id, symbol, start_at, end_at)
+                VALUES ($1, $2, $3, NULL)
+                ON CONFLICT (universe_id, symbol, start_at) DO NOTHING
+                """
+                
+                await conn.execute(query, universe_id, stock.symbol, membership_start)
+            
+            self.logger.info(f"Added {len(stocks)} members to universe {universe_id}")
+
+    async def main():
+        """Main function to create modeling universe"""
+        
+        # Configure logging
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        
+        creator = ModelingUniverseCreator()
+        
+        # Create universe
+        universe_id = await creator.create_modeling_universe(
+            universe_name="modeling_400m_100m_k8s",
+            min_market_cap_millions=400,
+            min_dollar_volume_millions=100,
+            min_trading_days=15,  # Relaxed for testing
+            lookback_days=30,
+            max_stocks=50  # Limit for demo
+        )
+        
+        print(f"Created modeling universe with ID: {universe_id}")
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: modeling-universe-with-mount
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      containers:
+      - name: modeling-universe
+        image: python:3.12-slim
+        command: ["/bin/bash"]
+        args:
+          - -c
+          - |
+            echo "Installing required packages..."
+            pip install asyncpg
+            
+            echo "Running modeling universe creation..."
+            python /scripts/modeling_universe_creator.py
+            
+            echo "✅ Modeling universe creation completed!"
+        env:
+        - name: DB_HOST
+          value: "postgres"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_PASSWORD
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_NAME
+        - name: ENVIRONMENT
+          value: "dev"
+        volumeMounts:
+        - name: script-volume
+          mountPath: /scripts
+      volumes:
+      - name: script-volume
+        configMap:
+          name: modeling-universe-script
+      restartPolicy: Never
+  backoffLimit: 3
