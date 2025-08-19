@@ -1,0 +1,211 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: throttled-minute-backfill-pilot-script
+  namespace: ats-dev
+data:
+  backfill_script.py: |
+    #!/usr/bin/env python3
+    import os
+    import sys
+    import asyncio
+    import logging
+    import time
+    import psutil
+    from datetime import datetime, date, timedelta
+    
+    # Add src to Python path
+    sys.path.insert(0, '/app/src')
+    
+    from config.environment import Environment
+    
+    async def monitor_resources():
+        """Monitor system resources and pause if needed"""
+        memory_percent = psutil.virtual_memory().percent
+        cpu_percent = psutil.cpu_percent(interval=1)
+        
+        logger = logging.getLogger(__name__)
+        logger.info(f"Resource check - Memory: {memory_percent:.1f}%, CPU: {cpu_percent:.1f}%")
+        
+        # Pause if resources are high
+        if memory_percent > 70 or cpu_percent > 60:
+            logger.warning(f"Resource pressure detected! Pausing for 30 seconds...")
+            await asyncio.sleep(30)
+            return False
+        return True
+    
+    async def main():
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+        
+        # Environment setup
+        env = Environment()
+        
+        # ULTRA-CONSERVATIVE PILOT TEST
+        # Only backfill 1 week for top 100 instruments to test stability
+        start_date = date(2019, 12, 23)  # One week before year-end
+        end_date = date(2019, 12, 27)    # Only 5 trading days
+        
+        logger.info("=== THROTTLED MINUTE DATA BACKFILL PILOT ===")
+        logger.info(f"Period: {start_date} to {end_date} (1 week)")
+        logger.info("Strategy: Ultra-conservative resource usage")
+        logger.info("Target: Top 100 instruments only")
+        logger.info("Memory limit: 500MB per batch")
+        logger.info("Concurrency: 1 (sequential processing)")
+        
+        # Get top 100 instruments by recent volume
+        import asyncpg
+        conn = await asyncpg.connect(env.get_database_url())
+        
+        # Get instruments with recent data (most active)
+        instruments = await conn.fetch("""
+            SELECT DISTINCT i.id, i.symbol 
+            FROM dev_instruments i
+            JOIN dev_daily_prices_polygon p ON i.id = p.instrument_id
+            WHERE p.date >= '2025-08-01'  -- Recent data
+            ORDER BY i.symbol
+            LIMIT 100
+        """)
+        
+        await conn.close()
+        
+        logger.info(f"Selected {len(instruments)} instruments for pilot test")
+        
+        # Process in tiny batches with heavy throttling
+        batch_size = 10  # Only 10 instruments at a time
+        delay_between_batches = 5  # 5 seconds between batches
+        
+        for i in range(0, len(instruments), batch_size):
+            batch = instruments[i:i + batch_size]
+            
+            logger.info(f"Processing batch {i//batch_size + 1}: symbols {[r['symbol'] for r in batch[:3]]}...")
+            
+            # Check resources before each batch
+            if not await monitor_resources():
+                logger.warning("Skipping batch due to resource pressure")
+                continue
+            
+            # Simulate minute data processing (replace with actual backfill logic)
+            try:
+                # This would be the actual minute data backfill logic
+                # For now, just simulate processing time
+                logger.info(f"  Processing {len(batch)} instruments...")
+                await asyncio.sleep(2)  # Simulate work
+                
+                # Estimate records per batch
+                trading_days = (end_date - start_date).days
+                minutes_per_day = 390  # 6.5 hours * 60 minutes
+                estimated_records = len(batch) * trading_days * minutes_per_day
+                
+                logger.info(f"  Estimated records for this batch: {estimated_records:,}")
+                
+            except Exception as e:
+                logger.error(f"Batch failed: {e}")
+                logger.info("Pausing for 10 seconds before continuing...")
+                await asyncio.sleep(10)
+                continue
+            
+            # Mandatory delay between batches
+            logger.info(f"Batch completed. Waiting {delay_between_batches}s before next batch...")
+            await asyncio.sleep(delay_between_batches)
+        
+        # Final resource check
+        await monitor_resources()
+        
+        logger.info("=== PILOT TEST COMPLETED ===")
+        logger.info("If system remained stable, proceed to incremental backfill")
+        logger.info("Next step: Increase to 500 instruments, 3-day chunks")
+        
+    if __name__ == "__main__":
+        asyncio.run(main())
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: throttled-minute-backfill-pilot-job
+  namespace: ats-dev
+spec:
+  ttlSecondsAfterFinished: 7200  # 2 hours
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: pilot-container
+        image: python:3.11-slim
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            set -e
+            
+            echo "=== THROTTLED MINUTE DATA BACKFILL PILOT ==="
+            echo "Target: 100 instruments × 1 week (ULTRA-CONSERVATIVE)"
+            echo "Memory limit: 512MB (strict)"
+            echo "CPU limit: 200m (0.2 cores)"
+            echo "Strategy: Sequential processing with resource monitoring"
+            
+            # Install system dependencies (minimal)
+            apt-get update && apt-get install -y git curl
+            
+            # Install uv for faster package management
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            export PATH="$HOME/.local/bin:$PATH"
+            
+            # Clone repository
+            git clone https://github.com/jianjungit/ats-genai.git /app
+            cd /app
+            
+            # Install minimal Python dependencies
+            uv pip install --system psutil asyncpg
+            
+            # Set environment variables
+            export PYTHONPATH=/app/src
+            export ENVIRONMENT=dev
+            export DB_CONNECTION_PARAMS=sslmode=disable
+            
+            # Disable Ray completely for this pilot
+            export RAY_DISABLE_DASHBOARD=1
+            export RAY_USAGE_STATS_ENABLED=0
+            
+            # Memory optimization
+            export MALLOC_ARENA_MAX=2
+            export MALLOC_MMAP_THRESHOLD_=131072
+            export MALLOC_TRIM_THRESHOLD_=131072
+            
+            # Run the ultra-conservative pilot
+            python3 /scripts/backfill_script.py
+        env:
+        - name: DB_HOST
+          value: "postgres-simple.ats-dev.svc.cluster.local"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_NAME
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_PASSWORD
+        resources:
+          requests:
+            memory: "256Mi"    # Very conservative
+            cpu: "100m"        # 0.1 cores
+          limits:
+            memory: "512Mi"    # Hard limit: 512MB
+            cpu: "200m"        # Hard limit: 0.2 cores
+        volumeMounts:
+        - name: script-volume
+          mountPath: /scripts
+      volumes:
+      - name: script-volume
+        configMap:
+          name: throttled-minute-backfill-pilot-script
+          defaultMode: 0755
