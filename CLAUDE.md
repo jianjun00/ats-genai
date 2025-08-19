@@ -12,22 +12,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ❌ **NEVER try to run data scripts locally for dev environment**
 - ❌ **NEVER use localhost database connections for dev work**
 
-### Quick K8s Commands for Dev Operations
+### Dev CLI for K8s Operations (REQUIRED!)
+**ALWAYS use the dev CLI instead of kubectl directly:**
+
 ```bash
-# Deploy any data processing job
-kubectl apply -f k8s/your-job.yaml
+# Run database queries (most common)
+python scripts/dev_cli.py query "SELECT COUNT(*) FROM dev_daily_prices"
 
-# Monitor job progress  
-kubectl logs job/job-name -n ats-dev --follow
+# Run database migrations  
+python scripts/dev_cli.py migrate price-unification
 
-# Check job status
-kubectl get jobs -n ats-dev
+# Run data processing jobs
+python scripts/dev_cli.py job price-unification --symbols AAPL,MSFT --date 2024-01-15
 
-# Verify database connectivity
-kubectl exec -it deployment/postgres-simple -n ats-dev -- psql -U postgres -d dev_db
+# List current jobs
+python scripts/dev_cli.py list
+
+# Get job logs
+python scripts/dev_cli.py logs job-name
 ```
 
-**Remember: When user says "dev environment" → Think Kubernetes, not local!**
+**❌ NEVER use kubectl directly for dev operations**
+**✅ ALWAYS use `python scripts/dev_cli.py` for dev work**
+
+**Remember: When user says "dev environment" → Use dev CLI, not kubectl!**
 
 ## Common Development Commands
 
