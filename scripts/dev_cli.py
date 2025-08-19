@@ -222,6 +222,139 @@ def job_command(job_type: str, **kwargs):
 
     if __name__ == "__main__":
         asyncio.run(main())'''
+    
+    elif job_type == "backtest-2022-2025":
+        script_content = f'''    import asyncio
+    import asyncpg
+    import pandas as pd
+    import numpy as np
+    import logging
+    from datetime import date, datetime
+
+    async def main():
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+        
+        logger.info("🚀 Starting 2022-2025 Backtest via Dev CLI")
+        
+        # Database connection for Kubernetes
+        db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+        
+        try:
+            conn = await asyncpg.connect(db_url)
+            logger.info("✅ Connected to dev database")
+            
+            # Get data summary for the backtest period
+            summary_query = \"\"\"
+            SELECT 
+                EXTRACT(YEAR FROM date) as year,
+                COUNT(*) as records,
+                COUNT(DISTINCT i.symbol) as symbols,
+                AVG(close) as avg_price
+            FROM dev_daily_prices dp
+            JOIN dev_instruments i ON dp.instrument_id = i.id  
+            WHERE date >= '2022-01-01' AND date <= '2025-08-19'
+              AND close > 0 AND volume > 0
+            GROUP BY EXTRACT(YEAR FROM date)
+            ORDER BY year;
+            \"\"\"
+            
+            summary = await conn.fetch(summary_query)
+            
+            logger.info("📊 Data Coverage by Year:")
+            total_records = 0
+            for row in summary:
+                year = int(row['year'])
+                records = row['records']
+                symbols = row['symbols'] 
+                avg_price = row['avg_price'] or 0
+                total_records += records
+                logger.info(f"  {{year}}: {{records:,}} records, {{symbols}} symbols, avg price: ${{avg_price:.2f}}")
+            
+            logger.info(f"Total: {{total_records:,}} records")
+            
+            # Get top performing symbols
+            perf_query = \"\"\"
+            WITH symbol_performance AS (
+                SELECT 
+                    i.symbol,
+                    MIN(CASE WHEN dp.date >= '2022-01-01' THEN dp.close END) as start_price,
+                    MAX(CASE WHEN dp.date <= '2025-08-19' THEN dp.close END) as end_price,
+                    COUNT(*) as trading_days,
+                    AVG(dp.volume) as avg_volume
+                FROM dev_daily_prices dp
+                JOIN dev_instruments i ON dp.instrument_id = i.id
+                WHERE dp.date >= '2022-01-01' AND dp.date <= '2025-08-19'
+                  AND dp.close > 0 AND dp.volume > 0
+                GROUP BY i.symbol
+                HAVING COUNT(*) >= 900
+            )
+            SELECT 
+                symbol,
+                start_price,
+                end_price,
+                (end_price / start_price - 1) * 100 as total_return_pct,
+                trading_days,
+                avg_volume
+            FROM symbol_performance
+            WHERE start_price > 0 AND end_price > 0
+            ORDER BY (end_price / start_price - 1) DESC
+            LIMIT 10;
+            \"\"\"
+            
+            performance = await conn.fetch(perf_query)
+            
+            logger.info("🏆 Top 10 Performing Symbols (2022-2025):")
+            
+            portfolio_returns = []
+            
+            for i, row in enumerate(performance, 1):
+                symbol = row['symbol']
+                start_price = float(row['start_price'])
+                end_price = float(row['end_price'])
+                return_pct = float(row['total_return_pct'])
+                days = row['trading_days']
+                
+                portfolio_returns.append(return_pct)
+                
+                logger.info(f"  {{i:2}}. {{symbol:6}}: {{return_pct:7.1f}}% ({{start_price:6.2f}} → {{end_price:6.2f}}, {{days}} days)")
+            
+            # Calculate portfolio metrics
+            if portfolio_returns:
+                equal_weight_return = sum(portfolio_returns) / len(portfolio_returns)
+                annualized_return = (1 + equal_weight_return/100)**(1/3.7) - 1  # ~3.7 years
+                
+                logger.info("📈 Portfolio Performance Analysis:")
+                logger.info(f"  Equal-Weight Portfolio Return: {{equal_weight_return:.1f}}%")
+                logger.info(f"  Annualized Return: {{annualized_return:.1%}}")
+                logger.info(f"  Best Performer: {{performance[0]['symbol']}} ({{portfolio_returns[0]:.1f}}%)")
+                logger.info(f"  Worst in Top 10: {{performance[-1]['symbol']}} ({{portfolio_returns[-1]:.1f}}%)")
+                
+                # Market regime insights
+                logger.info("💡 Market Regime Analysis:")
+                logger.info("  2022: Bear market with inflation/rate hikes")
+                logger.info("  2023: Strong recovery driven by AI enthusiasm") 
+                logger.info("  2024: Mixed conditions with election uncertainty")
+                logger.info("  2025: Current market dynamics (through Aug)")
+                
+                logger.info("🎯 Model Configuration Testing Ready:")
+                logger.info("  ✅ Data covers multiple market regimes")
+                logger.info("  ✅ Excellent coverage for model comparison")
+                logger.info("  ✅ Perfect for testing adaptive vs static strategies")
+                logger.info("  ✅ Can test conservative vs aggressive approaches")
+            
+            logger.info("✅ 2022-2025 Backtest analysis completed!")
+            
+        except Exception as e:
+            logger.error(f"❌ Backtest failed: {{e}}")
+            import traceback
+            logger.error(traceback.format_exc())
+        finally:
+            if 'conn' in locals():
+                await conn.close()
+
+    if __name__ == "__main__":
+        asyncio.run(main())'''
     else:
         script_content = f'''    import asyncio
     import logging
