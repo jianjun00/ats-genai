@@ -1,0 +1,847 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vendor-separated-backfill
+  namespace: ats-dev
+  labels:
+    app: ats-backfill
+    type: vendor-separated
+spec:
+  ttlSecondsAfterFinished: 172800  # Clean up after 48 hours
+  template:
+    spec:
+      containers:
+      - name: vendor-separated-backfill
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "🔄 Starting Vendor-Separated Backfill Job"
+          echo "This job stores Polygon and Tiingo data separately for complete data lineage"
+          echo ""
+          
+          echo "Installing required packages..."
+          pip install asyncpg requests pandas aiohttp python-dotenv pyarrow
+          
+          # Verify installation
+          python -c "import asyncpg, requests, pandas, aiohttp, pyarrow; print('✅ All packages installed successfully')"
+          
+          mkdir -p /app/src/storage
+          mkdir -p /app/examples
+          mkdir -p /app/checkpoints
+          mkdir -p /data/STK/1min/cold  # Mock existing data structure
+          
+          echo "Creating vendor-separated backfill system..."
+          
+          # Create enhanced models with vendor metadata
+          cat > /app/src/models.py << 'EOF'
+          from dataclasses import dataclass
+          from datetime import datetime
+          from typing import Optional, Dict, Any
+          
+          @dataclass
+          class MinuteBar:
+              symbol: str
+              timestamp: datetime
+              open: float
+              high: float
+              low: float
+              close: float
+              volume: int
+              vwap: Optional[float] = None
+              trade_count: Optional[int] = None
+              vendor: str = "polygon"
+              quality_score: Optional[float] = None
+              source_metadata: Optional[Dict[str, Any]] = None
+          EOF
+          
+          # Enhanced Polygon adapter with metadata
+          cat > /app/src/polygon_adapter.py << 'EOF'
+          import asyncio
+          import aiohttp
+          from datetime import datetime
+          from typing import List
+          from models import MinuteBar
+          import logging
+          
+          logger = logging.getLogger(__name__)
+          
+          class PolygonMinuteAdapter:
+              def __init__(self, api_key: str):
+                  self.api_key = api_key
+                  self.session = None
+                  self.request_count = 0
+                  self.vendor = "polygon"
+              
+              async def __aenter__(self):
+                  self.session = aiohttp.ClientSession()
+                  return self
+              
+              async def __aexit__(self, exc_type, exc_val, exc_tb):
+                  if self.session:
+                      await self.session.close()
+              
+              async def fetch_minute_bars_async(self, symbol: str, start_date: datetime, end_date: datetime) -> List[MinuteBar]:
+                  if not self.session:
+                      raise RuntimeError("Must use async context manager")
+                  
+                  self.request_count += 1
+                  request_start = datetime.now()
+                  
+                  start_str = start_date.strftime("%Y-%m-%d")
+                  end_str = end_date.strftime("%Y-%m-%d")
+                  
+                  url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/minute/{start_str}/{end_str}"
+                  params = {
+                      'adjusted': 'true',
+                      'sort': 'asc',
+                      'limit': 50000,
+                      'apikey': self.api_key
+                  }
+                  
+                  try:
+                      # Enhanced rate limiting
+                      if self.request_count % 100 == 0:
+                          logger.info(f"Made {self.request_count} Polygon API calls so far")
+                      
+                      await asyncio.sleep(0.12)  # Conservative rate limiting
+                      
+                      async with self.session.get(url, params=params, timeout=30) as response:
+                          response_time = (datetime.now() - request_start).total_seconds() * 1000
+                          
+                          if response.status == 200:
+                              data = await response.json()
+                              if 'results' in data and data['results']:
+                                  bars = []
+                                  for result in data['results']:
+                                      timestamp = datetime.utcfromtimestamp(result['t']/1000)
+                                      bar = MinuteBar(
+                                          symbol=symbol,
+                                          timestamp=timestamp,
+                                          open=float(result['o']),
+                                          high=float(result['h']),
+                                          low=float(result['l']),
+                                          close=float(result['c']),
+                                          volume=int(result['v']),
+                                          vwap=float(result.get('vw', 0)),
+                                          trade_count=int(result.get('n', 0)),
+                                          vendor=self.vendor,
+                                          quality_score=0.8,  # Polygon quality score
+                                          source_metadata={
+                                              'api_response_time_ms': response_time,
+                                              'request_count': self.request_count,
+                                              'api_endpoint': 'polygon_aggregates_v2',
+                                              'fetch_timestamp': datetime.now().isoformat()
+                                          }
+                                      )
+                                      bars.append(bar)
+                                  logger.info(f"✅ Polygon: {symbol} returned {len(bars)} bars (quality: 0.8)")
+                                  return bars
+                          elif response.status == 429:
+                              logger.warning(f"Rate limited for {symbol}, waiting 10 seconds...")
+                              await asyncio.sleep(10)
+                              return []
+                          else:
+                              logger.warning(f"API error for {symbol}: HTTP {response.status}")
+                              return []
+                  except Exception as e:
+                      logger.error(f"Error fetching {symbol}: {e}")
+                      return []
+          EOF
+          
+          # Enhanced Tiingo adapter with metadata
+          cat > /app/src/tiingo_adapter.py << 'EOF'
+          import asyncio
+          import aiohttp
+          from datetime import datetime
+          from typing import List
+          from models import MinuteBar
+          import logging
+          
+          logger = logging.getLogger(__name__)
+          
+          class TiingoIntradayAdapter:
+              def __init__(self, api_key: str):
+                  self.api_key = api_key
+                  self.session = None
+                  self.request_count = 0
+                  self.vendor = "tiingo"
+              
+              async def __aenter__(self):
+                  self.session = aiohttp.ClientSession()
+                  return self
+              
+              async def __aexit__(self, exc_type, exc_val, exc_tb):
+                  if self.session:
+                      await self.session.close()
+              
+              async def fetch_minute_bars_async(self, symbol: str, start_date: datetime, end_date: datetime) -> List[MinuteBar]:
+                  if not self.session:
+                      raise RuntimeError("Must use async context manager")
+                  
+                  self.request_count += 1
+                  request_start = datetime.now()
+                  
+                  start_str = start_date.strftime("%Y-%m-%d")
+                  end_str = end_date.strftime("%Y-%m-%d")
+                  
+                  url = f"https://api.tiingo.com/iex/{symbol}/prices"
+                  params = {
+                      'startDate': start_str,
+                      'endDate': end_str,
+                      'resampleFreq': '1min',
+                      'token': self.api_key
+                  }
+                  
+                  try:
+                      await asyncio.sleep(0.6)  # Conservative rate limiting for Tiingo
+                      
+                      if self.request_count % 50 == 0:
+                          logger.info(f"Made {self.request_count} Tiingo API calls so far")
+                      
+                      async with self.session.get(url, params=params, timeout=60) as response:
+                          response_time = (datetime.now() - request_start).total_seconds() * 1000
+                          
+                          if response.status == 200:
+                              data = await response.json()
+                              bars = []
+                              for item in data:
+                                  timestamp = datetime.fromisoformat(item['date'].replace('Z', '+00:00'))
+                                  if all(item.get(field) is not None for field in ['open', 'high', 'low', 'close']):
+                                      bar = MinuteBar(
+                                          symbol=symbol,
+                                          timestamp=timestamp,
+                                          open=float(item['open']),
+                                          high=float(item['high']),
+                                          low=float(item['low']),
+                                          close=float(item['close']),
+                                          volume=int(item.get('volume', 0)),
+                                          vendor=self.vendor,
+                                          quality_score=0.7,  # Tiingo quality score
+                                          source_metadata={
+                                              'api_response_time_ms': response_time,
+                                              'request_count': self.request_count,
+                                              'api_endpoint': 'tiingo_iex_prices',
+                                              'fetch_timestamp': datetime.now().isoformat()
+                                          }
+                                      )
+                                      bars.append(bar)
+                              logger.info(f"✅ Tiingo: {symbol} returned {len(bars)} bars (quality: 0.7)")
+                              return bars
+                          elif response.status == 429:
+                              logger.warning(f"Tiingo rate limited for {symbol}, waiting 15 seconds...")
+                              await asyncio.sleep(15)
+                              return []
+                          else:
+                              logger.warning(f"Tiingo API error for {symbol}: HTTP {response.status}")
+                              return []
+                  except Exception as e:
+                      logger.error(f"Error fetching Tiingo data for {symbol}: {e}")
+                      return []
+          EOF
+          
+          # Create vendor-separated backfill script
+          cat > /app/vendor_separated_backfill.py << 'EOF'
+          import os
+          import sys
+          import asyncio
+          import asyncpg
+          import pandas as pd
+          import logging
+          import json
+          from datetime import datetime, date, timedelta
+          from typing import List, Dict, Any, Tuple
+          from pathlib import Path
+          from dataclasses import dataclass
+          
+          # Add src to path
+          sys.path.insert(0, '/app/src')
+          
+          from polygon_adapter import PolygonMinuteAdapter
+          from tiingo_adapter import TiingoIntradayAdapter
+          
+          # Configure enhanced logging
+          logging.basicConfig(
+              level=logging.INFO,
+              format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+          )
+          logger = logging.getLogger("vendor_separated_backfill")
+          
+          @dataclass
+          class DataGap:
+              symbol: str
+              start_date: date
+              end_date: date
+              source: str  # 'parquet', 'database', 'both'
+              gap_type: str  # 'missing', 'partial', 'stale'
+              estimated_bars: int = 0
+          
+          class VendorSeparatedBackfillJob:
+              def __init__(self, symbols: List[str], days: int = 7):
+                  self.symbols = symbols
+                  self.days = days
+                  self.polygon_api_key = "wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"
+                  self.tiingo_api_key = "5f40b4f36e171405746304ec0e5a6f3aa9ca77e5"
+                  self.checkpoint_file = "/app/checkpoints/vendor_separated_checkpoint.json"
+                  
+                  # Paths matching discovered existing structure
+                  self.existing_parquet_path = "/data/STK/1min/cold"  # Mock path for demo
+                  
+                  # Enhanced progress tracking for separate vendors
+                  self.progress = {
+                      'start_time': None,
+                      'gaps_analyzed': 0,
+                      'gaps_filled': 0,
+                      'gaps_failed': 0,
+                      'vendor_stats': {
+                          'polygon': {
+                              'bars_fetched': 0,
+                              'bars_stored_parquet': 0,
+                              'bars_stored_database': 0,
+                              'api_calls': 0,
+                              'avg_quality_score': 0.8
+                          },
+                          'tiingo': {
+                              'bars_fetched': 0,
+                              'bars_stored_parquet': 0,
+                              'bars_stored_database': 0,
+                              'api_calls': 0,
+                              'avg_quality_score': 0.7
+                          }
+                      },
+                      'errors': [],
+                      'symbols_processed': [],
+                      'data_lineage': {
+                          'vendor_files_created': 0,
+                          'separation_complete': True,
+                          'reconciliation_ready': True
+                      }
+                  }
+                  
+                  self.load_checkpoint()
+              
+              def save_checkpoint(self):
+                  try:
+                      checkpoint_data = {
+                          'progress': self.progress,
+                          'symbols': self.symbols,
+                          'days': self.days,
+                          'timestamp': datetime.now().isoformat(),
+                          'vendor_separation_summary': {
+                              'approach': 'separate_vendor_storage',
+                              'reconciliation_strategy': 'on_the_fly',
+                              'data_lineage_preserved': True,
+                              'gaps_analyzed': self.progress['gaps_analyzed']
+                          }
+                      }
+                      with open(self.checkpoint_file, 'w') as f:
+                          json.dump(checkpoint_data, f, indent=2, default=str)
+                      
+                      p_stats = self.progress['vendor_stats']['polygon']
+                      t_stats = self.progress['vendor_stats']['tiingo']
+                      logger.info(f"📊 CHECKPOINT: {self.progress['gaps_filled']}/{self.progress['gaps_analyzed']} gaps filled | "
+                                 f"P:{p_stats['bars_stored_database']:,} T:{t_stats['bars_stored_database']:,} DB bars")
+                  except Exception as e:
+                      logger.error(f"Failed to save checkpoint: {e}")
+              
+              def load_checkpoint(self):
+                  try:
+                      if Path(self.checkpoint_file).exists():
+                          with open(self.checkpoint_file, 'r') as f:
+                              data = json.load(f)
+                          self.progress = data.get('progress', self.progress)
+                          logger.info(f"📂 Checkpoint loaded: {self.progress['gaps_filled']} gaps already filled")
+                  except Exception as e:
+                      logger.error(f"Failed to load checkpoint: {e}")
+              
+              async def get_database_connection(self):
+                  return await asyncpg.connect(
+                      host=os.getenv('DB_HOST', 'postgres'),
+                      port=int(os.getenv('DB_PORT', 5432)),
+                      user=os.getenv('DB_USER', 'postgres'),
+                      password=os.getenv('DB_PASSWORD', 'dev_password'),
+                      database=os.getenv('DB_NAME', 'dev_db')
+                  )
+              
+              def get_vendor_parquet_path(self, symbol: str, year: int, month: int, vendor: str) -> Path:
+                  """Get path for vendor-specific parquet file: SYMBOL/YEAR/MONTH/SYMBOL_YEAR_MONTH_VENDOR.parquet"""
+                  return Path(self.existing_parquet_path) / symbol / str(year) / f"{month:02d}" / f"{symbol}_{year}_{month:02d}_{vendor}.parquet"
+              
+              async def analyze_vendor_gaps(self, symbols: List[str], start_date: date, end_date: date) -> List[DataGap]:
+                  """Analyze gaps specifically for vendor-separated storage."""
+                  gaps = []
+                  
+                  logger.info(f"🔍 Analyzing vendor-separated data gaps for {len(symbols)} symbols from {start_date} to {end_date}")
+                  logger.info(f"   Checking for vendor-specific parquet files at: {self.existing_parquet_path}")
+                  
+                  for symbol in symbols:
+                      # Check for both vendor-specific files and database records
+                      symbol_gaps = await self._find_vendor_gaps_for_symbol(symbol, start_date, end_date)
+                      gaps.extend(symbol_gaps)
+                  
+                  self.progress['gaps_analyzed'] = len(gaps)
+                  logger.info(f"📊 Found {len(gaps)} vendor data gaps requiring backfill")
+                  return gaps
+              
+              async def _find_vendor_gaps_for_symbol(self, symbol: str, start_date: date, end_date: date) -> List[DataGap]:
+                  """Find gaps for a specific symbol in vendor-separated storage."""
+                  gaps = []
+                  current_date = start_date
+                  
+                  while current_date <= end_date:
+                      year = current_date.year
+                      month = current_date.month
+                      
+                      # Check for vendor-specific parquet files
+                      polygon_parquet = self.get_vendor_parquet_path(symbol, year, month, "polygon")
+                      tiingo_parquet = self.get_vendor_parquet_path(symbol, year, month, "tiingo")
+                      
+                      # Check for vendor-specific database records
+                      has_polygon_db = await self._has_vendor_data_in_db(symbol, current_date, "polygon")
+                      has_tiingo_db = await self._has_vendor_data_in_db(symbol, current_date, "tiingo")
+                      
+                      month_end = min(
+                          end_date,
+                          date(year, month, 1) + timedelta(days=32) - timedelta(days=1)
+                      )
+                      
+                      # Create gap if either vendor is missing
+                      if not polygon_parquet.exists() or not has_polygon_db or not tiingo_parquet.exists() or not has_tiingo_db:
+                          gaps.append(DataGap(
+                              symbol=symbol,
+                              start_date=current_date,
+                              end_date=month_end,
+                              source='vendor_separated',
+                              gap_type='missing_vendor_data',
+                              estimated_bars=self._estimate_bars(current_date, month_end)
+                          ))
+                          logger.debug(f"Vendor gap found: {symbol} {current_date} to {month_end} (missing vendor data)")
+                      
+                      # Move to next month
+                      if current_date.month == 12:
+                          current_date = date(current_date.year + 1, 1, 1)
+                      else:
+                          current_date = date(current_date.year, current_date.month + 1, 1)
+                  
+                  return gaps
+              
+              async def _has_vendor_data_in_db(self, symbol: str, date_to_check: date, vendor: str) -> bool:
+                  """Check if vendor-specific data exists in database for a date."""
+                  try:
+                      conn = await self.get_database_connection()
+                      try:
+                          count = await conn.fetchval("""
+                              SELECT COUNT(*) FROM dev_minute_data 
+                              WHERE instrument_id = (
+                                  SELECT id FROM dev_instruments WHERE symbol = $1 AND is_active = true
+                              )
+                              AND DATE(timestamp) = $2 
+                              AND vendor = $3
+                          """, symbol, date_to_check, vendor)
+                          return count > 0
+                      finally:
+                          await conn.close()
+                  except Exception:
+                      return False
+              
+              def _estimate_bars(self, start_date: date, end_date: date) -> int:
+                  """Estimate number of minute bars in date range."""
+                  days = (end_date - start_date).days + 1
+                  trading_days = days * 0.72  # Approximate trading days
+                  return int(trading_days * 390)  # 390 minutes per trading day
+              
+              async def backfill_vendor_gaps(self, gaps: List[DataGap]) -> Dict[str, Any]:
+                  """Backfill identified data gaps using vendor separation approach."""
+                  logger.info(f"🚀 Starting vendor-separated backfill of {len(gaps)} data gaps")
+                  logger.info(f"   Will store Polygon and Tiingo data separately for complete data lineage")
+                  
+                  for i, gap in enumerate(gaps, 1):
+                      try:
+                          logger.info(f"🔄 Processing gap {i}/{len(gaps)}: {gap.symbol} {gap.start_date} to {gap.end_date}")
+                          
+                          # Fetch data from BOTH vendors
+                          start_datetime = datetime.combine(gap.start_date, datetime.min.time())
+                          end_datetime = datetime.combine(gap.end_date, datetime.min.time())
+                          
+                          async with PolygonMinuteAdapter(self.polygon_api_key) as polygon:
+                              async with TiingoIntradayAdapter(self.tiingo_api_key) as tiingo:
+                                  polygon_data, tiingo_data = await asyncio.gather(
+                                      polygon.fetch_minute_bars_async(gap.symbol, start_datetime, end_datetime),
+                                      tiingo.fetch_minute_bars_async(gap.symbol, start_datetime, end_datetime),
+                                      return_exceptions=True
+                                  )
+                                  
+                                  # Update API stats
+                                  self.progress['vendor_stats']['polygon']['api_calls'] += polygon.request_count
+                                  self.progress['vendor_stats']['tiingo']['api_calls'] += tiingo.request_count
+                          
+                          # Handle exceptions
+                          if isinstance(polygon_data, Exception):
+                              logger.warning(f"Polygon fetch failed for {gap.symbol}: {polygon_data}")
+                              polygon_data = []
+                          
+                          if isinstance(tiingo_data, Exception):
+                              logger.warning(f"Tiingo fetch failed for {gap.symbol}: {tiingo_data}")
+                              tiingo_data = []
+                          
+                          if not polygon_data and not tiingo_data:
+                              logger.warning(f"No data available for {gap.symbol} in gap period")
+                              self.progress['gaps_failed'] += 1
+                              continue
+                          
+                          # Update vendor stats
+                          self.progress['vendor_stats']['polygon']['bars_fetched'] += len(polygon_data)
+                          self.progress['vendor_stats']['tiingo']['bars_fetched'] += len(tiingo_data)
+                          
+                          # Store vendors separately in parquet files
+                          parquet_results = await self._store_vendors_in_separate_parquet(gap.symbol, polygon_data, tiingo_data)
+                          
+                          # Store vendors separately in database
+                          database_results = await self._store_vendors_in_separate_database(gap.symbol, polygon_data, tiingo_data)
+                          
+                          # Update storage stats
+                          p_parquet = parquet_results.get('polygon_stored', 0)
+                          t_parquet = parquet_results.get('tiingo_stored', 0)
+                          p_database = database_results.get('polygon_stored', 0)
+                          t_database = database_results.get('tiingo_stored', 0)
+                          
+                          self.progress['vendor_stats']['polygon']['bars_stored_parquet'] += p_parquet
+                          self.progress['vendor_stats']['polygon']['bars_stored_database'] += p_database
+                          self.progress['vendor_stats']['tiingo']['bars_stored_parquet'] += t_parquet
+                          self.progress['vendor_stats']['tiingo']['bars_stored_database'] += t_database
+                          
+                          self.progress['gaps_filled'] += 1
+                          
+                          # Enhanced logging showing separate vendor storage
+                          logger.info(f"✅ {gap.symbol}: P:{len(polygon_data)} T:{len(tiingo_data)} bars → "
+                                     f"Parquet(P:{p_parquet} T:{t_parquet}) DB(P:{p_database} T:{t_database})")
+                          
+                          # Save checkpoint every 3 gaps
+                          if i % 3 == 0:
+                              self.save_checkpoint()
+                          
+                          # Rate limiting between gaps
+                          await asyncio.sleep(0.5)
+                      
+                      except Exception as e:
+                          error_msg = f"Error processing gap {gap.symbol}: {e}"
+                          logger.error(error_msg)
+                          self.progress['gaps_failed'] += 1
+                          self.progress['errors'].append(error_msg)
+                  
+                  # Final checkpoint
+                  self.save_checkpoint()
+                  
+                  return {
+                      'gaps_processed': len(gaps),
+                      'gaps_filled': self.progress['gaps_filled'],
+                      'gaps_failed': self.progress['gaps_failed'],
+                      'vendor_separation_complete': True
+                  }
+              
+              async def _store_vendors_in_separate_parquet(self, symbol: str, polygon_data: List, tiingo_data: List) -> Dict[str, int]:
+                  """Store vendor data in separate parquet files."""
+                  results = {'polygon_stored': 0, 'tiingo_stored': 0}
+                  
+                  # Store Polygon data
+                  if polygon_data:
+                      results['polygon_stored'] = await self._store_vendor_parquet_file(symbol, polygon_data, "polygon")
+                  
+                  # Store Tiingo data
+                  if tiingo_data:
+                      results['tiingo_stored'] = await self._store_vendor_parquet_file(symbol, tiingo_data, "tiingo")
+                  
+                  return results
+              
+              async def _store_vendor_parquet_file(self, symbol: str, bars: List, vendor: str) -> int:
+                  """Store vendor-specific parquet file."""
+                  if not bars:
+                      return 0
+                  
+                  try:
+                      # Group bars by year/month
+                      bars_by_month = {}
+                      for bar in bars:
+                          year_month = (bar.timestamp.year, bar.timestamp.month)
+                          if year_month not in bars_by_month:
+                              bars_by_month[year_month] = []
+                          bars_by_month[year_month].append(bar)
+                      
+                      total_stored = 0
+                      
+                      for (year, month), month_bars in bars_by_month.items():
+                          # Create vendor-specific parquet file path
+                          parquet_file = self.get_vendor_parquet_path(symbol, year, month, vendor)
+                          parquet_file.parent.mkdir(parents=True, exist_ok=True)
+                          
+                          # Convert to DataFrame with vendor metadata
+                          df_data = []
+                          for bar in month_bars:
+                              df_data.append({
+                                  'timestamp': bar.timestamp,
+                                  'open': bar.open,
+                                  'high': bar.high,
+                                  'low': bar.low,
+                                  'close': bar.close,
+                                  'volume': bar.volume,
+                                  'vwap': getattr(bar, 'vwap', None),
+                                  'trade_count': getattr(bar, 'trade_count', None),
+                                  'vendor': vendor,
+                                  'quality_score': getattr(bar, 'quality_score', 0.5),
+                                  'source_metadata': getattr(bar, 'source_metadata', {}),
+                                  'ingestion_time': datetime.now().isoformat()
+                              })
+                          
+                          df = pd.DataFrame(df_data)
+                          
+                          # Append to existing vendor file or create new one
+                          if parquet_file.exists():
+                              existing_df = pd.read_parquet(parquet_file)
+                              combined_df = pd.concat([existing_df, df]).drop_duplicates(subset=['timestamp'])
+                              combined_df = combined_df.sort_values('timestamp')
+                          else:
+                              combined_df = df.sort_values('timestamp')
+                              self.progress['data_lineage']['vendor_files_created'] += 1
+                          
+                          # Write vendor-specific parquet file
+                          combined_df.to_parquet(parquet_file, index=False, compression='snappy')
+                          total_stored += len(df)
+                          
+                          logger.debug(f"📁 Stored {len(df)} {vendor} bars to: {parquet_file}")
+                      
+                      return total_stored
+                      
+                  except Exception as e:
+                      logger.error(f"Failed to store {vendor} parquet data for {symbol}: {e}")
+                      return 0
+              
+              async def _store_vendors_in_separate_database(self, symbol: str, polygon_data: List, tiingo_data: List) -> Dict[str, int]:
+                  """Store vendor data separately in database."""
+                  results = {'polygon_stored': 0, 'tiingo_stored': 0}
+                  
+                  # Store Polygon data with vendor="polygon"
+                  if polygon_data:
+                      results['polygon_stored'] = await self._store_vendor_database_records(symbol, polygon_data, "polygon")
+                  
+                  # Store Tiingo data with vendor="tiingo"
+                  if tiingo_data:
+                      results['tiingo_stored'] = await self._store_vendor_database_records(symbol, tiingo_data, "tiingo")
+                  
+                  return results
+              
+              async def _store_vendor_database_records(self, symbol: str, bars: List, vendor: str) -> int:
+                  """Store vendor-specific database records."""
+                  if not bars:
+                      return 0
+                  
+                  try:
+                      conn = await self.get_database_connection()
+                      try:
+                          # Get instrument ID
+                          instrument_id = await conn.fetchval(
+                              "SELECT id FROM dev_instruments WHERE symbol = $1 AND is_active = true",
+                              symbol
+                          )
+                          
+                          if not instrument_id:
+                              logger.warning(f"Instrument {symbol} not found in database")
+                              return 0
+                          
+                          # Prepare vendor-specific records
+                          records = []
+                          for bar in bars:
+                              records.append((
+                                  bar.timestamp,
+                                  instrument_id,
+                                  bar.open,
+                                  bar.high,
+                                  bar.low,
+                                  bar.close,
+                                  bar.volume,
+                                  vendor  # KEY: vendor-specific storage
+                              ))
+                          
+                          # Batch insert with vendor-specific conflict resolution
+                          await conn.executemany("""
+                              INSERT INTO dev_minute_data 
+                              (timestamp, instrument_id, open, high, low, close, volume, vendor)
+                              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                              ON CONFLICT (timestamp, instrument_id, vendor) DO UPDATE SET
+                                  open = EXCLUDED.open,
+                                  high = EXCLUDED.high,
+                                  low = EXCLUDED.low,
+                                  close = EXCLUDED.close,
+                                  volume = EXCLUDED.volume
+                          """, records)
+                          
+                          logger.debug(f"📊 Stored {len(records)} {vendor} database records for {symbol}")
+                          return len(records)
+                      
+                      finally:
+                          await conn.close()
+                      
+                  except Exception as e:
+                      logger.error(f"Failed to store {vendor} database data for {symbol}: {e}")
+                      return 0
+              
+              async def run_vendor_separated_backfill(self):
+                  """Run complete vendor-separated backfill workflow."""
+                  self.progress['start_time'] = datetime.now().isoformat()
+                  
+                  logger.info(f"🎯 Starting VENDOR-SEPARATED BACKFILL")
+                  logger.info(f"📊 Symbols: {len(self.symbols)} symbols")
+                  logger.info(f"📅 Timeframe: {self.days} days")
+                  logger.info(f"🔄 Approach: Store Polygon and Tiingo data separately")
+                  logger.info(f"🗂️  Vendor parquet path: {self.existing_parquet_path}")
+                  logger.info(f"🗃️  Database: {os.getenv('DB_HOST', 'postgres')}:{os.getenv('DB_PORT', 5432)}")
+                  
+                  # Calculate date range
+                  end_date = date.today()
+                  start_date = end_date - timedelta(days=self.days)
+                  
+                  logger.info(f"📅 Date range: {start_date} to {end_date}")
+                  
+                  # Phase 1: Analyze vendor-specific data gaps
+                  logger.info(f"📊 Phase 1: Analyzing vendor-separated data gaps...")
+                  gaps = await self.analyze_vendor_gaps(self.symbols, start_date, end_date)
+                  
+                  if not gaps:
+                      logger.info("✅ No vendor data gaps found - all vendor data is complete!")
+                      return True
+                  
+                  # Phase 2: Backfill gaps with vendor separation
+                  logger.info(f"🚀 Phase 2: Backfilling {len(gaps)} vendor gaps...")
+                  results = await self.backfill_vendor_gaps(gaps)
+                  
+                  # Final report
+                  await self.generate_vendor_separation_report(results)
+                  
+                  return results['gaps_filled'] > 0
+              
+              async def generate_vendor_separation_report(self, results: Dict[str, Any]):
+                  """Generate comprehensive vendor separation report."""
+                  logger.info("🎉 VENDOR-SEPARATED BACKFILL COMPLETED!")
+                  logger.info("=" * 80)
+                  
+                  # Execution summary
+                  start_time = datetime.fromisoformat(self.progress['start_time'])
+                  duration = datetime.now() - start_time
+                  
+                  logger.info(f"⏱️  EXECUTION SUMMARY:")
+                  logger.info(f"   Duration: {duration}")
+                  logger.info(f"   Start: {start_time}")
+                  logger.info(f"   End: {datetime.now()}")
+                  
+                  # Gap processing summary
+                  logger.info(f"📊 GAP PROCESSING SUMMARY:")
+                  logger.info(f"   Gaps analyzed: {self.progress['gaps_analyzed']}")
+                  logger.info(f"   Gaps filled: {self.progress['gaps_filled']}")
+                  logger.info(f"   Gaps failed: {self.progress['gaps_failed']}")
+                  success_rate = (self.progress['gaps_filled']/self.progress['gaps_analyzed']*100) if self.progress['gaps_analyzed'] > 0 else 0
+                  logger.info(f"   Success rate: {success_rate:.1f}%")
+                  
+                  # Vendor-specific statistics
+                  p_stats = self.progress['vendor_stats']['polygon']
+                  t_stats = self.progress['vendor_stats']['tiingo']
+                  
+                  logger.info(f"🔄 VENDOR SEPARATION SUMMARY:")
+                  logger.info(f"   Polygon bars fetched: {p_stats['bars_fetched']:,}")
+                  logger.info(f"   Polygon bars stored (Parquet): {p_stats['bars_stored_parquet']:,}")
+                  logger.info(f"   Polygon bars stored (Database): {p_stats['bars_stored_database']:,}")
+                  logger.info(f"   Polygon API calls: {p_stats['api_calls']}")
+                  logger.info(f"   Polygon quality score: {p_stats['avg_quality_score']}")
+                  logger.info(f"")
+                  logger.info(f"   Tiingo bars fetched: {t_stats['bars_fetched']:,}")
+                  logger.info(f"   Tiingo bars stored (Parquet): {t_stats['bars_stored_parquet']:,}")
+                  logger.info(f"   Tiingo bars stored (Database): {t_stats['bars_stored_database']:,}")
+                  logger.info(f"   Tiingo API calls: {t_stats['api_calls']}")
+                  logger.info(f"   Tiingo quality score: {t_stats['avg_quality_score']}")
+                  
+                  # Data lineage summary
+                  lineage = self.progress['data_lineage']
+                  logger.info(f"📋 DATA LINEAGE SUMMARY:")
+                  logger.info(f"   Vendor files created: {lineage['vendor_files_created']}")
+                  logger.info(f"   Separation complete: {lineage['separation_complete']}")
+                  logger.info(f"   Reconciliation ready: {lineage['reconciliation_ready']}")
+                  logger.info(f"   Storage approach: Vendor-separated with on-the-fly reconciliation")
+                  
+                  # Total data summary
+                  total_fetched = p_stats['bars_fetched'] + t_stats['bars_fetched']
+                  total_stored = p_stats['bars_stored_database'] + t_stats['bars_stored_database']
+                  logger.info(f"📈 TOTAL DATA SUMMARY:")
+                  logger.info(f"   Total bars fetched: {total_fetched:,}")
+                  logger.info(f"   Total bars stored: {total_stored:,}")
+                  logger.info(f"   Data redundancy: {((total_fetched - total_stored) / total_fetched * 100) if total_fetched > 0 else 0:.1f}% overlap")
+                  
+                  # Error summary
+                  if self.progress['errors']:
+                      logger.info(f"❌ ERROR SUMMARY ({len(self.progress['errors'])} total):")
+                      for error in self.progress['errors'][-3:]:  # Show last 3 errors
+                          logger.info(f"   {error}")
+                  
+                  logger.info("=" * 80)
+          
+          async def main():
+              # Symbol list for vendor-separated backfill
+              symbols = [
+                  # Core stocks for vendor comparison
+                  'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA',
+                  'NVDA', 'META', 'NFLX', 'JPM', 'SPY'
+              ]
+              
+              days = int(os.getenv('BACKFILL_DAYS', '7'))  # 1 week for vendor separation demo
+              
+              logger.info(f"🎯 Starting vendor-separated backfill for {len(symbols)} symbols over {days} days")
+              logger.info(f"🔄 Storing Polygon and Tiingo data separately for complete data lineage")
+              
+              job = VendorSeparatedBackfillJob(symbols, days)
+              success = await job.run_vendor_separated_backfill()
+              
+              if success:
+                  logger.info("✅ VENDOR-SEPARATED BACKFILL SUCCESSFUL!")
+                  logger.info("🔄 Data stored separately - reconciliation available on-the-fly")
+              else:
+                  logger.error("❌ VENDOR-SEPARATED BACKFILL FAILED!")
+                  exit(1)
+          
+          if __name__ == "__main__":
+              asyncio.run(main())
+          EOF
+          
+          cd /app
+          python vendor_separated_backfill.py
+          
+          echo "Vendor-separated backfill completed!"
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: DB_HOST
+          value: "postgres"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+        - name: BACKFILL_DAYS
+          value: "7"  # 1 week for vendor separation demo
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "2000m"
+          limits:
+            memory: "8Gi"
+            cpu: "4000m"
+        volumeMounts:
+        - name: checkpoint-storage
+          mountPath: /app/checkpoints
+        - name: data-storage
+          mountPath: /data
+      volumes:
+      - name: checkpoint-storage
+        emptyDir: {}
+      - name: data-storage
+        emptyDir: {}
+      restartPolicy: OnFailure

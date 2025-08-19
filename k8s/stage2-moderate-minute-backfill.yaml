@@ -1,0 +1,529 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stage2-moderate-minute-backfill-script
+  namespace: ats-dev
+data:
+  slack_alerter.py: |
+    import asyncio
+    import json
+    import aiohttp
+    import os
+    import logging
+    from datetime import datetime
+    from enum import Enum
+
+    class AlertLevel(Enum):
+        INFO = "info"
+        SUCCESS = "success"
+        WARNING = "warning"
+        ERROR = "error"
+        CRITICAL = "critical"
+
+    class SlackAlerter:
+        def __init__(self, webhook_url=None):
+            self.webhook_url = webhook_url or os.getenv('SLACK_WEBHOOK_URL')
+            self.logger = logging.getLogger(__name__)
+            
+            if not self.webhook_url:
+                self.logger.warning("No Slack webhook URL provided - alerts will be logged only")
+        
+        def _get_color_for_level(self, level: AlertLevel):
+            colors = {
+                AlertLevel.INFO: "#36a64f",
+                AlertLevel.SUCCESS: "#2eb886",
+                AlertLevel.WARNING: "#ff9500",
+                AlertLevel.ERROR: "#ff4444",
+                AlertLevel.CRITICAL: "#8b0000"
+            }
+            return colors.get(level, "#36a64f")
+        
+        def _get_emoji_for_level(self, level: AlertLevel):
+            emojis = {
+                AlertLevel.INFO: "ℹ️",
+                AlertLevel.SUCCESS: "✅",
+                AlertLevel.WARNING: "⚠️",
+                AlertLevel.ERROR: "❌",
+                AlertLevel.CRITICAL: "🚨"
+            }
+            return emojis.get(level, "ℹ️")
+        
+        async def send_alert(self, title, message, level=AlertLevel.INFO, fields=None):
+            if not self.webhook_url:
+                self.logger.info(f"[{level.value.upper()}] {title}: {message}")
+                return
+            
+            emoji = self._get_emoji_for_level(level)
+            color = self._get_color_for_level(level)
+            
+            payload = {
+                "username": "Stage 2 Moderate Backfill Monitor",
+                "icon_emoji": ":rocket:",
+                "attachments": [
+                    {
+                        "color": color,
+                        "title": f"{emoji} {title}",
+                        "text": message,
+                        "ts": int(datetime.now().timestamp()),
+                        "footer": "ATS Stage 2 Moderate Minute Data Backfill"
+                    }
+                ]
+            }
+            
+            if fields:
+                payload["attachments"][0]["fields"] = [
+                    {"title": k, "value": v, "short": True} for k, v in fields.items()
+                ]
+            
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(self.webhook_url, json=payload) as response:
+                        if response.status == 200:
+                            self.logger.info(f"Slack alert sent: {title}")
+                        else:
+                            self.logger.error(f"Failed to send Slack alert: {response.status}")
+            except Exception as e:
+                self.logger.error(f"Error sending Slack alert: {e}")
+        
+        async def alert_job_started(self, job_name, stage, instruments_count, date_range, expected_records):
+            await self.send_alert(
+                title=f"Moderate Scale Backfill Started - {stage}",
+                message=f"Job `{job_name}` scaling up! Processing {instruments_count:,} instruments with real Polygon API data",
+                level=AlertLevel.INFO,
+                fields={
+                    "Stage": stage,
+                    "Instruments": f"{instruments_count:,}",
+                    "Date Range": date_range,
+                    "Expected Records": f"{expected_records:,}",
+                    "Data Source": "Polygon API",
+                    "Status": "Running"
+                }
+            )
+        
+        async def alert_job_completed(self, job_name, stage, duration, records_inserted, success_rate):
+            await self.send_alert(
+                title=f"Moderate Scale Backfill COMPLETED - {stage}",
+                message=f"🚀 Job `{job_name}` completed successfully! Stage 2 moderate scale proven",
+                level=AlertLevel.SUCCESS,
+                fields={
+                    "Stage": stage,
+                    "Duration": duration,
+                    "Real Records Inserted": f"{records_inserted:,}",
+                    "Success Rate": f"{success_rate:.1f}%",
+                    "Status": "Success - Ready for Stage 3"
+                }
+            )
+        
+        async def alert_resource_pressure(self, memory_percent, cpu_percent, action_taken):
+            level = AlertLevel.CRITICAL if action_taken == "Emergency stop" else AlertLevel.WARNING
+            
+            await self.send_alert(
+                title="Stage 2 Resource Pressure Detected",
+                message=f"System resources under pressure during moderate scale backfill",
+                level=level,
+                fields={
+                    "Memory Usage": f"{memory_percent:.1f}%",
+                    "CPU Usage": f"{cpu_percent:.1f}%",
+                    "Action Taken": action_taken,
+                    "Scale": "Moderate (500 instruments)"
+                }
+            )
+        
+        async def alert_batch_progress(self, batch_num, total_batches, stage, records_inserted, throughput):
+            if batch_num % 3 == 0 or batch_num == total_batches:
+                progress_percent = (batch_num / total_batches) * 100
+                
+                await self.send_alert(
+                    title=f"Stage 2 Batch Progress - {stage}",
+                    message=f"Moderate scale processing: batch {batch_num}/{total_batches} ({progress_percent:.1f}% complete)",
+                    level=AlertLevel.INFO,
+                    fields={
+                        "Batch": f"{batch_num}/{total_batches}",
+                        "Progress": f"{progress_percent:.1f}%",
+                        "Records This Batch": f"{records_inserted:,}",
+                        "Throughput": f"{throughput:.1f} records/min"
+                    }
+                )
+
+        async def alert_milestone(self, milestone, total_records, processing_rate):
+            await self.send_alert(
+                title=f"🎯 Stage 2 Milestone Reached",
+                message=f"Moderate scale backfill milestone: {milestone}",
+                level=AlertLevel.SUCCESS,
+                fields={
+                    "Milestone": milestone,
+                    "Total Records": f"{total_records:,}",
+                    "Processing Rate": f"{processing_rate:.1f} records/min",
+                    "System Health": "Stable"
+                }
+            )
+
+  stage2_backfill_script.py: |
+    #!/usr/bin/env python3
+    import time
+    import psutil
+    import asyncio
+    import asyncpg
+    import aiohttp
+    import os
+    from datetime import datetime, date, timedelta
+    from slack_alerter import SlackAlerter, AlertLevel
+
+    class Stage2ModerateMinuteBackfill:
+        def __init__(self):
+            self.memory_threshold = 70  # Slightly higher for moderate scale
+            self.cpu_threshold = 60
+            self.alerter = SlackAlerter()
+            self.start_time = datetime.now()
+            self.polygon_api_key = os.getenv('POLYGON_API_KEY')
+            self.total_records_processed = 0
+            
+        def check_resources(self):
+            memory = psutil.virtual_memory()
+            cpu_percent = psutil.cpu_percent(interval=1)
+            
+            print(f"Resources - Memory: {memory.percent:.1f}%, CPU: {cpu_percent:.1f}%")
+            
+            if memory.percent > self.memory_threshold:
+                print(f"⚠️  Memory pressure: {memory.percent:.1f}% > {self.memory_threshold}%")
+                return False, memory.percent, cpu_percent
+                
+            if cpu_percent > self.cpu_threshold:
+                print(f"⚠️  CPU pressure: {cpu_percent:.1f}% > {self.cpu_threshold}%")
+                return False, memory.percent, cpu_percent
+            
+            return True, memory.percent, cpu_percent
+        
+        async def get_database_connection(self):
+            db_host = "postgres-simple.ats-dev.svc.cluster.local"
+            db_port = "5432"
+            db_name = "dev_db"
+            db_user = "postgres"
+            db_password = "dev_password"
+            
+            connection_string = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+            
+            try:
+                conn = await asyncpg.connect(connection_string)
+                print("✅ Database connection successful")
+                return conn
+            except Exception as e:
+                print(f"❌ Database connection failed: {e}")
+                raise
+        
+        async def get_instruments_for_backfill(self, conn, limit=500):
+            # Get more liquid instruments with recent trading activity
+            instruments = await conn.fetch("""
+                SELECT i.id, i.symbol 
+                FROM dev_instruments i
+                JOIN (
+                    SELECT instrument_id, MAX(volume) as max_volume
+                    FROM dev_daily_prices_polygon 
+                    WHERE date >= '2025-08-01'
+                    AND volume > 1000000
+                    GROUP BY instrument_id
+                ) p ON i.id = p.instrument_id
+                WHERE i.symbol ~ '^[A-Z]{1,5}$'
+                ORDER BY p.max_volume DESC, i.symbol
+                LIMIT $1
+            """, limit)
+            
+            print(f"Selected {len(instruments)} high-volume instruments for Stage 2 moderate backfill")
+            return instruments
+        
+        async def fetch_polygon_minute_data(self, symbol, start_date, end_date):
+            if not self.polygon_api_key:
+                print(f"❌ No Polygon API key found for {symbol}")
+                return []
+            
+            url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/minute/{start_date}/{end_date}"
+            params = {
+                'adjusted': 'true',
+                'sort': 'asc',
+                'limit': 50000,
+                'apikey': self.polygon_api_key
+            }
+            
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url, params=params) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            if data.get('status') == 'OK' and 'results' in data:
+                                results = data['results']
+                                print(f"✅ Fetched {len(results)} minute bars for {symbol}")
+                                return results
+                            else:
+                                print(f"⚠️  No data for {symbol}: {data.get('status', 'Unknown')}")
+                                return []
+                        else:
+                            print(f"❌ API error for {symbol}: {response.status}")
+                            return []
+            except Exception as e:
+                print(f"❌ Error fetching {symbol}: {e}")
+                return []
+        
+        async def insert_minute_data(self, conn, instrument_id, symbol, minute_data):
+            if not minute_data:
+                return 0
+            
+            records_to_insert = []
+            for bar in minute_data:
+                dt = datetime.fromtimestamp(bar['t'] / 1000)
+                
+                record = (
+                    instrument_id,
+                    dt,
+                    float(bar['o']),
+                    float(bar['h']),
+                    float(bar['l']),
+                    float(bar['c']),
+                    int(bar['v']),
+                    float(bar.get('vw', bar['c'])),
+                    int(bar.get('n', 0))
+                )
+                records_to_insert.append(record)
+            
+            insert_query = """
+                INSERT INTO dev_minute_prices_polygon 
+                (instrument_id, timestamp, open_price, high_price, low_price, close_price, volume, vwap, transactions)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ON CONFLICT (instrument_id, timestamp) DO NOTHING
+            """
+            
+            try:
+                result = await conn.executemany(insert_query, records_to_insert)
+                inserted_count = len(records_to_insert)
+                print(f"✅ Inserted {inserted_count} minute records for {symbol}")
+                return inserted_count
+            except Exception as e:
+                print(f"❌ Error inserting data for {symbol}: {e}")
+                return 0
+        
+        async def run_stage2_moderate_backfill(self):
+            job_name = "stage2-moderate-minute-backfill"
+            stage = "Stage 2 Moderate Scale"
+            
+            print("=== STAGE 2: MODERATE SCALE MINUTE DATA BACKFILL ===")
+            print("🚀 Scaling up with 500 instruments and 1 week of data!")
+            
+            # Moderate scale: 1 week of data
+            end_date = date(2019, 12, 31)
+            start_date = end_date - timedelta(days=7)  # 1 week
+            
+            expected_records = 500 * 5 * 390  # 500 instruments * 5 trading days * 390 minutes/day
+            
+            await self.alerter.alert_job_started(
+                job_name=job_name,
+                stage=stage,
+                instruments_count=500,
+                date_range=f"{start_date} to {end_date}",
+                expected_records=expected_records
+            )
+            
+            resources_ok, memory_pct, cpu_pct = self.check_resources()
+            if not resources_ok:
+                await self.alerter.alert_resource_pressure(memory_pct, cpu_pct, "Job aborted")
+                return False
+            
+            try:
+                conn = await self.get_database_connection()
+                instruments = await self.get_instruments_for_backfill(conn, limit=500)
+                
+                if not instruments:
+                    await self.alerter.send_alert(
+                        title="No Instruments Found",
+                        message="No high-volume instruments available for Stage 2 backfill",
+                        level=AlertLevel.ERROR
+                    )
+                    return False
+                
+                print(f"\nStage 2 data period: {start_date} to {end_date} (1 week)")
+                
+                batch_size = 50  # Moderate batch size
+                total_batches = (len(instruments) + batch_size - 1) // batch_size
+                total_records_inserted = 0
+                successful_instruments = 0
+                
+                for i in range(0, len(instruments), batch_size):
+                    batch_num = i // batch_size + 1
+                    batch = instruments[i:i + batch_size]
+                    batch_start_time = time.time()
+                    
+                    print(f"\n=== Stage 2 Batch {batch_num}/{total_batches} ===")
+                    
+                    resources_ok, memory_pct, cpu_pct = self.check_resources()
+                    if not resources_ok:
+                        await self.alerter.alert_resource_pressure(
+                            memory_pct, cpu_pct, "Backfill paused"
+                        )
+                        print("❌ Resource pressure - stopping backfill")
+                        break
+                    
+                    batch_records = 0
+                    for instrument in batch:
+                        instrument_id, symbol = instrument
+                        print(f"Fetching 1 week of minute data for {symbol}...")
+                        
+                        minute_data = await self.fetch_polygon_minute_data(
+                            symbol, start_date, end_date
+                        )
+                        
+                        if minute_data:
+                            inserted = await self.insert_minute_data(
+                                conn, instrument_id, symbol, minute_data
+                            )
+                            batch_records += inserted
+                            if inserted > 0:
+                                successful_instruments += 1
+                        
+                        await asyncio.sleep(0.3)  # Slightly faster for moderate scale
+                    
+                    total_records_inserted += batch_records
+                    batch_duration = time.time() - batch_start_time
+                    throughput = batch_records / (batch_duration / 60) if batch_duration > 0 else 0
+                    
+                    print(f"✅ Stage 2 Batch {batch_num} completed - {batch_records} records inserted")
+                    
+                    # Send progress alert
+                    await self.alerter.alert_batch_progress(
+                        batch_num=batch_num,
+                        total_batches=total_batches,
+                        stage=stage,
+                        records_inserted=batch_records,
+                        throughput=throughput
+                    )
+                    
+                    # Milestone alerts
+                    if total_records_inserted >= 50000 and not hasattr(self, 'milestone_50k'):
+                        self.milestone_50k = True
+                        await self.alerter.alert_milestone(
+                            "50,000 records inserted", 
+                            total_records_inserted, 
+                            total_records_inserted / ((time.time() - self.start_time.timestamp()) / 60)
+                        )
+                    
+                    print("⏸️  Moderate scale cooling down 8s...")
+                    await asyncio.sleep(8)
+                
+                await conn.close()
+                
+                duration = str(datetime.now() - self.start_time).split('.')[0]
+                success_rate = (successful_instruments / len(instruments)) * 100 if instruments else 0
+                
+                await self.alerter.alert_job_completed(
+                    job_name=job_name,
+                    stage=stage,
+                    duration=duration,
+                    records_inserted=total_records_inserted,
+                    success_rate=success_rate
+                )
+                
+                print("\n=== STAGE 2 MODERATE SCALE COMPLETED ===")
+                print(f"✅ Moderate scale backfill successful!")
+                print(f"📊 Total records inserted: {total_records_inserted:,}")
+                print(f"📈 Success rate: {success_rate:.1f}%")
+                print(f"⏱️  Duration: {duration}")
+                print("🚀 Ready for Stage 3 large scale!")
+                
+                return True
+                
+            except Exception as e:
+                error_msg = str(e)
+                print(f"❌ Stage 2 moderate backfill failed: {error_msg}")
+                
+                await self.alerter.send_alert(
+                    title="Stage 2 Moderate Backfill Failed",
+                    message=f"Job failed with error: {error_msg}",
+                    level=AlertLevel.ERROR
+                )
+                
+                return False
+    
+    async def main():
+        print("Installing required packages...")
+        import subprocess
+        subprocess.run(["pip", "install", "aiohttp"], check=True)
+        
+        backfiller = Stage2ModerateMinuteBackfill()
+        success = await backfiller.run_stage2_moderate_backfill()
+        
+        if success:
+            print("\n🚀 STAGE 2 MODERATE SCALE BACKFILL SUCCESS!")
+            print("Ready to proceed to Stage 3 large scale!")
+        else:
+            print("\n❌ STAGE 2 MODERATE BACKFILL FAILED")
+    
+    if __name__ == "__main__":
+        asyncio.run(main())
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: stage2-moderate-minute-backfill-job
+  namespace: ats-dev
+spec:
+  ttlSecondsAfterFinished: 7200
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: stage2-moderate-container
+        image: python:3.11-slim
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            set -e
+            
+            echo "=== STAGE 2 MODERATE SCALE MINUTE DATA BACKFILL ==="
+            echo "🚀 Scaling up with 500 instruments and 1 week of data!"
+            
+            pip install psutil asyncpg aiohttp
+            
+            cp /scripts/slack_alerter.py .
+            cp /scripts/stage2_backfill_script.py .
+            
+            python3 stage2_backfill_script.py
+        env:
+        - name: SLACK_WEBHOOK_URL
+          value: "https://hooks.slack.com/services/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"
+        - name: POLYGON_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-credentials-dev
+              key: POLYGON_API_KEY
+        - name: DB_HOST
+          value: "postgres-simple.ats-dev.svc.cluster.local"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_NAME
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_PASSWORD
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: script-volume
+          mountPath: /scripts
+      volumes:
+      - name: script-volume
+        configMap:
+          name: stage2-moderate-minute-backfill-script
+          defaultMode: 0755
