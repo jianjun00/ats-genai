@@ -1,0 +1,98 @@
+-- Migration 035: Enhance runs table with detailed summary statistics
+
+-- Add detailed summary statistics columns to runs table
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS total_symbols INTEGER DEFAULT 0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS total_dates INTEGER DEFAULT 0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS total_price_points INTEGER DEFAULT 0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS successful_unifications INTEGER DEFAULT 0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS failed_unifications INTEGER DEFAULT 0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS validation_failures INTEGER DEFAULT 0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS vendor_disagreements INTEGER DEFAULT 0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS statistical_outliers INTEGER DEFAULT 0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS manual_review_flagged INTEGER DEFAULT 0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS holiday_exclusions INTEGER DEFAULT 0;
+
+-- Vendor coverage statistics
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS polygon_coverage_pct NUMERIC(5,2) DEFAULT 0.0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS tiingo_coverage_pct NUMERIC(5,2) DEFAULT 0.0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS fmp_coverage_pct NUMERIC(5,2) DEFAULT 0.0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS alphavantage_coverage_pct NUMERIC(5,2) DEFAULT 0.0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS yfinance_validation_calls INTEGER DEFAULT 0;
+
+-- Quality metrics
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS avg_confidence_score NUMERIC(5,4) DEFAULT 0.0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS min_confidence_score NUMERIC(5,4) DEFAULT 0.0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS max_confidence_score NUMERIC(5,4) DEFAULT 0.0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS avg_vendor_count NUMERIC(5,2) DEFAULT 0.0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS single_vendor_records INTEGER DEFAULT 0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS multi_vendor_records INTEGER DEFAULT 0;
+
+-- Processing performance metrics
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS processing_rate_per_second NUMERIC(10,2) DEFAULT 0.0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS peak_memory_usage_mb INTEGER DEFAULT 0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS database_queries_executed INTEGER DEFAULT 0;
+
+-- Data completeness metrics
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS date_range_start DATE;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS date_range_end DATE;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS expected_trading_days INTEGER DEFAULT 0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS actual_trading_days_processed INTEGER DEFAULT 0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS trading_day_coverage_pct NUMERIC(5,2) DEFAULT 0.0;
+
+-- Price quality metrics
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS avg_price_variance NUMERIC(10,6) DEFAULT 0.0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS max_price_variance NUMERIC(10,6) DEFAULT 0.0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS avg_statistical_score NUMERIC(8,4) DEFAULT 0.0;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS extreme_outliers_detected INTEGER DEFAULT 0;
+
+-- Summary text fields
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS quality_summary TEXT;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS coverage_summary TEXT;
+ALTER TABLE dev_runs ADD COLUMN IF NOT EXISTS performance_summary TEXT;
+
+-- Create indexes for efficient querying
+CREATE INDEX IF NOT EXISTS idx_dev_runs_date_range ON dev_runs(date_range_start, date_range_end);
+CREATE INDEX IF NOT EXISTS idx_dev_runs_quality_metrics ON dev_runs(avg_confidence_score, successful_unifications);
+CREATE INDEX IF NOT EXISTS idx_dev_runs_performance ON dev_runs(processing_rate_per_second, total_price_points);
+
+-- Create a view for easy summary reporting
+CREATE OR REPLACE VIEW dev_price_unification_summary AS
+SELECT 
+    r.id as run_id,
+    r.run_type,
+    r.start_time,
+    r.end_time,
+    EXTRACT(EPOCH FROM (r.end_time - r.start_time))::INTEGER as duration_seconds,
+    r.status,
+    r.date_range_start,
+    r.date_range_end,
+    r.total_symbols,
+    r.total_dates,
+    r.total_price_points,
+    r.successful_unifications,
+    r.failed_unifications,
+    ROUND((r.successful_unifications::NUMERIC / NULLIF(r.total_price_points, 0)) * 100, 2) as success_rate_pct,
+    r.avg_confidence_score,
+    r.avg_vendor_count,
+    r.polygon_coverage_pct,
+    r.tiingo_coverage_pct,
+    r.fmp_coverage_pct,
+    r.processing_rate_per_second,
+    r.trading_day_coverage_pct,
+    r.validation_failures,
+    r.vendor_disagreements,
+    r.statistical_outliers,
+    r.quality_summary,
+    r.coverage_summary,
+    r.performance_summary
+FROM dev_runs r
+WHERE r.run_type = 'daily_price_unification'
+ORDER BY r.start_time DESC;
+
+-- Add comments for documentation
+COMMENT ON TABLE dev_runs IS 'Enhanced run tracking with comprehensive summary statistics for price unification jobs';
+COMMENT ON COLUMN dev_runs.total_price_points IS 'Total number of individual price records processed (symbols * dates)';
+COMMENT ON COLUMN dev_runs.vendor_disagreements IS 'Number of cases where vendors had significant price disagreements';
+COMMENT ON COLUMN dev_runs.statistical_outliers IS 'Number of prices flagged as statistical outliers';
+COMMENT ON COLUMN dev_runs.trading_day_coverage_pct IS 'Percentage of expected trading days that were successfully processed';
+COMMENT ON VIEW dev_price_unification_summary IS 'Summary view of price unification runs with key metrics and success rates';
