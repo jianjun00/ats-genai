@@ -247,6 +247,83 @@ python k8s/check-actual-column-names.yaml  # Via Kubernetes
 - Use relaxed criteria: `--min-market-cap 0 --min-dollar-volume 1`
 - Verify date ranges: data may be historical
 
+## Modeling Principles
+
+### 🧪 CRITICAL: Test-Driven Development
+
+**ALWAYS follow this testing workflow for ANY change:**
+
+1. **Add thorough tests for changes** - Before implementing new features or fixes
+2. **When there is an error, first add tests to verify that the error can be detected** 
+3. **Then fix the logic and verify that tests pass**
+4. **Never make changes without corresponding tests**
+
+**Example Workflow:**
+```bash
+# 1. Write test that reproduces the issue (should fail)
+PYTHONPATH=src python -m pytest tests/specific_issue_test.py -v
+# ❌ Test should FAIL, proving we can detect the problem
+
+# 2. Fix the actual code
+# (implement the fix)
+
+# 3. Verify test now passes
+PYTHONPATH=src python -m pytest tests/specific_issue_test.py -v
+# ✅ Test should now PASS
+
+# 4. Run full test suite to prevent regressions
+PYTHONPATH=src python -m pytest tests/ -v
+```
+
+This prevents introducing bugs and ensures all changes are validated.
+
+### ⚠️ CRITICAL: Avoid Heuristic Rules
+
+When developing models, adhere to these fundamental principles:
+
+**❌ DON'T:**
+- Use hardcoded thresholds (e.g., `if RSI > 70 then sell`)
+- Implement heuristic trading rules (e.g., `if price > MA(20) and volume > 2x then buy`) 
+- Apply fixed cutoffs (e.g., `if P/E < 15 then value stock`)
+- Create manual decision trees with arbitrary breakpoints
+
+**✅ DO:**
+- Present raw input features to the model
+- Let the model infer optimal thresholds and combinations
+- Use continuous feature engineering without discretization
+- Allow the model to discover non-linear relationships
+- Provide rich feature sets and let the model select relevance
+
+**Example Approach:**
+
+Instead of:
+```python
+# BAD: Hardcoded heuristic
+if rsi > 70 and price > sma_20 and volume_ratio > 1.5:
+    signal = "sell"
+```
+
+Use:
+```python
+# GOOD: Raw features for model inference
+features = {
+    'rsi_value': rsi,                    # Continuous RSI value
+    'price_to_sma_ratio': price / sma_20, # Relative price position
+    'volume_ratio': volume_ratio,         # Volume relative to average
+    'momentum_1d': (price - prev_price) / prev_price,
+    'volatility_10d': rolling_std_10d,
+    'market_regime_score': regime_indicator
+}
+# Let model determine optimal decision boundaries
+```
+
+**Rationale:**
+- Models can discover complex, non-linear relationships
+- Thresholds can adapt to changing market conditions
+- Reduces overfitting to specific historical periods
+- Enables discovery of unexpected patterns
+- Improves generalization across different market regimes
+
 ## Future Enhancements
 
 1. **Market Cap Data**: Update `dev_daily_market_cap` with current values

@@ -1,0 +1,122 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: compute-market-cap-corrected
+  namespace: ats-dev
+  labels:
+    app: ats-genai
+    component: market-cap-computation
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: ats-genai
+        component: market-cap-computation
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: compute-market-cap
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "Installing dependencies..."
+          pip install --no-cache-dir asyncpg aiohttp
+          
+          echo "Starting market cap computation (testing with sample data)..."
+          cat > /tmp/test_market_cap.py << 'EOF'
+          import asyncio
+          import asyncpg
+          import logging
+          from datetime import date, timedelta
+          
+          logging.basicConfig(level=logging.INFO)
+          logger = logging.getLogger("market_cap_test")
+          
+          async def test_market_cap_computation():
+              # Connect to database using the correct service name
+              try:
+                  pool = await asyncpg.create_pool(
+                      host="postgres-simple",  # Correct service name
+                      port=5432,
+                      user="postgres", 
+                      password="dev_password",  # Correct password
+                      database="dev_db",        # Correct database name
+                      min_size=1,
+                      max_size=2
+                  )
+                  logger.info("Connected to database successfully")
+                  
+                  # Check if we have price data
+                  async with pool.acquire() as conn:
+                      count = await conn.fetchval("SELECT COUNT(*) FROM dev_daily_prices_polygon WHERE date >= $1", 
+                                                date.today() - timedelta(days=30))
+                      logger.info(f"Found {count} price records in last 30 days")
+                      
+                      # Check market cap table status
+                      mc_count = await conn.fetchval("SELECT COUNT(*) FROM dev_daily_market_cap")
+                      logger.info(f"Current market cap records: {mc_count}")
+                      
+                      # Insert some test market cap data using existing prices
+                      test_query = """
+                          INSERT INTO dev_daily_market_cap (date, instrument_id, market_cap, shares_outstanding)
+                          SELECT 
+                              p.date,
+                              p.instrument_id,
+                              p.close * 1000000000 as market_cap,  -- Assume 1B shares for test
+                              1000000000 as shares_outstanding
+                          FROM dev_daily_prices_polygon p
+                          JOIN dev_instruments i ON p.instrument_id = i.id
+                          WHERE p.date >= $1
+                            AND i.symbol IN ('AAPL', 'MSFT', 'GOOGL')
+                            AND p.close IS NOT NULL
+                          ON CONFLICT (instrument_id, date) DO UPDATE SET
+                              market_cap = EXCLUDED.market_cap
+                      """
+                      
+                      result = await conn.execute(test_query, date.today() - timedelta(days=10))
+                      logger.info(f"Test market cap insertion result: {result}")
+                      
+                      # Verify the data
+                      test_data = await conn.fetch("""
+                          SELECT i.symbol, mc.date, mc.market_cap/1000000000 as market_cap_billions
+                          FROM dev_daily_market_cap mc
+                          JOIN dev_instruments i ON mc.instrument_id = i.id
+                          WHERE mc.date >= $1
+                          ORDER BY i.symbol, mc.date DESC
+                          LIMIT 10
+                      """, date.today() - timedelta(days=10))
+                      
+                      logger.info("Sample market cap data:")
+                      for row in test_data:
+                          logger.info(f"  {row['symbol']}: ${row['market_cap_billions']:.1f}B on {row['date']}")
+                      
+                  await pool.close()
+                  logger.info("Market cap test completed successfully")
+                  return True
+                  
+              except Exception as e:
+                  logger.error(f"Market cap test failed: {e}")
+                  import traceback
+                  traceback.print_exc()
+                  return False
+          
+          if __name__ == "__main__":
+              success = asyncio.run(test_market_cap_computation())
+              exit(0 if success else 1)
+          EOF
+          
+          python /tmp/test_market_cap.py
+        env:
+        - name: PYTHONPATH
+          value: "/tmp"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"

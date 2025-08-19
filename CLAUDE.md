@@ -2,6 +2,33 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚨 CRITICAL REMINDER: KUBERNETES-FIRST DEVELOPMENT
+
+**ALWAYS USE KUBERNETES FOR DEV ENVIRONMENT OPERATIONS**
+
+- ✅ **DEV Environment = Kubernetes (ats-dev namespace)**
+- ✅ **Database = postgres-simple service in K8s cluster**  
+- ✅ **All data operations = Use Kubernetes jobs**
+- ❌ **NEVER try to run data scripts locally for dev environment**
+- ❌ **NEVER use localhost database connections for dev work**
+
+### Quick K8s Commands for Dev Operations
+```bash
+# Deploy any data processing job
+kubectl apply -f k8s/your-job.yaml
+
+# Monitor job progress  
+kubectl logs job/job-name -n ats-dev --follow
+
+# Check job status
+kubectl get jobs -n ats-dev
+
+# Verify database connectivity
+kubectl exec -it deployment/postgres-simple -n ats-dev -- psql -U postgres -d dev_db
+```
+
+**Remember: When user says "dev environment" → Think Kubernetes, not local!**
+
 ## Common Development Commands
 
 ### Python Dependencies & Environment
@@ -118,6 +145,35 @@ uv run python scripts/database/test_ats_dev_db_connection.py
 # Verify database setup
 uv run python scripts/database/verify_db_setup.py
 ```
+
+### Database Connection Information
+**Local Development:**
+- Host: `localhost`, Port: `5433`
+- User: `postgres`, Password: `postgres`  
+- Database: `dev_db`
+
+**Kubernetes (ats-dev namespace):**
+- Host: `postgres`, Port: `5432`
+- User: `postgres`, Password: `dev_password`
+- Database: `dev_db`
+
+```bash
+# Local connection
+export DB_HOST=localhost DB_PORT=5433 DB_USER=postgres DB_PASSWORD=postgres DB_NAME=dev_db
+
+# Kubernetes connection  
+export DB_HOST=postgres DB_PORT=5432 DB_USER=postgres DB_PASSWORD=dev_password DB_NAME=dev_db
+```
+
+### 🔥 **CRITICAL REMINDER: Always Use Kubernetes**
+**IMPORTANT**: For any production operations, data processing, or batch jobs, ALWAYS use Kubernetes instead of local subprocess calls. This includes:
+- Market cap computation jobs
+- Universe creation and updates  
+- Data backfill operations
+- Model training jobs
+- All production workloads
+
+Use `kubectl apply -f k8s/job-name.yaml` patterns for all data operations.
 
 ### Kubernetes Job Generation
 ```bash

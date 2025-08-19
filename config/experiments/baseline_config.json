@@ -1,0 +1,46 @@
+{
+  "experiment_name": "baseline_model",
+  "description": "Baseline configuration with core features only",
+  "variant_type": "baseline",
+  "features": {
+    "spy_qqq_signals": false,
+    "technical_indicators": true,
+    "news_sentiment": false,
+    "sector_rotation": false,
+    "volatility_regime": true,
+    "momentum_features": true,
+    "mean_reversion": true,
+    "options_flow": false,
+    "alternative_data": false,
+    "risk_parity": false
+  },
+  "model_params": {
+    "learning_rate": 0.001,
+    "batch_size": 64,
+    "hidden_dims": [128, 64, 32],
+    "dropout_rate": 0.2,
+    "l2_regularization": 0.01,
+    "ensemble_size": 3
+  },
+  "trading_params": {
+    "max_position_size": 0.05,
+    "max_leverage": 1.5,
+    "transaction_cost_bps": 5,
+    "rebalance_frequency": "daily",
+    "risk_budget": 0.15
+  },
+  "backtest_params": {
+    "start_date": "2023-01-01",
+    "end_date": "2024-01-01",
+    "universe_size": 50,
+    "initial_capital": 100000,
+    "benchmark": "SPY"
+  },
+  "data_params": {
+    "lookback_window": 252,
+    "min_observations": 50,
+    "outlier_threshold": 3.0,
+    "normalization": "z_score",
+    "feature_selection": true
+  }
+}

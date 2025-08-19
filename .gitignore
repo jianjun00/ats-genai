@@ -142,3 +142,5 @@ k8s/generated/*
 # Ignore data directory
 data/
 
+k8s/experiments/
+k8s/dev/
