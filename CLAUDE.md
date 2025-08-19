@@ -38,6 +38,39 @@ PYTHONPATH=src uv run pytest tests/integration/ -v
 3. **Test After Change**: Every change must pass all relevant tests before claiming success
 4. **Integration Testing**: Always test actual service startup, not just unit tests
 
+### Development Workflow (MANDATORY)
+**For every code change, follow this exact sequence:**
+
+1. **Make Code Changes**: Implement your changes to the codebase
+2. **Write/Update Tests**: Create test cases that verify your changes work correctly
+   - Unit tests for individual functions/classes
+   - Integration tests for end-to-end functionality
+   - Manual test scripts for complex scenarios
+3. **Run Tests**: Execute all relevant tests to verify functionality
+   ```bash
+   # Run specific tests for your changes
+   PYTHONPATH=src pytest tests/specific_feature/ -v
+   
+   # Run integration tests to catch system-wide issues
+   PYTHONPATH=src pytest tests/integration/ -v
+   ```
+4. **Manual Verification**: For critical changes, manually test the actual functionality
+   - Test actual API endpoints with curl or browser
+   - Verify database records are created/updated correctly  
+   - Check that services start up without errors
+   - Validate that user-facing features work as expected
+5. **Verify Results**: Confirm all tests pass and manual verification succeeds
+6. **Document Results**: Log what was tested and what the results were
+7. **Move to Next Step**: Only proceed to the next development task after full verification
+
+**Critical Rules:**
+- 🚫 **NEVER** move to the next step without verifying current step works
+- 🚫 **NEVER** assume tests pass without running them
+- 🚫 **NEVER** skip manual verification for user-facing changes
+- ✅ **ALWAYS** test the actual functionality, not just unit tests
+- ✅ **ALWAYS** verify database changes with actual queries
+- ✅ **ALWAYS** confirm services start and respond correctly
+
 ```bash
 # Example workflow for fixing a bug:
 # 1. Write a test that reproduces the bug (should fail)

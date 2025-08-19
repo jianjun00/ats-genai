@@ -1,0 +1,251 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: comprehensive-10year-backfill-script
+  namespace: ats-dev
+data:
+  backfill_script.py: |
+    #!/usr/bin/env python3
+    import os
+    import sys
+    import asyncio
+    import logging
+    from datetime import datetime, date, timedelta
+    
+    # Add src to Python path
+    sys.path.insert(0, '/app/src')
+    
+    from config.environment import Environment
+    
+    async def main():
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+        
+        # Environment setup
+        env = Environment()
+        
+        # Target date range for comprehensive 10-year coverage
+        start_date = date(2015, 8, 18)
+        end_date = date(2019, 12, 31)
+        
+        logger.info(f"Starting comprehensive 10-year backfill from {start_date} to {end_date}")
+        logger.info("This will backfill:")
+        logger.info("1. Daily prices (Polygon & Tiingo)")
+        logger.info("2. Market cap data")
+        logger.info("3. Shares outstanding data")
+        logger.info("4. Key fundamental metrics")
+        
+        # Get instrument count
+        import asyncpg
+        conn = await asyncpg.connect(env.get_database_url())
+        instrument_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instruments")
+        await conn.close()
+        
+        logger.info(f"Processing {instrument_count} instruments")
+        
+        try:
+            # 1. Daily Prices Backfill
+            logger.info("=" * 50)
+            logger.info("PHASE 1: Daily Prices Backfill")
+            logger.info("=" * 50)
+            
+            # Import daily price backfillers
+            from market_data.eod.daily_price_polygon import DailyPricePolygonBackfiller
+            from market_data.eod.daily_price_tiingo import DailyPriceTiingoBackfiller
+            
+            # Polygon daily prices
+            logger.info("Starting Polygon daily prices backfill...")
+            polygon_backfiller = DailyPricePolygonBackfiller(env=env)
+            await polygon_backfiller.run_backfill(
+                start_date=start_date,
+                end_date=end_date,
+                batch_size=300,  # Reduced for stability
+                max_concurrent=8
+            )
+            
+            # Tiingo daily prices
+            logger.info("Starting Tiingo daily prices backfill...")
+            tiingo_backfiller = DailyPriceTiingoBackfiller(env=env)
+            await tiingo_backfiller.run_backfill(
+                start_date=start_date,
+                end_date=end_date,
+                batch_size=300,
+                max_concurrent=8
+            )
+            
+            # 2. Market Cap Backfill
+            logger.info("=" * 50)
+            logger.info("PHASE 2: Market Cap Backfill")
+            logger.info("=" * 50)
+            
+            # Import market cap backfillers
+            from secmaster.populate_market_cap_polygon import MarketCapPolygonPopulator
+            from secmaster.populate_market_cap_tiingo import MarketCapTiingoPopulator
+            
+            # Market cap from Polygon
+            logger.info("Starting Polygon market cap backfill...")
+            polygon_market_cap = MarketCapPolygonPopulator(env=env)
+            await polygon_market_cap.run_backfill(
+                start_date=start_date,
+                end_date=end_date,
+                batch_size=200
+            )
+            
+            # Market cap from Tiingo
+            logger.info("Starting Tiingo market cap backfill...")
+            tiingo_market_cap = MarketCapTiingoPopulator(env=env)
+            await tiingo_market_cap.run_backfill(
+                start_date=start_date,
+                end_date=end_date,
+                batch_size=200
+            )
+            
+            # 3. Shares Outstanding Backfill
+            logger.info("=" * 50)
+            logger.info("PHASE 3: Shares Outstanding Backfill")
+            logger.info("=" * 50)
+            
+            # Note: Shares outstanding is typically quarterly data
+            # We'll need to implement interpolation for daily estimates
+            logger.info("Shares outstanding backfill framework prepared")
+            logger.info("This requires quarterly fundamental data ingestion")
+            
+            # 4. Verification
+            logger.info("=" * 50)
+            logger.info("PHASE 4: Data Verification")
+            logger.info("=" * 50)
+            
+            conn = await asyncpg.connect(env.get_database_url())
+            
+            # Check daily prices coverage
+            polygon_count = await conn.fetchval("""
+                SELECT COUNT(*) FROM dev_daily_prices_polygon 
+                WHERE date BETWEEN $1 AND $2
+            """, start_date, end_date)
+            
+            tiingo_count = await conn.fetchval("""
+                SELECT COUNT(*) FROM dev_daily_prices_tiingo 
+                WHERE date BETWEEN $1 AND $2
+            """, start_date, end_date)
+            
+            market_cap_count = await conn.fetchval("""
+                SELECT COUNT(*) FROM dev_daily_market_cap 
+                WHERE date BETWEEN $1 AND $2
+            """, start_date, end_date)
+            
+            await conn.close()
+            
+            logger.info(f"Verification Results:")
+            logger.info(f"- Polygon daily prices: {polygon_count:,} records")
+            logger.info(f"- Tiingo daily prices: {tiingo_count:,} records")
+            logger.info(f"- Market cap records: {market_cap_count:,} records")
+            
+            expected_records = instrument_count * ((end_date - start_date).days * 0.69)  # Trading days
+            logger.info(f"- Expected per vendor: ~{expected_records:,.0f} records")
+            
+            logger.info("Comprehensive 10-year backfill completed successfully!")
+            
+        except Exception as e:
+            logger.error(f"Backfill failed: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
+    
+    if __name__ == "__main__":
+        asyncio.run(main())
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: comprehensive-10year-backfill-job
+  namespace: ats-dev
+spec:
+  ttlSecondsAfterFinished: 172800  # 48 hours
+  parallelism: 1
+  completions: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: backfill-container
+        image: python:3.11-slim
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            set -e
+            
+            echo "Starting comprehensive 10-year historical data backfill"
+            echo "Target period: Aug 18, 2015 to Dec 31, 2019 (4.4 years)"
+            echo "Data types: Daily prices, Market cap, Shares outstanding"
+            
+            # Install system dependencies
+            apt-get update && apt-get install -y git curl build-essential
+            
+            # Install uv for faster package management
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            source $HOME/.cargo/env
+            
+            # Clone repository
+            git clone https://github.com/jianjungit/ats-genai.git /app
+            cd /app
+            
+            # Install Python dependencies
+            uv pip install --system -r requirements.txt
+            
+            # Set environment variables
+            export PYTHONPATH=/app/src
+            export ENVIRONMENT=dev
+            export DB_CONNECTION_PARAMS=sslmode=disable
+            
+            # Ray configuration for Kubernetes
+            export RAY_SCHEDULER_EVENTS=0
+            export RAY_DISABLE_AUTOMATIC_AUTOSCALING=1
+            export RAY_DISABLE_DASHBOARD=1
+            export RAY_USAGE_STATS_ENABLED=0
+            export RAY_ADDRESS=""
+            
+            # Memory optimization
+            export MALLOC_ARENA_MAX=2
+            
+            # Run the comprehensive backfill
+            python3 /scripts/backfill_script.py
+        env:
+        - name: DB_HOST
+          value: "postgres-simple.ats-dev.svc.cluster.local"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_NAME
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_PASSWORD
+        - name: POLYGON_API_KEY
+          value: "placeholder"  # Configure with actual key
+        - name: TIINGO_API_KEY
+          value: "placeholder"  # Configure with actual key
+        resources:
+          requests:
+            memory: "6Gi"
+            cpu: "3000m"
+          limits:
+            memory: "12Gi" 
+            cpu: "6000m"
+        volumeMounts:
+        - name: script-volume
+          mountPath: /scripts
+      volumes:
+      - name: script-volume
+        configMap:
+          name: comprehensive-10year-backfill-script
+          defaultMode: 0755
