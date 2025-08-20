@@ -158,6 +158,23 @@ CREATE TABLE IF NOT EXISTS user_preferences (
     UNIQUE(user_id, preference_type)
 );
 
+-- Portfolio holdings table for daily breakdown
+CREATE TABLE IF NOT EXISTS portfolio_holdings (
+    id SERIAL PRIMARY KEY,
+    backtest_run_id VARCHAR(255) NOT NULL REFERENCES comprehensive_backtest_runs(backtest_run_id),
+    date DATE NOT NULL,
+    symbol VARCHAR(20) NOT NULL,
+    shares DECIMAL(15, 4) NOT NULL,
+    price DECIMAL(15, 4) NOT NULL,
+    market_value DECIMAL(15, 2) NOT NULL,
+    weight DECIMAL(8, 6) NOT NULL,
+    daily_pnl DECIMAL(15, 2),
+    daily_return DECIMAL(10, 6),
+    sector VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(backtest_run_id, date, symbol)
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_backtest_runs_date ON comprehensive_backtest_runs(start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_backtest_runs_strategy ON comprehensive_backtest_runs(strategy_name);
@@ -167,6 +184,8 @@ CREATE INDEX IF NOT EXISTS idx_symbol_performance_rank ON symbol_performance(bac
 CREATE INDEX IF NOT EXISTS idx_trades_symbol_date ON backtest_trades(backtest_run_id, symbol, entry_date);
 CREATE INDEX IF NOT EXISTS idx_risk_metrics_date ON risk_metrics(backtest_run_id, metric_date);
 CREATE INDEX IF NOT EXISTS idx_market_regimes_period ON market_regimes(start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_date ON portfolio_holdings(backtest_run_id, date);
+CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_symbol ON portfolio_holdings(backtest_run_id, symbol, date);
 
 -- Insert sample comprehensive backtest data
 INSERT INTO comprehensive_backtest_runs (

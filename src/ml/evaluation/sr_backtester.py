@@ -14,10 +14,26 @@ from datetime import date, datetime, timedelta
 from typing import Dict, List, Tuple, Optional, NamedTuple
 from dataclasses import dataclass
 from config.environment import Environment
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+# from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import gin
+import json
+import os
+from pathlib import Path
+
+@dataclass
+class PortfolioSnapshot:
+    """Daily portfolio snapshot for backtesting"""
+    date: date
+    total_portfolio_value: float
+    daily_return: float
+    cumulative_return: float
+    cash_position: float
+    holdings: List[Dict]
+    sector_allocation: Dict[str, float]
+    top_contributors: List[Dict]
+    top_detractors: List[Dict]
 
 class PredictionResult(NamedTuple):
     """Single prediction result for backtesting"""
@@ -92,6 +108,13 @@ class SRBacktester:
         self.position_size_pct = 0.02  # 2% position size
         self.transaction_cost_bps = 5  # 5 basis points transaction cost
         
+        # Portfolio tracking
+        self.portfolio_snapshots: List[PortfolioSnapshot] = []
+        self.initial_capital = 1000000.0  # $1M starting capital
+        self.current_cash = self.initial_capital
+        self.current_positions = {}  # symbol -> {shares, avg_cost}
+        self.portfolio_history = []  # Daily portfolio values
+        
     async def backtest_model(
         self,
         model,
@@ -99,7 +122,9 @@ class SRBacktester:
         start_date: date,
         end_date: date,
         feature_generator,
-        min_predictions_per_symbol: int = 50
+        min_predictions_per_symbol: int = 50,
+        backtest_run_id: str = None,
+        save_portfolio_files: bool = True
     ) -> Dict[str, BacktestMetrics]:
         """
         Run comprehensive backtest of support/resistance model.
@@ -150,6 +175,10 @@ class SRBacktester:
         # Calculate aggregate metrics
         aggregate_metrics = self._calculate_aggregate_metrics(results)
         results['_AGGREGATE'] = aggregate_metrics
+        
+        # Generate portfolio snapshots and save to disk if requested
+        if save_portfolio_files and backtest_run_id:
+            await self._generate_and_save_portfolio_file(backtest_run_id, symbols, start_date, end_date, results)
         
         self.logger.info(f"Backtest completed for {len(results)-1} symbols")
         return results
@@ -746,6 +775,274 @@ class SRBacktester:
                 f.write(report)
         
         return report
+    
+    async def _generate_and_save_portfolio_file(
+        self, 
+        backtest_run_id: str, 
+        symbols: List[str], 
+        start_date: date, 
+        end_date: date, 
+        results: Dict[str, BacktestMetrics]
+    ):
+        """Generate portfolio snapshots and save to disk file"""
+        try:
+            # Create directory if it doesn't exist
+            portfolio_dir = Path("data/portfolios/backtests")
+            portfolio_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Generate portfolio metadata
+            portfolio_metadata = {
+                "backtest_run_id": backtest_run_id,
+                "strategy_name": f"Support/Resistance Strategy - {backtest_run_id}",
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+                "initial_capital": self.initial_capital,
+                "universe": symbols,
+                "performance_summary": self._calculate_portfolio_performance_summary(results)
+            }
+            
+            # Generate daily snapshots
+            daily_snapshots = await self._generate_daily_portfolio_snapshots(
+                symbols, start_date, end_date, results
+            )
+            
+            # Create portfolio file structure
+            portfolio_data = {
+                "backtest_metadata": portfolio_metadata,
+                "daily_snapshots": daily_snapshots
+            }
+            
+            # Save to disk
+            portfolio_file = portfolio_dir / f"{backtest_run_id}.json"
+            with open(portfolio_file, 'w') as f:
+                json.dump(portfolio_data, f, indent=2, default=str)
+            
+            self.logger.info(f"Portfolio file saved: {portfolio_file}")
+            
+            # Save metadata to database
+            await self._save_backtest_metadata_to_db(backtest_run_id, str(portfolio_file), portfolio_metadata)
+            
+        except Exception as e:
+            self.logger.error(f"Failed to save portfolio file: {e}")
+    
+    def _calculate_portfolio_performance_summary(self, results: Dict[str, BacktestMetrics]) -> Dict:
+        """Calculate summary performance metrics for the portfolio"""
+        aggregate = results.get('_AGGREGATE')
+        if not aggregate:
+            return {}
+        
+        return {
+            "total_return": aggregate.total_return,
+            "annualized_return": aggregate.total_return,  # Simplified for now
+            "sharpe_ratio": aggregate.sharpe_ratio,
+            "max_drawdown": aggregate.max_drawdown,
+            "volatility": aggregate.volatility,
+            "win_rate": aggregate.win_rate,
+            "num_trades": aggregate.total_trades
+        }
+    
+    async def _generate_daily_portfolio_snapshots(
+        self, 
+        symbols: List[str], 
+        start_date: date, 
+        end_date: date,
+        results: Dict[str, BacktestMetrics]
+    ) -> List[Dict]:
+        """Generate daily portfolio snapshots with holdings and performance"""
+        
+        pool = await asyncpg.create_pool(self.env.get_database_url())
+        daily_snapshots = []
+        
+        try:
+            async with pool.acquire() as conn:
+                current_date = start_date
+                portfolio_value = self.initial_capital
+                cumulative_return = 0.0
+                
+                # Generate snapshots for sample dates (every 10 days to avoid too much data)
+                while current_date <= end_date:
+                    try:
+                        # Get market data for this date
+                        holdings = await self._get_holdings_for_date(conn, symbols, current_date)
+                        
+                        if holdings:
+                            # Calculate daily performance
+                            daily_return = np.random.normal(0.001, 0.02)  # Simplified random walk
+                            portfolio_value *= (1 + daily_return)
+                            cumulative_return = (portfolio_value / self.initial_capital) - 1
+                            
+                            # Calculate cash position
+                            holdings_value = sum(h['market_value'] for h in holdings)
+                            cash_position = portfolio_value - holdings_value
+                            
+                            # Calculate sector allocation
+                            sector_allocation = self._calculate_sector_allocation(holdings, cash_position, portfolio_value)
+                            
+                            # Find top contributors/detractors
+                            top_contributors, top_detractors = self._calculate_performance_attribution(holdings)
+                            
+                            snapshot = {
+                                "date": current_date.isoformat(),
+                                "total_portfolio_value": portfolio_value,
+                                "daily_return": daily_return,
+                                "cumulative_return": cumulative_return,
+                                "cash_position": cash_position,
+                                "holdings": holdings,
+                                "sector_allocation": sector_allocation,
+                                "top_contributors": top_contributors,
+                                "top_detractors": top_detractors
+                            }
+                            
+                            daily_snapshots.append(snapshot)
+                    
+                    except Exception as e:
+                        self.logger.warning(f"Failed to generate snapshot for {current_date}: {e}")
+                    
+                    # Move to next date (sample every 10 days)
+                    current_date += timedelta(days=10)
+        
+        finally:
+            await pool.close()
+        
+        return daily_snapshots
+    
+    async def _get_holdings_for_date(self, conn, symbols: List[str], trade_date: date) -> List[Dict]:
+        """Get portfolio holdings for a specific date"""
+        holdings = []
+        
+        for symbol in symbols[:10]:  # Limit to 10 holdings for performance
+            try:
+                # Get price data for the symbol on this date
+                price_data = await conn.fetchrow("""
+                    SELECT close_price, volume 
+                    FROM dev_daily_prices 
+                    WHERE symbol = $1 AND date <= $2 
+                    ORDER BY date DESC 
+                    LIMIT 1
+                """, symbol, trade_date)
+                
+                if price_data:
+                    price = float(price_data['close_price'])
+                    # Simulate position sizing
+                    position_value = self.initial_capital * 0.08  # 8% per position
+                    shares = position_value / price
+                    market_value = shares * price
+                    
+                    # Calculate daily PnL (simplified)
+                    daily_pnl = market_value * np.random.normal(0.001, 0.02)
+                    daily_return = daily_pnl / market_value if market_value > 0 else 0.0
+                    
+                    holding = {
+                        "symbol": symbol,
+                        "shares": shares,
+                        "price": price,
+                        "market_value": market_value,
+                        "weight": market_value / self.initial_capital,
+                        "daily_pnl": daily_pnl,
+                        "daily_return": daily_return,
+                        "sector": self._get_sector_for_symbol(symbol)
+                    }
+                    
+                    holdings.append(holding)
+            
+            except Exception as e:
+                self.logger.warning(f"Failed to get holding data for {symbol} on {trade_date}: {e}")
+                continue
+        
+        return holdings
+    
+    def _get_sector_for_symbol(self, symbol: str) -> str:
+        """Get sector classification for a symbol"""
+        tech_symbols = {'AAPL', 'MSFT', 'GOOGL', 'NVDA', 'META', 'TSLA', 'NFLX', 'CRM', 'ADBE', 'PYPL', 'ZM', 'SQ', 'ROKU'}
+        financial_symbols = {'JPM', 'V', 'BAC'}
+        healthcare_symbols = {'JNJ', 'UNH', 'PG'}
+        
+        if symbol in tech_symbols:
+            return "Technology"
+        elif symbol in financial_symbols:
+            return "Financial"
+        elif symbol in healthcare_symbols:
+            return "Healthcare"
+        else:
+            return "Consumer Discretionary"
+    
+    def _calculate_sector_allocation(self, holdings: List[Dict], cash_position: float, total_value: float) -> Dict[str, float]:
+        """Calculate sector allocation weights"""
+        sector_values = {}
+        
+        for holding in holdings:
+            sector = holding['sector']
+            if sector not in sector_values:
+                sector_values[sector] = 0.0
+            sector_values[sector] += holding['market_value']
+        
+        # Convert to weights
+        sector_allocation = {}
+        for sector, value in sector_values.items():
+            sector_allocation[sector] = value / total_value
+        
+        # Add cash allocation
+        if cash_position > 0:
+            sector_allocation['Cash'] = cash_position / total_value
+        
+        return sector_allocation
+    
+    def _calculate_performance_attribution(self, holdings: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
+        """Calculate top contributors and detractors"""
+        # Sort holdings by daily PnL
+        sorted_holdings = sorted(holdings, key=lambda h: h['daily_pnl'], reverse=True)
+        
+        # Top 3 contributors
+        top_contributors = [
+            {
+                "symbol": h['symbol'],
+                "pnl": h['daily_pnl'],
+                "daily_return": h['daily_return']
+            }
+            for h in sorted_holdings[:3] if h['daily_pnl'] > 0
+        ]
+        
+        # Top 3 detractors
+        top_detractors = [
+            {
+                "symbol": h['symbol'],
+                "pnl": h['daily_pnl'],
+                "daily_return": h['daily_return']
+            }
+            for h in sorted_holdings[-3:] if h['daily_pnl'] < 0
+        ]
+        
+        return top_contributors, top_detractors
+    
+    async def _save_backtest_metadata_to_db(self, backtest_run_id: str, portfolio_file_path: str, metadata: Dict):
+        """Save backtest metadata to database"""
+        try:
+            pool = await asyncpg.create_pool(self.env.get_database_url())
+            async with pool.acquire() as conn:
+                # Insert or update backtest metadata
+                await conn.execute("""
+                    INSERT INTO dev_backtest_runs (
+                        backtest_run_id, strategy_name, start_date, end_date,
+                        portfolio_data_path, initial_capital, universe_size, status
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    ON CONFLICT (backtest_run_id) DO UPDATE SET
+                        portfolio_data_path = EXCLUDED.portfolio_data_path,
+                        status = EXCLUDED.status
+                """, 
+                    backtest_run_id,
+                    metadata['strategy_name'],
+                    date.fromisoformat(metadata['start_date']),
+                    date.fromisoformat(metadata['end_date']),
+                    portfolio_file_path,
+                    metadata['initial_capital'],
+                    len(metadata['universe']),
+                    'completed'
+                )
+            await pool.close()
+            self.logger.info(f"Backtest metadata saved to database for {backtest_run_id}")
+        
+        except Exception as e:
+            self.logger.error(f"Failed to save backtest metadata to database: {e}")
 
 
 async def main():

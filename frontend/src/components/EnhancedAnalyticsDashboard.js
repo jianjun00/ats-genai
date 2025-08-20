@@ -4,6 +4,7 @@ import {
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, ReferenceLine 
 } from 'recharts';
 import ModelComparisonDashboard from './ModelComparisonDashboard';
+import PortfolioBreakdownDashboard from './PortfolioBreakdownDashboard';
 import './EnhancedAnalyticsDashboard.css';
 
 const EnhancedAnalyticsDashboard = () => {
@@ -16,8 +17,10 @@ const EnhancedAnalyticsDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [selectedBacktestsForComparison, setSelectedBacktestsForComparison] = useState([]);
+  const [comparisonResults, setComparisonResults] = useState(null);
 
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8001';
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
   // Fetch all data
   useEffect(() => {
@@ -115,6 +118,76 @@ const EnhancedAnalyticsDashboard = () => {
     return new Intl.NumberFormat().format(value);
   };
 
+  // Backtest comparison functions
+  const handleBacktestSelection = (backtestId, isSelected) => {
+    if (isSelected) {
+      setSelectedBacktestsForComparison(prev => [...prev, backtestId]);
+    } else {
+      setSelectedBacktestsForComparison(prev => prev.filter(id => id !== backtestId));
+    }
+  };
+
+  const selectBacktestForAnalysis = (backtestId) => {
+    setSelectedBacktest(backtestId);
+    setActiveTab('overview');
+    handleBacktestChange(backtestId);
+  };
+
+  const performBacktestComparison = async () => {
+    if (selectedBacktestsForComparison.length < 2) return;
+    
+    try {
+      setLoading(true);
+      const comparisonData = [];
+      
+      for (const backtestId of selectedBacktestsForComparison) {
+        const [detailsResponse, performanceResponse, symbolsResponse] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/v1/backtests/${backtestId}/details`),
+          fetch(`${API_BASE_URL}/api/v1/backtests/${backtestId}/performance`),
+          fetch(`${API_BASE_URL}/api/v1/backtests/${backtestId}/symbols`)
+        ]);
+        
+        const details = detailsResponse.ok ? await detailsResponse.json() : null;
+        const performance = performanceResponse.ok ? await performanceResponse.json() : [];
+        const symbols = symbolsResponse.ok ? await symbolsResponse.json() : [];
+        
+        comparisonData.push({
+          backtestId,
+          details,
+          performance,
+          symbols
+        });
+      }
+      
+      setComparisonResults(comparisonData);
+      setActiveTab('comparison');
+    } catch (error) {
+      console.error('Error performing comparison:', error);
+      setError('Failed to compare backtests');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const combineBacktests = async () => {
+    if (selectedBacktestsForComparison.length < 2) return;
+    
+    try {
+      setLoading(true);
+      // Implement combined analysis logic
+      console.log('Combining backtests:', selectedBacktestsForComparison);
+      
+      // For now, just perform comparison
+      await performBacktestComparison();
+      
+    } catch (error) {
+      console.error('Error combining backtests:', error);
+      setError('Failed to combine backtests');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Chart colors
   const COLORS = ['#00d4ff', '#00ff88', '#ff4757', '#ffa502', '#a55eea', '#26de81', '#fd79a8', '#e17055'];
 
@@ -180,6 +253,18 @@ const EnhancedAnalyticsDashboard = () => {
           onClick={() => setActiveTab('regimes')}
         >
           Market Regimes
+        </button>
+        <button 
+          className={activeTab === 'portfolio' ? 'nav-tab active' : 'nav-tab'}
+          onClick={() => setActiveTab('portfolio')}
+        >
+          Portfolio Breakdown
+        </button>
+        <button 
+          className={activeTab === 'backtests' ? 'nav-tab active' : 'nav-tab'}
+          onClick={() => setActiveTab('backtests')}
+        >
+          Backtest Comparison
         </button>
         <button 
           className={activeTab === 'comparison' ? 'nav-tab active' : 'nav-tab'}
@@ -487,8 +572,391 @@ const EnhancedAnalyticsDashboard = () => {
           </div>
         )}
 
+        {/* Portfolio Breakdown Tab */}
+        {activeTab === 'portfolio' && selectedBacktest && (
+          <div className="portfolio-tab">
+            <PortfolioBreakdownDashboard backtestRunId={selectedBacktest} />
+          </div>
+        )}
+
+        {/* Backtests Table Tab */}
+        {activeTab === 'backtests' && (
+          <div className="backtests-tab">
+            <div className="backtests-header">
+              <h2>Backtest Analysis & Comparison</h2>
+              <p>Select backtests to analyze individually or compare side-by-side</p>
+            </div>
+            
+            <div className="backtests-table-container">
+              <table className="backtests-table">
+                <thead>
+                  <tr>
+                    <th>Select</th>
+                    <th>Strategy Name</th>
+                    <th>Period</th>
+                    <th>Total Return</th>
+                    <th>Annualized Return</th>
+                    <th>Sharpe Ratio</th>
+                    <th>Max Drawdown</th>
+                    <th>Status</th>
+                    <th>Universe Size</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {backtests.map(backtest => (
+                    <tr key={backtest.backtest_run_id} className="backtest-row">
+                      <td>
+                        <input 
+                          type="checkbox" 
+                          id={`select-${backtest.backtest_run_id}`}
+                          onChange={(e) => handleBacktestSelection(backtest.backtest_run_id, e.target.checked)}
+                        />
+                      </td>
+                      <td className="strategy-name">{backtest.strategy_name}</td>
+                      <td className="period">
+                        {new Date(backtest.start_date).toLocaleDateString()} - {new Date(backtest.end_date).toLocaleDateString()}
+                      </td>
+                      <td className={`return-value ${backtest.total_return >= 0 ? 'positive' : 'negative'}`}>
+                        {formatPercentage(backtest.total_return)}
+                      </td>
+                      <td className={`return-value ${(backtest.annualized_return || 0) >= 0 ? 'positive' : 'negative'}`}>
+                        {backtest.annualized_return ? formatPercentage(backtest.annualized_return) : 'N/A'}
+                      </td>
+                      <td className="metric-value">
+                        {backtest.sharpe_ratio ? backtest.sharpe_ratio.toFixed(2) : 'N/A'}
+                      </td>
+                      <td className="drawdown-value">
+                        {formatPercentage(backtest.max_drawdown)}
+                      </td>
+                      <td>
+                        <span className={`status-badge ${backtest.status}`}>
+                          {backtest.status}
+                        </span>
+                      </td>
+                      <td className="universe-size">
+                        {backtest.universe_size || 'N/A'}
+                      </td>
+                      <td className="actions">
+                        <button 
+                          className="action-btn analyze"
+                          onClick={() => selectBacktestForAnalysis(backtest.backtest_run_id)}
+                        >
+                          Analyze
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {selectedBacktestsForComparison.length >= 2 && (
+              <div className="comparison-actions">
+                <h3>Compare Selected Backtests</h3>
+                <div className="comparison-buttons">
+                  <button 
+                    className="btn-primary"
+                    onClick={performBacktestComparison}
+                  >
+                    Compare Performance
+                  </button>
+                  <button 
+                    className="btn-secondary"
+                    onClick={combineBacktests}
+                  >
+                    Combine Analysis
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Comparison Results Tab */}
+        {activeTab === 'comparison' && comparisonResults && (
+          <div className="comparison-results-tab">
+            <div className="comparison-header">
+              <h2>Backtest Comparison Analysis</h2>
+              <p>Comparing {comparisonResults.length} backtests side-by-side</p>
+            </div>
+
+            {/* Comparison Summary Table */}
+            <div className="comparison-summary-table">
+              <h3>Performance Comparison Summary</h3>
+              <table className="comparison-table">
+                <thead>
+                  <tr>
+                    <th>Strategy</th>
+                    <th>Period</th>
+                    <th>Total Return</th>
+                    <th>Annualized Return</th>
+                    <th>Sharpe Ratio</th>
+                    <th>Max Drawdown</th>
+                    <th>Volatility</th>
+                    <th>Best Month</th>
+                    <th>Worst Month</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparisonResults.map((result, index) => {
+                    const backtest = backtests.find(bt => bt.backtest_run_id === result.backtestId);
+                    return (
+                      <tr key={index}>
+                        <td className="strategy-name">{backtest?.strategy_name || result.backtestId}</td>
+                        <td className="period">
+                          {backtest ? `${new Date(backtest.start_date).toLocaleDateString()} - ${new Date(backtest.end_date).toLocaleDateString()}` : 'N/A'}
+                        </td>
+                        <td className={`return-value ${(backtest?.total_return || 0) >= 0 ? 'positive' : 'negative'}`}>
+                          {backtest ? formatLargePercentage(backtest.total_return) : 'N/A'}
+                        </td>
+                        <td className={`return-value ${(backtest?.annualized_return || 0) >= 0 ? 'positive' : 'negative'}`}>
+                          {backtest?.annualized_return ? formatLargePercentage(backtest.annualized_return) : 'N/A'}
+                        </td>
+                        <td className="metric-value">
+                          {backtest?.sharpe_ratio ? backtest.sharpe_ratio.toFixed(2) : 'N/A'}
+                        </td>
+                        <td className="drawdown-value">
+                          {backtest ? formatPercentage(backtest.max_drawdown) : 'N/A'}
+                        </td>
+                        <td className="metric-value">
+                          {result.performance && result.performance.length > 0 ? 
+                            (Math.sqrt(252) * Math.sqrt(
+                              result.performance.reduce((acc, p, i) => 
+                                i === 0 ? 0 : acc + Math.pow(p.daily_return - 
+                                  result.performance.reduce((sum, pp) => sum + pp.daily_return, 0) / result.performance.length, 2
+                                ), 0) / (result.performance.length - 1)) * 100
+                            ).toFixed(1) + '%' : 'N/A'
+                          }
+                        </td>
+                        <td className="positive">
+                          {result.performance && result.performance.length > 0 ? 
+                            (Math.max(...result.performance.map(p => p.daily_return)) * 100).toFixed(2) + '%' : 'N/A'
+                          }
+                        </td>
+                        <td className="negative">
+                          {result.performance && result.performance.length > 0 ? 
+                            (Math.min(...result.performance.map(p => p.daily_return)) * 100).toFixed(2) + '%' : 'N/A'
+                          }
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Side-by-Side Performance Charts */}
+            <div className="comparison-charts">
+              <div className="chart-container full-width">
+                <h3>Performance Comparison Over Time</h3>
+                <ResponsiveContainer width="100%" height={500}>
+                  <LineChart>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                    <XAxis 
+                      dataKey="date" 
+                      stroke="#888"
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis 
+                      stroke="#888"
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={formatPercentage}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#1a2332', 
+                        border: '1px solid #00d4ff',
+                        color: '#fff'
+                      }}
+                      formatter={(value, name) => [formatPercentage(value), name]}
+                    />
+                    <Legend />
+                    {comparisonResults.map((result, index) => {
+                      const backtest = backtests.find(bt => bt.backtest_run_id === result.backtestId);
+                      return (
+                        <Line 
+                          key={index}
+                          type="monotone" 
+                          dataKey={`cumulative_return_${index}`}
+                          data={result.performance || []}
+                          stroke={COLORS[index % COLORS.length]}
+                          strokeWidth={2}
+                          name={backtest?.strategy_name || result.backtestId}
+                          connectNulls={true}
+                        />
+                      );
+                    })}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Risk-Return Scatter Plot */}
+              <div className="charts-row">
+                <div className="chart-container">
+                  <h3>Risk-Return Profile</h3>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <LineChart 
+                      data={comparisonResults.map((result, index) => {
+                        const backtest = backtests.find(bt => bt.backtest_run_id === result.backtestId);
+                        const volatility = result.performance && result.performance.length > 0 ? 
+                          Math.sqrt(252) * Math.sqrt(
+                            result.performance.reduce((acc, p, i) => 
+                              i === 0 ? 0 : acc + Math.pow(p.daily_return - 
+                                result.performance.reduce((sum, pp) => sum + pp.daily_return, 0) / result.performance.length, 2
+                              ), 0) / (result.performance.length - 1)
+                          ) : 0;
+                        return {
+                          strategy: backtest?.strategy_name || result.backtestId,
+                          annualized_return: (backtest?.annualized_return || 0) * 100,
+                          volatility: volatility * 100,
+                          sharpe_ratio: backtest?.sharpe_ratio || 0
+                        };
+                      })}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                      <XAxis 
+                        dataKey="volatility"
+                        stroke="#888"
+                        tick={{ fontSize: 12 }}
+                        label={{ value: 'Volatility (%)', position: 'insideBottom', offset: -5 }}
+                      />
+                      <YAxis 
+                        dataKey="annualized_return"
+                        stroke="#888"
+                        tick={{ fontSize: 12 }}
+                        label={{ value: 'Return (%)', angle: -90, position: 'insideLeft' }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: '#1a2332', 
+                          border: '1px solid #00d4ff',
+                          color: '#fff'
+                        }}
+                        formatter={(value, name) => {
+                          if (name === 'annualized_return') return [`${value.toFixed(1)}%`, 'Annual Return'];
+                          if (name === 'volatility') return [`${value.toFixed(1)}%`, 'Volatility'];
+                          if (name === 'sharpe_ratio') return [value.toFixed(2), 'Sharpe Ratio'];
+                          return [value, name];
+                        }}
+                      />
+                      {comparisonResults.map((result, index) => (
+                        <Bar
+                          key={index}
+                          dataKey="sharpe_ratio"
+                          fill={COLORS[index % COLORS.length]}
+                          fillOpacity={0.6}
+                        />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Drawdown Comparison */}
+                <div className="chart-container">
+                  <h3>Maximum Drawdown Comparison</h3>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <BarChart 
+                      data={comparisonResults.map((result, index) => {
+                        const backtest = backtests.find(bt => bt.backtest_run_id === result.backtestId);
+                        return {
+                          strategy: backtest?.strategy_name || result.backtestId,
+                          max_drawdown: Math.abs((backtest?.max_drawdown || 0) * 100)
+                        };
+                      })}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                      <XAxis 
+                        dataKey="strategy"
+                        stroke="#888"
+                        tick={{ fontSize: 10, angle: -45 }}
+                        height={80}
+                      />
+                      <YAxis 
+                        stroke="#888"
+                        tick={{ fontSize: 12 }}
+                        tickFormatter={(value) => `-${value.toFixed(1)}%`}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: '#1a2332', 
+                          border: '1px solid #00d4ff',
+                          color: '#fff'
+                        }}
+                        formatter={(value) => [`-${value.toFixed(1)}%`, 'Max Drawdown']}
+                      />
+                      <Bar dataKey="max_drawdown" fill="#ff4757" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            {/* Statistical Significance Tests */}
+            <div className="statistical-analysis">
+              <h3>Statistical Analysis</h3>
+              <div className="stats-grid">
+                {comparisonResults.map((result, index) => {
+                  const backtest = backtests.find(bt => bt.backtest_run_id === result.backtestId);
+                  const returns = result.performance?.map(p => p.daily_return) || [];
+                  const positiveReturns = returns.filter(r => r > 0).length;
+                  const negativeReturns = returns.filter(r => r < 0).length;
+                  const winRate = returns.length > 0 ? (positiveReturns / returns.length) : 0;
+                  
+                  return (
+                    <div key={index} className="stat-card">
+                      <h4>{backtest?.strategy_name || result.backtestId}</h4>
+                      <div className="stat-row">
+                        <span className="stat-label">Win Rate:</span>
+                        <span className={`stat-value ${winRate >= 0.5 ? 'positive' : 'negative'}`}>
+                          {(winRate * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="stat-row">
+                        <span className="stat-label">Trading Days:</span>
+                        <span className="stat-value">{returns.length}</span>
+                      </div>
+                      <div className="stat-row">
+                        <span className="stat-label">Positive Days:</span>
+                        <span className="stat-value positive">{positiveReturns}</span>
+                      </div>
+                      <div className="stat-row">
+                        <span className="stat-label">Negative Days:</span>
+                        <span className="stat-value negative">{negativeReturns}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="comparison-actions">
+              <h3>Analysis Actions</h3>
+              <div className="comparison-buttons">
+                <button 
+                  className="btn-primary"
+                  onClick={() => setActiveTab('backtests')}
+                >
+                  Select Different Backtests
+                </button>
+                <button 
+                  className="btn-secondary"
+                  onClick={() => {
+                    setComparisonResults(null);
+                    setSelectedBacktestsForComparison([]);
+                    setActiveTab('overview');
+                  }}
+                >
+                  Clear Comparison
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Model Comparison Tab */}
-        {activeTab === 'comparison' && (
+        {activeTab === 'comparison' && !comparisonResults && (
           <div className="comparison-tab">
             <ModelComparisonDashboard />
           </div>
