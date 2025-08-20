@@ -1,0 +1,300 @@
+# Advanced Configurable Training Data Generation
+# This configuration demonstrates advanced features including multiple timeframes,
+# custom indicators, and sophisticated label generation
+
+# Import necessary modules
+import signals.feature_registry
+import signals.label_registry
+import signals.indicator_factory
+import modeling.configurable_train_data_generator
+
+# ===== ADVANCED FEATURE CONFIGURATION =====
+
+# Multiple EMAs with different periods
+ema_8/create_feature_config.name = "ema_8"
+ema_8/create_feature_config.feature_type = "indicator"
+ema_8/create_feature_config.parameters = {'indicator_type': 'ema', 'period': 8}
+
+ema_21/create_feature_config.name = "ema_21"
+ema_21/create_feature_config.feature_type = "indicator"
+ema_21/create_feature_config.parameters = {'indicator_type': 'ema', 'period': 21}
+
+ema_50/create_feature_config.name = "ema_50"
+ema_50/create_feature_config.feature_type = "indicator"
+ema_50/create_feature_config.parameters = {'indicator_type': 'ema', 'period': 50}
+
+# ATR for volatility measurement
+atr_14/create_feature_config.name = "atr_14"
+atr_14/create_feature_config.feature_type = "indicator"
+atr_14/create_feature_config.parameters = {'indicator_type': 'atr', 'period': 14}
+
+# MACD indicator
+macd/create_feature_config.name = "macd"
+macd/create_feature_config.feature_type = "indicator"
+macd/create_feature_config.parameters = {
+    'indicator_type': 'macd',
+    'fast': 12,
+    'slow': 26,
+    'signal': 9
+}
+
+# Bollinger Bands
+bollinger/create_feature_config.name = "bollinger"
+bollinger/create_feature_config.feature_type = "indicator"
+bollinger/create_feature_config.parameters = {
+    'indicator_type': 'bollinger',
+    'period': 20,
+    'std_dev': 2.0
+}
+
+# RSI with different periods
+rsi_9/create_feature_config.name = "rsi_9"
+rsi_9/create_feature_config.feature_type = "indicator"
+rsi_9/create_feature_config.parameters = {'indicator_type': 'rsi', 'period': 9}
+
+rsi_21/create_feature_config.name = "rsi_21"
+rsi_21/create_feature_config.feature_type = "indicator"
+rsi_21/create_feature_config.parameters = {'indicator_type': 'rsi', 'period': 21}
+
+# Lagged price features
+price_lag_1/create_feature_config.name = "close_lag_1"
+price_lag_1/create_feature_config.feature_type = "transform"
+price_lag_1/create_feature_config.parameters = {
+    'transform_type': 'pct_change',
+    'column': 'close',
+    'periods': 1
+}
+price_lag_1/create_feature_config.lag_periods = 1
+
+price_lag_3/create_feature_config.name = "close_lag_3"
+price_lag_3/create_feature_config.feature_type = "transform"
+price_lag_3/create_feature_config.parameters = {
+    'transform_type': 'pct_change',
+    'column': 'close',
+    'periods': 1
+}
+price_lag_3/create_feature_config.lag_periods = 3
+
+price_lag_5/create_feature_config.name = "close_lag_5"
+price_lag_5/create_feature_config.feature_type = "transform"
+price_lag_5/create_feature_config.parameters = {
+    'transform_type': 'pct_change',
+    'column': 'close',
+    'periods': 1
+}
+price_lag_5/create_feature_config.lag_periods = 5
+
+# Volume features
+volume_sma/create_feature_config.name = "volume_sma_20"
+volume_sma/create_feature_config.feature_type = "indicator"
+volume_sma/create_feature_config.parameters = {
+    'indicator_type': 'sma',
+    'period': 20,
+    'column': 'volume'
+}
+
+volume_ratio/create_feature_config.name = "volume_ratio"
+volume_ratio/create_feature_config.feature_type = "transform"
+volume_ratio/create_feature_config.parameters = {
+    'transform_type': 'volume_ratio',
+    'window': 20
+}
+
+# Rolling volatility features
+volatility_5/create_feature_config.name = "volatility_5d"
+volatility_5/create_feature_config.feature_type = "transform"
+volatility_5/create_feature_config.parameters = {
+    'transform_type': 'volatility',
+    'column': 'close',
+    'window': 5
+}
+
+volatility_30/create_feature_config.name = "volatility_30d"
+volatility_30/create_feature_config.feature_type = "transform"
+volatility_30/create_feature_config.parameters = {
+    'transform_type': 'volatility',
+    'column': 'close',
+    'window': 30
+}
+
+# Log returns with different periods
+log_return_1/create_feature_config.name = "log_return_1d"
+log_return_1/create_feature_config.feature_type = "transform"
+log_return_1/create_feature_config.parameters = {
+    'transform_type': 'log_return',
+    'column': 'close'
+}
+
+# Custom features (if custom functions are registered)
+price_velocity/create_feature_config.name = "price_velocity"
+price_velocity/create_feature_config.feature_type = "custom"
+price_velocity/create_feature_config.parameters = {
+    'function_name': 'price_velocity',
+    'window': 10
+}
+
+# Create advanced feature registry
+create_feature_registry.feature_configs = [
+    @ema_8/create_feature_config(),
+    @ema_21/create_feature_config(),
+    @ema_50/create_feature_config(),
+    @atr_14/create_feature_config(),
+    @macd/create_feature_config(),
+    @bollinger/create_feature_config(),
+    @rsi_9/create_feature_config(),
+    @rsi_21/create_feature_config(),
+    @price_lag_1/create_feature_config(),
+    @price_lag_3/create_feature_config(),
+    @price_lag_5/create_feature_config(),
+    @volume_sma/create_feature_config(),
+    @volume_ratio/create_feature_config(),
+    @volatility_5/create_feature_config(),
+    @volatility_30/create_feature_config(),
+    @log_return_1/create_feature_config(),
+    @price_velocity/create_feature_config()
+]
+
+# ===== ADVANCED LABEL CONFIGURATION =====
+
+# Multiple horizon returns
+return_1d/create_label_config.name = "return_1d"
+return_1d/create_label_config.label_type = "return"
+return_1d/create_label_config.parameters = {'return_type': 'simple', 'column': 'close'}
+return_1d/create_label_config.lead_periods = 1
+
+return_3d/create_label_config.name = "return_3d"
+return_3d/create_label_config.label_type = "return"
+return_3d/create_label_config.parameters = {'return_type': 'simple', 'column': 'close'}
+return_3d/create_label_config.lead_periods = 3
+
+return_5d/create_label_config.name = "return_5d"
+return_5d/create_label_config.label_type = "return"
+return_5d/create_label_config.parameters = {'return_type': 'simple', 'column': 'close'}
+return_5d/create_label_config.lead_periods = 5
+
+return_10d/create_label_config.name = "return_10d"
+return_10d/create_label_config.label_type = "return"
+return_10d/create_label_config.parameters = {'return_type': 'simple', 'column': 'close'}
+return_10d/create_label_config.lead_periods = 10
+
+# Log returns
+log_return_1d/create_label_config.name = "log_return_1d"
+log_return_1d/create_label_config.label_type = "return"
+log_return_1d/create_label_config.parameters = {'return_type': 'log', 'column': 'close'}
+log_return_1d/create_label_config.lead_periods = 1
+
+log_return_5d/create_label_config.name = "log_return_5d"
+log_return_5d/create_label_config.label_type = "return"
+log_return_5d/create_label_config.parameters = {'return_type': 'log', 'column': 'close'}
+log_return_5d/create_label_config.lead_periods = 5
+
+# Maximum and minimum returns over horizons
+max_return_5d/create_label_config.name = "max_return_5d"
+max_return_5d/create_label_config.label_type = "return"
+max_return_5d/create_label_config.parameters = {'return_type': 'max_return', 'column': 'close'}
+max_return_5d/create_label_config.lead_periods = 5
+
+min_return_5d/create_label_config.name = "min_return_5d"
+min_return_5d/create_label_config.label_type = "return"
+min_return_5d/create_label_config.parameters = {'return_type': 'min_return', 'column': 'close'}
+min_return_5d/create_label_config.lead_periods = 5
+
+# Volatility prediction
+future_volatility/create_label_config.name = "future_volatility_5d"
+future_volatility/create_label_config.label_type = "return"
+future_volatility/create_label_config.parameters = {'return_type': 'volatility', 'column': 'close'}
+future_volatility/create_label_config.lead_periods = 5
+
+# Classification labels
+direction_1d/create_label_config.name = "direction_1d"
+direction_1d/create_label_config.label_type = "classification"
+direction_1d/create_label_config.parameters = {'class_type': 'direction', 'column': 'close'}
+direction_1d/create_label_config.lead_periods = 1
+
+direction_threshold_1d/create_label_config.name = "direction_threshold_1d"
+direction_threshold_1d/create_label_config.label_type = "classification"
+direction_threshold_1d/create_label_config.parameters = {
+    'class_type': 'direction_threshold',
+    'column': 'close',
+    'threshold': 0.02  # 2% threshold
+}
+direction_threshold_1d/create_label_config.lead_periods = 1
+
+quantile_5d/create_label_config.name = "return_quantile_5d"
+quantile_5d/create_label_config.label_type = "classification"
+quantile_5d/create_label_config.parameters = {
+    'class_type': 'quantile',
+    'column': 'close',
+    'n_quantiles': 5,
+    'window': 100
+}
+quantile_5d/create_label_config.lead_periods = 5
+
+volatility_regime/create_label_config.name = "volatility_regime"
+volatility_regime/create_label_config.label_type = "classification"
+volatility_regime/create_label_config.parameters = {
+    'class_type': 'volatility_regime',
+    'column': 'close',
+    'window': 20
+}
+volatility_regime/create_label_config.lead_periods = 1
+
+# Custom labels (if custom functions are registered)
+multi_period_return/create_label_config.name = "multi_period_return"
+multi_period_return/create_label_config.label_type = "custom"
+multi_period_return/create_label_config.parameters = {
+    'function_name': 'multi_period_return',
+    'periods_list': [1, 3, 5, 10]
+}
+multi_period_return/create_label_config.lead_periods = 10
+
+drawdown_risk/create_label_config.name = "drawdown_risk_10d"
+drawdown_risk/create_label_config.label_type = "custom"
+drawdown_risk/create_label_config.parameters = {
+    'function_name': 'drawdown_risk',
+    'window': 20
+}
+drawdown_risk/create_label_config.lead_periods = 10
+
+# Create advanced label registry
+create_label_registry.label_configs = [
+    @return_1d/create_label_config(),
+    @return_3d/create_label_config(),
+    @return_5d/create_label_config(),
+    @return_10d/create_label_config(),
+    @log_return_1d/create_label_config(),
+    @log_return_5d/create_label_config(),
+    @max_return_5d/create_label_config(),
+    @min_return_5d/create_label_config(),
+    @future_volatility/create_label_config(),
+    @direction_1d/create_label_config(),
+    @direction_threshold_1d/create_label_config(),
+    @quantile_5d/create_label_config(),
+    @volatility_regime/create_label_config(),
+    @multi_period_return/create_label_config(),
+    @drawdown_risk/create_label_config()
+]
+
+# ===== INDICATOR FACTORY =====
+create_indicator_factory.feature_registry = @create_feature_registry()
+create_indicator_factory.label_registry = @create_label_registry()
+
+# ===== ADVANCED TRAINING DATA CONFIGURATION =====
+create_configurable_training_data_config.sequence_length = 60  # Longer sequences
+create_configurable_training_data_config.prediction_horizon = 10  # Longer prediction horizon
+create_configurable_training_data_config.feature_registry = @create_feature_registry()
+create_configurable_training_data_config.label_registry = @create_label_registry()
+create_configurable_training_data_config.normalize_features = True
+create_configurable_training_data_config.normalize_labels = True  # Normalize labels too
+create_configurable_training_data_config.feature_scaling_method = 'robust'
+create_configurable_training_data_config.label_scaling_method = 'standard'
+create_configurable_training_data_config.window_stride = 5  # Skip some windows for efficiency
+create_configurable_training_data_config.min_valid_ratio = 0.9  # Higher data quality requirement
+create_configurable_training_data_config.remove_outliers = True
+create_configurable_training_data_config.outlier_threshold = 2.5  # More aggressive outlier removal
+create_configurable_training_data_config.output_format = 'pytorch'
+create_configurable_training_data_config.device = 'cpu'
+
+# Multi-timeframe support (if implemented)
+create_configurable_training_data_config.base_timeframe = '1d'
+create_configurable_training_data_config.additional_timeframes = []  # ['1h', '4h'] if implemented

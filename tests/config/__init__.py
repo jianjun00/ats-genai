@@ -1,3 +1,1 @@
-"""
-Tests for configuration management module.
-"""
+# Test package
