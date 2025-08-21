@@ -178,6 +178,50 @@ PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py::
 - [ ] Testing in a clean environment
 - [ ] Verifying actual URLs/services respond
 
+### External Access Testing - CRITICAL LESSON LEARNED
+
+**PROBLEM**: Testing only through localhost port-forwarding doesn't validate external access
+
+**COMMON MISTAKES TO AVOID:**
+- 🚫 **Testing only via kubectl port-forward** - this only works from localhost
+- 🚫 **Assuming ConfigMap updates automatically** - K8s ConfigMaps need explicit updates
+- 🚫 **Not checking what users actually see** - test from external machine perspective
+- 🚫 **Ignoring hardcoded localhost text** - search all UI text, not just code defaults
+
+**PROPER EXTERNAL ACCESS TESTING:**
+1. **Get actual external access URL**:
+   ```bash
+   # Get node IP and NodePort
+   kubectl get nodes -o wide
+   kubectl get service {service-name} -n {namespace}
+   # Use: http://{NODE_IP}:{NODEPORT}/
+   ```
+
+2. **Test from external perspective**:
+   ```bash
+   # Test actual external URL, not port-forwarding
+   curl -s "http://{EXTERNAL_IP}:{NODEPORT}/health"
+   
+   # Check what users actually see in browser
+   curl -s "http://{EXTERNAL_IP}:{NODEPORT}/" | grep -i localhost
+   ```
+
+3. **Verify ConfigMap content matches code**:
+   ```bash
+   # Check what's actually deployed
+   kubectl get configmap {configmap-name} -n {namespace} -o yaml
+   kubectl exec deployment/{deployment} -- cat /config/file.py
+   ```
+
+4. **Update deployments properly**:
+   ```bash
+   # Delete and redeploy to pick up ConfigMap changes
+   kubectl delete -f deployment.yaml
+   kubectl apply -f deployment.yaml
+   ```
+
+**REMEMBER**: Port forwarding != External access. Always test the actual URL users will use.
+
 ### Database Operations
 ```bash
 # Run database migrations
