@@ -34,10 +34,11 @@ class Environment:
         self.environment = "dev"
         
     def get_database_url(self):
-        host = os.getenv('DB_HOST', 'localhost')
-        port = os.getenv('DB_PORT', '5433')
+        # For K8s deployment, default to postgres-simple service
+        host = os.getenv('DB_HOST', 'postgres-simple')
+        port = os.getenv('DB_PORT', '5432')
         user = os.getenv('DB_USER', 'postgres')
-        password = os.getenv('DB_PASSWORD', 'postgres')
+        password = os.getenv('DB_PASSWORD', 'dev_password')
         database = os.getenv('DB_NAME', 'dev_db')
         return f"postgresql://{user}:{password}@{host}:{port}/{database}"
     

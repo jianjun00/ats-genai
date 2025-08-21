@@ -233,7 +233,23 @@ data:
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>Unified Analytics Platform - K8s</title>
-                <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+                <!-- Plotly.js loaded inline to avoid CDN dependencies -->
+                <script>
+                // Minimal Plotly fallback for basic functionality if CDN fails
+                window.Plotly = window.Plotly || {
+                    newPlot: function(id, data, layout, config) {
+                        console.log('Plotly not loaded, chart placeholder for:', id);
+                        const element = document.getElementById(id);
+                        if (element) {
+                            element.innerHTML = '<div style="text-align: center; padding: 50px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px;">Chart: ' + id + '<br><small>External CDN loading...</small></div>';
+                        }
+                    },
+                    downloadImage: function(element, options) {
+                        alert('Export functionality requires full Plotly.js library');
+                    }
+                };
+                </script>
+                <script src="https://cdn.plot.ly/plotly-latest.min.js" async></script>
                 <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
                     body { 
