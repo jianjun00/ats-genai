@@ -37,6 +37,45 @@ python scripts/dev_cli.py logs job-name
 
 **Remember: When user says "dev environment" → Use dev CLI, not kubectl!**
 
+### 🔥 **CRITICAL: Environment Variables Are Pre-Configured!**
+**STOP MANUALLY SETTING ENVIRONMENT VARIABLES**
+
+- ❌ **NEVER manually specify**: `PYTHONPATH=src ENVIRONMENT=dev DB_HOST=localhost DB_PORT=5432 DB_USER=postgres DB_PASSWORD=dev_password DB_NAME=dev_db`
+- ❌ **NEVER ask user for environment variables** - they are already configured in Kubernetes
+- ✅ **Environment variables are automatically available** in Kubernetes pods via ConfigMaps/Secrets
+- ✅ **Use existing Flyte infrastructure** without rebuilding Docker images
+- ✅ **Run scripts directly** - infrastructure handles environment setup
+
+**Key Infrastructure Points:**
+- All scripts in `scripts/backfill/` are designed to work with pre-configured K8s environment
+- Flyte workflows automatically inherit environment variables from cluster configuration  
+- Database connections, API keys, and Python paths are set up in deployment manifests
+- Use `run_dev` with Flyte - it knows about the environment already
+
+**Remember: Infrastructure is already built - just use it! Don't rebuild what exists!**
+
+### 🔥 **CRITICAL: Use Base Docker + Flyte, NOT Package Installation!**
+**STOP INSTALLING PACKAGES IN KUBERNETES JOBS**
+
+- ❌ **NEVER include**: `pip install asyncpg aiohttp pandas numpy` in job containers
+- ❌ **NEVER use**: `python:3.12-slim` image that requires package installation  
+- ✅ **Use existing base Docker image** that already has all packages pre-installed
+- ✅ **Use Flyte workflows** with dynamic code upload to base image
+- ✅ **Leverage existing infrastructure** - base Docker images have everything needed
+
+**The Problem with Package Installation:**
+- Installing packages in every job is slow, wasteful, and error-prone
+- We already have optimized base images with ML/data packages
+- Flyte can dynamically upload code to these base images
+- Package installation defeats the purpose of having base infrastructure
+
+**Correct Approach:**
+- Use Flyte workflows that reference existing base Docker images
+- Upload Python code dynamically to pre-configured containers
+- Let existing infrastructure handle dependencies and environment setup
+
+**Remember: Use Flyte + Base Docker, never reinstall what's already there!**
+
 ## Common Development Commands
 
 ### Python Dependencies & Environment
