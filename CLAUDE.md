@@ -1,747 +1,181 @@
-# CLAUDE.md
+# CLAUDE.md - ATS Platform Guide
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides focused guidance to Claude Code when working with the ATS fintech platform.
 
-## 🚨 CRITICAL REMINDER: KUBERNETES-FIRST DEVELOPMENT
+## 🚨 CRITICAL: Kubernetes-First Development
 
-**ALWAYS USE KUBERNETES FOR DEV ENVIRONMENT OPERATIONS**
+**ALWAYS USE KUBERNETES FOR DEV OPERATIONS:**
 
 - ✅ **DEV Environment = Kubernetes (ats-dev namespace)**
 - ✅ **Database = postgres-simple service in K8s cluster**  
-- ✅ **All data operations = Use Kubernetes jobs**
-- ❌ **NEVER try to run data scripts locally for dev environment**
-- ❌ **NEVER use localhost database connections for dev work**
+- ✅ **All operations = Use dev CLI (NEVER kubectl directly)**
+- ❌ **NEVER run scripts locally for dev environment**
+- ❌ **NEVER manually set environment variables**
 
-### Dev CLI for K8s Operations (REQUIRED!)
-**ALWAYS use the dev CLI instead of kubectl directly:**
+### Primary Interface: Dev CLI
 
 ```bash
-# Run database queries (most common)
+# Your primary interface - use for ALL operations
 python scripts/dev_cli.py query "SELECT COUNT(*) FROM dev_daily_prices"
-
-# Run database migrations  
-python scripts/dev_cli.py migrate price-unification
-
-# Run data processing jobs
-python scripts/dev_cli.py job price-unification --symbols AAPL,MSFT --date 2024-01-15
-
-# List current jobs
-python scripts/dev_cli.py list
-
-# Get job logs
+python scripts/dev_cli.py job price-unification --symbols AAPL,MSFT
 python scripts/dev_cli.py logs job-name
+
+# ❌ NEVER use kubectl directly for dev work
+# ✅ ALWAYS use dev CLI
 ```
 
-**❌ NEVER use kubectl directly for dev operations**
-**✅ ALWAYS use `python scripts/dev_cli.py` for dev work**
+## 📚 Complete Documentation Structure
 
-**Remember: When user says "dev environment" → Use dev CLI, not kubectl!**
+**For detailed information, navigate to organized documentation:**
 
-### 🔥 **CRITICAL: Environment Variables Are Pre-Configured!**
-**STOP MANUALLY SETTING ENVIRONMENT VARIABLES**
+### 🚀 New Team Members
+- **[Quick Start (15 min)](docs/onboarding/QUICK_START.md)** - Get running immediately
+- **[Development Setup](docs/onboarding/DEVELOPMENT_SETUP.md)** - Complete environment setup
+- **[Architecture Overview](docs/onboarding/ARCHITECTURE_OVERVIEW.md)** - Understand the system
 
-- ❌ **NEVER manually specify**: `PYTHONPATH=src ENVIRONMENT=dev DB_HOST=localhost DB_PORT=5432 DB_USER=postgres DB_PASSWORD=dev_password DB_NAME=dev_db`
-- ❌ **NEVER ask user for environment variables** - they are already configured in Kubernetes
-- ✅ **Environment variables are automatically available** in Kubernetes pods via ConfigMaps/Secrets
-- ✅ **Use existing Flyte infrastructure** without rebuilding Docker images
-- ✅ **Run scripts directly** - infrastructure handles environment setup
+### 👥 Role-Specific Guides
+- **[Product Manager](docs/roles/PRODUCT_MANAGER.md)** - Strategy, metrics, roadmaps
+- **[Backend Engineer](docs/roles/BACKEND_ENGINEER.md)** - APIs, services, infrastructure
+- **[Data Engineer](docs/roles/DATA_ENGINEER.md)** - Pipelines, processing, storage
+- **[Model Developer](docs/roles/MODEL_DEVELOPER.md)** - ML training, evaluation
+- **[Frontend Engineer](docs/roles/FRONTEND_ENGINEER.md)** - UI, dashboards, visualization
+- **[Release Engineer](docs/roles/RELEASE_ENGINEER.md)** - CI/CD, deployment, monitoring
+- **[Oncall Support](docs/roles/ONCALL_SUPPORT.md)** - Incident response, troubleshooting
 
-**Key Infrastructure Points:**
-- All scripts in `scripts/backfill/` are designed to work with pre-configured K8s environment
-- Flyte workflows automatically inherit environment variables from cluster configuration  
-- Database connections, API keys, and Python paths are set up in deployment manifests
-- Use `run_dev` with Flyte - it knows about the environment already
+### 🛠️ Development Process
+- **[Development Workflow](docs/development/DEVELOPMENT_WORKFLOW.md)** - TDD, testing, validation
+- **[Kubernetes Guide](docs/development/KUBERNETES_GUIDE.md)** - K8s-first development
+- **[Testing Guide](docs/development/TESTING_GUIDE.md)** - Testing strategies
+- **[Debugging Guide](docs/development/DEBUGGING_GUIDE.md)** - Common issues
 
-**Remember: Infrastructure is already built - just use it! Don't rebuild what exists!**
+### 🏗️ System Architecture  
+- **[System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)** - High-level design
+- **[Database Design](docs/architecture/DATABASE_DESIGN.md)** - Schema, data modeling
+- **[API Design](docs/architecture/API_DESIGN.md)** - REST specifications
+- **[Infrastructure](docs/architecture/INFRASTRUCTURE.md)** - K8s, containers
 
-### 🔥 **CRITICAL: Use Base Docker + Flyte, NOT Package Installation!**
-**STOP INSTALLING PACKAGES IN KUBERNETES JOBS**
+### 🚀 Operations
+- **[Deployment Guide](docs/operations/DEPLOYMENT_GUIDE.md)** - Production deployments
+- **[Monitoring](docs/operations/MONITORING.md)** - Observability, alerting
+- **[Troubleshooting](docs/operations/TROUBLESHOOTING.md)** - Operational issues
+- **[Runbooks](docs/operations/RUNBOOKS.md)** - Emergency procedures
 
-- ❌ **NEVER include**: `pip install asyncpg aiohttp pandas numpy` in job containers
-- ❌ **NEVER use**: `python:3.12-slim` image that requires package installation  
-- ✅ **Use existing base Docker image** that already has all packages pre-installed
-- ✅ **Use Flyte workflows** with dynamic code upload to base image
-- ✅ **Leverage existing infrastructure** - base Docker images have everything needed
+## 🔥 Critical Development Rules
 
-**The Problem with Package Installation:**
-- Installing packages in every job is slow, wasteful, and error-prone
-- We already have optimized base images with ML/data packages
-- Flyte can dynamically upload code to these base images
-- Package installation defeats the purpose of having base infrastructure
-
-**Correct Approach:**
-- Use Flyte workflows that reference existing base Docker images
-- Upload Python code dynamically to pre-configured containers
-- Let existing infrastructure handle dependencies and environment setup
-
-**Remember: Use Flyte + Base Docker, never reinstall what's already there!**
-
-### 🔥 **CRITICAL: Reuse Existing Infrastructure Patterns**
-**STOP RECREATING WHAT EXISTS**
-
-- ❌ **NEVER create new deployment patterns** when existing ones work
-- ❌ **NEVER duplicate ConfigMap/Deployment logic** - reuse existing configs
-- ❌ **NEVER rebuild webapp infrastructure** - enhance existing webapps
-- ✅ **Check existing ConfigMaps** first: `kubectl get configmaps -n ats-dev`
-- ✅ **Copy existing deployment patterns** and modify minimally
-- ✅ **Leverage existing services** and infrastructure components
-
-**Example: Adding Webapp Features**
+### Test-Driven Development (MANDATORY)
 ```bash
-# Wrong approach: Create new deployment from scratch
-# kubectl apply -f new-webapp-deployment.yaml
-
-# Correct approach: Reuse existing patterns
-kubectl get configmap working-analytics-webapp-config -o yaml > base-config.yaml
-# Modify base-config.yaml with new features
-kubectl create configmap enhanced-webapp-config --from-file=webapp.py=enhanced_webapp.py
-kubectl apply -f existing-deployment-pattern.yaml  # Just change configMap name
-```
-
-**Key Principles:**
-- Scan existing infrastructure first: `kubectl get all -n ats-dev`
-- Reuse successful patterns from working deployments
-- Enhance existing configs rather than creating new ones
-- Follow established naming conventions and resource allocations
-
-**Remember: If it works, extend it - don't rebuild it!**
-
-## Common Development Commands
-
-### Python Dependencies & Environment
-```bash
-# Install dependencies using uv (recommended)
-uv pip install -r requirements.txt
-
-# Or install with dev dependencies
-uv sync
-```
-
-### Testing
-```bash
-# Run all tests with proper Python path
-PYTHONPATH=src uv run pytest -q
-
-# Run specific test markers
-PYTHONPATH=src uv run pytest -m unit
-PYTHONPATH=src uv run pytest -m integration
-PYTHONPATH=src uv run pytest -m database
-
-# Run with verbose output
-PYTHONPATH=src uv run pytest -v --tb=short
-
-# Test specific functionality (integration tests)
-PYTHONPATH=src uv run pytest tests/integration/ -v
-```
-
-### Testing Best Practices (CRITICAL)
-**EVERY change must follow Test-Driven Development (TDD):**
-
-1. **Test Before Fix**: If there's an issue, FIRST create a test that reproduces the failure
-2. **Test Before Code**: Every new feature must have a test written first that fails
-3. **Test After Change**: Every change must pass all relevant tests before claiming success
-4. **Integration Testing**: Always test actual service startup, not just unit tests
-
-### Development Workflow (MANDATORY)
-**For every code change, follow this exact sequence:**
-
-1. **Make Code Changes**: Implement your changes to the codebase
-2. **Write/Update Tests**: Create test cases that verify your changes work correctly
-   - Unit tests for individual functions/classes
-   - Integration tests for end-to-end functionality
-   - Manual test scripts for complex scenarios
-3. **Run Tests**: Execute all relevant tests to verify functionality
-   ```bash
-   # Run specific tests for your changes
-   PYTHONPATH=src pytest tests/specific_feature/ -v
-   
-   # Run integration tests to catch system-wide issues
-   PYTHONPATH=src pytest tests/integration/ -v
-   ```
-4. **Manual Verification**: For critical changes, manually test the actual functionality
-   - Test actual API endpoints with curl or browser
-   - Verify database records are created/updated correctly  
-   - Check that services start up without errors
-   - Validate that user-facing features work as expected
-5. **Verify Results**: Confirm all tests pass and manual verification succeeds
-6. **Document Results**: Log what was tested and what the results were
-7. **Move to Next Step**: Only proceed to the next development task after full verification
-
-**Critical Rules:**
-- 🚫 **NEVER** move to the next step without verifying current step works
-- 🚫 **NEVER** assume tests pass without running them
-- 🚫 **NEVER** skip manual verification for user-facing changes
-- ✅ **ALWAYS** test the actual functionality, not just unit tests
-- ✅ **ALWAYS** verify database changes with actual queries
-- ✅ **ALWAYS** confirm services start and respond correctly
-
-### 🔥 **CRITICAL: Complete End-to-End Development (No "Half-Baked Jobs")**
-
-**EVERY feature implementation must be complete end-to-end before claiming success:**
-
-#### End-to-End Development Checklist
-1. **Real Data Generation**: Generate actual data using real systems
-   ```bash
-   # Example: Generate real training data
-   python scripts/dev_cli.py enhanced-training --symbol TSLA --days-back 120
-   ```
-
-2. **Database Verification**: Confirm data is properly stored with correct schema
-   ```bash
-   # Verify data exists in database
-   python scripts/dev_cli.py query "SELECT COUNT(*) FROM dev_training_datasets WHERE dataset_name LIKE 'enhanced_%'"
-   
-   # Check data structure and metadata
-   python scripts/dev_cli.py query "SELECT dataset_name, total_sequences, feature_count FROM dev_training_datasets ORDER BY id DESC LIMIT 5"
-   ```
-
-3. **API Testing**: Test all endpoints with real data (not mock data)
-   ```bash
-   # Test API endpoints with actual data
-   curl -s "http://external-ip:nodeport/api/datasets" | jq
-   curl -s "http://external-ip:nodeport/api/distributions/2" | jq
-   curl -s "http://external-ip:nodeport/api/ohlc/2" | jq
-   ```
-
-4. **Frontend Verification**: Confirm visualization works in actual browser
-   - Open actual web application URL in browser
-   - Test all interactive features (filtering, charting, table view)
-   - Verify real data displays correctly (not placeholder text)
-   - Check that all tabs and features function properly
-
-5. **Complete System Integration**: Verify entire data pipeline works
-   - Data generation → Database storage → API retrieval → Web visualization
-   - No broken links in the chain
-   - All components work with real production-like data
-
-#### Anti-Patterns to Avoid (Half-Baked Development)
-- ❌ **Unit tests pass but service doesn't start** → Not end-to-end
-- ❌ **API returns mock data but real data fails** → Not end-to-end  
-- ❌ **Frontend works locally but not in Kubernetes** → Not end-to-end
-- ❌ **Database migration works but data generation fails** → Not end-to-end
-- ❌ **Individual components work but integration fails** → Not end-to-end
-
-#### Proper End-to-End Example (Training Data Visualization)
-```bash
-# 1. Generate real enhanced training data
-python scripts/dev_cli.py enhanced-training --symbol TSLA --days-back 120
-
-# 2. Verify database storage
-python scripts/dev_cli.py query "SELECT dataset_name, total_sequences, feature_count, technical_indicators FROM dev_training_datasets WHERE dataset_name LIKE '%tsla%'"
-
-# 3. Deploy visualization webapp
-kubectl apply -f k8s/enhanced-training-visualization-webapp.yaml
-
-# 4. Test all API endpoints with real data
-curl -s "http://10.43.101.240:32090/api/datasets"
-curl -s "http://10.43.101.240:32090/api/distributions/2" 
-curl -s "http://10.43.101.240:32090/api/filter"
-curl -s "http://10.43.101.240:32090/api/ohlc/2"
-
-# 5. Verify webapp in browser shows real TSLA data
-# Navigate to http://10.43.101.240:32090/ and confirm:
-# - Feature Distributions tab shows real TSLA technical indicators
-# - Interactive Filtering works with real data
-# - Table View displays actual sequences and features
-# - OHLC + Indicators tab shows real TSLA price charts
-```
-
-**Remember**: A feature is not complete until the entire end-to-end workflow functions with real data in the production environment. No shortcuts, no "half-baked jobs" - complete implementation only.
-
-```bash
-# Example workflow for fixing a bug:
-# 1. Write a test that reproduces the bug (should fail)
-PYTHONPATH=src pytest tests/integration/test_bug_reproduction.py -v
-
-# 2. Fix the code
-# (make your changes)
-
-# 3. Verify the test now passes
-PYTHONPATH=src pytest tests/integration/test_bug_reproduction.py -v
-
-# 4. Run full test suite to ensure no regressions
-PYTHONPATH=src pytest tests/ -v
-```
-
-**Integration Test Examples:**
-```bash
-# Test actual service startup (catches real issues)
-PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py::TestAnalyticsPlatformIntegration::test_backend_api_can_start -v
-
-# Test database connectivity (catches auth issues)  
-PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py::TestRealWorldScenarios::test_database_connectivity -v
-
-# Test frontend dependencies (catches npm issues)
-PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py::TestAnalyticsPlatformIntegration::test_frontend_dependencies_can_install -v
-```
-
-**NEVER claim functionality works without:**
-- [ ] Writing a test that verifies the claim
-- [ ] Running the test and seeing it pass
-- [ ] Testing in a clean environment
-- [ ] Verifying actual URLs/services respond
-
-### External Access Testing - CRITICAL LESSON LEARNED
-
-**PROBLEM**: Testing only through localhost port-forwarding doesn't validate external access
-
-**COMMON MISTAKES TO AVOID:**
-- 🚫 **Testing only via kubectl port-forward** - this only works from localhost
-- 🚫 **Assuming ConfigMap updates automatically** - K8s ConfigMaps need explicit updates
-- 🚫 **Not checking what users actually see** - test from external machine perspective
-- 🚫 **Ignoring hardcoded localhost text** - search all UI text, not just code defaults
-
-**PROPER EXTERNAL ACCESS TESTING:**
-1. **Get actual external access URL**:
-   ```bash
-   # Get node IP and NodePort
-   kubectl get nodes -o wide
-   kubectl get service {service-name} -n {namespace}
-   # Use: http://{NODE_IP}:{NODEPORT}/
-   ```
-
-2. **Test from external perspective**:
-   ```bash
-   # Test actual external URL, not port-forwarding
-   curl -s "http://{EXTERNAL_IP}:{NODEPORT}/health"
-   
-   # Check what users actually see in browser
-   curl -s "http://{EXTERNAL_IP}:{NODEPORT}/" | grep -i localhost
-   ```
-
-3. **Verify ConfigMap content matches code**:
-   ```bash
-   # Check what's actually deployed
-   kubectl get configmap {configmap-name} -n {namespace} -o yaml
-   kubectl exec deployment/{deployment} -- cat /config/file.py
-   ```
-
-4. **Update deployments properly**:
-   ```bash
-   # Delete and redeploy to pick up ConfigMap changes
-   kubectl delete -f deployment.yaml
-   kubectl apply -f deployment.yaml
-   ```
-
-**REMEMBER**: Port forwarding != External access. Always test the actual URL users will use.
-
-### Database Operations
-```bash
-# Run database migrations
-uv run python src/db/migration_manager.py
-
-# Set up database schema
-uv run python src/db/setup_trading_db.py
-
-# Test database connection (dev environment)
-uv run python scripts/database/test_ats_dev_db_connection.py
-
-# Verify database setup
-uv run python scripts/database/verify_db_setup.py
-```
-
-### Database Connection Information
-**Local Development:**
-- Host: `localhost`, Port: `5433`
-- User: `postgres`, Password: `postgres`  
-- Database: `dev_db`
-
-**Kubernetes (ats-dev namespace):**
-- Host: `postgres`, Port: `5432`
-- User: `postgres`, Password: `dev_password`
-- Database: `dev_db`
-
-```bash
-# Local connection
-export DB_HOST=localhost DB_PORT=5433 DB_USER=postgres DB_PASSWORD=postgres DB_NAME=dev_db
-
-# Kubernetes connection  
-export DB_HOST=postgres DB_PORT=5432 DB_USER=postgres DB_PASSWORD=dev_password DB_NAME=dev_db
-```
-
-### 🔥 **CRITICAL REMINDER: Always Use Kubernetes**
-**IMPORTANT**: For any production operations, data processing, or batch jobs, ALWAYS use Kubernetes instead of local subprocess calls. This includes:
-- Market cap computation jobs
-- Universe creation and updates  
-- Data backfill operations
-- Model training jobs
-- All production workloads
-
-Use `kubectl apply -f k8s/job-name.yaml` patterns for all data operations.
-
-### Kubernetes Job Generation
-```bash
-# Generate instrument polygon backfill job
-uv run python scripts/kubernetes/k8s_job_generator.py --job-type backfill --output k8s/generated/instrument-polygon-backfill.yaml
-
-# Run job directly with apply
-uv run python scripts/kubernetes/run_k8s_job.py --apply --file k8s/generated/instrument-polygon-backfill.yaml
-
-# Generate custom instrument job
-uv run python scripts/kubernetes/instrument_polygon_job_generator.py --symbols AAPL,MSFT --output k8s/generated/custom-job.yaml
-```
-
-### Flyte Workflows
-```bash
-# Run Flyte instrument polygon workflow
-uv run python scripts/flyte/flyte_instrument_polygon_workflow.py --job-type backfill --apply --output-dir k8s/generated
-```
-
-### Application Startup
-```bash
-# Start FastAPI server locally
-uvicorn src.main:app --reload
-
-# Start with Docker Compose
-docker-compose up --build
-```
-
-## Architecture Overview
-
-### Core Structure
-```
-src/
-├── db/                    # Database setup, migrations, and utilities
-│   ├── migration_manager.py     # Primary migration handler
-│   ├── migrations/              # SQL migration files
-│   └── environment_migration.py # Environment migration support
-├── dao/                   # Data Access Objects for all entities
-├── config/                # Configuration management
-│   ├── environment.py     # Environment-aware table naming
-│   ├── database.py        # Database connection configuration
-│   └── polygon.py         # API configuration
-├── secmaster/            # Security master data management
-│   └── populate_instrument_polygon.py  # Main instrument population job
-├── market_data/          # Market data ingestion and processing
-│   ├── agent/            # Data agent components for real-time processing
-│   └── eod/              # End-of-day data processing
-├── events/               # Event system with multi-source ingestion
-├── universe/             # Universe management (SPY, custom)
-├── state/                # State management and intervals
-├── signals/              # Technical indicators and signal computation
-└── main.py               # FastAPI application entrypoint
-```
-
-### Key Components
-
-**Database Layer:**
-- Uses PostgreSQL with TimescaleDB for time-series data
-- Environment-aware table prefixing (dev_, intg_, prod_)
-- Migration system with `db_version` tracking
-- Connection pooling and retry logic
-
-**Secmaster Jobs:**
-- `populate_instrument_polygon.py` - Main instrument data ingestion using Ray for parallel processing
-- Environment variables control Ray autoscaling: `RAY_SCHEDULER_EVENTS=0`, `RAY_DISABLE_AUTOMATIC_AUTOSCALING=1`
-
-**Event System:**
-- Unified event ingestion from multiple sources (Polygon, Finnhub, FMP, etc.)
-- Reconciliation logic for multi-source data merging
-- REST API endpoints for event querying and addition
-
-**Kubernetes Integration:**
-- Job generators for parameterized Kubernetes jobs
-- Flyte workflows for orchestration
-- GitOps deployment with Argo CD
-- Environment-specific configurations (dev/intg/prod)
-
-### Environment Management
-- Configuration via `.env.dev`, `.env.test`, `.env.prod` files
-- Environment-aware database table naming using `env.get_table_name()`
-- Kubernetes secrets management for API keys and database credentials
-- Support for local, Docker, and Kubernetes deployments
-
-### Data Processing Patterns
-- Ray for parallel processing in instrument population jobs
-- Pandas for data manipulation and technical indicators
-- PyTorch for deep learning forecasting models
-- Multi-duration interval support (5m, 15m, 1h, 1d)
-
-## Development Guidelines
-
-### Test-Driven Development (TDD) Workflow - MANDATORY
-
-**EVERY change must follow this exact workflow:**
-
-#### 1. **Red Phase** - Write Failing Test First
-```bash
-# Before fixing any bug or adding any feature, write a test that fails
-# Example: If service startup is broken, write a test that tries to start it
-
-# Create test file
+# 1. Write failing test FIRST
 touch tests/integration/test_new_feature.py
-
-# Write test that reproduces the issue/tests the new feature
 PYTHONPATH=src pytest tests/integration/test_new_feature.py -v
-# ✅ Test should FAIL - this proves you can detect the issue
+# ✅ Should FAIL (proves test works)
+
+# 2. Implement minimal code to pass test
+# (write your code)
+
+# 3. Verify test passes  
+PYTHONPATH=src pytest tests/integration/test_new_feature.py -v
+# ✅ Should PASS
+
+# 4. Integration testing
+PYTHONPATH=src pytest tests/integration/ -v
 ```
 
-#### 2. **Green Phase** - Fix The Code
+### End-to-End Validation Required
+**Every feature must be complete end-to-end:**
+1. Generate real data in K8s cluster
+2. Store data in database with correct schema
+3. API serves data to external clients
+4. Frontend displays data in browser
+5. All integration tests pass
+
+### Infrastructure Best Practices
+- **Reuse existing patterns** - Check `kubectl get all -n ats-dev` first
+- **Use base Docker images** - Don't install packages in jobs
+- **Test external access** - Not just port-forwarding
+- **Environment is pre-configured** - Don't set variables manually
+
+## 📋 Common Commands
+
+### Development
 ```bash
-# Now fix the actual code to make the test pass
-# Make minimal changes needed to pass the test
-# Don't add extra features
+# Testing
+PYTHONPATH=src pytest tests/integration/ -v --tb=short
+PYTHONPATH=src pytest tests/ -m database -v
 
-# Run the test again
-PYTHONPATH=src pytest tests/integration/test_new_feature.py -v  
-# ✅ Test should now PASS
+# Database operations via dev CLI
+python scripts/dev_cli.py query "SELECT version()"
+python scripts/dev_cli.py migrate price-unification
 ```
 
-#### 3. **Refactor Phase** - Clean Up
+### Job Management
 ```bash
-# Clean up code while keeping tests passing
-# Run full test suite to prevent regressions
-PYTHONPATH=src pytest tests/ -v
-# ✅ All tests should still pass
+# Run jobs
+python scripts/dev_cli.py job price-unification --symbols AAPL,MSFT
+python scripts/dev_cli.py job enhanced-training --symbol TSLA --days-back 120
+
+# Monitor jobs
+python scripts/dev_cli.py list
+python scripts/dev_cli.py logs job-name
+python scripts/dev_cli.py status job-name
 ```
 
-#### 4. **Integration Verification**
+### External Access Testing
 ```bash
-# Test actual service functionality (not just unit tests)
-# For web services: test actual HTTP endpoints
-# For databases: test actual connections
-# For frontends: test actual browser loading
+# Get external IP and port (not localhost)
+kubectl get nodes -o wide
+kubectl get service service-name -n ats-dev
 
-# Example integration tests:
-PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py -v
+# Test actual external URL
+curl -s "http://NODE_IP:NODE_PORT/health" | jq
 ```
 
-**Critical Rules:**
-- 🚫 **NEVER** claim something works without a passing test
-- 🚫 **NEVER** fix code without first writing a failing test  
-- 🚫 **NEVER** write tests after the code (except for legacy code)
-- ✅ **ALWAYS** write the test first, see it fail, then fix
-- ✅ **ALWAYS** test actual integration (services, databases, APIs)
-- ✅ **ALWAYS** verify URLs actually work in a browser
+## 🚨 Critical Anti-Patterns to Avoid
 
-### Database Schema Changes
-1. Create new migration SQL file in `src/db/migrations/` with sequential numbering
-2. Update `src/db/migration_manager.py` if needed
-3. Test migration with `uv run python src/db/migration_manager.py`
-4. Use environment-aware table names: `env.get_table_name("base_name")`
+**Infrastructure:**
+- ❌ Using kubectl directly for dev operations
+- ❌ Setting environment variables manually  
+- ❌ Creating new deployment patterns when existing ones work
+- ❌ Installing packages in Kubernetes job containers
+- ❌ Testing only via port-forwarding (test external access)
 
-### Adding New Data Sources
-1. Create new ingest module in `src/events/ingest/`
-2. Implement source-specific fetcher following existing patterns
-3. Add to unified pipeline for reconciliation
-4. Update API schemas if needed
+**Development:**
+- ❌ Claiming functionality works without tests
+- ❌ Writing tests after code (TDD requires tests first)
+- ❌ Skipping integration tests (they're mandatory)
+- ❌ Not testing actual service startup
+- ❌ Half-baked implementations (incomplete end-to-end)
 
-### Kubernetes Job Development
-1. Use job generators in `scripts/kubernetes/` for consistency
-2. Set proper Ray environment variables for non-autoscaling mode
-3. Include `PYTHONPATH=src` and `DB_CONNECTION_PARAMS=sslmode=disable`
-4. Test with dry-run before applying: `--dry-run`
+## 🎯 Success Criteria
 
-### Testing Approach
-- Unit tests for core business logic
-- Integration tests with shared database
-- Database-specific tests with proper fixtures
-- Use pytest markers: `@pytest.mark.unit`, `@pytest.mark.database`, `@pytest.mark.integration`
+**You're following best practices when:**
+- [ ] Using dev CLI for all K8s operations
+- [ ] Writing failing tests before code changes
+- [ ] Running integration tests and seeing them pass
+- [ ] Testing external access (not just port-forwarding)
+- [ ] Completing full end-to-end validation
+- [ ] Reusing existing infrastructure patterns
 
-## Important Notes
+## 🆘 Getting Help
 
-### Development Rules (CRITICAL)
-- **ALWAYS use Test-Driven Development** - Write failing test first, then fix
-- **NEVER claim functionality works** without passing integration tests
-- **ALWAYS test actual service startup** - not just unit tests
-- **ALWAYS verify URLs work in browser** before claiming success
-- **Test database connectivity** before claiming backend works
-- **Test npm install success** before claiming frontend works
+- **Quick Issues**: [Debugging Guide](docs/development/DEBUGGING_GUIDE.md)
+- **Role-Specific**: [Role Guides](docs/roles/)
+- **Architecture Questions**: [System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)
+- **New Team Member**: [Quick Start](docs/onboarding/QUICK_START.md)
 
-### Technical Notes
-- Always use `PYTHONPATH=src` when running Python scripts
-- Database connections require `sslmode=disable` in Kubernetes environments
-- Ray jobs should use local mode in Kubernetes to avoid autoscaling issues
-- Environment table prefixing is critical for multi-environment deployments
-- All secrets/API keys are managed through environment variables and Kubernetes secrets
+---
 
-### Testing Expectations
-- **Integration tests are mandatory** for any new service or feature
-- **Tests must actually start services** to catch real startup issues
-- **Tests must verify external dependencies** (database, npm packages)
-- **Tests must fail when things are broken** - no false positives
-- **Every bug fix must start with a reproducing test**
+## Database Connection Info (Reference)
 
-### Kubernetes Verification Process
-- **ALWAYS test jobs in actual cluster** before claiming they work
-- **Verify secret configurations** match actual Kubernetes secret keys
-- **Monitor pod logs** to catch startup failures and configuration errors
-- **Test database connectivity** from within Kubernetes environment
-- **Only claim success** when `kubectl logs` shows successful execution
+**Kubernetes (primary):**
+- Host: `postgres-simple`, Port: `5432`
+- User: `postgres`, Password: `dev_password`, Database: `dev_db`
 
-## Fintech Team Roles and Responsibilities
+**Port-forwarding (local testing only):**
+- Host: `localhost`, Port: `5433`  
+- User: `postgres`, Password: `postgres`, Database: `dev_db`
 
-### Product Manager
+---
 
-**Responsibilities:**
-- Design a portfolio GPT product that generates stock recommendations hourly for paid customers
-- Develop product strategy for a multi-modal transformer-based model using news and market data
-- Define requirements for interpretable forecasts showing price trajectories over 1-5 days
-- Coordinate between data science teams (leveraging DeepSeek or OpenAI OSS models) and engineering
-- Design subscription tiers and premium features for the paid customer base
-- Establish metrics to measure forecast accuracy, customer retention, and revenue growth
-- Ensure regulatory compliance for algorithmic trading recommendations
-- Create product roadmap for continuous model improvement and feature expansion
+**📖 For comprehensive information, see the complete documentation structure at [docs/README.md](docs/README.md)**
 
-**Prompt Template:**
-```
-As a Product Manager for our portfolio GPT platform, help me [task]. Consider:
-- Model architecture decisions for multi-modal transformers processing [specific data types]
-- Forecast presentation formats for [time horizon] price trajectories
-- Interpretability requirements for [target user persona]
-- Regulatory compliance for automated investment recommendations in [jurisdiction]
-- Subscription model optimization for [customer segment]
-- Performance metrics for measuring forecast accuracy and customer value
-- Competitive differentiation from [similar robo-advisor products]
-```
-
-### Backend Engineer
-
-**Responsibilities:**
-- Design and implement the recommendation engine API for the portfolio GPT product
-- Develop high-performance systems for real-time market data processing and model inference
-- Create scalable infrastructure to handle hourly forecast generation for all subscribed users
-- Implement secure authentication and authorization for tiered subscription access
-- Design caching strategies for optimizing model inference and reducing latency
-- Build monitoring systems to track model performance and recommendation accuracy
-- Develop APIs for integrating with brokerage platforms for direct trading actions
-- Implement rate limiting and quota management for different subscription tiers
-
-**Prompt Template:**
-```
-As a Backend Engineer for our portfolio GPT platform, help me [task]. Consider:
-- Scalability requirements for handling [number] of concurrent forecast requests
-- Real-time processing architecture for [data source] market data
-- Model serving infrastructure for [model type] transformer inference
-- API design for [subscription tier] recommendation delivery
-- Authentication and rate limiting for [user type] access patterns
-- Caching strategies for optimizing [forecast type] generation
-- Integration patterns with [brokerage platform] for trade execution
-- Monitoring and alerting for [performance metric] thresholds
-```
-
-### Data Engineer
-
-**Responsibilities:**
-- Design and implement data pipelines for multi-modal market data and news feeds
-- Develop real-time ingestion systems for hourly model training and inference
-- Create feature stores optimized for transformer model consumption
-- Build data quality validation systems for financial news sentiment analysis
-- Implement time-series data storage optimized for price trajectory forecasting
-- Design data versioning systems to track model inputs for regulatory compliance
-- Develop data enrichment pipelines to combine market data with alternative data sources
-- Create efficient data retrieval systems for low-latency model inference
-
-**Prompt Template:**
-```
-As a Data Engineer for our portfolio GPT platform, help me [task]. Consider:
-- Real-time data pipeline architecture for [market data feed/news source]
-- Feature engineering for [transformer model] consumption
-- Data quality validation for [financial news/market data] sentiment analysis
-- Storage optimization for [time horizon] price trajectory forecasting
-- Data versioning for [regulatory requirement] compliance
-- Integration patterns with [alternative data source]
-- Caching strategies for [forecast frequency] model inference
-- Data enrichment techniques for [specific signal type] extraction
-```
-
-### Release Engineer
-
-**Responsibilities:**
-- Design and maintain CI/CD pipelines for hourly model deployment and inference services
-- Implement blue-green deployment strategies for zero-downtime recommendation updates
-- Create infrastructure as code for scalable transformer model serving environments
-- Ensure 99.99% reliability for premium subscription recommendation delivery
-- Coordinate versioned releases of model updates with backward compatibility
-- Implement comprehensive monitoring for model performance and drift detection
-- Design automated rollback mechanisms for degraded recommendation quality
-- Establish model validation gates in the deployment pipeline
-
-**Prompt Template:**
-```
-As a Release Engineer for our portfolio GPT platform, help me [task]. Consider:
-- Deployment strategy for [model version/inference service]
-- CI/CD pipeline optimization for [hourly/daily] recommendation generation
-- Infrastructure as code for [transformer model] serving environment
-- Rollback procedures for [recommendation quality degradation]
-- Monitoring and alerting for [model drift/inference latency]
-- Compliance requirements for [financial recommendation audit trail]
-- Scaling strategy for [peak usage period] traffic patterns
-- Validation gates for [model accuracy/performance] metrics
-```
-
-### Frontend Engineer
-
-**Responsibilities:**
-- Develop responsive dashboard for displaying hourly stock recommendations and price trajectories
-- Implement interactive data visualizations for 1-5 day price forecasts with confidence intervals
-- Create intuitive interfaces for displaying model interpretations of market and news signals
-- Design subscription management UI with tiered access controls and feature gates
-- Build real-time notification systems for high-confidence trading opportunities
-- Implement secure authentication flows with multi-factor authentication for premium users
-- Create mobile-responsive interfaces for on-the-go trading recommendations
-- Design watchlist functionality for tracking personalized stock recommendations
-
-**Prompt Template:**
-```
-As a Frontend Engineer for our portfolio GPT platform, help me [task]. Consider:
-- User experience for [recommendation display/watchlist feature]
-- Interactive data visualization for [price trajectory/confidence interval] charts
-- Performance optimization for [real-time recommendation updates]
-- Accessibility requirements for [financial data interpretation]
-- State management for [subscription tier feature access]
-- Security considerations for [trading action integration]
-- Mobile responsiveness for [critical trading notification]
-- User onboarding flow for [subscription tier] customers
-```
-
-### Oncall Support
-
-**Responsibilities:**
-- Monitor model inference services and hourly recommendation generation jobs
-- Respond to alerts for recommendation quality degradation or model drift
-- Diagnose and resolve data pipeline failures affecting forecast generation
-- Monitor subscription tier access and resolve authentication issues for premium users
-- Perform root cause analysis for incorrect stock recommendations or price trajectories
-- Implement circuit breakers for extreme market volatility scenarios
-- Maintain audit logs for regulatory compliance of financial recommendations
-- Coordinate with data providers during market data feed disruptions
-
-**Prompt Template:**
-```
-As an Oncall Support Engineer for our portfolio GPT platform, help me [task]. Consider:
-- Diagnostic approach for [model drift/recommendation quality] alert
-- Impact assessment for [hourly forecast generation] disruption
-- Mitigation steps for [data pipeline/model inference] failure
-- Communication plan for [premium tier customers/regulatory bodies]
-- Root cause analysis for [incorrect price trajectory/recommendation]
-- Circuit breaker implementation for [market volatility scenario]
-- Audit logging requirements for [financial recommendation compliance]
-- Coordination plan for [market data feed] disruption
-```
-
-### Model Developer
-
-**Responsibilities:**
-- Design and implement multi-modal transformer models for stock price trajectory forecasting
-- Develop evaluation frameworks to measure prediction accuracy and confidence intervals
-- Create comprehensive backtesting systems for model validation across market regimes
-- Generate risk reports analyzing model performance under various market conditions
-- Implement model explainability techniques for regulatory compliance and user trust
-- Optimize model inference for hourly prediction generation at scale
-- Research and integrate novel approaches for financial news sentiment analysis
-- Develop ensemble methods to combine multiple signal sources for robust predictions
-
-**Prompt Template:**
-```
-As a Model Developer for our portfolio GPT platform, help me [task]. Consider:
-- Architecture design for [multi-modal transformer/specific model type]
-- Feature importance analysis for [market data/news sentiment] signals
-- Evaluation metrics for [time horizon] price trajectory forecasts
-- Backtesting methodology across [specific market regime/volatility period]
-- Risk quantification for [recommendation type/market sector]
-- Model explainability techniques for [target audience/regulatory requirement]
-- Inference optimization for [latency/throughput] requirements
-- Ensemble strategy for [signal combination/model diversity]
-```
-- PGPASSWORD=postgres should be dev_password
+*This is a Kubernetes-first, test-driven development platform. Every change must be validated end-to-end in the actual K8s cluster.*
