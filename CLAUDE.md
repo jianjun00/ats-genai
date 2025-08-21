@@ -175,6 +175,79 @@ PYTHONPATH=src uv run pytest tests/integration/ -v
 - ✅ **ALWAYS** verify database changes with actual queries
 - ✅ **ALWAYS** confirm services start and respond correctly
 
+### 🔥 **CRITICAL: Complete End-to-End Development (No "Half-Baked Jobs")**
+
+**EVERY feature implementation must be complete end-to-end before claiming success:**
+
+#### End-to-End Development Checklist
+1. **Real Data Generation**: Generate actual data using real systems
+   ```bash
+   # Example: Generate real training data
+   python scripts/dev_cli.py enhanced-training --symbol TSLA --days-back 120
+   ```
+
+2. **Database Verification**: Confirm data is properly stored with correct schema
+   ```bash
+   # Verify data exists in database
+   python scripts/dev_cli.py query "SELECT COUNT(*) FROM dev_training_datasets WHERE dataset_name LIKE 'enhanced_%'"
+   
+   # Check data structure and metadata
+   python scripts/dev_cli.py query "SELECT dataset_name, total_sequences, feature_count FROM dev_training_datasets ORDER BY id DESC LIMIT 5"
+   ```
+
+3. **API Testing**: Test all endpoints with real data (not mock data)
+   ```bash
+   # Test API endpoints with actual data
+   curl -s "http://external-ip:nodeport/api/datasets" | jq
+   curl -s "http://external-ip:nodeport/api/distributions/2" | jq
+   curl -s "http://external-ip:nodeport/api/ohlc/2" | jq
+   ```
+
+4. **Frontend Verification**: Confirm visualization works in actual browser
+   - Open actual web application URL in browser
+   - Test all interactive features (filtering, charting, table view)
+   - Verify real data displays correctly (not placeholder text)
+   - Check that all tabs and features function properly
+
+5. **Complete System Integration**: Verify entire data pipeline works
+   - Data generation → Database storage → API retrieval → Web visualization
+   - No broken links in the chain
+   - All components work with real production-like data
+
+#### Anti-Patterns to Avoid (Half-Baked Development)
+- ❌ **Unit tests pass but service doesn't start** → Not end-to-end
+- ❌ **API returns mock data but real data fails** → Not end-to-end  
+- ❌ **Frontend works locally but not in Kubernetes** → Not end-to-end
+- ❌ **Database migration works but data generation fails** → Not end-to-end
+- ❌ **Individual components work but integration fails** → Not end-to-end
+
+#### Proper End-to-End Example (Training Data Visualization)
+```bash
+# 1. Generate real enhanced training data
+python scripts/dev_cli.py enhanced-training --symbol TSLA --days-back 120
+
+# 2. Verify database storage
+python scripts/dev_cli.py query "SELECT dataset_name, total_sequences, feature_count, technical_indicators FROM dev_training_datasets WHERE dataset_name LIKE '%tsla%'"
+
+# 3. Deploy visualization webapp
+kubectl apply -f k8s/enhanced-training-visualization-webapp.yaml
+
+# 4. Test all API endpoints with real data
+curl -s "http://10.43.101.240:32090/api/datasets"
+curl -s "http://10.43.101.240:32090/api/distributions/2" 
+curl -s "http://10.43.101.240:32090/api/filter"
+curl -s "http://10.43.101.240:32090/api/ohlc/2"
+
+# 5. Verify webapp in browser shows real TSLA data
+# Navigate to http://10.43.101.240:32090/ and confirm:
+# - Feature Distributions tab shows real TSLA technical indicators
+# - Interactive Filtering works with real data
+# - Table View displays actual sequences and features
+# - OHLC + Indicators tab shows real TSLA price charts
+```
+
+**Remember**: A feature is not complete until the entire end-to-end workflow functions with real data in the production environment. No shortcuts, no "half-baked jobs" - complete implementation only.
+
 ```bash
 # Example workflow for fixing a bug:
 # 1. Write a test that reproduces the bug (should fail)

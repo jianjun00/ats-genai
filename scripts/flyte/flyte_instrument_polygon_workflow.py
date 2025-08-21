@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 """
-Flyte Workflow for Instrument Polygon Operations
+Flyte Workflow for Instrument Polygon Operations and Enhanced Training Data Generation
 
-This script defines a Flyte workflow for managing instrument polygon operations.
+This script defines a Flyte workflow for managing instrument polygon operations and 
+enhanced training data generation with technical indicators.
 It dynamically generates Kubernetes job configurations and can apply them to the cluster.
 """
 
@@ -10,11 +11,15 @@ import os
 import subprocess
 import tempfile
 import yaml
+import sys
 from typing import Dict, List, Optional, Any, Tuple
 
 import flytekit
 from flytekit import task, workflow, dynamic
 from flytekit.types.file import FlyteFile
+
+# Add path for enhanced training data generator
+sys.path.append('/home/jianjun/ats-genai/src')
 
 # Import job generator utilities
 try:
@@ -177,6 +182,92 @@ def apply_to_kubernetes(job_name: str, yaml_content: str) -> str:
 
 
 @task
+def enhanced_training_data_task(
+    symbol: str = "AAPL",
+    days_back: int = 90,
+    sequence_length: int = 21
+) -> Dict[str, Any]:
+    """
+    Enhanced training data generation task with technical indicators.
+    
+    This integrates with existing Flyte infrastructure to generate:
+    - OHLC sequences for past 21 bars
+    - Technical indicators: etop, ebot, pldot, oneonedot
+    - Feature distributions for visualization
+    - Database integration with metadata storage
+    
+    Args:
+        symbol: Stock symbol to generate data for
+        days_back: Number of days of historical data  
+        sequence_length: Length of sequences (21 bars for past 21 bars)
+    
+    Returns:
+        Dictionary with generation results and metadata
+    """
+    
+    print(f"🚀 Starting Enhanced Training Data Generation for {symbol}")
+    print(f"Parameters: days_back={days_back}, sequence_length={sequence_length}")
+    
+    try:
+        # Import enhanced training data generator
+        import asyncio
+        from src.app.enhanced_training_data_generator import run_enhanced_training_data_job_for_symbol
+        
+        # Run the enhanced training data generation
+        async def run_generation():
+            return await run_enhanced_training_data_job_for_symbol(
+                symbol=symbol, 
+                days_back=days_back
+            )
+        
+        # Execute in async context
+        results = asyncio.run(run_generation())
+        
+        print(f"✅ Enhanced training data generation results:")
+        print(f"  Status: {results['status']}")
+        
+        if results['status'] == 'success':
+            print(f"  Run ID: {results['run_id']}")
+            print(f"  Dataset IDs: {results['dataset_ids']}")
+            print(f"  Features Shape: {results['features_shape']}")
+            print(f"  Labels Shape: {results['labels_shape']}")
+            
+            # Extract metadata for logging
+            metadata = results.get('metadata', {})
+            if 'feature_names' in metadata:
+                print(f"  Feature Names: {metadata['feature_names']}")
+            if 'technical_indicators' in metadata:
+                indicators = list(metadata['technical_indicators'].keys())
+                print(f"  Technical Indicators: {indicators}")
+                
+            print("\n🎉 Enhanced features generated successfully:")
+            print("  • OHLC sequences (21 bars)")
+            print("  • Elliott Top (etop) - reversal indicator")
+            print("  • Elliott Bottom (ebot) - reversal indicator")
+            print("  • Pivot Line Dot (pldot) - momentum indicator") 
+            print("  • One-One-Dot (oneonedot) - custom oscillator")
+            print("  • Feature distributions for visualization")
+            print("  • Database metadata storage")
+        else:
+            print(f"  Error: {results.get('error', 'Unknown error')}")
+        
+        return results
+        
+    except Exception as e:
+        error_msg = f"Enhanced training data generation failed: {str(e)}"
+        print(f"❌ {error_msg}")
+        import traceback
+        traceback.print_exc()
+        
+        return {
+            'status': 'error',
+            'error': error_msg,
+            'symbol': symbol,
+            'days_back': days_back
+        }
+
+
+@task
 def format_result(output_path: str, apply_result: str = "") -> str:
     """
     Format the result message.
@@ -261,6 +352,54 @@ def dynamic_job_workflow(
 
 
 @workflow
+def enhanced_training_data_workflow(
+    symbol: str = "AAPL",
+    days_back: int = 90,
+    sequence_length: int = 21
+) -> Dict[str, Any]:
+    """
+    Enhanced training data generation workflow integrated with existing Flyte infrastructure.
+    
+    This workflow generates comprehensive training data with:
+    1. OHLC price sequences for the past 21 bars
+    2. Technical indicators (etop, ebot, pldot, oneonedot)
+    3. Feature distributions for web app visualization
+    4. Database storage with enhanced metadata
+    
+    Args:
+        symbol: Stock symbol (default: AAPL)
+        days_back: Historical data period (default: 90 days)
+        sequence_length: Sequence length (default: 21 bars)
+    
+    Returns:
+        Training data generation results with metadata
+    """
+    
+    print(f"📊 Enhanced Training Data Workflow")
+    print(f"Symbol: {symbol}")
+    print(f"Period: {days_back} days")
+    print(f"Sequence Length: {sequence_length} bars")
+    print()
+    print("Features to be generated:")
+    print("  • OHLC (Open, High, Low, Close)")
+    print("  • Volume")
+    print("  • Elliott Top (etop) - 21 periods")
+    print("  • Elliott Bottom (ebot) - 21 periods")
+    print("  • Pivot Line Dot (pldot) - 21 periods")
+    print("  • One-One-Dot (oneonedot) - 21 periods")
+    print()
+    
+    # Execute enhanced training data generation task
+    results = enhanced_training_data_task(
+        symbol=symbol,
+        days_back=days_back,
+        sequence_length=sequence_length
+    )
+    
+    return results
+
+
+@workflow
 def instrument_polygon_workflow(
     job_type: str,
     tickers: str = "",
@@ -308,41 +447,73 @@ def instrument_polygon_workflow(
 if __name__ == "__main__":
     import argparse
     
-    parser = argparse.ArgumentParser(description="Run instrument polygon workflow")
-    parser.add_argument('--job-type', choices=['backfill', 'test'], required=True, 
+    parser = argparse.ArgumentParser(description="Run Flyte workflows: instrument polygon operations or enhanced training data generation")
+    subparsers = parser.add_subparsers(dest='workflow_type', help='Type of workflow to run')
+    
+    # Instrument polygon workflow
+    polygon_parser = subparsers.add_parser('polygon', help='Run instrument polygon workflow')
+    polygon_parser.add_argument('--job-type', choices=['backfill', 'test'], required=True, 
                         help='Type of job to generate')
-    parser.add_argument('--tickers', type=str, default="",
+    polygon_parser.add_argument('--tickers', type=str, default="",
                         help='Comma-separated list of tickers (for test job only)')
-    parser.add_argument('--memory-request', type=str, default="",
+    polygon_parser.add_argument('--memory-request', type=str, default="",
                         help='Memory request (e.g., 256Mi)')
-    parser.add_argument('--memory-limit', type=str, default="",
+    polygon_parser.add_argument('--memory-limit', type=str, default="",
                         help='Memory limit (e.g., 512Mi)')
-    parser.add_argument('--cpu-request', type=str, default="",
+    polygon_parser.add_argument('--cpu-request', type=str, default="",
                         help='CPU request (e.g., 100m)')
-    parser.add_argument('--cpu-limit', type=str, default="",
+    polygon_parser.add_argument('--cpu-limit', type=str, default="",
                         help='CPU limit (e.g., 250m)')
-    parser.add_argument('--debug', action='store_true',
+    polygon_parser.add_argument('--debug', action='store_true',
                         help='Enable debug mode')
-    parser.add_argument('--custom-name', type=str, default="",
+    polygon_parser.add_argument('--custom-name', type=str, default="",
                         help='Custom job name')
-    parser.add_argument('--apply', action='store_true',
+    polygon_parser.add_argument('--apply', action='store_true',
                         help='Apply the job to the cluster')
-    parser.add_argument('--output-dir', type=str, default="/home/jianjun/ats-genai/k8s/generated",
+    polygon_parser.add_argument('--output-dir', type=str, default="/home/jianjun/ats-genai/k8s/generated",
                         help='Directory to save the generated YAML')
+    
+    # Enhanced training data workflow
+    training_parser = subparsers.add_parser('training', help='Run enhanced training data generation workflow')
+    training_parser.add_argument('--symbol', type=str, default="AAPL",
+                        help='Stock symbol to generate training data for (default: AAPL)')
+    training_parser.add_argument('--days-back', type=int, default=90,
+                        help='Number of days of historical data (default: 90)')
+    training_parser.add_argument('--sequence-length', type=int, default=21,
+                        help='Sequence length for past bars (default: 21)')
     
     args = parser.parse_args()
     
-    # Run the workflow locally
-    result = instrument_polygon_workflow(
-        job_type=args.job_type,
-        tickers=args.tickers,
-        memory_request=args.memory_request,
-        memory_limit=args.memory_limit,
-        cpu_request=args.cpu_request,
-        cpu_limit=args.cpu_limit,
-        custom_name=args.custom_name,
-        should_apply=args.apply,
-        output_dir=args.output_dir
-    )
-    
-    print(result)
+    # Run the appropriate workflow
+    if args.workflow_type == 'polygon':
+        print("🔧 Running Instrument Polygon Workflow...")
+        result = instrument_polygon_workflow(
+            job_type=args.job_type,
+            tickers=args.tickers,
+            memory_request=args.memory_request,
+            memory_limit=args.memory_limit,
+            cpu_request=args.cpu_request,
+            cpu_limit=args.cpu_limit,
+            custom_name=args.custom_name,
+            should_apply=args.apply,
+            output_dir=args.output_dir
+        )
+        print(result)
+        
+    elif args.workflow_type == 'training':
+        print("📊 Running Enhanced Training Data Generation Workflow...")
+        result = enhanced_training_data_workflow(
+            symbol=args.symbol,
+            days_back=args.days_back,
+            sequence_length=args.sequence_length
+        )
+        print(f"Enhanced Training Data Result: {result}")
+        
+    else:
+        parser.print_help()
+        print("\nExample usage:")
+        print("  # Run enhanced training data generation for AAPL")
+        print("  python flyte_instrument_polygon_workflow.py training --symbol AAPL --days-back 90")
+        print()
+        print("  # Run instrument polygon backfill job")
+        print("  python flyte_instrument_polygon_workflow.py polygon --job-type backfill --apply")

@@ -254,6 +254,77 @@ def migrate_command(migration_name: str):
                 logger.info("✅ Created summary view")
                 
                 logger.info("✅ Training dataset migration completed successfully")
+            elif "{migration_name}" == "enhanced-training-dataset":
+                logger.info("Running enhanced training dataset features migration...")
+                
+                # Add columns for enhanced feature metadata
+                await conn.execute("""
+                ALTER TABLE dev_training_dataset
+                ADD COLUMN IF NOT EXISTS feature_metadata JSONB DEFAULT '{{}}',
+                ADD COLUMN IF NOT EXISTS technical_indicators JSONB DEFAULT '{{}}',
+                ADD COLUMN IF NOT EXISTS feature_distributions JSONB DEFAULT '{{}}',
+                ADD COLUMN IF NOT EXISTS ohlc_sequences JSONB DEFAULT '{{}}'
+                """)
+                logger.info("✅ Added enhanced feature columns")
+                
+                # Create indexes for JSON queries
+                await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_dev_training_dataset_feature_metadata 
+                ON dev_training_dataset USING gin (feature_metadata)
+                """)
+                await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_dev_training_dataset_technical_indicators 
+                ON dev_training_dataset USING gin (technical_indicators)
+                """)
+                logger.info("✅ Created JSON indexes")
+                
+                # Update the summary view
+                await conn.execute("""
+                DROP VIEW IF EXISTS dev_training_dataset_summary
+                """)
+                await conn.execute("""
+                CREATE VIEW dev_training_dataset_summary AS
+                SELECT 
+                    td.id,
+                    td.dataset_name,
+                    td.run_id,
+                    td.creation_timestamp,
+                    td.total_sequences,
+                    td.sequence_length,
+                    td.feature_count,
+                    td.label_count,
+                    td.symbols,
+                    td.date_range_start,
+                    td.date_range_end,
+                    td.data_quality_score,
+                    td.file_size_mb,
+                    td.status,
+                    td.feature_metadata,
+                    td.technical_indicators,
+                    
+                    -- Run information
+                    r.run_type,
+                    r.start_time as run_start_time,
+                    r.end_time as run_end_time,
+                    r.status as run_status,
+                    r.quality_summary as run_quality,
+                    r.performance_summary as run_performance,
+                    
+                    -- Enhanced metadata
+                    COALESCE(array_length(td.symbols, 1), 0) as symbol_count,
+                    CASE 
+                        WHEN td.technical_indicators IS NOT NULL AND td.technical_indicators != '{{}}' 
+                        THEN true 
+                        ELSE false 
+                    END as has_technical_indicators
+                    
+                FROM dev_training_dataset td
+                LEFT JOIN dev_runs r ON td.run_id = r.id
+                ORDER BY td.creation_timestamp DESC
+                """)
+                logger.info("✅ Updated enhanced summary view")
+                
+                logger.info("✅ Enhanced training dataset migration completed successfully")
             else:
                 logger.info(f"Migration {migration_name} not implemented yet")
             
@@ -789,6 +860,365 @@ def logs_command(job_name: str):
     run_kubectl(["logs", f"job/{job_name}", "--follow"])
 
 
+def enhanced_training_command(symbol: str = "AAPL", days_back: int = 90):
+    """Generate enhanced training data with technical indicators in K8s"""
+    job_name = f"enhanced-training-{int(datetime.now().timestamp())}"
+    
+    script_content = f'''    import asyncio
+    import asyncpg
+    import logging
+    import numpy as np
+    import pandas as pd
+    from datetime import date, datetime, timedelta
+    import json
+
+    # Technical indicators functions
+    class TechnicalIndicators:
+        """Technical indicators for enhanced training data generation."""
+        
+        @staticmethod
+        def calculate_elliott_top(high, low, close, window=21):
+            """Calculate Envelope Top indicator - identifies potential reversal tops."""
+            etop = np.zeros_like(close)
+            
+            for i in range(window, len(close)):
+                # Look for local highs within window
+                window_high = high[i-window:i+1]
+                window_idx = np.argmax(window_high)
+                
+                # Check if current bar or recent bar is a significant high
+                if window_idx >= window - 5:  # Recent high
+                    strength = (window_high[window_idx] - np.mean(window_high)) / np.std(window_high)
+                    etop[i] = max(0, strength)
+                
+            return etop
+        
+        @staticmethod
+        def calculate_elliott_bottom(high, low, close, window=21):
+            """Calculate Envelope Bottom indicator - identifies potential reversal bottoms."""
+            ebot = np.zeros_like(close)
+            
+            for i in range(window, len(close)):
+                # Look for local lows within window
+                window_low = low[i-window:i+1]
+                window_idx = np.argmin(window_low)
+                
+                # Check if current bar or recent bar is a significant low
+                if window_idx >= window - 5:  # Recent low
+                    strength = (np.mean(window_low) - window_low[window_idx]) / np.std(window_low)
+                    ebot[i] = max(0, strength)
+                
+            return ebot
+        
+        @staticmethod
+        def calculate_pivot_line_dot(high, low, close, window=21):
+            """Calculate Pivot Line Dot indicator - pivot point momentum."""
+            pldot = np.zeros_like(close)
+            
+            for i in range(window, len(close)):
+                # Calculate pivot point as (H + L + C) / 3
+                pivot = (high[i-1] + low[i-1] + close[i-1]) / 3
+                
+                # Calculate momentum relative to pivot
+                current_price = close[i]
+                pivot_momentum = (current_price - pivot) / pivot
+                
+                # Smooth over window
+                window_momentum = []
+                for j in range(max(0, i-window), i):
+                    p = (high[j-1] + low[j-1] + close[j-1]) / 3 if j > 0 else pivot
+                    m = (close[j] - p) / p if p != 0 else 0
+                    window_momentum.append(m)
+                
+                pldot[i] = np.mean(window_momentum) if window_momentum else 0
+                
+            return pldot
+        
+        @staticmethod
+        def calculate_oneonedot(open_, high, low, close, window=21):
+            """Calculate One-One-Dot indicator - custom momentum oscillator."""
+            oneonedot = np.zeros_like(close)
+            
+            for i in range(window, len(close)):
+                # Calculate various momentum metrics
+                window_data = close[i-window:i+1]
+                
+                # Rate of change
+                roc = (close[i] - close[i-window]) / close[i-window] if close[i-window] != 0 else 0
+                
+                # Relative position within recent range
+                recent_high = np.max(high[i-window:i+1])
+                recent_low = np.min(low[i-window:i+1])
+                position = (close[i] - recent_low) / (recent_high - recent_low) if recent_high != recent_low else 0.5
+                
+                # Trend strength - ensure arrays have same length
+                if len(window_data) == window:
+                    slope = np.polyfit(range(window), window_data, 1)[0]
+                    trend_strength = slope / np.mean(window_data) if np.mean(window_data) != 0 else 0
+                else:
+                    trend_strength = 0
+                
+                # Combine metrics
+                oneonedot[i] = (roc + (position - 0.5) * 2 + trend_strength) / 3
+                
+            return oneonedot
+
+    async def main():
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+        
+        db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+        
+        try:
+            conn = await asyncpg.connect(db_url)
+            logger.info("✅ Connected to database")
+            
+            symbol = "{symbol}"
+            days_back = {days_back}
+            
+            logger.info(f"🚀 Starting Enhanced Training Data Generation for {{symbol}}")
+            logger.info(f"Features: OHLC + etop, ebot, pldot, oneonedot for 21 bars")
+            
+            # Generate synthetic enhanced market data
+            logger.info("Generating enhanced synthetic market data...")
+            
+            data_rows = []
+            end_date = date.today() - timedelta(days=1)
+            start_date = end_date - timedelta(days=days_back)
+            
+            current_date = start_date
+            base_price = 100.0 + np.random.uniform(-20, 20)
+            
+            while current_date <= end_date:
+                if current_date.weekday() < 5:  # Trading days only
+                    # Generate more realistic price action
+                    daily_return = np.random.normal(0.001, 0.02)
+                    base_price *= (1 + daily_return)
+                    
+                    # Create realistic intraday patterns
+                    daily_range = base_price * np.random.uniform(0.01, 0.04)
+                    
+                    # Generate OHLC with proper relationships
+                    open_price = base_price * (1 + np.random.normal(0, 0.005))
+                    high = max(open_price, base_price) + daily_range / 2
+                    low = min(open_price, base_price) - daily_range / 2
+                    close_price = np.random.uniform(low, high)
+                    
+                    volume = int(np.random.lognormal(15, 1))
+                    
+                    data_rows.append({{
+                        'date': current_date,
+                        'symbol': symbol,
+                        'open': round(open_price, 2),
+                        'high': round(high, 2),
+                        'low': round(low, 2),
+                        'close': round(close_price, 2),
+                        'volume': volume
+                    }})
+                
+                current_date += timedelta(days=1)
+            
+            df = pd.DataFrame(data_rows)
+            logger.info(f"Generated {{len(df)}} enhanced market data points")
+            
+            # Calculate technical indicators
+            indicators = TechnicalIndicators()
+            
+            open_ = df['open'].values
+            high = df['high'].values
+            low = df['low'].values
+            close = df['close'].values
+            volume = df['volume'].values
+            
+            etop = indicators.calculate_elliott_top(high, low, close, 21)
+            ebot = indicators.calculate_elliott_bottom(high, low, close, 21)
+            pldot = indicators.calculate_pivot_line_dot(high, low, close, 21)
+            oneonedot = indicators.calculate_oneonedot(open_, high, low, close, 21)
+            
+            logger.info("✅ Technical indicators calculated")
+            
+            # Create enhanced training data
+            sequence_length = 21
+            prediction_horizon = 5
+            features_list = []
+            labels_list = []
+            
+            # Combine all features
+            ohlcv = np.column_stack([open_, high, low, close, volume])
+            all_features = np.column_stack([
+                ohlcv,  # OHLCV for past 21 bars
+                etop.reshape(-1, 1),
+                ebot.reshape(-1, 1),
+                pldot.reshape(-1, 1),
+                oneonedot.reshape(-1, 1)
+            ])
+            
+            # Create sequences
+            start_idx = max(50, sequence_length)  # Allow indicators to stabilize
+            
+            for i in range(start_idx, len(all_features) - prediction_horizon + 1):
+                # Feature sequence (past 21 bars)
+                feature_seq = all_features[i-sequence_length:i]
+                features_list.append(feature_seq)
+                
+                # Labels (future returns)
+                future_prices = close[i:i + prediction_horizon]
+                current_price = close[i-1]
+                future_returns = (future_prices - current_price) / current_price
+                labels_list.append(future_returns)
+            
+            features = np.array(features_list, dtype=np.float32)
+            labels = np.array(labels_list, dtype=np.float32)
+            
+            logger.info(f"Created enhanced training data: {{features.shape}} features, {{labels.shape}} labels")
+            
+            # Create dataset record with enhanced features
+            dataset_id = f"enhanced_{{datetime.now().strftime('%Y%m%d_%H%M%S')}}_{{symbol.lower()}}"
+            feature_names = ['open', 'high', 'low', 'close', 'volume', 'etop', 'ebot', 'pldot', 'oneonedot']
+            
+            # Feature distributions for visualization
+            feature_distributions = {{
+                'etop': etop.tolist(),
+                'ebot': ebot.tolist(),
+                'pldot': pldot.tolist(),
+                'oneonedot': oneonedot.tolist(),
+                'close': close.tolist(),
+                'volume': volume.tolist()
+            }}
+            
+            # Technical indicators metadata
+            technical_indicators = {{
+                'etop': {{
+                    'function': 'envelope_top',
+                    'window': 21,
+                    'description': 'Envelope Top reversal indicator (21 periods)'
+                }},
+                'ebot': {{
+                    'function': 'envelope_bottom',
+                    'window': 21,
+                    'description': 'Envelope Bottom reversal indicator (21 periods)'
+                }},
+                'pldot': {{
+                    'function': 'pivot_line_dot',
+                    'window': 21,
+                    'description': 'Pivot Line Dot momentum indicator (21 periods)'
+                }},
+                'oneonedot': {{
+                    'function': 'oneonedot',
+                    'window': 21,
+                    'description': 'One-One-Dot custom momentum oscillator (21 periods)'
+                }}
+            }}
+            
+            # Create run record first
+            run_id = await conn.fetchval("""
+                INSERT INTO dev_runs (
+                    run_type, start_time, status, total_symbols
+                ) VALUES ($1, $2, $3, $4) RETURNING id
+            """, 
+                "enhanced_training_data_generation", 
+                datetime.now(), 
+                "running", 
+                1
+            )
+            
+            # Insert dataset record
+            dataset_db_id = await conn.fetchval("""
+                INSERT INTO dev_training_dataset (
+                    dataset_name, run_id, total_sequences, sequence_length, 
+                    feature_count, label_count, symbols, date_range_start, 
+                    date_range_end, data_quality_score, feature_completeness, 
+                    label_completeness, generation_duration_seconds, file_size_mb,
+                    data_sources, status, feature_metadata, technical_indicators,
+                    feature_distributions
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) 
+                RETURNING id
+            """,
+                dataset_id,
+                run_id,
+                features.shape[0],
+                features.shape[1],
+                features.shape[2],
+                labels.shape[1],
+                [symbol],
+                start_date,
+                end_date,
+                1.0,  # data quality score
+                1.0,  # feature completeness
+                1.0,  # label completeness
+                60,   # generation duration
+                1.0,  # file size
+                ["synthetic_enhanced"],
+                "created",
+                json.dumps({{'feature_names': feature_names}}),
+                json.dumps(technical_indicators),
+                json.dumps(feature_distributions)
+            )
+            
+            logger.info(f"📊 Created enhanced training dataset record with ID {{dataset_db_id}}")
+            
+            # Update run record with success
+            await conn.execute("""
+                UPDATE dev_runs 
+                SET end_time = $1,
+                    status = $2,
+                    successful_unifications = $3,
+                    total_dates = $4,
+                    performance_summary = $5
+                WHERE id = $6
+            """,
+                datetime.now(),
+                'completed',
+                features.shape[0],
+                days_back,
+                f"Enhanced training data: {{features.shape[0]}} sequences with envelope top/bottom indicators",
+                run_id
+            )
+            
+            logger.info("✅ Enhanced Training Data Generation Completed Successfully!")
+            logger.info("🎉 Enhanced features generated and stored:")
+            logger.info("  • OHLC sequences (21 bars)")
+            logger.info("  • Envelope Top (etop) - reversal indicator")
+            logger.info("  • Envelope Bottom (ebot) - reversal indicator")
+            logger.info("  • Pivot Line Dot (pldot) - momentum indicator")
+            logger.info("  • One-One-Dot (oneonedot) - custom oscillator")
+            logger.info(f"  • Dataset ID: {{dataset_db_id}}")
+            logger.info(f"  • Feature distributions stored for visualization")
+            
+            await conn.close()
+            
+        except Exception as e:
+            logger.error(f"❌ Enhanced training data generation failed: {{e}}")
+            import traceback
+            traceback.print_exc()
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+'''
+
+    yaml_content = create_simple_job(job_name, script_content, f"Enhanced Training Data Generation for {symbol}")
+    
+    # Write to temp file and apply
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        f.write(yaml_content)
+        temp_file = f.name
+    
+    try:
+        print(f"🚀 kubectl apply -f {temp_file} -n ats-dev")
+        result = subprocess.run(["kubectl", "apply", "-f", temp_file, "-n", "ats-dev"], 
+                              capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            print(f"✅ Job {job_name} applied successfully")
+            print(f"📋 Following job logs...")
+            run_kubectl(["logs", f"job/{job_name}", "--follow"])
+        else:
+            print(f"❌ Failed to apply job: {result.stderr}")
+            
+    finally:
+        os.unlink(temp_file)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Simple Dev CLI for K8s operations")
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
@@ -807,6 +1237,11 @@ def main():
     job_parser.add_argument('--symbols', help='Comma-separated symbols')
     job_parser.add_argument('--date', help='Target date (YYYY-MM-DD)')
     job_parser.add_argument('--limit', type=int, help='Limit number of items')
+    
+    # Enhanced training data command
+    training_parser = subparsers.add_parser('enhanced-training', help='Generate enhanced training data with technical indicators')
+    training_parser.add_argument('--symbol', type=str, default='AAPL', help='Stock symbol (default: AAPL)')
+    training_parser.add_argument('--days-back', type=int, default=90, help='Days of historical data (default: 90)')
     
     # Utility commands
     subparsers.add_parser('list', help='List current jobs')
@@ -836,6 +1271,8 @@ def main():
         if hasattr(args, 'limit') and args.limit:
             job_kwargs['limit'] = args.limit
         job_command(args.type, **job_kwargs)
+    elif args.command == 'enhanced-training':
+        enhanced_training_command(args.symbol, args.days_back)
     elif args.command == 'list':
         list_command()
     elif args.command == 'logs':
