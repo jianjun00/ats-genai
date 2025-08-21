@@ -36,17 +36,18 @@ Core development resources:
 
 System design and architecture:
 
-- **[System Architecture](architecture/SYSTEM_ARCHITECTURE.md)** - High-level system design
+- **[System Architecture](architecture/SYSTEM_ARCHITECTURE.md)** - High-level ML system design
 - **[Database Design](architecture/DATABASE_DESIGN.md)** - Schema and data modeling
-- **[API Design](architecture/API_DESIGN.md)** - REST API specifications
-- **[Infrastructure](architecture/INFRASTRUCTURE.md)** - K8s, containers, networking
+- **[API Design](architecture/API_DESIGN.md)** - REST API specifications  
+- **[Infrastructure](INFRASTRUCTURE.md)** - K8s, containers, networking
 
 ## 🚀 Operations Documentation
 
 Deployment and operations:
 
-- **[Deployment Guide](operations/DEPLOYMENT_GUIDE.md)** - Production deployments
-- **[Monitoring](operations/MONITORING.md)** - Observability and alerting
+- **[Deployment Guide](operations/DEPLOYMENT.md)** - Production deployments
+- **[Credential Management](operations/CREDENTIAL_MANAGEMENT_GUIDE.md)** - Security and authentication
+- **[Monitoring](POSTGRESQL_MONITORING_INTEGRATION.md)** - Observability and alerting
 - **[Troubleshooting](operations/TROUBLESHOOTING.md)** - Operational issues
 - **[Runbooks](operations/RUNBOOKS.md)** - Emergency procedures
 
