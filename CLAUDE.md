@@ -76,6 +76,36 @@ python scripts/dev_cli.py logs job-name
 
 **Remember: Use Flyte + Base Docker, never reinstall what's already there!**
 
+### 🔥 **CRITICAL: Reuse Existing Infrastructure Patterns**
+**STOP RECREATING WHAT EXISTS**
+
+- ❌ **NEVER create new deployment patterns** when existing ones work
+- ❌ **NEVER duplicate ConfigMap/Deployment logic** - reuse existing configs
+- ❌ **NEVER rebuild webapp infrastructure** - enhance existing webapps
+- ✅ **Check existing ConfigMaps** first: `kubectl get configmaps -n ats-dev`
+- ✅ **Copy existing deployment patterns** and modify minimally
+- ✅ **Leverage existing services** and infrastructure components
+
+**Example: Adding Webapp Features**
+```bash
+# Wrong approach: Create new deployment from scratch
+# kubectl apply -f new-webapp-deployment.yaml
+
+# Correct approach: Reuse existing patterns
+kubectl get configmap working-analytics-webapp-config -o yaml > base-config.yaml
+# Modify base-config.yaml with new features
+kubectl create configmap enhanced-webapp-config --from-file=webapp.py=enhanced_webapp.py
+kubectl apply -f existing-deployment-pattern.yaml  # Just change configMap name
+```
+
+**Key Principles:**
+- Scan existing infrastructure first: `kubectl get all -n ats-dev`
+- Reuse successful patterns from working deployments
+- Enhance existing configs rather than creating new ones
+- Follow established naming conventions and resource allocations
+
+**Remember: If it works, extend it - don't rebuild it!**
+
 ## Common Development Commands
 
 ### Python Dependencies & Environment

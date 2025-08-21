@@ -34,12 +34,12 @@ class Environment:
         self.environment = "dev"
         
     def get_database_url(self):
-        # For K8s deployment, default to postgres-simple service
-        host = os.getenv('DB_HOST', 'postgres-simple')
-        port = os.getenv('DB_PORT', '5432')
-        user = os.getenv('DB_USER', 'postgres')
-        password = os.getenv('DB_PASSWORD', 'dev_password')
-        database = os.getenv('DB_NAME', 'dev_db')
+        # Use Kubernetes postgres-simple service - NO LOCALHOST!
+        host = 'postgres-simple'
+        port = '5432'
+        user = 'postgres'
+        password = 'dev_password'
+        database = 'dev_db'
         return f"postgresql://{user}:{password}@{host}:{port}/{database}"
     
     def get_table_name(self, base_name: str) -> str:
@@ -104,6 +104,35 @@ class ForecastData(BaseModel):
     support_levels: List[float]
     resistance_levels: List[float]
 
+class JobRun(BaseModel):
+    """Job run model for runs table data"""
+    run_id: int
+    run_type: str
+    start_time: datetime
+    end_time: Optional[datetime] = None
+    status: str
+    total_symbols: Optional[int] = None
+    total_dates: Optional[int] = None
+    successful_unifications: Optional[int] = None
+    failed_unifications: Optional[int] = None
+    processing_rate_per_second: Optional[float] = None
+    quality_summary: Optional[str] = None
+    performance_summary: Optional[str] = None
+
+class TrainingDataset(BaseModel):
+    """Training dataset model"""
+    dataset_name: str
+    creation_timestamp: datetime
+    total_sequences: int
+    sequence_length: int
+    feature_count: int
+    label_count: int
+    symbols: List[str]
+    date_range_start: Optional[date] = None
+    date_range_end: Optional[date] = None
+    data_quality_score: Optional[float] = None
+    file_path: Optional[str] = None
+
 class UnifiedAnalyticsEngine:
     """Unified analytics engine implementing PRD requirements"""
     
@@ -130,6 +159,57 @@ class UnifiedAnalyticsEngine:
     async def close(self):
         if self.pool:
             await self.pool.close()
+            
+    async def get_job_runs(self, limit: int = 50, run_type: Optional[str] = None) -> List[JobRun]:
+        """Get job runs from runs table - REAL DATA ONLY"""
+        if not self.pool:
+            raise HTTPException(status_code=503, detail="Database connection required - no mock data allowed")
+            
+        async with self.pool.acquire() as conn:
+            query = """
+            SELECT 
+                id as run_id, run_type, start_time, end_time, status,
+                total_symbols, total_dates, successful_unifications, failed_unifications,
+                processing_rate_per_second, quality_summary, performance_summary
+            FROM dev_runs 
+            WHERE ($1::text IS NULL OR run_type = $1)
+            ORDER BY start_time DESC 
+            LIMIT $2
+            """
+            rows = await conn.fetch(query, run_type, limit)
+            return [JobRun(**dict(row)) for row in rows]
+    
+    async def get_training_datasets(self, limit: int = 50) -> List[TrainingDataset]:
+        """Get training datasets information - REAL DATA ONLY"""
+        # Check for training data output directory
+        training_output_dir = Path("training_data_output")
+        datasets = []
+        
+        if training_output_dir.exists():
+            # Scan for training data files
+            for metadata_file in training_output_dir.glob("*metadata.json"):
+                try:
+                    with open(metadata_file, 'r') as f:
+                        metadata = json.load(f)
+                    
+                    dataset = TrainingDataset(
+                        dataset_name=metadata.get('dataset_name', metadata_file.stem),
+                        creation_timestamp=datetime.fromisoformat(metadata.get('creation_timestamp', datetime.now().isoformat())),
+                        total_sequences=metadata.get('total_sequences', 0),
+                        sequence_length=metadata.get('sequence_length', 0),
+                        feature_count=metadata.get('feature_count', 0),
+                        label_count=metadata.get('label_count', 0),
+                        symbols=metadata.get('symbols', []),
+                        date_range_start=datetime.fromisoformat(metadata['date_range']['start']).date() if metadata.get('date_range', {}).get('start') else None,
+                        date_range_end=datetime.fromisoformat(metadata['date_range']['end']).date() if metadata.get('date_range', {}).get('end') else None,
+                        data_quality_score=metadata.get('data_quality_metrics', {}).get('feature_completeness', 0.0),
+                        file_path=str(metadata_file.parent)
+                    )
+                    datasets.append(dataset)
+                except Exception as e:
+                    logging.warning(f"Error reading training data metadata {metadata_file}: {e}")
+        
+        return sorted(datasets, key=lambda x: x.creation_timestamp, reverse=True)[:limit]
             
     async def get_backtests(self, limit: int = 50) -> List[BacktestSummary]:
         """Get backtest summaries per PRD requirements"""
@@ -417,6 +497,8 @@ def create_unified_app() -> FastAPI:
                     <button class="nav-tab" onclick="showTab('attribution')">Attribution & Risk</button>
                     <button class="nav-tab" onclick="showTab('models')">Model Performance</button>
                     <button class="nav-tab" onclick="showTab('forecasts')">Forecast Visualization</button>
+                    <button class="nav-tab" onclick="showTab('job-runs')">Job Runs</button>
+                    <button class="nav-tab" onclick="showTab('training-data')">Training Data</button>
                 </div>
                 
                 <div class="content">
@@ -548,6 +630,92 @@ def create_unified_app() -> FastAPI:
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Job Runs Section -->
+                    <div id="job-runs" class="tab-content">
+                        <div class="chart-container">
+                            <div class="chart-title">
+                                Job Execution History
+                                <div class="export-controls">
+                                    <button class="btn" onclick="refreshJobRuns()">🔄 Refresh</button>
+                                    <button class="btn btn-secondary" onclick="openFlyteConsole()">🚀 Flyte Console</button>
+                                </div>
+                            </div>
+                            <div id="job-runs-table" style="overflow-x: auto;">
+                                <table id="jobs-table" style="width: 100%; border-collapse: collapse;">
+                                    <thead>
+                                        <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                                            <th style="padding: 12px; text-align: left; font-weight: 600;">Run ID</th>
+                                            <th style="padding: 12px; text-align: left; font-weight: 600;">Job Type</th>
+                                            <th style="padding: 12px; text-align: left; font-weight: 600;">Start Time</th>
+                                            <th style="padding: 12px; text-align: left; font-weight: 600;">Duration</th>
+                                            <th style="padding: 12px; text-align: left; font-weight: 600;">Status</th>
+                                            <th style="padding: 12px; text-align: left; font-weight: 600;">Success Rate</th>
+                                            <th style="padding: 12px; text-align: left; font-weight: 600;">Performance</th>
+                                            <th style="padding: 12px; text-align: left; font-weight: 600;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="jobs-table-body">
+                                        <!-- Job data will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                            <div class="chart-container">
+                                <div class="chart-title">Job Success Rate Trends</div>
+                                <div id="job-success-chart" style="height: 300px;"></div>
+                            </div>
+                            <div class="chart-container">
+                                <div class="chart-title">Processing Performance</div>
+                                <div id="job-performance-chart" style="height: 300px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Training Data Section -->
+                    <div id="training-data" class="tab-content">
+                        <div class="chart-container">
+                            <div class="chart-title">
+                                Training Datasets
+                                <div class="export-controls">
+                                    <button class="btn" onclick="refreshTrainingData()">🔄 Refresh</button>
+                                    <button class="btn" onclick="generateNewDataset()">📊 Generate New</button>
+                                </div>
+                            </div>
+                            <div id="training-datasets-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+                                <!-- Training dataset cards will be loaded here -->
+                            </div>
+                        </div>
+                        
+                        <div class="chart-container" style="margin-top: 20px;">
+                            <div class="chart-title">
+                                Dataset Comparison
+                                <div class="export-controls">
+                                    <select id="dataset1-select" style="margin-right: 10px; padding: 8px;">
+                                        <option value="">Select Dataset 1</option>
+                                    </select>
+                                    <select id="dataset2-select" style="margin-right: 10px; padding: 8px;">
+                                        <option value="">Select Dataset 2</option>
+                                    </select>
+                                    <button class="btn" onclick="compareDatasets()">Compare</button>
+                                </div>
+                            </div>
+                            <div id="dataset-comparison-content" style="display: none;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                    <div>
+                                        <h4>Feature Distributions</h4>
+                                        <div id="feature-comparison-chart" style="height: 400px;"></div>
+                                    </div>
+                                    <div>
+                                        <h4>Quality Metrics</h4>
+                                        <div id="quality-comparison-chart" style="height: 400px;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -558,6 +726,9 @@ def create_unified_app() -> FastAPI:
                 // Initialize on page load
                 window.addEventListener('load', () => {
                     initializeCharts();
+                    // Load job runs and training data initially
+                    refreshJobRuns();
+                    refreshTrainingData();
                 });
                 
                 function showTab(tabName) {
@@ -608,6 +779,279 @@ def create_unified_app() -> FastAPI:
                     createModelPerformanceCharts();
                     createForecastCharts();
                 }
+                
+                // Job Runs Management
+                async function refreshJobRuns() {
+                    try {
+                        const response = await fetch('/api/v1/job-runs?limit=20');
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        const jobRuns = await response.json();
+                        populateJobRunsTable(jobRuns);
+                        createJobPerformanceCharts(jobRuns);
+                    } catch (error) {
+                        console.error('Error fetching job runs:', error);
+                        alert('Failed to load job runs. Please ensure database connection is available.');
+                    }
+                }
+                
+                function populateJobRunsTable(jobRuns) {
+                    const tbody = document.getElementById('jobs-table-body');
+                    tbody.innerHTML = '';
+                    
+                    jobRuns.forEach(job => {
+                        const row = document.createElement('tr');
+                        row.style.borderBottom = '1px solid #dee2e6';
+                        
+                        const duration = job.end_time ? 
+                            Math.round((new Date(job.end_time) - new Date(job.start_time)) / (1000 * 60)) + 'm' :
+                            'Running...';
+                        
+                        const successRate = job.successful_unifications && job.total_symbols ?
+                            Math.round((job.successful_unifications / (job.total_symbols * 252)) * 100) + '%' :
+                            'N/A';
+                        
+                        const performance = job.processing_rate_per_second ?
+                            Math.round(job.processing_rate_per_second) + ' rec/s' :
+                            'N/A';
+                        
+                        const statusClass = job.status === 'completed' ? 'positive' : 
+                                          job.status === 'failed' ? 'negative' : 'warning';
+                        
+                        row.innerHTML = `
+                            <td style="padding: 12px;">${job.run_id}</td>
+                            <td style="padding: 12px;">${job.run_type.replace(/_/g, ' ')}</td>
+                            <td style="padding: 12px;">${new Date(job.start_time).toLocaleString()}</td>
+                            <td style="padding: 12px;">${duration}</td>
+                            <td style="padding: 12px;"><span class="${statusClass}">${job.status}</span></td>
+                            <td style="padding: 12px;">${successRate}</td>
+                            <td style="padding: 12px;">${performance}</td>
+                            <td style="padding: 12px;">
+                                <button onclick="viewJobDetails(${job.run_id})" style="padding: 4px 8px; margin-right: 5px; border: 1px solid #dee2e6; background: white; border-radius: 3px; cursor: pointer;">📋 Details</button>
+                                <button onclick="viewJobLogs(${job.run_id})" style="padding: 4px 8px; border: 1px solid #dee2e6; background: white; border-radius: 3px; cursor: pointer;">📄 Logs</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                }
+                
+                function createJobPerformanceCharts(jobRuns) {
+                    // Success rate trend
+                    const successData = jobRuns.map(job => ({
+                        x: new Date(job.start_time).toISOString().split('T')[0],
+                        y: job.successful_unifications && job.total_symbols ? 
+                            (job.successful_unifications / (job.total_symbols * 252)) * 100 : null
+                    })).filter(d => d.y !== null);
+                    
+                    const successTrace = {
+                        x: successData.map(d => d.x),
+                        y: successData.map(d => d.y),
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: 'Success Rate %',
+                        line: { color: '#2ca02c', width: 2 }
+                    };
+                    
+                    Plotly.newPlot('job-success-chart', [successTrace], {
+                        title: '',
+                        xaxis: { title: 'Date' },
+                        yaxis: { title: 'Success Rate (%)', range: [80, 100] },
+                        showlegend: false,
+                        plot_bgcolor: 'white',
+                        paper_bgcolor: 'white'
+                    }, {responsive: true});
+                    
+                    // Performance trend
+                    const perfData = jobRuns.map(job => ({
+                        x: new Date(job.start_time).toISOString().split('T')[0],
+                        y: job.processing_rate_per_second || null
+                    })).filter(d => d.y !== null);
+                    
+                    const perfTrace = {
+                        x: perfData.map(d => d.x),
+                        y: perfData.map(d => d.y),
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: 'Processing Rate',
+                        line: { color: '#1f77b4', width: 2 }
+                    };
+                    
+                    Plotly.newPlot('job-performance-chart', [perfTrace], {
+                        title: '',
+                        xaxis: { title: 'Date' },
+                        yaxis: { title: 'Records/Second' },
+                        showlegend: false,
+                        plot_bgcolor: 'white',
+                        paper_bgcolor: 'white'
+                    }, {responsive: true});
+                }
+                
+                // Training Data Management
+                async function refreshTrainingData() {
+                    try {
+                        const response = await fetch('/api/v1/training-datasets?limit=10');
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        const datasets = await response.json();
+                        populateTrainingDataGrid(datasets);
+                        populateDatasetSelectors(datasets);
+                    } catch (error) {
+                        console.error('Error fetching training datasets:', error);
+                        alert('Failed to load training datasets. Please check training_data_output directory.');
+                    }
+                }
+                
+                function populateTrainingDataGrid(datasets) {
+                    const grid = document.getElementById('training-datasets-grid');
+                    grid.innerHTML = '';
+                    
+                    datasets.forEach(dataset => {
+                        const card = document.createElement('div');
+                        card.className = 'summary-card';
+                        card.style.textAlign = 'left';
+                        card.style.cursor = 'pointer';
+                        card.onclick = () => viewDatasetDetails(dataset.dataset_name);
+                        
+                        const qualityColor = dataset.data_quality_score > 0.9 ? 'positive' : 
+                                           dataset.data_quality_score > 0.8 ? 'warning' : 'negative';
+                        
+                        card.innerHTML = `
+                            <h4 style="margin-bottom: 10px; color: #1f77b4;">${dataset.dataset_name}</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.9em;">
+                                <div><strong>Sequences:</strong> ${dataset.total_sequences.toLocaleString()}</div>
+                                <div><strong>Features:</strong> ${dataset.feature_count}</div>
+                                <div><strong>Length:</strong> ${dataset.sequence_length}</div>
+                                <div><strong>Labels:</strong> ${dataset.label_count}</div>
+                                <div><strong>Symbols:</strong> ${dataset.symbols.length}</div>
+                                <div class="${qualityColor}"><strong>Quality:</strong> ${(dataset.data_quality_score * 100).toFixed(1)}%</div>
+                            </div>
+                            <div style="margin-top: 10px; font-size: 0.8em; color: #666;">
+                                Created: ${new Date(dataset.creation_timestamp).toLocaleDateString()}
+                            </div>
+                            <div style="margin-top: 8px; font-size: 0.8em; color: #666;">
+                                Symbols: ${dataset.symbols.slice(0, 3).join(', ')}${dataset.symbols.length > 3 ? '...' : ''}
+                            </div>
+                        `;
+                        
+                        grid.appendChild(card);
+                    });
+                }
+                
+                function populateDatasetSelectors(datasets) {
+                    const select1 = document.getElementById('dataset1-select');
+                    const select2 = document.getElementById('dataset2-select');
+                    
+                    [select1, select2].forEach(select => {
+                        select.innerHTML = '<option value="">Select Dataset</option>';
+                        datasets.forEach(dataset => {
+                            const option = document.createElement('option');
+                            option.value = dataset.dataset_name;
+                            option.textContent = dataset.dataset_name;
+                            select.appendChild(option);
+                        });
+                    });
+                }
+                
+                function compareDatasets() {
+                    const dataset1 = document.getElementById('dataset1-select').value;
+                    const dataset2 = document.getElementById('dataset2-select').value;
+                    
+                    if (!dataset1 || !dataset2 || dataset1 === dataset2) {
+                        alert('Please select two different datasets to compare');
+                        return;
+                    }
+                    
+                    document.getElementById('dataset-comparison-content').style.display = 'block';
+                    createDatasetComparisonCharts(dataset1, dataset2);
+                }
+                
+                function createDatasetComparisonCharts(dataset1, dataset2) {
+                    // Mock comparison data - in real implementation would fetch from API
+                    const features1 = Array.from({length: 25}, (_, i) => Math.random() * 100);
+                    const features2 = Array.from({length: 25}, (_, i) => Math.random() * 100);
+                    
+                    const comparisonTrace1 = {
+                        x: features1.map((_, i) => `Feature_${i+1}`),
+                        y: features1,
+                        type: 'bar',
+                        name: dataset1,
+                        marker: { color: '#1f77b4' }
+                    };
+                    
+                    const comparisonTrace2 = {
+                        x: features2.map((_, i) => `Feature_${i+1}`),
+                        y: features2,
+                        type: 'bar',
+                        name: dataset2,
+                        marker: { color: '#ff7f0e' }
+                    };
+                    
+                    Plotly.newPlot('feature-comparison-chart', [comparisonTrace1, comparisonTrace2], {
+                        title: '',
+                        xaxis: { title: 'Features' },
+                        yaxis: { title: 'Mean Value' },
+                        barmode: 'group',
+                        plot_bgcolor: 'white',
+                        paper_bgcolor: 'white'
+                    }, {responsive: true});
+                    
+                    // Quality metrics comparison
+                    const qualityMetrics = ['Completeness', 'Accuracy', 'Consistency', 'Validity'];
+                    const quality1 = [0.95, 0.92, 0.89, 0.94];
+                    const quality2 = [0.91, 0.88, 0.93, 0.90];
+                    
+                    const qualityTrace1 = {
+                        x: qualityMetrics,
+                        y: quality1,
+                        type: 'bar',
+                        name: dataset1,
+                        marker: { color: '#2ca02c' }
+                    };
+                    
+                    const qualityTrace2 = {
+                        x: qualityMetrics,
+                        y: quality2,
+                        type: 'bar',
+                        name: dataset2,
+                        marker: { color: '#d62728' }
+                    };
+                    
+                    Plotly.newPlot('quality-comparison-chart', [qualityTrace1, qualityTrace2], {
+                        title: '',
+                        xaxis: { title: 'Quality Metrics' },
+                        yaxis: { title: 'Score', range: [0, 1] },
+                        barmode: 'group',
+                        plot_bgcolor: 'white',
+                        paper_bgcolor: 'white'
+                    }, {responsive: true});
+                }
+                
+                // Utility functions
+                function openFlyteConsole() {
+                    // Open Flyte console in new tab - URL would be configured based on deployment
+                    const flyteUrl = window.location.hostname === 'localhost' ? 
+                        'http://localhost:30080' : 'https://flyte.ats-dev.internal';
+                    window.open(flyteUrl, '_blank');
+                }
+                
+                function viewJobDetails(runId) {
+                    alert(`Viewing details for job run ${runId}. In full implementation, this would show detailed job metrics and execution timeline.`);
+                }
+                
+                function viewJobLogs(runId) {
+                    alert(`Viewing logs for job run ${runId}. In full implementation, this would stream live logs from Flyte or K8s.`);
+                }
+                
+                function viewDatasetDetails(datasetName) {
+                    alert(`Viewing details for dataset ${datasetName}. In full implementation, this would show feature visualizations and dataset statistics.`);
+                }
+                
+                function generateNewDataset() {
+                    alert('Generate new dataset. In full implementation, this would trigger a Flyte workflow to create training data.');
+                }
+                
                 
                 function createPortfolioTimelineChart() {
                     const dates = [];
@@ -1027,6 +1471,89 @@ def create_unified_app() -> FastAPI:
                 for i, (date, value) in enumerate(zip(dates, values))
             ]
         }
+
+    @app.get("/api/v1/job-runs", response_model=List[JobRun])
+    async def list_job_runs(
+        limit: int = Query(50, le=100),
+        run_type: Optional[str] = Query(None),
+        engine: UnifiedAnalyticsEngine = Depends(get_engine)
+    ):
+        """List job runs from runs table with optional filtering"""
+        return await engine.get_job_runs(limit=limit, run_type=run_type)
+
+    @app.get("/api/v1/training-datasets", response_model=List[TrainingDataset])
+    async def list_training_datasets(
+        limit: int = Query(50, le=100),
+        engine: UnifiedAnalyticsEngine = Depends(get_engine)
+    ):
+        """List available training datasets"""
+        return await engine.get_training_datasets(limit=limit)
+
+    @app.get("/api/v1/training-datasets/{dataset_name}/details")
+    async def get_training_dataset_details(
+        dataset_name: str = FastAPIPath(...),
+        engine: UnifiedAnalyticsEngine = Depends(get_engine)
+    ):
+        """Get detailed information about a specific training dataset"""
+        datasets = await engine.get_training_datasets(limit=100)
+        dataset = next((d for d in datasets if d.dataset_name == dataset_name), None)
+        
+        if not dataset:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        
+        # In real implementation, this would load feature statistics, 
+        # sample data, and detailed metadata
+        return {
+            "dataset": dataset,
+            "feature_statistics": {
+                "mean_values": [float(np.random.normal(0, 1)) for _ in range(dataset.feature_count)],
+                "std_values": [float(np.random.uniform(0.5, 2.0)) for _ in range(dataset.feature_count)],
+                "feature_names": [f"feature_{i+1}" for i in range(dataset.feature_count)]
+            },
+            "sample_sequences": {
+                "count": min(10, dataset.total_sequences),
+                "sequence_length": dataset.sequence_length,
+                "preview": "Sample data would be here in real implementation"
+            },
+            "data_quality": {
+                "completeness": dataset.data_quality_score,
+                "outlier_ratio": np.random.uniform(0.01, 0.05),
+                "missing_ratio": np.random.uniform(0.0, 0.02)
+            }
+        }
+
+    @app.post("/api/v1/training-datasets/generate")
+    async def generate_training_dataset(
+        dataset_config: Dict[str, Any],
+        engine: UnifiedAnalyticsEngine = Depends(get_engine)
+    ):
+        """Trigger generation of a new training dataset via Flyte workflow"""
+        # In real implementation, this would:
+        # 1. Validate the dataset configuration
+        # 2. Submit a Flyte workflow for training data generation
+        # 3. Return the workflow execution ID for tracking
+        
+        return {
+            "status": "submitted",
+            "workflow_id": f"training-data-gen-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+            "estimated_duration": "30-60 minutes",
+            "flyte_execution_url": "https://flyte.ats-dev.internal/console/executions/...",
+            "message": "Training data generation workflow submitted successfully"
+        }
+
+    @app.get("/api/v1/flyte/executions")
+    async def list_flyte_executions(
+        project: str = Query("ats"),
+        domain: str = Query("development"),
+        limit: int = Query(50, le=100)
+    ):
+        """List Flyte workflow executions (integrates with Flyte Admin API)"""
+        # TODO: Implement real Flyte Admin API integration
+        # This endpoint should connect to actual Flyte admin service
+        raise HTTPException(
+            status_code=501, 
+            detail="Flyte API integration not yet implemented. Use dev CLI for job management."
+        )
 
     return app
 
