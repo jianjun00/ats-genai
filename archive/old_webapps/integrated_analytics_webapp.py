@@ -441,24 +441,25 @@ def create_integrated_app() -> FastAPI:
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Integrated Analytics Platform</title>
+            <title>Backtest Analytics Platform</title>
+            <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
             <style>
                 * { margin: 0; padding: 0; box-sizing: border-box; }
                 body { 
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
                     min-height: 100vh; padding: 20px; 
                 }
                 .container { 
                     max-width: 1600px; margin: 0 auto; background: white; 
-                    border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); 
+                    border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); 
                 }
                 .header { 
                     background: linear-gradient(135deg, #1f77b4 0%, #1565c0 100%);
                     color: white; padding: 30px; text-align: center; border-radius: 12px 12px 0 0;
                 }
-                .header h1 { font-size: 3em; margin-bottom: 10px; }
-                .header p { font-size: 1.3em; opacity: 0.9; }
+                .header h1 { font-size: 2.8em; margin-bottom: 10px; }
+                .header p { font-size: 1.2em; opacity: 0.9; }
                 .nav-tabs {
                     display: flex; background: #f8f9fa; border-bottom: 1px solid #ddd;
                     padding: 0 30px; flex-wrap: wrap;
@@ -474,6 +475,23 @@ def create_integrated_app() -> FastAPI:
                 .nav-tab:hover {
                     color: #1f77b4; background: rgba(31, 119, 180, 0.1);
                 }
+                .time-filter {
+                    display: flex; gap: 10px; margin: 15px 0; align-items: center;
+                }
+                .filter-group {
+                    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+                }
+                .filter-label { font-weight: 500; margin-right: 10px; }
+                .filter-btn {
+                    padding: 8px 16px; border: 1px solid #dee2e6; background: white;
+                    border-radius: 4px; cursor: pointer; transition: all 0.3s;
+                }
+                .filter-btn.active {
+                    background: #1f77b4; color: white; border-color: #1f77b4;
+                }
+                .filter-btn:hover {
+                    border-color: #1f77b4; background: rgba(31,119,180,0.1);
+                }
                 .content { padding: 30px; }
                 .tab-content { display: none; }
                 .tab-content.active { display: block; }
@@ -483,10 +501,29 @@ def create_integrated_app() -> FastAPI:
                 }
                 .summary-card { 
                     background: #f8f9fa; border-radius: 8px; padding: 20px; text-align: center;
-                    border-left: 4px solid #1f77b4; 
+                    border-left: 4px solid #1f77b4; transition: all 0.3s ease;
                 }
+                .summary-card:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(31,119,180,0.1); }
                 .summary-value { font-size: 2em; font-weight: bold; color: #1f77b4; }
                 .summary-label { font-size: 0.9em; color: #666; margin-top: 8px; }
+                .chart-container { 
+                    background: white; border-radius: 8px; padding: 20px; margin: 20px 0;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.05); min-height: 400px;
+                }
+                .drill-down-panel {
+                    background: #f8f9fa; border-radius: 8px; padding: 20px; margin: 15px 0;
+                    border-left: 4px solid #ff7f0e; display: none;
+                }
+                .export-controls {
+                    text-align: right; margin: 10px 0;
+                }
+                .performance-card {
+                    background: white; border: 1px solid #e9ecef; border-radius: 8px;
+                    padding: 20px; margin: 15px 0; transition: all 0.3s;
+                }
+                .performance-card:hover {
+                    border-color: #1f77b4; box-shadow: 0 5px 15px rgba(31,119,180,0.1);
+                }
                 .feature-grid {
                     display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
                     gap: 20px; margin: 20px 0;
