@@ -356,6 +356,133 @@ def job_command(job_type: str, **kwargs):
     if __name__ == "__main__":
         asyncio.run(main())'''
         
+    elif job_type == "training-data":
+        script_content = f'''    import asyncio
+    import sys
+    import logging
+    import json
+    import uuid
+    import numpy as np
+    from datetime import date, datetime
+    from pathlib import Path
+    import asyncpg
+
+    async def main():
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+        
+        run_id = None
+        conn = None
+        
+        try:
+            # Database connection for runs tracking
+            db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+            conn = await asyncpg.connect(db_url)
+            
+            # Create run record
+            run_id = f"training_data_{{datetime.now().strftime('%Y%m%d_%H%M%S')}}_{{uuid.uuid4().hex[:8]}}"
+            
+            symbols = "{kwargs.get('symbols', 'AAPL,TSLA')}"
+            parameters = {{"symbols": symbols, "output_location": "/data", "job_type": "training_data"}}
+            
+            await conn.execute("""
+                INSERT INTO dev_runs (run_type, start_time, status, parameters, command_line, environment)
+                VALUES ($1, $2, $3, $4, $5, $6)
+            """, "training_data", datetime.now(), "running", json.dumps(parameters), 
+                f"dev_cli.py job training-data --symbols {{symbols}}", "dev")
+            
+            logger.info(f"🧠 Started training data generation run: {{run_id}}")
+            logger.info(f"📊 Generating training data for {{symbols}}")
+            
+            # Create output directory
+            output_dir = Path("/data")
+            output_dir.mkdir(exist_ok=True)
+            
+            # Generate sample training data (simplified for demo)
+            logger.info("Creating sample training data files...")
+            
+            # Create metadata
+            metadata = {{
+                "run_id": run_id,
+                "created_at": datetime.now().isoformat(),
+                "symbols": symbols.split(','),
+                "features": ["open", "high", "low", "close", "volume", "rsi", "macd"],
+                "total_sequences": 2000,
+                "sequence_length": 60,
+                "data_source": "kubernetes_training_job",
+                "job_type": "training_data"
+            }}
+            
+            # Create sample training files
+            features = np.random.random((2000, 60, 7))  # 2000 sequences, 60 timesteps, 7 features
+            labels = np.random.random((2000, 2))  # Support/resistance levels
+            masks = np.ones((2000, 60), dtype=bool)
+            
+            # Save training data files
+            np.save(output_dir / f"{{symbols.lower().replace(',', '_')}}_features.npy", features)
+            np.save(output_dir / f"{{symbols.lower().replace(',', '_')}}_labels.npy", labels)
+            np.save(output_dir / f"{{symbols.lower().replace(',', '_')}}_masks.npy", masks)
+            
+            # Save metadata
+            with open(output_dir / f"{{symbols.lower().replace(',', '_')}}_metadata.json", "w") as f:
+                json.dump(metadata, f, indent=2)
+            
+            # List created files
+            files = list(output_dir.glob("*"))
+            file_info = []
+            total_size = 0
+            
+            for file in files:
+                size_mb = file.stat().st_size / (1024*1024)
+                total_size += size_mb
+                file_info.append({{"name": file.name, "size_mb": round(size_mb, 2)}})
+                
+            logger.info(f"✅ Created {{len(files)}} training data files ({{total_size:.2f}} MB total)")
+            for info in file_info:
+                logger.info(f"  - {{info['name']}}: {{info['size_mb']}} MB")
+            
+            # Update run record as completed
+            await conn.execute("""
+                UPDATE dev_runs 
+                SET end_time = $1, status = $2, parameters = $3
+                WHERE run_type = $4 AND start_time >= $5
+                ORDER BY start_time DESC
+                LIMIT 1
+            """, datetime.now(), "completed", 
+                json.dumps({{**parameters, "output_files": file_info, "total_size_mb": round(total_size, 2)}}),
+                "training_data", datetime.now().replace(minute=0, second=0, microsecond=0))
+            
+            logger.info(f"✅ Training data generation completed for {{symbols}}")
+            
+        except Exception as e:
+            logger.error(f"❌ Training data generation failed: {{e}}")
+            
+            # Update run record as failed
+            if conn:
+                try:
+                    error_params = {{"error": str(e)}}
+                    if 'parameters' in locals():
+                        error_params.update(parameters)
+                    
+                    await conn.execute("""
+                        UPDATE dev_runs 
+                        SET end_time = $1, status = $2, parameters = $3
+                        WHERE run_type = $4 AND start_time >= $5
+                        ORDER BY start_time DESC
+                        LIMIT 1
+                    """, datetime.now(), "failed", 
+                        json.dumps(error_params),
+                        "training_data", datetime.now().replace(hour=0, minute=0, second=0, microsecond=0))
+                except:
+                    pass
+            raise
+        finally:
+            if conn:
+                await conn.close()
+
+    if __name__ == "__main__":
+        asyncio.run(main())'''
+
     elif job_type == "portfolio-generation":
         script_content = f'''    import asyncio
     import sys
