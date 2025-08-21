@@ -180,36 +180,71 @@ class UnifiedAnalyticsEngine:
             return [JobRun(**dict(row)) for row in rows]
     
     async def get_training_datasets(self, limit: int = 50) -> List[TrainingDataset]:
-        """Get training datasets information - REAL DATA ONLY"""
-        # Check for training data output directory
-        training_output_dir = Path("training_data_output")
-        datasets = []
+        """Get training datasets information from database"""
+        if not self.pool:
+            # Fallback to file-based approach if no database
+            training_output_dir = Path("training_data_output")
+            datasets = []
+            
+            if training_output_dir.exists():
+                # Scan for training data files
+                for metadata_file in training_output_dir.glob("*metadata.json"):
+                    try:
+                        with open(metadata_file, 'r') as f:
+                            metadata = json.load(f)
+                        
+                        dataset = TrainingDataset(
+                            dataset_name=metadata.get('dataset_name', metadata_file.stem),
+                            creation_timestamp=datetime.fromisoformat(metadata.get('creation_timestamp', datetime.now().isoformat())),
+                            total_sequences=metadata.get('total_sequences', 0),
+                            sequence_length=metadata.get('sequence_length', 0),
+                            feature_count=metadata.get('feature_count', 0),
+                            label_count=metadata.get('label_count', 0),
+                            symbols=metadata.get('symbols', []),
+                            date_range_start=datetime.fromisoformat(metadata['date_range']['start']).date() if metadata.get('date_range', {}).get('start') else None,
+                            date_range_end=datetime.fromisoformat(metadata['date_range']['end']).date() if metadata.get('date_range', {}).get('end') else None,
+                            data_quality_score=metadata.get('data_quality_metrics', {}).get('feature_completeness', 0.0),
+                            file_path=str(metadata_file.parent)
+                        )
+                        datasets.append(dataset)
+                    except Exception as e:
+                        logging.warning(f"Error reading training data metadata {metadata_file}: {e}")
+            
+            return sorted(datasets, key=lambda x: x.creation_timestamp, reverse=True)[:limit]
         
-        if training_output_dir.exists():
-            # Scan for training data files
-            for metadata_file in training_output_dir.glob("*metadata.json"):
-                try:
-                    with open(metadata_file, 'r') as f:
-                        metadata = json.load(f)
-                    
-                    dataset = TrainingDataset(
-                        dataset_name=metadata.get('dataset_name', metadata_file.stem),
-                        creation_timestamp=datetime.fromisoformat(metadata.get('creation_timestamp', datetime.now().isoformat())),
-                        total_sequences=metadata.get('total_sequences', 0),
-                        sequence_length=metadata.get('sequence_length', 0),
-                        feature_count=metadata.get('feature_count', 0),
-                        label_count=metadata.get('label_count', 0),
-                        symbols=metadata.get('symbols', []),
-                        date_range_start=datetime.fromisoformat(metadata['date_range']['start']).date() if metadata.get('date_range', {}).get('start') else None,
-                        date_range_end=datetime.fromisoformat(metadata['date_range']['end']).date() if metadata.get('date_range', {}).get('end') else None,
-                        data_quality_score=metadata.get('data_quality_metrics', {}).get('feature_completeness', 0.0),
-                        file_path=str(metadata_file.parent)
-                    )
-                    datasets.append(dataset)
-                except Exception as e:
-                    logging.warning(f"Error reading training data metadata {metadata_file}: {e}")
-        
-        return sorted(datasets, key=lambda x: x.creation_timestamp, reverse=True)[:limit]
+        # Use database for training datasets
+        async with self.pool.acquire() as conn:
+            query = """
+            SELECT 
+                id, dataset_name, creation_timestamp, total_sequences,
+                sequence_length, feature_count, label_count, symbols,
+                date_range_start, date_range_end, data_quality_score,
+                features_file_path
+            FROM dev_training_dataset
+            ORDER BY creation_timestamp DESC
+            LIMIT $1
+            """
+            
+            rows = await conn.fetch(query, limit)
+            datasets = []
+            
+            for row in rows:
+                dataset = TrainingDataset(
+                    dataset_name=row['dataset_name'],
+                    creation_timestamp=row['creation_timestamp'],
+                    total_sequences=row['total_sequences'],
+                    sequence_length=row['sequence_length'],
+                    feature_count=row['feature_count'],
+                    label_count=row['label_count'],
+                    symbols=row['symbols'] or [],
+                    date_range_start=row['date_range_start'],
+                    date_range_end=row['date_range_end'],
+                    data_quality_score=float(row['data_quality_score']) if row['data_quality_score'] else 0.0,
+                    file_path=row['features_file_path']
+                )
+                datasets.append(dataset)
+            
+            return datasets
             
     async def get_backtests(self, limit: int = 50) -> List[BacktestSummary]:
         """Get backtest summaries per PRD requirements"""
@@ -1048,8 +1083,38 @@ def create_unified_app() -> FastAPI:
                     alert(`Viewing details for dataset ${datasetName}. In full implementation, this would show feature visualizations and dataset statistics.`);
                 }
                 
-                function generateNewDataset() {
-                    alert('Generate new dataset. In full implementation, this would trigger a Flyte workflow to create training data.');
+                async function generateNewDataset() {
+                    const symbols = prompt('Enter symbols (comma-separated)', 'AAPL');
+                    if (!symbols) return;
+                    
+                    const daysBack = prompt('Enter days back for data', '90');
+                    if (!daysBack) return;
+                    
+                    try {
+                        const response = await fetch('/api/v1/training-datasets/generate', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                symbols: symbols.split(',').map(s => s.trim().toUpperCase()),
+                                days_back: parseInt(daysBack)
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.status === 'submitted') {
+                            alert(`Training data generation started!\\n\\nSymbols: ${result.symbols.join(', ')}\\nJob: ${result.job_name}\\n\\n${result.message}`);
+                            // Refresh training data after a short delay
+                            setTimeout(() => refreshTrainingData(), 2000);
+                        } else {
+                            alert(`Error: ${result.message}`);
+                        }
+                    } catch (error) {
+                        console.error('Error generating dataset:', error);
+                        alert('Failed to start training data generation. Check console for details.');
+                    }
                 }
                 
                 
@@ -1527,19 +1592,63 @@ def create_unified_app() -> FastAPI:
         dataset_config: Dict[str, Any],
         engine: UnifiedAnalyticsEngine = Depends(get_engine)
     ):
-        """Trigger generation of a new training dataset via Flyte workflow"""
-        # In real implementation, this would:
-        # 1. Validate the dataset configuration
-        # 2. Submit a Flyte workflow for training data generation
-        # 3. Return the workflow execution ID for tracking
+        """Trigger generation of a new training dataset via job runner"""
         
-        return {
-            "status": "submitted",
-            "workflow_id": f"training-data-gen-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
-            "estimated_duration": "30-60 minutes",
-            "flyte_execution_url": "https://flyte.ats-dev.internal/console/executions/...",
-            "message": "Training data generation workflow submitted successfully"
-        }
+        try:
+            # Import training job runner
+            from app.training_data_job_runner import (
+                TrainingDataJobRunner, 
+                TrainingDataJobConfig, 
+                create_sample_job_config
+            )
+            
+            # Extract symbols from config or use default
+            symbols = dataset_config.get('symbols', ['AAPL'])
+            days_back = dataset_config.get('days_back', 90)
+            
+            # Create job config
+            config = create_sample_job_config(symbols=symbols, days_back=days_back)
+            
+            # Run training data generation in background
+            # In production, this would be submitted as a Kubernetes job
+            # For demo purposes, we'll run it directly
+            runner = TrainingDataJobRunner(config=config)
+            
+            # This would normally be async, but for demo we'll start it
+            import asyncio
+            import threading
+            
+            def run_job():
+                """Run job in background thread."""
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    result = loop.run_until_complete(runner.run_training_data_generation())
+                    logging.info(f"Training data generation completed: {result}")
+                except Exception as e:
+                    logging.error(f"Training data generation failed: {e}")
+                finally:
+                    loop.close()
+            
+            # Start background thread
+            thread = threading.Thread(target=run_job)
+            thread.daemon = True
+            thread.start()
+            
+            return {
+                "status": "submitted",
+                "job_name": config.job_name,
+                "symbols": symbols,
+                "message": f"Training data generation started for symbols: {', '.join(symbols)}",
+                "note": "Check the Training Data tab to view progress and results"
+            }
+            
+        except Exception as e:
+            logging.error(f"Error starting training data generation: {e}")
+            return {
+                "status": "error",
+                "message": f"Failed to start training data generation: {str(e)}"
+            }
 
     @app.get("/api/v1/flyte/executions")
     async def list_flyte_executions(

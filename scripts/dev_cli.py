@@ -146,6 +146,114 @@ def migrate_command(migration_name: str):
             if "{migration_name}" == "test":
                 await conn.execute("SELECT 1")
                 logger.info("✅ Test migration completed")
+            elif "{migration_name}" == "training-dataset":
+                logger.info("Running training dataset table migration...")
+                
+                # Create training_dataset table
+                await conn.execute("""
+                CREATE TABLE IF NOT EXISTS dev_training_dataset (
+                    id SERIAL PRIMARY KEY,
+                    dataset_name VARCHAR(255) UNIQUE NOT NULL,
+                    run_id INTEGER NOT NULL,
+                    creation_timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    total_sequences INTEGER NOT NULL DEFAULT 0,
+                    sequence_length INTEGER NOT NULL DEFAULT 0,
+                    prediction_horizon INTEGER NOT NULL DEFAULT 0,
+                    feature_count INTEGER NOT NULL DEFAULT 0,
+                    label_count INTEGER NOT NULL DEFAULT 0,
+                    symbols TEXT[] NOT NULL DEFAULT '{{}}',
+                    date_range_start DATE,
+                    date_range_end DATE,
+                    features_file_path TEXT,
+                    labels_file_path TEXT,
+                    metadata_file_path TEXT,
+                    gin_config_path TEXT,
+                    generation_parameters JSONB,
+                    data_quality_score NUMERIC(5,4) DEFAULT 0.0,
+                    feature_completeness NUMERIC(5,4) DEFAULT 0.0,
+                    label_completeness NUMERIC(5,4) DEFAULT 0.0,
+                    outlier_ratio NUMERIC(5,4) DEFAULT 0.0,
+                    missing_data_ratio NUMERIC(5,4) DEFAULT 0.0,
+                    generation_duration_seconds INTEGER DEFAULT 0,
+                    file_size_mb NUMERIC(10,2) DEFAULT 0.0,
+                    data_sources TEXT[] DEFAULT '{{}}',
+                    status VARCHAR(50) DEFAULT 'created',
+                    validation_results JSONB,
+                    error_message TEXT,
+                    parent_dataset_id INTEGER,
+                    version_tag VARCHAR(100),
+                    created_by VARCHAR(255) DEFAULT 'system',
+                    last_modified TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    CONSTRAINT valid_data_quality_score CHECK (data_quality_score >= 0.0 AND data_quality_score <= 1.0),
+                    CONSTRAINT valid_completeness CHECK (feature_completeness >= 0.0 AND feature_completeness <= 1.0 AND label_completeness >= 0.0 AND label_completeness <= 1.0),
+                    CONSTRAINT valid_status CHECK (status IN ('created', 'validated', 'failed', 'archived')),
+                    CONSTRAINT positive_sequences CHECK (total_sequences >= 0),
+                    CONSTRAINT positive_features CHECK (feature_count >= 0),
+                    CONSTRAINT positive_labels CHECK (label_count >= 0)
+                )
+                """)
+                logger.info("✅ Created dev_training_dataset table")
+                
+                # Add foreign key constraint
+                try:
+                    await conn.execute("""
+                    ALTER TABLE dev_training_dataset 
+                    ADD CONSTRAINT fk_training_dataset_run 
+                    FOREIGN KEY (run_id) REFERENCES dev_runs(id) ON DELETE CASCADE
+                    """)
+                    logger.info("✅ Added foreign key constraint")
+                except Exception as e:
+                    logger.info(f"⚠️ Foreign key constraint may already exist: {{e}}")
+                
+                # Create indexes
+                await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_training_dataset_run_id ON dev_training_dataset(run_id)
+                """)
+                await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_training_dataset_creation_timestamp ON dev_training_dataset(creation_timestamp DESC)
+                """)
+                await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_training_dataset_symbols ON dev_training_dataset USING GIN(symbols)
+                """)
+                await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_training_dataset_status ON dev_training_dataset(status)
+                """)
+                logger.info("✅ Created indexes")
+                
+                # Create summary view
+                await conn.execute("""
+                CREATE OR REPLACE VIEW dev_training_dataset_summary AS
+                SELECT 
+                    td.id,
+                    td.dataset_name,
+                    td.run_id,
+                    r.run_type,
+                    r.start_time as run_start_time,
+                    r.status as run_status,
+                    td.creation_timestamp,
+                    td.total_sequences,
+                    td.sequence_length,
+                    td.prediction_horizon,
+                    td.feature_count,
+                    td.label_count,
+                    array_length(td.symbols, 1) as symbol_count,
+                    td.date_range_start,
+                    td.date_range_end,
+                    td.data_quality_score,
+                    td.feature_completeness,
+                    td.label_completeness,
+                    td.generation_duration_seconds,
+                    td.file_size_mb,
+                    td.status,
+                    td.version_tag,
+                    td.parent_dataset_id
+                FROM dev_training_dataset td
+                LEFT JOIN dev_runs r ON td.run_id = r.id
+                ORDER BY td.creation_timestamp DESC
+                """)
+                logger.info("✅ Created summary view")
+                
+                logger.info("✅ Training dataset migration completed successfully")
             else:
                 logger.info(f"Migration {migration_name} not implemented yet")
             
