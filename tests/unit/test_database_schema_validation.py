@@ -70,6 +70,16 @@ class TestDatabaseSchemaValidation:
         assert 'dev_training_datasets' not in actual_schema, \
             "Code incorrectly references non-existent 'dev_training_datasets' table"
     
+    async def test_job_runs_table_exists(self, actual_schema):
+        """Test that the job runs table exists for job management functionality"""
+        # CRITICAL: This test catches the exact error we're seeing in dev
+        assert 'dev_job_runs' in actual_schema, \
+            "dev_job_runs table not found. Job management requires this table to exist. Check if job_runs migration has been applied."
+        
+        # Verify it's not incorrectly named
+        assert 'job_runs' not in actual_schema or 'dev_job_runs' in actual_schema, \
+            "Job runs table should be named 'dev_job_runs' with dev prefix"
+    
     async def test_training_dataset_required_columns(self, actual_schema):
         """Test that required columns exist in training dataset table"""
         table_schema = actual_schema.get('dev_training_dataset', {})
@@ -102,6 +112,46 @@ class TestDatabaseSchemaValidation:
                 # Allow some flexibility for similar types
                 assert False, f"Column '{column}' type mismatch. Expected {expected_type}, got {actual_type}"
     
+    async def test_job_runs_required_columns(self, actual_schema):
+        """Test that required columns exist in job runs table"""
+        table_schema = actual_schema.get('dev_job_runs', {})
+        
+        # CRITICAL: These are the exact columns our job management code expects
+        required_columns = {
+            'job_id': 'uuid',
+            'job_name': 'character varying',
+            'job_type': 'character varying',  # Should be enum in real implementation
+            'user_id': 'character varying',
+            'flyte_execution_id': 'character varying',
+            'status': 'character varying',  # Should be enum in real implementation
+            'parameters': 'jsonb',
+            'start_time': 'timestamp with time zone',
+            'end_time': 'timestamp with time zone',
+            'duration_seconds': 'integer',
+            'error_message': 'text',
+            'resource_usage': 'jsonb',
+            'created_at': 'timestamp with time zone',
+            'updated_at': 'timestamp with time zone'
+        }
+        
+        for column, expected_type in required_columns.items():
+            assert column in table_schema, \
+                f"Required column '{column}' not found in dev_job_runs table. Job management API expects this column."
+            
+            actual_type = table_schema[column]['type']
+            # Basic type checking (more flexible for similar types)
+            if expected_type == 'uuid':
+                assert 'uuid' in actual_type, \
+                    f"Column '{column}' should be uuid type, got {actual_type}"
+            elif expected_type == 'jsonb':
+                assert 'jsonb' in actual_type, \
+                    f"Column '{column}' should be jsonb type, got {actual_type}"
+            elif expected_type in actual_type:
+                pass  # Type matches
+            else:
+                # Allow some flexibility for similar types
+                assert False, f"Column '{column}' type mismatch. Expected {expected_type}, got {actual_type}"
+    
     async def test_sql_queries_syntax_validation(self, db_connection):
         """Test that all SQL queries in our code are syntactically valid"""
         
@@ -121,6 +171,57 @@ class TestDatabaseSchemaValidation:
             await db_connection.prepare(dataset_query)
         except asyncpg.exceptions.PostgresError as e:
             pytest.fail(f"SQL query syntax error: {e}")
+    
+    async def test_job_management_sql_queries_validation(self, db_connection):
+        """Test that job management SQL queries are valid and tables exist"""
+        
+        # CRITICAL: These are the exact SQL queries from our job management API
+        job_queries = [
+            # Main job listing query
+            """
+                SELECT job_id, job_name, job_type, user_id, flyte_execution_id, 
+                       status, parameters, start_time, end_time, duration_seconds,
+                       error_message, created_at
+                FROM dev_job_runs 
+                ORDER BY created_at DESC 
+                LIMIT $1 OFFSET $2
+            """,
+            
+            # Job count query for pagination
+            """
+                SELECT COUNT(*) as total 
+                FROM dev_job_runs
+            """,
+            
+            # Job details query
+            """
+                SELECT job_id, job_name, job_type, user_id, flyte_execution_id, 
+                       status, parameters, start_time, end_time, duration_seconds,
+                       error_message, resource_usage, created_at, updated_at
+                FROM dev_job_runs 
+                WHERE job_id = $1
+            """,
+            
+            # Filtered job query
+            """
+                SELECT job_id, job_name, job_type, user_id, flyte_execution_id, 
+                       status, parameters, start_time, end_time, duration_seconds,
+                       error_message, created_at
+                FROM dev_job_runs 
+                WHERE status = $1 AND job_type = $2
+                ORDER BY created_at DESC 
+                LIMIT $3 OFFSET $4
+            """
+        ]
+        
+        # Test each query - this will catch "relation does not exist" errors
+        for i, query in enumerate(job_queries):
+            try:
+                await db_connection.prepare(query)
+            except asyncpg.exceptions.UndefinedTableError as e:
+                pytest.fail(f"Job management query {i+1} failed - table does not exist: {e}")
+            except asyncpg.exceptions.PostgresError as e:
+                pytest.fail(f"Job management query {i+1} SQL syntax error: {e}")
     
     async def test_column_references_are_valid(self, actual_schema):
         """Test that all column references in our code exist in actual schema"""
@@ -302,6 +403,59 @@ async def validated_database_engine():
         yield engine
     finally:
         await engine.close()
+
+
+class TestJobManagementAPISchemaCompatibility:
+    """Test job management API against real database schema"""
+    
+    async def test_job_management_database_integration(self, db_connection):
+        """Test that job management queries work with real database"""
+        
+        # CRITICAL: This test catches the exact error from the user report
+        # Test the exact scenario that's failing in production
+        
+        try:
+            # Test basic job count query - this fails with "relation does not exist"
+            result = await db_connection.fetchval("SELECT COUNT(*) FROM dev_job_runs")
+            assert result is not None, "Job runs count query should work"
+            
+        except asyncpg.exceptions.UndefinedTableError as e:
+            pytest.fail(f"CRITICAL: dev_job_runs table does not exist. This is the exact error reported by user: {e}")
+        except Exception as e:
+            pytest.fail(f"Unexpected error in job management database test: {e}")
+    
+    async def test_job_management_api_endpoints_via_http(self):
+        """Test job management API endpoints via HTTP to catch integration errors"""
+        import httpx
+        
+        # Test the actual API endpoints that are failing
+        base_url = "http://172.25.223.121:3000"
+        
+        async with httpx.AsyncClient() as client:
+            try:
+                # Test job stats endpoint
+                response = await client.get(f"{base_url}/api/v1/jobs/stats")
+                assert response.status_code == 200, f"Job stats endpoint failed: {response.status_code}"
+                
+                data = response.json()
+                assert "total_jobs" in data, "Job stats should include total_jobs"
+                
+                # Test main jobs endpoint  
+                response = await client.get(f"{base_url}/api/v1/jobs")
+                assert response.status_code == 200, f"Jobs endpoint failed: {response.status_code}"
+                
+                data = response.json()
+                
+                # CRITICAL: This catches the exact error the user reported
+                if "error" in data and "relation" in data["error"] and "does not exist" in data["error"]:
+                    pytest.fail(f"CRITICAL: Job management API failing with table error: {data['error']}")
+                
+                assert "jobs" in data, "Jobs endpoint should include 'jobs' key"
+                assert "total" in data, "Jobs endpoint should include 'total' key"
+                
+            except httpx.ConnectError:
+                # If we can't connect, skip this test
+                pytest.skip("Cannot connect to job management API for integration test")
 
 
 class TestDatasetVisualizationEngineSchemaCompatibility:

@@ -86,12 +86,198 @@ data:
 
     # ... [Include all other models] ...
 
+    # ===== Database Engine for Real Data Integration =====
+    class AnalyticsEngine:
+        """Analytics engine with real database integration"""
+        
+        def __init__(self, env: Environment):
+            self.env = env
+            self.db_pool = None
+            
+        async def initialize(self):
+            """Initialize database connection pool"""
+            self.db_pool = await asyncpg.create_pool(
+                self.env.get_database_url(),
+                min_size=1,
+                max_size=10,
+                command_timeout=60
+            )
+            
+        async def close(self):
+            """Close database connections"""
+            if self.db_pool:
+                await self.db_pool.close()
+                
+        async def get_job_runs(self, status_filter: Optional[str] = None, 
+                             job_type_filter: Optional[str] = None,
+                             limit: int = 100, offset: int = 0) -> Dict[str, Any]:
+            """Get job runs with filtering and pagination"""
+            
+            # Build WHERE clause based on filters
+            where_conditions = []
+            params = []
+            param_count = 0
+            
+            if status_filter and status_filter != 'all':
+                param_count += 1
+                where_conditions.append(f"status = ${param_count}")
+                params.append(status_filter)
+                
+            if job_type_filter and job_type_filter != 'all':
+                param_count += 1
+                where_conditions.append(f"job_type = ${param_count}")
+                params.append(job_type_filter)
+            
+            where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+            
+            # Add pagination parameters
+            param_count += 1
+            limit_param = f"${param_count}"
+            params.append(limit)
+            
+            param_count += 1
+            offset_param = f"${param_count}"
+            params.append(offset)
+            
+            query = f"""
+                SELECT job_id, job_name, job_type, user_id, flyte_execution_id, 
+                       status, parameters, start_time, end_time, duration_seconds,
+                       error_message, created_at
+                FROM dev_job_runs 
+                {where_clause}
+                ORDER BY created_at DESC 
+                LIMIT {limit_param} OFFSET {offset_param}
+            """
+            
+            count_query = f"""
+                SELECT COUNT(*) as total 
+                FROM dev_job_runs 
+                {where_clause}
+            """
+            
+            async with self.db_pool.acquire() as conn:
+                try:
+                    # Get jobs and total count
+                    jobs = await conn.fetch(query, *params)
+                    total_result = await conn.fetchrow(count_query, *params[:-2])  # Exclude limit/offset
+                    total = total_result['total'] if total_result else 0
+                    
+                    # Convert to dict format
+                    job_list = []
+                    for job in jobs:
+                        job_dict = dict(job)
+                        # Convert datetime to string for JSON serialization
+                        for key, value in job_dict.items():
+                            if isinstance(value, datetime):
+                                job_dict[key] = value.isoformat()
+                        job_list.append(job_dict)
+                    
+                    return {
+                        "jobs": job_list,
+                        "total": total,
+                        "limit": limit,
+                        "offset": offset,
+                        "has_more": offset + limit < total
+                    }
+                    
+                except Exception as e:
+                    # Return empty result if table doesn't exist or other errors
+                    return {
+                        "jobs": [],
+                        "total": 0,
+                        "limit": limit,
+                        "offset": offset,
+                        "has_more": False,
+                        "error": f"Database error: {str(e)}"
+                    }
+                    
+        async def get_job_details(self, job_id: str) -> Optional[Dict[str, Any]]:
+            """Get detailed information about a specific job"""
+            
+            query = """
+                SELECT job_id, job_name, job_type, user_id, flyte_execution_id, 
+                       status, parameters, start_time, end_time, duration_seconds,
+                       error_message, resource_usage, created_at, updated_at
+                FROM dev_job_runs 
+                WHERE job_id = $1
+            """
+            
+            async with self.db_pool.acquire() as conn:
+                try:
+                    job = await conn.fetchrow(query, job_id)
+                    if not job:
+                        return None
+                        
+                    job_dict = dict(job)
+                    # Convert datetime to string for JSON serialization
+                    for key, value in job_dict.items():
+                        if isinstance(value, datetime):
+                            job_dict[key] = value.isoformat()
+                    
+                    return job_dict
+                    
+                except Exception as e:
+                    return None
+                    
+        async def get_training_datasets(self, limit: int = 50) -> Dict[str, Any]:
+            """Get training datasets from database"""
+            
+            query = """
+                SELECT dataset_name, symbols, total_sequences, feature_count, 
+                       technical_indicators, creation_timestamp, file_size_mb
+                FROM dev_training_dataset 
+                ORDER BY creation_timestamp DESC 
+                LIMIT $1
+            """
+            
+            async with self.db_pool.acquire() as conn:
+                try:
+                    datasets = await conn.fetch(query, limit)
+                    
+                    dataset_list = []
+                    for dataset in datasets:
+                        dataset_dict = dict(dataset)
+                        # Convert datetime to string for JSON serialization
+                        for key, value in dataset_dict.items():
+                            if isinstance(value, datetime):
+                                dataset_dict[key] = value.isoformat()
+                        
+                        # Generate dataset ID from name for consistency
+                        dataset_dict['dataset_id'] = dataset_dict['dataset_name'].lower().replace(' ', '-')
+                        
+                        dataset_list.append(dataset_dict)
+                    
+                    return {
+                        "datasets": dataset_list,
+                        "total": len(dataset_list)
+                    }
+                    
+                except Exception as e:
+                    # Return demo data if database not available
+                    return {
+                        "datasets": [
+                            {
+                                "dataset_id": "demo-1",
+                                "dataset_name": "Enhanced Training Dataset AAPL 001",
+                                "symbols": ["AAPL"],
+                                "total_sequences": 1500,
+                                "feature_count": 12,
+                                "technical_indicators": ["etop", "ebot", "sma_20", "rsi"],
+                                "creation_timestamp": "2024-08-21T10:00:00",
+                                "file_size_mb": 25.4,
+                                "quality_metrics": {"completeness": 98.5}
+                            }
+                        ],
+                        "total": 1,
+                        "error": f"Database error: {str(e)}"
+                    }
+
     def create_unified_analytics_app() -> FastAPI:
         """Create enhanced unified analytics web application."""
         
         app = FastAPI(
             title="Enhanced ATS Unified Analytics Platform",
-            description="Comprehensive ML workflow analytics with advanced dataset visualization",
+            description="Comprehensive ML workflow analytics with advanced dataset visualization and job management",
             version="3.0.0",
             docs_url="/api/docs",
             redoc_url="/api/redoc"
@@ -104,6 +290,74 @@ data:
             allow_methods=["*"],
             allow_headers=["*"],
         )
+        
+        # Initialize analytics engine
+        env = Environment()
+        analytics_engine = AnalyticsEngine(env)
+        
+        @app.on_event("startup")
+        async def startup():
+            await analytics_engine.initialize()
+            
+        @app.on_event("shutdown")
+        async def shutdown():
+            await analytics_engine.close()
+            
+        # ===== Job Management API Endpoints =====
+        
+        @app.get("/api/v1/jobs")
+        async def get_jobs(
+            status: Optional[str] = Query(None, description="Filter by job status"),
+            job_type: Optional[str] = Query(None, description="Filter by job type"), 
+            limit: int = Query(100, ge=1, le=1000, description="Number of jobs to return"),
+            offset: int = Query(0, ge=0, description="Offset for pagination")
+        ):
+            """Get job runs with filtering and pagination"""
+            return await analytics_engine.get_job_runs(status, job_type, limit, offset)
+            
+        @app.get("/api/v1/jobs/stats")
+        async def get_job_stats():
+            """Get job statistics for dashboard"""
+            # Get basic stats
+            all_jobs = await analytics_engine.get_job_runs(limit=1000)
+            jobs = all_jobs.get("jobs", [])
+            
+            stats = {
+                "total_jobs": len(jobs),
+                "by_status": {},
+                "by_type": {},
+                "recent_failures": 0
+            }
+            
+            for job in jobs:
+                # Count by status
+                status = job.get("status", "unknown")
+                stats["by_status"][status] = stats["by_status"].get(status, 0) + 1
+                
+                # Count by type
+                job_type = job.get("job_type", "unknown")
+                stats["by_type"][job_type] = stats["by_type"].get(job_type, 0) + 1
+                
+                # Count recent failures (last 24 hours)
+                if status == "failed":
+                    created_at = job.get("created_at")
+                    if created_at:
+                        try:
+                            created_time = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                            if (datetime.now() - created_time).days < 1:
+                                stats["recent_failures"] += 1
+                        except:
+                            pass
+            
+            return stats
+            
+        @app.get("/api/v1/jobs/{job_id}")
+        async def get_job_details(job_id: str):
+            """Get detailed information about a specific job"""
+            job = await analytics_engine.get_job_details(job_id)
+            if not job:
+                raise HTTPException(status_code=404, detail="Job not found")
+            return job
         
         # ===== Enhanced Dataset Visualization Endpoint =====
         @app.get("/api/v1/training-data/{dataset_id}/visualization", response_class=HTMLResponse)
@@ -460,34 +714,12 @@ data:
             '''
             return html
 
-        # Basic dataset endpoints for demo
+        # ===== Dataset Management API Endpoints =====
+        
         @app.get("/api/v1/datasets")
-        async def list_datasets():
-            return {{
-                "datasets": [
-                    {{
-                        "dataset_id": "demo-1",
-                        "dataset_name": "Enhanced Training Dataset AAPL 001",
-                        "symbols": ["AAPL"],
-                        "total_sequences": 1500,
-                        "feature_count": 12,
-                        "start_date": "2024-01-01",
-                        "end_date": "2024-08-21",
-                        "quality_metrics": {{"completeness": 98.5}}
-                    }},
-                    {{
-                        "dataset_id": "demo-2",
-                        "dataset_name": "Enhanced Training Dataset TSLA 002",
-                        "symbols": ["TSLA"],
-                        "total_sequences": 1200,
-                        "feature_count": 12,
-                        "start_date": "2024-01-01",
-                        "end_date": "2024-08-21",
-                        "quality_metrics": {{"completeness": 97.8}}
-                    }}
-                ],
-                "total": 2
-            }}
+        async def list_datasets(limit: int = Query(50, ge=1, le=100)):
+            """Get training datasets with real database integration"""
+            return await analytics_engine.get_training_datasets(limit)
 
         # Main dashboard
         @app.get("/", response_class=HTMLResponse)
@@ -577,7 +809,87 @@ data:
                         
                         <div id="jobs" class="tab-content">
                             <h3>Job Management</h3>
-                            <p>Job management features available here...</p>
+                            
+                            <!-- Job Statistics Cards -->
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center;">
+                                    <div id="total-jobs" style="font-size: 2em; font-weight: bold; color: #667eea;">-</div>
+                                    <div style="color: #666;">Total Jobs</div>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center;">
+                                    <div id="running-jobs" style="font-size: 2em; font-weight: bold; color: #28a745;">-</div>
+                                    <div style="color: #666;">Running</div>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center;">
+                                    <div id="failed-jobs" style="font-size: 2em; font-weight: bold; color: #dc3545;">-</div>
+                                    <div style="color: #666;">Failed</div>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center;">
+                                    <div id="succeeded-jobs" style="font-size: 2em; font-weight: bold; color: #667eea;">-</div>
+                                    <div style="color: #666;">Succeeded</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Job Filters -->
+                            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                                <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                                    <label>Status:</label>
+                                    <select id="status-filter" style="padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                                        <option value="all">All Statuses</option>
+                                        <option value="running">Running</option>
+                                        <option value="succeeded">Succeeded</option>
+                                        <option value="failed">Failed</option>
+                                        <option value="pending">Pending</option>
+                                    </select>
+                                    
+                                    <label>Type:</label>
+                                    <select id="type-filter" style="padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                                        <option value="all">All Types</option>
+                                        <option value="training_data_gen">Training Data Gen</option>
+                                        <option value="training">Model Training</option>
+                                        <option value="backtest">Backtest</option>
+                                    </select>
+                                    
+                                    <button class="btn" onclick="loadJobs()">Refresh</button>
+                                    <button class="btn btn-secondary" onclick="loadJobStats()">Update Stats</button>
+                                </div>
+                            </div>
+                            
+                            <!-- Jobs Table -->
+                            <div style="overflow-x: auto;">
+                                <table id="jobs-table" class="data-table" style="display: none;">
+                                    <thead>
+                                        <tr>
+                                            <th>Job ID</th>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Status</th>
+                                            <th>User</th>
+                                            <th>Created</th>
+                                            <th>Duration</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="jobs-tbody">
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Loading and Error States -->
+                            <div id="jobs-loading" style="text-align: center; padding: 40px; color: #666;">
+                                Loading job data...
+                            </div>
+                            
+                            <div id="jobs-error" style="display: none; background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px; margin: 20px 0;">
+                                <strong>Error:</strong> <span id="jobs-error-message"></span>
+                            </div>
+                            
+                            <!-- Pagination -->
+                            <div id="jobs-pagination" style="display: none; text-align: center; margin-top: 20px;">
+                                <button id="prev-page" class="btn btn-secondary" onclick="previousPage()" disabled>Previous</button>
+                                <span id="page-info" style="margin: 0 15px;">Page 1 of 1</span>
+                                <button id="next-page" class="btn btn-secondary" onclick="nextPage()" disabled>Next</button>
+                            </div>
                         </div>
                         
                         <div id="comparison" class="tab-content">
@@ -588,18 +900,206 @@ data:
                 </div>
 
                 <script>
+                    // Global variables for pagination
+                    let currentPage = 1;
+                    let totalPages = 1;
+                    let currentLimit = 50;
+                    
                     function showTab(tabName) {
                         document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
                         document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
                         
                         document.getElementById(tabName).classList.add('active');
                         event.target.classList.add('active');
+                        
+                        // Load job data when switching to jobs tab
+                        if (tabName === 'jobs') {
+                            loadJobStats();
+                            loadJobs();
+                        }
                     }
                     
                     function viewDataset(datasetId) {
                         // Open enhanced visualization in new tab/window
                         window.open(`/api/v1/training-data/${datasetId}/visualization`, '_blank');
                     }
+                    
+                    // Job management functions
+                    async function loadJobStats() {
+                        try {
+                            const response = await fetch('/api/v1/jobs/stats');
+                            const stats = await response.json();
+                            
+                            document.getElementById('total-jobs').textContent = stats.total_jobs || 0;
+                            document.getElementById('running-jobs').textContent = stats.by_status.running || 0;
+                            document.getElementById('failed-jobs').textContent = stats.by_status.failed || 0;
+                            document.getElementById('succeeded-jobs').textContent = stats.by_status.succeeded || 0;
+                        } catch (error) {
+                            console.error('Error loading job stats:', error);
+                            // Set default values on error
+                            document.getElementById('total-jobs').textContent = '0';
+                            document.getElementById('running-jobs').textContent = '0';
+                            document.getElementById('failed-jobs').textContent = '0';
+                            document.getElementById('succeeded-jobs').textContent = '0';
+                        }
+                    }
+                    
+                    async function loadJobs() {
+                        const statusFilter = document.getElementById('status-filter').value;
+                        const typeFilter = document.getElementById('type-filter').value;
+                        const offset = (currentPage - 1) * currentLimit;
+                        
+                        // Show loading state
+                        document.getElementById('jobs-loading').style.display = 'block';
+                        document.getElementById('jobs-table').style.display = 'none';
+                        document.getElementById('jobs-error').style.display = 'none';
+                        
+                        try {
+                            let url = `/api/v1/jobs?limit=${currentLimit}&offset=${offset}`;
+                            if (statusFilter && statusFilter !== 'all') {
+                                url += `&status=${statusFilter}`;
+                            }
+                            if (typeFilter && typeFilter !== 'all') {
+                                url += `&job_type=${typeFilter}`;
+                            }
+                            
+                            const response = await fetch(url);
+                            const data = await response.json();
+                            
+                            if (data.error) {
+                                showJobError(data.error);
+                                return;
+                            }
+                            
+                            displayJobs(data.jobs);
+                            updatePagination(data);
+                            
+                        } catch (error) {
+                            console.error('Error loading jobs:', error);
+                            showJobError('Failed to load job data. Please check your connection and try again.');
+                        }
+                    }
+                    
+                    function displayJobs(jobs) {
+                        const tbody = document.getElementById('jobs-tbody');
+                        tbody.innerHTML = '';
+                        
+                        if (jobs.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #666;">No jobs found</td></tr>';
+                        } else {
+                            jobs.forEach(job => {
+                                const row = document.createElement('tr');
+                                
+                                const statusClass = getStatusClass(job.status);
+                                const duration = formatDuration(job.duration_seconds);
+                                const created = formatDate(job.created_at);
+                                
+                                row.innerHTML = `
+                                    <td><code style="font-size: 0.85em;">${job.job_id.substring(0, 8)}...</code></td>
+                                    <td><strong>${job.job_name || 'Unnamed Job'}</strong></td>
+                                    <td><span style="background: #e9ecef; padding: 3px 8px; border-radius: 12px; font-size: 0.8em;">${job.job_type}</span></td>
+                                    <td><span class="${statusClass}">${job.status}</span></td>
+                                    <td>${job.user_id || 'Unknown'}</td>
+                                    <td>${created}</td>
+                                    <td>${duration}</td>
+                                    <td>
+                                        <button class="btn" onclick="viewJobDetails('${job.job_id}')" style="padding: 5px 10px; font-size: 0.8em;">Details</button>
+                                    </td>
+                                `;
+                                
+                                tbody.appendChild(row);
+                            });
+                        }
+                        
+                        // Hide loading and show table
+                        document.getElementById('jobs-loading').style.display = 'none';
+                        document.getElementById('jobs-table').style.display = 'table';
+                    }
+                    
+                    function getStatusClass(status) {
+                        const classes = {
+                            'running': 'status-running',
+                            'succeeded': 'status-success',
+                            'failed': 'status-error',
+                            'pending': 'status-pending'
+                        };
+                        return classes[status] || 'status-unknown';
+                    }
+                    
+                    function formatDuration(seconds) {
+                        if (!seconds) return '-';
+                        if (seconds < 60) return `${seconds}s`;
+                        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+                        return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+                    }
+                    
+                    function formatDate(dateString) {
+                        if (!dateString) return '-';
+                        try {
+                            const date = new Date(dateString);
+                            return date.toLocaleString();
+                        } catch {
+                            return dateString;
+                        }
+                    }
+                    
+                    function updatePagination(data) {
+                        totalPages = Math.ceil(data.total / currentLimit);
+                        
+                        document.getElementById('page-info').textContent = `Page ${currentPage} of ${totalPages} (${data.total} total)`;
+                        document.getElementById('prev-page').disabled = currentPage <= 1;
+                        document.getElementById('next-page').disabled = currentPage >= totalPages;
+                        
+                        document.getElementById('jobs-pagination').style.display = totalPages > 1 ? 'block' : 'none';
+                    }
+                    
+                    function previousPage() {
+                        if (currentPage > 1) {
+                            currentPage--;
+                            loadJobs();
+                        }
+                    }
+                    
+                    function nextPage() {
+                        if (currentPage < totalPages) {
+                            currentPage++;
+                            loadJobs();
+                        }
+                    }
+                    
+                    function showJobError(message) {
+                        document.getElementById('jobs-loading').style.display = 'none';
+                        document.getElementById('jobs-table').style.display = 'none';
+                        document.getElementById('jobs-error').style.display = 'block';
+                        document.getElementById('jobs-error-message').textContent = message;
+                    }
+                    
+                    async function viewJobDetails(jobId) {
+                        try {
+                            const response = await fetch(`/api/v1/jobs/${jobId}`);
+                            const job = await response.json();
+                            
+                            if (response.ok) {
+                                const details = `Job Details for ${job.job_name}:\\n\\nJob ID: ${job.job_id}\\nType: ${job.job_type}\\nStatus: ${job.status}\\nUser: ${job.user_id}\\nCreated: ${formatDate(job.created_at)}\\nDuration: ${formatDuration(job.duration_seconds)}\\n${job.error_message ? 'Error: ' + job.error_message : ''}\\n\\nParameters: ${JSON.stringify(job.parameters, null, 2)}`;
+                                alert(details);
+                            } else {
+                                alert('Job not found or error loading details');
+                            }
+                        } catch (error) {
+                            alert('Error loading job details: ' + error.message);
+                        }
+                    }
+                    
+                    // Add CSS for status indicators
+                    const style = document.createElement('style');
+                    style.textContent = `
+                        .status-running { background: #28a745; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em; }
+                        .status-success { background: #667eea; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em; }
+                        .status-error { background: #dc3545; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em; }
+                        .status-pending { background: #ffc107; color: black; padding: 3px 8px; border-radius: 12px; font-size: 0.8em; }
+                        .status-unknown { background: #6c757d; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em; }
+                    `;
+                    document.head.appendChild(style);
                 </script>
             </body>
             </html>

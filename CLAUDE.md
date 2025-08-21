@@ -4,6 +4,20 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 
 ## 🚨 CRITICAL: Kubernetes-First Development
 
+**Never use mock or fake data other than unit test:**
+
+**ALWAYS USE run_test for unit test:**
+
+**ALWAYS USE run_dev for dev environment:**
+
+**Always research existing code or database tables or apps before writing new code:**
+
+**Always refactor code to remove duplicate functionality:**
+
+**Always use same external port for application deployment:**
+
+**ALWAYS create unit test for new code and think hard about test coverage and then run manual test in dev before claiming task is completed:**
+
 **ALWAYS USE KUBERNETES FOR DEV OPERATIONS:**
 
 - ✅ **DEV Environment = Kubernetes (ats-dev namespace)**
@@ -11,6 +25,8 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 - ✅ **All operations = Use dev CLI (NEVER kubectl directly)**
 - ❌ **NEVER run scripts locally for dev environment**
 - ❌ **NEVER manually set environment variables**
+
+
 
 ### Primary Interface: Dev CLI
 
