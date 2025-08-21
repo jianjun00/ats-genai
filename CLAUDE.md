@@ -176,6 +176,90 @@ curl -s "http://NODE_IP:NODE_PORT/health" | jq
 
 ---
 
+## 🚨 **CRITICAL: SCHEMA VALIDATION PREVENTS DEV ENVIRONMENT ERRORS**
+
+**SCHEMA ERRORS MUST BE CAUGHT BY UNIT TESTS - NEVER IN DEV ENVIRONMENT**
+
+### Required Before Any Database Code
+
+**EVERY database interaction must be validated before deployment:**
+
+```bash
+# 1. Validate schema compatibility before committing
+python scripts/validate_schema.py --check-all
+
+# 2. Run schema validation unit tests
+PYTHONPATH=src pytest tests/unit/test_database_schema_validation.py -v
+
+# 3. Check for anti-patterns
+pre-commit run schema-anti-patterns
+```
+
+**Schema validation will catch:**
+- ❌ Wrong table names (`dev_training_datasets` vs `dev_training_dataset`)
+- ❌ Wrong column names (`created_at` vs `creation_timestamp`)  
+- ❌ Missing tables or columns
+- ❌ SQL syntax errors
+- ❌ Type mismatches
+
+**Example validation results:**
+```
+❌ 11 ERRORS FOUND:
+  ❌ enhanced_dataset_visualization_platform_real_data.py:189 - Anti-pattern detected: created_at. Should be "creation_timestamp"
+  ❌ enhanced_dataset_visualization_platform_real_data.py:190 - Anti-pattern detected: dev_training_datasets. Should be "dev_training_dataset" (singular)
+  ❌ enhanced_dataset_visualization_platform_real_data.py:187 - Table 'dev_training_datasets' does not exist
+  ❌ enhanced_dataset_visualization_platform_real_data.py:187 - SQL syntax error: relation "dev_training_datasets" does not exist
+```
+
+**CI/CD Integration:**
+- Schema validation runs automatically in GitHub Actions
+- Deployment blocked if schema validation fails
+- Pre-commit hooks prevent bad code from being committed
+
+## 🚨 **CRITICAL: NO DEMO DATA IN DEVELOPMENT ENVIRONMENTS**
+
+**DEMO DATA HIDES REAL ISSUES AND CREATES FALSE CONFIDENCE**
+
+- ❌ **NEVER use demo/mock data** in development, staging, or production environments
+- ❌ **NEVER create fallbacks to demo data** when real data is unavailable
+- ❌ **NEVER return 200 OK with fake data** when database queries fail
+- ✅ **Demo data ONLY in unit tests** - isolated, controlled test scenarios
+- ✅ **Fail fast and clearly** when real data/database is unavailable
+- ✅ **Show actual errors** - connection failures, missing data, schema problems
+
+**Why Demo Data Is Dangerous:**
+- Hides database connection problems and query failures
+- Masks data quality issues, missing values, and real-world edge cases
+- Creates false performance metrics (demo data is always fast and perfect)
+- Prevents detection of authentication, permission, and network issues
+- Results in production surprises when real data behaves differently
+
+**Correct Error Handling:**
+```python
+# ✅ CORRECT: Fail with real error
+async def get_dataset(dataset_id: str):
+    dataset = await db.fetch_dataset(dataset_id)
+    if not dataset:
+        raise HTTPException(404, f"Dataset '{dataset_id}' not found")
+    return dataset
+
+# ❌ WRONG: Demo fallback hides the real problem  
+async def get_dataset(dataset_id: str):
+    try:
+        return await db.fetch_dataset(dataset_id)
+    except:
+        return generate_demo_dataset()  # HIDES THE ISSUE!
+```
+
+**Environment Rules:**
+- **Unit Tests**: Demo data acceptable for isolated testing
+- **Development**: Real database required - fail if unavailable
+- **Staging/Production**: Real data only - no fallbacks ever
+
+**See [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) for complete guidelines.**
+
+---
+
 **📖 For comprehensive information, see the complete documentation structure at [docs/README.md](docs/README.md)**
 
-*This is a Kubernetes-first, test-driven development platform. Every change must be validated end-to-end in the actual K8s cluster.*
+*This is a Kubernetes-first, test-driven development platform. Every change must be validated end-to-end in the actual K8s cluster with REAL DATA ONLY.*

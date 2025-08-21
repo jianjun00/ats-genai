@@ -1041,7 +1041,8 @@ data:
                     }
                     
                     function viewDataset(datasetId) {
-                        window.open(`/api/v1/datasets/${datasetId}`, '_blank');
+                        // Open enhanced visualization in new tab/window
+                        window.open(`/api/v1/training-data/${datasetId}/visualization`, '_blank');
                     }
                     
                     function viewSourceJob(datasetId) {
