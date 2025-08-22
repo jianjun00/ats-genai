@@ -388,7 +388,7 @@ async def unit_test_db(request):
     """
     Fixture for a completely empty unit test database (no tables, no migrations applied).
     Ensures environment is TEST. Used for DAO and non-migration tests.
-    Generates a unique test DB name per test and passes it to TestDatabaseManager.
+    Generates a unique test DB name per test with timestamp for proper isolation.
     """
     import gin
     import uuid
@@ -398,15 +398,21 @@ async def unit_test_db(request):
     test_file_base = os.path.splitext(os.path.basename(test_file))[0]
     test_file_base = ''.join(c for c in test_file_base if c.isalnum())[:8]
     test_name = request.node.name if hasattr(request, 'node') else None
+    
+    # Generate timestamp-based unique suffix for proper test isolation
+    import time
+    timestamp_suffix = str(int(time.time() * 1000))[-10:]  # Last 10 digits of millisecond timestamp
+    
     if test_name:
-        hash_part = hashlib.sha1(test_name.encode('utf-8')).hexdigest()[:8]
-        # Use shorter name format to avoid PostgreSQL's 63-char limit
-        db_name = f"test_db_{test_file_base}_{hash_part}"
+        # Use first 8 chars of test name for readability
+        test_name_short = ''.join(c for c in test_name if c.isalnum())[:8]
+        db_name = f"test_{test_file_base}_{test_name_short}_{timestamp_suffix}"
     else:
-        db_name = f"test_db_{test_file_base}_{uuid.uuid4().hex[:8]}"
+        db_name = f"test_{test_file_base}_{uuid.uuid4().hex[:8]}_{timestamp_suffix}"
+    
     # Ensure DB name doesn't exceed PostgreSQL's 63-char limit
     if len(db_name) > 63:
-        db_name = db_name[:63]
+        db_name = f"test_{timestamp_suffix}_{uuid.uuid4().hex[:8]}"
  
     # Construct Database object for this test
     # Use test_user credentials explicitly for test database
@@ -479,7 +485,7 @@ async def unit_test_db_clean(request):
     """
     Fixture for a completely empty unit test database (no tables).
     Ensures environment is TEST. Used for DB migration and isolation tests.
-    Generates a unique test DB name per test and passes it to TestDatabaseManager.
+    Generates a unique test DB name per test with timestamp for proper isolation.
     """
     import gin
     import uuid
@@ -489,15 +495,21 @@ async def unit_test_db_clean(request):
     test_file_base = os.path.splitext(os.path.basename(test_file))[0]
     test_file_base = ''.join(c for c in test_file_base if c.isalnum())[:8]
     test_name = request.node.name if hasattr(request, 'node') else None
+    
+    # Generate timestamp-based unique suffix for proper test isolation
+    import time
+    timestamp_suffix = str(int(time.time() * 1000))[-10:]  # Last 10 digits of millisecond timestamp
+    
     if test_name:
-        hash_part = hashlib.sha1(test_name.encode('utf-8')).hexdigest()[:8]
-        # Use shorter name format to avoid PostgreSQL's 63-char limit
-        db_name = f"test_db_{test_file_base}_{hash_part}"
+        # Use first 8 chars of test name for readability
+        test_name_short = ''.join(c for c in test_name if c.isalnum())[:8]
+        db_name = f"test_{test_file_base}_{test_name_short}_{timestamp_suffix}"
     else:
-        db_name = f"test_db_{test_file_base}_{uuid.uuid4().hex[:8]}"
+        db_name = f"test_{test_file_base}_{uuid.uuid4().hex[:8]}_{timestamp_suffix}"
+    
     # Ensure DB name doesn't exceed PostgreSQL's 63-char limit
     if len(db_name) > 63:
-        db_name = db_name[:63]
+        db_name = f"test_{timestamp_suffix}_{uuid.uuid4().hex[:8]}"
     # Construct Database object for this test
     # Use test_user credentials explicitly for test database
     db_host = "localhost"
