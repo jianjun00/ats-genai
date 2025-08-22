@@ -63,18 +63,24 @@ class FactorLoadings:
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation."""
-        return {
+        result = {
             'market_loading': self.market_loading,
             'size_loading': self.size_loading,
             'value_loading': self.value_loading,
             'momentum_loading': self.momentum_loading,
             'quality_loading': self.quality_loading,
             'volatility_loading': self.volatility_loading,
-            'sector_loadings': self.sector_loadings or {},
-            'r_squared': self.r_squared,
-            'alpha': self.alpha,
-            'tracking_error': self.tracking_error
         }
+        # Only include optional fields if they are set
+        if self.sector_loadings:
+            result['sector_loadings'] = self.sector_loadings
+        if self.r_squared is not None:
+            result['r_squared'] = self.r_squared
+        if self.alpha is not None:
+            result['alpha'] = self.alpha
+        if self.tracking_error is not None:
+            result['tracking_error'] = self.tracking_error
+        return result
 
 
 @dataclass
