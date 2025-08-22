@@ -49,12 +49,17 @@ class UnifiedAnalyticsManager:
     
     # ===== JOB MANAGEMENT (using existing dev_runs table) =====
     
-    async def list_jobs(self, limit: int = 50, offset: int = 0, status: str = None) -> Dict[str, Any]:
-        """List jobs from existing dev_runs table."""
+    async def list_jobs(self, limit: int = 50, offset: int = 0, status: str = None, sort_by: str = "created_at", sort_dir: str = "desc") -> Dict[str, Any]:
+        """List jobs from existing dev_runs table with enhanced metadata."""
         where_clause = "WHERE status = $3" if status else ""
         params = [limit, offset]
         if status:
             params.append(status)
+        
+        # Validate sort parameters
+        valid_sorts = ["created_at", "start_time", "end_time", "run_type", "status", "created_by"]
+        sort_by = sort_by if sort_by in valid_sorts else "created_at"
+        sort_dir = "DESC" if sort_dir.lower() == "desc" else "ASC"
         
         async with self.pool.acquire() as conn:
             count_query = f"SELECT COUNT(*) FROM dev_runs {where_clause}"
@@ -62,9 +67,10 @@ class UnifiedAnalyticsManager:
             
             query = f"""
                 SELECT id, run_type, status, start_time, end_time, 
+                       created_by, created_at, error_message, parameters,
                        created_by, created_at, error_message, parameters
                 FROM dev_runs {where_clause}
-                ORDER BY created_at DESC 
+                ORDER BY {sort_by} {sort_dir}
                 LIMIT $1 OFFSET $2
             """
             
@@ -76,6 +82,12 @@ class UnifiedAnalyticsManager:
                 if r['start_time'] and r['end_time']:
                     duration = int((r['end_time'] - r['start_time']).total_seconds())
                 
+                # Generate Flyte console URL based on job_type and parameters
+                flyte_url = None
+                if r['run_type'] and ('flyte' in r['run_type'].lower() or 'workflow' in r['run_type'].lower()):
+                    # Create a generic Flyte URL based on job ID
+                    flyte_url = f"https://flyte.example.com/console/projects/flytesnacks/domains/development/executions/{r['id']}"
+                
                 jobs.append({
                     "job_id": str(r['id']),
                     "job_type": r['run_type'],
@@ -85,7 +97,9 @@ class UnifiedAnalyticsManager:
                     "end_time": r['end_time'].isoformat() if r['end_time'] else None,
                     "duration_seconds": duration,
                     "created_at": r['created_at'].isoformat() if r['created_at'] else None,
-                    "error_message": r['error_message']
+                    "error_message": r['error_message'],
+                    "flyte_url": flyte_url,
+                    "parameters": r.get('parameters')
                 })
             
             return {"jobs": jobs, "total": total}
@@ -269,9 +283,11 @@ async def get_job_stats():
 async def list_jobs(
     limit: int = Query(50, le=100),
     offset: int = Query(0, ge=0), 
-    status: Optional[str] = Query(None)
+    status: Optional[str] = Query(None),
+    sort_by: str = Query("created_at", description="Sort field: created_at, start_time, end_time, run_type, status, created_by"),
+    sort_dir: str = Query("desc", description="Sort direction: asc or desc")
 ):
-    return await analytics_manager.list_jobs(limit, offset, status)
+    return await analytics_manager.list_jobs(limit, offset, status, sort_by, sort_dir)
 
 
 # ===== DATASET MANAGEMENT APIs (Restored) =====
@@ -334,6 +350,27 @@ async def web_interface():
         .stat-card { background: white; padding: 20px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex: 1; }
         .stat-number { font-size: 2em; font-weight: bold; color: #007bff; }
         .success-notice { background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; margin: 15px 0; border-radius: 8px; }
+        
+        /* Job Table Styles */
+        .job-controls { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .job-table-container { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .job-table { width: 100%; border-collapse: collapse; }
+        .job-table th, .job-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        .job-table th { background: #f8f9fa; font-weight: 600; cursor: pointer; user-select: none; }
+        .job-table th:hover { background: #e9ecef; }
+        .job-table tr:hover { background: #f8f9fa; }
+        .sort-indicator { margin-left: 5px; opacity: 0.5; }
+        .sort-indicator.active { opacity: 1; }
+        .flyte-link { color: #007bff; text-decoration: none; }
+        .flyte-link:hover { text-decoration: underline; }
+        .job-id { font-family: monospace; }
+        .duration { font-size: 0.9em; color: #666; }
+        .error-message { color: #dc3545; font-size: 0.9em; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pagination { margin: 15px 0; text-align: center; }
+        .pagination button { margin: 0 5px; padding: 8px 12px; border: 1px solid #ddd; background: white; cursor: pointer; border-radius: 4px; }
+        .pagination button:hover { background: #f8f9fa; }
+        .pagination button.active { background: #007bff; color: white; border-color: #007bff; }
+        .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -360,7 +397,50 @@ async def web_interface():
         <div id="jobs-tab" class="tab active">
             <h2>📊 Job Management (dev_runs table)</h2>
             <div id="job-stats" class="stats"></div>
-            <div id="jobs-list"></div>
+            
+            <div class="job-controls">
+                <label>Filter by Status:</label>
+                <select id="status-filter">
+                    <option value="">All Statuses</option>
+                    <option value="running">Running</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                    <option value="pending">Pending</option>
+                </select>
+                
+                <label>Show:</label>
+                <select id="limit-select">
+                    <option value="10">10 rows</option>
+                    <option value="25">25 rows</option>
+                    <option value="50">50 rows</option>
+                    <option value="100">100 rows</option>
+                </select>
+                
+                <button onclick="refreshJobs()">🔄 Refresh</button>
+            </div>
+            
+            <div class="job-table-container">
+                <table class="job-table">
+                    <thead>
+                        <tr>
+                            <th onclick="sortJobs('job_id')">Job ID <span class="sort-indicator">↕️</span></th>
+                            <th onclick="sortJobs('job_type')">Job Type <span class="sort-indicator">↕️</span></th>
+                            <th onclick="sortJobs('status')">Status <span class="sort-indicator">↕️</span></th>
+                            <th onclick="sortJobs('created_by')">User <span class="sort-indicator">↕️</span></th>
+                            <th onclick="sortJobs('start_time')">Start Time <span class="sort-indicator">↕️</span></th>
+                            <th onclick="sortJobs('created_at')">Created <span class="sort-indicator active">🔽</span></th>
+                            <th>Duration</th>
+                            <th>Flyte</th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody id="jobs-table-body">
+                        <!-- Job rows will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="job-pagination" class="pagination"></div>
         </div>
         
         <!-- Datasets Tab -->
@@ -373,6 +453,10 @@ async def web_interface():
 
     <script>
         let currentTab = 'jobs';
+        let currentSort = { field: 'created_at', direction: 'desc' };
+        let currentPage = 0;
+        let currentLimit = 25;
+        let currentStatus = '';
         
         function showTab(tabName) {
             // Hide all tabs
@@ -393,11 +477,62 @@ async def web_interface():
             }
         }
         
+        function sortJobs(field) {
+            if (currentSort.field === field) {
+                currentSort.direction = currentSort.direction === 'desc' ? 'asc' : 'desc';
+            } else {
+                currentSort.field = field;
+                currentSort.direction = 'desc';
+            }
+            currentPage = 0;
+            loadJobs();
+            updateSortIndicators();
+        }
+        
+        function updateSortIndicators() {
+            document.querySelectorAll('.sort-indicator').forEach(indicator => {
+                indicator.classList.remove('active');
+                indicator.textContent = '↕️';
+            });
+            
+            const activeHeader = document.querySelector(`th[onclick="sortJobs('${currentSort.field}')"] .sort-indicator`);
+            if (activeHeader) {
+                activeHeader.classList.add('active');
+                activeHeader.textContent = currentSort.direction === 'desc' ? '🔽' : '🔼';
+            }
+        }
+        
+        function refreshJobs() {
+            currentStatus = document.getElementById('status-filter').value;
+            currentLimit = parseInt(document.getElementById('limit-select').value);
+            currentPage = 0;
+            loadJobs();
+        }
+        
+        function changePage(newPage) {
+            currentPage = newPage;
+            loadJobs();
+        }
+        
         async function loadJobs() {
             try {
                 const stats = await fetch('/api/v1/jobs/stats').then(r => r.json());
-                const jobs = await fetch('/api/v1/jobs?limit=10').then(r => r.json());
                 
+                // Build query parameters
+                const params = new URLSearchParams({
+                    limit: currentLimit.toString(),
+                    offset: (currentPage * currentLimit).toString(),
+                    sort_by: currentSort.field,
+                    sort_dir: currentSort.direction
+                });
+                
+                if (currentStatus) {
+                    params.set('status', currentStatus);
+                }
+                
+                const jobs = await fetch(`/api/v1/jobs?${params}`).then(r => r.json());
+                
+                // Update stats
                 document.getElementById('job-stats').innerHTML = `
                     <div class="stat-card">
                         <div class="stat-number">${stats.total_jobs}</div>
@@ -417,20 +552,82 @@ async def web_interface():
                     </div>
                 `;
                 
-                document.getElementById('jobs-list').innerHTML = 
-                    '<h3>Recent Jobs from dev_runs:</h3>' +
-                    jobs.jobs.map(j => `
-                        <div class="job">
-                            <strong>${j.job_type}</strong> (ID: ${j.job_id}) 
-                            <span class="status ${j.status}">${j.status}</span><br>
-                            User: ${j.user_id} | Start: ${j.start_time ? new Date(j.start_time).toLocaleString() : 'N/A'}
-                            ${j.error_message ? '<br><strong>Error:</strong> ' + j.error_message : ''}
-                        </div>
-                    `).join('');
+                // Update job table
+                const tableBody = document.getElementById('jobs-table-body');
+                tableBody.innerHTML = jobs.jobs.map(j => {
+                    const duration = j.duration_seconds ? formatDuration(j.duration_seconds) : 'N/A';
+                    const startTime = j.start_time ? new Date(j.start_time).toLocaleString() : 'N/A';
+                    const createdAt = j.created_at ? new Date(j.created_at).toLocaleString() : 'N/A';
+                    const flyteLink = j.flyte_url ? `<a href="${j.flyte_url}" target="_blank" class="flyte-link">🚀 View</a>` : 'N/A';
+                    const errorMsg = j.error_message ? `<span class="error-message" title="${j.error_message}">${j.error_message}</span>` : '';
                     
+                    return `
+                        <tr>
+                            <td class="job-id">${j.job_id}</td>
+                            <td>${j.job_type}</td>
+                            <td><span class="status ${j.status}">${j.status}</span></td>
+                            <td>${j.user_id}</td>
+                            <td>${startTime}</td>
+                            <td>${createdAt}</td>
+                            <td class="duration">${duration}</td>
+                            <td>${flyteLink}</td>
+                            <td>${errorMsg}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                // Update pagination
+                updatePagination(jobs.total, currentPage, currentLimit);
+                
             } catch (error) {
-                document.getElementById('jobs-list').innerHTML = '<p style="color: red;">❌ Error loading jobs: ' + error.message + '</p>';
+                document.getElementById('jobs-table-body').innerHTML = `
+                    <tr><td colspan="9" style="color: red; text-align: center;">❌ Error loading jobs: ${error.message}</td></tr>
+                `;
             }
+        }
+        
+        function formatDuration(seconds) {
+            if (seconds < 60) return `${seconds}s`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+            return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+        }
+        
+        function updatePagination(total, currentPage, limit) {
+            const totalPages = Math.ceil(total / limit);
+            const pagination = document.getElementById('job-pagination');
+            
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+            
+            let paginationHTML = '';
+            
+            // Previous button
+            paginationHTML += `<button onclick="changePage(${currentPage - 1})" ${currentPage === 0 ? 'disabled' : ''}>&laquo; Previous</button>`;
+            
+            // Page numbers
+            const startPage = Math.max(0, currentPage - 2);
+            const endPage = Math.min(totalPages - 1, currentPage + 2);
+            
+            if (startPage > 0) {
+                paginationHTML += `<button onclick="changePage(0)">1</button>`;
+                if (startPage > 1) paginationHTML += '<span>...</span>';
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                paginationHTML += `<button onclick="changePage(${i})" class="${i === currentPage ? 'active' : ''}">${i + 1}</button>`;
+            }
+            
+            if (endPage < totalPages - 1) {
+                if (endPage < totalPages - 2) paginationHTML += '<span>...</span>';
+                paginationHTML += `<button onclick="changePage(${totalPages - 1})">${totalPages}</button>`;
+            }
+            
+            // Next button
+            paginationHTML += `<button onclick="changePage(${currentPage + 1})" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>Next &raquo;</button>`;
+            
+            pagination.innerHTML = paginationHTML;
         }
         
         async function loadDatasets() {
@@ -474,6 +671,12 @@ async def web_interface():
         
         // Load initial data
         loadJobs();
+
+        // Initialize interactive table
+        updateSortIndicators();
+        document.getElementById('status-filter').addEventListener('change', refreshJobs);
+        document.getElementById('limit-select').addEventListener('change', refreshJobs);
+        document.getElementById('limit-select').value = '25';
         
         // Auto-refresh every 30 seconds
         setInterval(() => {
