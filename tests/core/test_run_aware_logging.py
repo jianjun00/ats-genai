@@ -361,7 +361,12 @@ class TestLoggingIntegration:
         
         assert "Message from module1" in content
         assert "Warning from module2" in content
-        assert content.count(run_context.run_id) == 2  # Both messages have run_id
+        # Count should include our 2 messages plus any configuration messages
+        run_id_count = content.count(run_context.run_id)
+        assert run_id_count >= 2, f"Expected at least 2 occurrences of run_id, got {run_id_count}"
+        # Verify our specific messages are logged correctly
+        assert f"[{run_context.run_id}] - module1 - INFO - Message from module1" in content
+        assert f"[{run_context.run_id}] - module2 - WARNING - Warning from module2" in content
     
     def test_different_run_contexts_separate_logs(self):
         """Test that different run contexts create separate log files."""

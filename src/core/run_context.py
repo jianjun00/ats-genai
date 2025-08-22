@@ -135,10 +135,15 @@ class RunContextManager:
         if metadata is None:
             metadata = {}
         
+        try:
+            working_dir = str(Path.cwd())
+        except (FileNotFoundError, OSError):
+            working_dir = 'unknown'
+        
         metadata.update({
             'created_at': start_time.isoformat(),
             'python_version': f"{os.sys.version_info.major}.{os.sys.version_info.minor}",
-            'working_directory': str(Path.cwd()),
+            'working_directory': working_dir,
             'environment': os.environ.get('ENVIRONMENT', 'unknown')
         })
         
