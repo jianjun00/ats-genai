@@ -1,0 +1,10 @@
+# Database placeholder - using existing postgres-simple service
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: database-placeholder
+  namespace: ats-dev
+data:
+  status: "using existing postgres-simple"
+  host: "postgres-simple"
+  port: "5432"

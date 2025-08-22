@@ -915,6 +915,8 @@ spec:
         volumeMounts:
         - name: webapp-config
           mountPath: /config
+        - name: training-data
+          mountPath: /data
         resources:
           requests:
             memory: "256Mi"
@@ -926,6 +928,9 @@ spec:
       - name: webapp-config
         configMap:
           name: working-analytics-webapp-config
+      - name: training-data
+        persistentVolumeClaim:
+          claimName: data-pvc
 
 ---
 apiVersion: v1

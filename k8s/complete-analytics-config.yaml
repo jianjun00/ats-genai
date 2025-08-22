@@ -1,0 +1,590 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: simple-fixed-analytics-config
+  namespace: ats-dev
+data:
+  app.py: |
+    #!/usr/bin/env python3
+    """
+    Complete Analytics Web Application
+    Job Management + Dataset Analysis + Dataset Detail Pages with REAL training data
+    NO MOCK DATA - All data from database and real files
+    """
+
+    import asyncio
+    import json
+    import logging
+    import os
+    import sys
+    from datetime import datetime
+    from pathlib import Path
+    from typing import Dict, List, Optional, Any
+
+    import asyncpg
+    from fastapi import FastAPI, HTTPException, Query
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import HTMLResponse, JSONResponse
+    from pydantic import BaseModel
+
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+
+    # Database connection
+    DATABASE_URL = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+
+    def create_app() -> FastAPI:
+        app = FastAPI(
+            title="Complete Analytics Dashboard",
+            description="Job Management + Dataset Analysis + Dataset Detail Pages with REAL training data",
+            version="5.0.0"
+        )
+        
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+        
+        db_pool = None
+        
+        @app.on_event("startup")
+        async def startup():
+            nonlocal db_pool
+            try:
+                db_pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=5)
+                logger.info("✅ Database pool created successfully")
+                
+                # Check training data access
+                training_dir = Path("/data/training")
+                if training_dir.exists():
+                    files = list(training_dir.rglob("*"))
+                    logger.info(f"✅ Training data accessible: {len(files)} files found")
+                else:
+                    logger.warning("⚠️ Training data directory not mounted")
+                    
+            except Exception as e:
+                logger.error(f"❌ Failed to create database pool: {e}")
+        
+        @app.on_event("shutdown")
+        async def shutdown():
+            if db_pool:
+                await db_pool.close()
+                logger.info("🔄 Database pool closed")
+        
+        @app.get("/", response_class=HTMLResponse)
+        async def root():
+            return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Complete Analytics Platform</title>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+                    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+                    .header { background: white; border-radius: 12px; padding: 40px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin-bottom: 30px; }
+                    .nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+                    .nav-card { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: transform 0.3s; }
+                    .nav-card:hover { transform: translateY(-5px); }
+                    .nav-card h3 { color: #667eea; margin-bottom: 15px; }
+                    .btn { background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; margin: 5px; transition: all 0.3s; }
+                    .btn:hover { background: #5a6fd8; transform: translateY(-1px); }
+                    .success-badge { background: #28a745; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 10px; }
+                    .complete-badge { background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 10px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>🚀 Complete Analytics Platform</h1>
+                        <p>Job Management + Dataset Analysis + Dataset Detail Pages</p>
+                        <p><span class="success-badge">REAL DATA</span> <span class="complete-badge">COMPLETE FEATURES</span></p>
+                    </div>
+                    <div class="nav-grid">
+                        <div class="nav-card">
+                            <h3>📊 Job Management</h3>
+                            <p>Monitor running jobs, view logs, and track progress</p>
+                            <a href="/jobs" class="btn">View Jobs</a>
+                        </div>
+                        <div class="nav-card">
+                            <h3>🗄️ Training Datasets</h3>
+                            <p>Browse database training dataset records with detail pages</p>
+                            <a href="/datasets" class="btn">Browse Datasets</a>
+                        </div>
+                        <div class="nav-card">
+                            <h3>🧠 Training Files</h3>
+                            <p>Access REAL training files from Kubernetes volume</p>
+                            <a href="/training-data" class="btn">View Training Files</a>
+                        </div>
+                        <div class="nav-card">
+                            <h3>🔧 System Health</h3>
+                            <p>Check database connectivity and training data access</p>
+                            <a href="/health" class="btn">Health Check</a>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+        
+        @app.get("/health")
+        async def health():
+            try:
+                health_status = {
+                    "status": "healthy",
+                    "database": "unknown",
+                    "training_data": "unknown",
+                    "features": ["jobs", "datasets", "dataset_details", "real_training_files"],
+                    "timestamp": datetime.now().isoformat(),
+                    "version": "5.0.0"
+                }
+                
+                # Test database connectivity
+                if db_pool:
+                    try:
+                        async with db_pool.acquire() as conn:
+                            result = await conn.fetchval("SELECT 1")
+                            job_count = await conn.fetchval("SELECT COUNT(*) FROM dev_runs")
+                            dataset_count = await conn.fetchval("SELECT COUNT(*) FROM dev_training_dataset")
+                            
+                            health_status["database"] = "connected"
+                            health_status["data_summary"] = {
+                                "jobs": job_count,
+                                "datasets": dataset_count
+                            }
+                    except Exception as e:
+                        health_status["database"] = f"error: {e}"
+                else:
+                    health_status["database"] = "pool_not_initialized"
+                    
+                # Test training data access
+                training_dir = Path("/data/training")
+                if training_dir.exists():
+                    files = list(training_dir.rglob("*"))
+                    health_status["training_data"] = f"accessible: {len(files)} files"
+                    health_status["training_directories"] = [d.name for d in training_dir.iterdir() if d.is_dir()]
+                else:
+                    health_status["training_data"] = "not_mounted"
+                    
+                return health_status
+                
+            except Exception as e:
+                return {"status": "unhealthy", "error": str(e)}
+        
+        # Job Management (existing functionality)
+        @app.get("/jobs", response_class=HTMLResponse)
+        async def jobs_page():
+            return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Jobs - Analytics Platform</title>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; background: #f8f9fa; }
+                    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+                    .breadcrumb { margin: 10px 0; font-size: 14px; opacity: 0.9; }
+                    .breadcrumb a { color: white; text-decoration: none; }
+                    .table-container { background: white; border-radius: 12px; padding: 20px; overflow-x: auto; }
+                    table { width: 100%; border-collapse: collapse; min-width: 800px; }
+                    th { background: #f8f9fa; padding: 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #dee2e6; }
+                    td { padding: 12px; border-bottom: 1px solid #dee2e6; }
+                    tr:hover { background: #f8f9fa; }
+                    .status-completed { background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; }
+                    .status-running { background: #d1ecf1; color: #0c5460; padding: 4px 8px; border-radius: 4px; }
+                    .status-failed { background: #f8d7da; color: #721c24; padding: 4px 8px; border-radius: 4px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <div class="breadcrumb">
+                            <a href="/">Home</a> > Jobs
+                        </div>
+                        <h1>📊 Job Management</h1>
+                        <p>Monitor running jobs and view execution history</p>
+                    </div>
+                    <div class="table-container">
+                        <h2>Recent Jobs</h2>
+                        <div id="jobs-table">Loading jobs...</div>
+                    </div>
+                </div>
+                <script>
+                    fetch('/api/v1/jobs').then(r => r.json()).then(data => {
+                        const table = '<table><tr><th>Job ID</th><th>Type</th><th>Status</th><th>Duration</th><th>Started</th></tr>' +
+                            data.jobs.map(job => 
+                                `<tr>
+                                    <td>#${job.id}</td>
+                                    <td>${job.run_type}</td>
+                                    <td><span class="status-${job.status.toLowerCase()}">${job.status}</span></td>
+                                    <td>${job.duration_seconds ? Math.floor(job.duration_seconds / 60) + 'm' : 'N/A'}</td>
+                                    <td>${new Date(job.start_time).toLocaleString()}</td>
+                                </tr>`
+                            ).join('') + '</table>';
+                        document.getElementById('jobs-table').innerHTML = table;
+                    }).catch(err => {
+                        document.getElementById('jobs-table').innerHTML = '<p style="color: red;">Error loading jobs: ' + err.message + '</p>';
+                    });
+                </script>
+            </body>
+            </html>
+            """
+        
+        @app.get("/api/v1/jobs")
+        async def get_jobs():
+            try:
+                async with db_pool.acquire() as conn:
+                    jobs = await conn.fetch("""
+                        SELECT id, run_type, status, start_time, end_time, 
+                               EXTRACT(EPOCH FROM (COALESCE(end_time, NOW()) - start_time))::INTEGER as duration_seconds
+                        FROM dev_runs 
+                        ORDER BY start_time DESC 
+                        LIMIT 50
+                    """)
+                    
+                    return {
+                        "jobs": [dict(job) for job in jobs],
+                        "total": len(jobs)
+                    }
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        # Training Data Files
+        @app.get("/training-data", response_class=HTMLResponse)
+        async def training_data_page():
+            return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Training Data - Analytics Platform</title>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; background: #f8f9fa; }
+                    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+                    .breadcrumb { margin: 10px 0; font-size: 14px; opacity: 0.9; }
+                    .breadcrumb a { color: white; text-decoration: none; }
+                    .files-container { background: white; border-radius: 12px; padding: 20px; }
+                    .file-item { border: 1px solid #dee2e6; border-radius: 8px; margin: 10px 0; padding: 15px; }
+                    .file-item:hover { background: #f8f9fa; }
+                    .real-badge { background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <div class="breadcrumb">
+                            <a href="/">Home</a> > Training Data
+                        </div>
+                        <h1>🧠 Real Training Data</h1>
+                        <p>Access training files from Kubernetes volume <span class="real-badge">REAL FILES</span></p>
+                    </div>
+                    <div class="files-container">
+                        <h2>Training Data Files</h2>
+                        <div id="files-list">Loading training data files...</div>
+                    </div>
+                </div>
+                <script>
+                    fetch('/api/v1/training/files').then(r => r.json()).then(data => {
+                        const filesList = data.files.map(file => 
+                            `<div class="file-item">
+                                <h4>${file.path}</h4>
+                                <p><strong>Size:</strong> ${file.size_mb} MB | <strong>Type:</strong> ${file.type} | <strong>Modified:</strong> ${file.modified}</p>
+                                ${file.summary ? '<p><strong>Summary:</strong> ' + file.summary + '</p>' : ''}
+                            </div>`
+                        ).join('');
+                        document.getElementById('files-list').innerHTML = filesList;
+                    }).catch(err => {
+                        document.getElementById('files-list').innerHTML = '<p style="color: red;">Error loading training files: ' + err.message + '</p>';
+                    });
+                </script>
+            </body>
+            </html>
+            """
+        
+        @app.get("/api/v1/training/files")
+        async def get_training_files():
+            """Get real training data files from mounted volume"""
+            try:
+                training_dir = Path("/data/training")
+                if not training_dir.exists():
+                    raise HTTPException(status_code=404, detail="Training data directory not mounted")
+                
+                files = []
+                for file_path in training_dir.rglob("*"):
+                    if file_path.is_file():
+                        try:
+                            stat = file_path.stat()
+                            size_mb = stat.st_size / (1024*1024)
+                            
+                            file_info = {
+                                "path": str(file_path.relative_to(training_dir)),
+                                "full_path": str(file_path),
+                                "size_mb": round(size_mb, 3),
+                                "type": file_path.suffix,
+                                "modified": datetime.fromtimestamp(stat.st_mtime).isoformat()
+                            }
+                            
+                            # Add summary for JSON files
+                            if file_path.suffix == '.json':
+                                try:
+                                    with open(file_path, 'r') as f:
+                                        data = json.load(f)
+                                        if isinstance(data, dict):
+                                            keys = list(data.keys())[:3]
+                                            file_info["summary"] = f"Keys: {', '.join(keys)}"
+                                except:
+                                    file_info["summary"] = "JSON file"
+                            
+                            files.append(file_info)
+                        except Exception as e:
+                            files.append({
+                                "path": str(file_path.relative_to(training_dir)),
+                                "error": str(e)
+                            })
+                
+                return {
+                    "files": files,
+                    "total_files": len(files),
+                    "training_directory": str(training_dir),
+                    "status": "real_files_accessed"
+                }
+                
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        # Database Datasets with Detail Pages
+        @app.get("/datasets", response_class=HTMLResponse)
+        async def datasets_page():
+            return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Datasets - Analytics Platform</title>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; background: #f8f9fa; }
+                    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+                    .breadcrumb { margin: 10px 0; font-size: 14px; opacity: 0.9; }
+                    .breadcrumb a { color: white; text-decoration: none; }
+                    .table-container { background: white; border-radius: 12px; padding: 20px; overflow-x: auto; }
+                    table { width: 100%; border-collapse: collapse; min-width: 800px; }
+                    th { background: #f8f9fa; padding: 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #dee2e6; }
+                    td { padding: 12px; border-bottom: 1px solid #dee2e6; }
+                    tr:hover { background: #f8f9fa; }
+                    .dataset-link { color: #667eea; text-decoration: none; font-weight: 600; }
+                    .dataset-link:hover { text-decoration: underline; }
+                    .real-badge { background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <div class="breadcrumb">
+                            <a href="/">Home</a> > Datasets
+                        </div>
+                        <h1>🗄️ Training Datasets</h1>
+                        <p>Database records with dataset detail pages <span class="real-badge">REAL DATA</span></p>
+                    </div>
+                    <div class="table-container">
+                        <h2>Available Datasets</h2>
+                        <div id="datasets-table">Loading datasets...</div>
+                    </div>
+                </div>
+                <script>
+                    fetch('/api/v1/datasets').then(r => r.json()).then(data => {
+                        const table = '<table><tr><th>Dataset Name</th><th>Sequences</th><th>Features</th><th>Symbols</th><th>Created</th><th>Actions</th></tr>' +
+                            data.datasets.map(d => 
+                                `<tr>
+                                    <td><a href="/dataset-detail?id=${d.id}" class="dataset-link">${d.dataset_name}</a></td>
+                                    <td>${d.total_sequences}</td>
+                                    <td>${d.feature_count}</td>
+                                    <td>${d.symbols.join(', ')}</td>
+                                    <td>${new Date(d.creation_timestamp).toLocaleDateString()}</td>
+                                    <td><a href="/dataset-detail?id=${d.id}" class="dataset-link">View Details</a></td>
+                                </tr>`
+                            ).join('') + '</table>';
+                        document.getElementById('datasets-table').innerHTML = table;
+                    }).catch(err => {
+                        document.getElementById('datasets-table').innerHTML = '<p style="color: red;">Error loading datasets: ' + err.message + '</p>';
+                    });
+                </script>
+            </body>
+            </html>
+            """
+        
+        @app.get("/api/v1/datasets")
+        async def get_datasets():
+            try:
+                async with db_pool.acquire() as conn:
+                    datasets = await conn.fetch("""
+                        SELECT id, dataset_name, symbols, total_sequences, 
+                               feature_count, creation_timestamp, file_size_mb
+                        FROM dev_training_dataset
+                        ORDER BY creation_timestamp DESC
+                    """)
+                    
+                    return {
+                        "datasets": [dict(dataset) for dataset in datasets],
+                        "total": len(datasets)
+                    }
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        # Dataset Detail Page and API
+        @app.get("/dataset-detail", response_class=HTMLResponse)
+        async def dataset_detail_page():
+            return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Dataset Detail - Analytics Platform</title>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; background: #f8f9fa; }
+                    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+                    .breadcrumb { margin: 10px 0; font-size: 14px; opacity: 0.9; }
+                    .breadcrumb a { color: white; text-decoration: none; }
+                    .dataset-overview { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+                    .sequences-section { background: white; border-radius: 12px; padding: 20px; }
+                    .loading { text-align: center; padding: 40px; color: #667eea; }
+                    .real-badge { background: #28a745; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+                    .file-badge { background: #17a2b8; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                    th { background: #f8f9fa; padding: 10px; text-align: left; border: 1px solid #ddd; }
+                    td { padding: 10px; border: 1px solid #ddd; }
+                    tr:hover { background: #f8f9fa; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <div class="breadcrumb">
+                            <a href="/">Home</a> > <a href="/datasets">Datasets</a> > Dataset Detail
+                        </div>
+                        <h1 id="dataset-title">Dataset Detail</h1>
+                        <p><span class="real-badge">REAL DATABASE</span> <span class="file-badge">FILE ACCESS</span></p>
+                    </div>
+                    
+                    <div class="dataset-overview">
+                        <h2>Dataset Overview</h2>
+                        <div id="dataset-meta">Loading dataset information...</div>
+                    </div>
+                    
+                    <div class="sequences-section">
+                        <h2>📊 Training Data Information</h2>
+                        <div id="sequences-content" class="loading">Loading training data info...</div>
+                    </div>
+                </div>
+                
+                <script>
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const datasetId = urlParams.get('id') || 1;
+                    
+                    // Load dataset overview
+                    fetch(`/api/v1/datasets/${datasetId}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            document.getElementById('dataset-title').textContent = data.dataset_name;
+                            document.getElementById('dataset-meta').innerHTML = `
+                                <p><strong>Dataset:</strong> ${data.dataset_name}</p>
+                                <p><strong>Symbols:</strong> ${data.symbols.join(', ')}</p>
+                                <p><strong>Total Sequences:</strong> ${data.total_sequences}</p>
+                                <p><strong>Features:</strong> ${data.feature_count}</p>
+                                <p><strong>Created:</strong> ${new Date(data.creation_timestamp).toLocaleString()}</p>
+                                <p><strong>File Size:</strong> ${data.file_size_mb} MB</p>
+                            `;
+                        })
+                        .catch(err => {
+                            document.getElementById('dataset-meta').innerHTML = '<p style="color: red;">Error loading dataset info: ' + err.message + '</p>';
+                        });
+                    
+                    // Load real training data information
+                    Promise.all([
+                        fetch('/api/v1/training/files').then(r => r.json()),
+                        fetch(`/api/v1/datasets/${datasetId}/metadata`).then(r => r.json())
+                    ]).then(([filesData, metaData]) => {
+                        const content = `
+                            <h3>Available Training Files</h3>
+                            <table>
+                                <tr><th>File</th><th>Type</th><th>Size (MB)</th><th>Modified</th></tr>
+                                ${filesData.files.map(file => 
+                                    `<tr>
+                                        <td>${file.path}</td>
+                                        <td>${file.type}</td>
+                                        <td>${file.size_mb}</td>
+                                        <td>${new Date(file.modified).toLocaleString()}</td>
+                                    </tr>`
+                                ).join('')}
+                            </table>
+                            <h3>Dataset Metadata</h3>
+                            <p><strong>Status:</strong> Real database record with file system access</p>
+                            <p><strong>Training Directory:</strong> ${filesData.training_directory}</p>
+                            <p><strong>Total Files Available:</strong> ${filesData.total_files}</p>
+                        `;
+                        document.getElementById('sequences-content').innerHTML = content;
+                    }).catch(err => {
+                        document.getElementById('sequences-content').innerHTML = 
+                            '<p style="color: red; background: #f8d7da; padding: 15px; border-radius: 5px;">❌ ERROR: Failed to load training data - ' + err.message + '</p>';
+                    });
+                </script>
+            </body>
+            </html>
+            """
+        
+        @app.get("/api/v1/datasets/{dataset_id}")
+        async def get_dataset(dataset_id: int):
+            try:
+                async with db_pool.acquire() as conn:
+                    dataset = await conn.fetchrow("""
+                        SELECT * FROM dev_training_dataset WHERE id = $1
+                    """, dataset_id)
+                    
+                    if not dataset:
+                        raise HTTPException(status_code=404, detail="Dataset not found")
+                    
+                    return dict(dataset)
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @app.get("/api/v1/datasets/{dataset_id}/metadata")
+        async def get_dataset_metadata(dataset_id: int):
+            try:
+                async with db_pool.acquire() as conn:
+                    dataset = await conn.fetchrow("""
+                        SELECT * FROM dev_training_dataset WHERE id = $1
+                    """, dataset_id)
+                    
+                    if not dataset:
+                        raise HTTPException(status_code=404, detail="Dataset not found")
+                
+                return {
+                    "dataset_name": dataset['dataset_name'],
+                    "total_sequences": dataset['total_sequences'],
+                    "feature_count": dataset['feature_count'],
+                    "symbols": dataset['symbols'],
+                    "creation_timestamp": dataset['creation_timestamp'].isoformat(),
+                    "file_size_mb": float(dataset['file_size_mb']) if dataset['file_size_mb'] else 0.0,
+                    "status": "real_database_record",
+                    "note": "Metadata from database with real file system access"
+                }
+                
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        return app
+
+    if __name__ == "__main__":
+        import uvicorn
+        
+        app = create_app()
+        logger.info("🚀 Starting Complete Analytics WebApp")
+        logger.info("📊 Features: Job Management + Dataset Analysis + Dataset Detail Pages")
+        logger.info("✅ NO MOCK DATA: All data from database and real files")
+        
+        uvicorn.run(app, host="0.0.0.0", port=5000, log_level="info")

@@ -1,0 +1,1011 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: integrated-analytics-config
+  namespace: ats-dev
+data:
+  app.py: |
+    #!/usr/bin/env python3
+    """
+    Integrated Analytics Web Application
+    Provides job management, dataset analysis, and data coverage monitoring.
+    """
+    
+    import asyncio
+    import json
+    import logging
+    import os
+    import sys
+    import requests
+    from datetime import date, datetime, timedelta
+    from pathlib import Path
+    from typing import Dict, List, Optional, Any
+    
+    import asyncpg
+    from fastapi import FastAPI, HTTPException, Query, Path as PathParam
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import HTMLResponse, JSONResponse
+    from pydantic import BaseModel, Field
+    
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    
+    # Database connection
+    DATABASE_URL = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+    
+    # Slack webhook URL for coverage alerts
+    SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/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"
+    
+    # Coverage models
+    class CoverageOverview(BaseModel):
+        vendor: str
+        data_type: str
+        total_symbols: int
+        avg_coverage: float
+        active_symbols: int
+        stale_symbols: int
+        missing_symbols: int
+    
+    class CoverageSummary(BaseModel):
+        symbol: str
+        vendor: str
+        data_type: str
+        current_status: str
+        coverage_24h: float
+        quality_24h: Optional[float] = None
+        records_24h: int
+        coverage_7d: Optional[float] = None
+        coverage_30d: Optional[float] = None
+        latest_data_time: Optional[datetime] = None
+        hours_since_update: Optional[float] = None
+        coverage_trend: Optional[str] = None
+        quality_trend: Optional[str] = None
+    
+    class VendorComparison(BaseModel):
+        symbol: str
+        data_type: str
+        time_period: str
+        vendors: List[Dict[str, Any]]
+        best_vendor: Optional[Dict[str, Any]] = None
+        worst_vendor: Optional[Dict[str, Any]] = None
+        average_coverage: float
+        coverage_variance: float
+        vendor_count: int
+    
+    # Slack alerting service
+    class SlackAlerter:
+        @staticmethod
+        async def send_alert(message: str, severity: str = "warning"):
+            try:
+                color_map = {
+                    "info": "#36a64f",
+                    "warning": "#ff9500",
+                    "error": "#ff0000",
+                    "critical": "#8B0000"
+                }
+                
+                payload = {
+                    "attachments": [{
+                        "color": color_map.get(severity, "#ff9500"),
+                        "title": f"🚨 Data Coverage Alert ({severity.upper()})",
+                        "text": message,
+                        "footer": "ATS Coverage Monitoring",
+                        "ts": int(datetime.now().timestamp())
+                    }]
+                }
+                
+                response = requests.post(SLACK_WEBHOOK_URL, json=payload, timeout=10)
+                if response.status_code == 200:
+                    logger.info(f"✅ Slack alert sent: {message[:100]}...")
+                else:
+                    logger.error(f"❌ Failed to send Slack alert: {response.status_code}")
+                    
+            except Exception as e:
+                logger.error(f"❌ Error sending Slack alert: {e}")
+    
+    def create_app() -> FastAPI:
+        app = FastAPI(
+            title="Integrated Analytics Dashboard",
+            description="Job Management + Dataset Analysis + Data Coverage Monitoring",
+            version="4.0.0"
+        )
+        
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+        
+        db_pool = None
+        
+        @app.on_event("startup")
+        async def startup():
+            nonlocal db_pool
+            try:
+                db_pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=10)
+                logger.info("✅ Database pool created successfully")
+            except Exception as e:
+                logger.error(f"❌ Failed to create database pool: {e}")
+        
+        @app.on_event("shutdown")
+        async def shutdown():
+            if db_pool:
+                await db_pool.close()
+                logger.info("🔄 Database pool closed")
+        
+        # Coverage analytics helper functions
+        async def get_coverage_overview() -> List[CoverageOverview]:
+            async with db_pool.acquire() as conn:
+                rows = await conn.fetch("""
+                    SELECT 
+                        vendor,
+                        data_type,
+                        COUNT(*) as total_symbols,
+                        ROUND(AVG(coverage_24h), 2) as avg_coverage,
+                        COUNT(*) FILTER (WHERE current_status = 'active') as active_symbols,
+                        COUNT(*) FILTER (WHERE current_status = 'stale') as stale_symbols,
+                        COUNT(*) FILTER (WHERE current_status = 'missing') as missing_symbols
+                    FROM coverage_summary
+                    GROUP BY vendor, data_type
+                    ORDER BY vendor, data_type
+                """)
+                
+                return [CoverageOverview(**dict(row)) for row in rows]
+        
+        async def get_coverage_summary(
+            symbols: Optional[List[str]] = None,
+            vendors: Optional[List[str]] = None,
+            min_coverage: Optional[float] = None
+        ) -> List[CoverageSummary]:
+            
+            where_conditions = []
+            params = []
+            param_count = 0
+            
+            if symbols:
+                param_count += 1
+                where_conditions.append(f"symbol = ANY(${param_count})")
+                params.append(symbols)
+            
+            if vendors:
+                param_count += 1
+                where_conditions.append(f"vendor = ANY(${param_count})")
+                params.append(vendors)
+            
+            if min_coverage:
+                param_count += 1
+                where_conditions.append(f"coverage_24h >= ${param_count}")
+                params.append(min_coverage)
+            
+            where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+            
+            async with db_pool.acquire() as conn:
+                rows = await conn.fetch(f"""
+                    SELECT 
+                        symbol, vendor, data_type, current_status,
+                        coverage_24h, quality_24h, records_24h,
+                        coverage_7d, coverage_30d,
+                        latest_data_time, 
+                        COALESCE(EXTRACT(EPOCH FROM (NOW() - latest_data_time)) / 3600.0, 0) as hours_since_update,
+                        coverage_trend, quality_trend
+                    FROM coverage_summary
+                    {where_clause}
+                    ORDER BY symbol, vendor, data_type
+                """, *params)
+                
+                result = []
+                for row in rows:
+                    row_dict = dict(row)
+                    if row_dict['hours_since_update'] is None:
+                        row_dict['hours_since_update'] = 0.0
+                    result.append(CoverageSummary(**row_dict))
+                
+                return result
+        
+        async def get_vendor_comparison(symbol: str, data_type: str = 'minute', time_period: str = '24h') -> VendorComparison:
+            time_field_map = {
+                '24h': 'coverage_24h',
+                '7d': 'coverage_7d', 
+                '30d': 'coverage_30d'
+            }
+            
+            coverage_field = time_field_map.get(time_period, 'coverage_24h')
+            
+            async with db_pool.acquire() as conn:
+                rows = await conn.fetch(f"""
+                    SELECT 
+                        vendor,
+                        {coverage_field} as coverage_percentage,
+                        current_status,
+                        COALESCE(EXTRACT(EPOCH FROM (NOW() - latest_data_time)) / 3600.0, 0) as hours_since_update
+                    FROM coverage_summary
+                    WHERE symbol = $1 AND data_type = $2
+                    AND {coverage_field} IS NOT NULL
+                    ORDER BY {coverage_field} DESC
+                """, symbol, data_type)
+                
+                vendors = []
+                for row in rows:
+                    vendors.append({
+                        'vendor': row['vendor'],
+                        'coverage_percentage': float(row['coverage_percentage'] or 0),
+                        'status': row['current_status'],
+                        'hours_since_update': float(row['hours_since_update'] or 0)
+                    })
+                
+                if vendors:
+                    best_vendor = vendors[0]
+                    worst_vendor = vendors[-1]
+                    avg_coverage = sum(v['coverage_percentage'] for v in vendors) / len(vendors)
+                    coverage_values = [v['coverage_percentage'] for v in vendors]
+                    coverage_variance = sum((x - avg_coverage) ** 2 for x in coverage_values) / len(coverage_values)
+                else:
+                    best_vendor = worst_vendor = None
+                    avg_coverage = coverage_variance = 0
+                
+                return VendorComparison(
+                    symbol=symbol,
+                    data_type=data_type,
+                    time_period=time_period,
+                    vendors=vendors,
+                    best_vendor=best_vendor,
+                    worst_vendor=worst_vendor,
+                    average_coverage=avg_coverage,
+                    coverage_variance=coverage_variance,
+                    vendor_count=len(vendors)
+                )
+        
+        # Main page with navigation
+        @app.get("/", response_class=HTMLResponse)
+        async def root():
+            return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Integrated Analytics Platform</title>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+                    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+                    .header { background: white; border-radius: 12px; padding: 40px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin-bottom: 30px; }
+                    .nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+                    .nav-card { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: transform 0.3s; }
+                    .nav-card:hover { transform: translateY(-5px); }
+                    .nav-card h3 { color: #667eea; margin-bottom: 15px; }
+                    .btn { background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; margin: 5px; transition: all 0.3s; }
+                    .btn:hover { background: #5a6fd8; transform: translateY(-1px); }
+                    .status-badge { background: #28a745; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 10px; }
+                    .new-badge { background: #007bff; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 10px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>🚀 Integrated Analytics Platform</h1>
+                        <p>Job Management · Dataset Analysis · Data Coverage Monitoring</p>
+                        <p><span class="status-badge">UPDATED</span> Now with real-time data coverage analytics</p>
+                    </div>
+                    <div class="nav-grid">
+                        <div class="nav-card">
+                            <h3>📊 Job Management</h3>
+                            <p>Monitor running jobs, view logs, and track progress</p>
+                            <a href="/jobs" class="btn">View Jobs</a>
+                        </div>
+                        <div class="nav-card">
+                            <h3>🧠 Training Datasets</h3>
+                            <p>Browse datasets, analyze sequences, and visualize features</p>
+                            <br>
+                            <a href="/datasets" class="btn">Browse Datasets</a>
+                        </div>
+                        <div class="nav-card">
+                            <h3>📈 Data Coverage</h3>
+                            <p>Monitor data quality, vendor performance, and coverage gaps</p>
+                            <span class="new-badge">NEW</span>
+                            <br><br>
+                            <a href="/coverage" class="btn">Coverage Dashboard</a>
+                        </div>
+                        <div class="nav-card">
+                            <h3>🔧 System Health</h3>
+                            <p>Check database connectivity and system status</p>
+                            <a href="/health" class="btn">Health Check</a>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+        
+        @app.get("/health")
+        async def health():
+            try:
+                if not db_pool:
+                    return {"status": "unhealthy", "error": "Database pool not initialized"}
+                
+                async with db_pool.acquire() as conn:
+                    result = await conn.fetchval("SELECT 1")
+                    job_count = await conn.fetchval("SELECT COUNT(*) FROM dev_runs")
+                    dataset_count = await conn.fetchval("SELECT COUNT(*) FROM dev_training_dataset")
+                    
+                    # Check coverage data
+                    try:
+                        coverage_count = await conn.fetchval("SELECT COUNT(*) FROM coverage_summary")
+                        coverage_status = "available"
+                    except:
+                        coverage_count = 0
+                        coverage_status = "not_available"
+                    
+                    return {
+                        "status": "healthy",
+                        "database": "connected",
+                        "features": ["jobs", "datasets", "coverage"],
+                        "data_summary": {
+                            "jobs": job_count,
+                            "datasets": dataset_count,
+                            "coverage_entries": coverage_count,
+                            "coverage_status": coverage_status
+                        },
+                        "timestamp": datetime.now().isoformat(),
+                        "version": "4.0.0"
+                    }
+            except Exception as e:
+                return {"status": "unhealthy", "error": str(e)}
+        
+        # Coverage dashboard page
+        @app.get("/coverage", response_class=HTMLResponse)
+        async def coverage_dashboard():
+            return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Data Coverage Dashboard - Analytics Platform</title>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; background: #f8f9fa; }
+                    .container { max-width: 1600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+                    .breadcrumb { margin: 10px 0; font-size: 14px; opacity: 0.9; }
+                    .breadcrumb a { color: white; text-decoration: none; }
+                    .tabs { display: flex; background: white; border-radius: 12px; margin-bottom: 20px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                    .tab { background: #f8f9fa; color: #666; padding: 15px 25px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; flex: 1; }
+                    .tab.active { background: #667eea; color: white; }
+                    .tab:hover:not(.active) { background: #e9ecef; }
+                    .content-section { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                    .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
+                    .metric-card { background: #f8f9fa; border-radius: 8px; padding: 20px; text-align: center; border-left: 4px solid #667eea; }
+                    .metric-value { font-size: 2rem; font-weight: bold; color: #667eea; }
+                    .metric-label { font-size: 0.875rem; color: #666; margin-top: 5px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th { background: #f8f9fa; padding: 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #dee2e6; }
+                    td { padding: 12px; border-bottom: 1px solid #dee2e6; }
+                    tr:hover { background: #f8f9fa; }
+                    .status-active { background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+                    .status-stale { background: #fff3cd; color: #856404; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+                    .status-missing { background: #f8d7da; color: #721c24; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+                    .vendor-polygon { background: #007bff; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; }
+                    .vendor-fmp { background: #28a745; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; }
+                    .vendor-tiingo { background: #ffc107; color: black; padding: 2px 8px; border-radius: 12px; font-size: 11px; }
+                    .coverage-good { color: #28a745; font-weight: bold; }
+                    .coverage-warning { color: #ffc107; font-weight: bold; }
+                    .coverage-bad { color: #dc3545; font-weight: bold; }
+                    .loading { text-align: center; padding: 40px; color: #667eea; }
+                    .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 15px; border-radius: 8px; margin: 20px 0; }
+                    .alert-buttons { margin-bottom: 20px; }
+                    .btn { background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-right: 10px; }
+                    .btn:hover { background: #5a6fd8; }
+                    .btn-warning { background: #ffc107; color: black; }
+                    .btn-success { background: #28a745; }
+                    .comparison-section { margin-top: 30px; }
+                    .comparison-input { padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-right: 10px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <div class="breadcrumb">
+                            <a href="/">Home</a> > Data Coverage Dashboard
+                        </div>
+                        <h1>📈 Data Coverage Analytics</h1>
+                        <p>Real-time monitoring of data quality, vendor performance, and coverage gaps</p>
+                        <div class="alert-buttons">
+                            <button class="btn btn-warning" onclick="testSlackAlert()">🧪 Test Slack Alert</button>
+                            <button class="btn btn-success" onclick="refreshData()">🔄 Refresh Data</button>
+                        </div>
+                    </div>
+                    
+                    <div class="tabs">
+                        <button class="tab active" onclick="showTab('overview')">Overview</button>
+                        <button class="tab" onclick="showTab('summary')">Coverage Summary</button>
+                        <button class="tab" onclick="showTab('comparison')">Vendor Comparison</button>
+                    </div>
+                    
+                    <div id="overview-section" class="content-section">
+                        <h2>📊 Coverage Overview</h2>
+                        <div id="overview-metrics" class="metrics-grid">
+                            <div class="loading">Loading overview data...</div>
+                        </div>
+                        <div id="overview-table">
+                            <div class="loading">Loading vendor statistics...</div>
+                        </div>
+                    </div>
+                    
+                    <div id="summary-section" class="content-section" style="display: none;">
+                        <h2>📋 Coverage Summary</h2>
+                        <div>
+                            <label>Minimum Coverage: </label>
+                            <input type="number" id="min-coverage" class="comparison-input" placeholder="90" min="0" max="100">
+                            <button class="btn" onclick="filterSummary()">Apply Filter</button>
+                        </div>
+                        <div id="summary-table">
+                            <div class="loading">Loading coverage summary...</div>
+                        </div>
+                    </div>
+                    
+                    <div id="comparison-section" class="content-section" style="display: none;">
+                        <h2>🔍 Vendor Comparison</h2>
+                        <div>
+                            <label>Symbol: </label>
+                            <input type="text" id="comparison-symbol" class="comparison-input" placeholder="AAPL" value="AAPL">
+                            <button class="btn" onclick="compareVendors()">Compare</button>
+                        </div>
+                        <div id="comparison-results">
+                            <div class="loading">Enter symbol to compare vendors...</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <script>
+                    function showTab(tabName) {
+                        // Hide all sections
+                        document.getElementById('overview-section').style.display = 'none';
+                        document.getElementById('summary-section').style.display = 'none';
+                        document.getElementById('comparison-section').style.display = 'none';
+                        
+                        // Show selected section
+                        document.getElementById(tabName + '-section').style.display = 'block';
+                        
+                        // Update tab appearance
+                        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                        event.target.classList.add('active');
+                    }
+                    
+                    function formatPercentage(value) {
+                        return value.toFixed(1) + '%';
+                    }
+                    
+                    function getCoverageClass(coverage) {
+                        if (coverage >= 95) return 'coverage-good';
+                        if (coverage >= 85) return 'coverage-warning';
+                        return 'coverage-bad';
+                    }
+                    
+                    function getVendorClass(vendor) {
+                        return 'vendor-' + vendor.toLowerCase();
+                    }
+                    
+                    function getStatusClass(status) {
+                        return 'status-' + status.toLowerCase();
+                    }
+                    
+                    async function loadOverview() {
+                        try {
+                            const response = await fetch('/api/v1/coverage/overview');
+                            if (!response.ok) throw new Error('Failed to load overview');
+                            const data = await response.json();
+                            
+                            // Create metrics cards
+                            const totalSymbols = data.reduce((sum, item) => sum + item.total_symbols, 0);
+                            const avgCoverage = data.reduce((sum, item) => sum + item.avg_coverage * item.total_symbols, 0) / totalSymbols;
+                            const totalActive = data.reduce((sum, item) => sum + item.active_symbols, 0);
+                            const totalStale = data.reduce((sum, item) => sum + item.stale_symbols, 0);
+                            
+                            document.getElementById('overview-metrics').innerHTML = `
+                                <div class="metric-card">
+                                    <div class="metric-value">${totalSymbols}</div>
+                                    <div class="metric-label">Total Symbols</div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-value">${formatPercentage(avgCoverage || 0)}</div>
+                                    <div class="metric-label">Average Coverage</div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-value">${totalActive}</div>
+                                    <div class="metric-label">Active Symbols</div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-value">${totalStale}</div>
+                                    <div class="metric-label">Stale Symbols</div>
+                                </div>
+                            `;
+                            
+                            // Create overview table
+                            const tableRows = data.map(item => 
+                                `<tr>
+                                    <td><span class="${getVendorClass(item.vendor)}">${item.vendor.toUpperCase()}</span></td>
+                                    <td>${item.data_type}</td>
+                                    <td>${item.total_symbols}</td>
+                                    <td class="${getCoverageClass(item.avg_coverage)}">${formatPercentage(item.avg_coverage)}</td>
+                                    <td>${item.active_symbols}</td>
+                                    <td>${item.stale_symbols}</td>
+                                    <td>${item.missing_symbols}</td>
+                                </tr>`
+                            ).join('');
+                            
+                            document.getElementById('overview-table').innerHTML = `
+                                <table>
+                                    <tr>
+                                        <th>Vendor</th>
+                                        <th>Data Type</th>
+                                        <th>Total Symbols</th>
+                                        <th>Avg Coverage</th>
+                                        <th>Active</th>
+                                        <th>Stale</th>
+                                        <th>Missing</th>
+                                    </tr>
+                                    ${tableRows}
+                                </table>
+                            `;
+                        } catch (error) {
+                            document.getElementById('overview-metrics').innerHTML = 
+                                '<div class="error">Error loading overview data: ' + error.message + '</div>';
+                            document.getElementById('overview-table').innerHTML = '';
+                        }
+                    }
+                    
+                    async function loadSummary(minCoverage = null) {
+                        try {
+                            let url = '/api/v1/coverage/summary';
+                            if (minCoverage !== null && minCoverage !== '') {
+                                url += '?min_coverage=' + minCoverage;
+                            }
+                            
+                            const response = await fetch(url);
+                            if (!response.ok) throw new Error('Failed to load summary');
+                            const data = await response.json();
+                            
+                            if (data.length === 0) {
+                                document.getElementById('summary-table').innerHTML = 
+                                    '<div class="error">No coverage data found matching the criteria.</div>';
+                                return;
+                            }
+                            
+                            const tableRows = data.map(item => 
+                                `<tr>
+                                    <td>${item.symbol}</td>
+                                    <td><span class="${getVendorClass(item.vendor)}">${item.vendor.toUpperCase()}</span></td>
+                                    <td>${item.data_type}</td>
+                                    <td><span class="${getStatusClass(item.current_status)}">${item.current_status}</span></td>
+                                    <td class="${getCoverageClass(item.coverage_24h)}">${formatPercentage(item.coverage_24h)}</td>
+                                    <td>${item.records_24h.toLocaleString()}</td>
+                                    <td>${item.quality_24h ? item.quality_24h.toFixed(2) : 'N/A'}</td>
+                                    <td>${item.hours_since_update ? item.hours_since_update.toFixed(1) + 'h' : 'N/A'}</td>
+                                </tr>`
+                            ).join('');
+                            
+                            document.getElementById('summary-table').innerHTML = `
+                                <table>
+                                    <tr>
+                                        <th>Symbol</th>
+                                        <th>Vendor</th>
+                                        <th>Data Type</th>
+                                        <th>Status</th>
+                                        <th>24h Coverage</th>
+                                        <th>24h Records</th>
+                                        <th>Quality Score</th>
+                                        <th>Last Update</th>
+                                    </tr>
+                                    ${tableRows}
+                                </table>
+                                <p style="margin-top: 15px; color: #666; font-size: 14px;">
+                                    Showing ${data.length} coverage entries
+                                </p>
+                            `;
+                        } catch (error) {
+                            document.getElementById('summary-table').innerHTML = 
+                                '<div class="error">Error loading coverage summary: ' + error.message + '</div>';
+                        }
+                    }
+                    
+                    async function compareVendors() {
+                        const symbol = document.getElementById('comparison-symbol').value.trim().toUpperCase();
+                        if (!symbol) {
+                            document.getElementById('comparison-results').innerHTML = 
+                                '<div class="error">Please enter a symbol to compare</div>';
+                            return;
+                        }
+                        
+                        document.getElementById('comparison-results').innerHTML = 
+                            '<div class="loading">Comparing vendors for ' + symbol + '...</div>';
+                        
+                        try {
+                            const response = await fetch(`/api/v1/coverage/comparison/${symbol}?data_type=minute&time_period=24h`);
+                            if (!response.ok) throw new Error('Failed to load comparison');
+                            const data = await response.json();
+                            
+                            if (data.vendor_count === 0) {
+                                document.getElementById('comparison-results').innerHTML = 
+                                    `<div class="error">No coverage data found for symbol ${symbol}</div>`;
+                                return;
+                            }
+                            
+                            const vendorRows = data.vendors.map(vendor => 
+                                `<tr>
+                                    <td><span class="${getVendorClass(vendor.vendor)}">${vendor.vendor.toUpperCase()}</span></td>
+                                    <td class="${getCoverageClass(vendor.coverage_percentage)}">${formatPercentage(vendor.coverage_percentage)}</td>
+                                    <td><span class="${getStatusClass(vendor.status)}">${vendor.status}</span></td>
+                                    <td>${vendor.hours_since_update.toFixed(1)}h</td>
+                                </tr>`
+                            ).join('');
+                            
+                            document.getElementById('comparison-results').innerHTML = `
+                                <div class="metrics-grid">
+                                    <div class="metric-card">
+                                        <div class="metric-value">${data.vendor_count}</div>
+                                        <div class="metric-label">Vendors Available</div>
+                                    </div>
+                                    <div class="metric-card">
+                                        <div class="metric-value">${formatPercentage(data.average_coverage)}</div>
+                                        <div class="metric-label">Average Coverage</div>
+                                    </div>
+                                    <div class="metric-card">
+                                        <div class="metric-value">${data.best_vendor ? data.best_vendor.vendor.toUpperCase() : 'N/A'}</div>
+                                        <div class="metric-label">Best Vendor</div>
+                                    </div>
+                                    <div class="metric-card">
+                                        <div class="metric-value">${data.coverage_variance.toFixed(2)}</div>
+                                        <div class="metric-label">Variance</div>
+                                    </div>
+                                </div>
+                                <table>
+                                    <tr>
+                                        <th>Vendor</th>
+                                        <th>Coverage</th>
+                                        <th>Status</th>
+                                        <th>Last Update</th>
+                                    </tr>
+                                    ${vendorRows}
+                                </table>
+                            `;
+                        } catch (error) {
+                            document.getElementById('comparison-results').innerHTML = 
+                                '<div class="error">Error loading vendor comparison: ' + error.message + '</div>';
+                        }
+                    }
+                    
+                    async function testSlackAlert() {
+                        try {
+                            const response = await fetch('/api/v1/coverage/alerts/test', { method: 'POST' });
+                            if (!response.ok) throw new Error('Failed to send test alert');
+                            const data = await response.json();
+                            alert('✅ Test alert sent to Slack successfully!');
+                        } catch (error) {
+                            alert('❌ Failed to send test alert: ' + error.message);
+                        }
+                    }
+                    
+                    function filterSummary() {
+                        const minCoverage = document.getElementById('min-coverage').value;
+                        loadSummary(minCoverage);
+                    }
+                    
+                    function refreshData() {
+                        loadOverview();
+                        loadSummary();
+                        // Also refresh comparison if symbol is entered
+                        const symbol = document.getElementById('comparison-symbol').value.trim();
+                        if (symbol) {
+                            compareVendors();
+                        }
+                    }
+                    
+                    // Load initial data
+                    document.addEventListener('DOMContentLoaded', function() {
+                        loadOverview();
+                        loadSummary();
+                    });
+                </script>
+            </body>
+            </html>
+            """
+        
+        # Coverage API endpoints
+        @app.get("/api/v1/coverage/overview")
+        async def api_coverage_overview():
+            try:
+                return await get_coverage_overview()
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to get coverage overview: {str(e)}")
+        
+        @app.get("/api/v1/coverage/summary")
+        async def api_coverage_summary(
+            symbols: Optional[str] = Query(None),
+            vendors: Optional[str] = Query(None),
+            min_coverage: Optional[float] = Query(None, ge=0, le=100)
+        ):
+            try:
+                symbols_list = symbols.split(',') if symbols else None
+                vendors_list = vendors.split(',') if vendors else None
+                return await get_coverage_summary(symbols_list, vendors_list, min_coverage)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to get coverage summary: {str(e)}")
+        
+        @app.get("/api/v1/coverage/comparison/{symbol}")
+        async def api_vendor_comparison(
+            symbol: str = PathParam(..., description="Symbol to compare vendors for"),
+            data_type: str = Query("minute", regex="^(minute|daily)$"),
+            time_period: str = Query("24h", regex="^(24h|7d|30d)$")
+        ):
+            try:
+                return await get_vendor_comparison(symbol, data_type, time_period)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to get vendor comparison: {str(e)}")
+        
+        @app.post("/api/v1/coverage/alerts/test")
+        async def test_slack_alert():
+            try:
+                message = "🧪 Test alert from ATS Integrated Analytics Platform"
+                alerter = SlackAlerter()
+                await alerter.send_alert(message, "info")
+                return {
+                    "status": "success",
+                    "message": "Test alert sent to Slack",
+                    "timestamp": datetime.now()
+                }
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to send test alert: {str(e)}")
+        
+        # Existing job management endpoints (keeping original functionality)
+        @app.get("/jobs", response_class=HTMLResponse)
+        async def jobs_page():
+            return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Jobs - Analytics Platform</title>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; background: #f8f9fa; }
+                    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+                    .breadcrumb { margin: 10px 0; font-size: 14px; opacity: 0.9; }
+                    .breadcrumb a { color: white; text-decoration: none; }
+                    .table-container { background: white; border-radius: 12px; padding: 20px; overflow-x: auto; }
+                    table { width: 100%; border-collapse: collapse; min-width: 800px; }
+                    th { background: #f8f9fa; padding: 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #dee2e6; }
+                    td { padding: 12px; border-bottom: 1px solid #dee2e6; }
+                    tr:hover { background: #f8f9fa; }
+                    .status-completed { background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; }
+                    .status-running { background: #d1ecf1; color: #0c5460; padding: 4px 8px; border-radius: 4px; }
+                    .status-failed { background: #f8d7da; color: #721c24; padding: 4px 8px; border-radius: 4px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <div class="breadcrumb">
+                            <a href="/">Home</a> > Jobs
+                        </div>
+                        <h1>📊 Job Management</h1>
+                        <p>Monitor running jobs and view execution history</p>
+                    </div>
+                    <div class="table-container">
+                        <h2>Recent Jobs</h2>
+                        <div id="jobs-table">Loading jobs...</div>
+                    </div>
+                </div>
+                <script>
+                    fetch('/api/v1/jobs').then(r => r.json()).then(data => {
+                        const table = '<table><tr><th>Job ID</th><th>Type</th><th>Status</th><th>Duration</th><th>Started</th></tr>' +
+                            data.jobs.map(job => 
+                                `<tr>
+                                    <td>#${job.id}</td>
+                                    <td>${job.run_type}</td>
+                                    <td><span class="status-${job.status.toLowerCase()}">${job.status}</span></td>
+                                    <td>${job.duration_seconds ? Math.floor(job.duration_seconds / 60) + 'm' : 'N/A'}</td>
+                                    <td>${new Date(job.start_time).toLocaleString()}</td>
+                                </tr>`
+                            ).join('') + '</table>';
+                        document.getElementById('jobs-table').innerHTML = table;
+                    }).catch(err => {
+                        document.getElementById('jobs-table').innerHTML = '<p style="color: red;">Error loading jobs: ' + err.message + '</p>';
+                    });
+                </script>
+            </body>
+            </html>
+            """
+        
+        @app.get("/api/v1/jobs")
+        async def get_jobs():
+            try:
+                async with db_pool.acquire() as conn:
+                    jobs = await conn.fetch("""
+                        SELECT id, run_type, status, start_time, end_time, 
+                               EXTRACT(EPOCH FROM (COALESCE(end_time, NOW()) - start_time))::INTEGER as duration_seconds
+                        FROM dev_runs 
+                        ORDER BY start_time DESC 
+                        LIMIT 50
+                    """)
+                    
+                    return {
+                        "jobs": [dict(job) for job in jobs],
+                        "total": len(jobs)
+                    }
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        # Dataset endpoints (keeping existing functionality - abbreviated for space)
+        @app.get("/datasets", response_class=HTMLResponse)
+        async def datasets_page():
+            return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Datasets - Analytics Platform</title>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; background: #f8f9fa; }
+                    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+                    .breadcrumb { margin: 10px 0; font-size: 14px; opacity: 0.9; }
+                    .breadcrumb a { color: white; text-decoration: none; }
+                    .table-container { background: white; border-radius: 12px; padding: 20px; overflow-x: auto; }
+                    table { width: 100%; border-collapse: collapse; min-width: 800px; }
+                    th { background: #f8f9fa; padding: 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #dee2e6; }
+                    td { padding: 12px; border-bottom: 1px solid #dee2e6; }
+                    tr:hover { background: #f8f9fa; }
+                    .dataset-link { color: #667eea; text-decoration: none; font-weight: 600; }
+                    .dataset-link:hover { text-decoration: underline; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <div class="breadcrumb">
+                            <a href="/">Home</a> > Datasets
+                        </div>
+                        <h1>🧠 Training Datasets</h1>
+                        <p>Browse datasets and analyze training sequences</p>
+                    </div>
+                    <div class="table-container">
+                        <h2>Available Datasets</h2>
+                        <div id="datasets-table">Loading datasets...</div>
+                    </div>
+                </div>
+                <script>
+                    fetch('/api/v1/datasets').then(r => r.json()).then(data => {
+                        const table = '<table><tr><th>Dataset Name</th><th>Sequences</th><th>Features</th><th>Symbols</th><th>Created</th></tr>' +
+                            data.datasets.map(d => 
+                                `<tr>
+                                    <td><a href="/dataset-detail?id=${d.dataset_id}" class="dataset-link">${d.dataset_name}</a></td>
+                                    <td>${d.total_sequences}</td>
+                                    <td>${d.feature_count}</td>
+                                    <td>${d.symbols.join(', ')}</td>
+                                    <td>${new Date(d.created_at).toLocaleDateString()}</td>
+                                </tr>`
+                            ).join('') + '</table>';
+                        document.getElementById('datasets-table').innerHTML = table;
+                    }).catch(err => {
+                        document.getElementById('datasets-table').innerHTML = '<p style="color: red;">Error loading datasets: ' + err.message + '</p>';
+                    });
+                </script>
+            </body>
+            </html>
+            """
+        
+        @app.get("/api/v1/datasets")
+        async def get_datasets():
+            try:
+                async with db_pool.acquire() as conn:
+                    datasets = await conn.fetch("""
+                        SELECT id as dataset_id, dataset_name, symbols, total_sequences, 
+                               feature_count, creation_timestamp as created_at
+                        FROM dev_training_dataset
+                        ORDER BY creation_timestamp DESC
+                    """)
+                    
+                    return {
+                        "datasets": [dict(dataset) for dataset in datasets],
+                        "total": len(datasets)
+                    }
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        return app
+    
+    if __name__ == "__main__":
+        import uvicorn
+        
+        app = create_app()
+        logger.info("🚀 Starting Integrated Analytics WebApp")
+        logger.info("📊 Features: Job Management + Dataset Analysis + Data Coverage Monitoring")
+        logger.info("✅ Real-time coverage analytics with Slack alerting")
+        
+        uvicorn.run(app, host="0.0.0.0", port=5000, log_level="info")
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: integrated-analytics
+  namespace: ats-dev
+  labels:
+    app: integrated-analytics
+    component: webapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: integrated-analytics
+  template:
+    metadata:
+      labels:
+        app: integrated-analytics
+        component: webapp
+    spec:
+      containers:
+      - name: webapp
+        image: python:3.12-slim
+        ports:
+        - containerPort: 5000
+          name: http
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "🚀 Installing dependencies..."
+          pip install --no-cache-dir \
+            fastapi==0.104.1 \
+            uvicorn[standard]==0.24.0 \
+            asyncpg==0.29.0 \
+            pydantic==2.5.0 \
+            requests==2.31.0
+          
+          echo "📂 Setting up application..."
+          cp /config/app.py /app.py
+          
+          echo "📊 Starting Integrated Analytics WebApp..."
+          python /app.py
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        volumeMounts:
+        - name: webapp-config
+          mountPath: /config
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+      volumes:
+      - name: webapp-config
+        configMap:
+          name: integrated-analytics-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: integrated-analytics-service
+  namespace: ats-dev
+  labels:
+    app: integrated-analytics
+spec:
+  type: NodePort
+  selector:
+    app: integrated-analytics
+  ports:
+  - name: http
+    port: 5000
+    targetPort: 5000
+    nodePort: 30100
