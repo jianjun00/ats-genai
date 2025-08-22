@@ -121,23 +121,38 @@ class UnifiedAnalyticsManager:
     
     # ===== DATASET MANAGEMENT =====
     
-    async def list_datasets(self) -> Dict[str, Any]:
-        """List available training datasets."""
+    async def list_datasets(self, limit: int = 50, offset: int = 0, symbol_filter: str = None, sort_by: str = "creation_timestamp", sort_dir: str = "desc") -> Dict[str, Any]:
+        """List available training datasets with enhanced filtering and sorting."""
+        where_clause = "WHERE dataset_name ILIKE $3" if symbol_filter else ""
+        params = [limit, offset]
+        if symbol_filter:
+            params.append(f"%{symbol_filter}%")
+        
+        # Validate sort parameters
+        valid_sorts = ["creation_timestamp", "dataset_name", "total_sequences", "feature_count", "file_size_mb"]
+        sort_by = sort_by if sort_by in valid_sorts else "creation_timestamp"
+        sort_dir = "DESC" if sort_dir.lower() == "desc" else "ASC"
+        
         # Check if dev_training_dataset or dev_training_datasets table exists
         async with self.pool.acquire() as conn:
             # Try both table names to be safe
             for table_name in ['dev_training_dataset', 'dev_training_datasets']:
                 try:
-                    datasets = await conn.fetch(f"""
+                    count_query = f"SELECT COUNT(*) FROM {table_name} {where_clause}"
+                    total = await conn.fetchval(count_query, *(params[2:] if symbol_filter else []))
+                    
+                    query = f"""
                         SELECT dataset_name, symbols, total_sequences, feature_count, 
                                technical_indicators, creation_timestamp as created_at, file_size_mb
-                        FROM {table_name}
-                        ORDER BY creation_timestamp DESC
-                        LIMIT 20
-                    """)
+                        FROM {table_name} {where_clause}
+                        ORDER BY {sort_by} {sort_dir}
+                        LIMIT $1 OFFSET $2
+                    """
+                    
+                    datasets = await conn.fetch(query, *params)
                     
                     dataset_list = []
-                    for i, dataset in enumerate(datasets, 1):
+                    for i, dataset in enumerate(datasets, offset + 1):
                         dataset_list.append({
                             "dataset_id": i,
                             "dataset_name": dataset['dataset_name'],
@@ -149,27 +164,66 @@ class UnifiedAnalyticsManager:
                             "file_size_mb": float(dataset['file_size_mb']) if dataset['file_size_mb'] else 0.0
                         })
                     
-                    return {"datasets": dataset_list, "total": len(dataset_list)}
+                    return {"datasets": dataset_list, "total": total}
                     
                 except Exception:
                     continue
             
-            # If no table exists, return sample data
-            return {
-                "datasets": [
-                    {
-                        "dataset_id": 1,
-                        "dataset_name": "enhanced_aapl_tsla_120d",
-                        "symbols": ["AAPL", "TSLA"],
-                        "total_sequences": 2847,
-                        "feature_count": 24,
-                        "technical_indicators": ["ema_12", "ema_26", "rsi", "atr", "vwap"],
-                        "created_at": datetime.now().isoformat(),
-                        "file_size_mb": 15.2
-                    }
-                ],
-                "total": 1
-            }
+            # If no table exists, return sample data with filtering support
+            sample_datasets = [
+                {
+                    "dataset_id": 1,
+                    "dataset_name": "enhanced_aapl_tsla_120d",
+                    "symbols": ["AAPL", "TSLA"],
+                    "total_sequences": 2847,
+                    "feature_count": 24,
+                    "technical_indicators": ["ema_12", "ema_26", "rsi", "atr", "vwap"],
+                    "created_at": datetime.now().isoformat(),
+                    "file_size_mb": 15.2
+                },
+                {
+                    "dataset_id": 2,
+                    "dataset_name": "enhanced_spy_universe_90d",
+                    "symbols": ["SPY", "QQQ", "IWM"],
+                    "total_sequences": 1847,
+                    "feature_count": 28,
+                    "technical_indicators": ["ema_12", "ema_26", "rsi", "atr", "vwap", "bollinger_bands"],
+                    "created_at": (datetime.now() - timedelta(days=1)).isoformat(),
+                    "file_size_mb": 22.5
+                },
+                {
+                    "dataset_id": 3,
+                    "dataset_name": "tech_stocks_60d",
+                    "symbols": ["MSFT", "GOOGL", "AMZN"],
+                    "total_sequences": 1247,
+                    "feature_count": 20,
+                    "technical_indicators": ["ema_12", "rsi", "vwap"],
+                    "created_at": (datetime.now() - timedelta(days=3)).isoformat(),
+                    "file_size_mb": 8.9
+                }
+            ]
+            
+            # Apply filtering to sample data
+            if symbol_filter:
+                sample_datasets = [d for d in sample_datasets if symbol_filter.lower() in d['dataset_name'].lower()]
+            
+            # Apply sorting to sample data
+            if sort_by == "dataset_name":
+                sample_datasets.sort(key=lambda x: x['dataset_name'], reverse=(sort_dir == "DESC"))
+            elif sort_by == "total_sequences":
+                sample_datasets.sort(key=lambda x: x['total_sequences'], reverse=(sort_dir == "DESC"))
+            elif sort_by == "feature_count":
+                sample_datasets.sort(key=lambda x: x['feature_count'], reverse=(sort_dir == "DESC"))
+            elif sort_by == "file_size_mb":
+                sample_datasets.sort(key=lambda x: x['file_size_mb'], reverse=(sort_dir == "DESC"))
+            else:  # creation_timestamp (default)
+                sample_datasets.sort(key=lambda x: x['created_at'], reverse=(sort_dir == "DESC"))
+            
+            # Apply pagination to sample data
+            total_sample = len(sample_datasets)
+            sample_datasets = sample_datasets[offset:offset + limit]
+            
+            return {"datasets": sample_datasets, "total": total_sample}
     
     async def get_dataset_distributions(self, dataset_id: int) -> Dict[str, Any]:
         """Get feature distributions for dataset visualization."""
@@ -293,9 +347,15 @@ async def list_jobs(
 # ===== DATASET MANAGEMENT APIs (Restored) =====
 
 @app.get("/api/v1/datasets")
-async def list_datasets():
-    """List available training datasets."""
-    return await analytics_manager.list_datasets()
+async def list_datasets(
+    limit: int = Query(50, le=100),
+    offset: int = Query(0, ge=0),
+    symbol_filter: Optional[str] = Query(None, description="Filter datasets by symbol or name"),
+    sort_by: str = Query("creation_timestamp", description="Sort field: creation_timestamp, dataset_name, total_sequences, feature_count, file_size_mb"),
+    sort_dir: str = Query("desc", description="Sort direction: asc or desc")
+):
+    """List available training datasets with filtering and sorting."""
+    return await analytics_manager.list_datasets(limit, offset, symbol_filter, sort_by, sort_dir)
 
 
 @app.get("/api/v1/datasets/{dataset_id}/distributions")
@@ -351,19 +411,19 @@ async def web_interface():
         .stat-number { font-size: 2em; font-weight: bold; color: #007bff; }
         .success-notice { background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; margin: 15px 0; border-radius: 8px; }
         
-        /* Job Table Styles */
-        .job-controls { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
-        .job-table-container { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .job-table { width: 100%; border-collapse: collapse; }
-        .job-table th, .job-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        .job-table th { background: #f8f9fa; font-weight: 600; cursor: pointer; user-select: none; }
-        .job-table th:hover { background: #e9ecef; }
-        .job-table tr:hover { background: #f8f9fa; }
+        /* Interactive Table Styles (shared for jobs and datasets) */
+        .table-controls { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .table-container { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .interactive-table { width: 100%; border-collapse: collapse; }
+        .interactive-table th, .interactive-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        .interactive-table th { background: #f8f9fa; font-weight: 600; cursor: pointer; user-select: none; }
+        .interactive-table th:hover { background: #e9ecef; }
+        .interactive-table tr:hover { background: #f8f9fa; }
         .sort-indicator { margin-left: 5px; opacity: 0.5; }
         .sort-indicator.active { opacity: 1; }
-        .flyte-link { color: #007bff; text-decoration: none; }
-        .flyte-link:hover { text-decoration: underline; }
-        .job-id { font-family: monospace; }
+        .link { color: #007bff; text-decoration: none; }
+        .link:hover { text-decoration: underline; }
+        .monospace { font-family: monospace; }
         .duration { font-size: 0.9em; color: #666; }
         .error-message { color: #dc3545; font-size: 0.9em; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .pagination { margin: 15px 0; text-align: center; }
@@ -371,6 +431,20 @@ async def web_interface():
         .pagination button:hover { background: #f8f9fa; }
         .pagination button.active { background: #007bff; color: white; border-color: #007bff; }
         .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .symbols-list { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .indicators-list { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9em; color: #666; }
+        .size-badge { background: #e9ecef; padding: 2px 6px; border-radius: 3px; font-size: 0.85em; }
+        /* Legacy job table classes for backward compatibility */
+        .job-controls { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .job-table-container { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .job-table { width: 100%; border-collapse: collapse; }
+        .job-table th, .job-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        .job-table th { background: #f8f9fa; font-weight: 600; cursor: pointer; user-select: none; }
+        .job-table th:hover { background: #e9ecef; }
+        .job-table tr:hover { background: #f8f9fa; }
+        .flyte-link { color: #007bff; text-decoration: none; }
+        .flyte-link:hover { text-decoration: underline; }
+        .job-id { font-family: monospace; }
     </style>
 </head>
 <body>
@@ -447,7 +521,43 @@ async def web_interface():
         <div id="datasets-tab" class="tab">
             <h2>📈 Dataset Visualization</h2>
             <div id="dataset-stats" class="stats"></div>
-            <div id="datasets-list"></div>
+            
+            <div class="table-controls">
+                <label>Filter by Symbol/Name:</label>
+                <input type="text" id="symbol-filter" placeholder="e.g., AAPL, TSLA, enhanced...">
+                
+                <label>Show:</label>
+                <select id="dataset-limit-select">
+                    <option value="10">10 rows</option>
+                    <option value="25">25 rows</option>
+                    <option value="50">50 rows</option>
+                    <option value="100">100 rows</option>
+                </select>
+                
+                <button onclick="refreshDatasets()">🔄 Refresh</button>
+            </div>
+            
+            <div class="table-container">
+                <table class="interactive-table">
+                    <thead>
+                        <tr>
+                            <th onclick="sortDatasets('dataset_name')">Dataset Name <span class="sort-indicator">↕️</span></th>
+                            <th onclick="sortDatasets('total_sequences')">Sequences <span class="sort-indicator">↕️</span></th>
+                            <th onclick="sortDatasets('feature_count')">Features <span class="sort-indicator">↕️</span></th>
+                            <th>Symbols</th>
+                            <th onclick="sortDatasets('file_size_mb')">Size (MB) <span class="sort-indicator">↕️</span></th>
+                            <th>Technical Indicators</th>
+                            <th onclick="sortDatasets('creation_timestamp')">Created <span class="sort-indicator active">🔽</span></th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="datasets-table-body">
+                        <!-- Dataset rows will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="dataset-pagination" class="pagination"></div>
         </div>
     </div>
 
@@ -457,6 +567,12 @@ async def web_interface():
         let currentPage = 0;
         let currentLimit = 25;
         let currentStatus = '';
+        
+        // Dataset-specific variables
+        let currentDatasetSort = { field: 'creation_timestamp', direction: 'desc' };
+        let currentDatasetPage = 0;
+        let currentDatasetLimit = 25;
+        let currentSymbolFilter = '';
         
         function showTab(tabName) {
             // Hide all tabs
@@ -512,6 +628,43 @@ async def web_interface():
         function changePage(newPage) {
             currentPage = newPage;
             loadJobs();
+        }
+        
+        function sortDatasets(field) {
+            if (currentDatasetSort.field === field) {
+                currentDatasetSort.direction = currentDatasetSort.direction === 'desc' ? 'asc' : 'desc';
+            } else {
+                currentDatasetSort.field = field;
+                currentDatasetSort.direction = 'desc';
+            }
+            currentDatasetPage = 0;
+            loadDatasets();
+            updateDatasetSortIndicators();
+        }
+        
+        function updateDatasetSortIndicators() {
+            document.querySelectorAll('#datasets-tab .sort-indicator').forEach(indicator => {
+                indicator.classList.remove('active');
+                indicator.textContent = '↕️';
+            });
+            
+            const activeHeader = document.querySelector(`#datasets-tab th[onclick="sortDatasets('${currentDatasetSort.field}')"] .sort-indicator`);
+            if (activeHeader) {
+                activeHeader.classList.add('active');
+                activeHeader.textContent = currentDatasetSort.direction === 'desc' ? '🔽' : '🔼';
+            }
+        }
+        
+        function refreshDatasets() {
+            currentSymbolFilter = document.getElementById('symbol-filter').value;
+            currentDatasetLimit = parseInt(document.getElementById('dataset-limit-select').value);
+            currentDatasetPage = 0;
+            loadDatasets();
+        }
+        
+        function changeDatasetPage(newPage) {
+            currentDatasetPage = newPage;
+            loadDatasets();
         }
         
         async function loadJobs() {
@@ -630,11 +783,63 @@ async def web_interface():
             pagination.innerHTML = paginationHTML;
         }
         
+        function updateDatasetPagination(total, currentPage, limit) {
+            const totalPages = Math.ceil(total / limit);
+            const pagination = document.getElementById('dataset-pagination');
+            
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+            
+            let paginationHTML = '';
+            
+            // Previous button
+            paginationHTML += `<button onclick="changeDatasetPage(${currentPage - 1})" ${currentPage === 0 ? 'disabled' : ''}>&laquo; Previous</button>`;
+            
+            // Page numbers
+            const startPage = Math.max(0, currentPage - 2);
+            const endPage = Math.min(totalPages - 1, currentPage + 2);
+            
+            if (startPage > 0) {
+                paginationHTML += `<button onclick="changeDatasetPage(0)">1</button>`;
+                if (startPage > 1) paginationHTML += '<span>...</span>';
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                paginationHTML += `<button onclick="changeDatasetPage(${i})" class="${i === currentPage ? 'active' : ''}">${i + 1}</button>`;
+            }
+            
+            if (endPage < totalPages - 1) {
+                if (endPage < totalPages - 2) paginationHTML += '<span>...</span>';
+                paginationHTML += `<button onclick="changeDatasetPage(${totalPages - 1})">${totalPages}</button>`;
+            }
+            
+            // Next button
+            paginationHTML += `<button onclick="changeDatasetPage(${currentPage + 1})" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>Next &raquo;</button>`;
+            
+            pagination.innerHTML = paginationHTML;
+        }
+        
         async function loadDatasets() {
             try {
-                const datasets = await fetch('/api/v1/datasets').then(r => r.json());
                 const filters = await fetch('/api/v1/datasets/filter').then(r => r.json());
                 
+                // Build query parameters
+                const params = new URLSearchParams({
+                    limit: currentDatasetLimit.toString(),
+                    offset: (currentDatasetPage * currentDatasetLimit).toString(),
+                    sort_by: currentDatasetSort.field,
+                    sort_dir: currentDatasetSort.direction
+                });
+                
+                if (currentSymbolFilter) {
+                    params.set('symbol_filter', currentSymbolFilter);
+                }
+                
+                const datasets = await fetch(`/api/v1/datasets?${params}`).then(r => r.json());
+                
+                // Update stats
                 document.getElementById('dataset-stats').innerHTML = `
                     <div class="stat-card">
                         <div class="stat-number">${datasets.total}</div>
@@ -650,33 +855,60 @@ async def web_interface():
                     </div>
                 `;
                 
-                document.getElementById('datasets-list').innerHTML = 
-                    '<h3>Available Training Datasets:</h3>' +
-                    datasets.datasets.map(d => `
-                        <div class="dataset">
-                            <strong>${d.dataset_name}</strong> (ID: ${d.dataset_id})<br>
-                            Symbols: ${Array.isArray(d.symbols) ? d.symbols.join(', ') : d.symbols}<br>
-                            Sequences: ${d.total_sequences} | Features: ${d.feature_count} | Size: ${d.file_size_mb}MB<br>
-                            <small>Indicators: ${Array.isArray(d.technical_indicators) ? d.technical_indicators.join(', ') : d.technical_indicators}</small>
-                            <br><br>
-                            <button onclick="window.open('/api/v1/datasets/${d.dataset_id}/distributions', '_blank')">📊 View Distributions</button>
-                            <button onclick="window.open('/api/v1/datasets/${d.dataset_id}/ohlc', '_blank')">📈 View OHLC</button>
-                        </div>
-                    `).join('');
+                // Update dataset table
+                const tableBody = document.getElementById('datasets-table-body');
+                tableBody.innerHTML = datasets.datasets.map(d => {
+                    const symbols = Array.isArray(d.symbols) ? d.symbols.join(', ') : d.symbols;
+                    const indicators = Array.isArray(d.technical_indicators) ? d.technical_indicators.join(', ') : d.technical_indicators;
+                    const createdAt = d.created_at ? new Date(d.created_at).toLocaleString() : 'N/A';
                     
+                    return `
+                        <tr>
+                            <td><strong>${d.dataset_name}</strong></td>
+                            <td>${d.total_sequences.toLocaleString()}</td>
+                            <td>${d.feature_count}</td>
+                            <td class="symbols-list" title="${symbols}">${symbols}</td>
+                            <td><span class="size-badge">${d.file_size_mb} MB</span></td>
+                            <td class="indicators-list" title="${indicators}">${indicators}</td>
+                            <td>${createdAt}</td>
+                            <td>
+                                <a href="/api/v1/datasets/${d.dataset_id}/distributions" target="_blank" class="link">📊 Distributions</a>
+                                <br>
+                                <a href="/api/v1/datasets/${d.dataset_id}/ohlc" target="_blank" class="link">📈 OHLC</a>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                // Update pagination
+                updateDatasetPagination(datasets.total, currentDatasetPage, currentDatasetLimit);
+                
             } catch (error) {
-                document.getElementById('datasets-list').innerHTML = '<p style="color: red;">❌ Error loading datasets: ' + error.message + '</p>';
+                document.getElementById('datasets-table-body').innerHTML = `
+                    <tr><td colspan="8" style="color: red; text-align: center;">❌ Error loading datasets: ${error.message}</td></tr>
+                `;
             }
         }
         
         // Load initial data
         loadJobs();
 
-        // Initialize interactive table
+        // Initialize interactive tables
         updateSortIndicators();
+        updateDatasetSortIndicators();
+        
+        // Job table event listeners
         document.getElementById('status-filter').addEventListener('change', refreshJobs);
         document.getElementById('limit-select').addEventListener('change', refreshJobs);
         document.getElementById('limit-select').value = '25';
+        
+        // Dataset table event listeners
+        document.getElementById('symbol-filter').addEventListener('input', () => {
+            clearTimeout(window.filterTimeout);
+            window.filterTimeout = setTimeout(refreshDatasets, 500);
+        });
+        document.getElementById('dataset-limit-select').addEventListener('change', refreshDatasets);
+        document.getElementById('dataset-limit-select').value = '25';
         
         // Auto-refresh every 30 seconds
         setInterval(() => {
