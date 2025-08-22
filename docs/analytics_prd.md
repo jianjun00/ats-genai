@@ -1,8 +1,9 @@
 # Product Requirements Document (PRD)
 ## ATS Analytics Platform
 
-**Document Version:** 2.0  
+**Document Version:** 3.0  
 **Created:** August 2025  
+**Last Updated:** August 22, 2025  
 **Product Manager:** AI Trading System Team  
 
 ---
@@ -10,9 +11,16 @@
 ## 1. Executive Summary
 
 ### 1.1 Product Vision
-Build a comprehensive analytics platform that enables ML engineers, researchers, and portfolio managers to manage, monitor, and analyze machine learning workflows including job execution, training data generation, model training, and backtest results with interactive dashboards and deep comparison capabilities.
+Build a **unified analytics platform** that consolidates all ML workflow management and analysis capabilities into a single, seamless application. Enable ML engineers, researchers, and portfolio managers to manage jobs, analyze training data, and explore model performance through one integrated interface accessible at a single endpoint.
 
-### 1.2 Problem Statement
+### 1.2 Platform Consolidation (v3.0 Update)
+**Major Product Enhancement**: Unified all analytics functionality into a single application:
+- **Simplified Access**: Single URL (port 3000) for all analytics features
+- **Integrated Experience**: Seamless navigation between job management, dataset analysis, and enhanced visualizations
+- **Reduced Complexity**: Eliminated need to switch between multiple applications
+- **Enhanced Usability**: All features accessible from one unified dashboard
+
+### 1.3 Problem Statement
 Currently, our ML workflow management and analysis capabilities are fragmented:
 - **Job Execution**: No centralized dashboard for Flyte job runs, logs, and metadata
 - **Training Data Management**: Generated datasets are not tracked or easily discoverable
@@ -20,7 +28,7 @@ Currently, our ML workflow management and analysis capabilities are fragmented:
 - **Backtest Analysis**: Limited visualization and comparison of model performance
 - **Workflow Visibility**: Difficulty tracking end-to-end ML pipeline from data generation to backtesting
 
-### 1.3 Success Metrics
+### 1.4 Success Metrics
 - **Job Management**: 100% of ML jobs tracked with metadata and accessible logs
 - **Training Data Discovery**: <30 seconds to find and visualize any generated dataset
 - **Dataset Comparison**: Enable side-by-side distribution analysis between any two datasets
@@ -68,6 +76,23 @@ Currently, our ML workflow management and analysis capabilities are fragmented:
 - **As a** Quantitative Researcher
 - **I want to** analyze backtest results with interactive charts and drill-down capabilities
 - **So that** I can evaluate model performance and make data-driven strategy decisions
+
+### 2.3 Enhanced User Stories (v3.0)
+
+#### US6: Row-Level Dataset Analysis
+- **As a** Data Scientist
+- **I want to** filter and analyze individual sequences within training datasets with detailed metadata
+- **So that** I can identify specific patterns and outliers in my training data
+
+#### US7: Dual-Axis OHLC Visualization
+- **As a** Quantitative Researcher
+- **I want to** view OHLC price data with technical indicators in synchronized dual-axis charts
+- **So that** I can analyze price movements and technical signals in one integrated view
+
+#### US8: Unified Analytics Access
+- **As an** ML Engineer
+- **I want to** access all analytics features (jobs, datasets, visualizations) from a single URL
+- **So that** I don't need to switch between multiple applications or remember different ports
 
 ---
 
@@ -179,6 +204,26 @@ Currently, our ML workflow management and analysis capabilities are fragmented:
 - **Stock-Level Analysis**: Individual stock performance and prediction accuracy
 - **Trade-Level Details**: Analyze individual trade decisions and outcomes
 
+### 3.6 Enhanced Dataset Analysis (v3.0)
+
+#### F15: Row-Level Sequence Access
+- **Sequence Filtering**: Filter training sequences by symbol, date range, and feature values
+- **Interactive Tables**: Paginated sequence tables with sortable columns
+- **Metadata Display**: Show sequence-level statistics and feature summaries
+- **Real-Time Filtering**: Dynamic updates as filters are applied
+
+#### F16: Dual-Axis OHLC Charts
+- **Price/Volume Visualization**: Top panel showing OHLC candlesticks with volume bars
+- **Technical Indicators Panel**: Bottom panel displaying calculated technical indicators
+- **Synchronized Interaction**: Zoom and pan synchronization between chart panels
+- **Export Capabilities**: Save chart visualizations as images
+
+#### F17: Unified Application Interface
+- **Single Entry Point**: All functionality accessible from port 3000
+- **Integrated Navigation**: Seamless transitions between job management and dataset analysis
+- **Consolidated APIs**: All endpoints available under unified API structure
+- **Simplified Access**: No need to manage multiple application URLs
+
 ---
 
 ## 4. Technical Requirements
@@ -271,28 +316,38 @@ CREATE TABLE dataset_comparisons (
 
 ## 5. User Interface Requirements
 
-### 5.1 Navigation Structure
+### 5.1 Unified Navigation Structure (v3.0)
 
 ```
-Analytics Platform
-├── Jobs Dashboard
-│   ├── All Jobs (with filters)
-│   ├── Job Detail View
-│   └── Flyte Integration View
-├── Training Datasets
-│   ├── Dataset Catalog
-│   ├── Dataset Detail View
-│   ├── Dataset Comparison Tool
-│   └── Quality Analytics
-├── Backtest Analytics
-│   ├── Portfolio Performance
-│   ├── Model Comparison
-│   └── Detailed Analysis
-└── Workflow Overview
-    ├── Pipeline Visualization
-    ├── Dependency Graph
-    └── End-to-End Tracking
+Unified Analytics Platform (Port 3000)
+├── Job Management Dashboard (/)
+│   ├── Job Stats Overview
+│   ├── Interactive Job Table (filtering, sorting)
+│   ├── Job Detail Views with Logs
+│   └── Direct Flyte Integration Links
+├── Dataset Catalog (/datasets)
+│   ├── Dataset List with Search/Filter
+│   ├── Feature Distribution Visualizations
+│   ├── Quality Metrics Dashboard
+│   └── Dataset Comparison Tools
+├── Enhanced Dataset Detail (/dataset-detail)
+│   ├── Row-Level Sequence Analysis
+│   ├── Interactive Sequence Tables
+│   ├── Dual-Axis OHLC Charts (/dual_axis_ohlc_chart.js)
+│   ├── Dynamic Distribution Filtering
+│   └── Synchronized Chart Interactions
+└── Unified API Layer (/api/v1/)
+    ├── Job Management APIs
+    ├── Dataset Catalog APIs
+    ├── Sequence Access APIs
+    └── OHLC Chart Data APIs
 ```
+
+**Key Navigation Improvements in v3.0:**
+- **Single URL**: All features accessible from http://localhost:3000
+- **Integrated Tabs/Sections**: Seamless navigation between job management and dataset analysis
+- **Unified API**: All endpoints under single API namespace
+- **Enhanced Detail Pages**: Row-level analysis with interactive charts
 
 ### 5.2 Key User Flows
 
@@ -316,6 +371,24 @@ Analytics Platform
 3. Reviews side-by-side distribution comparisons
 4. Analyzes statistical differences and recommendations
 5. Exports comparison report for documentation
+
+### 5.3 Enhanced User Flows (v3.0)
+
+#### Flow 4: Row-Level Dataset Analysis
+1. User navigates to unified analytics platform at port 3000
+2. Accesses enhanced dataset detail page from dataset catalog
+3. Applies filters to narrow down specific sequences
+4. Reviews interactive sequence table with metadata
+5. Clicks on sequence to view dual-axis OHLC chart
+6. Analyzes price movements with technical indicators
+
+#### Flow 5: Unified Analytics Workflow
+1. User accesses single URL (http://localhost:3000)
+2. Reviews job management dashboard for recent activity
+3. Navigates to dataset catalog to explore generated data
+4. Selects dataset for detailed row-level analysis
+5. Uses enhanced visualization tools for comprehensive analysis
+6. All actions performed within single application interface
 
 ---
 
@@ -375,6 +448,13 @@ Analytics Platform
 - **Comparison Usage**: 80% of datasets compared before use in training
 - **Error Resolution**: 50% reduction in time to debug failed jobs
 - **User Adoption**: 90% of ML team actively using platform within 60 days
+
+### 7.3 Platform Consolidation Success Metrics (v3.0)
+- **Access Simplification**: 100% of analytics features accessible from single URL
+- **Resource Efficiency**: 75% reduction in deployment complexity (1 vs 4+ applications)
+- **User Experience**: <5 seconds to navigate between any two analytics features
+- **Maintenance**: 60% reduction in deployment and configuration management overhead
+- **Training Time**: 50% reduction in user onboarding time due to unified interface
 
 ---
 

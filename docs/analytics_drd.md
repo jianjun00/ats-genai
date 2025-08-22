@@ -1,8 +1,9 @@
 # Design Requirements Document (DRD)
 ## ATS Analytics Platform Architecture
 
-**Document Version:** 2.0  
+**Document Version:** 3.0  
 **Created:** August 2025  
+**Last Updated:** August 22, 2025  
 **Technical Lead:** AI Trading System Team  
 
 ---
@@ -10,13 +11,19 @@
 ## 1. Architecture Overview
 
 ### 1.1 System Design Philosophy
-Build a **unified analytics platform** that seamlessly integrates ML workflow management with comprehensive analysis capabilities:
-- **Job Orchestration Layer**: Flyte integration with metadata tracking and real-time monitoring
-- **Data Management Layer**: Automatic dataset registration, cataloging, and comparison engine
-- **Analytics Engine**: Interactive analysis for datasets, model performance, and backtests
-- **Visualization Layer**: Rich dashboards with drill-down capabilities and comparison tools
+Build a **single unified analytics application** that consolidates all ML workflow management and analysis capabilities into one seamless experience:
+- **Unified Application Architecture**: Single FastAPI application serving all functionality at port 3000
+- **Consolidated Service Layer**: Combined job management, dataset visualization, and enhanced analytics in one service
+- **Integrated Frontend**: Single responsive web interface with unified navigation between features
+- **Simplified Deployment**: One deployment, one service, one point of access for all analytics needs
 
-### 1.2 Core Design Principles
+### 1.2 Architectural Consolidation (v3.0 Update)
+**Major Change**: Eliminated multiple separate applications in favor of a single unified app:
+- **Before**: 4+ separate applications running on different ports (3000, 8081, 8104, 9000)
+- **After**: Single unified application at port 3000 containing all functionality
+- **Benefits**: Simplified deployment, reduced resource usage, unified user experience, easier maintenance
+
+### 1.3 Core Design Principles
 - **Workflow-Centric**: Every analysis tied to specific jobs and data lineage
 - **Real-Time Visibility**: Live updates for job status, logs, and pipeline progress  
 - **Automatic Registration**: Zero-touch dataset cataloging from job completions
@@ -27,35 +34,46 @@ Build a **unified analytics platform** that seamlessly integrates ML workflow ma
 
 ## 2. System Architecture
 
-### 2.1 High-Level Architecture
+### 2.1 Unified Application Architecture (v3.0)
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           Frontend (React + D3.js)                         │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────────────────┐ │
-│  │ Jobs        │ │ Training    │ │ Dataset     │ │ Backtest Analytics      │ │
-│  │ Dashboard   │ │ Datasets    │ │ Comparison  │ │ & Model Performance     │ │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────────────────┘ │
-└─────────────────────┬───────────────────────────────────────────────────────┘
-                      │ WebSocket + REST API
-┌─────────────────────┴───────────────────────────────────────────────────────┐
-│                       API Gateway (FastAPI)                                │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────────────────┐ │
-│  │ Job         │ │ Dataset     │ │ Comparison  │ │ Analytics & Real-Time   │ │
-│  │ Management  │ │ Service     │ │ Engine      │ │ Event Streaming         │ │
-│  │ Service     │ │             │ │             │ │                         │ │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────────────────┘ │
-└─────────────────────┬───────────────────────────────────────────────────────┘
-                      │
-┌─────────────────────┴───────────────────────────────────────────────────────┐
+│                    UNIFIED ANALYTICS APPLICATION (Port 3000)                │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────────┐ │
+│  │                    Integrated Frontend (HTML + JavaScript)             │ │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐ │ │
+│  │  │ Jobs        │ │ Training    │ │ Dataset     │ │ Enhanced Dataset    │ │ │
+│  │  │ Dashboard   │ │ Datasets    │ │ Comparison  │ │ Detail Pages with   │ │ │
+│  │  │             │ │ Catalog     │ │ Engine      │ │ Dual-Axis OHLC     │ │ │
+│  │  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────────────┘ │ │
+│  └─────────────────────────────────────────────────────────────────────────┘ │
+│                                   │                                         │
+│                            Single REST API                                 │
+│  ┌─────────────────────────────────────────────────────────────────────────┐ │
+│  │                    Consolidated FastAPI Backend                        │ │
+│  │  • Job Management APIs          • Dataset Visualization APIs           │ │
+│  │  • Dataset Catalog APIs         • Enhanced Sequence Access APIs       │ │
+│  │  • Comparison Engine APIs       • OHLC Chart Data APIs                │ │
+│  │  • Real-Time Status Updates     • Row-Level Filtering APIs            │ │
+│  └─────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                   │
+┌─────────────────────────────────────────────────────────────────────────────┐
 │                            Data & Integration Layer                         │
 │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────────────────┐ │
-│  │ PostgreSQL  │ │ Redis Cache │ │ File System │ │ Flyte Integration       │ │
-│  │ (Jobs &     │ │ (Computed   │ │ (Training   │ │ (Workflow Metadata,     │ │
-│  │ Datasets    │ │ Metrics &   │ │ Datasets &  │ │  Status, Logs)          │ │
-│  │ Metadata)   │ │ Sessions)   │ │ Artifacts)  │ │                         │ │
+│  │ PostgreSQL  │ │ File System │ │ Training    │ │ Real-Time Job Status    │ │
+│  │ (Jobs &     │ │ (Training   │ │ Data Arrays │ │ from Kubernetes Jobs    │ │
+│  │ Datasets    │ │ Datasets &  │ │ (NumPy)     │ │ (dev_runs table)        │ │
+│  │ Metadata)   │ │ Artifacts)  │ │             │ │                         │ │
 │  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Key Architectural Changes in v3.0:**
+- **Single Application**: All functionality consolidated into one FastAPI application
+- **Unified Port**: Everything accessible at port 3000 (job-management-fixed-service)
+- **Integrated APIs**: Combined job management, dataset visualization, and enhanced analytics APIs
+- **Simplified Deployment**: One Kubernetes deployment instead of multiple separate services
 
 ### 2.2 Data Flow Architecture
 ```
@@ -1356,7 +1374,130 @@ async def get_backtest_performance(backtest_id: str = Path(...)):
 
 ---
 
-## 4. Implementation Strategy
+## 4. Deployment Architecture (v3.0)
+
+### 4.1 Kubernetes Deployment Structure
+
+#### 4.1.1 Unified Application Deployment
+```yaml
+# Single deployment for all analytics functionality
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: job-management-fixed
+  namespace: ats-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: job-management-fixed
+  template:
+    spec:
+      containers:
+      - name: unified-analytics
+        image: python:3.12-slim
+        ports:
+        - containerPort: 5000
+        env:
+        - name: DB_HOST
+          value: "postgres-simple"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /config
+        command: ["python", "/config/unified_analytics_fixed.py"]
+      volumes:
+      - name: config-volume
+        configMap:
+          name: job-management-fixed-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: job-management-fixed-service
+  namespace: ats-dev
+spec:
+  selector:
+    app: job-management-fixed
+  ports:
+  - port: 5000
+    targetPort: 5000
+    nodePort: 30080
+  type: NodePort
+```
+
+#### 4.1.2 ConfigMap Structure
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: job-management-fixed-config
+  namespace: ats-dev
+data:
+  unified_analytics_fixed.py: |
+    # Single Python file containing:
+    # - Job Management APIs
+    # - Dataset Visualization APIs
+    # - Enhanced Dataset Detail APIs
+    # - Row-level Sequence Access APIs
+    # - OHLC Chart Data APIs
+    # - All frontend serving logic
+  
+  dataset_detail_page_frontend.html: |
+    # Enhanced dataset detail page with:
+    # - Row-level sequence filtering
+    # - Interactive sequence tables
+    # - Dual-axis OHLC charts
+    # - Dynamic distribution visualization
+  
+  dual_axis_ohlc_chart.js: |
+    # JavaScript implementation for:
+    # - Dual-axis OHLC chart rendering
+    # - Price/volume top panel
+    # - Technical indicators bottom panel
+    # - Synchronized zoom and pan
+```
+
+### 4.2 Resource Optimization
+
+#### 4.2.1 Before Consolidation (v2.0)
+- **4+ Separate Deployments**: Multiple FastAPI applications
+- **4+ Services**: Different NodePorts (3000, 8081, 8104, 9000)
+- **Resource Usage**: ~1GB memory, ~1000m CPU across all apps
+- **Complexity**: Multiple ConfigMaps, Services, and port-forwarding
+
+#### 4.2.2 After Consolidation (v3.0)
+- **1 Unified Deployment**: Single FastAPI application
+- **1 Service**: Single NodePort (30080 → 3000 via port-forward)
+- **Resource Usage**: ~256Mi memory, ~250m CPU for unified app
+- **Simplified**: One ConfigMap, one Service, one port-forward
+
+### 4.3 Access Patterns
+
+#### 4.3.1 User Access
+```
+User → http://localhost:3000 → kubectl port-forward → job-management-fixed-service:5000 → unified app
+```
+
+#### 4.3.2 API Endpoints (All at Port 3000)
+```
+GET  /health                          # Health check
+GET  /                               # Job management dashboard
+GET  /datasets                       # Dataset catalog
+GET  /dataset-detail                 # Enhanced dataset detail page
+GET  /dual_axis_ohlc_chart.js       # OHLC chart JavaScript
+
+GET  /api/v1/jobs/stats             # Job statistics
+GET  /api/v1/jobs                   # Job listing with filters
+GET  /api/v1/datasets               # Dataset listing
+GET  /api/v1/datasets/{id}/sequences # Row-level sequence access
+GET  /api/v1/datasets/{id}/sequences/{seq_id}/ohlc # OHLC data for charts
+```
+
+---
+
+## 5. Implementation Strategy
 
 ### 4.1 Development Phases
 

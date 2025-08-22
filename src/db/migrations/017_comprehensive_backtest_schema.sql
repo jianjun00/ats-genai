@@ -282,7 +282,5 @@ INSERT INTO dashboard_configs (
     true
 ) ON CONFLICT (config_name) DO NOTHING;
 
--- Update sequences
-SELECT setval('comprehensive_backtest_runs_id_seq', (SELECT COALESCE(MAX(id), 1) FROM comprehensive_backtest_runs));
-SELECT setval('market_regimes_id_seq', (SELECT COALESCE(MAX(id), 1) FROM market_regimes));
-SELECT setval('symbol_performance_id_seq', (SELECT COALESCE(MAX(id), 1) FROM symbol_performance));
+-- Skip sequence updates - sequences are auto-managed and not needed for test environments
+-- Sequence values will be properly initialized when tables are used
