@@ -50,6 +50,11 @@ dependencies = [
   "streamlit",
   "ipython",
   "jupyter",
+  "feedparser",
+  "torch",
+  "torchvision",
+  "beautifulsoup4",
+  "requests-html",
 ]
 
 [tool.uv]

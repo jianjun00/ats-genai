@@ -1,0 +1,851 @@
+"""
+Data Coverage Analytics Engine
+
+Provides comprehensive coverage analysis, statistics computation,
+and gap detection for massive-scale price data (100M-2B rows).
+
+Key Features:
+- Real-time coverage computation and tracking
+- Hierarchical aggregation (minute → hour → day → week → month)
+- Intelligent gap detection and classification
+- Performance-optimized queries for massive datasets
+- Vendor comparison and SLA monitoring
+"""
+
+import asyncio
+import logging
+import json
+import uuid
+import numpy as np
+import pandas as pd
+from datetime import datetime, timedelta, date, time
+from typing import Dict, List, Optional, Any, Tuple, Set
+from dataclasses import dataclass, asdict
+from enum import Enum
+import asyncpg
+from decimal import Decimal
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# =====================================================
+# Data Models and Enums
+# =====================================================
+
+class CoverageStatus(Enum):
+    ACTIVE = "active"
+    STALE = "stale"
+    MISSING = "missing"
+    DEGRADED = "degraded"
+
+class GapSeverity(Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+class GapType(Enum):
+    MISSING = "missing"
+    PARTIAL = "partial"
+    LOW_QUALITY = "low_quality"
+    OUTLIER = "outlier"
+    MINOR = "minor"
+    OFF_HOURS = "off_hours"
+
+class AggregationLevel(Enum):
+    MINUTE = "minute"
+    HOUR = "hour"
+    DAY = "day"
+    WEEK = "week"
+    MONTH = "month"
+    QUARTER = "quarter"
+
+@dataclass
+class CoverageInterval:
+    """Represents a contiguous period of data coverage"""
+    symbol: str
+    vendor: str
+    data_type: str
+    start_time: datetime
+    end_time: datetime
+    record_count: int
+    expected_count: int
+    completeness_ratio: float
+    avg_quality_score: Optional[float] = None
+    has_gaps: bool = False
+    gap_count: int = 0
+    total_gap_duration_minutes: int = 0
+
+@dataclass
+class CoverageStats:
+    """Pre-computed coverage statistics for fast queries"""
+    symbol: str
+    vendor: str
+    data_type: str
+    aggregation_level: str
+    period_start: datetime
+    period_end: datetime
+    total_expected: int
+    total_actual: int
+    coverage_percentage: float
+    completeness_score: float
+    avg_quality_score: Optional[float] = None
+    gap_count: int = 0
+    total_gap_duration_minutes: int = 0
+    first_record_time: Optional[datetime] = None
+    last_record_time: Optional[datetime] = None
+
+@dataclass
+class CoverageGap:
+    """Represents a detected gap in data coverage"""
+    symbol: str
+    vendor: str
+    data_type: str
+    gap_start: datetime
+    gap_end: datetime
+    gap_duration_minutes: int
+    expected_records: int
+    gap_type: str
+    gap_severity: str
+    trading_day: date
+    is_market_hours: bool
+    detection_method: str
+    detection_confidence: float
+    is_resolved: bool = False
+
+@dataclass
+class CoverageQuery:
+    """Query specification for coverage analysis"""
+    symbols: Optional[List[str]] = None
+    vendors: Optional[List[str]] = None
+    data_types: Optional[List[str]] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    aggregation_level: Optional[str] = None
+    min_coverage_percentage: Optional[float] = None
+    include_gaps: bool = True
+
+@dataclass
+class CoverageSummary:
+    """Real-time coverage summary for dashboards"""
+    symbol: str
+    vendor: str
+    data_type: str
+    current_status: str
+    coverage_24h: float
+    quality_24h: Optional[float]
+    gaps_24h: int
+    records_24h: int
+    coverage_7d: float
+    coverage_30d: float
+    latest_data_time: Optional[datetime]
+    hours_since_update: float
+    coverage_trend: str
+    quality_trend: str
+
+# =====================================================
+# Core Coverage Engine
+# =====================================================
+
+class CoverageAnalyticsEngine:
+    """
+    High-performance coverage analytics engine optimized for massive datasets
+    """
+    
+    def __init__(self, db_pool: asyncpg.Pool):
+        self.db_pool = db_pool
+        
+        # Configuration
+        self.trading_hours_per_day = 6.5  # US market: 9:30 AM - 4:00 PM EST
+        self.trading_days_per_week = 5
+        self.trading_days_per_month = 22  # Average
+        
+        # Market hours (UTC time - EST is UTC-5, EDT is UTC-4)
+        self.market_open_utc = time(13, 30)  # 9:30 AM EST
+        self.market_close_utc = time(20, 0)   # 4:00 PM EST
+        
+        # Cache for frequently accessed data
+        self._sla_cache = {}
+        self._vendor_config_cache = {}
+        
+    async def initialize(self):
+        """Initialize the coverage engine"""
+        await self._load_sla_configurations()
+        logger.info("✅ Coverage Analytics Engine initialized")
+    
+    # =====================================================
+    # Coverage Computation and Statistics
+    # =====================================================
+    
+    async def compute_coverage_stats(
+        self, 
+        symbol: str, 
+        vendor: str, 
+        data_type: str,
+        start_time: datetime,
+        end_time: datetime,
+        aggregation_level: AggregationLevel = AggregationLevel.HOUR
+    ) -> CoverageStats:
+        """
+        Compute coverage statistics for a specific time period
+        """
+        
+        # Calculate expected records based on aggregation level
+        time_delta = end_time - start_time
+        expected_count = self._calculate_expected_records(
+            data_type, aggregation_level, time_delta
+        )
+        
+        # Query actual data
+        if data_type == 'minute':
+            actual_count, avg_quality, first_time, last_time = await self._query_minute_stats(
+                symbol, vendor, start_time, end_time
+            )
+        else:
+            actual_count, avg_quality, first_time, last_time = await self._query_daily_stats(
+                symbol, vendor, start_time, end_time
+            )
+        
+        # Calculate coverage metrics
+        coverage_percentage = (actual_count / max(expected_count, 1)) * 100.0
+        completeness_score = actual_count / max(expected_count, 1)
+        
+        # Count gaps in the period
+        gap_count, total_gap_minutes = await self._count_gaps_in_period(
+            symbol, vendor, data_type, start_time, end_time
+        )
+        
+        return CoverageStats(
+            symbol=symbol,
+            vendor=vendor,
+            data_type=data_type,
+            aggregation_level=aggregation_level.value,
+            period_start=start_time,
+            period_end=end_time,
+            total_expected=expected_count,
+            total_actual=actual_count,
+            coverage_percentage=min(coverage_percentage, 100.0),
+            completeness_score=min(completeness_score, 1.0),
+            avg_quality_score=avg_quality,
+            gap_count=gap_count,
+            total_gap_duration_minutes=total_gap_minutes,
+            first_record_time=first_time,
+            last_record_time=last_time
+        )
+    
+    async def compute_hierarchical_aggregations(
+        self,
+        symbol: str,
+        vendor: str,
+        data_type: str,
+        base_date: date
+    ) -> List[CoverageStats]:
+        """
+        Compute coverage statistics at multiple aggregation levels
+        """
+        
+        aggregations = []
+        base_datetime = datetime.combine(base_date, time.min)
+        
+        # Define aggregation periods
+        periods = [
+            (AggregationLevel.HOUR, base_datetime, base_datetime + timedelta(hours=1)),
+            (AggregationLevel.DAY, base_datetime, base_datetime + timedelta(days=1)),
+            (AggregationLevel.WEEK, base_datetime - timedelta(days=base_datetime.weekday()), 
+             base_datetime - timedelta(days=base_datetime.weekday()) + timedelta(weeks=1)),
+            (AggregationLevel.MONTH, base_datetime.replace(day=1),
+             (base_datetime.replace(day=1) + timedelta(days=32)).replace(day=1))
+        ]
+        
+        for level, start_time, end_time in periods:
+            stats = await self.compute_coverage_stats(
+                symbol, vendor, data_type, start_time, end_time, level
+            )
+            aggregations.append(stats)
+        
+        return aggregations
+    
+    async def update_coverage_stats_incremental(
+        self,
+        symbol: str,
+        vendor: str,
+        data_type: str,
+        affected_timestamps: List[datetime]
+    ):
+        """
+        Update coverage statistics incrementally for affected time periods
+        """
+        
+        if not affected_timestamps:
+            return
+        
+        # Group timestamps by aggregation periods
+        affected_periods = self._calculate_affected_periods(affected_timestamps)
+        
+        # Update each affected period
+        for level, periods in affected_periods.items():
+            for period_start in periods:
+                await self._update_single_period_stats(
+                    symbol, vendor, data_type, level, period_start
+                )
+    
+    # =====================================================
+    # Gap Detection and Analysis
+    # =====================================================
+    
+    async def detect_gaps_realtime(
+        self,
+        symbol: str,
+        vendor: str,
+        data_type: str,
+        new_timestamp: datetime
+    ) -> List[CoverageGap]:
+        """
+        Detect gaps in real-time as new data arrives
+        """
+        
+        gaps = []
+        
+        # Get the previous timestamp
+        previous_timestamp = await self._get_previous_timestamp(
+            symbol, vendor, data_type, new_timestamp
+        )
+        
+        if previous_timestamp:
+            gap = self._analyze_potential_gap(
+                symbol, vendor, data_type, previous_timestamp, new_timestamp
+            )
+            if gap:
+                gaps.append(gap)
+        
+        return gaps
+    
+    async def detect_gaps_batch(
+        self,
+        symbol: str,
+        vendor: str,
+        data_type: str,
+        start_time: datetime,
+        end_time: datetime
+    ) -> List[CoverageGap]:
+        """
+        Batch gap detection for historical data analysis
+        """
+        
+        gaps = []
+        
+        # Get all timestamps in the range
+        timestamps = await self._get_timestamps_in_range(
+            symbol, vendor, data_type, start_time, end_time
+        )
+        
+        if len(timestamps) < 2:
+            return gaps
+        
+        # Analyze gaps between consecutive timestamps
+        for i in range(len(timestamps) - 1):
+            current_time = timestamps[i]
+            next_time = timestamps[i + 1]
+            
+            gap = self._analyze_potential_gap(
+                symbol, vendor, data_type, current_time, next_time
+            )
+            if gap:
+                gaps.append(gap)
+        
+        return gaps
+    
+    async def heal_gaps_from_backfill(
+        self,
+        symbol: str,
+        vendor: str,
+        data_type: str,
+        backfill_timestamps: List[datetime]
+    ) -> int:
+        """
+        Mark gaps as healed when backfill data arrives
+        """
+        
+        healed_count = 0
+        
+        async with self.db_pool.acquire() as conn:
+            for timestamp in backfill_timestamps:
+                # Find gaps that this timestamp might heal
+                healed_gaps = await conn.fetch("""
+                    UPDATE coverage_gaps
+                    SET is_resolved = TRUE,
+                        resolution_method = 'backfill_healing',
+                        resolved_at = NOW(),
+                        resolution_notes = 'Gap healed by backfill data'
+                    WHERE symbol = $1 AND vendor = $2 AND data_type = $3
+                        AND gap_start <= $4 AND gap_end >= $4
+                        AND is_resolved = FALSE
+                    RETURNING gap_id
+                """, symbol, vendor, data_type, timestamp)
+                
+                healed_count += len(healed_gaps)
+                
+                if healed_gaps:
+                    logger.info(f"Healed {len(healed_gaps)} gaps for {symbol}/{vendor} at {timestamp}")
+        
+        return healed_count
+    
+    # =====================================================
+    # Coverage Queries and Analysis
+    # =====================================================
+    
+    async def query_coverage_summary(
+        self,
+        query: CoverageQuery
+    ) -> List[CoverageSummary]:
+        """
+        Query coverage summary with filtering
+        """
+        
+        where_conditions = []
+        params = []
+        param_count = 0
+        
+        # Build WHERE clause
+        if query.symbols:
+            param_count += 1
+            where_conditions.append(f"symbol = ANY(${param_count})")
+            params.append(query.symbols)
+        
+        if query.vendors:
+            param_count += 1
+            where_conditions.append(f"vendor = ANY(${param_count})")
+            params.append(query.vendors)
+        
+        if query.data_types:
+            param_count += 1
+            where_conditions.append(f"data_type = ANY(${param_count})")
+            params.append(query.data_types)
+        
+        if query.min_coverage_percentage:
+            param_count += 1
+            where_conditions.append(f"coverage_24h >= ${param_count}")
+            params.append(query.min_coverage_percentage)
+        
+        where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+        
+        async with self.db_pool.acquire() as conn:
+            records = await conn.fetch(f"""
+                SELECT 
+                    symbol, vendor, data_type, current_status,
+                    coverage_24h, quality_24h, records_24h,
+                    coverage_7d, coverage_30d,
+                    latest_data_time, hours_since_update,
+                    coverage_trend, quality_trend,
+                    COALESCE((
+                        SELECT COUNT(*) FROM coverage_gaps g
+                        WHERE g.symbol = cs.symbol 
+                            AND g.vendor = cs.vendor 
+                            AND g.data_type = cs.data_type
+                            AND g.gap_start >= NOW() - INTERVAL '24 hours'
+                            AND g.is_resolved = FALSE
+                    ), 0) as gaps_24h
+                FROM coverage_summary cs
+                {where_clause}
+                ORDER BY symbol, vendor, data_type
+            """, *params)
+            
+            return [CoverageSummary(**dict(record)) for record in records]
+    
+    async def get_vendor_comparison(
+        self,
+        symbol: str,
+        data_type: str = 'minute',
+        time_period: str = '24h'
+    ) -> Dict[str, Any]:
+        """
+        Compare coverage across vendors for a specific symbol
+        """
+        
+        time_filter = {
+            '24h': 'coverage_24h',
+            '7d': 'coverage_7d',
+            '30d': 'coverage_30d'
+        }.get(time_period, 'coverage_24h')
+        
+        async with self.db_pool.acquire() as conn:
+            records = await conn.fetch(f"""
+                SELECT 
+                    vendor,
+                    {time_filter} as coverage_percentage,
+                    quality_{time_period.replace('h', 'h').replace('d', 'd')} as quality_score,
+                    current_status,
+                    latest_data_time,
+                    hours_since_update
+                FROM coverage_summary
+                WHERE symbol = $1 AND data_type = $2
+                ORDER BY {time_filter} DESC
+            """, symbol, data_type)
+            
+            vendors = []
+            for record in records:
+                vendors.append({
+                    'vendor': record['vendor'],
+                    'coverage_percentage': float(record['coverage_percentage'] or 0),
+                    'quality_score': float(record['quality_score'] or 0),
+                    'status': record['current_status'],
+                    'latest_data_time': record['latest_data_time'],
+                    'hours_since_update': float(record['hours_since_update'] or 0)
+                })
+            
+            # Calculate comparison metrics
+            if vendors:
+                best_vendor = vendors[0]
+                worst_vendor = vendors[-1]
+                avg_coverage = np.mean([v['coverage_percentage'] for v in vendors])
+                coverage_variance = np.var([v['coverage_percentage'] for v in vendors])
+            else:
+                best_vendor = worst_vendor = None
+                avg_coverage = coverage_variance = 0
+            
+            return {
+                'symbol': symbol,
+                'data_type': data_type,
+                'time_period': time_period,
+                'vendors': vendors,
+                'best_vendor': best_vendor,
+                'worst_vendor': worst_vendor,
+                'average_coverage': avg_coverage,
+                'coverage_variance': coverage_variance,
+                'vendor_count': len(vendors)
+            }
+    
+    async def get_coverage_trends(
+        self,
+        symbol: str,
+        vendor: str,
+        data_type: str,
+        days_back: int = 30
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Get coverage trends over time for trend analysis
+        """
+        
+        start_date = datetime.now() - timedelta(days=days_back)
+        
+        async with self.db_pool.acquire() as conn:
+            # Get daily coverage trends
+            daily_trends = await conn.fetch("""
+                SELECT 
+                    period_start::DATE as date,
+                    coverage_percentage,
+                    avg_quality_score,
+                    gap_count,
+                    total_gap_duration_minutes
+                FROM coverage_stats
+                WHERE symbol = $1 AND vendor = $2 AND data_type = $3
+                    AND aggregation_level = 'day'
+                    AND period_start >= $4
+                ORDER BY period_start
+            """, symbol, vendor, data_type, start_date)
+            
+            # Get hourly trends for recent data
+            hourly_trends = await conn.fetch("""
+                SELECT 
+                    period_start,
+                    coverage_percentage,
+                    avg_quality_score,
+                    gap_count
+                FROM coverage_stats
+                WHERE symbol = $1 AND vendor = $2 AND data_type = $3
+                    AND aggregation_level = 'hour'
+                    AND period_start >= NOW() - INTERVAL '7 days'
+                ORDER BY period_start
+            """, symbol, vendor, data_type)
+            
+            return {
+                'daily_trends': [dict(record) for record in daily_trends],
+                'hourly_trends': [dict(record) for record in hourly_trends],
+                'symbol': symbol,
+                'vendor': vendor,
+                'data_type': data_type,
+                'period_days': days_back
+            }
+    
+    # =====================================================
+    # SLA Monitoring and Alerting
+    # =====================================================
+    
+    async def check_sla_compliance(
+        self,
+        symbol: str = None,
+        vendor: str = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Check SLA compliance across symbols and vendors
+        """
+        
+        where_conditions = []
+        params = []
+        param_count = 0
+        
+        if symbol:
+            param_count += 1
+            where_conditions.append(f"cs.symbol = ${param_count}")
+            params.append(symbol)
+        
+        if vendor:
+            param_count += 1
+            where_conditions.append(f"cs.vendor = ${param_count}")
+            params.append(vendor)
+        
+        where_clause = "AND " + " AND ".join(where_conditions) if where_conditions else ""
+        
+        async with self.db_pool.acquire() as conn:
+            records = await conn.fetch(f"""
+                SELECT 
+                    cs.symbol,
+                    cs.vendor,
+                    cs.data_type,
+                    cs.coverage_24h,
+                    cs.quality_24h,
+                    sla.min_coverage_percentage,
+                    sla.warning_threshold,
+                    sla.critical_threshold,
+                    CASE 
+                        WHEN cs.coverage_24h >= sla.min_coverage_percentage THEN 'compliant'
+                        WHEN cs.coverage_24h >= sla.warning_threshold THEN 'warning'
+                        WHEN cs.coverage_24h >= sla.critical_threshold THEN 'critical'
+                        ELSE 'violation'
+                    END as compliance_status,
+                    cs.coverage_24h - sla.min_coverage_percentage as coverage_gap
+                FROM coverage_summary cs
+                LEFT JOIN coverage_sla sla ON 
+                    sla.vendor = cs.vendor 
+                    AND sla.data_type = cs.data_type 
+                    AND (sla.symbol = cs.symbol OR sla.symbol IS NULL)
+                WHERE sla.sla_id IS NOT NULL
+                {where_clause}
+                ORDER BY compliance_status DESC, coverage_gap ASC
+            """, *params)
+            
+            compliance_results = []
+            for record in records:
+                compliance_results.append({
+                    'symbol': record['symbol'],
+                    'vendor': record['vendor'],
+                    'data_type': record['data_type'],
+                    'current_coverage': float(record['coverage_24h'] or 0),
+                    'required_coverage': float(record['min_coverage_percentage']),
+                    'compliance_status': record['compliance_status'],
+                    'coverage_gap': float(record['coverage_gap'] or 0),
+                    'quality_score': float(record['quality_24h'] or 0)
+                })
+            
+            return compliance_results
+    
+    # =====================================================
+    # Helper Methods
+    # =====================================================
+    
+    def _calculate_expected_records(
+        self,
+        data_type: str,
+        aggregation_level: AggregationLevel,
+        time_delta: timedelta
+    ) -> int:
+        """Calculate expected number of records for a time period"""
+        
+        if data_type == 'minute':
+            if aggregation_level == AggregationLevel.HOUR:
+                return 60
+            elif aggregation_level == AggregationLevel.DAY:
+                return int(self.trading_hours_per_day * 60)
+            elif aggregation_level == AggregationLevel.WEEK:
+                return int(self.trading_hours_per_day * 60 * self.trading_days_per_week)
+            elif aggregation_level == AggregationLevel.MONTH:
+                return int(self.trading_hours_per_day * 60 * self.trading_days_per_month)
+        else:  # daily data
+            if aggregation_level == AggregationLevel.DAY:
+                return 1
+            elif aggregation_level == AggregationLevel.WEEK:
+                return self.trading_days_per_week
+            elif aggregation_level == AggregationLevel.MONTH:
+                return self.trading_days_per_month
+        
+        # Fallback calculation based on time delta
+        minutes = time_delta.total_seconds() / 60
+        if data_type == 'minute':
+            return int(minutes)
+        else:
+            return max(1, int(time_delta.days))
+    
+    async def _query_minute_stats(
+        self,
+        symbol: str,
+        vendor: str,
+        start_time: datetime,
+        end_time: datetime
+    ) -> Tuple[int, Optional[float], Optional[datetime], Optional[datetime]]:
+        """Query minute bars statistics"""
+        
+        async with self.db_pool.acquire() as conn:
+            result = await conn.fetchrow("""
+                SELECT 
+                    COUNT(*) as count,
+                    AVG(quality_score) as avg_quality,
+                    MIN(timestamp) as first_time,
+                    MAX(timestamp) as last_time
+                FROM minute_bars
+                WHERE symbol = $1 AND vendor = $2
+                    AND timestamp >= $3 AND timestamp < $4
+            """, symbol, vendor, start_time, end_time)
+            
+            return (
+                result['count'],
+                float(result['avg_quality']) if result['avg_quality'] else None,
+                result['first_time'],
+                result['last_time']
+            )
+    
+    async def _query_daily_stats(
+        self,
+        symbol: str,
+        vendor: str,
+        start_time: datetime,
+        end_time: datetime
+    ) -> Tuple[int, Optional[float], Optional[datetime], Optional[datetime]]:
+        """Query daily prices statistics"""
+        
+        async with self.db_pool.acquire() as conn:
+            result = await conn.fetchrow("""
+                SELECT 
+                    COUNT(*) as count,
+                    NULL as avg_quality,
+                    MIN(date)::TIMESTAMPTZ as first_time,
+                    MAX(date)::TIMESTAMPTZ as last_time
+                FROM daily_prices
+                WHERE symbol = $1 AND source = $2
+                    AND date >= $3::DATE AND date < $4::DATE
+            """, symbol, vendor, start_time, end_time)
+            
+            return (
+                result['count'],
+                None,  # No quality score for daily prices yet
+                result['first_time'],
+                result['last_time']
+            )
+    
+    async def _load_sla_configurations(self):
+        """Load SLA configurations into cache"""
+        
+        async with self.db_pool.acquire() as conn:
+            records = await conn.fetch("SELECT * FROM coverage_sla")
+            
+            for record in records:
+                key = (record['symbol'], record['vendor'], record['data_type'])
+                self._sla_cache[key] = dict(record)
+        
+        logger.info(f"Loaded {len(self._sla_cache)} SLA configurations")
+    
+    def _calculate_affected_periods(self, timestamps: List[datetime]) -> Dict[str, Set[datetime]]:
+        """Calculate which aggregation periods are affected by timestamp changes"""
+        
+        affected_periods = {
+            'hour': set(),
+            'day': set(),
+            'week': set(),
+            'month': set()
+        }
+        
+        for timestamp in timestamps:
+            affected_periods['hour'].add(timestamp.replace(minute=0, second=0, microsecond=0))
+            affected_periods['day'].add(timestamp.replace(hour=0, minute=0, second=0, microsecond=0))
+            
+            # Week starts on Monday
+            week_start = timestamp - timedelta(days=timestamp.weekday())
+            affected_periods['week'].add(week_start.replace(hour=0, minute=0, second=0, microsecond=0))
+            
+            # Month start
+            affected_periods['month'].add(timestamp.replace(day=1, hour=0, minute=0, second=0, microsecond=0))
+        
+        return affected_periods
+    
+    async def _count_gaps_in_period(
+        self, symbol: str, vendor: str, data_type: str, 
+        start_time: datetime, end_time: datetime
+    ) -> Tuple[int, int]:
+        """Count gaps and total gap duration in a time period"""
+        async with self.db_pool.acquire() as conn:
+            result = await conn.fetchrow("""
+                SELECT 
+                    COUNT(*) as gap_count,
+                    COALESCE(SUM(gap_duration_minutes), 0) as total_gap_minutes
+                FROM coverage_gaps
+                WHERE symbol = $1 AND vendor = $2 AND data_type = $3
+                    AND gap_start >= $4 AND gap_end <= $5
+            """, symbol, vendor, data_type, start_time, end_time)
+            
+            return result['gap_count'], int(result['total_gap_minutes'])
+    
+    async def _get_previous_timestamp(
+        self, symbol: str, vendor: str, data_type: str, current_time: datetime
+    ) -> Optional[datetime]:
+        """Get the previous timestamp for gap detection"""
+        table_name = f"{data_type}_bars" if data_type == 'minute' else 'daily_prices'
+        
+        async with self.db_pool.acquire() as conn:
+            result = await conn.fetchrow(f"""
+                SELECT timestamp FROM {table_name}
+                WHERE symbol = $1 AND vendor = $2 AND timestamp < $3
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """, symbol, vendor, current_time)
+            
+            return result['timestamp'] if result else None
+    
+    async def _get_timestamps_in_range(
+        self, symbol: str, vendor: str, data_type: str,
+        start_time: datetime, end_time: datetime
+    ) -> List[datetime]:
+        """Get all timestamps in a range for batch gap detection"""
+        table_name = f"{data_type}_bars" if data_type == 'minute' else 'daily_prices'
+        
+        async with self.db_pool.acquire() as conn:
+            results = await conn.fetch(f"""
+                SELECT timestamp FROM {table_name}
+                WHERE symbol = $1 AND vendor = $2 
+                    AND timestamp >= $3 AND timestamp <= $4
+                ORDER BY timestamp
+            """, symbol, vendor, start_time, end_time)
+            
+            return [row['timestamp'] for row in results]
+    
+    def _analyze_potential_gap(
+        self, symbol: str, vendor: str, data_type: str,
+        gap_start: datetime, gap_end: datetime, detection_method: str = 'realtime'
+    ) -> CoverageGap:
+        """Analyze a potential gap and classify it"""
+        gap_duration = int((gap_end - gap_start).total_seconds() / 60)
+        expected_records = gap_duration if data_type == 'minute' else 1
+        
+        # Determine severity based on duration
+        if gap_duration <= 2:
+            severity = GapSeverity.LOW
+        elif gap_duration <= 10:
+            severity = GapSeverity.MEDIUM
+        elif gap_duration <= 30:
+            severity = GapSeverity.HIGH
+        else:
+            severity = GapSeverity.CRITICAL
+        
+        return CoverageGap(
+            symbol=symbol,
+            vendor=vendor,
+            data_type=data_type,
+            gap_start=gap_start,
+            gap_end=gap_end,
+            gap_duration_minutes=gap_duration,
+            expected_records=expected_records,
+            gap_type=GapType.MISSING,
+            gap_severity=severity,
+            trading_day=gap_start.date(),
+            is_market_hours=True,  # Simplified
+            detection_method=detection_method,
+            detection_confidence=0.95
+        )

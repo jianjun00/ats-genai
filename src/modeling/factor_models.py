@@ -45,6 +45,52 @@ class FactorReturn:
     sector_returns: Dict[str, float]
 
 
+@dataclass
+class FactorLoadings:
+    """Factor loadings for model estimation."""
+    market_loading: float
+    size_loading: float
+    value_loading: float
+    momentum_loading: float
+    quality_loading: float
+    volatility_loading: float
+    sector_loadings: Optional[Dict[str, float]] = None
+    instrument_id: Optional[int] = None
+    date: Optional[datetime] = None
+    r_squared: Optional[float] = None
+    alpha: Optional[float] = None
+    tracking_error: Optional[float] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation."""
+        return {
+            'market_loading': self.market_loading,
+            'size_loading': self.size_loading,
+            'value_loading': self.value_loading,
+            'momentum_loading': self.momentum_loading,
+            'quality_loading': self.quality_loading,
+            'volatility_loading': self.volatility_loading,
+            'sector_loadings': self.sector_loadings or {},
+            'r_squared': self.r_squared,
+            'alpha': self.alpha,
+            'tracking_error': self.tracking_error
+        }
+
+
+@dataclass
+class FactorModelResult:
+    """Result from factor model estimation."""
+    instrument_id: int
+    date: datetime
+    expected_return: float
+    residual_return: float
+    factor_contributions: Dict[str, float]
+    factor_loadings: FactorLoadings
+    model_r_squared: float
+    model_alpha: float
+    model_tracking_error: float
+
+
 class MarketFactorCalculator:
     """Calculate market factor returns using various market indices."""
     

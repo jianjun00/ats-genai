@@ -11,7 +11,7 @@ from unittest.mock import Mock
 from modeling.interpretability_framework import (
     PredictionExplanation,
     ResidualReturnInterpreter,
-    create_prediction_explanation_for_model
+    create_prediction_explanation
 )
 
 
