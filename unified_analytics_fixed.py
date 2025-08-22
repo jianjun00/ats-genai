@@ -692,7 +692,7 @@ async def list_dataset_sequences(
     """List sequences within a dataset with filtering capabilities."""
     # Map dataset_id to actual dataset name
     dataset_mapping = {
-        1: "aapl_tsla",
+        1: "sample_test_dataset",
         2: "dataset_20250821_183848",
         3: "dataset_20250821_183855"
     }
@@ -715,7 +715,7 @@ async def list_dataset_sequences(
 async def get_sequence_details(dataset_id: int, sequence_id: int):
     """Get detailed information for a specific sequence."""
     dataset_mapping = {
-        1: "aapl_tsla",
+        1: "sample_test_dataset",
         2: "dataset_20250821_183848", 
         3: "dataset_20250821_183855"
     }
@@ -738,7 +738,7 @@ async def get_sequence_details(dataset_id: int, sequence_id: int):
 async def get_sequence_ohlc(dataset_id: int, sequence_id: int):
     """Get OHLC + technical indicators data for dual-axis chart."""
     dataset_mapping = {
-        1: "aapl_tsla",
+        1: "sample_test_dataset",
         2: "dataset_20250821_183848",
         3: "dataset_20250821_183855"
     }
@@ -764,7 +764,7 @@ async def get_filtered_distributions(
 ):
     """Get dynamic distributions for filtered sequences."""
     dataset_mapping = {
-        1: "aapl_tsla",
+        1: "sample_test_dataset",
         2: "dataset_20250821_183848",
         3: "dataset_20250821_183855"
     }
