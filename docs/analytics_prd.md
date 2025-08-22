@@ -206,23 +206,33 @@ Currently, our ML workflow management and analysis capabilities are fragmented:
 
 ### 3.6 Enhanced Dataset Analysis (v3.0)
 
-#### F15: Row-Level Sequence Access
-- **Sequence Filtering**: Filter training sequences by symbol, date range, and feature values
-- **Interactive Tables**: Paginated sequence tables with sortable columns
-- **Metadata Display**: Show sequence-level statistics and feature summaries
-- **Real-Time Filtering**: Dynamic updates as filters are applied
+#### F15: Advanced Sequence Data Tables
+- **Filterable Data Tables**: Real-time filtering of training sequences by any column value
+- **Sortable Columns**: Click-to-sort functionality on all data columns (date, OHLC, volume, indicators)
+- **Row-Level Visualization**: Mini OHLC charts embedded in each table row
+- **Dynamic Data Loading**: Efficient loading of large sequence datasets with pagination
+- **Search Functionality**: Text-based search across all sequence data fields
 
-#### F16: Dual-Axis OHLC Charts
-- **Price/Volume Visualization**: Top panel showing OHLC candlesticks with volume bars
-- **Technical Indicators Panel**: Bottom panel displaying calculated technical indicators
-- **Synchronized Interaction**: Zoom and pan synchronization between chart panels
-- **Export Capabilities**: Save chart visualizations as images
+#### F16: Feature Distribution Visualizations
+- **Multi-Feature Histograms**: Simultaneous display of distributions for close price, volume, ETOP, EBOT
+- **Real-Time Updates**: Distribution charts update automatically when table filters are applied
+- **Statistical Overlays**: Mean, median, and standard deviation indicators on distribution charts
+- **Interactive Filtering**: Click distribution segments to filter main data table
+- **Export Capabilities**: Save distribution charts as PNG images
 
-#### F17: Unified Application Interface
+#### F17: Technical Indicator OHLC Charts
+- **Real Indicator Values**: Display actual ETOP, EBOT, PLDOT, and EMA values (not ratios)
+- **Row-Level Mini Charts**: Individual OHLC visualizations for each sequence in the data table
+- **Multi-Indicator Support**: Simultaneous display of price data with technical indicators
+- **Color-Coded Indicators**: Visual distinction between different technical indicators
+- **Responsive Design**: Charts scale appropriately for table cell display
+
+#### F18: Enhanced User Interface
 - **Single Entry Point**: All functionality accessible from port 3000
 - **Integrated Navigation**: Seamless transitions between job management and dataset analysis
-- **Consolidated APIs**: All endpoints available under unified API structure
-- **Simplified Access**: No need to manage multiple application URLs
+- **Modern Web Components**: Chart.js integration for professional data visualizations
+- **Responsive Layout**: Grid-based layout that adapts to different screen sizes
+- **Enhanced Badges**: Visual indicators for Enhanced Analysis, Filterable Tables, and OHLC Charts
 
 ---
 
@@ -331,11 +341,12 @@ Unified Analytics Platform (Port 3000)
 │   ├── Quality Metrics Dashboard
 │   └── Dataset Comparison Tools
 ├── Enhanced Dataset Detail (/dataset-detail)
-│   ├── Row-Level Sequence Analysis
-│   ├── Interactive Sequence Tables
-│   ├── Dual-Axis OHLC Charts (/dual_axis_ohlc_chart.js)
-│   ├── Dynamic Distribution Filtering
-│   └── Synchronized Chart Interactions
+│   ├── Filterable Sequence Data Tables
+│   ├── Real-Time Feature Distribution Charts
+│   ├── Row-Level Mini OHLC Visualizations
+│   ├── Technical Indicator Analysis (ETOP/EBOT/PLDOT/EMA)
+│   ├── Dynamic Search and Sorting
+│   └── Chart.js Powered Visualizations
 └── Unified API Layer (/api/v1/)
     ├── Job Management APIs
     ├── Dataset Catalog APIs
@@ -374,13 +385,14 @@ Unified Analytics Platform (Port 3000)
 
 ### 5.3 Enhanced User Flows (v3.0)
 
-#### Flow 4: Row-Level Dataset Analysis
+#### Flow 4: Enhanced Dataset Detail Analysis
 1. User navigates to unified analytics platform at port 3000
 2. Accesses enhanced dataset detail page from dataset catalog
-3. Applies filters to narrow down specific sequences
-4. Reviews interactive sequence table with metadata
-5. Clicks on sequence to view dual-axis OHLC chart
-6. Analyzes price movements with technical indicators
+3. Views feature distribution charts for close price, volume, ETOP, and EBOT
+4. Uses filter input to search for specific sequences by any criteria
+5. Sorts data table by clicking column headers (date, price, indicators)
+6. Examines row-level mini OHLC charts with real technical indicator values
+7. Analyzes patterns using filterable data with real-time distribution updates
 
 #### Flow 5: Unified Analytics Workflow
 1. User accesses single URL (http://localhost:3000)

@@ -1,0 +1,299 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: realtime-streaming-collector
+  labels:
+    app: realtime-streaming-collector
+    component: data-collection
+    version: v1
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: realtime-streaming-collector
+  template:
+    metadata:
+      labels:
+        app: realtime-streaming-collector
+        component: data-collection
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+        config.linkerd.io/proxy-cpu-request: "0.1"
+        config.linkerd.io/proxy-memory-request: "20Mi"
+    spec:
+      serviceAccountName: realtime-collector-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: realtime-collector
+        image: ats-realtime-collector:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        - containerPort: 8080
+          name: health
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: ats-dev-config
+              key: ENVIRONMENT
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: ats-dev-config
+              key: LOG_LEVEL
+        - name: DATABASE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: ats-dev-config
+              key: DATABASE_HOST
+        - name: DATABASE_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: ats-dev-config
+              key: DATABASE_PORT
+        - name: DATABASE_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: ats-dev-config
+              key: DATABASE_NAME
+        - name: DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: database-credentials
+              key: DATABASE_USER
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database-credentials
+              key: DATABASE_PASSWORD
+        - name: POLYGON_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: vendor-api-keys
+              key: POLYGON_API_KEY
+        - name: TIINGO_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: vendor-api-keys
+              key: TIINGO_API_KEY
+        - name: FMP_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: vendor-api-keys
+              key: FMP_API_KEY
+        - name: MAX_LATENCY_SECONDS
+          value: "120"
+        - name: UNIVERSE_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: ats-dev-config
+              key: UNIVERSE_SIZE
+        - name: MARKET_HOURS_ONLY
+          valueFrom:
+            configMapKeyRef:
+              name: ats-dev-config
+              key: MARKET_HOURS_ONLY
+        - name: METRICS_PORT
+          value: "9090"
+        - name: HEALTH_PORT
+          value: "8080"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: health
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: health
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health/startup
+            port: health
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 12
+        volumeMounts:
+        - name: collector-config
+          mountPath: /app/config
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: collector-config
+        configMap:
+          name: realtime-collector-config
+      - name: tmp
+        emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - realtime-streaming-collector
+              topologyKey: kubernetes.io/hostname
+      tolerations:
+      - key: "ats-workload"
+        operator: "Equal"
+        value: "data-collection"
+        effect: "NoSchedule"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: realtime-streaming-service
+  labels:
+    app: realtime-streaming-collector
+    component: data-collection
+spec:
+  selector:
+    app: realtime-streaming-collector
+  ports:
+  - name: metrics
+    port: 9090
+    targetPort: metrics
+    protocol: TCP
+  - name: health
+    port: 8080
+    targetPort: health
+    protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: realtime-collector-sa
+  labels:
+    app: realtime-streaming-collector
+automountServiceAccountToken: false
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: realtime-streaming-collector-hpa
+  labels:
+    app: realtime-streaming-collector
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: realtime-streaming-collector
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: realtime-streaming-collector-pdb
+  labels:
+    app: realtime-streaming-collector
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: realtime-streaming-collector
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: realtime-collector-config
+  labels:
+    app: realtime-streaming-collector
+data:
+  collector.yaml: |
+    collection:
+      universe_size: 100
+      max_latency_seconds: 120
+      market_hours_only: false
+      enable_gap_detection: true
+      gap_threshold_minutes: 5
+      
+    vendors:
+      polygon:
+        websocket_url: "wss://socket.polygon.io/stocks"
+        api_base_url: "https://api.polygon.io"
+        rate_limit_per_minute: 600
+        
+      tiingo:
+        api_base_url: "https://api.tiingo.com"
+        rate_limit_per_minute: 1000
+        
+      fmp:
+        api_base_url: "https://financialmodelingprep.com/api"
+        rate_limit_per_minute: 300
+        
+    monitoring:
+      metrics_port: 9090
+      health_port: 8080
+      enable_detailed_metrics: true
+      
+    logging:
+      level: DEBUG
+      format: json
+      enable_run_context: true

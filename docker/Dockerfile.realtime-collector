@@ -1,0 +1,74 @@
+# Multi-stage build for ATS Real-time Data Collector
+FROM python:3.12-slim as builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up Python environment
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Install Python dependencies
+COPY requirements.txt requirements-dev.txt* ./
+RUN pip install --user -r requirements.txt && \
+    if [ -f requirements-dev.txt ]; then pip install --user -r requirements-dev.txt; fi
+
+# Production stage
+FROM python:3.12-slim as production
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r ats --gid=1000 \
+    && useradd -r -g ats --uid=1000 --home-dir=/app --shell=/bin/bash ats
+
+# Copy Python dependencies from builder
+COPY --from=builder /root/.local /home/ats/.local
+ENV PATH=/home/ats/.local/bin:$PATH
+
+# Set working directory
+WORKDIR /app
+
+# Copy application code
+COPY src/ ./src/
+COPY config/ ./config/
+COPY scripts/ ./scripts/
+
+# Create necessary directories
+RUN mkdir -p logs data config /tmp && \
+    chown -R ats:ats /app /tmp
+
+# Switch to non-root user
+USER ats
+
+# Set Python path
+ENV PYTHONPATH=/app/src
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8080/health/live || exit 1
+
+# Expose ports
+EXPOSE 8080 9090
+
+# Default command (can be overridden)
+CMD ["python", "-m", "market_data.realtime.streaming_collector"]
+
+# Labels for metadata
+LABEL maintainer="ATS Platform Team" \
+      description="Real-time market data collection service" \
+      version="1.0.0" \
+      org.opencontainers.image.title="ATS Real-time Collector" \
+      org.opencontainers.image.description="High-performance real-time market data collection and processing" \
+      org.opencontainers.image.vendor="ATS Platform" \
+      org.opencontainers.image.licenses="Proprietary" \
+      org.opencontainers.image.source="https://github.com/your-org/ats-platform"

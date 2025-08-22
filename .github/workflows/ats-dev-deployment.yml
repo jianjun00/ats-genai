@@ -1,0 +1,426 @@
+name: ATS Dev Environment Deployment
+
+on:
+  push:
+    branches: [ main, develop, chore/dev-db-migration-job ]
+  pull_request:
+    branches: [ main, develop ]
+    types: [ opened, synchronize, reopened ]
+
+env:
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: '20'
+  KUBERNETES_NAMESPACE: ats-dev
+  DEPLOYMENT_TIMEOUT: 600s
+
+jobs:
+  # Fast Unit Tests (Required for all branches)
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-asyncio pytest-cov
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+        
+    - name: Run fast unit tests
+      run: |
+        PYTHONPATH=src pytest tests/core/ tests/config/ tests/signals/test_indicator.py -v --tb=short --maxfail=10
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: unit-test-results
+        path: |
+          pytest-report.xml
+          .coverage
+        retention-days: 30
+
+  # Integration Tests (Required for deployment branches)
+  integration-tests:
+    name: Integration Tests  
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/chore/dev-db-migration-job'
+    timeout-minutes: 20
+    
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg15
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+          
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-asyncio pytest-cov asyncpg
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+        
+    - name: Run database migrations
+      env:
+        DATABASE_URL: postgresql://postgres:test_password@localhost:5432/test_db
+      run: |
+        PYTHONPATH=src python src/db/migration_manager.py migrate --db-url $DATABASE_URL
+        
+    - name: Run integration tests
+      env:
+        DATABASE_URL: postgresql://postgres:test_password@localhost:5432/test_db
+        ENVIRONMENT: test
+      run: |
+        PYTHONPATH=src pytest tests/market_data/realtime/ -v --tb=short -m "not benchmark" --maxfail=5
+        
+    - name: Upload integration test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: integration-test-results
+        path: |
+          pytest-report.xml
+          .coverage
+        retention-days: 30
+
+  # Security and Code Quality Checks
+  security-checks:
+    name: Security & Quality Checks
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install security tools
+      run: |
+        pip install bandit safety ruff
+        
+    - name: Run security scan with Bandit
+      run: |
+        bandit -r src/ -f json -o bandit-report.json || true
+        bandit -r src/ --severity-level medium
+        
+    - name: Check dependencies for vulnerabilities
+      run: |
+        safety check --json --output safety-report.json || true
+        safety check
+        
+    - name: Run code quality checks with Ruff
+      run: |
+        ruff check src/ --output-format=json --output-file=ruff-report.json || true
+        ruff check src/
+        
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          bandit-report.json
+          safety-report.json
+          ruff-report.json
+        retention-days: 30
+
+  # Build and Test Docker Images
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [unit-tests, security-checks]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/chore/dev-db-migration-job'
+    timeout-minutes: 15
+    
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Generate image metadata
+      id: meta
+      uses: docker/metadata-action@v4
+      with:
+        images: |
+          ats-realtime-collector
+          ats-analytics-api
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix=sha-
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: Build realtime collector image
+      id: build
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: docker/Dockerfile.realtime-collector
+        platforms: linux/amd64
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        outputs: type=docker,dest=/tmp/realtime-collector.tar
+        
+    - name: Upload Docker image artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: docker-images
+        path: /tmp/realtime-collector.tar
+        retention-days: 1
+
+  # Deploy to ATS Dev Environment
+  deploy-to-dev:
+    name: Deploy to ATS Dev
+    runs-on: ubuntu-latest
+    needs: [integration-tests, build-images]
+    if: |
+      github.ref == 'refs/heads/main' || 
+      github.ref == 'refs/heads/develop' || 
+      github.ref == 'refs/heads/chore/dev-db-migration-job'
+    timeout-minutes: 20
+    environment: 
+      name: ats-dev
+      url: https://ats-dev.cluster.local
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Configure kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: '1.28.0'
+        
+    - name: Setup Kubernetes context
+      run: |
+        # Configure kubectl context for ats-dev cluster
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBE_CONFIG_ATS_DEV }}" | base64 -d > ~/.kube/config
+        kubectl config use-context ats-dev
+        
+    - name: Verify cluster access
+      run: |
+        kubectl cluster-info
+        kubectl get nodes
+        kubectl get namespaces | grep ats-dev || kubectl create namespace ats-dev
+        
+    - name: Download Docker images
+      uses: actions/download-artifact@v3
+      with:
+        name: docker-images
+        path: /tmp/
+        
+    - name: Load and tag images
+      run: |
+        docker load -i /tmp/realtime-collector.tar
+        docker tag ats-realtime-collector:latest ats-realtime-collector:${{ github.sha }}
+        
+    - name: Deploy database migrations
+      env:
+        ENVIRONMENT: dev
+      run: |
+        # Apply database migrations
+        kubectl apply -f k8s/jobs/migration-job.yaml -n ats-dev
+        kubectl wait --for=condition=complete job/database-migration -n ats-dev --timeout=300s
+        
+    - name: Deploy real-time data collection system
+      run: |
+        # Update image tags in manifests
+        sed -i "s|image: ats-realtime-collector:latest|image: ats-realtime-collector:${{ github.sha }}|g" k8s/dev/realtime-streaming-deployment.yaml
+        
+        # Apply Kubernetes manifests
+        kubectl apply -f k8s/dev/realtime-streaming-deployment.yaml -n ats-dev
+        kubectl apply -f k8s/dev/realtime-validation-cronjobs.yaml -n ats-dev
+        
+    - name: Deploy monitoring stack
+      run: |
+        kubectl apply -f k8s/monitoring/monitoring-stack.yaml -n ats-dev
+        kubectl apply -f k8s/monitoring/prometheus-alerting-rules.yaml -n ats-dev
+        
+    - name: Wait for deployment rollout
+      run: |
+        kubectl rollout status deployment/realtime-streaming-collector -n ats-dev --timeout=${{ env.DEPLOYMENT_TIMEOUT }}
+        kubectl rollout status deployment/prometheus -n ats-dev --timeout=${{ env.DEPLOYMENT_TIMEOUT }}
+        kubectl rollout status deployment/grafana -n ats-dev --timeout=${{ env.DEPLOYMENT_TIMEOUT }}
+        
+    - name: Verify deployment health
+      run: |
+        # Check pod status
+        kubectl get pods -n ats-dev -l app=realtime-streaming-collector
+        kubectl get pods -n ats-dev -l app=prometheus
+        kubectl get pods -n ats-dev -l app=grafana
+        
+        # Check services
+        kubectl get services -n ats-dev
+        
+        # Verify health endpoints
+        kubectl port-forward -n ats-dev svc/realtime-streaming-service 9090:9090 &
+        sleep 10
+        curl -f http://localhost:9090/health || exit 1
+        pkill kubectl
+        
+    - name: Run smoke tests
+      run: |
+        # Run basic smoke tests to verify deployment
+        PYTHONPATH=src python scripts/smoke_tests/verify_deployment.py --environment dev
+        
+    - name: Update deployment status
+      if: always()
+      run: |
+        echo "Deployment completed at $(date -u)"
+        echo "Git SHA: ${{ github.sha }}"
+        echo "Branch: ${{ github.ref_name }}"
+        
+        # Log deployment info
+        kubectl get events -n ats-dev --sort-by='.lastTimestamp' | tail -20
+
+  # Performance Tests (Optional, runs on schedule)
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: deploy-to-dev
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    timeout-minutes: 30
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install dependencies
+      run: |
+        pip install pytest pytest-asyncio pytest-benchmark
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        
+    - name: Run performance benchmarks
+      run: |
+        PYTHONPATH=src pytest tests/market_data/realtime/test_performance_benchmarks.py -v -m benchmark --tb=short
+        
+    - name: Upload performance results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: performance-test-results
+        path: |
+          benchmark-results.json
+          performance-report.html
+        retention-days: 90
+
+  # Cleanup on failure
+  cleanup-on-failure:
+    name: Cleanup on Failure
+    runs-on: ubuntu-latest
+    needs: [deploy-to-dev]
+    if: failure()
+    
+    steps:
+    - name: Cleanup failed deployment
+      run: |
+        # Configure kubectl
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBE_CONFIG_ATS_DEV }}" | base64 -d > ~/.kube/config
+        kubectl config use-context ats-dev
+        
+        # Rollback to previous version if deployment failed
+        kubectl rollout undo deployment/realtime-streaming-collector -n ats-dev
+        kubectl rollout status deployment/realtime-streaming-collector -n ats-dev --timeout=300s
+        
+        echo "Deployment rolled back due to failure"
+
+  # Notification
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [deploy-to-dev]
+    if: always()
+    
+    steps:
+    - name: Send Slack notification on success
+      if: success()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        channel: '#ats-dev-deployments'
+        text: |
+          ✅ ATS Dev deployment successful!
+          Branch: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}
+          View deployment: https://grafana.ats-dev.cluster.local
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        
+    - name: Send Slack notification on failure
+      if: failure()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        channel: '#ats-dev-deployments'
+        text: |
+          ❌ ATS Dev deployment failed!
+          Branch: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}
+          View logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
