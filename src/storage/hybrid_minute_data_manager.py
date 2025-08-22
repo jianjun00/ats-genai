@@ -17,7 +17,7 @@ import asyncpg
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta, date
-from typing import List, Dict, Optional, Any, Union
+from typing import List, Dict, Optional, Any, Union, Tuple
 from pathlib import Path
 import logging
 from dataclasses import dataclass

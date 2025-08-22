@@ -29,10 +29,20 @@ class EMAIndicator(Indicator):
             ema = close_prices.ewm(span=self.period, adjust=False).mean().iloc[-1]
             current_price = close_prices.iloc[-1]
             
-            # Price vs EMA ratio
+            # Validate EMA calculation
+            if pd.isna(ema) or np.isinf(ema) or ema <= 0:
+                return {'value': None, 'status': 'invalid_ema_calculation'}
+            
+            # Log for debugging (if current price is significantly different from EMA, it might indicate data issues)
+            if abs(current_price - ema) > current_price * 0.5:  # More than 50% difference
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Large EMA divergence detected: price={current_price:.2f}, EMA{self.period}={ema:.2f}")
+            
+            # Price vs EMA ratio (this should be a small decimal, e.g., -0.02 = -2%)
             price_vs_ema = (current_price / ema) - 1
             
-            # EMA slope (trend direction)
+            # EMA slope (trend direction) - percentage change per period
             if len(price_history) >= self.period + 5:
                 ema_series = close_prices.ewm(span=self.period, adjust=False).mean()
                 ema_slope = (ema_series.iloc[-1] - ema_series.iloc[-6]) / ema_series.iloc[-6]
@@ -47,15 +57,28 @@ class EMAIndicator(Indicator):
             else:
                 ema_distance_std = 0
             
-            return {
-                'value': ema,
-                'price_vs_ema': price_vs_ema,
-                'ema_slope': ema_slope,
-                'ema_distance_std': ema_distance_std,
+            # IMPORTANT: The 'value' field contains the actual EMA price level
+            # The other fields are ratios/percentages and will be small numbers (typically -1 to +1)
+            result = {
+                'value': float(ema),  # Actual EMA value in price units
+                'ema_price': float(ema),  # Duplicate for clarity - this is the actual EMA price
+                'current_price': float(current_price),  # Current stock price for reference
+                'price_vs_ema_ratio': float(price_vs_ema),  # Ratio: (price/EMA) - 1, expect small numbers like -0.02
+                'ema_slope_pct': float(ema_slope),  # Percentage slope, expect small numbers like 0.01
+                'ema_distance_std': float(ema_distance_std),  # Standard deviations, expect -3 to +3
                 'status': 'valid'
             }
             
+            # Legacy field names for backward compatibility
+            result['price_vs_ema'] = result['price_vs_ema_ratio']
+            result['ema_slope'] = result['ema_slope_pct']
+            
+            return result
+            
         except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"EMA{self.period} calculation failed: {str(e)}")
             return {'value': None, 'status': f'calculation_error: {str(e)}'}
 
 

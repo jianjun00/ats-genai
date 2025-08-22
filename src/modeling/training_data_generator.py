@@ -367,15 +367,37 @@ class ResidualReturnTrainingDataGenerator:
                     'price_momentum_10d': (close_prices.iloc[-1] / close_prices.iloc[-11]) - 1 if len(close_prices) >= 11 else 0
                 })
             
-            # Clean and validate features
+            # Clean and validate features with improved numpy type handling
             cleaned_features = {}
+            suspicious_values = []
+            
             for key, value in tech_features.items():
-                if pd.isna(value) or np.isinf(value):
+                if value is None:
                     cleaned_features[key] = 0.0
-                elif isinstance(value, (int, float)):
-                    cleaned_features[key] = float(value)
+                elif pd.isna(value):
+                    cleaned_features[key] = 0.0
+                elif isinstance(value, (int, float, np.number)):  # Include numpy types
+                    if np.isinf(value):
+                        cleaned_features[key] = 0.0
+                    else:
+                        cleaned_features[key] = float(value)
+                        
+                        # Log suspicious EMA values for debugging
+                        if 'EMA' in key and '_value' in key:
+                            if -2 < value < 2:  # EMA values should not be this small for most stocks
+                                suspicious_values.append(f"{key}={value}")
+                elif isinstance(value, str):
+                    # Status fields and other string values should be skipped
+                    continue
                 else:
+                    # Log unexpected data types for debugging
+                    logger.warning(f"Unexpected data type for {key}: {type(value)} = {value}")
                     cleaned_features[key] = 0.0
+            
+            # Log suspicious EMA values that might indicate calculation errors
+            if suspicious_values:
+                logger.warning(f"Suspicious small EMA values detected: {', '.join(suspicious_values)}")
+                logger.warning("Note: EMA ratios and slopes should be small, but EMA values should be close to stock price")
             
             return cleaned_features
             

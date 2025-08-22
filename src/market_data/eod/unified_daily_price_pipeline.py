@@ -16,7 +16,7 @@ import json
 import os
 import subprocess
 
-from unified_daily_price_validator import UnifiedDailyPriceValidator, ValidationStatus
+from market_data.eod.unified_daily_price_validator import UnifiedDailyPriceValidator, ValidationStatus
 from config.environment import Environment
 
 

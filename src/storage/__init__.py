@@ -3,13 +3,11 @@
 from .hybrid_minute_data_manager import (
     HybridMinuteDataManager,
     StorageConfig,
-    create_hybrid_manager,
-    migrate_existing_data
+    DataGap
 )
 
 __all__ = [
     'HybridMinuteDataManager',
-    'StorageConfig', 
-    'create_hybrid_manager',
-    'migrate_existing_data'
+    'StorageConfig',
+    'DataGap'
 ]
