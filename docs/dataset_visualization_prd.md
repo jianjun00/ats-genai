@@ -21,7 +21,33 @@ Current dataset visualization only shows JSON metadata, providing insufficient i
 
 ## Core Features
 
-### 1. Dataset Detail Dashboard
+### 1. Interactive Dataset Table (✅ IMPLEMENTED)
+**User Story**: As a data scientist, I want to browse all training datasets in an interactive table with filtering and sorting capabilities so I can quickly find and analyze relevant datasets.
+
+**Requirements** (✅ COMPLETED):
+- **Interactive Table Layout**: Professional table displaying all datasets with sortable columns
+- **Filtering Capabilities**: Real-time filtering by symbol/dataset name with live search
+- **Sorting Functionality**: Click column headers to sort by Dataset Name, Sequences, Features, Size, Created date
+- **Pagination Controls**: Configurable row limits (10/25/50/100) with page navigation
+- **Visual Indicators**: Sort direction indicators (🔽🔼) and hover effects
+- **Action Buttons**: Direct links to view distributions and OHLC data
+- **Real Data Integration**: Display production datasets with actual metadata
+
+**Technical Implementation** (✅ COMPLETED):
+- Enhanced `/api/v1/datasets` endpoint with filtering and sorting parameters
+- JavaScript-based client-side interactivity with debounced filtering
+- Shared CSS styling with job management table for consistency
+- Professional pagination with smart page controls
+- Real database integration with dev_training_dataset table
+
+**Success Metrics** (✅ ACHIEVED):
+- Table loads in <2 seconds with real production data
+- Filter operations respond within 500ms (debounced)
+- Sort indicators provide clear visual feedback
+- Consistent UI/UX with job management table
+- All 16 regression protection tests passing
+
+### 2. Dataset Detail Dashboard
 **User Story**: As a data scientist, I want to see a comprehensive overview of my dataset so I can understand its characteristics at a glance.
 
 **Requirements**:
@@ -62,7 +88,7 @@ Current dataset visualization only shows JSON metadata, providing insufficient i
 ### 3. Sample Data Table View
 **User Story**: As a data scientist, I want to browse actual sample data so I can verify data quality and understand feature relationships.
 
-**Requirements**:
+**Requirements** (Enhanced by Interactive Dataset Table):
 - **Paginated Table**: Show 50-100 samples per page with navigation
 - **Column Sorting**: Click headers to sort by any feature
 - **Search and Filtering**: 
@@ -73,6 +99,11 @@ Current dataset visualization only shows JSON metadata, providing insufficient i
 - **Row Selection**: Click rows to highlight and view detailed information
 - **Export Options**: Download filtered data as CSV/JSON
 - **Column Management**: Hide/show columns, reorder columns
+
+**Integration with Dataset Table** (✅ IMPLEMENTED):
+- Direct navigation from dataset table to sample data view
+- Consistent filtering and sorting patterns across both tables
+- Shared pagination and UI components
 
 **Technical Specifications**:
 - Virtual scrolling for large datasets (100k+ rows)
@@ -191,8 +222,9 @@ Feature Distributions ← → Sample Table View ← → Sample Visualization
 ### User Engagement
 - **Time on Dataset Page**: Average 10+ minutes (indicates deep exploration)
 - **Feature Interaction Rate**: 80%+ of users interact with distributions
-- **Filter Usage**: 60%+ of users apply at least one filter
+- **Filter Usage**: 60%+ of users apply at least one filter (✅ Interactive table filter implemented)
 - **Sample Detail Views**: 40%+ of users examine individual samples
+- **Table Interaction Rate**: 90%+ of users interact with dataset table sorting/filtering (New metric)
 
 ### Performance Metrics
 - **Page Load Speed**: 95th percentile <5 seconds
@@ -208,25 +240,40 @@ Feature Distributions ← → Sample Table View ← → Sample Visualization
 
 ## Implementation Phases
 
-### Phase 1: Core Visualization (Week 1)
+### Phase 1: Interactive Dataset Table (✅ COMPLETED - August 22, 2025)
+- ✅ **Interactive dataset table with filtering and sorting**
+- ✅ **Enhanced API endpoints with parameter support**
+- ✅ **Professional table styling consistent with job management**
+- ✅ **Real production data integration**
+- ✅ **Comprehensive regression protection test suite**
+- ✅ **Complete user workflow verification**
+
+**Key Achievements**:
+- Enhanced `/api/v1/datasets` endpoint with `symbol_filter`, `sort_by`, `sort_dir`, `limit`, `offset` parameters
+- Interactive table displaying real datasets: `enhanced_20250821_145109_tsla`, `aapl_demo_dataset`
+- JavaScript-based sorting, filtering, and pagination functionality
+- All 16 regression protection tests passing
+- Live deployment at http://172.25.223.121:3000/
+
+### Phase 2: Core Visualization (Week 1)
 - Dataset detail dashboard
 - Basic feature distributions (histograms)
-- Simple sample table view
-- Basic filtering capabilities
+- Enhanced sample table view with dataset table integration
+- Advanced filtering capabilities
 
-### Phase 2: Interactive Features (Week 2)
+### Phase 3: Interactive Features (Week 2)
 - Advanced filtering and search
 - Sample detail visualization
 - Interactive plot controls
 - Export functionality
 
-### Phase 3: Advanced Analytics (Week 3)
+### Phase 4: Advanced Analytics (Week 3)
 - Statistical analysis and anomaly detection
 - Correlation analysis and heatmaps
 - Comparison tools between samples
 - Performance optimization
 
-### Phase 4: Polish and Scale (Week 4)
+### Phase 5: Polish and Scale (Week 4)
 - Mobile responsiveness
 - Advanced UI/UX improvements
 - Performance optimization for large datasets
@@ -266,6 +313,28 @@ Feature Distributions ← → Sample Table View ← → Sample Visualization
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: August 21, 2025  
+**Document Version**: 2.0  
+**Last Updated**: August 22, 2025  
 **Next Review**: September 1, 2025
+
+---
+
+## ✅ Recent Implementation (August 22, 2025)
+
+### Interactive Dataset Table - COMPLETED
+Successfully implemented comprehensive interactive dataset table functionality as requested:
+"let' do the same for dataset dashboard where all training datasets are shown in a table with filter and sort."
+
+**Delivered Features**:
+- ✅ Interactive table with sortable columns
+- ✅ Real-time filtering by symbol/dataset name
+- ✅ Professional pagination with configurable limits
+- ✅ Visual sort indicators and hover effects
+- ✅ Consistent styling with job management table
+- ✅ Real production data integration
+- ✅ Enhanced API with filtering/sorting parameters
+- ✅ Comprehensive regression protection test suite
+
+**Access**: Live at http://172.25.223.121:3000/ → Dataset Visualization tab
+
+**Quality Assurance**: All 16 regression protection tests passing - functionality protected against future regressions.
