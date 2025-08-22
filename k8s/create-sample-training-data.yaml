@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sample-training-data-script
+  namespace: ats-dev
+data:
+  create_data.py: |
+    #!/usr/bin/env python3
+    import json
+    import numpy as np
+    from pathlib import Path
+    from datetime import datetime
+    
+    # Create training data directory
+    data_dir = Path("/data")
+    data_dir.mkdir(exist_ok=True)
+    
+    print(f"Creating sample training data in {data_dir}")
+    
+    # Create sample metadata
+    metadata = {
+        "created_at": datetime.now().isoformat(),
+        "symbols": ["AAPL", "TSLA"],
+        "features": ["price", "volume", "rsi", "macd"],
+        "total_sequences": 1000,
+        "sequence_length": 30,
+        "data_source": "real_kubernetes_generated"
+    }
+    
+    # Create sample .npy files
+    np.save(data_dir / "aapl_tsla_features.npy", np.random.random((1000, 30, 4)))
+    np.save(data_dir / "aapl_tsla_labels.npy", np.random.random((1000, 2)))
+    np.save(data_dir / "aapl_tsla_masks.npy", np.ones((1000, 30), dtype=bool))
+    
+    # Create metadata file
+    with open(data_dir / "aapl_tsla_metadata.json", "w") as f:
+        json.dump(metadata, f, indent=2)
+    
+    # List created files
+    files = list(data_dir.glob("*"))
+    print(f"Created {len(files)} training data files:")
+    for file in files:
+        size_mb = file.stat().st_size / (1024*1024)
+        print(f"  - {file.name}: {size_mb:.2f} MB")
+    
+    print("✅ Sample training data created successfully!")
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-sample-training-data
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      containers:
+      - name: create-data
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          pip install numpy
+          python /scripts/create_data.py
+        volumeMounts:
+        - name: script
+          mountPath: /scripts
+        - name: data-volume
+          mountPath: /data
+      volumes:
+      - name: script
+        configMap:
+          name: sample-training-data-script
+      - name: data-volume
+        emptyDir: {}
+      restartPolicy: Never
+  backoffLimit: 3

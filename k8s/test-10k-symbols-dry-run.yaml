@@ -1,0 +1,223 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-10k-symbols-dry-run
+  namespace: ats-dev
+  labels:
+    app: ats-genai
+    component: test-10k-backfill
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: test-10k-symbols
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "🧪 Testing 30-year backfill with 10k symbols dry-run..."
+          pip install --no-cache-dir asyncpg aiohttp numpy
+          
+          mkdir -p /app/scripts/backfill
+          mkdir -p /app/src
+          cd /app
+          
+          # Create test script for 10k symbols
+          cat > /app/scripts/backfill/test_10k_symbols.py << 'EOF'
+          import asyncio
+          import asyncpg
+          import os
+          from datetime import date
+          from typing import List
+          
+          class SimpleEnvironment:
+              def get_table_name(self, base_name):
+                  return f"dev_{base_name}"
+              
+              def get_database_url(self):
+                  host = os.environ.get('DB_HOST', 'postgres-simple')
+                  port = os.environ.get('DB_PORT', '5432')
+                  user = os.environ.get('DB_USER', 'postgres')
+                  password = os.environ.get('DB_PASSWORD', 'dev_password')
+                  database = os.environ.get('DB_NAME', 'dev_db')
+                  return f"postgresql://{user}:{password}@{host}:{port}/{database}"
+          
+          async def test_10k_symbols_query():
+              """Test getting all 10k symbols"""
+              env = SimpleEnvironment()
+              db_url = env.get_database_url()
+              
+              print(f"Testing 10k symbols query: {db_url}")
+              
+              try:
+                  pool = await asyncpg.create_pool(db_url, min_size=1, max_size=3)
+                  async with pool.acquire() as conn:
+                      # Get ALL instruments 
+                      rows = await conn.fetch("""
+                          SELECT DISTINCT symbol
+                          FROM dev_instruments
+                          WHERE symbol IS NOT NULL
+                          ORDER BY symbol
+                      """)
+                      
+                      symbols = [row['symbol'] for row in rows]
+                      print(f"✅ Found {len(symbols)} total instruments")
+                      
+                      # Show sample
+                      if len(symbols) > 10:
+                          print(f"Sample symbols: {symbols[:10]}")
+                          print(f"... and {len(symbols) - 10} more")
+                      
+                      return symbols
+                  await pool.close()
+              except Exception as e:
+                  print(f"❌ Query failed: {e}")
+                  return []
+          
+          def calculate_estimated_load():
+              """Calculate estimated API load"""
+              # 30 years = 1995-2025
+              start_date = date(1995, 1, 1)
+              end_date = date(2025, 8, 19)
+              chunk_years = 5
+              
+              # Calculate chunks
+              chunks = 0
+              current_start = start_date
+              while current_start < end_date:
+                  chunk_end = min(
+                      current_start.replace(year=current_start.year + chunk_years),
+                      end_date
+                  )
+                  chunks += 1
+                  current_start = chunk_end.replace(day=1).replace(month=1).replace(year=chunk_end.year + 1)
+                  if current_start <= chunk_end:
+                      current_start = chunk_end.replace(day=1).replace(month=1).replace(year=chunk_end.year + 1)
+              
+              print(f"✅ Date chunks with 5-year intervals: {chunks}")
+              return chunks
+          
+          def test_vendor_configs_with_keys():
+              """Test vendor configurations with actual API keys"""
+              vendors = {
+                  'polygon': {
+                      'api_key': os.getenv('POLYGON_API_KEY'),
+                      'name': 'Polygon',
+                      'rate_limit': '5 calls/min'
+                  },
+                  'tiingo': {
+                      'api_key': os.getenv('TIINGO_API_KEY'),
+                      'name': 'Tiingo',
+                      'rate_limit': '20 calls/min'
+                  },
+                  'fmp': {
+                      'api_key': os.getenv('FMP_API_KEY'),
+                      'name': 'Financial Modeling Prep',
+                      'rate_limit': '250 calls/min'
+                  }
+              }
+              
+              configured_vendors = []
+              for vendor, config in vendors.items():
+                  if config['api_key']:
+                      configured_vendors.append(vendor)
+                      key_masked = config['api_key'][:8] + "..." + config['api_key'][-4:]
+                      print(f"✅ {config['name']}: {key_masked} ({config['rate_limit']})")
+                  else:
+                      print(f"❌ {config['name']}: No API key found")
+              
+              return configured_vendors
+          
+          async def main():
+              print("🚀 10K SYMBOLS 30-YEAR BACKFILL DRY RUN TEST")
+              print("=" * 70)
+              
+              # Test 1: Get all symbols
+              print("\n🎯 Test 1: All Instruments Query")
+              symbols = await test_10k_symbols_query()
+              
+              if not symbols:
+                  print("❌ Cannot proceed without symbols")
+                  return
+              
+              # Test 2: Calculate load
+              print("\n📊 Test 2: Backfill Load Calculation")
+              chunks = calculate_estimated_load()
+              
+              # Test 3: API keys
+              print("\n🔑 Test 3: API Key Configuration")
+              vendors = test_vendor_configs_with_keys()
+              
+              # Final calculations
+              print("\n📈 COMPREHENSIVE BACKFILL ESTIMATES")
+              print("=" * 70)
+              total_symbols = len(symbols)
+              total_vendors = len(vendors)
+              total_chunks = chunks
+              
+              print(f"📊 Symbols: {total_symbols:,}")
+              print(f"🏢 Vendors: {total_vendors}")
+              print(f"📅 Date chunks (5 years each): {total_chunks}")
+              
+              # API request estimates
+              total_api_requests = total_symbols * total_vendors * total_chunks
+              print(f"🔥 Total API requests: {total_api_requests:,}")
+              
+              # Data volume estimates
+              avg_trading_days_per_year = 252
+              avg_records_per_request = 252 * 5  # 5 years per chunk
+              total_records = total_api_requests * avg_records_per_request
+              
+              print(f"💾 Estimated total records: {total_records:,}")
+              print(f"💿 Estimated storage: ~{total_records * 200 / 1024/1024/1024:.2f} GB")
+              
+              # Time estimates (very rough)
+              seconds_per_request = 1.5  # Conservative estimate with rate limits
+              total_seconds = total_api_requests * seconds_per_request
+              total_hours = total_seconds / 3600
+              
+              print(f"⏰ Estimated time: ~{total_hours:.1f} hours")
+              print(f"📅 Estimated completion: ~{total_hours/24:.1f} days")
+              
+              if total_vendors >= 3:
+                  print("\n✅ READY FOR COMPREHENSIVE 30-YEAR BACKFILL!")
+                  print("   This will be the most comprehensive historical")
+                  print("   dataset ever assembled for this system.")
+              else:
+                  print(f"\n⚠️  Need at least 3 vendors, have {total_vendors}")
+          
+          if __name__ == "__main__":
+              asyncio.run(main())
+          EOF
+          
+          echo "🔄 Running 10k symbols backfill estimation..."
+          cd /app && python scripts/backfill/test_10k_symbols.py
+        env:
+        - name: DB_HOST
+          value: "postgres-simple"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+        - name: PYTHONPATH
+          value: "/app/src"
+        - name: POLYGON_API_KEY
+          value: "wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"
+        - name: TIINGO_API_KEY
+          value: "5f40b4f36e171405746304ec0e5a6f3aa9ca77e5"
+        - name: FMP_API_KEY
+          value: "Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"

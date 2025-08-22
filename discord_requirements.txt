@@ -1,0 +1,9 @@
+# Discord Bot Dependencies
+discord.py>=2.3.0
+aiohttp>=3.8.0
+aiofiles>=23.1.0
+
+# Optional: For enhanced functionality
+python-dotenv>=1.0.0  # For .env file support
+Pillow>=10.0.0        # For image processing
+beautifulsoup4>=4.12.0  # For HTML parsing if needed

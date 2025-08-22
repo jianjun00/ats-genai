@@ -1,0 +1,160 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fix-market-cap-schema
+  namespace: ats-dev
+  labels:
+    app: ats-genai
+    component: schema-fix
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: schema-fixer
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "🔧 Fixing market cap table schema..."
+          pip install --no-cache-dir asyncpg
+          
+          mkdir -p /app
+          cd /app
+          
+          # Create schema fix script
+          cat > /app/fix_market_cap_schema.py << 'EOF'
+          import asyncio
+          import asyncpg
+          import os
+          
+          class SimpleEnvironment:
+              def get_table_name(self, base_name):
+                  return f"dev_{base_name}"
+              
+              def get_database_url(self):
+                  host = os.environ.get('DB_HOST', 'postgres-simple')
+                  port = os.environ.get('DB_PORT', '5432')
+                  user = os.environ.get('DB_USER', 'postgres')
+                  password = os.environ.get('DB_PASSWORD', 'dev_password')
+                  database = os.environ.get('DB_NAME', 'dev_db')
+                  return f"postgresql://{user}:{password}@{host}:{port}/{database}"
+          
+          async def fix_market_cap_schema():
+              """Fix market cap table schema"""
+              
+              env = SimpleEnvironment()
+              db_url = env.get_database_url()
+              
+              pool = await asyncpg.create_pool(db_url, min_size=1, max_size=2)
+              
+              try:
+                  async with pool.acquire() as conn:
+                      print("🔍 Checking current schema...")
+                      
+                      # Check current table structure
+                      columns = await conn.fetch("""
+                          SELECT column_name, data_type, is_nullable
+                          FROM information_schema.columns 
+                          WHERE table_name = 'dev_daily_market_cap' 
+                            AND table_schema = 'public'
+                          ORDER BY ordinal_position
+                      """)
+                      
+                      print(f"Current columns in dev_daily_market_cap:")
+                      current_columns = []
+                      for col in columns:
+                          current_columns.append(col['column_name'])
+                          print(f"  • {col['column_name']}: {col['data_type']} ({'NULL' if col['is_nullable'] == 'YES' else 'NOT NULL'})")
+                      
+                      # Add missing columns
+                      missing_columns = []
+                      
+                      if 'price_used' not in current_columns:
+                          missing_columns.append(('price_used', 'DECIMAL'))
+                          
+                      if 'source' not in current_columns:
+                          missing_columns.append(('source', 'VARCHAR(50)'))
+                          
+                      if 'shares_outstanding' not in current_columns:
+                          missing_columns.append(('shares_outstanding', 'BIGINT'))
+                      
+                      if missing_columns:
+                          print(f"\n🔧 Adding missing columns...")
+                          for col_name, col_type in missing_columns:
+                              try:
+                                  await conn.execute(f"""
+                                      ALTER TABLE dev_daily_market_cap 
+                                      ADD COLUMN IF NOT EXISTS {col_name} {col_type}
+                                  """)
+                                  print(f"✅ Added column: {col_name} ({col_type})")
+                              except Exception as e:
+                                  print(f"⚠️  Error adding {col_name}: {e}")
+                      else:
+                          print("✅ All required columns already exist")
+                      
+                      # Verify final schema
+                      print(f"\n📊 Final schema verification...")
+                      final_columns = await conn.fetch("""
+                          SELECT column_name, data_type, is_nullable
+                          FROM information_schema.columns 
+                          WHERE table_name = 'dev_daily_market_cap' 
+                            AND table_schema = 'public'
+                          ORDER BY ordinal_position
+                      """)
+                      
+                      for col in final_columns:
+                          print(f"  ✓ {col['column_name']}: {col['data_type']}")
+                      
+                      # Test insert to make sure it works
+                      print(f"\n🧪 Testing insert operation...")
+                      try:
+                          await conn.execute("""
+                              INSERT INTO dev_daily_market_cap 
+                              (instrument_id, date, market_cap, shares_outstanding, price_used, source, created_at, updated_at)
+                              VALUES (1, '2025-08-19', 1000000000, 100000000, 10.0, 'test', NOW(), NOW())
+                              ON CONFLICT (instrument_id, date) DO NOTHING
+                          """)
+                          print("✅ Test insert successful")
+                          
+                          # Clean up test record
+                          await conn.execute("""
+                              DELETE FROM dev_daily_market_cap 
+                              WHERE instrument_id = 1 AND date = '2025-08-19' AND source = 'test'
+                          """)
+                          print("✅ Test cleanup successful")
+                          
+                      except Exception as e:
+                          print(f"❌ Test insert failed: {e}")
+                          
+                      print(f"\n🎉 Schema fix completed!")
+              
+              finally:
+                  await pool.close()
+          
+          if __name__ == "__main__":
+              asyncio.run(fix_market_cap_schema())
+          EOF
+          
+          echo "🔄 Running schema fix..."
+          python /app/fix_market_cap_schema.py
+        env:
+        - name: DB_HOST
+          value: "postgres-simple"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"

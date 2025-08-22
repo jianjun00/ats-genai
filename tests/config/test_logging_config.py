@@ -3,6 +3,7 @@ from config.logging_config import LoggingConfig
 import gin
 
 def test_logging_config_defaults():
+    gin.clear_config()  # Clear any existing gin configuration
     cfg = LoggingConfig()
     assert cfg.log_level == "INFO"
     assert cfg.log_format.startswith("%(")

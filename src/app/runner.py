@@ -9,8 +9,11 @@ from market_data.eod.daily_price_market_data_manager import DailyPriceMarketData
 from secmaster.security_master import SecurityMaster
 from state.universe_state_builder import UniverseStateIntervalBuilder
 from state.universe_state_manager import UniverseStateManager
+from state.run_aware_universe_state_manager import RunAwareUniverseStateManager
 from calendars.time_duration import TimeDuration
 from universe.universe_manager import UniverseManager
+from core.run_context import RunContext, create_run_context
+from core.run_aware_logging import setup_run_aware_logging, get_run_aware_logger
 
 from state.runner_callback import RunnerCallback
 
@@ -22,9 +25,12 @@ import logging
 class Runner:
     def __init__(self, start_date: str, end_date: str, environment: Environment,
     universe_id: int, callbacks: List[str], base_duration: str,
-    security_master=None, universe_state_manager=None, universe_manager=None, market_data_manager=None):
+    security_master=None, universe_state_manager=None, universe_manager=None, market_data_manager=None,
+    run_context: Optional[RunContext] = None, enable_run_isolation: bool = True):
         self.env = environment
         self.universe_id = universe_id
+        self.enable_run_isolation = enable_run_isolation
+        
         from datetime import datetime, date
         print(f"[DEBUG] Runner.__init__ received start_date: {start_date!r} (type: {type(start_date)})")
         print(f"[DEBUG] Runner.__init__ received end_date: {end_date!r} (type: {type(end_date)})")
@@ -42,12 +48,52 @@ class Runner:
             raise TypeError(f"end_date must be str or date/datetime, got {type(end_date)}")
         print(f"[DEBUG] Runner.__init__ final self.start_date: {self.start_date!r} (type: {type(self.start_date)})")
         print(f"[DEBUG] Runner.__init__ final self.end_date: {self.end_date!r} (type: {type(self.end_date)})")
+        
+        # Initialize or create run context
+        if run_context is None and enable_run_isolation:
+            # Create new run context with metadata about this run
+            run_metadata = {
+                'start_date': self.start_date.isoformat(),
+                'end_date': self.end_date.isoformat(),
+                'universe_id': universe_id,
+                'base_duration': base_duration,
+                'environment': environment.env_type.value if environment else 'unknown',
+                'callbacks': [str(cb) for cb in callbacks] if callbacks else []
+            }
+            self.run_context = create_run_context(metadata=run_metadata)
+            logging.getLogger(__name__).info(f"Created run context: {self.run_context.run_id}")
+        else:
+            self.run_context = run_context
+        
+        # Set up run-aware logging if we have a run context
+        if self.run_context and enable_run_isolation:
+            setup_run_aware_logging(run_context=self.run_context)
+            self.logger = get_run_aware_logger(__name__, self.run_context)
+            self.logger.info(f"Initialized Runner with run-aware logging: {self.run_context.run_id}")
+        else:
+            self.logger = logging.getLogger(__name__)
+        
         self.duration = TimeDuration(base_duration)  # expects TimeDuration
         self.callbacks: List[RunnerCallback] = self._init_callbacks(callbacks)
         self.security_master = security_master if security_master is not None else SecurityMaster(self.env)
+        
         # Disable metadata generation during tests
         is_test_env = self.env and self.env.env_type == EnvironmentType.TEST
-        self.universe_state_manager = universe_state_manager if universe_state_manager is not None else UniverseStateManager(self.env, write_metadata=not is_test_env)
+        
+        # Use run-aware universe state manager if run isolation is enabled
+        if universe_state_manager is not None:
+            self.universe_state_manager = universe_state_manager
+        elif enable_run_isolation and self.run_context:
+            self.universe_state_manager = RunAwareUniverseStateManager(
+                self.env, 
+                run_context=self.run_context,
+                write_metadata=not is_test_env
+            )
+            self.logger.info(f"Using run-aware universe state manager with run_id: {self.run_context.run_id}")
+        else:
+            self.universe_state_manager = UniverseStateManager(self.env, write_metadata=not is_test_env)
+            self.logger.info("Using legacy universe state manager")
+        
         self.universe_manager = universe_manager if universe_manager is not None else UniverseManager(self.env, self.universe_id)
         self.market_data_manager = market_data_manager if market_data_manager is not None else DailyPriceMarketDataManager(self.env)
 

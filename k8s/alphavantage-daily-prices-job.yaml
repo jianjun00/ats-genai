@@ -1,0 +1,279 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: alphavantage-daily-prices
+  namespace: ats-dev
+  labels:
+    app: ats-genai
+    component: alphavantage-price-ingestion
+spec:
+  ttlSecondsAfterFinished: 7200
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: alphavantage-ingestion
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "Installing dependencies..."
+          pip install --no-cache-dir asyncpg aiohttp pandas gin-config
+          
+          echo "Setting up source code..."
+          mkdir -p /app/src/market_data/eod
+          cd /app
+          
+          # Create the Alpha Vantage ingestion script
+          cat > /app/src/market_data/eod/daily_price_alphavantage.py << 'EOF'
+          #!/usr/bin/env python3
+          """
+          Alpha Vantage Daily Price Ingestion
+          Fetches daily stock prices from Alpha Vantage API and stores in database.
+          """
+          
+          import os
+          import asyncio
+          import aiohttp
+          import asyncpg
+          import datetime as dt
+          import logging
+          from typing import List, Dict, Any, Optional
+          
+          # Simple environment and DAO implementations
+          class SimpleEnvironment:
+              def get_table_name(self, base_name):
+                  return f"dev_{base_name}"
+              
+              def get_database_url(self):
+                  host = os.environ.get('DB_HOST', 'postgres-simple')
+                  port = os.environ.get('DB_PORT', '5432')
+                  user = os.environ.get('DB_USER', 'postgres')
+                  password = os.environ.get('DB_PASSWORD', 'dev_password')
+                  database = os.environ.get('DB_NAME', 'dev_db')
+                  return f"postgresql://{user}:{password}@{host}:{port}/{database}"
+          
+          class SimpleAlphaVantageDAO:
+              def __init__(self, env):
+                  self.env = env
+                  self.table_name = env.get_table_name('daily_prices_alphavantage')
+                  self.db_url = env.get_database_url()
+              
+              async def batch_insert_prices(self, prices):
+                  if not prices:
+                      return
+                  pool = await asyncpg.create_pool(self.db_url, min_size=1, max_size=3)
+                  try:
+                      async with pool.acquire() as conn:
+                          await conn.executemany(f"""
+                              INSERT INTO {self.table_name} (date, instrument_id, open_price, high_price, low_price, close, adj_close, volume)
+                              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                              ON CONFLICT (date, instrument_id) DO UPDATE SET
+                                  open_price=EXCLUDED.open_price,
+                                  high_price=EXCLUDED.high_price,
+                                  low_price=EXCLUDED.low_price,
+                                  close=EXCLUDED.close,
+                                  adj_close=EXCLUDED.adj_close,
+                                  volume=EXCLUDED.volume,
+                                  updated_at=NOW()
+                          """,
+                          [
+                              (
+                                  p['date'],
+                                  p['instrument_id'],
+                                  p.get('open_price'),
+                                  p.get('high_price'),
+                                  p.get('low_price'),
+                                  p.get('close'),
+                                  p.get('adj_close'),
+                                  p.get('volume'),
+                              ) for p in prices
+                          ])
+                          print(f"✅ Inserted {len(prices)} Alpha Vantage price records")
+                  finally:
+                      await pool.close()
+          
+          class SimpleXrefsDAO:
+              def __init__(self, env):
+                  self.env = env
+                  self.db_url = env.get_database_url()
+              
+              async def resolve_instrument_id(self, symbol):
+                  pool = await asyncpg.create_pool(self.db_url, min_size=1, max_size=3)
+                  try:
+                      async with pool.acquire() as conn:
+                          row = await conn.fetchrow("""
+                              SELECT instrument_id 
+                              FROM dev_instrument_xrefs 
+                              WHERE vendor_symbol = $1 
+                                AND vendor_id = (SELECT id FROM dev_vendors WHERE name = 'polygon')
+                              LIMIT 1
+                          """, symbol)
+                          return row['instrument_id'] if row else None
+                  finally:
+                      await pool.close()
+          
+          # Alpha Vantage API configuration
+          ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY")
+          ALPHA_VANTAGE_BASE_URL = "https://www.alphavantage.co/query"
+          
+          logger = logging.getLogger(__name__)
+          
+          async def fetch_alphavantage_daily_prices(session: aiohttp.ClientSession, symbol: str) -> List[Dict[str, Any]]:
+              """Fetch daily stock prices from Alpha Vantage API."""
+              if not ALPHA_VANTAGE_API_KEY:
+                  logger.error("ALPHA_VANTAGE_API_KEY not available")
+                  return []
+              
+              params = {
+                  'function': 'TIME_SERIES_DAILY',
+                  'symbol': symbol,
+                  'outputsize': 'compact',  # Get last 100 data points
+                  'apikey': ALPHA_VANTAGE_API_KEY
+              }
+              
+              try:
+                  async with session.get(ALPHA_VANTAGE_BASE_URL, params=params) as response:
+                      if response.status == 429:
+                          logger.warning(f"Rate limit exceeded for {symbol}")
+                          await asyncio.sleep(60)
+                          return []
+                      
+                      if response.status != 200:
+                          error_text = await response.text()
+                          logger.error(f"Alpha Vantage API error for {symbol}: {response.status} - {error_text}")
+                          return []
+                      
+                      data = await response.json()
+                      
+                      if "Error Message" in data:
+                          logger.error(f"Alpha Vantage error for {symbol}: {data['Error Message']}")
+                          return []
+                      
+                      if "Note" in data:
+                          logger.warning(f"Alpha Vantage rate limit for {symbol}: {data['Note']}")
+                          await asyncio.sleep(60)
+                          return []
+                      
+                      time_series_key = "Time Series (Daily)"
+                      if time_series_key not in data:
+                          logger.error(f"No time series data found for {symbol}")
+                          return []
+                      
+                      time_series = data[time_series_key]
+                      prices = []
+                      
+                      for date_str, price_data in time_series.items():
+                          try:
+                              date_obj = dt.datetime.strptime(date_str, "%Y-%m-%d").date()
+                              
+                              price_record = {
+                                  'date': date_obj,
+                                  'open_price': float(price_data['1. open']),
+                                  'high_price': float(price_data['2. high']),
+                                  'low_price': float(price_data['3. low']),
+                                  'close': float(price_data['4. close']),
+                                  'adj_close': float(price_data['4. close']),  # Free tier doesn't have adjusted close
+                                  'volume': int(price_data['5. volume'])
+                              }
+                              
+                              prices.append(price_record)
+                              
+                          except (ValueError, KeyError) as e:
+                              logger.warning(f"Error parsing price data for {symbol} on {date_str}: {e}")
+                              continue
+                      
+                      logger.info(f"Fetched {len(prices)} price records for {symbol}")
+                      return prices
+                      
+              except aiohttp.ClientError as e:
+                  logger.error(f"Connection error fetching {symbol} from Alpha Vantage: {e}")
+                  return []
+          
+          async def main():
+              logging.basicConfig(level=logging.INFO)
+              
+              if not ALPHA_VANTAGE_API_KEY:
+                  print("❌ ALPHA_VANTAGE_API_KEY environment variable not set")
+                  print("   To use Alpha Vantage:")
+                  print("   1. Get free API key from https://www.alphavantage.co/support/#api-key")
+                  print("   2. Add to Kubernetes secret:")
+                  print("   kubectl patch secret api-credentials-dev -n ats-dev --type merge -p '{\"data\":{\"ALPHA_VANTAGE_API_KEY\":\"<base64-encoded-key>\"}}'")
+                  return
+              
+              print("🚀 Starting Alpha Vantage daily price ingestion...")
+              
+              env = SimpleEnvironment()
+              dao = SimpleAlphaVantageDAO(env)
+              xrefs_dao = SimpleXrefsDAO(env)
+              
+              # Test with major stocks
+              test_symbols = ['AAPL', 'MSFT', 'GOOGL']
+              
+              timeout = aiohttp.ClientTimeout(total=30)
+              async with aiohttp.ClientSession(timeout=timeout) as session:
+                  for symbol in test_symbols:
+                      print(f"\nProcessing {symbol}...")
+                      
+                      instrument_id = await xrefs_dao.resolve_instrument_id(symbol)
+                      if not instrument_id:
+                          print(f"❌ Could not resolve instrument_id for {symbol}")
+                          continue
+                      
+                      prices = await fetch_alphavantage_daily_prices(session, symbol)
+                      if not prices:
+                          print(f"❌ No price data received for {symbol}")
+                          continue
+                      
+                      # Add instrument_id to all price records
+                      for price in prices:
+                          price['instrument_id'] = instrument_id
+                      
+                      # Store only recent data (last 30 days)
+                      recent_date = dt.date.today() - dt.timedelta(days=30)
+                      recent_prices = [p for p in prices if p['date'] >= recent_date]
+                      
+                      if recent_prices:
+                          await dao.batch_insert_prices(recent_prices)
+                          print(f"✅ Stored {len(recent_prices)} recent price records for {symbol}")
+                      else:
+                          print(f"⚠️  No recent price data for {symbol}")
+                      
+                      # Rate limiting: 5 calls per minute for free tier
+                      await asyncio.sleep(12)
+              
+              print(f"\n🎉 Alpha Vantage ingestion completed!")
+          
+          if __name__ == "__main__":
+              asyncio.run(main())
+          EOF
+          
+          echo "Running Alpha Vantage daily price ingestion..."
+          cd /app && python src/market_data/eod/daily_price_alphavantage.py
+        env:
+        - name: ALPHA_VANTAGE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-credentials-dev
+              key: ALPHA_VANTAGE_API_KEY
+              optional: true  # Don't fail if key doesn't exist
+        - name: DB_HOST
+          value: "postgres-simple"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+        - name: PYTHONPATH
+          value: "/app/src"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

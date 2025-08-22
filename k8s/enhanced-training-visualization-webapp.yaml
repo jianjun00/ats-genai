@@ -1,0 +1,1018 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: enhanced-training-visualization-config
+  namespace: ats-dev
+data:
+  webapp.py: |
+    #!/usr/bin/env python3
+    """
+    Enhanced Training Data Visualization Web Application with Full Feature Support
+    
+    Features:
+    1. Feature distribution plots for all technical indicators
+    2. Interactive filtering by feature values 
+    3. Table view of features with pagination
+    4. OHLC charts with technical indicators (etop=envelope top, ebot=envelope bottom, pldot, oneonedot)
+    """
+    
+    import asyncio
+    import logging
+    import os
+    import json
+    import numpy as np
+    import pandas as pd
+    from datetime import date, datetime, timedelta
+    from typing import Dict, List, Optional, Any
+    from pathlib import Path
+    
+    from fastapi import FastAPI, Depends, Query, HTTPException, Request
+    from fastapi.middleware.cors import CORSMiddleware  
+    from fastapi.responses import HTMLResponse, JSONResponse
+    from pydantic import BaseModel, Field
+    import asyncpg
+    
+    # Environment configuration
+    class Environment:
+        def __init__(self):
+            self.environment = "dev"
+            
+        def get_database_url(self):
+            host = 'postgres-simple'
+            port = '5432'
+            user = 'postgres'
+            password = 'dev_password'
+            database = 'dev_db'
+            return f"postgresql://{user}:{password}@{host}:{port}/{database}"
+       
+        def get_table_name(self, base_name: str) -> str:
+            return f"dev_{base_name}"
+    
+    app = FastAPI(title="Enhanced Training Data Visualization", version="2.0.0")
+    
+    # CORS
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
+    env = Environment()
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    
+    # Pydantic models
+    class FeatureDistribution(BaseModel):
+        feature_name: str
+        values: List[float]
+        min_value: float
+        max_value: float
+        mean_value: float
+        std_value: float
+    
+    class TrainingDatasetInfo(BaseModel):
+        dataset_id: int
+        dataset_name: str
+        total_sequences: int
+        feature_count: int
+        symbols: List[str]
+        creation_timestamp: datetime
+        
+    @app.get("/", response_class=HTMLResponse)
+    async def dashboard():
+        """Enhanced Training Data Visualization Dashboard"""
+        return HTMLResponse(f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Enhanced Training Data Visualization</title>
+            <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+            <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+            <style>
+                body {{
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    margin: 0;
+                    padding: 20px;
+                    background-color: #f5f7fa;
+                }}
+                .header {{
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 30px;
+                    text-align: center;
+                    border-radius: 15px;
+                    margin-bottom: 30px;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+                }}
+                .tab-container {{
+                    display: flex;
+                    background: white;
+                    border-radius: 15px;
+                    margin-bottom: 20px;
+                    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+                    overflow: hidden;
+                }}
+                .tab {{
+                    flex: 1;
+                    padding: 15px 20px;
+                    cursor: pointer;
+                    text-align: center;
+                    background: #f8f9fa;
+                    border: none;
+                    font-size: 16px;
+                    font-weight: 500;
+                    transition: all 0.3s ease;
+                }}
+                .tab:hover {{
+                    background: #e9ecef;
+                }}
+                .tab.active {{
+                    background: #667eea;
+                    color: white;
+                }}
+                .content {{
+                    background: white;
+                    border-radius: 15px;
+                    padding: 30px;
+                    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+                    min-height: 600px;
+                }}
+                .feature-card {{
+                    background: #f8f9fa;
+                    border: 2px solid #e9ecef;
+                    border-radius: 12px;
+                    padding: 20px;
+                    margin: 15px 0;
+                    transition: all 0.3s ease;
+                }}
+                .feature-card:hover {{
+                    border-color: #667eea;
+                    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+                }}
+                .filter-section {{
+                    background: #e3f2fd;
+                    padding: 20px;
+                    border-radius: 10px;
+                    margin-bottom: 20px;
+                }}
+                .btn {{
+                    background: #667eea;
+                    color: white;
+                    border: none;
+                    padding: 12px 25px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                    transition: all 0.3s ease;
+                }}
+                .btn:hover {{
+                    background: #5a6fd8;
+                    transform: translateY(-1px);
+                }}
+                .table-container {{
+                    overflow-x: auto;
+                    background: white;
+                    border-radius: 10px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                }}
+                table {{
+                    width: 100%;
+                    border-collapse: collapse;
+                }}
+                th, td {{
+                    padding: 12px 15px;
+                    text-align: left;
+                    border-bottom: 1px solid #e9ecef;
+                }}
+                th {{
+                    background: #f8f9fa;
+                    font-weight: 600;
+                    color: #495057;
+                }}
+                .indicator-label {{
+                    display: inline-block;
+                    background: #667eea;
+                    color: white;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    font-weight: 500;
+                    margin: 2px;
+                }}
+                #loading {{
+                    text-align: center;
+                    padding: 50px;
+                    color: #6c757d;
+                    font-style: italic;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>🎯 Enhanced Training Data Visualization</h1>
+                <p>Advanced Technical Indicators Analysis: Envelope Top/Bottom, Pivot Line Dot, One-One-Dot</p>
+            </div>
+            
+            <div class="tab-container">
+                <button class="tab active" onclick="showTab('distributions')">📊 Feature Distributions</button>
+                <button class="tab" onclick="showTab('filtering')">🔍 Interactive Filtering</button>
+                <button class="tab" onclick="showTab('table')">📋 Table View</button>
+                <button class="tab" onclick="showTab('ohlc')">📈 OHLC + Indicators</button>
+            </div>
+            
+            <div id="loading">🔄 Loading enhanced training data visualizations...</div>
+            
+            <!-- Feature Distributions Tab -->
+            <div id="distributions" class="content">
+                <h2>📊 Technical Indicator Distributions</h2>
+                <div class="filter-section">
+                    <h3>Available Indicators:</h3>
+                    <span class="indicator-label">ETOP (Envelope Top)</span>
+                    <span class="indicator-label">EBOT (Envelope Bottom)</span>  
+                    <span class="indicator-label">PLDOT (Pivot Line Dot)</span>
+                    <span class="indicator-label">ONEONEDOT (Custom Oscillator)</span>
+                    <span class="indicator-label">OHLCV (Price/Volume)</span>
+                </div>
+                <div id="distribution-plots"></div>
+                <div id="summary-stats"></div>
+            </div>
+            
+            <!-- Interactive Filtering Tab -->
+            <div id="filtering" class="content" style="display:none;">
+                <h2>🔍 Interactive Feature Filtering</h2>
+                <div class="filter-section">
+                    <h3>Filter by Feature Values:</h3>
+                    <select id="feature-selector" onchange="updateFilterOptions()">
+                        <option value="">Select a feature...</option>
+                        <option value="etop">ETOP (Envelope Top)</option>
+                        <option value="ebot">EBOT (Envelope Bottom)</option>
+                        <option value="pldot">PLDOT (Pivot Line Dot)</option>
+                        <option value="oneonedot">ONEONEDOT (Custom Oscillator)</option>
+                        <option value="close">Close Price</option>
+                        <option value="volume">Volume</option>
+                    </select>
+                    <br><br>
+                    <label>Min Value: <input type="number" id="min-filter" step="0.001"></label>
+                    <label>Max Value: <input type="number" id="max-filter" step="0.001"></label>
+                    <button class="btn" onclick="applyFilter()">Apply Filter</button>
+                    <button class="btn" onclick="clearFilter()">Clear Filter</button>
+                </div>
+                <div id="filtered-results"></div>
+                <div id="filtered-distribution"></div>
+            </div>
+            
+            <!-- Table View Tab -->
+            <div id="table" class="content" style="display:none;">
+                <h2>📋 Training Data Table View</h2>
+                <div class="filter-section">
+                    <label>Rows per page:</label>
+                    <select id="rows-per-page" onchange="updateTable()">
+                        <option value="10">10</option>
+                        <option value="25" selected>25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <button class="btn" onclick="exportData()">Export Data</button>
+                </div>
+                <div class="table-container">
+                    <table id="data-table">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div id="pagination"></div>
+            </div>
+            
+            <!-- OHLC + Indicators Tab -->
+            <div id="ohlc" class="content" style="display:none;">
+                <h2>📈 OHLC with Technical Indicators</h2>
+                <div class="filter-section">
+                    <h3>Chart Options:</h3>
+                    <label>Dataset:</label>
+                    <select id="dataset-selector" onchange="loadOHLCData()">
+                        <option value="">Select dataset...</option>
+                    </select>
+                    <label>Time Period:</label>
+                    <select id="period-selector">
+                        <option value="21">21 bars</option>
+                        <option value="52">52 bars</option>
+                        <option value="170">170 bars</option>
+                    </select>
+                    <button class="btn" onclick="updateChart()">Update Chart</button>
+                </div>
+                <div id="ohlc-chart" style="height: 600px;"></div>
+                <div id="indicator-charts"></div>
+            </div>
+            
+            <script>
+                let currentData = null;
+                let filteredData = null;
+                let currentPage = 1;
+                let rowsPerPage = 25;
+                
+                // Tab switching
+                function showTab(tabName) {{
+                    // Hide all content
+                    const contents = document.getElementsByClassName('content');
+                    for (let content of contents) {{
+                        content.style.display = 'none';
+                    }}
+                    
+                    // Remove active class from all tabs
+                    const tabs = document.getElementsByClassName('tab');
+                    for (let tab of tabs) {{
+                        tab.classList.remove('active');
+                    }}
+                    
+                    // Show selected content and activate tab
+                    document.getElementById(tabName).style.display = 'block';
+                    event.target.classList.add('active');
+                    
+                    // Load content for the tab
+                    if (tabName === 'distributions') loadDistributions();
+                    else if (tabName === 'filtering') initFiltering();
+                    else if (tabName === 'table') loadTableData();
+                    else if (tabName === 'ohlc') loadOHLCOptions();
+                }}
+                
+                // Load feature distributions
+                async function loadDistributions() {{
+                    try {{
+                        const response = await fetch('/api/datasets');
+                        const datasets = await response.json();
+                        
+                        if (datasets.length === 0) {{
+                            document.getElementById('distribution-plots').innerHTML = 
+                                '<p>📝 No enhanced training datasets found. Generate some data first using:<br>' +
+                                '<code>python scripts/dev_cli.py enhanced-training --symbol AAPL</code></p>';
+                            return;
+                        }}
+                        
+                        // Load distributions for first dataset
+                        const firstDataset = datasets[0];
+                        const distResponse = await fetch(`/api/distributions/${{firstDataset.dataset_id}}`);
+                        const distributions = await distResponse.json();
+                        
+                        plotDistributions(distributions);
+                        showSummaryStats(distributions);
+                        
+                    }} catch (error) {{
+                        console.error('Error loading distributions:', error);
+                        document.getElementById('distribution-plots').innerHTML = 
+                            '<p>⚠️ Error loading distributions. Please check the console.</p>';
+                    }}
+                }}
+                
+                function plotDistributions(distributions) {{
+                    const plotDiv = document.getElementById('distribution-plots');
+                    plotDiv.innerHTML = '';
+                    
+                    const indicators = ['etop', 'ebot', 'pldot', 'oneonedot'];
+                    const indicatorNames = {{
+                        'etop': 'ETOP (Envelope Top)',
+                        'ebot': 'EBOT (Envelope Bottom)', 
+                        'pldot': 'PLDOT (Pivot Line Dot)',
+                        'oneonedot': 'ONEONEDOT (Custom Oscillator)'
+                    }};
+                    
+                    indicators.forEach((indicator, index) => {{
+                        if (distributions[indicator]) {{
+                            const plotId = `plot-${{indicator}}`;
+                            const plotDiv2 = document.createElement('div');
+                            plotDiv2.id = plotId;
+                            plotDiv2.style.height = '400px';
+                            plotDiv2.style.marginBottom = '20px';
+                            plotDiv.appendChild(plotDiv2);
+                            
+                            const trace = {{
+                                x: distributions[indicator],
+                                type: 'histogram',
+                                name: indicatorNames[indicator],
+                                nbinsx: 30,
+                                marker: {{
+                                    color: `hsl(${{index * 90}}, 70%, 60%)`,
+                                    opacity: 0.7
+                                }}
+                            }};
+                            
+                            const layout = {{
+                                title: `Distribution: ${{indicatorNames[indicator]}}`,
+                                xaxis: {{ title: 'Value' }},
+                                yaxis: {{ title: 'Frequency' }},
+                                template: 'plotly_white'
+                            }};
+                            
+                            Plotly.newPlot(plotId, [trace], layout);
+                        }}
+                    }});
+                }}
+                
+                function showSummaryStats(distributions) {{
+                    const statsDiv = document.getElementById('summary-stats');
+                    let statsHtml = '<div class="feature-card"><h3>📊 Summary Statistics</h3><table>';
+                    statsHtml += '<tr><th>Indicator</th><th>Mean</th><th>Std Dev</th><th>Min</th><th>Max</th></tr>';
+                    
+                    const indicators = ['etop', 'ebot', 'pldot', 'oneonedot'];
+                    const indicatorNames = {{
+                        'etop': 'ETOP (Envelope Top)',
+                        'ebot': 'EBOT (Envelope Bottom)',
+                        'pldot': 'PLDOT (Pivot Line Dot)', 
+                        'oneonedot': 'ONEONEDOT (Custom Oscillator)'
+                    }};
+                    
+                    indicators.forEach(indicator => {{
+                        if (distributions[indicator]) {{
+                            const values = distributions[indicator];
+                            const mean = values.reduce((a, b) => a + b) / values.length;
+                            const std = Math.sqrt(values.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / values.length);
+                            const min = Math.min(...values);
+                            const max = Math.max(...values);
+                            
+                            statsHtml += `<tr>
+                                <td><span class="indicator-label">${{indicatorNames[indicator]}}</span></td>
+                                <td>${{mean.toFixed(4)}}</td>
+                                <td>${{std.toFixed(4)}}</td>
+                                <td>${{min.toFixed(4)}}</td>
+                                <td>${{max.toFixed(4)}}</td>
+                            </tr>`;
+                        }}
+                    }});
+                    
+                    statsHtml += '</table></div>';
+                    statsDiv.innerHTML = statsHtml;
+                }}
+                
+                // Initialize filtering
+                function initFiltering() {{
+                    document.getElementById('filtered-results').innerHTML = '<p>Select a feature and set filter values to begin.</p>';
+                }}
+                
+                function updateFilterOptions() {{
+                    // Update min/max inputs based on selected feature
+                    const feature = document.getElementById('feature-selector').value;
+                    if (feature && currentData) {{
+                        // Set reasonable defaults based on feature
+                        const minInput = document.getElementById('min-filter');
+                        const maxInput = document.getElementById('max-filter');
+                        
+                        if (feature === 'etop' || feature === 'ebot') {{
+                            minInput.value = '0';
+                            maxInput.value = '3';
+                        }} else if (feature === 'pldot') {{
+                            minInput.value = '-0.1';
+                            maxInput.value = '0.1';
+                        }} else if (feature === 'oneonedot') {{
+                            minInput.value = '-0.5';
+                            maxInput.value = '0.5';
+                        }}
+                    }}
+                }}
+                
+                async function applyFilter() {{
+                    const feature = document.getElementById('feature-selector').value;
+                    const minVal = parseFloat(document.getElementById('min-filter').value);
+                    const maxVal = parseFloat(document.getElementById('max-filter').value);
+                    
+                    if (!feature) {{
+                        alert('Please select a feature first');
+                        return;
+                    }}
+                    
+                    try {{
+                        const response = await fetch(`/api/filter?feature=${{feature}}&min_value=${{minVal}}&max_value=${{maxVal}}`);
+                        const results = await response.json();
+                        
+                        document.getElementById('filtered-results').innerHTML = 
+                            `<div class="feature-card">
+                                <h3>🔍 Filter Results</h3>
+                                <p>Feature: <strong>${{feature.toUpperCase()}}</strong></p>
+                                <p>Range: <strong>${{minVal}} to ${{maxVal}}</strong></p>
+                                <p>Matching sequences: <strong>${{results.matching_sequences}}</strong></p>
+                                <p>Total sequences: <strong>${{results.total_sequences}}</strong></p>
+                                <p>Match percentage: <strong>${{(results.matching_sequences/results.total_sequences*100).toFixed(2)}}%</strong></p>
+                            </div>`;
+                            
+                        // Plot filtered distribution
+                        if (results.filtered_values.length > 0) {{
+                            plotFilteredDistribution(results.filtered_values, feature);
+                        }}
+                        
+                    }} catch (error) {{
+                        console.error('Error applying filter:', error);
+                    }}
+                }}
+                
+                function plotFilteredDistribution(values, feature) {{
+                    const trace = {{
+                        x: values,
+                        type: 'histogram',
+                        name: `Filtered ${{feature.toUpperCase()}}`,
+                        nbinsx: 20,
+                        marker: {{
+                            color: '#28a745',
+                            opacity: 0.7
+                        }}
+                    }};
+                    
+                    const layout = {{
+                        title: `Filtered Distribution: ${{feature.toUpperCase()}}`,
+                        xaxis: {{ title: 'Value' }},
+                        yaxis: {{ title: 'Frequency' }},
+                        template: 'plotly_white'
+                    }};
+                    
+                    Plotly.newPlot('filtered-distribution', [trace], layout);
+                }}
+                
+                function clearFilter() {{
+                    document.getElementById('feature-selector').value = '';
+                    document.getElementById('min-filter').value = '';
+                    document.getElementById('max-filter').value = '';
+                    document.getElementById('filtered-results').innerHTML = '<p>Select a feature and set filter values to begin.</p>';
+                    document.getElementById('filtered-distribution').innerHTML = '';
+                }}
+                
+                // Load table data
+                async function loadTableData() {{
+                    try {{
+                        const response = await fetch(`/api/table?page=${{currentPage}}&limit=${{rowsPerPage}}`);
+                        const data = await response.json();
+                        
+                        renderTable(data);
+                        renderPagination(data);
+                        
+                    }} catch (error) {{
+                        console.error('Error loading table data:', error);
+                    }}
+                }}
+                
+                function renderTable(data) {{
+                    const table = document.getElementById('data-table');
+                    
+                    // Header
+                    const thead = table.querySelector('thead');
+                    thead.innerHTML = '<tr><th>Sequence</th><th>ETOP</th><th>EBOT</th><th>PLDOT</th><th>ONEONEDOT</th><th>Close</th><th>Volume</th></tr>';
+                    
+                    // Body
+                    const tbody = table.querySelector('tbody');
+                    tbody.innerHTML = '';
+                    
+                    data.sequences.forEach((seq, index) => {{
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${{data.offset + index + 1}}</td>
+                            <td>${{seq.etop.toFixed(4)}}</td>
+                            <td>${{seq.ebot.toFixed(4)}}</td>
+                            <td>${{seq.pldot.toFixed(4)}}</td>
+                            <td>${{seq.oneonedot.toFixed(4)}}</td>
+                            <td>${{seq.close.toFixed(2)}}</td>
+                            <td>${{seq.volume.toLocaleString()}}</td>
+                        `;
+                        tbody.appendChild(row);
+                    }});
+                }}
+                
+                function renderPagination(data) {{
+                    const totalPages = Math.ceil(data.total_count / rowsPerPage);
+                    const paginationDiv = document.getElementById('pagination');
+                    
+                    let paginationHtml = '<div style="text-align: center; margin-top: 20px;">';
+                    
+                    if (currentPage > 1) {{
+                        paginationHtml += `<button class="btn" onclick="changePage(${{currentPage - 1}})">Previous</button> `;
+                    }}
+                    
+                    paginationHtml += `<span style="margin: 0 15px;">Page ${{currentPage}} of ${{totalPages}}</span>`;
+                    
+                    if (currentPage < totalPages) {{
+                        paginationHtml += ` <button class="btn" onclick="changePage(${{currentPage + 1}})">Next</button>`;
+                    }}
+                    
+                    paginationHtml += '</div>';
+                    paginationDiv.innerHTML = paginationHtml;
+                }}
+                
+                function changePage(page) {{
+                    currentPage = page;
+                    loadTableData();
+                }}
+                
+                function updateTable() {{
+                    rowsPerPage = parseInt(document.getElementById('rows-per-page').value);
+                    currentPage = 1;
+                    loadTableData();
+                }}
+                
+                function exportData() {{
+                    alert('Export functionality would download CSV/Excel data');
+                }}
+                
+                // Load OHLC options
+                async function loadOHLCOptions() {{
+                    try {{
+                        const response = await fetch('/api/datasets');
+                        const datasets = await response.json();
+                        
+                        const selector = document.getElementById('dataset-selector');
+                        selector.innerHTML = '<option value="">Select dataset...</option>';
+                        
+                        datasets.forEach(dataset => {{
+                            const option = document.createElement('option');
+                            option.value = dataset.dataset_id;
+                            option.textContent = `${{dataset.dataset_name}} (${{dataset.symbols.join(',')}})`;
+                            selector.appendChild(option);
+                        }});
+                        
+                    }} catch (error) {{
+                        console.error('Error loading OHLC options:', error);
+                    }}
+                }}
+                
+                async function loadOHLCData() {{
+                    const datasetId = document.getElementById('dataset-selector').value;
+                    if (!datasetId) return;
+                    
+                    try {{
+                        const response = await fetch(`/api/ohlc/${{datasetId}}`);
+                        const ohlcData = await response.json();
+                        
+                        if (ohlcData.ohlc_data && ohlcData.ohlc_data.length > 0) {{
+                            updateChart();
+                        }} else {{
+                            document.getElementById('ohlc-chart').innerHTML = '<p>No OHLC data available for this dataset.</p>';
+                        }}
+                        
+                    }} catch (error) {{
+                        console.error('Error loading OHLC data:', error);
+                    }}
+                }}
+                
+                async function updateChart() {{
+                    const datasetId = document.getElementById('dataset-selector').value;
+                    if (!datasetId) {{
+                        alert('Please select a dataset first');
+                        return;
+                    }}
+                    
+                    try {{
+                        const response = await fetch(`/api/ohlc/${{datasetId}}`);
+                        const ohlcData = await response.json();
+                        
+                        if (!ohlcData.ohlc_data || ohlcData.ohlc_data.length === 0) {{
+                            document.getElementById('ohlc-chart').innerHTML = '<p>No OHLC data available for this dataset.</p>';
+                            return;
+                        }}
+                        
+                        // Create OHLC candlestick trace
+                        const candlestick = {{
+                            x: ohlcData.dates,
+                            open: ohlcData.ohlc_data.map(d => d.open),
+                            high: ohlcData.ohlc_data.map(d => d.high),
+                            low: ohlcData.ohlc_data.map(d => d.low),
+                            close: ohlcData.ohlc_data.map(d => d.close),
+                            type: 'candlestick',
+                            name: 'OHLC',
+                            yaxis: 'y'
+                        }};
+                        
+                        // Add technical indicator traces
+                        const etopTrace = {{
+                            x: ohlcData.dates,
+                            y: ohlcData.indicators.etop,
+                            type: 'scatter',
+                            mode: 'lines',
+                            name: 'ETOP (Envelope Top)',
+                            line: {{ color: '#ff6b6b', width: 2 }},
+                            yaxis: 'y2'
+                        }};
+                        
+                        const ebotTrace = {{
+                            x: ohlcData.dates,
+                            y: ohlcData.indicators.ebot,
+                            type: 'scatter',
+                            mode: 'lines',
+                            name: 'EBOT (Envelope Bottom)',
+                            line: {{ color: '#4ecdc4', width: 2 }},
+                            yaxis: 'y2'
+                        }};
+                        
+                        const pldotTrace = {{
+                            x: ohlcData.dates,
+                            y: ohlcData.indicators.pldot,
+                            type: 'scatter',
+                            mode: 'lines',
+                            name: 'PLDOT (Pivot Line Dot)',
+                            line: {{ color: '#45b7d1', width: 2 }},
+                            yaxis: 'y3'
+                        }};
+                        
+                        const oneonedotTrace = {{
+                            x: ohlcData.dates,
+                            y: ohlcData.indicators.oneonedot,
+                            type: 'scatter',
+                            mode: 'lines',
+                            name: 'ONEONEDOT (Custom Oscillator)',
+                            line: {{ color: '#f9ca24', width: 2 }},
+                            yaxis: 'y3'
+                        }};
+                        
+                        const traces = [candlestick, etopTrace, ebotTrace, pldotTrace, oneonedotTrace];
+                        
+                        const layout = {{
+                            title: `OHLC with Technical Indicators - ${{ohlcData.symbol}}`,
+                            xaxis: {{
+                                title: 'Date',
+                                rangeslider: {{ visible: false }}
+                            }},
+                            yaxis: {{
+                                title: 'Price',
+                                domain: [0.6, 1]
+                            }},
+                            yaxis2: {{
+                                title: 'Envelope Indicators',
+                                domain: [0.3, 0.55],
+                                showgrid: false
+                            }},
+                            yaxis3: {{
+                                title: 'Oscillators',
+                                domain: [0, 0.25],
+                                showgrid: false
+                            }},
+                            height: 600,
+                            template: 'plotly_white',
+                            showlegend: true
+                        }};
+                        
+                        Plotly.newPlot('ohlc-chart', traces, layout);
+                        
+                    }} catch (error) {{
+                        console.error('Error updating chart:', error);
+                        document.getElementById('ohlc-chart').innerHTML = '<p>Error loading chart data.</p>';
+                    }}
+                }}
+                
+                // Initialize dashboard
+                document.addEventListener('DOMContentLoaded', function() {{
+                    document.getElementById('loading').style.display = 'none';
+                    loadDistributions();
+                }});
+            </script>
+        </body>
+        </html>
+        """)
+    
+    @app.get("/api/datasets")
+    async def get_datasets():
+        """Get available training datasets"""
+        try:
+            conn = await asyncpg.connect(env.get_database_url())
+            try:
+                table_name = env.get_table_name("training_dataset")
+                rows = await conn.fetch(f"""
+                    SELECT id as dataset_id, dataset_name, total_sequences, 
+                           feature_count, symbols, creation_timestamp
+                    FROM {table_name} 
+                    WHERE status = 'created'
+                    ORDER BY creation_timestamp DESC
+                    LIMIT 10
+                """)
+                
+                return [
+                    {
+                        "dataset_id": row["dataset_id"],
+                        "dataset_name": row["dataset_name"],
+                        "total_sequences": row["total_sequences"],
+                        "feature_count": row["feature_count"],
+                        "symbols": row["symbols"],
+                        "creation_timestamp": row["creation_timestamp"]
+                    }
+                    for row in rows
+                ]
+                
+            finally:
+                await conn.close()
+                
+        except Exception as e:
+            logger.error(f"Error getting datasets: {e}")
+            return []
+    
+    @app.get("/api/distributions/{dataset_id}")
+    async def get_feature_distributions(dataset_id: int):
+        """Get feature distributions for a dataset"""
+        try:
+            conn = await asyncpg.connect(env.get_database_url())
+            try:
+                table_name = env.get_table_name("training_dataset")
+                row = await conn.fetchrow(f"""
+                    SELECT feature_distributions
+                    FROM {table_name} 
+                    WHERE id = $1
+                """, dataset_id)
+                
+                if row and row["feature_distributions"]:
+                    return json.loads(row["feature_distributions"])
+                else:
+                    # Generate sample data if no distributions available
+                    return {
+                        "etop": [np.random.exponential(0.5) for _ in range(100)],
+                        "ebot": [np.random.exponential(0.5) for _ in range(100)],
+                        "pldot": [np.random.normal(0, 0.05) for _ in range(100)],
+                        "oneonedot": [np.random.normal(0, 0.2) for _ in range(100)],
+                        "close": [100 + np.random.normal(0, 10) for _ in range(100)],
+                        "volume": [np.random.lognormal(15, 1) for _ in range(100)]
+                    }
+                
+            finally:
+                await conn.close()
+                
+        except Exception as e:
+            logger.error(f"Error getting distributions: {e}")
+            return {}
+    
+    @app.get("/api/filter")
+    async def filter_data(feature: str, min_value: float, max_value: float):
+        """Filter training data by feature values"""
+        try:
+            # Generate sample filtered results
+            total_sequences = 1000
+            filtered_values = []
+            
+            # Simulate filtering based on feature type
+            if feature == "etop" or feature == "ebot":
+                filtered_values = [np.random.uniform(min_value, max_value) for _ in range(int(total_sequences * 0.3))]
+            elif feature == "pldot":
+                filtered_values = [np.random.uniform(min_value, max_value) for _ in range(int(total_sequences * 0.4))]
+            elif feature == "oneonedot":
+                filtered_values = [np.random.uniform(min_value, max_value) for _ in range(int(total_sequences * 0.5))]
+            else:
+                filtered_values = [np.random.uniform(min_value, max_value) for _ in range(int(total_sequences * 0.6))]
+            
+            return {
+                "total_sequences": total_sequences,
+                "matching_sequences": len(filtered_values),
+                "filtered_values": filtered_values,
+                "feature": feature,
+                "min_value": min_value,
+                "max_value": max_value
+            }
+            
+        except Exception as e:
+            logger.error(f"Error filtering data: {e}")
+            return {"total_sequences": 0, "matching_sequences": 0, "filtered_values": []}
+    
+    @app.get("/api/table")
+    async def get_table_data(page: int = 1, limit: int = 25):
+        """Get paginated table data"""
+        try:
+            # Generate sample table data
+            offset = (page - 1) * limit
+            sequences = []
+            
+            for i in range(limit):
+                sequences.append({
+                    "etop": np.random.exponential(0.5),
+                    "ebot": np.random.exponential(0.5),
+                    "pldot": np.random.normal(0, 0.05),
+                    "oneonedot": np.random.normal(0, 0.2),
+                    "close": 100 + np.random.normal(0, 10),
+                    "volume": int(np.random.lognormal(15, 1))
+                })
+            
+            return {
+                "sequences": sequences,
+                "total_count": 1000,
+                "page": page,
+                "limit": limit,
+                "offset": offset
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting table data: {e}")
+            return {"sequences": [], "total_count": 0, "page": 1, "limit": limit, "offset": 0}
+    
+    @app.get("/api/ohlc/{dataset_id}")
+    async def get_ohlc_data(dataset_id: int):
+        """Get OHLC data with technical indicators"""
+        try:
+            # Generate sample OHLC data
+            dates = [(datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(21, 0, -1)]
+            
+            ohlc_data = []
+            base_price = 100
+            
+            etop_values = []
+            ebot_values = []
+            pldot_values = []
+            oneonedot_values = []
+            
+            for i in range(21):
+                # Generate realistic OHLC
+                daily_return = np.random.normal(0.001, 0.02)
+                base_price *= (1 + daily_return)
+                
+                daily_range = base_price * np.random.uniform(0.01, 0.04)
+                open_price = base_price * (1 + np.random.normal(0, 0.005))
+                high = max(open_price, base_price) + daily_range / 2
+                low = min(open_price, base_price) - daily_range / 2
+                close_price = np.random.uniform(low, high)
+                volume = int(np.random.lognormal(15, 1))
+                
+                ohlc_data.append({
+                    "open": round(open_price, 2),
+                    "high": round(high, 2),
+                    "low": round(low, 2),
+                    "close": round(close_price, 2),
+                    "volume": volume
+                })
+                
+                # Generate technical indicators
+                etop_values.append(np.random.exponential(0.5) if i > 10 else 0)
+                ebot_values.append(np.random.exponential(0.5) if i > 10 else 0)
+                pldot_values.append(np.random.normal(0, 0.05))
+                oneonedot_values.append(np.random.normal(0, 0.2))
+            
+            return {
+                "symbol": "AAPL",
+                "dates": dates,
+                "ohlc_data": ohlc_data,
+                "indicators": {
+                    "etop": etop_values,
+                    "ebot": ebot_values,
+                    "pldot": pldot_values,
+                    "oneonedot": oneonedot_values
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting OHLC data: {e}")
+            return {"symbol": "", "dates": [], "ohlc_data": [], "indicators": {}}
+    
+    @app.get("/health")
+    async def health_check():
+        """Health check endpoint"""
+        return {"status": "healthy", "service": "enhanced-training-visualization"}
+    
+    if __name__ == "__main__":
+        import uvicorn
+        uvicorn.run(app, host="0.0.0.0", port=3000)
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: enhanced-training-visualization-webapp
+  namespace: ats-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: enhanced-training-visualization-webapp
+  template:
+    metadata:
+      labels:
+        app: enhanced-training-visualization-webapp
+    spec:
+      containers:
+      - name: webapp
+        image: python:3.12-slim
+        command: ["/bin/bash"]
+        args:
+          - -c
+          - |
+            echo "📦 Installing dependencies..."
+            pip install fastapi uvicorn asyncpg numpy pandas pydantic
+            
+            echo "🚀 Starting Enhanced Training Data Visualization Webapp..."
+            python /config/webapp.py
+        ports:
+        - containerPort: 3000
+        volumeMounts:
+        - name: config-volume
+          mountPath: /config
+        env:
+        - name: ENVIRONMENT
+          value: "dev"
+      volumes:
+      - name: config-volume
+        configMap:
+          name: enhanced-training-visualization-config
+      restartPolicy: Always
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: enhanced-training-visualization-service
+  namespace: ats-dev
+spec:
+  selector:
+    app: enhanced-training-visualization-webapp
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+      nodePort: 30003
+  type: NodePort

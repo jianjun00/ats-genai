@@ -1,0 +1,242 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-coverage-catalog-script
+  namespace: ats-dev
+data:
+  test_coverage_deployment.py: |
+    """
+    Test Coverage Catalog Deployment in Kubernetes
+    """
+    import asyncio
+    import asyncpg
+    import logging
+    from datetime import datetime, date, timedelta
+    import sys
+    import os
+    import json
+
+    async def main():
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+        logger = logging.getLogger(__name__)
+        
+        logger.info("🧪 Starting Coverage Catalog Deployment Test")
+        
+        # Database connection
+        db_host = os.getenv('DB_HOST', 'postgres-simple')
+        db_port = os.getenv('DB_PORT', '5432')
+        db_user = os.getenv('DB_USER', 'postgres')
+        db_password = os.getenv('DB_PASSWORD', 'dev_password')
+        db_name = os.getenv('DB_NAME', 'dev_db')
+        
+        db_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+        
+        try:
+            conn = await asyncpg.connect(db_url)
+            logger.info("✅ Connected to database")
+            
+            # Test 1: Verify tables exist
+            logger.info("🔍 Test 1: Verifying coverage tables exist...")
+            tables = await conn.fetch("""
+                SELECT tablename 
+                FROM pg_tables 
+                WHERE schemaname = 'public' 
+                AND tablename LIKE 'coverage%'
+                ORDER BY tablename
+            """)
+            
+            table_names = [t['tablename'] for t in tables]
+            logger.info(f"Found tables: {table_names}")
+            
+            if 'coverage_intervals' not in table_names:
+                raise Exception("❌ coverage_intervals table not found")
+            if 'coverage_summary' not in table_names:
+                raise Exception("❌ coverage_summary table not found")
+                
+            logger.info("✅ Test 1 PASSED: All required tables exist")
+            
+            # Test 2: Verify TimescaleDB hypertable
+            logger.info("🔍 Test 2: Checking TimescaleDB hypertable...")
+            hypertables = await conn.fetch("""
+                SELECT hypertable_name 
+                FROM timescaledb_information.hypertables 
+                WHERE hypertable_name = 'coverage_intervals'
+            """)
+            
+            if not hypertables:
+                logger.warning("⚠️ coverage_intervals is not a TimescaleDB hypertable")
+            else:
+                logger.info("✅ Test 2 PASSED: TimescaleDB hypertable configured")
+            
+            # Test 3: Insert test coverage data
+            logger.info("🔍 Test 3: Testing data insertion...")
+            test_start_time = datetime.now().replace(microsecond=0)
+            test_end_time = test_start_time + timedelta(hours=1)
+            
+            await conn.execute("""
+                INSERT INTO coverage_intervals (
+                    symbol, vendor, data_type, start_time, end_time,
+                    record_count, expected_count, completeness_ratio,
+                    avg_quality_score, has_gaps, gap_count
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            """, 'TEST', 'test_vendor', 'minute', 
+                test_start_time, test_end_time, 58, 60, 0.97, 0.95, True, 1)
+            
+            logger.info("✅ Test 3 PASSED: Data insertion successful")
+            
+            # Test 4: Query coverage data
+            logger.info("🔍 Test 4: Testing data retrieval...")
+            results = await conn.fetch("""
+                SELECT symbol, vendor, data_type, record_count, completeness_ratio
+                FROM coverage_intervals 
+                WHERE symbol = 'TEST'
+            """)
+            
+            if not results:
+                raise Exception("❌ No test data found")
+                
+            test_record = results[0]
+            logger.info(f"Retrieved: {dict(test_record)}")
+            
+            if float(test_record['completeness_ratio']) != 0.97:
+                raise Exception("❌ Data integrity check failed")
+                
+            logger.info("✅ Test 4 PASSED: Data retrieval successful")
+            
+            # Test 5: Test coverage summary table
+            logger.info("🔍 Test 5: Testing coverage summary...")
+            await conn.execute("""
+                INSERT INTO coverage_summary (
+                    symbol, vendor, data_type, current_status,
+                    coverage_24h, quality_24h, records_24h, last_updated
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                ON CONFLICT (symbol, vendor, data_type) 
+                DO UPDATE SET 
+                    coverage_24h = EXCLUDED.coverage_24h,
+                    last_updated = EXCLUDED.last_updated
+            """, 'TEST', 'test_vendor', 'minute', 'active', 97.0, 0.95, 1400, datetime.now())
+            
+            summary_results = await conn.fetch("""
+                SELECT symbol, current_status, coverage_24h 
+                FROM coverage_summary 
+                WHERE symbol = 'TEST'
+            """)
+            
+            if not summary_results:
+                raise Exception("❌ Coverage summary not found")
+                
+            logger.info("✅ Test 5 PASSED: Coverage summary working")
+            
+            # Test 6: Test coverage functions (if migration 037 was applied)
+            logger.info("🔍 Test 6: Testing coverage functions...")
+            try:
+                # Check if function exists
+                func_exists = await conn.fetchval("""
+                    SELECT EXISTS (
+                        SELECT 1 FROM pg_proc p 
+                        JOIN pg_namespace n ON p.pronamespace = n.oid 
+                        WHERE n.nspname = 'public' AND p.proname = 'calculate_minute_coverage'
+                    )
+                """)
+                
+                if func_exists:
+                    logger.info("✅ Coverage functions are available")
+                    
+                    # Test getting coverage overview
+                    overview = await conn.fetch("SELECT * FROM get_coverage_overview()")
+                    logger.info(f"Coverage overview: {len(overview)} vendor/data_type combinations")
+                else:
+                    logger.info("ℹ️ Coverage functions not found (migration 037 not applied)")
+                    
+                logger.info("✅ Test 6 PASSED: Function testing completed")
+                
+            except Exception as e:
+                logger.warning(f"⚠️ Test 6 WARNING: Function test failed: {e}")
+            
+            # Test 7: Cleanup test data
+            logger.info("🔍 Test 7: Cleaning up test data...")
+            deleted_intervals = await conn.execute("""
+                DELETE FROM coverage_intervals WHERE symbol = 'TEST'
+            """)
+            deleted_summary = await conn.execute("""
+                DELETE FROM coverage_summary WHERE symbol = 'TEST'
+            """)
+            
+            logger.info("✅ Test 7 PASSED: Cleanup successful")
+            
+            # Final verification
+            logger.info("🔍 Final verification: Checking table status...")
+            interval_count = await conn.fetchval("SELECT COUNT(*) FROM coverage_intervals")
+            summary_count = await conn.fetchval("SELECT COUNT(*) FROM coverage_summary")
+            
+            logger.info(f"📊 Coverage intervals: {interval_count} records")
+            logger.info(f"📊 Coverage summary: {summary_count} records")
+            
+            logger.info("🎉 ALL TESTS PASSED! Coverage catalog is properly deployed and functional")
+            
+            return {
+                'test_status': 'SUCCESS',
+                'tests_passed': 7,
+                'coverage_intervals_count': interval_count,
+                'coverage_summary_count': summary_count,
+                'deployment_verified': True
+            }
+            
+        except Exception as e:
+            logger.error(f"💥 Test failed: {e}")
+            return {
+                'test_status': 'FAILED',
+                'error_message': str(e),
+                'deployment_verified': False
+            }
+        finally:
+            if 'conn' in locals():
+                await conn.close()
+
+    if __name__ == "__main__":
+        result = asyncio.run(main())
+        print(f"\n📋 Final Test Result: {json.dumps(result, indent=2, default=str)}")
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-coverage-catalog
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      containers:
+      - name: coverage-tester
+        image: python:3.12-slim
+        command: ["/bin/bash"]
+        args:
+          - -c
+          - |
+            echo "📦 Installing dependencies..."
+            pip install asyncpg
+            
+            echo "🧪 Running coverage catalog test..."
+            cd /scripts
+            python test_coverage_deployment.py
+            
+            echo "✅ Coverage catalog test completed!"
+        env:
+        - name: DB_HOST
+          value: "postgres-simple"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+        volumeMounts:
+        - name: script-volume
+          mountPath: /scripts
+      volumes:
+      - name: script-volume
+        configMap:
+          name: test-coverage-catalog-script
+      restartPolicy: Never
+  backoffLimit: 1

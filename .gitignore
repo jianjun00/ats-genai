@@ -135,3 +135,16 @@ src/db/migrations/backups/
 # Ignore tar files
 *.tar
 
+# Ignore dynamically generated Kubernetes YAML files
+k8s/generated/*
+!k8s/generated/.gitkeep
+
+# Ignore data directory
+data/
+
+k8s/experiments/
+k8s/dev/
+
+# Training data outputs
+training_data_output/
+*.npy

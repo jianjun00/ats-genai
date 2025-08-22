@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: data-explorer
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      containers:
+      - name: explorer
+        image: busybox
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "🔍 Exploring /data volume..."
+          ls -la /data
+          echo "📂 Total files:"
+          find /data -type f | wc -l
+          echo "📊 Files by type:"
+          find /data -name "*.npy" | wc -l | xargs -I {} echo "  *.npy files: {}"
+          find /data -name "*.json" | wc -l | xargs -I {} echo "  *.json files: {}"
+          echo "📋 Recent files:"
+          find /data -type f -printf '%T+ %p\n' | sort -r | head -10 || ls -lt /data | head -10
+          echo "💾 Disk usage:"
+          du -sh /data
+          du -sh /data/* 2>/dev/null || echo "No subdirectories"
+        volumeMounts:
+        - name: data-volume
+          mountPath: /data
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: data-pvc
+      restartPolicy: Never
+  backoffLimit: 1

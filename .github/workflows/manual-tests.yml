@@ -1,0 +1,113 @@
+name: Manual Test Execution
+
+# This workflow is for running tests that can't be run reliably in batch
+# These tests are run individually to avoid configuration conflicts
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_category:
+        description: 'Test category to run'
+        required: true
+        default: 'skip_in_batch'
+        type: choice
+        options:
+        - skip_in_batch
+        - gin_heavy
+        - requires_external
+        - all_individual
+      
+      test_pattern:
+        description: 'Specific test pattern (optional)'
+        required: false
+        default: ''
+        type: string
+
+env:
+  PYTHON_VERSION: '3.12'
+  POSTGRES_VERSION: 13
+
+jobs:
+  manual-tests:
+    name: Manual Test Execution
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    
+    services:
+      postgres:
+        image: postgres:${{ env.POSTGRES_VERSION }}
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio pytest-forked pytest-xdist
+    
+    - name: Wait for PostgreSQL
+      run: |
+        until pg_isready -h localhost -p 5432 -U postgres; do
+          echo "Waiting for PostgreSQL..."
+          sleep 2
+        done
+    
+    - name: Run tests individually (forked processes)
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        ENVIRONMENT: test
+        TEST_CATEGORY: ${{ github.event.inputs.test_category }}
+        TEST_PATTERN: ${{ github.event.inputs.test_pattern }}
+      run: |
+        # Build pytest command based on inputs
+        PYTEST_CMD="PYTHONPATH=src pytest"
+        
+        if [[ "$TEST_CATEGORY" == "all_individual" ]]; then
+          # Run ALL tests individually with forked processes
+          PYTEST_CMD="$PYTEST_CMD --forked --tb=short -v"
+        elif [[ "$TEST_CATEGORY" == "skip_in_batch" ]]; then
+          # Run only tests marked as skip_in_batch
+          PYTEST_CMD="$PYTEST_CMD -m \"skip_in_batch\" --forked --tb=short -v"
+        elif [[ "$TEST_CATEGORY" == "gin_heavy" ]]; then
+          # Run gin configuration heavy tests
+          PYTEST_CMD="$PYTEST_CMD -m \"gin_heavy\" --forked --tb=short -v"
+        elif [[ "$TEST_CATEGORY" == "requires_external" ]]; then
+          # Run tests that require external services
+          PYTEST_CMD="$PYTEST_CMD -m \"requires_external\" --tb=short -v"
+        fi
+        
+        # Add test pattern if provided
+        if [[ -n "$TEST_PATTERN" ]]; then
+          PYTEST_CMD="$PYTEST_CMD -k \"$TEST_PATTERN\""
+        fi
+        
+        echo "Running command: $PYTEST_CMD"
+        eval $PYTEST_CMD
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: manual-test-results-${{ github.event.inputs.test_category }}
+        path: |
+          pytest-results.xml
+          coverage.xml
+        retention-days: 7

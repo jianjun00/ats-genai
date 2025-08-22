@@ -15,9 +15,11 @@ from config.logging_config import LoggingConfig
 
 
 
+@pytest.mark.unit
 class TestEnvironment:
     """Test cases for Environment class."""
     
+    @pytest.mark.unit
     def test_environment_type_enum(self):
         """Test EnvironmentType enum values."""
         assert EnvironmentType.TEST.value == "test"
@@ -25,12 +27,15 @@ class TestEnvironment:
         assert EnvironmentType.INTEGRATION.value == "intg"
         assert EnvironmentType.PRODUCTION.value == "prod"
     
+    @pytest.mark.gin_heavy
     @patch.dict(os.environ, {"ENVIRONMENT": "test"})
     def test_detect_environment_from_env_var(self):
         """Test environment detection from ENVIRONMENT variable."""
         env = Environment(db_url="postgresql://postgres:password@localhost:5432/test_db_dummy")
         assert env.env_type == EnvironmentType.TEST
         
+    @pytest.mark.skip_in_batch
+    @pytest.mark.gin_heavy
     @patch.dict(os.environ, {"ENVIRONMENT": "dev"})
     def test_detect_dev_environment_from_env_var(self):
         """Test dev environment detection from ENVIRONMENT variable."""

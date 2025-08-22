@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: updated-coverage-api-service
+  namespace: ats-dev
+  labels:
+    app: updated-coverage-api
+    component: api
+spec:
+  type: NodePort
+  ports:
+  - port: 8002
+    targetPort: 8002
+    nodePort: 30802
+    name: http
+    protocol: TCP
+  selector:
+    job-name: update-coverage-api

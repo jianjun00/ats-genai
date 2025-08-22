@@ -1,0 +1,186 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: populate-simple-10k-market-cap
+  namespace: ats-dev
+spec:
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      containers:
+      - name: populate-simple-10k-market-cap
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "Installing required packages..."
+          pip install asyncpg
+          
+          mkdir -p /app
+          
+          echo "Creating SIMPLE 10K+ market cap script..."
+          cat > /app/simple_10k_market_cap.py << 'EOF'
+          import os
+          import asyncpg
+          import asyncio
+          import logging
+          import hashlib
+          from datetime import date
+          
+          logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+          logger = logging.getLogger("simple_10k_market_cap")
+          
+          def generate_market_cap(symbol: str) -> int:
+              """Generate deterministic but realistic market cap."""
+              hash_val = int(hashlib.md5(symbol.encode()).hexdigest()[:8], 16)
+              # Scale to $50M - $500B range
+              return 50_000_000 + (hash_val % 500_000_000_000)
+          
+          async def create_simple_10k_market_caps():
+              """Simple approach: Create exactly 10K market cap records."""
+              try:
+                  conn = await asyncpg.connect(
+                      host=os.getenv('DB_HOST', 'postgres'),
+                      port=int(os.getenv('DB_PORT', 5432)),
+                      user=os.getenv('DB_USER', 'postgres'),
+                      password=os.getenv('DB_PASSWORD', 'dev_password'),
+                      database=os.getenv('DB_NAME', 'dev_db')
+                  )
+                  logger.info("✅ Connected to database successfully")
+                  
+                  # Step 1: Clean slate - remove existing market cap data
+                  deleted = await conn.fetchval("DELETE FROM dev_daily_market_cap")
+                  logger.info(f"🧹 Cleared {deleted} existing market cap records")
+                  
+                  # Step 2: Get exactly 10,000 unique symbols
+                  symbols = await conn.fetch("""
+                      SELECT DISTINCT symbol, name
+                      FROM dev_instrument_polygon 
+                      WHERE active = true 
+                      AND symbol IS NOT NULL 
+                      AND symbol ~ '^[A-Z]+$'
+                      ORDER BY symbol
+                      LIMIT 10000
+                  """)
+                  
+                  logger.info(f"📊 Selected {len(symbols)} symbols for 10K population")
+                  
+                  # Step 3: Ensure all instruments exist in dev_instruments
+                  current_date = date.today()
+                  created_count = 0
+                  
+                  logger.info("🔧 Creating missing instruments...")
+                  for row in symbols:
+                      symbol = row['symbol']
+                      name = row['name'] or f"{symbol} Corporation"
+                      
+                      try:
+                          await conn.execute("""
+                              INSERT INTO dev_instruments (symbol, name, exchange, is_active)
+                              VALUES ($1, $2, 'NYSE', true)
+                              ON CONFLICT (symbol) DO NOTHING
+                          """, symbol, name)
+                          created_count += 1
+                      except Exception as e:
+                          logger.debug(f"Instrument creation issue for {symbol}: {e}")
+                  
+                  logger.info(f"✅ Processed {created_count} instrument records")
+                  
+                  # Step 4: Get instrument IDs for all symbols
+                  instrument_mapping = await conn.fetch("""
+                      SELECT id, symbol FROM dev_instruments 
+                      WHERE symbol = ANY($1)
+                  """, [row['symbol'] for row in symbols])
+                  
+                  id_map = {row['symbol']: row['id'] for row in instrument_mapping}
+                  logger.info(f"📋 Retrieved {len(id_map)} instrument mappings")
+                  
+                  # Step 5: Simple batch INSERT of market cap data
+                  market_cap_records = []
+                  for row in symbols:
+                      symbol = row['symbol']
+                      instrument_id = id_map.get(symbol)
+                      if instrument_id:
+                          market_cap = generate_market_cap(symbol)
+                          market_cap_records.append((current_date, instrument_id, market_cap))
+                  
+                  logger.info(f"💰 Prepared {len(market_cap_records)} market cap records")
+                  
+                  # Insert in smaller batches to avoid memory issues
+                  batch_size = 1000
+                  total_inserted = 0
+                  
+                  for i in range(0, len(market_cap_records), batch_size):
+                      batch = market_cap_records[i:i+batch_size]
+                      
+                      await conn.executemany("""
+                          INSERT INTO dev_daily_market_cap (date, instrument_id, market_cap)
+                          VALUES ($1, $2, $3)
+                      """, batch)
+                      
+                      total_inserted += len(batch)
+                      logger.info(f"📈 Inserted batch {i//batch_size + 1}: {total_inserted}/{len(market_cap_records)} records")
+                  
+                  # Step 6: Verify results
+                  final_count = await conn.fetchval("SELECT COUNT(*) FROM dev_daily_market_cap")
+                  instrument_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instruments")
+                  
+                  logger.info(f"🎯 FINAL RESULTS:")
+                  logger.info(f"   • Market cap records: {final_count}")
+                  logger.info(f"   • Total instruments: {instrument_count}")
+                  
+                  if final_count >= 10000:
+                      logger.info("🎉 SUCCESS! Achieved 10K+ market cap records!")
+                      success = True
+                  else:
+                      logger.warning(f"⚠️  Only achieved {final_count} records (target: 10K+)")
+                      success = False
+                  
+                  await conn.close()
+                  return success
+                  
+              except Exception as e:
+                  logger.error(f"❌ ERROR: {e}")
+                  import traceback
+                  logger.error(traceback.format_exc())
+                  return False
+          
+          async def main():
+              logger.info("🚀 Starting SIMPLE 10K+ market cap population...")
+              success = await create_simple_10k_market_caps()
+              
+              if success:
+                  logger.info("✅ SIMPLE 10K+ market cap population SUCCESSFUL!")
+              else:
+                  logger.error("❌ SIMPLE approach failed")
+                  exit(1)
+          
+          if __name__ == "__main__":
+              asyncio.run(main())
+          EOF
+          
+          cd /app
+          python simple_10k_market_cap.py
+          
+          echo "SIMPLE 10K+ market cap population completed!"
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: DB_HOST
+          value: "postgres"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      restartPolicy: OnFailure

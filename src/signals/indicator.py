@@ -347,3 +347,156 @@ class ETop(Indicator):
 
     def get_value(self) -> Optional[float]:
         return self.latest_etop
+
+
+@gin.configurable  
+class CumulativeVolume(Indicator):
+    """
+    Cumulative Volume indicator for intervals.
+    Accumulates volume across intervals with optional daily reset.
+    """
+    def __init__(self, reset_daily: bool = True):
+        super().__init__()
+        self.reset_daily = reset_daily
+        self.cumulative_volume: Optional[float] = None
+        self.last_reset_date: Optional[str] = None
+
+    def update(self, intervals: List[InstrumentInterval]):
+        import logging
+        self.update_at = datetime.now()
+        
+        if not intervals:
+            logging.debug('[CumulativeVolume] No intervals provided')
+            self.status = 'invalid'
+            self.cumulative_volume = None
+            return
+        
+        # Check if all intervals are valid
+        for i, interval in enumerate(intervals):
+            if interval.status != 'ok':
+                logging.debug(f'[CumulativeVolume] Interval {i} has invalid status: {interval.status}')
+                self.status = 'invalid'
+                self.cumulative_volume = None
+                return
+            
+            if not hasattr(interval, 'traded_volume') or interval.traded_volume is None:
+                logging.debug(f'[CumulativeVolume] Interval {i} missing volume data')
+                self.status = 'invalid'
+                self.cumulative_volume = None
+                return
+        
+        try:
+            current_interval = intervals[-1]
+            current_date = current_interval.start_date_time.date().isoformat() if current_interval.start_date_time else None
+            
+            # Reset cumulative volume daily if configured
+            if self.reset_daily and current_date != self.last_reset_date:
+                self.cumulative_volume = 0.0
+                self.last_reset_date = current_date
+                logging.debug(f'[CumulativeVolume] Reset for new day: {current_date}')
+            
+            # Initialize if needed
+            if self.cumulative_volume is None:
+                self.cumulative_volume = 0.0
+            
+            # Add current interval volume
+            self.cumulative_volume += current_interval.traded_volume
+            self.status = 'ok'
+            
+            logging.debug(f'[CumulativeVolume] Updated cumulative volume: {self.cumulative_volume}')
+            
+        except Exception as e:
+            logging.error(f'[CumulativeVolume] Error calculating cumulative volume: {str(e)}')
+            self.status = 'invalid'
+            self.cumulative_volume = None
+
+    def get_value(self) -> Optional[float]:
+        return self.cumulative_volume
+
+
+@gin.configurable
+class CumulativeDollars(Indicator):
+    """
+    Cumulative Dollar Volume (price * volume) indicator for intervals.
+    Accumulates dollar volume across intervals with optional daily reset.
+    """
+    def __init__(self, reset_daily: bool = True, price_method: str = 'typical'):
+        super().__init__()
+        self.reset_daily = reset_daily
+        self.price_method = price_method  # 'typical', 'close', 'open'
+        self.cumulative_dollars: Optional[float] = None
+        self.last_reset_date: Optional[str] = None
+
+    def update(self, intervals: List[InstrumentInterval]):
+        import logging
+        self.update_at = datetime.now()
+        
+        if not intervals:
+            logging.debug('[CumulativeDollars] No intervals provided')
+            self.status = 'invalid'
+            self.cumulative_dollars = None
+            return
+        
+        # Check if all intervals are valid
+        for i, interval in enumerate(intervals):
+            if interval.status != 'ok':
+                logging.debug(f'[CumulativeDollars] Interval {i} has invalid status: {interval.status}')
+                self.status = 'invalid'
+                self.cumulative_dollars = None
+                return
+            
+            # Check for required OHLCV data
+            required_fields = ['traded_volume']
+            if self.price_method == 'typical':
+                required_fields.extend(['high', 'low', 'close'])
+            elif self.price_method == 'close':
+                required_fields.append('close')
+            elif self.price_method == 'open':
+                required_fields.append('open')
+                
+            for field in required_fields:
+                val = getattr(interval, field, None)
+                if val is None or (isinstance(val, float) and math.isnan(val)):
+                    logging.debug(f'[CumulativeDollars] Interval {i} has invalid {field}: {val}')
+                    self.status = 'invalid'
+                    self.cumulative_dollars = None
+                    return
+        
+        try:
+            current_interval = intervals[-1]
+            current_date = current_interval.start_date_time.date().isoformat() if current_interval.start_date_time else None
+            
+            # Reset cumulative dollars daily if configured
+            if self.reset_daily and current_date != self.last_reset_date:
+                self.cumulative_dollars = 0.0
+                self.last_reset_date = current_date
+                logging.debug(f'[CumulativeDollars] Reset for new day: {current_date}')
+            
+            # Initialize if needed
+            if self.cumulative_dollars is None:
+                self.cumulative_dollars = 0.0
+            
+            # Calculate price based on method
+            if self.price_method == 'typical':
+                price = (current_interval.high + current_interval.low + current_interval.close) / 3.0
+            elif self.price_method == 'close':
+                price = current_interval.close
+            elif self.price_method == 'open':
+                price = current_interval.open
+            else:
+                price = current_interval.close  # Default fallback
+            
+            # Add current interval dollar volume
+            dollar_volume = price * current_interval.traded_volume
+            self.cumulative_dollars += dollar_volume
+            self.status = 'ok'
+            
+            logging.debug(f'[CumulativeDollars] Updated cumulative dollars: {self.cumulative_dollars} (price={price}, volume={current_interval.traded_volume})')
+            
+        except Exception as e:
+            logging.error(f'[CumulativeDollars] Error calculating cumulative dollars: {str(e)}')
+            self.status = 'invalid'
+            self.cumulative_dollars = None
+
+    def get_value(self) -> Optional[float]:
+        return self.cumulative_dollars

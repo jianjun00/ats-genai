@@ -1,0 +1,484 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: data-quality-validation
+  namespace: ats-dev
+  labels:
+    app: ats-genai
+    component: data-quality-monitoring
+spec:
+  ttlSecondsAfterFinished: 7200
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: data-quality-validator
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "🔍 Starting comprehensive data quality validation..."
+          pip install --no-cache-dir asyncpg numpy pandas gin-config
+          
+          mkdir -p /app/src/monitoring
+          mkdir -p /app/src/config
+          cd /app
+          
+          # Create data quality validation job script
+          cat > /app/src/monitoring/run_data_quality_validation.py << 'EOF'
+          #!/usr/bin/env python3
+          """
+          Data Quality Validation Job for Kubernetes
+          
+          Runs comprehensive data quality validation across all vendors and generates
+          detailed reports with actionable recommendations.
+          """
+          
+          import asyncio
+          import logging
+          import os
+          from datetime import date, timedelta
+          import argparse
+          import json
+          
+          # Add parent directories to path
+          import sys
+          sys.path.append('/app/src')
+          
+          from monitoring.data_quality_validator import DataQualityValidator, ValidationSeverity, ValidationCategory
+          
+          class SimpleEnvironment:
+              def get_table_name(self, base_name):
+                  return f"dev_{base_name}"
+              
+              def get_database_url(self):
+                  host = os.environ.get('DB_HOST', 'postgres-simple')
+                  port = os.environ.get('DB_PORT', '5432')
+                  user = os.environ.get('DB_USER', 'postgres')
+                  password = os.environ.get('DB_PASSWORD', 'dev_password')
+                  database = os.environ.get('DB_NAME', 'dev_db')
+                  return f"postgresql://{user}:{password}@{host}:{port}/{database}"
+          
+          async def run_data_quality_validation(symbols, days_back=30, save_report=True):
+              """Run comprehensive data quality validation"""
+              
+              env = SimpleEnvironment()
+              validator = DataQualityValidator(env)
+              
+              print(f"🔍 Starting data quality validation for {len(symbols)} symbols")
+              print(f"📅 Validation period: {days_back} days back from today")
+              print(f"🎯 Target symbols: {', '.join(symbols)}")
+              
+              # Run comprehensive validation
+              report = await validator.run_comprehensive_validation(symbols, days_back)
+              
+              # Display summary
+              print(f"\n📊 VALIDATION SUMMARY")
+              print(f"{'='*60}")
+              print(f"Overall Quality Score: {report.overall_score:.1f}/100")
+              print(f"Total Tests: {report.total_tests}")
+              print(f"Passed: {report.passed_tests}")
+              print(f"Failed: {report.failed_tests}")
+              print(f"Issues: {report.critical_issues} critical, {report.warning_issues} warnings")
+              print(f"Summary: {report.summary}")
+              
+              # Show critical issues
+              critical_results = [r for r in report.validation_results 
+                                if r.severity == ValidationSeverity.CRITICAL and not r.passed]
+              
+              if critical_results:
+                  print(f"\n🚨 CRITICAL ISSUES REQUIRING IMMEDIATE ACTION:")
+                  for i, result in enumerate(critical_results, 1):
+                      print(f"\n  {i}. {result.test_name}")
+                      print(f"     Description: {result.description}")
+                      print(f"     Affected Records: {result.affected_records}")
+                      if result.recommendation:
+                          print(f"     Action Required: {result.recommendation}")
+                      
+                      # Show some details
+                      if result.details:
+                          key_details = {}
+                          for key in ['vendor', 'symbol', 'violation_count', 'coverage_ratio']:
+                              if key in result.details:
+                                  key_details[key] = result.details[key]
+                          if key_details:
+                              print(f"     Details: {key_details}")
+              
+              # Show warning issues  
+              warning_results = [r for r in report.validation_results 
+                               if r.severity == ValidationSeverity.WARNING and not r.passed]
+              
+              if warning_results:
+                  print(f"\n⚡ WARNING ISSUES FOR MONITORING:")
+                  for i, result in enumerate(warning_results[:5], 1):  # Show first 5
+                      print(f"\n  {i}. {result.test_name}")
+                      print(f"     Description: {result.description}")
+                      if result.recommendation:
+                          print(f"     Recommendation: {result.recommendation}")
+              
+              # Category breakdown
+              category_stats = {}
+              for category in ValidationCategory:
+                  category_results = [r for r in report.validation_results if r.category == category]
+                  if category_results:
+                      passed = sum(1 for r in category_results if r.passed)
+                      total = len(category_results)
+                      category_stats[category.value] = f"{passed}/{total}"
+              
+              if category_stats:
+                  print(f"\n📋 VALIDATION BREAKDOWN BY CATEGORY:")
+                  for category, stats in category_stats.items():
+                      print(f"  • {category.title()}: {stats} passed")
+              
+              # Vendor-specific issues
+              vendor_issues = {}
+              for result in report.validation_results:
+                  if not result.passed and 'vendor' in result.details:
+                      vendor = result.details['vendor']
+                      if vendor not in vendor_issues:
+                          vendor_issues[vendor] = []
+                      vendor_issues[vendor].append(result)
+              
+              if vendor_issues:
+                  print(f"\n🏢 VENDOR-SPECIFIC ISSUES:")
+                  for vendor, issues in vendor_issues.items():
+                      critical_count = sum(1 for i in issues if i.severity == ValidationSeverity.CRITICAL)
+                      warning_count = sum(1 for i in issues if i.severity == ValidationSeverity.WARNING)
+                      print(f"  • {vendor}: {critical_count} critical, {warning_count} warnings")
+              
+              # Save detailed report if requested
+              if save_report:
+                  report_data = {
+                      'timestamp': report.timestamp.isoformat(),
+                      'overall_score': report.overall_score,
+                      'total_tests': report.total_tests,
+                      'passed_tests': report.passed_tests,
+                      'failed_tests': report.failed_tests,
+                      'critical_issues': report.critical_issues,
+                      'warning_issues': report.warning_issues,
+                      'summary': report.summary,
+                      'validation_results': [
+                          {
+                              'category': r.category.value,
+                              'severity': r.severity.value,
+                              'test_name': r.test_name,
+                              'description': r.description,
+                              'passed': r.passed,
+                              'details': r.details,
+                              'affected_records': r.affected_records,
+                              'recommendation': r.recommendation
+                          }
+                          for r in report.validation_results
+                      ]
+                  }
+                  
+                  report_file = f"data_quality_report_{report.timestamp.strftime('%Y%m%d_%H%M%S')}.json"
+                  with open(report_file, 'w') as f:
+                      json.dump(report_data, f, indent=2, default=str)
+                  
+                  print(f"\n📄 Detailed report saved to: {report_file}")
+              
+              # Return summary metrics for job status
+              return report.overall_score, report.critical_issues, report.warning_issues
+          
+          async def main():
+              parser = argparse.ArgumentParser(description='Run comprehensive data quality validation')
+              parser.add_argument('--symbols', nargs='+', 
+                                default=['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'JPM', 'V', 'MA'],
+                                help='Symbols to validate')
+              parser.add_argument('--days', type=int, default=30,
+                                help='Number of days back to validate')
+              parser.add_argument('--no-save', action='store_true',
+                                help='Skip saving detailed report')
+              parser.add_argument('--fail-on-critical', action='store_true',
+                                help='Exit with error code if critical issues found')
+              
+              args = parser.parse_args()
+              
+              logging.basicConfig(
+                  level=logging.INFO,
+                  format='%(asctime)s - %(levelname)s - %(message)s'
+              )
+              
+              print("🚀 Starting Data Quality Validation Job")
+              print(f"🎯 Target symbols: {args.symbols}")
+              print(f"📅 Days back: {args.days}")
+              print(f"💾 Save report: {not args.no_save}")
+              
+              quality_score, critical_issues, warning_issues = await run_data_quality_validation(
+                  args.symbols,
+                  days_back=args.days,
+                  save_report=not args.no_save
+              )
+              
+              # Final status
+              print(f"\n🏁 DATA QUALITY VALIDATION COMPLETED")
+              print(f"📊 Overall Quality Score: {quality_score:.1f}/100")
+              print(f"🚨 Critical Issues: {critical_issues}")
+              print(f"⚡ Warning Issues: {warning_issues}")
+              
+              # Determine exit status
+              if args.fail_on_critical and critical_issues > 0:
+                  print(f"❌ VALIDATION FAILED: {critical_issues} critical issues found")
+                  exit(1)
+              elif critical_issues > 0:
+                  print(f"⚠️  VALIDATION COMPLETED WITH CRITICAL ISSUES")
+              elif warning_issues > 0:
+                  print(f"✅ VALIDATION COMPLETED WITH WARNINGS")
+              else:
+                  print(f"✅ VALIDATION PASSED: No issues found")
+          
+          if __name__ == "__main__":
+              asyncio.run(main())
+          EOF
+          
+          # Copy the data quality validator module (simplified version for K8s)
+          cat > /app/src/monitoring/data_quality_validator.py << 'VALIDATOR_EOF'
+          # [This would be the full data quality validator code, but truncated for K8s job size limits]
+          # In production, this would be pulled from a container image or git repository
+          
+          import asyncio
+          import asyncpg
+          import logging
+          import numpy as np
+          from datetime import date, datetime, timedelta
+          from typing import Dict, List, Optional, Any
+          from dataclasses import dataclass, field
+          from enum import Enum
+          from statistics import mean, median
+          
+          class ValidationSeverity(Enum):
+              CRITICAL = "critical"
+              WARNING = "warning"
+              INFO = "info"
+          
+          class ValidationCategory(Enum):
+              COMPLETENESS = "completeness"
+              CONSISTENCY = "consistency" 
+              ACCURACY = "accuracy"
+              FRESHNESS = "freshness"
+              INTEGRITY = "integrity"
+          
+          @dataclass
+          class ValidationResult:
+              category: ValidationCategory
+              severity: ValidationSeverity
+              test_name: str
+              description: str
+              passed: bool
+              details: Dict[str, Any] = field(default_factory=dict)
+              timestamp: datetime = field(default_factory=datetime.now)
+              affected_records: int = 0
+              recommendation: str = ""
+          
+          @dataclass 
+          class DataQualityReport:
+              timestamp: datetime
+              total_tests: int
+              passed_tests: int
+              failed_tests: int
+              critical_issues: int
+              warning_issues: int
+              info_issues: int
+              validation_results: List[ValidationResult]
+              overall_score: float
+              summary: str
+          
+          class DataQualityValidator:
+              def __init__(self, env):
+                  self.env = env
+                  self.db_url = env.get_database_url()
+                  self.logger = logging.getLogger(__name__)
+                  
+                  self.vendor_tables = {
+                      'polygon': env.get_table_name('daily_prices_polygon'),
+                      'tiingo': env.get_table_name('daily_prices_tiingo'),
+                      'alphavantage': env.get_table_name('daily_prices_alphavantage'),
+                      'fmp': env.get_table_name('daily_prices_fmp')
+                  }
+                  
+                  self.quality_thresholds = {
+                      'min_data_coverage': 0.80,
+                      'max_price_variance': 0.10,
+                      'max_stale_days': 3,
+                      'min_volume_correlation': 0.70,
+                      'max_missing_ratio': 0.05
+                  }
+              
+              async def run_comprehensive_validation(self, symbols: List[str], days_back: int = 30) -> DataQualityReport:
+                  """Simplified validation for K8s job"""
+                  start_time = datetime.now()
+                  end_date = date.today()
+                  start_date = end_date - timedelta(days=days_back)
+                  
+                  self.logger.info(f"Starting data quality validation for {len(symbols)} symbols")
+                  
+                  # Simplified validation - just check data completeness and freshness
+                  all_results = []
+                  
+                  pool = await asyncpg.create_pool(self.db_url, min_size=2, max_size=5)
+                  try:
+                      async with pool.acquire() as conn:
+                          for vendor, table_name in self.vendor_tables.items():
+                              for symbol in symbols:
+                                  try:
+                                      # Get instrument ID
+                                      instrument_id = await conn.fetchval(
+                                          "SELECT id FROM dev_instruments WHERE symbol = $1", symbol
+                                      )
+                                      if not instrument_id:
+                                          continue
+                                      
+                                      # Check data completeness
+                                      count = await conn.fetchval(f"""
+                                          SELECT COUNT(*) FROM {table_name}
+                                          WHERE instrument_id = $1 
+                                            AND date BETWEEN $2 AND $3
+                                      """, instrument_id, start_date, end_date)
+                                      
+                                      expected_days = 22  # Rough estimate of trading days in 30 days
+                                      coverage = count / expected_days if expected_days > 0 else 0
+                                      
+                                      if coverage < self.quality_thresholds['min_data_coverage']:
+                                          severity = ValidationSeverity.CRITICAL if coverage < 0.5 else ValidationSeverity.WARNING
+                                          all_results.append(ValidationResult(
+                                              category=ValidationCategory.COMPLETENESS,
+                                              severity=severity,
+                                              test_name=f"{vendor}_completeness",
+                                              description=f"Low data coverage for {symbol} in {vendor}",
+                                              passed=False,
+                                              details={
+                                                  'vendor': vendor,
+                                                  'symbol': symbol,
+                                                  'coverage_ratio': coverage,
+                                                  'actual_records': count,
+                                                  'expected_records': expected_days
+                                              },
+                                              affected_records=expected_days - count,
+                                              recommendation=f"Backfill {expected_days - count} missing records for {symbol}"
+                                          ))
+                                      else:
+                                          all_results.append(ValidationResult(
+                                              category=ValidationCategory.COMPLETENESS,
+                                              severity=ValidationSeverity.INFO,
+                                              test_name=f"{vendor}_completeness",
+                                              description=f"Good data coverage for {symbol} in {vendor}",
+                                              passed=True,
+                                              details={'vendor': vendor, 'symbol': symbol, 'coverage_ratio': coverage}
+                                          ))
+                                      
+                                      # Check data freshness
+                                      latest_date = await conn.fetchval(f"""
+                                          SELECT MAX(date) FROM {table_name}
+                                          WHERE instrument_id = $1
+                                      """, instrument_id)
+                                      
+                                      if latest_date:
+                                          days_stale = (end_date - latest_date).days
+                                          if days_stale > self.quality_thresholds['max_stale_days']:
+                                              all_results.append(ValidationResult(
+                                                  category=ValidationCategory.FRESHNESS,
+                                                  severity=ValidationSeverity.WARNING if days_stale <= 7 else ValidationSeverity.CRITICAL,
+                                                  test_name=f"{vendor}_freshness",
+                                                  description=f"Stale data for {symbol} in {vendor}",
+                                                  passed=False,
+                                                  details={
+                                                      'vendor': vendor,
+                                                      'symbol': symbol,
+                                                      'days_stale': days_stale,
+                                                      'latest_date': latest_date.isoformat()
+                                                  },
+                                                  recommendation=f"Update {symbol} data in {vendor} - {days_stale} days stale"
+                                              ))
+                                          else:
+                                              all_results.append(ValidationResult(
+                                                  category=ValidationCategory.FRESHNESS,
+                                                  severity=ValidationSeverity.INFO,
+                                                  test_name=f"{vendor}_freshness",
+                                                  description=f"Fresh data for {symbol} in {vendor}",
+                                                  passed=True,
+                                                  details={'vendor': vendor, 'symbol': symbol, 'days_stale': days_stale}
+                                              ))
+                                      
+                                  except Exception as e:
+                                      self.logger.error(f"Error validating {vendor}/{symbol}: {e}")
+                                      all_results.append(ValidationResult(
+                                          category=ValidationCategory.INTEGRITY,
+                                          severity=ValidationSeverity.CRITICAL,
+                                          test_name=f"{vendor}_validation_error",
+                                          description=f"Validation error for {symbol} in {vendor}",
+                                          passed=False,
+                                          details={'vendor': vendor, 'symbol': symbol, 'error': str(e)},
+                                          recommendation="Investigate validation framework issues"
+                                      ))
+                  finally:
+                      await pool.close()
+                  
+                  # Generate report
+                  return self._generate_data_quality_report(all_results, start_time)
+              
+              def _generate_data_quality_report(self, results: List[ValidationResult], start_time: datetime) -> DataQualityReport:
+                  total_tests = len(results)
+                  passed_tests = sum(1 for r in results if r.passed)
+                  failed_tests = total_tests - passed_tests
+                  
+                  critical_issues = sum(1 for r in results if r.severity == ValidationSeverity.CRITICAL and not r.passed)
+                  warning_issues = sum(1 for r in results if r.severity == ValidationSeverity.WARNING and not r.passed)
+                  info_issues = sum(1 for r in results if r.severity == ValidationSeverity.INFO and not r.passed)
+                  
+                  # Calculate overall score
+                  if total_tests == 0:
+                      overall_score = 100.0
+                  else:
+                      penalty_points = (critical_issues * 10) + (warning_issues * 5) + (info_issues * 1)
+                      max_possible_penalty = total_tests * 10
+                      overall_score = max(0, 100 - (penalty_points / max_possible_penalty * 100)) if max_possible_penalty > 0 else 100
+                  
+                  # Generate summary
+                  if critical_issues > 0:
+                      summary = f"⚠️  Data quality issues detected: {critical_issues} critical, {warning_issues} warnings"
+                  elif warning_issues > 0:
+                      summary = f"⚡ Data quality concerns: {warning_issues} warnings detected"
+                  else:
+                      summary = f"✅ Data quality is good: {passed_tests}/{total_tests} tests passed"
+                  
+                  return DataQualityReport(
+                      timestamp=datetime.now(),
+                      total_tests=total_tests,
+                      passed_tests=passed_tests,
+                      failed_tests=failed_tests,
+                      critical_issues=critical_issues,
+                      warning_issues=warning_issues,
+                      info_issues=info_issues,
+                      validation_results=results,
+                      overall_score=overall_score,
+                      summary=summary
+                  )
+          VALIDATOR_EOF
+          
+          echo "🔄 Running data quality validation job..."
+          cd /app && python src/monitoring/run_data_quality_validation.py \
+            --symbols AAPL MSFT GOOGL AMZN TSLA META NVDA JPM V MA UNH HD PG JNJ BAC \
+            --days 30 \
+            --fail-on-critical
+        env:
+        - name: DB_HOST
+          value: "postgres-simple"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+        - name: PYTHONPATH
+          value: "/app/src"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "800m"

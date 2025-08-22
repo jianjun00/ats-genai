@@ -1,0 +1,771 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: historical-2020-2022-backfill-script
+  namespace: ats-dev
+data:
+  environment.py: |
+    """Environment configuration"""
+    import os
+    
+    class Environment:
+        def __init__(self):
+            self.db_host = os.getenv('DB_HOST', 'postgres-simple')
+            self.db_port = os.getenv('DB_PORT', '5432')
+            self.db_user = os.getenv('DB_USER', 'postgres')
+            self.db_password = os.getenv('DB_PASSWORD', 'dev_password')
+            self.db_name = os.getenv('DB_NAME', 'dev_db')
+            
+        def get_database_url(self):
+            return f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+
+  run_historical_backfill.py: |
+    """
+    Historical 2020-2022 Daily Price Backfill Job
+    
+    Comprehensive backfill focusing on 2020-2022 data coverage with 
+    aggressive processing and data completeness validation.
+    """
+    import asyncio
+    import asyncpg
+    import logging
+    import json
+    import sys
+    import os
+    import psutil
+    import time
+    from datetime import date, datetime, timedelta
+    from decimal import Decimal
+    from collections import defaultdict, Counter
+    from statistics import mean, median
+    from environment import Environment
+
+    class HistoricalBackfillProcessor:
+        def __init__(self):
+            self.env = Environment()
+            self.conn = None
+            self.start_time = datetime.now()
+            self.logger = logging.getLogger(__name__)
+            
+            # Configuration for historical backfill
+            self.batch_size = int(os.getenv('BATCH_SIZE', '20'))
+            self.start_date = date.fromisoformat(os.getenv('START_DATE', '2020-01-01'))
+            self.end_date = date.fromisoformat(os.getenv('END_DATE', '2022-12-31'))
+            self.symbol_limit = int(os.getenv('SYMBOL_LIMIT', '1000'))  # More symbols for backfill
+            self.skip_existing = os.getenv('SKIP_EXISTING', 'false').lower() == 'true'  # Don't skip for backfill
+            self.min_vendor_requirement = int(os.getenv('MIN_VENDORS', '2'))  # Require at least 2 vendors
+            
+            # Enhanced statistics tracking for historical backfill
+            self.stats = {
+                'total_symbols': 0,
+                'total_dates': 0,
+                'total_price_points': 0,
+                'successful_unifications': 0,
+                'failed_unifications': 0,
+                'validation_failures': 0,
+                'vendor_disagreements': 0,
+                'statistical_outliers': 0,
+                'manual_review_flagged': 0,
+                'holiday_exclusions': 0,
+                'polygon_coverage': 0,
+                'tiingo_coverage': 0,
+                'fmp_coverage': 0,
+                'confidence_scores': [],
+                'vendor_counts': [],
+                'price_variances': [],
+                'statistical_scores': [],
+                'single_vendor_records': 0,
+                'multi_vendor_records': 0,
+                'database_queries': 0,
+                'processed_symbols': 0,
+                'skipped_existing': 0,
+                'backfilled_records': 0,
+                'data_gaps_filled': 0
+            }
+            
+        def safe_float(self, value):
+            """Safely convert value to float, handling Decimal and None"""
+            if value is None:
+                return None
+            if isinstance(value, (Decimal, float, int)):
+                return float(value)
+            return float(value)
+                
+        async def connect(self):
+            """Connect to database"""
+            self.conn = await asyncpg.connect(self.env.get_database_url())
+            self.logger.info("✅ Connected to database")
+            
+        async def disconnect(self):
+            """Disconnect from database"""
+            if self.conn:
+                await self.conn.close()
+                
+        async def create_run_record(self):
+            """Create detailed run record for historical backfill"""
+            parameters = {
+                'start_date': self.start_date.isoformat(),
+                'end_date': self.end_date.isoformat(),
+                'batch_size': self.batch_size,
+                'symbol_limit': self.symbol_limit,
+                'skip_existing': self.skip_existing,
+                'min_vendor_requirement': self.min_vendor_requirement,
+                'backfill_scope': '2020_2022_historical'
+            }
+            
+            query = """
+                INSERT INTO dev_runs (
+                    run_type, status, command_line, environment, parameters, 
+                    created_by, date_range_start, date_range_end
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                RETURNING id
+            """
+            
+            run_id = await self.conn.fetchval(
+                query,
+                'historical_2020_2022_backfill',
+                'running',
+                ' '.join(sys.argv),
+                'dev',
+                json.dumps(parameters),
+                'historical_backfill_2020_2022_job',
+                self.start_date,
+                self.end_date
+            )
+            
+            self.stats['database_queries'] += 1
+            self.logger.info(f"📋 Created run record: {run_id}")
+            return run_id
+            
+        async def get_comprehensive_universe(self):
+            """Get comprehensive symbol universe with data quality prioritization"""
+            # Get symbols with good data coverage during 2020-2022 period
+            query = """
+                WITH historical_coverage AS (
+                    SELECT 
+                        i.symbol, 
+                        i.id as instrument_id,
+                        COUNT(DISTINCT p.date) as polygon_historical_days,
+                        COUNT(DISTINCT t.date) as tiingo_historical_days,
+                        COUNT(DISTINCT f.date) as fmp_historical_days,
+                        MIN(GREATEST(
+                            COALESCE(p.date, '2020-01-01'::date),
+                            COALESCE(t.date, '2020-01-01'::date),
+                            COALESCE(f.date, '2020-01-01'::date)
+                        )) as earliest_date,
+                        MAX(GREATEST(
+                            COALESCE(p.date, '2020-01-01'::date),
+                            COALESCE(t.date, '2020-01-01'::date),
+                            COALESCE(f.date, '2020-01-01'::date)
+                        )) as latest_date
+                    FROM dev_instruments i
+                    LEFT JOIN dev_daily_prices_polygon p ON i.id = p.instrument_id 
+                        AND p.date BETWEEN '2020-01-01'::date AND '2022-12-31'::date
+                    LEFT JOIN dev_daily_prices_tiingo t ON i.id = t.instrument_id 
+                        AND t.date BETWEEN '2020-01-01'::date AND '2022-12-31'::date
+                    LEFT JOIN dev_daily_prices_fmp f ON i.id = f.instrument_id 
+                        AND f.date BETWEEN '2020-01-01'::date AND '2022-12-31'::date
+                    WHERE i.symbol IS NOT NULL
+                    GROUP BY i.symbol, i.id
+                ),
+                ranked_symbols AS (
+                    SELECT 
+                        symbol,
+                        instrument_id,
+                        polygon_historical_days + tiingo_historical_days + fmp_historical_days as total_historical_coverage,
+                        earliest_date,
+                        latest_date,
+                        CASE 
+                            WHEN polygon_historical_days > 0 AND tiingo_historical_days > 0 AND fmp_historical_days > 0 THEN 3
+                            WHEN (polygon_historical_days > 0 AND tiingo_historical_days > 0) OR 
+                                 (polygon_historical_days > 0 AND fmp_historical_days > 0) OR
+                                 (tiingo_historical_days > 0 AND fmp_historical_days > 0) THEN 2
+                            ELSE 1
+                        END as vendor_count,
+                        ROW_NUMBER() OVER (
+                            ORDER BY 
+                                (polygon_historical_days + tiingo_historical_days + fmp_historical_days) DESC,
+                                CASE 
+                                    WHEN polygon_historical_days > 0 AND tiingo_historical_days > 0 AND fmp_historical_days > 0 THEN 3
+                                    WHEN (polygon_historical_days > 0 AND tiingo_historical_days > 0) OR 
+                                         (polygon_historical_days > 0 AND fmp_historical_days > 0) OR
+                                         (tiingo_historical_days > 0 AND fmp_historical_days > 0) THEN 2
+                                    ELSE 1
+                                END DESC,
+                                symbol
+                        ) as priority_rank
+                    FROM historical_coverage
+                    WHERE polygon_historical_days + tiingo_historical_days + fmp_historical_days >= 50  -- Minimum historical data
+                )
+                SELECT symbol, instrument_id, total_historical_coverage, vendor_count
+                FROM ranked_symbols
+                WHERE priority_rank <= $1 AND vendor_count >= $2
+                ORDER BY priority_rank
+            """
+            
+            rows = await self.conn.fetch(query, self.symbol_limit, self.min_vendor_requirement)
+            self.stats['database_queries'] += 1
+            
+            symbols = [(row['symbol'], row['instrument_id']) for row in rows]
+            self.stats['total_symbols'] = len(symbols)
+            
+            self.logger.info(f"📊 Selected {len(symbols)} symbols with good historical coverage")
+            if rows:
+                self.logger.info(f"📈 Coverage range: {min(row['total_historical_coverage'] for row in rows)} to {max(row['total_historical_coverage'] for row in rows)} historical days")
+                self.logger.info(f"🏪 Vendor coverage: {min(row['vendor_count'] for row in rows)} to {max(row['vendor_count'] for row in rows)} vendors per symbol")
+            
+            return symbols
+            
+        async def get_historical_trading_dates(self):
+            """Get all trading dates for 2020-2022 historical period"""
+            dates = []
+            current_date = self.start_date
+            
+            while current_date <= self.end_date:
+                # Skip weekends (Saturday=5, Sunday=6)
+                if current_date.weekday() < 5:
+                    dates.append(current_date)
+                current_date += timedelta(days=1)
+                
+            self.stats['total_dates'] = len(dates)
+            self.stats['total_price_points'] = self.stats['total_symbols'] * len(dates)
+            
+            self.logger.info(f"📅 Processing {len(dates)} historical trading dates ({self.start_date} to {self.end_date})")
+            self.logger.info(f"📊 Total backfill scope: {self.stats['total_price_points']:,} price points")
+            return dates
+            
+        async def fetch_vendor_prices(self, instrument_id, target_date):
+            """Fetch prices from all vendor tables with proper type handling"""
+            vendor_prices = {}
+            
+            # Polygon
+            try:
+                row = await self.conn.fetchrow("""
+                    SELECT open_price, high_price, low_price, close, volume
+                    FROM dev_daily_prices_polygon 
+                    WHERE instrument_id = $1 AND date = $2
+                """, instrument_id, target_date)
+                if row and row['close']:
+                    vendor_prices['polygon'] = {
+                        'open_price': self.safe_float(row['open_price']),
+                        'high_price': self.safe_float(row['high_price']),
+                        'low_price': self.safe_float(row['low_price']),
+                        'close': self.safe_float(row['close']),
+                        'volume': int(row['volume']) if row['volume'] else 0
+                    }
+                    self.stats['polygon_coverage'] += 1
+                self.stats['database_queries'] += 1
+            except Exception as e:
+                self.logger.debug(f"Polygon query error: {e}")
+                
+            # Tiingo  
+            try:
+                row = await self.conn.fetchrow("""
+                    SELECT open_price, high_price, low_price, close, adj_close, volume
+                    FROM dev_daily_prices_tiingo 
+                    WHERE instrument_id = $1 AND date = $2
+                """, instrument_id, target_date)
+                if row and row['close']:
+                    vendor_prices['tiingo'] = {
+                        'open_price': self.safe_float(row['open_price']),
+                        'high_price': self.safe_float(row['high_price']),
+                        'low_price': self.safe_float(row['low_price']),
+                        'close': self.safe_float(row['close']),
+                        'adj_close': self.safe_float(row['adj_close']),
+                        'volume': int(row['volume']) if row['volume'] else 0
+                    }
+                    self.stats['tiingo_coverage'] += 1
+                self.stats['database_queries'] += 1
+            except Exception as e:
+                self.logger.debug(f"Tiingo query error: {e}")
+                
+            # FMP
+            try:
+                row = await self.conn.fetchrow("""
+                    SELECT open_price, high_price, low_price, close, adj_close, volume
+                    FROM dev_daily_prices_fmp 
+                    WHERE instrument_id = $1 AND date = $2
+                """, instrument_id, target_date)
+                if row and row['close']:
+                    vendor_prices['fmp'] = {
+                        'open_price': self.safe_float(row['open_price']),
+                        'high_price': self.safe_float(row['high_price']),
+                        'low_price': self.safe_float(row['low_price']),
+                        'close': self.safe_float(row['close']),
+                        'adj_close': self.safe_float(row['adj_close']),
+                        'volume': int(row['volume']) if row['volume'] else 0
+                    }
+                    self.stats['fmp_coverage'] += 1
+                self.stats['database_queries'] += 1
+            except Exception as e:
+                self.logger.debug(f"FMP query error: {e}")
+                
+            return vendor_prices
+            
+        async def calculate_historical_stats(self, instrument_id, target_date):
+            """Calculate statistical baseline for validation using extended lookback"""
+            lookback_start = target_date - timedelta(days=90)  # Extended lookback for historical data
+            
+            query = """
+                WITH vendor_prices AS (
+                    SELECT date, CAST(close AS DOUBLE PRECISION) as close 
+                    FROM dev_daily_prices_polygon 
+                    WHERE instrument_id = $1 AND date BETWEEN $2 AND $3 AND close IS NOT NULL
+                    UNION ALL
+                    SELECT date, CAST(close AS DOUBLE PRECISION) as close 
+                    FROM dev_daily_prices_tiingo 
+                    WHERE instrument_id = $1 AND date BETWEEN $2 AND $3 AND close IS NOT NULL
+                    UNION ALL
+                    SELECT date, CAST(close AS DOUBLE PRECISION) as close 
+                    FROM dev_daily_prices_fmp 
+                    WHERE instrument_id = $1 AND date BETWEEN $2 AND $3 AND close IS NOT NULL
+                )
+                SELECT AVG(close) as mean_price, STDDEV(close) as std_price, COUNT(*) as sample_size
+                FROM (
+                    SELECT date, AVG(close) as close
+                    FROM vendor_prices
+                    GROUP BY date
+                ) daily_avg
+            """
+            
+            row = await self.conn.fetchrow(query, instrument_id, lookback_start, target_date)
+            self.stats['database_queries'] += 1
+            
+            if row and row['sample_size'] and row['sample_size'] > 5:  # Lower requirement for historical
+                return {
+                    'mean_price': self.safe_float(row['mean_price']) if row['mean_price'] else 0.0,
+                    'std_price': self.safe_float(row['std_price']) if row['std_price'] else 0.0,
+                    'sample_size': int(row['sample_size'])
+                }
+            return None
+            
+        def validate_price_statistically(self, price, historical_stats):
+            """Perform statistical validation with relaxed thresholds for historical data"""
+            if not historical_stats or not historical_stats['std_price']:
+                return {
+                    'is_valid': True,
+                    'status': 'valid',
+                    'confidence': 0.6,
+                    'z_score': None,
+                    'notes': 'No historical statistics available'
+                }
+                
+            mean_price = historical_stats['mean_price']
+            std_price = historical_stats['std_price']
+            
+            z_score = abs((price - mean_price) / std_price) if std_price > 0 else 0
+            
+            # Relaxed thresholds for historical backfill
+            if z_score > 8.0:  # Very extreme outlier
+                self.stats['statistical_outliers'] += 1
+                return {
+                    'is_valid': False,
+                    'status': 'outlier_statistical', 
+                    'confidence': 0.0,
+                    'z_score': z_score,
+                    'notes': f'Extreme historical outlier: {z_score:.2f}-sigma'
+                }
+            elif z_score > 6.0:  # Flagged for review
+                self.stats['manual_review_flagged'] += 1
+                return {
+                    'is_valid': True,  # Still accept but flag
+                    'status': 'valid',
+                    'confidence': 0.3,
+                    'z_score': z_score,
+                    'notes': f'Historical data flagged: {z_score:.2f}-sigma'
+                }
+            else:
+                confidence = max(0.5, 1.0 - (z_score / 6.0) * 0.3)
+                return {
+                    'is_valid': True,
+                    'status': 'valid',
+                    'confidence': confidence,
+                    'z_score': z_score,
+                    'notes': f'Historical data valid: {z_score:.2f}-sigma'
+                }
+                
+        def reconcile_vendor_prices(self, vendor_prices):
+            """Reconcile prices from multiple vendors with relaxed disagreement tolerance"""
+            if not vendor_prices:
+                self.stats['failed_unifications'] += 1
+                return None
+                
+            vendor_count = len(vendor_prices)
+            self.stats['vendor_counts'].append(vendor_count)
+            
+            if vendor_count == 1:
+                self.stats['single_vendor_records'] += 1
+            else:
+                self.stats['multi_vendor_records'] += 1
+                
+            # Extract close prices for analysis
+            close_prices = []
+            for vp in vendor_prices.values():
+                if vp['close'] and vp['close'] > 0:
+                    close_prices.append(vp['close'])
+            
+            if not close_prices:
+                self.stats['failed_unifications'] += 1
+                return None
+                
+            # Calculate consensus price
+            if len(close_prices) == 1:
+                consensus_price = close_prices[0]
+                price_variance = 0.0
+                confidence = 0.5  # Accept single vendor for historical backfill
+            else:
+                consensus_price = mean(close_prices)
+                price_variance = max(close_prices) - min(close_prices)
+                max_deviation_pct = (price_variance / consensus_price) if consensus_price > 0 else 0
+                
+                self.stats['price_variances'].append(price_variance)
+                
+                # More relaxed disagreement threshold for historical data
+                if max_deviation_pct > 0.10:  # 10% disagreement threshold (was 5%)
+                    self.stats['vendor_disagreements'] += 1
+                    # Still accept but lower confidence
+                    confidence = 0.3
+                else:
+                    confidence = min(1.0, 0.7 + (vendor_count * 0.05))
+                
+            # Select primary vendor (first available)
+            primary_vendor = list(vendor_prices.keys())[0]
+            primary_data = vendor_prices[primary_vendor]
+            
+            return {
+                'close': consensus_price,
+                'open_price': primary_data.get('open_price'),
+                'high_price': primary_data.get('high_price'),
+                'low_price': primary_data.get('low_price'),
+                'adj_close': primary_data.get('adj_close'),
+                'volume': primary_data.get('volume'),
+                'primary_vendor': primary_vendor,
+                'vendor_count': vendor_count,
+                'price_variance': price_variance,
+                'confidence': confidence,
+                'vendor_prices': {vendor: data['close'] for vendor, data in vendor_prices.items()}
+            }
+            
+        async def store_unified_price(self, run_id, instrument_id, target_date, unified_data, validation_result):
+            """Store unified price with all metadata"""
+            
+            # Get validation status ID
+            status_code = validation_result['status']
+            status_id = await self.conn.fetchval(
+                "SELECT id FROM dev_price_validation_status WHERE code = $1", status_code
+            )
+            self.stats['database_queries'] += 1
+            
+            if not status_id:
+                status_id = 1  # Default to 'valid'
+                
+            # Check if this is a new record (backfill tracking)
+            existing = await self.conn.fetchval(
+                "SELECT id FROM dev_daily_prices WHERE instrument_id = $1 AND date = $2",
+                instrument_id, target_date
+            )
+            
+            # Insert unified price
+            query = """
+                INSERT INTO dev_daily_prices (
+                    instrument_id, date, open_price, high_price, low_price, close, adj_close, volume,
+                    validation_status_id, run_id, primary_vendor, vendor_count,
+                    price_variance, statistical_score, confidence_score,
+                    polygon_price, tiingo_price, fmp_price, validation_notes
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+                ON CONFLICT (instrument_id, date) 
+                DO UPDATE SET
+                    close = EXCLUDED.close,
+                    confidence_score = EXCLUDED.confidence_score,
+                    run_id = EXCLUDED.run_id,
+                    updated_at = now()
+                RETURNING id
+            """
+            
+            unified_id = await self.conn.fetchval(
+                query,
+                instrument_id, target_date,
+                unified_data.get('open_price'), unified_data.get('high_price'), 
+                unified_data.get('low_price'), unified_data['close'], 
+                unified_data.get('adj_close'), unified_data.get('volume'),
+                status_id, run_id, unified_data['primary_vendor'], unified_data['vendor_count'],
+                unified_data.get('price_variance'), validation_result.get('z_score'),
+                unified_data['confidence'],
+                unified_data['vendor_prices'].get('polygon'),
+                unified_data['vendor_prices'].get('tiingo'),
+                unified_data['vendor_prices'].get('fmp'),
+                validation_result['notes']
+            )
+            
+            self.stats['database_queries'] += 1
+            
+            if validation_result['is_valid']:
+                self.stats['successful_unifications'] += 1
+                self.stats['confidence_scores'].append(unified_data['confidence'])
+                if validation_result.get('z_score'):
+                    self.stats['statistical_scores'].append(validation_result['z_score'])
+                    
+                # Track backfill progress
+                if not existing:
+                    self.stats['backfilled_records'] += 1
+                    self.stats['data_gaps_filled'] += 1
+            else:
+                self.stats['validation_failures'] += 1
+                
+            return unified_id
+            
+        async def process_symbol_batch(self, run_id, symbol_batch, trading_dates):
+            """Process a batch of symbols for all historical trading dates"""
+            batch_start = time.time()
+            
+            for symbol, instrument_id in symbol_batch:
+                symbol_start = time.time()
+                processed_dates = 0
+                successful_dates = 0
+                backfilled_dates = 0
+                
+                try:
+                    for target_date in trading_dates:
+                        try:
+                            # For backfill, we check but don't always skip existing
+                            existing_id = None
+                            if self.skip_existing:
+                                existing_id = await self.conn.fetchval(
+                                    "SELECT id FROM dev_daily_prices WHERE instrument_id = $1 AND date = $2",
+                                    instrument_id, target_date
+                                )
+                                if existing_id:
+                                    self.stats['skipped_existing'] += 1
+                                    continue
+                                    
+                            # Fetch vendor prices
+                            vendor_prices = await self.fetch_vendor_prices(instrument_id, target_date)
+                            
+                            if not vendor_prices:
+                                self.stats['holiday_exclusions'] += 1
+                                continue
+                                
+                            # Check vendor requirement for historical data
+                            if len(vendor_prices) < self.min_vendor_requirement:
+                                continue
+                                
+                            # Reconcile vendor prices
+                            unified_data = self.reconcile_vendor_prices(vendor_prices)
+                            if not unified_data:
+                                continue
+                                
+                            # Statistical validation
+                            historical_stats = await self.calculate_historical_stats(instrument_id, target_date)
+                            validation_result = self.validate_price_statistically(
+                                unified_data['close'], historical_stats
+                            )
+                            
+                            # Store unified price
+                            await self.store_unified_price(
+                                run_id, instrument_id, target_date, unified_data, validation_result
+                            )
+                            
+                            processed_dates += 1
+                            if validation_result['is_valid']:
+                                successful_dates += 1
+                                
+                            if not existing_id:
+                                backfilled_dates += 1
+                            
+                        except Exception as e:
+                            self.logger.debug(f"Error processing {symbol} on {target_date}: {e}")
+                            self.stats['failed_unifications'] += 1
+                            
+                    symbol_duration = time.time() - symbol_start
+                    self.stats['processed_symbols'] += 1
+                    
+                    if processed_dates > 0:
+                        self.logger.info(f"✅ {symbol}: {successful_dates}/{processed_dates} successful, {backfilled_dates} backfilled in {symbol_duration:.1f}s")
+                    else:
+                        self.logger.debug(f"⏭️  {symbol}: No historical data to process")
+                        
+                except Exception as e:
+                    self.logger.error(f"❌ {symbol}: Failed completely - {e}")
+                    
+            batch_duration = time.time() - batch_start
+            self.logger.info(f"📦 Historical batch completed in {batch_duration:.1f}s")
+            
+        async def update_run_record_with_progress(self, run_id):
+            """Update run record with current progress statistics"""
+            try:
+                progress_stats = {
+                    'processed_symbols': self.stats['processed_symbols'],
+                    'total_symbols': self.stats['total_symbols'],
+                    'successful_unifications': self.stats['successful_unifications'],
+                    'backfilled_records': self.stats['backfilled_records'],
+                    'progress_pct': (self.stats['processed_symbols'] / max(1, self.stats['total_symbols'])) * 100,
+                    'skipped_existing': self.stats['skipped_existing'],
+                    'data_gaps_filled': self.stats['data_gaps_filled'],
+                    'vendor_coverage': {
+                        'polygon': self.stats['polygon_coverage'],
+                        'tiingo': self.stats['tiingo_coverage'],
+                        'fmp': self.stats['fmp_coverage']
+                    }
+                }
+                
+                await self.conn.execute(
+                    "UPDATE dev_runs SET results = $1 WHERE id = $2",
+                    json.dumps({'progress': progress_stats}),
+                    run_id
+                )
+            except Exception as e:
+                self.logger.debug(f"Progress update error: {e}")
+                
+        async def run(self):
+            """Main execution method for historical backfill"""
+            self.logger.info(f"🚀 Starting historical 2020-2022 backfill processing")
+            self.logger.info(f"📅 Date range: {self.start_date} to {self.end_date}")
+            self.logger.info(f"📊 Batch size: {self.batch_size}")
+            self.logger.info(f"🎯 Symbol limit: {self.symbol_limit}")
+            self.logger.info(f"🏪 Min vendor requirement: {self.min_vendor_requirement}")
+            self.logger.info(f"🔄 Skip existing: {self.skip_existing}")
+            
+            run_id = None
+            
+            try:
+                await self.connect()
+                
+                # Create run record
+                run_id = await self.create_run_record()
+                
+                # Get symbols and dates to process
+                symbols = await self.get_comprehensive_universe()
+                trading_dates = await self.get_historical_trading_dates()
+                
+                self.logger.info(f"📈 Total backfill scope: {len(symbols)} symbols × {len(trading_dates)} dates = {len(symbols) * len(trading_dates):,} price points")
+                
+                # Process in batches
+                total_batches = (len(symbols) + self.batch_size - 1) // self.batch_size
+                
+                for batch_num in range(total_batches):
+                    start_idx = batch_num * self.batch_size
+                    end_idx = min(start_idx + self.batch_size, len(symbols))
+                    batch_symbols = symbols[start_idx:end_idx]
+                    
+                    self.logger.info(f"📦 Processing historical batch {batch_num + 1}/{total_batches} ({len(batch_symbols)} symbols)")
+                    
+                    await self.process_symbol_batch(run_id, batch_symbols, trading_dates)
+                    
+                    # Update progress every 3 batches
+                    if (batch_num + 1) % 3 == 0 or (batch_num + 1) == total_batches:
+                        await self.update_run_record_with_progress(run_id)
+                        progress_pct = ((batch_num + 1) / total_batches) * 100
+                        self.logger.info(f"📊 Backfill Progress: {progress_pct:.1f}% ({self.stats['backfilled_records']} records backfilled)")
+                
+                # Final statistics and completion
+                final_summary = {
+                    'total_symbols': self.stats['total_symbols'],
+                    'processed_symbols': self.stats['processed_symbols'], 
+                    'total_dates': self.stats['total_dates'],
+                    'total_price_points': self.stats['total_price_points'],
+                    'successful_unifications': self.stats['successful_unifications'],
+                    'backfilled_records': self.stats['backfilled_records'],
+                    'data_gaps_filled': self.stats['data_gaps_filled'],
+                    'skipped_existing': self.stats['skipped_existing'],
+                    'vendor_coverage': {
+                        'polygon': self.stats['polygon_coverage'],
+                        'tiingo': self.stats['tiingo_coverage'],
+                        'fmp': self.stats['fmp_coverage']
+                    },
+                    'quality_metrics': {
+                        'average_confidence': mean(self.stats['confidence_scores']) if self.stats['confidence_scores'] else 0.0,
+                        'statistical_outliers': self.stats['statistical_outliers'],
+                        'vendor_disagreements': self.stats['vendor_disagreements']
+                    }
+                }
+                
+                await self.conn.execute(
+                    "UPDATE dev_runs SET status = $1, end_time = now(), results = $2 WHERE id = $3",
+                    'completed', json.dumps(final_summary), run_id
+                )
+                
+                self.logger.info(f"🎉 Historical 2020-2022 backfill completed!")
+                self.logger.info(f"📊 Final Results:")
+                self.logger.info(f"   Symbols processed: {self.stats['processed_symbols']}/{self.stats['total_symbols']}")
+                self.logger.info(f"   Records backfilled: {self.stats['backfilled_records']:,}")
+                self.logger.info(f"   Successful unifications: {self.stats['successful_unifications']:,}")
+                self.logger.info(f"   Data gaps filled: {self.stats['data_gaps_filled']:,}")
+                self.logger.info(f"   Vendor coverage: P:{self.stats['polygon_coverage']}, T:{self.stats['tiingo_coverage']}, F:{self.stats['fmp_coverage']}")
+                
+            except Exception as e:
+                self.logger.error(f"💥 Historical backfill failed: {e}")
+                if run_id:
+                    await self.conn.execute(
+                        "UPDATE dev_runs SET status = $1, error_message = $2 WHERE id = $3",
+                        'failed', str(e), run_id
+                    )
+                raise
+            finally:
+                await self.disconnect()
+
+    async def main():
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s'
+        )
+        
+        processor = HistoricalBackfillProcessor()
+        await processor.run()
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: historical-2020-2022-backfill
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      containers:
+      - name: historical-backfill
+        image: python:3.12-slim
+        command: ["/bin/bash"]
+        args:
+          - -c
+          - |
+            echo "📦 Installing dependencies..."
+            pip install asyncpg psutil
+            
+            echo "🔧 Running historical 2020-2022 backfill..."
+            cd /scripts
+            python run_historical_backfill.py
+            
+            echo "✅ Historical backfill completed!"
+        env:
+        - name: START_DATE
+          value: "2020-01-01"
+        - name: END_DATE
+          value: "2022-12-31"  # Complete 2020-2022 coverage
+        - name: BATCH_SIZE
+          value: "15"  # Smaller batches for historical processing
+        - name: SYMBOL_LIMIT
+          value: "1000"  # Large universe for comprehensive backfill
+        - name: SKIP_EXISTING
+          value: "false"  # Don't skip existing for comprehensive backfill
+        - name: MIN_VENDORS
+          value: "2"  # Require at least 2 vendors for quality
+        resources:
+          requests:
+            memory: "6Gi"
+            cpu: "3000m"
+          limits:
+            memory: "12Gi"
+            cpu: "6000m"
+        volumeMounts:
+        - name: script-volume
+          mountPath: /scripts
+      volumes:
+      - name: script-volume
+        configMap:
+          name: historical-2020-2022-backfill-script
+      restartPolicy: Never
+  backoffLimit: 2

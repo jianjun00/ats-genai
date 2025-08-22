@@ -1,0 +1,226 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: compare-tiingo-polygon-prices
+  namespace: ats-dev
+  labels:
+    app: ats-genai
+    component: price-comparison
+spec:
+  ttlSecondsAfterFinished: 7200
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: price-comparison
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "Installing dependencies..."
+          pip install --no-cache-dir asyncpg
+          
+          echo "Comparing Tiingo vs Polygon prices..."
+          cat > /tmp/compare_prices.py << 'EOF'
+          import asyncio
+          import asyncpg
+          from datetime import date, timedelta
+          
+          async def compare_tiingo_polygon_prices():
+              """Compare AAPL prices between Tiingo and Polygon data sources"""
+              
+              pool = await asyncpg.create_pool(
+                  host="postgres-simple",
+                  port=5432,
+                  user="postgres",
+                  password="dev_password",
+                  database="dev_db",
+                  min_size=1,
+                  max_size=3
+              )
+              
+              try:
+                  async with pool.acquire() as conn:
+                      print("\n=== TIINGO vs POLYGON PRICE COMPARISON ===")
+                      
+                      # Check what tables we have for price data
+                      tables = await conn.fetch("""
+                          SELECT table_name 
+                          FROM information_schema.tables 
+                          WHERE table_schema = 'public' 
+                            AND table_name LIKE '%price%'
+                          ORDER BY table_name
+                      """)
+                      
+                      print("Available price tables:")
+                      for table in tables:
+                          print(f"  - {table['table_name']}")
+                      
+                      # Compare AAPL prices from both sources
+                      print(f"\n=== AAPL PRICE COMPARISON (August 1-18, 2025) ===")
+                      
+                      comparison_data = await conn.fetch("""
+                          SELECT 
+                              COALESCE(p.date, t.date) as date,
+                              p.close as polygon_close,
+                              t.close as tiingo_close,
+                              p.volume as polygon_volume,
+                              t.volume as tiingo_volume,
+                              CASE 
+                                  WHEN p.close IS NOT NULL AND t.close IS NOT NULL 
+                                  THEN ABS(p.close - t.close) 
+                                  ELSE NULL 
+                              END as price_diff,
+                              CASE 
+                                  WHEN p.close IS NOT NULL AND t.close IS NOT NULL AND t.close > 0
+                                  THEN ROUND(((p.close - t.close) / t.close * 100)::numeric, 2)
+                                  ELSE NULL 
+                              END as percent_diff
+                          FROM (
+                              SELECT date, close, volume, instrument_id
+                              FROM dev_daily_prices_polygon p2
+                              JOIN dev_instruments i2 ON p2.instrument_id = i2.id
+                              WHERE i2.symbol = 'AAPL'
+                                AND p2.date >= $1
+                                AND p2.date <= $2
+                          ) p
+                          FULL OUTER JOIN (
+                              SELECT date, close, volume, instrument_id  
+                              FROM dev_daily_prices_tiingo t2
+                              JOIN dev_instruments i3 ON t2.instrument_id = i3.id
+                              WHERE i3.symbol = 'AAPL'
+                                AND t2.date >= $1
+                                AND t2.date <= $2
+                          ) t ON p.date = t.date
+                          ORDER BY COALESCE(p.date, t.date) DESC
+                      """, date(2025, 8, 1), date(2025, 8, 18))
+                      
+                      print("Date       | Polygon  | Tiingo   | Difference | % Diff | P.Volume   | T.Volume")
+                      print("-----------|----------|----------|------------|--------|------------|----------")
+                      
+                      total_days = 0
+                      total_diff = 0
+                      max_diff = 0
+                      max_diff_date = None
+                      
+                      for row in comparison_data:
+                          date_str = str(row['date'])
+                          polygon_price = f"${float(row['polygon_close']):.2f}" if row['polygon_close'] else "N/A"
+                          tiingo_price = f"${float(row['tiingo_close']):.2f}" if row['tiingo_close'] else "N/A"
+                          
+                          if row['price_diff'] is not None:
+                              price_diff = f"${float(row['price_diff']):.2f}"
+                              percent_diff = f"{float(row['percent_diff']):.1f}%"
+                              total_days += 1
+                              total_diff += float(row['price_diff'])
+                              
+                              if float(row['price_diff']) > max_diff:
+                                  max_diff = float(row['price_diff'])
+                                  max_diff_date = date_str
+                          else:
+                              price_diff = "N/A"
+                              percent_diff = "N/A"
+                          
+                          polygon_vol = f"{row['polygon_volume']:,}" if row['polygon_volume'] else "N/A"
+                          tiingo_vol = f"{row['tiingo_volume']:,}" if row['tiingo_volume'] else "N/A"
+                          
+                          print(f"{date_str} | {polygon_price:8s} | {tiingo_price:8s} | {price_diff:10s} | {percent_diff:6s} | {polygon_vol:10s} | {tiingo_vol:10s}")
+                      
+                      # Summary statistics
+                      if total_days > 0:
+                          avg_diff = total_diff / total_days
+                          print(f"\nSUMMARY:")
+                          print(f"  Days compared: {total_days}")
+                          print(f"  Average price difference: ${avg_diff:.2f}")
+                          print(f"  Maximum difference: ${max_diff:.2f} on {max_diff_date}")
+                          
+                          if avg_diff > 1.0:
+                              print(f"  🚨 SIGNIFICANT PRICE DIFFERENCES detected!")
+                              print(f"  🔍 This suggests data source inconsistencies")
+                          else:
+                              print(f"  ✅ Price differences are minimal")
+                      
+                      # Check which source has more recent data
+                      print(f"\n=== DATA FRESHNESS COMPARISON ===")
+                      
+                      freshness = await conn.fetchrow("""
+                          SELECT 
+                              (SELECT MAX(date) FROM dev_daily_prices_polygon 
+                               WHERE instrument_id IN (SELECT id FROM dev_instruments WHERE symbol = 'AAPL')) as polygon_latest,
+                              (SELECT MAX(date) FROM dev_daily_prices_tiingo 
+                               WHERE instrument_id IN (SELECT id FROM dev_instruments WHERE symbol = 'AAPL')) as tiingo_latest,
+                              (SELECT COUNT(*) FROM dev_daily_prices_polygon 
+                               WHERE instrument_id IN (SELECT id FROM dev_instruments WHERE symbol = 'AAPL')) as polygon_count,
+                              (SELECT COUNT(*) FROM dev_daily_prices_tiingo 
+                               WHERE instrument_id IN (SELECT id FROM dev_instruments WHERE symbol = 'AAPL')) as tiingo_count
+                      """)
+                      
+                      print(f"  Polygon latest date: {freshness['polygon_latest']}")
+                      print(f"  Tiingo latest date: {freshness['tiingo_latest']}")
+                      print(f"  Polygon total records: {freshness['polygon_count']}")
+                      print(f"  Tiingo total records: {freshness['tiingo_count']}")
+                      
+                      # Check if Tiingo has much higher prices (indicating potential split adjustment differences)
+                      print(f"\n=== SPLIT ADJUSTMENT CHECK ===")
+                      
+                      latest_comparison = await conn.fetchrow("""
+                          SELECT 
+                              p.close as polygon_latest,
+                              t.close as tiingo_latest,
+                              CASE 
+                                  WHEN p.close > 0 AND t.close > 0 
+                                  THEN ROUND((t.close / p.close)::numeric, 3)
+                                  ELSE NULL 
+                              END as ratio
+                          FROM dev_daily_prices_polygon p
+                          JOIN dev_instruments i1 ON p.instrument_id = i1.id
+                          JOIN dev_daily_prices_tiingo t ON p.date = t.date AND t.instrument_id = i1.id
+                          WHERE i1.symbol = 'AAPL'
+                            AND p.date = (SELECT MAX(date) FROM dev_daily_prices_polygon 
+                                         WHERE instrument_id = i1.id)
+                      """)
+                      
+                      if latest_comparison:
+                          polygon_price = float(latest_comparison['polygon_latest'])
+                          tiingo_price = float(latest_comparison['tiingo_latest'])
+                          ratio = float(latest_comparison['ratio']) if latest_comparison['ratio'] else 0
+                          
+                          print(f"  Latest Polygon price: ${polygon_price:.2f}")
+                          print(f"  Latest Tiingo price: ${tiingo_price:.2f}")
+                          print(f"  Tiingo/Polygon ratio: {ratio:.3f}")
+                          
+                          if ratio > 2.5:
+                              print(f"  🚨 MAJOR DISCREPANCY: Tiingo prices are {ratio:.1f}x higher!")
+                              print(f"  🔍 This suggests Polygon may have unadjusted prices")
+                          elif ratio > 1.1:
+                              print(f"  ⚠️  Tiingo prices are {((ratio-1)*100):.1f}% higher")
+                          elif ratio < 0.9:
+                              print(f"  ⚠️  Polygon prices are {((1/ratio-1)*100):.1f}% higher") 
+                          else:
+                              print(f"  ✅ Prices are reasonably close")
+                      
+                      print(f"\n=== CONCLUSION ===")
+                      print("If Tiingo shows much higher prices (~$200+), then:")
+                      print("1. Tiingo has proper split-adjusted prices ✅")
+                      print("2. Polygon may have unadjusted prices ❌")
+                      print("3. We should use Tiingo prices for market cap calculations")
+                      
+              finally:
+                  await pool.close()
+          
+          if __name__ == "__main__":
+              asyncio.run(compare_tiingo_polygon_prices())
+          EOF
+          
+          python /tmp/compare_prices.py
+        env:
+        - name: PYTHONPATH
+          value: "/tmp"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"

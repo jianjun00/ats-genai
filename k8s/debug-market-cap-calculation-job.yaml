@@ -1,0 +1,219 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: debug-market-cap-calculation
+  namespace: ats-dev
+  labels:
+    app: ats-genai  
+    component: market-cap-debug
+spec:
+  ttlSecondsAfterFinished: 7200
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: debug-calculation
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "Installing dependencies..."
+          pip install --no-cache-dir asyncpg aiohttp
+          
+          echo "Debugging market cap calculation accuracy..."
+          cat > /tmp/debug_market_cap.py << 'EOF'
+          import asyncio
+          import asyncpg
+          import aiohttp
+          import logging
+          from datetime import date, timedelta
+          
+          async def debug_market_cap_calculation():
+              """Debug why our market cap calculations are wrong"""
+              
+              logging.basicConfig(level=logging.INFO)
+              logger = logging.getLogger(__name__)
+              
+              try:
+                  # Connect to database
+                  pool = await asyncpg.create_pool(
+                      host="postgres-simple",
+                      port=5432,
+                      user="postgres", 
+                      password="dev_password",
+                      database="dev_db",
+                      min_size=1,
+                      max_size=3
+                  )
+                  logger.info("✅ Connected to database successfully")
+                  
+                  async with pool.acquire() as conn:
+                      
+                      # Debug 1: Check our current market cap calculations vs real-world
+                      logger.info("\n=== DEBUG 1: Market Cap Calculation Verification ===")
+                      
+                      debug_stocks = await conn.fetch("""
+                          SELECT 
+                              i.symbol,
+                              mc.market_cap/1000000000 as our_market_cap_billions,
+                              mc.shares_outstanding,
+                              p.close as price_used,
+                              mc.date,
+                              (mc.shares_outstanding * p.close)/1000000000 as recalc_market_cap_billions
+                          FROM dev_daily_market_cap mc
+                          JOIN dev_instruments i ON mc.instrument_id = i.id
+                          JOIN dev_daily_prices_polygon p ON mc.instrument_id = p.instrument_id AND mc.date = p.date
+                          WHERE mc.date = (SELECT MAX(date) FROM dev_daily_market_cap)
+                            AND i.symbol IN ('AAPL', 'MSFT', 'GOOGL', 'NVDA', 'AMZN')
+                          ORDER BY mc.market_cap DESC
+                      """)
+                      
+                      logger.info("Our stored market cap vs recalculated:")
+                      for stock in debug_stocks:
+                          logger.info(f"  {stock['symbol']:5s}: Stored=${stock['our_market_cap_billions']:6.1f}B, Recalc=${stock['recalc_market_cap_billions']:6.1f}B, Shares={stock['shares_outstanding']:,}, Price=${stock['price_used']:6.2f}")
+                      
+                      # Debug 2: Test fresh Polygon API calls for AAPL and MSFT  
+                      logger.info("\\n=== DEBUG 2: Fresh Polygon API Verification ===")
+                      
+                      # Check if we have API key
+                      import os
+                      polygon_api_key = os.environ.get("POLYGON_API_KEY")
+                      if polygon_api_key:
+                          logger.info("✅ Polygon API key available - testing fresh calls")
+                          
+                          test_symbols = ['AAPL', 'MSFT']
+                          for symbol in test_symbols:
+                              try:
+                                  # Get fresh shares outstanding from Polygon
+                                  url = f"https://api.polygon.io/v3/reference/tickers/{symbol}"
+                                  params = {"apikey": polygon_api_key}
+                                  
+                                  async with aiohttp.ClientSession() as session:
+                                      async with session.get(url, params=params) as response:
+                                          if response.status == 200:
+                                              data = await response.json()
+                                              results = data.get('results', {})
+                                              fresh_shares = results.get('share_class_shares_outstanding')
+                                              market_cap_api = results.get('market_cap')
+                                              
+                                              # Get our current price
+                                              our_price = await conn.fetchval("""
+                                                  SELECT p.close
+                                                  FROM dev_daily_prices_polygon p
+                                                  JOIN dev_instruments i ON p.instrument_id = i.id
+                                                  WHERE i.symbol = $1 
+                                                    AND p.date = (SELECT MAX(date) FROM dev_daily_prices_polygon)
+                                              """, symbol)
+                                              
+                                              if fresh_shares and our_price:
+                                                  fresh_calc = (fresh_shares * our_price) / 1000000000
+                                                  
+                                                  logger.info(f"\\n  {symbol} Fresh API Data:")
+                                                  logger.info(f"    API Shares Outstanding: {fresh_shares:,}")
+                                                  logger.info(f"    API Market Cap: ${market_cap_api/1000000000:.1f}B" if market_cap_api else "    API Market Cap: Not available")
+                                                  logger.info(f"    Our Price: ${our_price:.2f}")
+                                                  logger.info(f"    Fresh Calculated: ${fresh_calc:.1f}B")
+                                                  
+                                                  # Compare with expected real-world values
+                                                  if symbol == 'AAPL':
+                                                      logger.info(f"    Expected (Real World): ~$3,400B")
+                                                      accuracy = (fresh_calc / 3400) * 100
+                                                      logger.info(f"    Accuracy: {accuracy:.1f}% of expected")
+                                                  elif symbol == 'MSFT':
+                                                      logger.info(f"    Expected (Real World): ~$3,800B") 
+                                                      accuracy = (fresh_calc / 3800) * 100
+                                                      logger.info(f"    Accuracy: {accuracy:.1f}% of expected")
+                                          else:
+                                              logger.error(f"  Failed to get fresh data for {symbol}: HTTP {response.status}")
+                                              
+                                  await asyncio.sleep(0.2)  # Rate limiting
+                                  
+                              except Exception as e:
+                                  logger.error(f"  Error getting fresh data for {symbol}: {e}")
+                      else:
+                          logger.warning("❌ No Polygon API key - cannot verify fresh data")
+                      
+                      # Debug 3: Check for data consistency issues
+                      logger.info("\\n=== DEBUG 3: Data Consistency Check ===")
+                      
+                      # Check if we have multiple price sources that might be causing confusion
+                      price_sources = await conn.fetchrow("""
+                          SELECT 
+                              COUNT(DISTINCT p.instrument_id) as polygon_instruments,
+                              (SELECT COUNT(DISTINCT instrument_id) FROM dev_daily_prices_tiingo WHERE date >= $1) as tiingo_instruments,
+                              AVG(p.close) as avg_polygon_price,
+                              (SELECT AVG(close) FROM dev_daily_prices_tiingo WHERE date >= $1) as avg_tiingo_price
+                          FROM dev_daily_prices_polygon p
+                          WHERE p.date >= $1
+                      """, date.today() - timedelta(days=7))
+                      
+                      logger.info(f"  Polygon price data: {price_sources['polygon_instruments']} instruments, avg price ${price_sources['avg_polygon_price']:.2f}")
+                      logger.info(f"  Tiingo price data: {price_sources['tiingo_instruments']} instruments, avg price ${price_sources['avg_tiingo_price']:.2f}")
+                      
+                      # Check for obvious data errors
+                      suspicious_data = await conn.fetch("""
+                          SELECT 
+                              i.symbol,
+                              mc.market_cap/1000000000 as market_cap_billions,
+                              mc.shares_outstanding/1000000 as shares_millions,
+                              p.close as price
+                          FROM dev_daily_market_cap mc
+                          JOIN dev_instruments i ON mc.instrument_id = i.id
+                          JOIN dev_daily_prices_polygon p ON mc.instrument_id = p.instrument_id AND mc.date = p.date
+                          WHERE mc.date = (SELECT MAX(date) FROM dev_daily_market_cap)
+                            AND (
+                                p.close < 1  -- Suspiciously low price
+                                OR p.close > 50000  -- Suspiciously high price
+                                OR mc.shares_outstanding < 1000000  -- Too few shares
+                                OR mc.shares_outstanding > 50000000000  -- Too many shares
+                            )
+                          ORDER BY mc.market_cap DESC
+                      """)
+                      
+                      if suspicious_data:
+                          logger.info(f"\\n  Found {len(suspicious_data)} potentially suspicious data points:")
+                          for row in suspicious_data:
+                              logger.info(f"    {row['symbol']}: ${row['market_cap_billions']:.1f}B, {row['shares_millions']:.0f}M shares, ${row['price']:.2f}")
+                      else:
+                          logger.info("  No obviously suspicious data found")
+                      
+                      # Summary
+                      logger.info("\\n=== DEBUG SUMMARY ===")
+                      logger.info("Issues to investigate:")
+                      logger.info("1. Are we using the correct shares outstanding from Polygon API?")
+                      logger.info("2. Are our stock prices accurate and up-to-date?") 
+                      logger.info("3. Is there a unit conversion issue (millions vs billions)?")
+                      logger.info("4. Are we using the right price field (close vs adjusted_close)?")
+                      
+                  await pool.close()
+                  logger.info("\\n✅ Market cap debug analysis completed")
+                  return True
+                  
+              except Exception as e:
+                  logger.error(f"❌ Debug analysis failed: {e}")
+                  import traceback
+                  traceback.print_exc()
+                  return False
+          
+          if __name__ == "__main__":
+              success = asyncio.run(debug_market_cap_calculation())
+              exit(0 if success else 1)
+          EOF
+          
+          python /tmp/debug_market_cap.py
+        env:
+        - name: POLYGON_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-credentials-dev
+              key: POLYGON_API_KEY
+        - name: PYTHONPATH
+          value: "/tmp"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"

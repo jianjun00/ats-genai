@@ -1,0 +1,471 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: smart-market-cap-population
+  namespace: ats-dev
+  labels:
+    app: ats-genai
+    component: smart-market-cap
+spec:
+  ttlSecondsAfterFinished: 7200
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: smart-market-cap-populator
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "🎯 Starting smart market cap population for major stocks..."
+          pip install --no-cache-dir asyncpg aiohttp
+          
+          mkdir -p /app
+          cd /app
+          
+          # Create smart market cap population script
+          cat > /app/smart_market_cap_population.py << 'EOF'
+          #!/usr/bin/env python3
+          """
+          Smart Market Cap Population - Focus on Major Stocks
+          
+          Strategically populates market cap data by:
+          1. Targeting stocks that already have price data (more likely to be real stocks)
+          2. Focusing on symbols with recent trading activity
+          3. Using efficient batching and error handling
+          4. Prioritizing by market cap size for universe creation
+          """
+          
+          import asyncio
+          import asyncpg
+          import aiohttp
+          import logging
+          import os
+          import json
+          from datetime import date, datetime, timedelta
+          from typing import List, Dict, Optional, Tuple
+          from dataclasses import dataclass
+          
+          @dataclass
+          class MarketCapResult:
+              symbol: str
+              instrument_id: int
+              shares_outstanding: int
+              price: float
+              market_cap: float
+              date: date
+              source: str = "polygon"
+          
+          class SimpleEnvironment:
+              def get_table_name(self, base_name):
+                  return f"dev_{base_name}"
+              
+              def get_database_url(self):
+                  host = os.environ.get('DB_HOST', 'postgres-simple')
+                  port = os.environ.get('DB_PORT', '5432')
+                  user = os.environ.get('DB_USER', 'postgres')
+                  password = os.environ.get('DB_PASSWORD', 'dev_password')
+                  database = os.environ.get('DB_NAME', 'dev_db')
+                  return f"postgresql://{user}:{password}@{host}:{port}/{database}"
+          
+          class SmartMarketCapPopulator:
+              def __init__(self, env):
+                  self.env = env
+                  self.db_url = env.get_database_url()
+                  self.polygon_api_key = os.getenv('POLYGON_API_KEY')
+                  self.logger = logging.getLogger(__name__)
+                  
+                  if not self.polygon_api_key:
+                      raise ValueError("POLYGON_API_KEY environment variable required")
+              
+              async def get_target_instruments(self, limit: int = 1000) -> List[Tuple[int, str]]:
+                  """Get high-priority instruments that are most likely to be real stocks"""
+                  
+                  pool = await asyncpg.create_pool(self.db_url, min_size=2, max_size=5)
+                  
+                  try:
+                      async with pool.acquire() as conn:
+                          # Smart targeting: instruments that have recent price data and look like stocks
+                          cutoff_date = date.today() - timedelta(days=30)
+                          
+                          rows = await conn.fetch("""
+                              WITH stock_candidates AS (
+                                  SELECT DISTINCT 
+                                      i.id, 
+                                      i.symbol,
+                                      -- Prioritize by recent trading activity
+                                      COALESCE(p.recent_volume, 0) as volume_score,
+                                      COALESCE(p.price_level, 0) as price_score,
+                                      -- Prefer shorter symbols (likely stocks vs ETFs/options)
+                                      LENGTH(i.symbol) as symbol_length,
+                                      -- Check if already has market cap
+                                      CASE WHEN mc.instrument_id IS NULL THEN 1 ELSE 0 END as needs_market_cap
+                                  FROM dev_instruments i
+                                  LEFT JOIN (
+                                      -- Get recent trading stats from any vendor
+                                      SELECT 
+                                          instrument_id,
+                                          AVG(volume) as recent_volume,
+                                          AVG(close) as price_level
+                                      FROM dev_daily_prices_polygon 
+                                      WHERE date >= $1 AND volume > 0 AND close > 0
+                                      GROUP BY instrument_id
+                                      UNION ALL
+                                      SELECT 
+                                          instrument_id,
+                                          AVG(volume) as recent_volume,
+                                          AVG(close) as price_level
+                                      FROM dev_daily_prices_tiingo 
+                                      WHERE date >= $1 AND volume > 0 AND close > 0
+                                      GROUP BY instrument_id
+                                  ) p ON i.id = p.instrument_id
+                                  LEFT JOIN dev_daily_market_cap mc ON i.id = mc.instrument_id 
+                                      AND mc.date >= $1
+                                  WHERE 
+                                      i.symbol IS NOT NULL
+                                      AND i.symbol ~ '^[A-Z]{1,5}$'  -- 1-5 letter symbols (likely stocks)
+                                      AND i.symbol NOT LIKE '%-%'    -- No dashes (avoid options)
+                                      AND i.symbol NOT LIKE '%.%'    -- No dots (avoid some ETFs)
+                                      AND mc.instrument_id IS NULL   -- Missing market cap
+                              )
+                              SELECT id, symbol 
+                              FROM stock_candidates
+                              WHERE 
+                                  needs_market_cap = 1
+                                  AND (volume_score > 100000 OR symbol IN (
+                                      'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'BRK',
+                                      'JPM', 'JNJ', 'V', 'PG', 'HD', 'MA', 'UNH', 'DIS', 'BAC', 'ADBE',
+                                      'CRM', 'NFLX', 'XOM', 'CVX', 'PFE', 'KO', 'PEP', 'ABBV', 'MRK',
+                                      'WMT', 'COST', 'TMO', 'ACN', 'MDT', 'DHR', 'NEE', 'VZ', 'T'
+                                  ))
+                              ORDER BY 
+                                  -- Prioritize: known major stocks, then by volume, then short symbols
+                                  CASE WHEN symbol IN ('AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA') THEN 1 ELSE 2 END,
+                                  volume_score DESC NULLS LAST,
+                                  symbol_length ASC,
+                                  symbol
+                              LIMIT $2
+                          """, cutoff_date, limit)
+                          
+                          instruments = [(row['id'], row['symbol']) for row in rows]
+                          self.logger.info(f"Found {len(instruments)} high-priority target instruments")
+                          
+                          # Show some examples
+                          if instruments:
+                              sample_symbols = [symbol for _, symbol in instruments[:20]]
+                              self.logger.info(f"Sample targets: {', '.join(sample_symbols)}")
+                          
+                          return instruments
+                  
+                  finally:
+                      await pool.close()
+              
+              async def fetch_shares_outstanding(self, symbol: str, session: aiohttp.ClientSession) -> Optional[int]:
+                  """Fetch shares outstanding from Polygon API with smart retries"""
+                  
+                  url = f"https://api.polygon.io/v3/reference/tickers/{symbol}"
+                  headers = {"Authorization": f"Bearer {self.polygon_api_key}"}
+                  
+                  try:
+                      # Rate limiting: 5 calls/min = 12 seconds between calls
+                      await asyncio.sleep(0.3)
+                      
+                      async with session.get(url, headers=headers) as response:
+                          if response.status == 429:
+                              self.logger.warning(f"Rate limit hit for {symbol}, waiting...")
+                              await asyncio.sleep(60)
+                              return None
+                          
+                          if response.status == 404:
+                              # Common for ETFs, options, etc. - not necessarily an error
+                              self.logger.debug(f"Symbol {symbol} not found (likely ETF/option)")
+                              return None
+                          
+                          if response.status != 200:
+                              self.logger.warning(f"HTTP {response.status} for {symbol}")
+                              return None
+                          
+                          data = await response.json()
+                          
+                          if 'results' in data:
+                              results = data['results']
+                              
+                              # Try multiple fields for shares outstanding
+                              shares_fields = [
+                                  'share_class_shares_outstanding',
+                                  'weighted_shares_outstanding', 
+                                  'shares_outstanding'
+                              ]
+                              
+                              for field in shares_fields:
+                                  shares = results.get(field)
+                                  if shares and shares > 0:
+                                      self.logger.debug(f"Found {shares:,} shares for {symbol} via {field}")
+                                      return int(shares)
+                          
+                          self.logger.debug(f"No valid shares data for {symbol}")
+                          return None
+                  
+                  except Exception as e:
+                      self.logger.error(f"Error fetching shares for {symbol}: {e}")
+                      return None
+              
+              async def get_recent_price(self, instrument_id: int, symbol: str) -> Optional[float]:
+                  """Get recent price for instrument from database"""
+                  
+                  pool = await asyncpg.create_pool(self.db_url, min_size=1, max_size=2)
+                  
+                  try:
+                      async with pool.acquire() as conn:
+                          # Try to get recent price from any vendor (prefer Polygon, then Tiingo, then FMP)
+                          for table in ['dev_daily_prices_polygon', 'dev_daily_prices_tiingo', 'dev_daily_prices_fmp']:
+                              try:
+                                  price = await conn.fetchval(f"""
+                                      SELECT close
+                                      FROM {table}
+                                      WHERE instrument_id = $1
+                                        AND close IS NOT NULL
+                                        AND close > 0
+                                      ORDER BY date DESC
+                                      LIMIT 1
+                                  """, instrument_id)
+                                  
+                                  if price:
+                                      self.logger.debug(f"Found price ${price:.2f} for {symbol} in {table}")
+                                      return float(price)
+                              
+                              except Exception as e:
+                                  self.logger.debug(f"No price in {table} for {symbol}: {e}")
+                                  continue
+                          
+                          return None
+                  
+                  finally:
+                      await pool.close()
+              
+              async def save_market_cap(self, result: MarketCapResult) -> bool:
+                  """Save market cap result to database"""
+                  
+                  pool = await asyncpg.create_pool(self.db_url, min_size=1, max_size=2)
+                  
+                  try:
+                      async with pool.acquire() as conn:
+                          await conn.execute("""
+                              INSERT INTO dev_daily_market_cap 
+                              (instrument_id, date, market_cap, shares_outstanding, price_used, source, created_at, updated_at)
+                              VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+                              ON CONFLICT (instrument_id, date) 
+                              DO UPDATE SET 
+                                  market_cap = EXCLUDED.market_cap,
+                                  shares_outstanding = EXCLUDED.shares_outstanding,
+                                  price_used = EXCLUDED.price_used,
+                                  source = EXCLUDED.source,
+                                  updated_at = NOW()
+                          """, 
+                          result.instrument_id,
+                          result.date,
+                          int(result.market_cap),
+                          result.shares_outstanding,
+                          result.price,
+                          result.source
+                          )
+                          
+                          market_cap_b = result.market_cap / 1e9
+                          self.logger.info(f"✅ {result.symbol}: ${market_cap_b:.2f}B (${result.price:.2f} × {result.shares_outstanding:,})")
+                          return True
+                  
+                  except Exception as e:
+                      self.logger.error(f"Error saving market cap for {result.symbol}: {e}")
+                      return False
+                  
+                  finally:
+                      await pool.close()
+              
+              async def process_instrument_batch(self, instruments: List[Tuple[int, str]], session: aiohttp.ClientSession) -> List[MarketCapResult]:
+                  """Process a batch of instruments with smart error handling"""
+                  
+                  results = []
+                  today = date.today()
+                  
+                  for instrument_id, symbol in instruments:
+                      try:
+                          # 1. Get shares outstanding from Polygon
+                          shares = await self.fetch_shares_outstanding(symbol, session)
+                          if not shares:
+                              continue
+                          
+                          # 2. Get recent price from database
+                          price = await self.get_recent_price(instrument_id, symbol)
+                          if not price:
+                              self.logger.warning(f"⚠️  No price data for {symbol}")
+                              continue
+                          
+                          # 3. Calculate market cap
+                          market_cap = shares * price
+                          
+                          # Sanity check: reasonable market cap range
+                          if market_cap < 1_000_000:  # Less than $1M
+                              self.logger.warning(f"⚠️  Market cap too small for {symbol}: ${market_cap:,.0f}")
+                              continue
+                              
+                          if market_cap > 5_000_000_000_000:  # More than $5T  
+                              self.logger.warning(f"⚠️  Market cap too large for {symbol}: ${market_cap/1e12:.1f}T")
+                              continue
+                          
+                          result = MarketCapResult(
+                              symbol=symbol,
+                              instrument_id=instrument_id,
+                              shares_outstanding=shares,
+                              price=price,
+                              market_cap=market_cap,
+                              date=today
+                          )
+                          
+                          # 4. Save to database
+                          if await self.save_market_cap(result):
+                              results.append(result)
+                      
+                      except Exception as e:
+                          self.logger.error(f"Error processing {symbol}: {e}")
+                          continue
+                  
+                  return results
+              
+              async def run_smart_population(self, target_count: int = 500, batch_size: int = 10) -> Dict:
+                  """Run smart market cap population focusing on major stocks"""
+                  
+                  start_time = datetime.now()
+                  self.logger.info("🎯 Starting smart market cap population")
+                  
+                  # Get targeted instruments
+                  instruments = await self.get_target_instruments(target_count)
+                  
+                  if not instruments:
+                      self.logger.warning("❌ No target instruments found")
+                      return {'error': 'No targets found'}
+                  
+                  total_instruments = len(instruments)
+                  self.logger.info(f"📊 Processing {total_instruments} targeted instruments")
+                  
+                  all_results = []
+                  successful_symbols = []
+                  failed_symbols = []
+                  
+                  # Process in batches
+                  timeout = aiohttp.ClientTimeout(total=60)
+                  async with aiohttp.ClientSession(timeout=timeout) as session:
+                      
+                      for i in range(0, total_instruments, batch_size):
+                          batch = instruments[i:i + batch_size]
+                          batch_num = (i // batch_size) + 1
+                          total_batches = (total_instruments + batch_size - 1) // batch_size
+                          
+                          batch_symbols = [symbol for _, symbol in batch]
+                          self.logger.info(f"🔄 Batch {batch_num}/{total_batches}: {', '.join(batch_symbols)}")
+                          
+                          try:
+                              batch_results = await self.process_instrument_batch(batch, session)
+                              all_results.extend(batch_results)
+                              
+                              # Track results
+                              batch_successful = {r.symbol for r in batch_results}
+                              batch_failed = set(batch_symbols) - batch_successful
+                              
+                              successful_symbols.extend(batch_successful)
+                              failed_symbols.extend(batch_failed)
+                              
+                              # Progress update
+                              processed = min(i + batch_size, total_instruments)
+                              success_rate = (len(all_results) / processed) * 100
+                              self.logger.info(f"  Progress: {processed}/{total_instruments} | Success: {len(all_results)} ({success_rate:.1f}%)")
+                              
+                              # Brief delay between batches
+                              await asyncio.sleep(1)
+                          
+                          except Exception as e:
+                              self.logger.error(f"Error processing batch {batch_num}: {e}")
+                              failed_symbols.extend(batch_symbols)
+                              continue
+                  
+                  # Final summary
+                  end_time = datetime.now()
+                  duration = end_time - start_time
+                  
+                  summary = {
+                      'total_targets': total_instruments,
+                      'successful': len(all_results),
+                      'failed': len(failed_symbols),
+                      'success_rate': (len(all_results) / total_instruments * 100) if total_instruments > 0 else 0,
+                      'duration': str(duration),
+                      'average_market_cap': sum(r.market_cap for r in all_results) / len(all_results) if all_results else 0
+                  }
+                  
+                  self.logger.info(f"\n🎉 Smart market cap population completed!")
+                  self.logger.info(f"📊 Results: {len(all_results)}/{total_instruments} successful ({summary['success_rate']:.1f}%)")
+                  self.logger.info(f"⏱️  Duration: {duration}")
+                  
+                  if all_results:
+                      # Show top market caps
+                      top_10 = sorted(all_results, key=lambda x: x.market_cap, reverse=True)[:10]
+                      self.logger.info("🏆 Top 10 market caps:")
+                      for i, result in enumerate(top_10, 1):
+                          self.logger.info(f"  {i:2d}. {result.symbol}: ${result.market_cap/1e9:.2f}B")
+                      
+                      avg_market_cap_b = summary['average_market_cap'] / 1e9
+                      self.logger.info(f"📈 Average market cap: ${avg_market_cap_b:.2f}B")
+                  
+                  if failed_symbols:
+                      self.logger.info(f"\n❌ Failed symbols ({len(failed_symbols)}):")
+                      # Group failures by reason would be nice, but just show count for now
+                      sample_failed = failed_symbols[:10] if len(failed_symbols) <= 10 else failed_symbols[:10]
+                      self.logger.info(f"  Sample: {', '.join(sample_failed)}")
+                  
+                  return summary
+          
+          async def main():
+              logging.basicConfig(
+                  level=logging.INFO,
+                  format='%(asctime)s - %(levelname)s - %(message)s'
+              )
+              
+              env = SimpleEnvironment()
+              populator = SmartMarketCapPopulator(env)
+              
+              # Smart population targeting major stocks first
+              summary = await populator.run_smart_population(
+                  target_count=1000,  # Target 1000 high-priority stocks
+                  batch_size=5        # Small batches for rate limiting
+              )
+              
+              print(f"\n📋 FINAL SUMMARY")
+              print("=" * 60)
+              for key, value in summary.items():
+                  print(f"{key}: {value}")
+          
+          if __name__ == "__main__":
+              asyncio.run(main())
+          EOF
+          
+          echo "🔄 Running smart market cap population..."
+          cd /app && python smart_market_cap_population.py
+        env:
+        - name: DB_HOST
+          value: "postgres-simple"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+        - name: POLYGON_API_KEY
+          value: "wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "300m"
+          limits:
+            memory: "2Gi"
+            cpu: "600m"

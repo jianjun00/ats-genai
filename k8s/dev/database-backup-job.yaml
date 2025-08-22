@@ -1,0 +1,87 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ats-dev-database-backup
+  namespace: ats-dev
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: postgres-backup
+            image: postgres:16
+            command: ["/bin/bash", "-c"]
+            args:
+            - |
+              echo "Starting database backup at $(date)"
+              
+              # Create backup directory
+              mkdir -p /backup
+              
+              # Generate backup filename with timestamp
+              BACKUP_FILE="/backup/ats-dev-backup-$(date +%Y%m%d-%H%M%S).sql"
+              
+              # Create database backup
+              PGPASSWORD=dev_password pg_dump \
+                -h postgres \
+                -p 5432 \
+                -U postgres \
+                -d dev_db \
+                --verbose \
+                --clean \
+                --create \
+                --format=custom \
+                --file="${BACKUP_FILE}.custom"
+              
+              # Also create a plain SQL backup for readability
+              PGPASSWORD=dev_password pg_dump \
+                -h postgres \
+                -p 5432 \
+                -U postgres \
+                -d dev_db \
+                --verbose \
+                --clean \
+                --create \
+                --format=plain \
+                --file="${BACKUP_FILE}"
+              
+              # Compress the plain SQL backup
+              gzip "${BACKUP_FILE}"
+              
+              echo "Backup completed successfully:"
+              echo "Custom format: ${BACKUP_FILE}.custom"
+              echo "Compressed SQL: ${BACKUP_FILE}.gz"
+              
+              # List backup files
+              ls -la /backup/
+              
+              # Show backup file sizes
+              du -h /backup/*
+              
+              echo "Database backup completed at $(date)"
+            env:
+            - name: PGPASSWORD
+              value: "dev_password"
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backup
+          volumes:
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: ats-dev-backup-pvc
+          restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ats-dev-backup-pvc
+  namespace: ats-dev
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi  # Adjust based on database size
+  storageClassName: standard

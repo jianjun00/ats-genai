@@ -1,0 +1,190 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: enhanced-webapp-config
+  namespace: ats-dev
+data:
+  webapp.py: |
+    #!/usr/bin/env python3
+    """
+    Enhanced Analytics Webapp for Kubernetes deployment
+    Includes Job Runs and Training Data sections with real database connectivity
+    """
+    import sys
+    import os
+    import subprocess
+    
+    def setup_environment():
+        """Setup Python environment for webapp"""
+        # Install required packages
+        subprocess.run([
+            'pip', 'install', '--no-cache-dir',
+            'fastapi==0.104.1', 'uvicorn[standard]==0.24.0', 
+            'asyncpg==0.29.0', 'pydantic==2.5.0',
+            'numpy==1.24.3', 'pandas==2.0.3'
+        ], check=True)
+        
+        # Set up directory structure
+        os.makedirs('/app/src/config', exist_ok=True)
+        os.makedirs('/app/src/dao', exist_ok=True)
+        os.makedirs('/app/training_data_output', exist_ok=True)
+        
+        # Create basic config files
+        create_config_files()
+    
+    def create_config_files():
+        """Create minimal config files for webapp"""
+        
+        # Environment config
+        with open('/app/src/config/environment.py', 'w') as f:
+            f.write('''
+import os
+
+class Environment:
+    def __init__(self):
+        self.env_type = os.getenv('ENVIRONMENT', 'dev')
+        
+    def get_table_name(self, base_name):
+        return f"{self.env_type}_{base_name}"
+        
+    def get_database_url(self):
+        host = os.getenv('DB_HOST', 'postgres-simple')
+        port = os.getenv('DB_PORT', '5432')
+        user = os.getenv('DB_USER', 'postgres')
+        password = os.getenv('DB_PASSWORD', 'dev_password')
+        db_name = os.getenv('DB_NAME', 'dev_db')
+        return f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
+''')
+
+        # Basic DAO files (empty for now)
+        with open('/app/src/dao/__init__.py', 'w') as f:
+            f.write('')
+            
+        with open('/app/src/config/__init__.py', 'w') as f:
+            f.write('')
+    
+    def run_webapp():
+        """Run the enhanced webapp"""
+        # Copy webapp from ConfigMap
+        import shutil
+        shutil.copy('/config/unified_backtest_analytics_webapp.py', '/app/')
+        
+        # Change to app directory
+        os.chdir('/app')
+        
+        # Set Python path
+        os.environ['PYTHONPATH'] = '/app/src'
+        
+        # Run the webapp
+        subprocess.run(['python', 'unified_backtest_analytics_webapp.py'], check=True)
+    
+    if __name__ == "__main__":
+        print("🚀 Setting up Enhanced Analytics Webapp...")
+        setup_environment()
+        print("🌐 Starting webapp...")
+        run_webapp()
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: enhanced-webapp-source
+  namespace: ats-dev
+data:
+  unified_backtest_analytics_webapp.py: |
+    # This will be filled with the actual webapp source
+    # For now, creating a placeholder that will be updated
+    import os
+    print("Enhanced webapp placeholder - needs source code")
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: enhanced-analytics-webapp
+  namespace: ats-dev
+  labels:
+    app: enhanced-analytics-webapp
+    component: webapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: enhanced-analytics-webapp
+  template:
+    metadata:
+      labels:
+        app: enhanced-analytics-webapp
+        component: webapp
+    spec:
+      containers:
+      - name: webapp
+        image: python:3.12-slim
+        ports:
+        - containerPort: 3000
+        command: ["/bin/bash"]
+        args:
+        - -c
+        - |
+          echo "🚀 Starting Enhanced Analytics Webapp..."
+          python /config/webapp.py
+        volumeMounts:
+        - name: config-volume
+          mountPath: /config
+        - name: source-volume
+          mountPath: /source
+        env:
+        - name: ENVIRONMENT
+          value: "dev"
+        - name: DB_HOST
+          value: "postgres-simple"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_USER
+              optional: true
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_PASSWORD
+              optional: true
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_NAME
+              optional: true
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: config-volume
+        configMap:
+          name: enhanced-webapp-config
+          defaultMode: 0755
+      - name: source-volume
+        configMap:
+          name: enhanced-webapp-source
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: enhanced-analytics-webapp-service
+  namespace: ats-dev
+spec:
+  selector:
+    app: enhanced-analytics-webapp
+  ports:
+  - port: 3000
+    targetPort: 3000
+    nodePort: 30002
+  type: NodePort

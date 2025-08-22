@@ -1,0 +1,52 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-populate-instrument-polygon-multi
+  namespace: ats-dev
+spec:
+  ttlSecondsAfterFinished: 86400  # Keep job for 24 hours after completion
+  template:
+    spec:
+      containers:
+      - name: test-populate-instrument-polygon
+        image: dragonflyer762/ats-genai:dev-latest  # Using standard dev-latest tag
+        command:
+        - "python"
+        - "-m"
+        - "src.secmaster.populate_instrument_polygon"
+        - "--ticker"
+        - "NFLX,GOOG,AVGO,ADBE,COST"
+        - "--environment"
+        - "dev"
+        - "--gin_config"
+        - "config/app_docker.gin"
+        - "--debug"
+        env:
+        - name: PYTHONPATH
+          value: "/app/src"
+        - name: DB_HOST
+          value: "timescaledb.ats-dev.svc.cluster.local"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: password
+        - name: DB_NAME
+          value: "dev_db"
+        - name: POLYGON_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: polygon-api-key
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+      restartPolicy: OnFailure

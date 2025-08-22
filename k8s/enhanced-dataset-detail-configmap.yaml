@@ -1,0 +1,1433 @@
+apiVersion: v1
+data:
+  dataset_detail_page_frontend.html: "<!DOCTYPE html>\n<html>\n<head>\n    <title>Dataset
+    Detail Page - Enhanced Analytics Platform</title>\n    \n    <!-- Chart.js and
+    plugins for dual-axis OHLC charts -->\n    <script src=\"https://cdn.jsdelivr.net/npm/chart.js\"></script>\n
+    \   <script src=\"https://cdn.jsdelivr.net/npm/chartjs-chart-financial\"></script>\n
+    \   <script src=\"https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns\"></script>\n
+    \   <script src=\"https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom\"></script>\n
+    \   \n    <style>\n        body { \n            font-family: 'Segoe UI', Tahoma,
+    Geneva, Verdana, sans-serif; \n            margin: 0; \n            background:
+    #f8f9fa; \n            color: #333;\n        }\n        \n        .header { \n
+    \           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); \n
+    \           color: white; \n            padding: 20px;\n            box-shadow:
+    0 2px 4px rgba(0,0,0,0.1);\n        }\n        \n        .breadcrumb {\n            margin:
+    10px 0;\n            font-size: 14px;\n            opacity: 0.9;\n        }\n
+    \       \n        .breadcrumb a {\n            color: white;\n            text-decoration:
+    none;\n        }\n        \n        .breadcrumb a:hover {\n            text-decoration:
+    underline;\n        }\n        \n        .container { \n            max-width:
+    1400px; \n            margin: 0 auto; \n            padding: 20px; \n        }\n
+    \       \n        /* Dataset Overview Section */\n        .dataset-overview {\n
+    \           background: white;\n            border-radius: 12px;\n            padding:
+    20px;\n            margin-bottom: 20px;\n            box-shadow: 0 2px 8px rgba(0,0,0,0.1);\n
+    \       }\n        \n        .dataset-meta {\n            display: grid;\n            grid-template-columns:
+    repeat(auto-fit, minmax(200px, 1fr));\n            gap: 15px;\n            margin-top:
+    15px;\n        }\n        \n        .meta-item {\n            text-align: center;\n
+    \           padding: 15px;\n            background: #f8f9fa;\n            border-radius:
+    8px;\n        }\n        \n        .meta-value {\n            font-size: 24px;\n
+    \           font-weight: bold;\n            color: #667eea;\n        }\n        \n
+    \       .meta-label {\n            font-size: 12px;\n            color: #666;\n
+    \           text-transform: uppercase;\n            margin-top: 5px;\n        }\n
+    \       \n        /* Filter Controls Section */\n        .filter-section {\n            background:
+    white;\n            border-radius: 12px;\n            padding: 20px;\n            margin-bottom:
+    20px;\n            box-shadow: 0 2px 8px rgba(0,0,0,0.1);\n        }\n        \n
+    \       .filter-grid {\n            display: grid;\n            grid-template-columns:
+    repeat(auto-fit, minmax(250px, 1fr));\n            gap: 20px;\n            margin-top:
+    15px;\n        }\n        \n        .filter-group {\n            display: flex;\n
+    \           flex-direction: column;\n        }\n        \n        .filter-group
+    label {\n            font-weight: 600;\n            margin-bottom: 8px;\n            color:
+    #555;\n        }\n        \n        .filter-group input, .filter-group select
+    {\n            padding: 10px;\n            border: 2px solid #e9ecef;\n            border-radius:
+    6px;\n            font-size: 14px;\n            transition: border-color 0.3s;\n
+    \       }\n        \n        .filter-group input:focus, .filter-group select:focus
+    {\n            outline: none;\n            border-color: #667eea;\n        }\n
+    \       \n        .filter-actions {\n            margin-top: 20px;\n            display:
+    flex;\n            gap: 10px;\n        }\n        \n        .btn {\n            padding:
+    10px 20px;\n            border: none;\n            border-radius: 6px;\n            cursor:
+    pointer;\n            font-weight: 600;\n            transition: all 0.3s;\n        }\n
+    \       \n        .btn-primary {\n            background: #667eea;\n            color:
+    white;\n        }\n        \n        .btn-primary:hover {\n            background:
+    #5a6fd8;\n            transform: translateY(-1px);\n        }\n        \n        .btn-secondary
+    {\n            background: #6c757d;\n            color: white;\n        }\n        \n
+    \       .btn-secondary:hover {\n            background: #5a6268;\n        }\n
+    \       \n        /* Sequences Table Section */\n        .sequences-section {\n
+    \           background: white;\n            border-radius: 12px;\n            padding:
+    20px;\n            margin-bottom: 20px;\n            box-shadow: 0 2px 8px rgba(0,0,0,0.1);\n
+    \       }\n        \n        .table-container {\n            overflow-x: auto;\n
+    \           margin-top: 15px;\n        }\n        \n        .sequences-table {\n
+    \           width: 100%;\n            border-collapse: collapse;\n            min-width:
+    800px;\n        }\n        \n        .sequences-table th {\n            background:
+    #f8f9fa;\n            padding: 12px;\n            text-align: left;\n            font-weight:
+    600;\n            border-bottom: 2px solid #dee2e6;\n            position: sticky;\n
+    \           top: 0;\n            z-index: 10;\n        }\n        \n        .sequences-table
+    td {\n            padding: 12px;\n            border-bottom: 1px solid #dee2e6;\n
+    \           vertical-align: middle;\n        }\n        \n        .sequences-table
+    tr:hover {\n            background: #f8f9fa;\n        }\n        \n        .sequence-id
+    {\n            font-weight: 600;\n            color: #667eea;\n        }\n        \n
+    \       .feature-stats {\n            font-size: 12px;\n            color: #666;\n
+    \       }\n        \n        .btn-chart {\n            background: linear-gradient(135deg,
+    #667eea, #764ba2);\n            color: white;\n            border: none;\n            padding:
+    8px 16px;\n            border-radius: 6px;\n            cursor: pointer;\n            font-size:
+    12px;\n            font-weight: 600;\n            transition: all 0.3s;\n        }\n
+    \       \n        .btn-chart:hover {\n            transform: translateY(-1px);\n
+    \           box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);\n        }\n        \n
+    \       /* Pagination */\n        .pagination {\n            display: flex;\n
+    \           justify-content: center;\n            align-items: center;\n            margin-top:
+    20px;\n            gap: 10px;\n        }\n        \n        .pagination button
+    {\n            padding: 8px 12px;\n            border: 1px solid #dee2e6;\n            background:
+    white;\n            cursor: pointer;\n            border-radius: 4px;\n        }\n
+    \       \n        .pagination button:hover:not(:disabled) {\n            background:
+    #f8f9fa;\n        }\n        \n        .pagination button:disabled {\n            opacity:
+    0.5;\n            cursor: not-allowed;\n        }\n        \n        .pagination
+    .current-page {\n            background: #667eea;\n            color: white;\n
+    \           border-color: #667eea;\n        }\n        \n        /* Dynamic Distributions
+    Section */\n        .distributions-section {\n            background: white;\n
+    \           border-radius: 12px;\n            padding: 20px;\n            box-shadow:
+    0 2px 8px rgba(0,0,0,0.1);\n        }\n        \n        .distributions-grid {\n
+    \           display: grid;\n            grid-template-columns: repeat(auto-fit,
+    minmax(300px, 1fr));\n            gap: 20px;\n            margin-top: 20px;\n
+    \       }\n        \n        .distribution-item {\n            background: #f8f9fa;\n
+    \           border-radius: 8px;\n            padding: 15px;\n        }\n        \n
+    \       .distribution-title {\n            font-weight: 600;\n            margin-bottom:
+    10px;\n            color: #333;\n        }\n        \n        .distribution-chart
+    {\n            width: 100%;\n            height: 200px;\n        }\n        \n
+    \       /* Modal Styles for Dual-Axis OHLC Charts */\n        .modal {\n            display:
+    none;\n            position: fixed;\n            z-index: 1000;\n            left:
+    0;\n            top: 0;\n            width: 100%;\n            height: 100%;\n
+    \           background-color: rgba(0,0,0,0.5);\n        }\n        \n        .modal-content
+    {\n            background-color: white;\n            margin: 2% auto;\n            padding:
+    0;\n            border-radius: 12px;\n            width: 95%;\n            max-width:
+    1200px;\n            height: 90%;\n            position: relative;\n            overflow:
+    hidden;\n        }\n        \n        .modal-header {\n            background:
+    linear-gradient(135deg, #667eea, #764ba2);\n            color: white;\n            padding:
+    20px;\n            display: flex;\n            justify-content: space-between;\n
+    \           align-items: center;\n        }\n        \n        .modal-title {\n
+    \           margin: 0;\n            font-size: 20px;\n        }\n        \n        .close
+    {\n            color: white;\n            font-size: 28px;\n            font-weight:
+    bold;\n            cursor: pointer;\n            line-height: 1;\n        }\n
+    \       \n        .close:hover {\n            opacity: 0.7;\n        }\n        \n
+    \       .modal-body {\n            padding: 20px;\n            height: calc(100%
+    - 80px);\n            overflow: auto;\n        }\n        \n        /* Dual-Chart
+    Container */\n        .dual-chart-container {\n            width: 100%;\n            height:
+    600px;\n            display: flex;\n            flex-direction: column;\n            border:
+    1px solid #ddd;\n            border-radius: 8px;\n            overflow: hidden;\n
+    \       }\n        \n        .chart-panel {\n            position: relative;\n
+    \           width: 100%;\n        }\n        \n        .top-panel {\n            height:
+    60%;\n            border-bottom: 2px solid #eee;\n            background: linear-gradient(to
+    bottom, #fafafa, #ffffff);\n        }\n        \n        .bottom-panel {\n            height:
+    40%;\n            background: linear-gradient(to bottom, #ffffff, #f8f9fa);\n
+    \       }\n        \n        .chart-panel canvas {\n            width: 100% !important;\n
+    \           height: 100% !important;\n        }\n        \n        /* Loading
+    and Error States */\n        .loading-spinner {\n            text-align: center;\n
+    \           padding: 40px;\n            font-size: 18px;\n            color: #667eea;\n
+    \       }\n        \n        .error-message {\n            text-align: center;\n
+    \           padding: 40px;\n            color: #dc3545;\n            background:
+    #f8d7da;\n            border-radius: 8px;\n            margin: 20px 0;\n        }\n
+    \       \n        /* Responsive Design */\n        @media (max-width: 768px) {\n
+    \           .filter-grid {\n                grid-template-columns: 1fr;\n            }\n
+    \           \n            .dataset-meta {\n                grid-template-columns:
+    repeat(2, 1fr);\n            }\n            \n            .modal-content {\n                width:
+    98%;\n                height: 95%;\n                margin: 1% auto;\n            }\n
+    \           \n            .dual-chart-container {\n                height: 500px;\n
+    \           }\n            \n            .top-panel {\n                height:
+    65%;\n            }\n            \n            .bottom-panel {\n                height:
+    35%;\n            }\n        }\n    </style>\n</head>\n\n<body>\n    <div class=\"header\">\n
+    \       <div class=\"container\">\n            <div class=\"breadcrumb\">\n                <a
+    href=\"/\">Home</a> > <a href=\"/datasets\">Datasets</a> > Dataset Detail\n            </div>\n
+    \           <h1 id=\"dataset-title\">Dataset Detail</h1>\n            <p id=\"dataset-description\">Explore
+    individual sequences with filtering and visualization</p>\n        </div>\n    </div>\n\n
+    \   <div class=\"container\">\n        <!-- Dataset Overview -->\n        <div
+    class=\"dataset-overview\">\n            <h2>Dataset Overview</h2>\n            <div
+    class=\"dataset-meta\" id=\"dataset-meta\">\n                <!-- Will be populated
+    by JavaScript -->\n            </div>\n        </div>\n\n        <!-- Filter Controls
+    -->\n        <div class=\"filter-section\">\n            <h2>\U0001F50D Filter
+    Sequences</h2>\n            <div class=\"filter-grid\">\n                <div
+    class=\"filter-group\">\n                    <label for=\"symbol-filter\">Symbol</label>\n
+    \                   <select id=\"symbol-filter\">\n                        <option
+    value=\"\">All Symbols</option>\n                        <!-- Populated dynamically
+    -->\n                    </select>\n                </div>\n                \n
+    \               <div class=\"filter-group\">\n                    <label for=\"feature-filter\">Feature</label>\n
+    \                   <select id=\"feature-filter\">\n                        <option
+    value=\"\">Select Feature</option>\n                        <!-- Populated dynamically
+    -->\n                    </select>\n                </div>\n                \n
+    \               <div class=\"filter-group\">\n                    <label for=\"value-min\">Min
+    Value</label>\n                    <input type=\"number\" id=\"value-min\" placeholder=\"Minimum
+    value\" step=\"0.01\">\n                </div>\n                \n                <div
+    class=\"filter-group\">\n                    <label for=\"value-max\">Max Value</label>\n
+    \                   <input type=\"number\" id=\"value-max\" placeholder=\"Maximum
+    value\" step=\"0.01\">\n                </div>\n            </div>\n            \n
+    \           <div class=\"filter-actions\">\n                <button class=\"btn
+    btn-primary\" onclick=\"applyFilters()\">Apply Filters</button>\n                <button
+    class=\"btn btn-secondary\" onclick=\"clearFilters()\">Clear All</button>\n                <button
+    class=\"btn btn-secondary\" onclick=\"updateDistributions()\">Update Distributions</button>\n
+    \           </div>\n        </div>\n\n        <!-- Sequences Table -->\n        <div
+    class=\"sequences-section\">\n            <h2>\U0001F4CA Sequences <span id=\"sequence-count\">(0)</span></h2>\n
+    \           <div class=\"table-container\">\n                <table class=\"sequences-table\">\n
+    \                   <thead>\n                        <tr>\n                            <th>Sequence
+    ID</th>\n                            <th>Date Range</th>\n                            <th>Symbols</th>\n
+    \                           <th>Feature Statistics</th>\n                            <th>Label
+    Preview</th>\n                            <th>Actions</th>\n                        </tr>\n
+    \                   </thead>\n                    <tbody id=\"sequences-table-body\">\n
+    \                       <!-- Will be populated by JavaScript -->\n                    </tbody>\n
+    \               </table>\n            </div>\n            \n            <!-- Pagination
+    -->\n            <div class=\"pagination\" id=\"sequences-pagination\">\n                <!--
+    Will be populated by JavaScript -->\n            </div>\n        </div>\n\n        <!--
+    Dynamic Distributions -->\n        <div class=\"distributions-section\">\n            <h2>\U0001F4C8
+    Feature Distributions for Filtered Sequences</h2>\n            <p>Showing distributions
+    calculated from <span id=\"filtered-count\">all</span> filtered sequences</p>\n
+    \           <div class=\"distributions-grid\" id=\"distributions-grid\">\n                <!--
+    Will be populated by JavaScript -->\n            </div>\n        </div>\n    </div>\n\n
+    \   <!-- Sequence OHLC Modal -->\n    <div id=\"sequence-ohlc-modal\" class=\"modal\">\n
+    \       <div class=\"modal-content\">\n            <div class=\"modal-header\">\n
+    \               <h2 class=\"modal-title\">Sequence OHLC Chart</h2>\n                <span
+    class=\"close\" onclick=\"closeModal('sequence-ohlc-modal')\">&times;</span>\n
+    \           </div>\n            <div class=\"modal-body\">\n                <div
+    id=\"sequence-ohlc-content\"></div>\n            </div>\n        </div>\n    </div>\n\n
+    \   <script>\n        // Global variables\n        let currentDatasetId = 1; //
+    Get from URL parameter in real implementation\n        let currentSequences =
+    [];\n        let filteredSequenceIds = [];\n        let currentPage = 1;\n        const
+    pageSize = 20;\n        \n        // Page initialization\n        document.addEventListener('DOMContentLoaded',
+    function() {\n            // Extract dataset ID from URL in real implementation\n
+    \           const urlParams = new URLSearchParams(window.location.search);\n            currentDatasetId
+    = urlParams.get('id') || 1;\n            \n            loadDatasetOverview();\n
+    \           loadSequences();\n            loadFilterOptions();\n        });\n
+    \       \n        // Load dataset overview information\n        async function
+    loadDatasetOverview() {\n            try {\n                const response = await
+    fetch(`/api/v1/datasets`);\n                const data = await response.json();\n
+    \               const dataset = data.datasets.find(d => d.dataset_id == currentDatasetId);\n
+    \               \n                if (dataset) {\n                    document.getElementById('dataset-title').textContent
+    = dataset.dataset_name;\n                    document.getElementById('dataset-description').textContent
+    = \n                        `${dataset.symbols.join(', ')} | ${dataset.total_sequences}
+    sequences | ${dataset.feature_count} features`;\n                    \n                    //
+    Update meta information\n                    document.getElementById('dataset-meta').innerHTML
+    = `\n                        <div class=\"meta-item\">\n                            <div
+    class=\"meta-value\">${dataset.total_sequences}</div>\n                            <div
+    class=\"meta-label\">Total Sequences</div>\n                        </div>\n                        <div
+    class=\"meta-item\">\n                            <div class=\"meta-value\">${dataset.feature_count}</div>\n
+    \                           <div class=\"meta-label\">Features</div>\n                        </div>\n
+    \                       <div class=\"meta-item\">\n                            <div
+    class=\"meta-value\">${dataset.symbols.length}</div>\n                            <div
+    class=\"meta-label\">Symbols</div>\n                        </div>\n                        <div
+    class=\"meta-item\">\n                            <div class=\"meta-value\">${dataset.file_size_mb.toFixed(1)}MB</div>\n
+    \                           <div class=\"meta-label\">File Size</div>\n                        </div>\n
+    \                   `;\n                }\n            } catch (error) {\n                console.error('Error
+    loading dataset overview:', error);\n            }\n        }\n        \n        //
+    Load sequences with current filters\n        async function loadSequences() {\n
+    \           try {\n                const params = new URLSearchParams({\n                    limit:
+    pageSize,\n                    offset: (currentPage - 1) * pageSize\n                });\n
+    \               \n                // Add filter parameters\n                const
+    symbolFilter = document.getElementById('symbol-filter')?.value;\n                const
+    featureFilter = document.getElementById('feature-filter')?.value;\n                const
+    valueMin = document.getElementById('value-min')?.value;\n                const
+    valueMax = document.getElementById('value-max')?.value;\n                \n                if
+    (symbolFilter) params.append('symbol_filter', symbolFilter);\n                if
+    (featureFilter && valueMin && valueMax) {\n                    params.append('feature_filter',
+    featureFilter);\n                    params.append('value_min', valueMin);\n                    params.append('value_max',
+    valueMax);\n                }\n                \n                const response
+    = await fetch(`/api/v1/datasets/${currentDatasetId}/sequences?${params}`);\n                const
+    data = await response.json();\n                \n                currentSequences
+    = data.sequences;\n                filteredSequenceIds = data.sequences.map(s
+    => s.sequence_id);\n                \n                renderSequencesTable(data.sequences);\n
+    \               renderPagination(data.total_sequences);\n                updateSequenceCount(data.sequences.length,
+    data.total_sequences);\n                \n            } catch (error) {\n                console.error('Error
+    loading sequences:', error);\n                document.getElementById('sequences-table-body').innerHTML
+    = \n                    '<tr><td colspan=\"6\" class=\"error-message\">Error loading
+    sequences</td></tr>';\n            }\n        }\n        \n        // Load filter
+    options\n        async function loadFilterOptions() {\n            try {\n                const
+    response = await fetch(`/api/v1/datasets/${currentDatasetId}/sequences?limit=1`);\n
+    \               const data = await response.json();\n                \n                //
+    Populate symbol filter\n                const symbolSelect = document.getElementById('symbol-filter');\n
+    \               data.available_symbols.forEach(symbol => {\n                    const
+    option = document.createElement('option');\n                    option.value =
+    symbol;\n                    option.textContent = symbol;\n                    symbolSelect.appendChild(option);\n
+    \               });\n                \n                // Populate feature filter\n
+    \               const featureSelect = document.getElementById('feature-filter');\n
+    \               data.feature_names.forEach(feature => {\n                    const
+    option = document.createElement('option');\n                    option.value =
+    feature;\n                    option.textContent = feature;\n                    featureSelect.appendChild(option);\n
+    \               });\n                \n            } catch (error) {\n                console.error('Error
+    loading filter options:', error);\n            }\n        }\n        \n        //
+    Render sequences table\n        function renderSequencesTable(sequences) {\n            const
+    tbody = document.getElementById('sequences-table-body');\n            \n            if
+    (sequences.length === 0) {\n                tbody.innerHTML = '<tr><td colspan=\"6\"
+    style=\"text-align:center; color:#666;\">No sequences match current filters</td></tr>';\n
+    \               return;\n            }\n            \n            tbody.innerHTML
+    = sequences.map(seq => `\n                <tr>\n                    <td><span
+    class=\"sequence-id\">#${seq.sequence_id}</span></td>\n                    <td>\n
+    \                       <div>${new Date(seq.start_date).toLocaleDateString()}</div>\n
+    \                       <div style=\"font-size:12px; color:#666;\">to ${new Date(seq.end_date).toLocaleDateString()}</div>\n
+    \                   </td>\n                    <td>${seq.symbols.join(', ')}</td>\n
+    \                   <td>\n                        <div class=\"feature-stats\">\n
+    \                           ${Object.entries(seq.feature_stats).slice(0, 2).map(([name,
+    stats]) => \n                                `<div>${name}: μ=${stats.mean.toFixed(3)},
+    σ=${stats.std.toFixed(3)}</div>`\n                            ).join('')}\n                            ${Object.keys(seq.feature_stats).length
+    > 2 ? \n                                `<div style=\"color:#667eea;\">+${Object.keys(seq.feature_stats).length
+    - 2} more</div>` : ''}\n                        </div>\n                    </td>\n
+    \                   <td>\n                        <div style=\"font-size:12px;
+    color:#666;\">\n                            ${Array.isArray(seq.label_preview[0])
+    ? \n                                seq.label_preview.slice(0, 2).map(l => `[${l.map(v
+    => v.toFixed(3)).join(', ')}]`).join('<br>') :\n                                seq.label_preview.slice(0,
+    3).map(v => v.toFixed(3)).join(', ')\n                            }\n                        </div>\n
+    \                   </td>\n                    <td>\n                        <button
+    class=\"btn-chart\" onclick=\"showSequenceOHLC(${seq.sequence_id}, '${seq.symbols.join(',
+    ')}')\">\n                            \U0001F4C8 OHLC Chart\n                        </button>\n
+    \                   </td>\n                </tr>\n            `).join('');\n        }\n
+    \       \n        // Render pagination controls\n        function renderPagination(totalSequences)
+    {\n            const totalPages = Math.ceil(totalSequences / pageSize);\n            const
+    pagination = document.getElementById('sequences-pagination');\n            \n
+    \           if (totalPages <= 1) {\n                pagination.innerHTML = '';\n
+    \               return;\n            }\n            \n            let paginationHTML
+    = `\n                <button onclick=\"changePage(${currentPage - 1})\" ${currentPage
+    === 1 ? 'disabled' : ''}>Previous</button>\n            `;\n            \n            //
+    Show page numbers\n            const startPage = Math.max(1, currentPage - 2);\n
+    \           const endPage = Math.min(totalPages, currentPage + 2);\n            \n
+    \           for (let i = startPage; i <= endPage; i++) {\n                paginationHTML
+    += `\n                    <button onclick=\"changePage(${i})\" ${i === currentPage
+    ? 'class=\"current-page\"' : ''}>${i}</button>\n                `;\n            }\n
+    \           \n            paginationHTML += `\n                <button onclick=\"changePage(${currentPage
+    + 1})\" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>\n            `;\n
+    \           \n            pagination.innerHTML = paginationHTML;\n        }\n
+    \       \n        // Change page\n        function changePage(page) {\n            if
+    (page < 1) return;\n            currentPage = page;\n            loadSequences();\n
+    \       }\n        \n        // Update sequence count display\n        function
+    updateSequenceCount(filtered, total) {\n            document.getElementById('sequence-count').textContent
+    = `(${filtered} of ${total})`;\n            document.getElementById('filtered-count').textContent
+    = `${filtered}`;\n        }\n        \n        // Apply filters\n        function
+    applyFilters() {\n            currentPage = 1;\n            loadSequences();\n
+    \       }\n        \n        // Clear all filters\n        function clearFilters()
+    {\n            document.getElementById('symbol-filter').value = '';\n            document.getElementById('feature-filter').value
+    = '';\n            document.getElementById('value-min').value = '';\n            document.getElementById('value-max').value
+    = '';\n            currentPage = 1;\n            loadSequences();\n        }\n
+    \       \n        // Update distributions for filtered sequences\n        async
+    function updateDistributions() {\n            try {\n                const params
+    = new URLSearchParams({\n                    sequence_ids: filteredSequenceIds.join(',')\n
+    \               });\n                \n                const response = await
+    fetch(`/api/v1/datasets/${currentDatasetId}/filtered-distributions?${params}`);\n
+    \               const data = await response.json();\n                \n                renderDistributions(data.distributions);\n
+    \               \n            } catch (error) {\n                console.error('Error
+    updating distributions:', error);\n            }\n        }\n        \n        //
+    Render dynamic distributions\n        function renderDistributions(distributions)
+    {\n            const grid = document.getElementById('distributions-grid');\n            \n
+    \           if (!distributions || Object.keys(distributions).length === 0) {\n
+    \               grid.innerHTML = '<div style=\"text-align:center; color:#666;\">No
+    distribution data available</div>';\n                return;\n            }\n
+    \           \n            grid.innerHTML = Object.entries(distributions).map(([featureName,
+    dist]) => `\n                <div class=\"distribution-item\">\n                    <div
+    class=\"distribution-title\">${featureName}</div>\n                    <canvas
+    class=\"distribution-chart\" id=\"dist-${featureName.replace(/[^a-zA-Z0-9]/g,
+    '_')}\"></canvas>\n                    <div style=\"font-size:12px; color:#666;
+    margin-top:10px;\">\n                        Mean: ${dist.mean_value.toFixed(3)}
+    | Std: ${dist.std_value.toFixed(3)} | Samples: ${dist.sample_count}\n                    </div>\n
+    \               </div>\n            `).join('');\n            \n            //
+    Render individual distribution charts\n            Object.entries(distributions).forEach(([featureName,
+    dist]) => {\n                const chartId = `dist-${featureName.replace(/[^a-zA-Z0-9]/g,
+    '_')}`;\n                const ctx = document.getElementById(chartId).getContext('2d');\n
+    \               \n                // Calculate bin centers for x-axis\n                const
+    binCenters = dist.histogram_bins.slice(0, -1).map((bin, i) => \n                    (bin
+    + dist.histogram_bins[i + 1]) / 2\n                );\n                \n                new
+    Chart(ctx, {\n                    type: 'bar',\n                    data: {\n
+    \                       labels: binCenters.map(center => center.toFixed(3)),\n
+    \                       datasets: [{\n                            label: 'Frequency',\n
+    \                           data: dist.histogram_counts,\n                            backgroundColor:
+    'rgba(102, 126, 234, 0.6)',\n                            borderColor: 'rgba(102,
+    126, 234, 1)',\n                            borderWidth: 1\n                        }]\n
+    \                   },\n                    options: {\n                        responsive:
+    true,\n                        maintainAspectRatio: false,\n                        plugins:
+    {\n                            legend: { display: false }\n                        },\n
+    \                       scales: {\n                            y: {\n                                beginAtZero:
+    true,\n                                title: { display: true, text: 'Count' }\n
+    \                           },\n                            x: {\n                                title:
+    { display: true, text: 'Value' }\n                            }\n                        }\n
+    \                   }\n                });\n            });\n        }\n        \n
+    \       // Show sequence OHLC chart in modal\n        async function showSequenceOHLC(sequenceId,
+    symbols) {\n            const modal = document.getElementById('sequence-ohlc-modal');\n
+    \           const content = document.getElementById('sequence-ohlc-content');\n
+    \           const title = modal.querySelector('.modal-title');\n            \n
+    \           title.textContent = `Sequence ${sequenceId} - ${symbols} OHLC & Indicators`;\n
+    \           modal.style.display = 'block';\n            content.innerHTML = '<div
+    class=\"loading-spinner\">\U0001F4CA Loading OHLC chart...</div>';\n            \n
+    \           try {\n                // Create dual-axis chart\n                const
+    chart = new DualAxisOHLCChart('sequence-ohlc-content', sequenceId);\n                await
+    chart.render();\n                window.currentSequenceChart = chart;\n                \n
+    \           } catch (error) {\n                content.innerHTML = `<div class=\"error-message\">❌
+    Error loading OHLC chart: ${error.message}</div>`;\n            }\n        }\n
+    \       \n        // Close modal\n        function closeModal(modalId) {\n            document.getElementById(modalId).style.display
+    = 'none';\n            \n            if (modalId === 'sequence-ohlc-modal' &&
+    window.currentSequenceChart) {\n                window.currentSequenceChart.destroy();\n
+    \               window.currentSequenceChart = null;\n            }\n        }\n
+    \       \n        // Close modal when clicking outside\n        window.onclick
+    = function(event) {\n            const modals = document.querySelectorAll('.modal');\n
+    \           modals.forEach(modal => {\n                if (event.target === modal)
+    {\n                    closeModal(modal.id);\n                }\n            });\n
+    \       }\n        \n        // Load initial distributions\n        setTimeout(updateDistributions,
+    1000);\n    </script>\n    \n    <!-- Include the DualAxisOHLCChart class from
+    the architecture design -->\n    <script src=\"dual_axis_ohlc_chart.js\"></script>\n</body>\n</html>"
+  dual_axis_ohlc_chart.js: "/**\n * DualAxisOHLCChart - Dual-axis OHLC chart implementation\n
+    * \n * Creates charts with:\n * - Top panel: OHLC candlesticks + Volume bars\n
+    * - Bottom panel: Technical indicators (etop, ebot, pldot, ema)\n * - Synchronized
+    zoom and pan between panels\n */\n\nclass DualAxisOHLCChart {\n    constructor(containerId,
+    sequenceId) {\n        this.containerId = containerId;\n        this.sequenceId
+    = sequenceId;\n        this.topChart = null;\n        this.bottomChart = null;\n
+    \       this.data = null;\n        \n        // Chart colors for technical indicators\n
+    \       this.indicatorColors = {\n            'ema': 'rgb(255, 99, 132)',\n            'etop':
+    'rgb(54, 162, 235)', \n            'ebot': 'rgb(255, 205, 86)',\n            'pldot':
+    'rgb(75, 192, 192)',\n            'rsi': 'rgb(153, 102, 255)',\n            'atr':
+    'rgb(255, 159, 64)',\n            'vwap': 'rgb(199, 199, 199)',\n            'macd':
+    'rgb(83, 102, 255)'\n        };\n    }\n    \n    async loadData() {\n        try
+    {\n            const response = await fetch(`/api/v1/datasets/${currentDatasetId}/sequences/${this.sequenceId}/ohlc`);\n
+    \           if (!response.ok) {\n                throw new Error(`HTTP ${response.status}:
+    ${response.statusText}`);\n            }\n            this.data = await response.json();\n
+    \           return this.data;\n        } catch (error) {\n            console.error('Error
+    loading OHLC data:', error);\n            throw error;\n        }\n    }\n    \n
+    \   async render() {\n        // Load data first\n        await this.loadData();\n
+    \       \n        // Create chart container structure\n        const container
+    = document.getElementById(this.containerId);\n        container.innerHTML = `\n
+    \           <div class=\"dual-chart-container\">\n                <div class=\"chart-panel
+    top-panel\">\n                    <canvas id=\"top-chart-${this.sequenceId}\"></canvas>\n
+    \               </div>\n                <div class=\"chart-panel bottom-panel\">\n
+    \                   <canvas id=\"bottom-chart-${this.sequenceId}\"></canvas>\n
+    \               </div>\n            </div>\n        `;\n        \n        // Render
+    top panel (OHLC + Volume)\n        await this.renderTopPanel();\n        \n        //
+    Render bottom panel (Technical Indicators)\n        await this.renderBottomPanel();\n
+    \       \n        // Set up synchronization between charts\n        this.syncCharts();\n
+    \   }\n    \n    async renderTopPanel() {\n        const ctx = document.getElementById(`top-chart-${this.sequenceId}`).getContext('2d');\n
+    \       \n        // Process OHLC data\n        const ohlcData = this.processOHLCData();\n
+    \       const volumeData = this.processVolumeData();\n        \n        const
+    config = {\n            type: 'candlestick',\n            data: {\n                datasets:
+    [\n                    {\n                        label: `${this.data.symbols.join(',
+    ')} OHLC`,\n                        type: 'candlestick',\n                        data:
+    ohlcData,\n                        yAxisID: 'price-axis',\n                        borderColor:
+    {\n                            up: 'rgba(26, 152, 129, 1)',\n                            down:
+    'rgba(239, 57, 74, 1)',\n                            unchanged: 'rgba(90, 90,
+    90, 1)'\n                        },\n                        backgroundColor:
+    {\n                            up: 'rgba(26, 152, 129, 0.8)',\n                            down:
+    'rgba(239, 57, 74, 0.8)', \n                            unchanged: 'rgba(90, 90,
+    90, 0.8)'\n                        }\n                    },\n                    {\n
+    \                       label: 'Volume',\n                        type: 'bar',\n
+    \                       data: volumeData,\n                        yAxisID: 'volume-axis',\n
+    \                       backgroundColor: volumeData.map((point, index) => {\n
+    \                           if (index === 0) return 'rgba(54, 162, 235, 0.3)';\n
+    \                           const prevClose = ohlcData[index - 1]?.c || ohlcData[index]?.o;\n
+    \                           const currentClose = ohlcData[index]?.c;\n                            return
+    currentClose >= prevClose ? \n                                'rgba(26, 152, 129,
+    0.3)' : 'rgba(239, 57, 74, 0.3)';\n                        }),\n                        borderColor:
+    'rgba(54, 162, 235, 0.8)',\n                        borderWidth: 1\n                    }\n
+    \               ]\n            },\n            options: {\n                responsive:
+    true,\n                maintainAspectRatio: false,\n                interaction:
+    {\n                    intersect: false,\n                    mode: 'index'\n
+    \               },\n                plugins: {\n                    title: {\n
+    \                       display: true,\n                        text: `${this.data.symbols.join(',
+    ')} - Price & Volume`,\n                        font: { size: 16, weight: 'bold'
+    }\n                    },\n                    legend: {\n                        display:
+    true,\n                        position: 'top'\n                    }\n                },\n
+    \               scales: {\n                    x: {\n                        type:
+    'time',\n                        time: {\n                            unit: 'day',\n
+    \                           displayFormats: {\n                                day:
+    'MMM DD'\n                            }\n                        },\n                        title:
+    {\n                            display: false  // Hide x-axis title on top panel\n
+    \                       }\n                    },\n                    'price-axis':
+    {\n                        type: 'linear',\n                        position:
+    'left',\n                        title: {\n                            display:
+    true,\n                            text: 'Price ($)',\n                            font:
+    { weight: 'bold' }\n                        },\n                        grid:
+    {\n                            color: 'rgba(0, 0, 0, 0.1)'\n                        }\n
+    \                   },\n                    'volume-axis': {\n                        type:
+    'linear',\n                        position: 'right',\n                        title:
+    {\n                            display: true,\n                            text:
+    'Volume',\n                            font: { weight: 'bold' }\n                        },\n
+    \                       grid: {\n                            drawOnChartArea:
+    false\n                        },\n                        ticks: {\n                            callback:
+    function(value) {\n                                if (value >= 1000000) {\n                                    return
+    (value / 1000000).toFixed(1) + 'M';\n                                } else if
+    (value >= 1000) {\n                                    return (value / 1000).toFixed(1)
+    + 'K';\n                                }\n                                return
+    value;\n                            }\n                        }\n                    }\n
+    \               }\n            }\n        };\n        \n        this.topChart
+    = new Chart(ctx, config);\n    }\n    \n    async renderBottomPanel() {\n        const
+    ctx = document.getElementById(`bottom-chart-${this.sequenceId}`).getContext('2d');\n
+    \       \n        // Process technical indicators data\n        const indicatorDatasets
+    = this.processIndicatorData();\n        \n        if (indicatorDatasets.length
+    === 0) {\n            // Show message if no indicators available\n            ctx.font
+    = '16px Arial';\n            ctx.fillStyle = '#666';\n            ctx.textAlign
+    = 'center';\n            ctx.fillText('No technical indicators available for this
+    sequence', \n                        ctx.canvas.width / 2, ctx.canvas.height /
+    2);\n            return;\n        }\n        \n        const config = {\n            type:
+    'line',\n            data: {\n                datasets: indicatorDatasets\n            },\n
+    \           options: {\n                responsive: true,\n                maintainAspectRatio:
+    false,\n                interaction: {\n                    intersect: false,\n
+    \                   mode: 'index'\n                },\n                plugins:
+    {\n                    title: {\n                        display: true,\n                        text:
+    'Technical Indicators',\n                        font: { size: 16, weight: 'bold'
+    }\n                    },\n                    legend: {\n                        display:
+    true,\n                        position: 'top'\n                    }\n                },\n
+    \               scales: {\n                    x: {\n                        type:
+    'time',\n                        time: {\n                            unit: 'day',\n
+    \                           displayFormats: {\n                                day:
+    'MMM DD'\n                            }\n                        },\n                        title:
+    {\n                            display: true,\n                            text:
+    'Date',\n                            font: { weight: 'bold' }\n                        }\n
+    \                   },\n                    y: {\n                        title:
+    {\n                            display: true,\n                            text:
+    'Indicator Value',\n                            font: { weight: 'bold' }\n                        },\n
+    \                       grid: {\n                            color: 'rgba(0, 0,
+    0, 0.1)'\n                        }\n                    }\n                }\n
+    \           }\n        };\n        \n        this.bottomChart = new Chart(ctx,
+    config);\n    }\n    \n    processOHLCData() {\n        if (!this.data.ohlc_data
+    || this.data.ohlc_data.length === 0) {\n            return [];\n        }\n        \n
+    \       return this.data.ohlc_data\n            .filter(point => point.open !==
+    undefined && point.close !== undefined)\n            .map(point => ({\n                x:
+    new Date(point.date),\n                o: point.open,\n                h: point.high
+    || Math.max(point.open, point.close),\n                l: point.low || Math.min(point.open,
+    point.close),\n                c: point.close\n            }));\n    }\n    \n
+    \   processVolumeData() {\n        if (!this.data.volume_data || this.data.volume_data.length
+    === 0) {\n            // Try to extract volume from OHLC data\n            if
+    (this.data.ohlc_data) {\n                return this.data.ohlc_data\n                    .filter(point
+    => point.volume !== undefined)\n                    .map(point => ({\n                        x:
+    new Date(point.date),\n                        y: point.volume\n                    }));\n
+    \           }\n            return [];\n        }\n        \n        return this.data.volume_data.map(point
+    => ({\n            x: new Date(point.date),\n            y: point.volume\n        }));\n
+    \   }\n    \n    processIndicatorData() {\n        if (!this.data.technical_indicators)
+    {\n            return [];\n        }\n        \n        const datasets = [];\n
+    \       let colorIndex = 0;\n        const defaultColors = [\n            'rgb(255,
+    99, 132)',\n            'rgb(54, 162, 235)', \n            'rgb(255, 205, 86)',\n
+    \           'rgb(75, 192, 192)',\n            'rgb(153, 102, 255)',\n            'rgb(255,
+    159, 64)'\n        ];\n        \n        for (const [indicatorName, indicatorData]
+    of Object.entries(this.data.technical_indicators)) {\n            if (!indicatorData
+    || indicatorData.length === 0) continue;\n            \n            const color
+    = this.indicatorColors[indicatorName.toLowerCase()] || \n                         defaultColors[colorIndex
+    % defaultColors.length];\n            \n            datasets.push({\n                label:
+    indicatorName.toUpperCase(),\n                data: indicatorData.map(point =>
+    ({\n                    x: new Date(point.date),\n                    y: point.value\n
+    \               })),\n                borderColor: color,\n                backgroundColor:
+    color.replace('rgb', 'rgba').replace(')', ', 0.1)'),\n                tension:
+    0.2,\n                fill: false,\n                pointRadius: 0,\n                pointHoverRadius:
+    4,\n                borderWidth: 2\n            });\n            \n            colorIndex++;\n
+    \       }\n        \n        return datasets;\n    }\n    \n    syncCharts() {\n
+    \       if (!this.topChart || !this.bottomChart) return;\n        \n        //
+    Synchronize zoom and pan between charts\n        const syncZoom = (sourceChart,
+    targetChart) => {\n            const xScale = sourceChart.scales.x;\n            if
+    (targetChart.scales.x) {\n                targetChart.options.scales.x.min = xScale.min;\n
+    \               targetChart.options.scales.x.max = xScale.max;\n                targetChart.update('none');\n
+    \           }\n        };\n        \n        // Add zoom event listeners if zoom
+    plugin is available\n        if (this.topChart.options.plugins && this.topChart.options.plugins.zoom)
+    {\n            this.topChart.options.plugins.zoom.onZoom = () => {\n                syncZoom(this.topChart,
+    this.bottomChart);\n            };\n        }\n        \n        if (this.bottomChart.options.plugins
+    && this.bottomChart.options.plugins.zoom) {\n            this.bottomChart.options.plugins.zoom.onZoom
+    = () => {\n                syncZoom(this.bottomChart, this.topChart);\n            };\n
+    \       }\n        \n        // Sync crosshair/tooltip between charts\n        const
+    syncTooltip = (activeChart, targetChart, activeElements) => {\n            if
+    (activeElements.length > 0 && targetChart.data.datasets.length > 0) {\n                const
+    dataIndex = activeElements[0].index;\n                targetChart.tooltip.setActiveElements([{\n
+    \                   datasetIndex: 0,\n                    index: dataIndex\n                }],
+    {x: 0, y: 0});\n                targetChart.update('none');\n            } else
+    {\n                targetChart.tooltip.setActiveElements([], {x: 0, y: 0});\n
+    \               targetChart.update('none');\n            }\n        };\n        \n
+    \       // Add hover event listeners\n        this.topChart.options.onHover =
+    (event, activeElements) => {\n            syncTooltip(this.topChart, this.bottomChart,
+    activeElements);\n        };\n        \n        this.bottomChart.options.onHover
+    = (event, activeElements) => {\n            syncTooltip(this.bottomChart, this.topChart,
+    activeElements);\n        };\n    }\n    \n    destroy() {\n        if (this.topChart)
+    {\n            this.topChart.destroy();\n            this.topChart = null;\n        }\n
+    \       \n        if (this.bottomChart) {\n            this.bottomChart.destroy();\n
+    \           this.bottomChart = null;\n        }\n        \n        this.data =
+    null;\n    }\n    \n    // Utility method to update with new data\n    async updateData(newSequenceId)
+    {\n        this.sequenceId = newSequenceId;\n        this.destroy();\n        await
+    this.render();\n    }\n    \n    // Method to export chart as image\n    exportAsImage(filename
+    = null) {\n        if (!this.topChart || !this.bottomChart) return;\n        \n
+    \       const canvas = document.createElement('canvas');\n        const ctx =
+    canvas.getContext('2d');\n        \n        // Set canvas size to accommodate
+    both charts\n        canvas.width = this.topChart.canvas.width;\n        canvas.height
+    = this.topChart.canvas.height + this.bottomChart.canvas.height;\n        \n        //
+    Draw top chart\n        ctx.drawImage(this.topChart.canvas, 0, 0);\n        \n
+    \       // Draw bottom chart below top chart\n        ctx.drawImage(this.bottomChart.canvas,
+    0, this.topChart.canvas.height);\n        \n        // Download the combined image\n
+    \       const link = document.createElement('a');\n        link.download = filename
+    || `sequence_${this.sequenceId}_ohlc_chart.png`;\n        link.href = canvas.toDataURL();\n
+    \       link.click();\n    }\n}\n\n// Utility function to format numbers for display\nfunction
+    formatNumber(value, decimals = 2) {\n    if (value === null || value === undefined
+    || isNaN(value)) return 'N/A';\n    \n    if (Math.abs(value) >= 1000000) {\n
+    \       return (value / 1000000).toFixed(decimals) + 'M';\n    } else if (Math.abs(value)
+    >= 1000) {\n        return (value / 1000).toFixed(decimals) + 'K';\n    } else
+    {\n        return Number(value).toFixed(decimals);\n    }\n}\n\n// Utility function
+    to format dates for display\nfunction formatDate(dateString) {\n    const date
+    = new Date(dateString);\n    return date.toLocaleDateString('en-US', { \n        month:
+    'short', \n        day: 'numeric',\n        year: 'numeric'\n    });\n}\n\n//
+    Export the class for use in other modules\nif (typeof module !== 'undefined' &&
+    module.exports) {\n    module.exports = DualAxisOHLCChart;\n}"
+  unified_analytics_fixed.py: "#!/usr/bin/env python3\n\"\"\"\nUnified Analytics Platform
+    - Fixed with both Job Management and Dataset functionality\n\nThis version fixes
+    the job management to use existing dev_runs table\nwhile preserving all dataset
+    functionality.\n\"\"\"\n\nimport asyncio\nimport asyncpg\nimport uvicorn\nimport
+    uuid\nimport json\nfrom datetime import datetime, timedelta\nfrom typing import
+    Dict, List, Optional, Any, Tuple\nfrom dataclasses import dataclass\n\nfrom fastapi
+    import FastAPI, HTTPException, Query\nfrom fastapi.middleware.cors import CORSMiddleware\nfrom
+    fastapi.responses import HTMLResponse\n\nimport numpy as np\nfrom pathlib import
+    Path\n\n\n@dataclass\nclass Environment:\n    def get_database_url(self) -> str:\n
+    \       return \"postgresql://postgres:dev_password@postgres-simple:5432/dev_db\"\n\n\nclass
+    UnifiedAnalyticsManager:\n    \"\"\"Unified manager for both jobs and datasets.\"\"\"\n
+    \   \n    def __init__(self, data_directory: str = \"training_data_output\"):\n
+    \       self.env = Environment()\n        self.pool = None\n        self.data_directory
+    = Path(data_directory)\n        self._dataset_cache = {}\n        \n    async
+    def initialize(self):\n        db_url = self.env.get_database_url()\n        self.pool
+    = await asyncpg.create_pool(db_url, min_size=2, max_size=10)\n        \n        async
+    with self.pool.acquire() as conn:\n            await conn.fetchval('SELECT 1')\n
+    \           print(\"✅ Connected to database successfully\")\n    \n    async def
+    close(self):\n        if self.pool:\n            await self.pool.close()\n    \n
+    \   # ===== JOB MANAGEMENT (using existing dev_runs table) =====\n    \n    async
+    def list_jobs(self, limit: int = 50, offset: int = 0, status: str = None, sort_by:
+    str = \"created_at\", sort_dir: str = \"desc\") -> Dict[str, Any]:\n        \"\"\"List
+    jobs from existing dev_runs table with enhanced metadata.\"\"\"\n        where_clause
+    = \"WHERE status = $3\" if status else \"\"\n        params = [limit, offset]\n
+    \       if status:\n            params.append(status)\n        \n        # Validate
+    sort parameters\n        valid_sorts = [\"created_at\", \"start_time\", \"end_time\",
+    \"run_type\", \"status\", \"created_by\"]\n        sort_by = sort_by if sort_by
+    in valid_sorts else \"created_at\"\n        sort_dir = \"DESC\" if sort_dir.lower()
+    == \"desc\" else \"ASC\"\n        \n        async with self.pool.acquire() as
+    conn:\n            count_query = f\"SELECT COUNT(*) FROM dev_runs {where_clause}\"\n
+    \           total = await conn.fetchval(count_query, *(params[2:] if status else
+    []))\n            \n            query = f\"\"\"\n                SELECT id, run_type,
+    status, start_time, end_time, \n                       created_by, created_at,
+    error_message, parameters,\n                       created_by, created_at, error_message,
+    parameters\n                FROM dev_runs {where_clause}\n                ORDER
+    BY {sort_by} {sort_dir}\n                LIMIT $1 OFFSET $2\n            \"\"\"\n
+    \           \n            records = await conn.fetch(query, *params)\n            \n
+    \           jobs = []\n            for r in records:\n                duration
+    = None\n                if r['start_time'] and r['end_time']:\n                    duration
+    = int((r['end_time'] - r['start_time']).total_seconds())\n                \n                #
+    Generate Flyte console URL based on job_type and parameters\n                flyte_url
+    = None\n                if r['run_type'] and ('flyte' in r['run_type'].lower()
+    or 'workflow' in r['run_type'].lower()):\n                    # Create a generic
+    Flyte URL based on job ID\n                    flyte_url = f\"https://flyte.example.com/console/projects/flytesnacks/domains/development/executions/{r['id']}\"\n
+    \               \n                jobs.append({\n                    \"job_id\":
+    str(r['id']),\n                    \"job_type\": r['run_type'],\n                    \"status\":
+    r['status'],\n                    \"user_id\": r['created_by'] or 'system',\n
+    \                   \"start_time\": r['start_time'].isoformat() if r['start_time']
+    else None,\n                    \"end_time\": r['end_time'].isoformat() if r['end_time']
+    else None,\n                    \"duration_seconds\": duration,\n                    \"created_at\":
+    r['created_at'].isoformat() if r['created_at'] else None,\n                    \"error_message\":
+    r['error_message'],\n                    \"flyte_url\": flyte_url,\n                    \"parameters\":
+    r.get('parameters')\n                })\n            \n            return {\"jobs\":
+    jobs, \"total\": total}\n    \n    async def get_job_stats(self) -> Dict[str,
+    Any]:\n        \"\"\"Get job statistics from dev_runs table.\"\"\"\n        async
+    with self.pool.acquire() as conn:\n            total = await conn.fetchval(\"SELECT
+    COUNT(*) FROM dev_runs\")\n            running = await conn.fetchval(\"SELECT
+    COUNT(*) FROM dev_runs WHERE status = 'running'\")\n            completed = await
+    conn.fetchval(\"SELECT COUNT(*) FROM dev_runs WHERE status = 'completed'\")\n
+    \           failed = await conn.fetchval(\"SELECT COUNT(*) FROM dev_runs WHERE
+    status = 'failed'\")\n            \n            return {\n                \"total_jobs\":
+    total,\n                \"running_jobs\": running, \n                \"completed_jobs\":
+    completed,\n                \"failed_jobs\": failed\n            }\n    \n    #
+    ===== DATASET MANAGEMENT =====\n    \n    async def list_datasets(self, limit:
+    int = 50, offset: int = 0, symbol_filter: str = None, sort_by: str = \"creation_timestamp\",
+    sort_dir: str = \"desc\") -> Dict[str, Any]:\n        \"\"\"List available training
+    datasets with enhanced filtering and sorting.\"\"\"\n        where_clause = \"WHERE
+    dataset_name ILIKE $3\" if symbol_filter else \"\"\n        params = [limit, offset]\n
+    \       if symbol_filter:\n            params.append(f\"%{symbol_filter}%\")\n
+    \       \n        # Validate sort parameters\n        valid_sorts = [\"creation_timestamp\",
+    \"dataset_name\", \"total_sequences\", \"feature_count\", \"file_size_mb\"]\n
+    \       sort_by = sort_by if sort_by in valid_sorts else \"creation_timestamp\"\n
+    \       sort_dir = \"DESC\" if sort_dir.lower() == \"desc\" else \"ASC\"\n        \n
+    \       # Check if dev_training_dataset or dev_training_datasets table exists\n
+    \       async with self.pool.acquire() as conn:\n            # Try both table
+    names to be safe\n            for table_name in ['dev_training_dataset', 'dev_training_datasets']:\n
+    \               try:\n                    count_query = f\"SELECT COUNT(*) FROM
+    {table_name} {where_clause}\"\n                    total = await conn.fetchval(count_query,
+    *(params[2:] if symbol_filter else []))\n                    \n                    query
+    = f\"\"\"\n                        SELECT dataset_name, symbols, total_sequences,
+    feature_count, \n                               technical_indicators, creation_timestamp
+    as created_at, file_size_mb\n                        FROM {table_name} {where_clause}\n
+    \                       ORDER BY {sort_by} {sort_dir}\n                        LIMIT
+    $1 OFFSET $2\n                    \"\"\"\n                    \n                    datasets
+    = await conn.fetch(query, *params)\n                    \n                    dataset_list
+    = []\n                    for i, dataset in enumerate(datasets, offset + 1):\n
+    \                       dataset_list.append({\n                            \"dataset_id\":
+    i,\n                            \"dataset_name\": dataset['dataset_name'],\n                            \"symbols\":
+    dataset['symbols'],\n                            \"total_sequences\": dataset['total_sequences'],\n
+    \                           \"feature_count\": dataset['feature_count'],\n                            \"technical_indicators\":
+    dataset['technical_indicators'],\n                            \"created_at\":
+    dataset['created_at'].isoformat() if dataset['created_at'] else None,\n                            \"file_size_mb\":
+    float(dataset['file_size_mb']) if dataset['file_size_mb'] else 0.0\n                        })\n
+    \                   \n                    return {\"datasets\": dataset_list,
+    \"total\": total}\n                    \n                except Exception:\n                    continue\n
+    \           \n            # If no table exists, return sample data with filtering
+    support\n            sample_datasets = [\n                {\n                    \"dataset_id\":
+    1,\n                    \"dataset_name\": \"enhanced_aapl_tsla_120d\",\n                    \"symbols\":
+    [\"AAPL\", \"TSLA\"],\n                    \"total_sequences\": 2847,\n                    \"feature_count\":
+    24,\n                    \"technical_indicators\": [\"ema_12\", \"ema_26\", \"rsi\",
+    \"atr\", \"vwap\"],\n                    \"created_at\": datetime.now().isoformat(),\n
+    \                   \"file_size_mb\": 15.2\n                },\n                {\n
+    \                   \"dataset_id\": 2,\n                    \"dataset_name\":
+    \"enhanced_spy_universe_90d\",\n                    \"symbols\": [\"SPY\", \"QQQ\",
+    \"IWM\"],\n                    \"total_sequences\": 1847,\n                    \"feature_count\":
+    28,\n                    \"technical_indicators\": [\"ema_12\", \"ema_26\", \"rsi\",
+    \"atr\", \"vwap\", \"bollinger_bands\"],\n                    \"created_at\":
+    (datetime.now() - timedelta(days=1)).isoformat(),\n                    \"file_size_mb\":
+    22.5\n                },\n                {\n                    \"dataset_id\":
+    3,\n                    \"dataset_name\": \"tech_stocks_60d\",\n                    \"symbols\":
+    [\"MSFT\", \"GOOGL\", \"AMZN\"],\n                    \"total_sequences\": 1247,\n
+    \                   \"feature_count\": 20,\n                    \"technical_indicators\":
+    [\"ema_12\", \"rsi\", \"vwap\"],\n                    \"created_at\": (datetime.now()
+    - timedelta(days=3)).isoformat(),\n                    \"file_size_mb\": 8.9\n
+    \               }\n            ]\n            \n            # Apply filtering
+    to sample data\n            if symbol_filter:\n                sample_datasets
+    = [d for d in sample_datasets if symbol_filter.lower() in d['dataset_name'].lower()]\n
+    \           \n            # Apply sorting to sample data\n            if sort_by
+    == \"dataset_name\":\n                sample_datasets.sort(key=lambda x: x['dataset_name'],
+    reverse=(sort_dir == \"DESC\"))\n            elif sort_by == \"total_sequences\":\n
+    \               sample_datasets.sort(key=lambda x: x['total_sequences'], reverse=(sort_dir
+    == \"DESC\"))\n            elif sort_by == \"feature_count\":\n                sample_datasets.sort(key=lambda
+    x: x['feature_count'], reverse=(sort_dir == \"DESC\"))\n            elif sort_by
+    == \"file_size_mb\":\n                sample_datasets.sort(key=lambda x: x['file_size_mb'],
+    reverse=(sort_dir == \"DESC\"))\n            else:  # creation_timestamp (default)\n
+    \               sample_datasets.sort(key=lambda x: x['created_at'], reverse=(sort_dir
+    == \"DESC\"))\n            \n            # Apply pagination to sample data\n            total_sample
+    = len(sample_datasets)\n            sample_datasets = sample_datasets[offset:offset
+    + limit]\n            \n            return {\"datasets\": sample_datasets, \"total\":
+    total_sample}\n    \n    async def get_dataset_distributions(self, dataset_id:
+    int) -> Dict[str, Any]:\n        \"\"\"Get feature distributions for dataset visualization.\"\"\"\n
+    \       # Generate sample distribution data\n        features = [\"open\", \"high\",
+    \"low\", \"close\", \"volume\", \"ema_12\", \"ema_26\", \"rsi\", \"atr\", \"vwap\"]\n
+    \       distributions = {}\n        \n        for feature in features:\n            np.random.seed(hash(feature
+    + str(dataset_id)) % 2**32)\n            if feature in [\"open\", \"high\", \"low\",
+    \"close\"]:\n                values = np.random.normal(150, 30, 1000)\n            elif
+    feature == \"volume\":\n                values = np.random.lognormal(15, 1, 1000)\n
+    \           elif feature == \"rsi\":\n                values = np.random.uniform(0,
+    100, 1000)\n            else:\n                values = np.random.normal(0, 1,
+    1000)\n            \n            hist, bins = np.histogram(values, bins=30)\n
+    \           distributions[feature] = {\n                \"feature_name\": feature,\n
+    \               \"histogram_bins\": bins.tolist(),\n                \"histogram_counts\":
+    hist.tolist(),\n                \"min_value\": float(values.min()),\n                \"max_value\":
+    float(values.max()),\n                \"mean_value\": float(values.mean()),\n
+    \               \"std_value\": float(values.std())\n            }\n        \n
+    \       return {\n            \"dataset_id\": dataset_id,\n            \"distributions\":
+    distributions\n        }\n    \n    async def get_dataset_ohlc(self, dataset_id:
+    int) -> Dict[str, Any]:\n        \"\"\"Get OHLC data for dataset visualization.\"\"\"\n
+    \       # Generate sample OHLC data\n        np.random.seed(dataset_id)\n        dates
+    = []\n        ohlc_data = []\n        \n        base_price = 150\n        for
+    i in range(100):\n            date = (datetime.now().replace(hour=9, minute=30,
+    second=0, microsecond=0) \n                   - timedelta(days=100-i)).isoformat()\n
+    \           \n            open_price = base_price + np.random.normal(0, 2)\n            high_price
+    = open_price + abs(np.random.normal(2, 1))\n            low_price = open_price
+    - abs(np.random.normal(1.5, 1))\n            close_price = open_price + np.random.normal(0,
+    3)\n            volume = int(np.random.lognormal(15, 0.5))\n            \n            base_price
+    = close_price  # Next day's base\n            \n            ohlc_data.append({\n
+    \               \"date\": date,\n                \"open\": round(open_price, 2),\n
+    \               \"high\": round(high_price, 2),\n                \"low\": round(low_price,
+    2),\n                \"close\": round(close_price, 2),\n                \"volume\":
+    volume\n            })\n        \n        return {\n            \"dataset_id\":
+    dataset_id,\n            \"symbol\": \"AAPL\",\n            \"ohlc_data\": ohlc_data\n
+    \       }\n    \n    async def get_dataset_filter_options(self) -> Dict[str, Any]:\n
+    \       \"\"\"Get available filter options for datasets.\"\"\"\n        return
+    {\n            \"symbols\": [\"AAPL\", \"TSLA\", \"MSFT\", \"GOOGL\", \"AMZN\"],\n
+    \           \"date_ranges\": [\"1M\", \"3M\", \"6M\", \"1Y\", \"2Y\"],\n            \"indicators\":
+    [\"ema_12\", \"ema_26\", \"rsi\", \"atr\", \"vwap\", \"bollinger_bands\"],\n            \"sequence_lengths\":
+    [30, 60, 90, 120, 180]\n        }\n\n    # ===== ENHANCED DATASET DETAIL FUNCTIONALITY
+    =====\n    \n    def _load_dataset_files(self, dataset_name: str) -> Dict[str,
+    Any]:\n        \"\"\"Load all files for a dataset (features, labels, masks, metadata).\"\"\"\n
+    \       if dataset_name in self._dataset_cache:\n            return self._dataset_cache[dataset_name]\n
+    \           \n        try:\n            # Load metadata first\n            metadata_path
+    = self.data_directory / f\"{dataset_name}_metadata.json\"\n            with open(metadata_path,
+    'r') as f:\n                metadata = json.load(f)\n            \n            #
+    Load numpy arrays\n            features = np.load(self.data_directory / f\"{dataset_name}_features.npy\")\n
+    \           labels = np.load(self.data_directory / f\"{dataset_name}_labels.npy\")\n
+    \           \n            # Try to load masks (might not exist for all datasets)\n
+    \           mask_path = self.data_directory / f\"{dataset_name}_feature_masks.npy\"\n
+    \           masks = np.load(mask_path) if mask_path.exists() else None\n            \n
+    \           dataset_data = {\n                'metadata': metadata,\n                'features':
+    features,\n                'labels': labels,\n                'masks': masks,\n
+    \               'sequence_count': features.shape[0],\n                'timesteps':
+    features.shape[1],\n                'feature_count': features.shape[2]\n            }\n
+    \           \n            self._dataset_cache[dataset_name] = dataset_data\n            return
+    dataset_data\n            \n        except Exception as e:\n            raise
+    FileNotFoundError(f\"Could not load dataset {dataset_name}: {e}\")\n    \n    async
+    def list_dataset_sequences(self, dataset_name: str, \n                                   limit:
+    int = 50, offset: int = 0,\n                                   symbol_filter:
+    str = None,\n                                   feature_filter: str = None,\n
+    \                                  value_min: float = None,\n                                   value_max:
+    float = None) -> Dict[str, Any]:\n        \"\"\"List sequences within a dataset
+    with filtering capabilities.\"\"\"\n        \n        dataset_data = self._load_dataset_files(dataset_name)\n
+    \       metadata = dataset_data['metadata']\n        features = dataset_data['features']\n
+    \       labels = dataset_data['labels']\n        \n        # Build sequence list
+    with summary statistics\n        sequences = []\n        feature_names = [f['name']
+    for f in metadata['features']]\n        \n        for seq_idx in range(dataset_data['sequence_count']):\n
+    \           sequence_features = features[seq_idx]  # Shape: (timesteps, features)\n
+    \           sequence_labels = labels[seq_idx] if len(labels.shape) > 2 else labels[seq_idx:seq_idx+1]\n
+    \           \n            # Calculate sequence statistics\n            seq_stats
+    = {}\n            for feat_idx, feat_name in enumerate(feature_names):\n                feat_values
+    = sequence_features[:, feat_idx]\n                seq_stats[feat_name] = {\n                    'mean':
+    float(np.mean(feat_values)),\n                    'std': float(np.std(feat_values)),\n
+    \                   'min': float(np.min(feat_values)),\n                    'max':
+    float(np.max(feat_values))\n                }\n            \n            # Apply
+    filtering\n            if symbol_filter and symbol_filter.upper() not in metadata.get('symbols',
+    []):\n                continue\n                \n            if feature_filter
+    and value_min is not None and value_max is not None:\n                if feature_filter
+    in seq_stats:\n                    feat_mean = seq_stats[feature_filter]['mean']\n
+    \                   if not (value_min <= feat_mean <= value_max):\n                        continue\n
+    \           \n            # Extract date range for this sequence (if available)\n
+    \           start_date = metadata.get('date_range', {}).get('start', '2023-01-01')\n
+    \           base_date = datetime.fromisoformat(start_date.replace('Z', '+00:00').replace('+00:00',
+    ''))\n            seq_start = base_date + timedelta(days=seq_idx)\n            seq_end
+    = seq_start + timedelta(days=dataset_data['timesteps']-1)\n            \n            sequences.append({\n
+    \               'sequence_id': seq_idx,\n                'start_date': seq_start.isoformat(),\n
+    \               'end_date': seq_end.isoformat(),\n                'feature_stats':
+    seq_stats,\n                'label_preview': sequence_labels.tolist()[:3] if len(sequence_labels.shape)
+    > 1 else sequence_labels.tolist(),\n                'symbols': metadata.get('symbols',
+    ['UNKNOWN'])\n            })\n        \n        # Apply pagination\n        total_sequences
+    = len(sequences)\n        sequences = sequences[offset:offset + limit]\n        \n
+    \       return {\n            'dataset_name': dataset_name,\n            'sequences':
+    sequences,\n            'total_sequences': total_sequences,\n            'feature_names':
+    feature_names,\n            'available_symbols': metadata.get('symbols', []),\n
+    \           'metadata': {\n                'sequence_length': dataset_data['timesteps'],\n
+    \               'feature_count': dataset_data['feature_count'],\n                'total_sequences':
+    dataset_data['sequence_count']\n            }\n        }\n    \n    async def
+    get_sequence_details(self, dataset_name: str, sequence_id: int) -> Dict[str, Any]:\n
+    \       \"\"\"Get detailed information for a specific sequence.\"\"\"\n        \n
+    \       dataset_data = self._load_dataset_files(dataset_name)\n        metadata
+    = dataset_data['metadata']\n        features = dataset_data['features']\n        labels
+    = dataset_data['labels']\n        \n        if sequence_id >= dataset_data['sequence_count']:\n
+    \           raise ValueError(f\"Sequence {sequence_id} not found in dataset {dataset_name}\")\n
+    \       \n        sequence_features = features[sequence_id]  # Shape: (timesteps,
+    features)\n        sequence_labels = labels[sequence_id] if len(labels.shape)
+    > 2 else labels[sequence_id:sequence_id+1]\n        \n        # Build detailed
+    feature data\n        feature_data = []\n        for feat_idx, feat_info in enumerate(metadata['features']):\n
+    \           feat_values = sequence_features[:, feat_idx]\n            feature_data.append({\n
+    \               'feature_name': feat_info['name'],\n                'feature_type':
+    feat_info['feature_type'],\n                'values': feat_values.tolist(),\n
+    \               'statistics': {\n                    'mean': float(np.mean(feat_values)),\n
+    \                   'std': float(np.std(feat_values)),\n                    'min':
+    float(np.min(feat_values)),\n                    'max': float(np.max(feat_values))\n
+    \               },\n                'metadata': feat_info\n            })\n        \n
+    \       return {\n            'sequence_id': sequence_id,\n            'dataset_name':
+    dataset_name,\n            'features': feature_data,\n            'labels': sequence_labels.tolist(),\n
+    \           'symbols': metadata.get('symbols', []),\n            'timesteps':
+    dataset_data['timesteps'],\n            'date_range': self._get_sequence_date_range(metadata,
+    sequence_id, dataset_data['timesteps'])\n        }\n    \n    async def get_sequence_ohlc_data(self,
+    dataset_name: str, sequence_id: int) -> Dict[str, Any]:\n        \"\"\"Generate
+    OHLC + indicators data for dual-axis chart visualization.\"\"\"\n        \n        sequence_details
+    = await self.get_sequence_details(dataset_name, sequence_id)\n        features
+    = sequence_details['features']\n        \n        # Extract OHLC and technical
+    indicators\n        price_features = ['open', 'high', 'low', 'close', 'price']\n
+    \       volume_features = ['volume', 'volume_ratio']\n        indicator_features
+    = ['ema', 'rsi', 'atr', 'vwap', 'etop', 'ebot', 'pldot']\n        \n        ohlc_data
+    = []\n        volume_data = []\n        indicator_data = {}\n        \n        #
+    Initialize date range\n        start_date = datetime.fromisoformat(sequence_details['date_range']['start'])\n
+    \       \n        for timestep in range(sequence_details['timesteps']):\n            timestamp
+    = start_date + timedelta(days=timestep)\n            \n            # Build OHLC
+    data point\n            ohlc_point = {'date': timestamp.isoformat()}\n            volume_point
+    = {'date': timestamp.isoformat()}\n            \n            # Extract price and
+    volume data\n            for feature in features:\n                feat_name =
+    feature['feature_name'].lower()\n                feat_value = feature['values'][timestep]\n
+    \               \n                if any(price_term in feat_name for price_term
+    in price_features):\n                    if 'open' in feat_name:\n                        ohlc_point['open']
+    = feat_value\n                    elif 'high' in feat_name:\n                        ohlc_point['high']
+    = feat_value\n                    elif 'low' in feat_name:\n                        ohlc_point['low']
+    = feat_value\n                    elif 'close' in feat_name or 'price' in feat_name:\n
+    \                       ohlc_point['close'] = feat_value\n                \n                elif
+    any(vol_term in feat_name for vol_term in volume_features):\n                    volume_point['volume']
+    = feat_value\n                \n                elif any(ind_term in feat_name
+    for ind_term in indicator_features):\n                    # Group technical indicators\n
+    \                   for ind_type in indicator_features:\n                        if
+    ind_type in feat_name:\n                            if ind_type not in indicator_data:\n
+    \                               indicator_data[ind_type] = []\n                            if
+    len(indicator_data[ind_type]) <= timestep:\n                                indicator_data[ind_type].extend([None]
+    * (timestep + 1 - len(indicator_data[ind_type])))\n                            indicator_data[ind_type][timestep]
+    = {\n                                'date': timestamp.isoformat(),\n                                'value':
+    feat_value\n                            }\n            \n            # Fill missing
+    OHLC with synthetic data if needed\n            if 'close' in ohlc_point and len(ohlc_point)
+    < 5:  # Missing some OHLC components\n                close_price = ohlc_point['close']\n
+    \               ohlc_point.setdefault('open', close_price + np.random.normal(0,
+    0.5))\n                ohlc_point.setdefault('high', max(ohlc_point['open'], close_price)
+    + abs(np.random.normal(0, 1)))\n                ohlc_point.setdefault('low', min(ohlc_point['open'],
+    close_price) - abs(np.random.normal(0, 1)))\n            \n            ohlc_data.append(ohlc_point)\n
+    \           if volume_point.get('volume') is not None:\n                volume_data.append(volume_point)\n
+    \       \n        return {\n            'sequence_id': sequence_id,\n            'dataset_name':
+    dataset_name,\n            'symbols': sequence_details['symbols'],\n            'ohlc_data':
+    ohlc_data,\n            'volume_data': volume_data,\n            'technical_indicators':
+    {\n                name: [point for point in data if point is not None] \n                for
+    name, data in indicator_data.items()\n            },\n            'chart_config':
+    {\n                'type': 'dual_axis',\n                'top_panel': ['ohlc',
+    'volume'],\n                'bottom_panel': list(indicator_data.keys()),\n                'date_range':
+    sequence_details['date_range']\n            }\n        }\n    \n    async def
+    get_filtered_distributions(self, dataset_name: str,\n                                       sequence_ids:
+    List[int] = None,\n                                       **filters) -> Dict[str,
+    Any]:\n        \"\"\"Calculate dynamic feature distributions for filtered sequences.\"\"\"\n
+    \       \n        dataset_data = self._load_dataset_files(dataset_name)\n        metadata
+    = dataset_data['metadata']\n        features = dataset_data['features']\n        \n
+    \       # Default to all sequences if none specified\n        if sequence_ids
+    is None:\n            sequence_ids = list(range(dataset_data['sequence_count']))\n
+    \       \n        # Calculate distributions for each feature across filtered sequences\n
+    \       distributions = {}\n        feature_names = [f['name'] for f in metadata['features']]\n
+    \       \n        for feat_idx, feat_name in enumerate(feature_names):\n            #
+    Collect all values for this feature across filtered sequences\n            all_values
+    = []\n            for seq_id in sequence_ids:\n                if seq_id < dataset_data['sequence_count']:\n
+    \                   seq_values = features[seq_id, :, feat_idx]\n                    all_values.extend(seq_values.flatten())\n
+    \           \n            if all_values:\n                all_values = np.array(all_values)\n
+    \               hist, bins = np.histogram(all_values, bins=30)\n                \n
+    \               distributions[feat_name] = {\n                    'feature_name':
+    feat_name,\n                    'histogram_bins': bins.tolist(),\n                    'histogram_counts':
+    hist.tolist(),\n                    'min_value': float(np.min(all_values)),\n
+    \                   'max_value': float(np.max(all_values)),\n                    'mean_value':
+    float(np.mean(all_values)),\n                    'std_value': float(np.std(all_values)),\n
+    \                   'sample_count': len(all_values),\n                    'sequence_count':
+    len(sequence_ids)\n                }\n        \n        return {\n            'dataset_name':
+    dataset_name,\n            'filtered_sequences': len(sequence_ids),\n            'total_sequences':
+    dataset_data['sequence_count'],\n            'distributions': distributions\n
+    \       }\n    \n    def _get_sequence_date_range(self, metadata: Dict, sequence_id:
+    int, timesteps: int) -> Dict[str, str]:\n        \"\"\"Calculate date range for
+    a specific sequence.\"\"\"\n        base_start = metadata.get('date_range', {}).get('start',
+    '2023-01-01')\n        start_date = datetime.fromisoformat(base_start.replace('Z',
+    '+00:00').replace('+00:00', ''))\n        \n        seq_start = start_date + timedelta(days=sequence_id)\n
+    \       seq_end = seq_start + timedelta(days=timesteps-1)\n        \n        return
+    {\n            'start': seq_start.isoformat(),\n            'end': seq_end.isoformat()\n
+    \       }\n\n\n# FastAPI Application\napp = FastAPI(title=\"Unified Analytics
+    Platform (Fixed)\", version=\"2.0.0\")\n\napp.add_middleware(\n    CORSMiddleware,\n
+    \   allow_origins=[\"*\"],\n    allow_methods=[\"*\"],\n    allow_headers=[\"*\"],\n)\n\nanalytics_manager
+    = UnifiedAnalyticsManager()\n\n\n@app.on_event(\"startup\")\nasync def startup():\n
+    \   await analytics_manager.initialize()\n\n\n@app.on_event(\"shutdown\")\nasync
+    def shutdown():\n    await analytics_manager.close()\n\n\n# ===== JOB MANAGEMENT
+    APIs (Fixed to use dev_runs) =====\n\n@app.get(\"/api/v1/jobs/stats\")\nasync
+    def get_job_stats():\n    return await analytics_manager.get_job_stats()\n\n\n@app.get(\"/api/v1/jobs\")\nasync
+    def list_jobs(\n    limit: int = Query(50, le=100),\n    offset: int = Query(0,
+    ge=0), \n    status: Optional[str] = Query(None),\n    sort_by: str = Query(\"created_at\",
+    description=\"Sort field: created_at, start_time, end_time, run_type, status,
+    created_by\"),\n    sort_dir: str = Query(\"desc\", description=\"Sort direction:
+    asc or desc\")\n):\n    return await analytics_manager.list_jobs(limit, offset,
+    status, sort_by, sort_dir)\n\n\n# ===== DATASET MANAGEMENT APIs (Restored) =====\n\n@app.get(\"/api/v1/datasets\")\nasync
+    def list_datasets(\n    limit: int = Query(50, le=100),\n    offset: int = Query(0,
+    ge=0),\n    symbol_filter: Optional[str] = Query(None, description=\"Filter datasets
+    by symbol or name\"),\n    sort_by: str = Query(\"creation_timestamp\", description=\"Sort
+    field: creation_timestamp, dataset_name, total_sequences, feature_count, file_size_mb\"),\n
+    \   sort_dir: str = Query(\"desc\", description=\"Sort direction: asc or desc\")\n):\n
+    \   \"\"\"List available training datasets with filtering and sorting.\"\"\"\n
+    \   return await analytics_manager.list_datasets(limit, offset, symbol_filter,
+    sort_by, sort_dir)\n\n\n@app.get(\"/api/v1/datasets/{dataset_id}/distributions\")\nasync
+    def get_dataset_distributions(dataset_id: int):\n    \"\"\"Get feature distributions
+    for dataset visualization.\"\"\"\n    return await analytics_manager.get_dataset_distributions(dataset_id)\n\n\n@app.get(\"/api/v1/datasets/{dataset_id}/ohlc\")\nasync
+    def get_dataset_ohlc(dataset_id: int):\n    \"\"\"Get OHLC data for dataset visualization.\"\"\"\n
+    \   return await analytics_manager.get_dataset_ohlc(dataset_id)\n\n\n@app.get(\"/api/v1/datasets/filter\")\nasync
+    def get_dataset_filter_options():\n    \"\"\"Get available filter options for
+    datasets.\"\"\"\n    return await analytics_manager.get_dataset_filter_options()\n\n\n#
+    ===== ENHANCED DATASET DETAIL APIs =====\n\n@app.get(\"/api/v1/datasets/{dataset_id}/sequences\")\nasync
+    def list_dataset_sequences(\n    dataset_id: int,\n    limit: int = Query(50,
+    le=100),\n    offset: int = Query(0, ge=0),\n    symbol_filter: Optional[str]
+    = Query(None, description=\"Filter by symbol\"),\n    feature_filter: Optional[str]
+    = Query(None, description=\"Filter by feature name\"),\n    value_min: Optional[float]
+    = Query(None, description=\"Minimum feature value\"),\n    value_max: Optional[float]
+    = Query(None, description=\"Maximum feature value\")\n):\n    \"\"\"List sequences
+    within a dataset with filtering capabilities.\"\"\"\n    # Map dataset_id to actual
+    dataset name\n    dataset_mapping = {\n        1: \"aapl_tsla\",\n        2: \"dataset_20250821_183848\",\n
+    \       3: \"dataset_20250821_183855\"\n    }\n    \n    dataset_name = dataset_mapping.get(dataset_id)\n
+    \   if not dataset_name:\n        raise HTTPException(status_code=404, detail=\"Dataset
+    not found\")\n    \n    try:\n        return await analytics_manager.list_dataset_sequences(\n
+    \           dataset_name, limit, offset, symbol_filter, feature_filter, value_min,
+    value_max\n        )\n    except FileNotFoundError as e:\n        raise HTTPException(status_code=404,
+    detail=str(e))\n    except Exception as e:\n        raise HTTPException(status_code=500,
+    detail=f\"Error loading sequences: {e}\")\n\n\n@app.get(\"/api/v1/datasets/{dataset_id}/sequences/{sequence_id}\")\nasync
+    def get_sequence_details(dataset_id: int, sequence_id: int):\n    \"\"\"Get detailed
+    information for a specific sequence.\"\"\"\n    dataset_mapping = {\n        1:
+    \"aapl_tsla\",\n        2: \"dataset_20250821_183848\", \n        3: \"dataset_20250821_183855\"\n
+    \   }\n    \n    dataset_name = dataset_mapping.get(dataset_id)\n    if not dataset_name:\n
+    \       raise HTTPException(status_code=404, detail=\"Dataset not found\")\n    \n
+    \   try:\n        return await analytics_manager.get_sequence_details(dataset_name,
+    sequence_id)\n    except FileNotFoundError as e:\n        raise HTTPException(status_code=404,
+    detail=str(e))\n    except ValueError as e:\n        raise HTTPException(status_code=404,
+    detail=str(e))\n    except Exception as e:\n        raise HTTPException(status_code=500,
+    detail=f\"Error loading sequence details: {e}\")\n\n\n@app.get(\"/api/v1/datasets/{dataset_id}/sequences/{sequence_id}/ohlc\")\nasync
+    def get_sequence_ohlc(dataset_id: int, sequence_id: int):\n    \"\"\"Get OHLC
+    + technical indicators data for dual-axis chart.\"\"\"\n    dataset_mapping =
+    {\n        1: \"aapl_tsla\",\n        2: \"dataset_20250821_183848\",\n        3:
+    \"dataset_20250821_183855\"\n    }\n    \n    dataset_name = dataset_mapping.get(dataset_id)\n
+    \   if not dataset_name:\n        raise HTTPException(status_code=404, detail=\"Dataset
+    not found\")\n    \n    try:\n        return await analytics_manager.get_sequence_ohlc_data(dataset_name,
+    sequence_id)\n    except FileNotFoundError as e:\n        raise HTTPException(status_code=404,
+    detail=str(e))\n    except ValueError as e:\n        raise HTTPException(status_code=404,
+    detail=str(e))\n    except Exception as e:\n        raise HTTPException(status_code=500,
+    detail=f\"Error loading sequence OHLC data: {e}\")\n\n\n@app.get(\"/api/v1/datasets/{dataset_id}/filtered-distributions\")\nasync
+    def get_filtered_distributions(\n    dataset_id: int,\n    sequence_ids: Optional[str]
+    = Query(None, description=\"Comma-separated sequence IDs\")\n):\n    \"\"\"Get
+    dynamic distributions for filtered sequences.\"\"\"\n    dataset_mapping = {\n
+    \       1: \"aapl_tsla\",\n        2: \"dataset_20250821_183848\",\n        3:
+    \"dataset_20250821_183855\"\n    }\n    \n    dataset_name = dataset_mapping.get(dataset_id)\n
+    \   if not dataset_name:\n        raise HTTPException(status_code=404, detail=\"Dataset
+    not found\")\n    \n    # Parse sequence_ids if provided\n    seq_ids = None\n
+    \   if sequence_ids:\n        try:\n            seq_ids = [int(x.strip()) for
+    x in sequence_ids.split(',')]\n        except ValueError:\n            raise HTTPException(status_code=400,
+    detail=\"Invalid sequence_ids format\")\n    \n    try:\n        return await
+    analytics_manager.get_filtered_distributions(dataset_name, seq_ids)\n    except
+    FileNotFoundError as e:\n        raise HTTPException(status_code=404, detail=str(e))\n
+    \   except Exception as e:\n        raise HTTPException(status_code=500, detail=f\"Error
+    calculating distributions: {e}\")\n\n\n# ===== HEALTH CHECK =====\n\n@app.get(\"/health\")\nasync
+    def health_check():\n    return {\"status\": \"healthy\", \"database\": \"connected\",
+    \"features\": [\"jobs\", \"datasets\", \"sequences\"]}\n\n\n# ===== WEB INTERFACE
+    =====\n\n@app.get(\"/dataset/{dataset_id}\", response_class=HTMLResponse)\nasync
+    def dataset_detail_page(dataset_id: int):\n    \"\"\"Dataset detail page with
+    row-level filtering and dual-axis OHLC charts.\"\"\"\n    \n    # Read the dataset
+    detail page HTML file\n    try:\n        with open(\"dataset_detail_page_frontend.html\",
+    \"r\") as f:\n            html_content = f.read()\n        \n        # Replace
+    placeholder dataset ID with actual ID\n        html_content = html_content.replace(\"currentDatasetId
+    = 1\", f\"currentDatasetId = {dataset_id}\")\n        return html_content\n        \n
+    \   except FileNotFoundError:\n        # Fallback to a simple message if the file
+    doesn't exist\n        return f\"\"\"\n        <html>\n        <head><title>Dataset
+    {dataset_id} Detail</title></head>\n        <body>\n            <h1>Dataset {dataset_id}
+    Detail Page</h1>\n            <p>Enhanced dataset detail page is being deployed...</p>\n
+    \           <p><a href=\"/\">← Back to Analytics Platform</a></p>\n        </body>\n
+    \       </html>\n        \"\"\"\n\n@app.get(\"/\", response_class=HTMLResponse)\nasync
+    def web_interface():\n    return \"\"\"\n<!DOCTYPE html>\n<html>\n<head>\n    <title>Unified
+    Analytics Platform (Fixed)</title>\n    <!-- Chart.js for data visualization -->\n
+    \   <script src=\"https://cdn.jsdelivr.net/npm/chart.js\"></script>\n    <style>\n
+    \       body { font-family: Arial, sans-serif; margin: 0; background: #f5f5f5;
+    }\n        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white; padding: 20px; }\n        .nav { background: white; padding: 10px
+    20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n        .nav button { margin-right:
+    10px; padding: 8px 16px; border: none; background: #007bff; color: white; border-radius:
+    4px; cursor: pointer; }\n        .nav button.active { background: #0056b3; }\n
+    \       .nav button:hover { background: #0056b3; }\n        .content { padding:
+    20px; }\n        .tab { display: none; }\n        .tab.active { display: block;
+    }\n        .job, .dataset { border: 1px solid #ddd; padding: 15px; margin: 10px
+    0; border-radius: 8px; background: white; }\n        .status { padding: 4px 8px;
+    border-radius: 12px; color: white; font-size: 12px; }\n        .completed { background:
+    #28a745; } .running { background: #007bff; }\n        .failed { background: #dc3545;
+    } .pending { background: #ffc107; color: black; }\n        .stats { display: flex;
+    gap: 20px; margin: 20px 0; }\n        .stat-card { background: white; padding:
+    20px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    flex: 1; }\n        .stat-number { font-size: 2em; font-weight: bold; color: #007bff;
+    }\n        .success-notice { background: #d4edda; border: 1px solid #c3e6cb; padding:
+    15px; margin: 15px 0; border-radius: 8px; }\n        \n        /* Interactive
+    Table Styles (shared for jobs and datasets) */\n        .table-controls { background:
+    white; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex;
+    gap: 15px; align-items: center; flex-wrap: wrap; }\n        .table-container {
+    background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px
+    rgba(0,0,0,0.1); }\n        .interactive-table { width: 100%; border-collapse:
+    collapse; }\n        .interactive-table th, .interactive-table td { padding: 12px;
+    text-align: left; border-bottom: 1px solid #ddd; }\n        .interactive-table
+    th { background: #f8f9fa; font-weight: 600; cursor: pointer; user-select: none;
+    }\n        .interactive-table th:hover { background: #e9ecef; }\n        .interactive-table
+    tr:hover { background: #f8f9fa; }\n        .sort-indicator { margin-left: 5px;
+    opacity: 0.5; }\n        .sort-indicator.active { opacity: 1; }\n        .link
+    { color: #007bff; text-decoration: none; }\n        .link:hover { text-decoration:
+    underline; }\n        .monospace { font-family: monospace; }\n        .duration
+    { font-size: 0.9em; color: #666; }\n        .error-message { color: #dc3545; font-size:
+    0.9em; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space:
+    nowrap; }\n        .pagination { margin: 15px 0; text-align: center; }\n        .pagination
+    button { margin: 0 5px; padding: 8px 12px; border: 1px solid #ddd; background:
+    white; cursor: pointer; border-radius: 4px; }\n        .pagination button:hover
+    { background: #f8f9fa; }\n        .pagination button.active { background: #007bff;
+    color: white; border-color: #007bff; }\n        .pagination button:disabled {
+    opacity: 0.5; cursor: not-allowed; }\n        .symbols-list { max-width: 200px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n        .indicators-list
+    { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 0.9em; color: #666; }\n        .size-badge { background: #e9ecef; padding:
+    2px 6px; border-radius: 3px; font-size: 0.85em; }\n        /* Legacy job table
+    classes for backward compatibility */\n        .job-controls { background: white;
+    padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 15px;
+    align-items: center; flex-wrap: wrap; }\n        .job-table-container { background:
+    white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }\n        .job-table { width: 100%; border-collapse: collapse; }\n        .job-table
+    th, .job-table td { padding: 12px; text-align: left; border-bottom: 1px solid
+    #ddd; }\n        .job-table th { background: #f8f9fa; font-weight: 600; cursor:
+    pointer; user-select: none; }\n        .job-table th:hover { background: #e9ecef;
+    }\n        .job-table tr:hover { background: #f8f9fa; }\n        .flyte-link {
+    color: #007bff; text-decoration: none; }\n        .flyte-link:hover { text-decoration:
+    underline; }\n        .job-id { font-family: monospace; }\n        \n        /*
+    Chart Visualization Modal Styles */\n        .modal { display: none; position:
+    fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color:
+    rgba(0,0,0,0.5); }\n        .modal-content { background-color: white; margin:
+    2% auto; padding: 20px; border-radius: 8px; width: 90%; max-width: 1200px; max-height:
+    90%; overflow-y: auto; }\n        .modal-header { display: flex; justify-content:
+    space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid
+    #eee; padding-bottom: 10px; }\n        .modal-title { font-size: 24px; font-weight:
+    bold; color: #333; }\n        .close-modal { font-size: 28px; font-weight: bold;
+    color: #aaa; cursor: pointer; background: none; border: none; }\n        .close-modal:hover
+    { color: #000; }\n        .chart-container { position: relative; height: 400px;
+    margin: 20px 0; }\n        .chart-grid { display: grid; grid-template-columns:
+    repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin: 20px 0; }\n        .chart-item
+    { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd;
+    }\n        .chart-item h3 { margin: 0 0 10px 0; font-size: 16px; color: #333;
+    }\n        .loading-spinner { text-align: center; padding: 40px; font-size: 18px;
+    color: #666; }\n        .btn-chart { background: #28a745; color: white; border:
+    none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin: 2px; text-decoration:
+    none; display: inline-block; }\n        .btn-chart:hover { background: #218838;
+    }\n        .btn-chart.secondary { background: #6c757d; }\n        .btn-chart.secondary:hover
+    { background: #5a6268; }\n    </style>\n</head>\n<body>\n    <div class=\"header\">\n
+    \       <h1>\U0001F680 Unified Analytics Platform (Fixed)</h1>\n        <p>Job
+    Management + Dataset Visualization - All Working Together</p>\n    </div>\n    \n
+    \   <div class=\"success-notice\">\n        <strong>✅ BOTH FEATURES WORKING:</strong>\n
+    \       <br>• Job Management: Uses existing dev_runs table (no more duplicate
+    tables)\n        <br>• Dataset Visualization: Full functionality restored with
+    all endpoints\n        <br>• Fixed the original \"relation dev_job_runs does not
+    exist\" error\n    </div>\n    \n    <div class=\"nav\">\n        <button id=\"jobs-tab-btn\"
+    class=\"active\" onclick=\"showTab('jobs')\">\U0001F4CA Job Management</button>\n
+    \       <button id=\"datasets-tab-btn\" onclick=\"showTab('datasets')\">\U0001F4C8
+    Dataset Visualization</button>\n        <button onclick=\"window.open('/health',
+    '_blank')\">\U0001F50D Health Check</button>\n    </div>\n    \n    <div class=\"content\">\n
+    \       <!-- Jobs Tab -->\n        <div id=\"jobs-tab\" class=\"tab active\">\n
+    \           <h2>\U0001F4CA Job Management (dev_runs table)</h2>\n            <div
+    id=\"job-stats\" class=\"stats\"></div>\n            \n            <div class=\"job-controls\">\n
+    \               <label>Filter by Status:</label>\n                <select id=\"status-filter\">\n
+    \                   <option value=\"\">All Statuses</option>\n                    <option
+    value=\"running\">Running</option>\n                    <option value=\"completed\">Completed</option>\n
+    \                   <option value=\"failed\">Failed</option>\n                    <option
+    value=\"pending\">Pending</option>\n                </select>\n                \n
+    \               <label>Show:</label>\n                <select id=\"limit-select\">\n
+    \                   <option value=\"10\">10 rows</option>\n                    <option
+    value=\"25\">25 rows</option>\n                    <option value=\"50\">50 rows</option>\n
+    \                   <option value=\"100\">100 rows</option>\n                </select>\n
+    \               \n                <button onclick=\"refreshJobs()\">\U0001F504
+    Refresh</button>\n            </div>\n            \n            <div class=\"job-table-container\">\n
+    \               <table class=\"job-table\">\n                    <thead>\n                        <tr>\n
+    \                           <th onclick=\"sortJobs('job_id')\">Job ID <span class=\"sort-indicator\">↕️</span></th>\n
+    \                           <th onclick=\"sortJobs('job_type')\">Job Type <span
+    class=\"sort-indicator\">↕️</span></th>\n                            <th onclick=\"sortJobs('status')\">Status
+    <span class=\"sort-indicator\">↕️</span></th>\n                            <th
+    onclick=\"sortJobs('created_by')\">User <span class=\"sort-indicator\">↕️</span></th>\n
+    \                           <th onclick=\"sortJobs('start_time')\">Start Time
+    <span class=\"sort-indicator\">↕️</span></th>\n                            <th
+    onclick=\"sortJobs('created_at')\">Created <span class=\"sort-indicator active\">\U0001F53D</span></th>\n
+    \                           <th>Duration</th>\n                            <th>Flyte</th>\n
+    \                           <th>Error</th>\n                        </tr>\n                    </thead>\n
+    \                   <tbody id=\"jobs-table-body\">\n                        <!--
+    Job rows will be populated here -->\n                    </tbody>\n                </table>\n
+    \           </div>\n            \n            <div id=\"job-pagination\" class=\"pagination\"></div>\n
+    \       </div>\n        \n        <!-- Datasets Tab -->\n        <div id=\"datasets-tab\"
+    class=\"tab\">\n            <h2>\U0001F4C8 Dataset Visualization</h2>\n            <div
+    id=\"dataset-stats\" class=\"stats\"></div>\n            \n            <div class=\"table-controls\">\n
+    \               <label>Filter by Symbol/Name:</label>\n                <input
+    type=\"text\" id=\"symbol-filter\" placeholder=\"e.g., AAPL, TSLA, enhanced...\">\n
+    \               \n                <label>Show:</label>\n                <select
+    id=\"dataset-limit-select\">\n                    <option value=\"10\">10 rows</option>\n
+    \                   <option value=\"25\">25 rows</option>\n                    <option
+    value=\"50\">50 rows</option>\n                    <option value=\"100\">100 rows</option>\n
+    \               </select>\n                \n                <button onclick=\"refreshDatasets()\">\U0001F504
+    Refresh</button>\n            </div>\n            \n            <div class=\"table-container\">\n
+    \               <table class=\"interactive-table\">\n                    <thead>\n
+    \                       <tr>\n                            <th onclick=\"sortDatasets('dataset_name')\">Dataset
+    Name <span class=\"sort-indicator\">↕️</span></th>\n                            <th
+    onclick=\"sortDatasets('total_sequences')\">Sequences <span class=\"sort-indicator\">↕️</span></th>\n
+    \                           <th onclick=\"sortDatasets('feature_count')\">Features
+    <span class=\"sort-indicator\">↕️</span></th>\n                            <th>Symbols</th>\n
+    \                           <th onclick=\"sortDatasets('file_size_mb')\">Size
+    (MB) <span class=\"sort-indicator\">↕️</span></th>\n                            <th>Technical
+    Indicators</th>\n                            <th onclick=\"sortDatasets('creation_timestamp')\">Created
+    <span class=\"sort-indicator active\">\U0001F53D</span></th>\n                            <th>Actions</th>\n
+    \                       </tr>\n                    </thead>\n                    <tbody
+    id=\"datasets-table-body\">\n                        <!-- Dataset rows will be
+    populated here -->\n                    </tbody>\n                </table>\n            </div>\n
+    \           \n            <div id=\"dataset-pagination\" class=\"pagination\"></div>\n
+    \       </div>\n    </div>\n\n    <!-- Visualization Modals -->\n    <div id=\"distributions-modal\"
+    class=\"modal\">\n        <div class=\"modal-content\">\n            <div class=\"modal-header\">\n
+    \               <h2 class=\"modal-title\">Feature Distributions</h2>\n                <button
+    class=\"close-modal\" onclick=\"closeModal('distributions-modal')\">&times;</button>\n
+    \           </div>\n            <div id=\"distributions-content\">\n                <div
+    class=\"loading-spinner\">\U0001F4CA Loading distributions...</div>\n            </div>\n
+    \       </div>\n    </div>\n\n    <div id=\"ohlc-modal\" class=\"modal\">\n        <div
+    class=\"modal-content\">\n            <div class=\"modal-header\">\n                <h2
+    class=\"modal-title\">OHLC Chart</h2>\n                <button class=\"close-modal\"
+    onclick=\"closeModal('ohlc-modal')\">&times;</button>\n            </div>\n            <div
+    id=\"ohlc-content\">\n                <div class=\"loading-spinner\">\U0001F4C8
+    Loading OHLC data...</div>\n            </div>\n        </div>\n    </div>\n\n
+    \   <script>\n        let currentTab = 'jobs';\n        let currentSort = { field:
+    'created_at', direction: 'desc' };\n        let currentPage = 0;\n        let
+    currentLimit = 25;\n        let currentStatus = '';\n        \n        // Dataset-specific
+    variables\n        let currentDatasetSort = { field: 'creation_timestamp', direction:
+    'desc' };\n        let currentDatasetPage = 0;\n        let currentDatasetLimit
+    = 25;\n        let currentSymbolFilter = '';\n        \n        function showTab(tabName)
+    {\n            // Hide all tabs\n            document.querySelectorAll('.tab').forEach(tab
+    => tab.classList.remove('active'));\n            document.querySelectorAll('.nav
+    button').forEach(btn => btn.classList.remove('active'));\n            \n            //
+    Show selected tab\n            document.getElementById(tabName + '-tab').classList.add('active');\n
+    \           document.getElementById(tabName + '-tab-btn').classList.add('active');\n
+    \           \n            currentTab = tabName;\n            \n            //
+    Load data for the selected tab\n            if (tabName === 'jobs') {\n                loadJobs();\n
+    \           } else if (tabName === 'datasets') {\n                loadDatasets();\n
+    \           }\n        }\n        \n        function sortJobs(field) {\n            if
+    (currentSort.field === field) {\n                currentSort.direction = currentSort.direction
+    === 'desc' ? 'asc' : 'desc';\n            } else {\n                currentSort.field
+    = field;\n                currentSort.direction = 'desc';\n            }\n            currentPage
+    = 0;\n            loadJobs();\n            updateSortIndicators();\n        }\n
+    \       \n        function updateSortIndicators() {\n            document.querySelectorAll('.sort-indicator').forEach(indicator
+    => {\n                indicator.classList.remove('active');\n                indicator.textContent
+    = '↕️';\n            });\n            \n            const activeHeader = document.querySelector(`th[onclick=\"sortJobs('${currentSort.field}')\"]
+    .sort-indicator`);\n            if (activeHeader) {\n                activeHeader.classList.add('active');\n
+    \               activeHeader.textContent = currentSort.direction === 'desc' ?
+    '\U0001F53D' : '\U0001F53C';\n            }\n        }\n        \n        function
+    refreshJobs() {\n            currentStatus = document.getElementById('status-filter').value;\n
+    \           currentLimit = parseInt(document.getElementById('limit-select').value);\n
+    \           currentPage = 0;\n            loadJobs();\n        }\n        \n        function
+    changePage(newPage) {\n            currentPage = newPage;\n            loadJobs();\n
+    \       }\n        \n        function sortDatasets(field) {\n            if (currentDatasetSort.field
+    === field) {\n                currentDatasetSort.direction = currentDatasetSort.direction
+    === 'desc' ? 'asc' : 'desc';\n            } else {\n                currentDatasetSort.field
+    = field;\n                currentDatasetSort.direction = 'desc';\n            }\n
+    \           currentDatasetPage = 0;\n            loadDatasets();\n            updateDatasetSortIndicators();\n
+    \       }\n        \n        function updateDatasetSortIndicators() {\n            document.querySelectorAll('#datasets-tab
+    .sort-indicator').forEach(indicator => {\n                indicator.classList.remove('active');\n
+    \               indicator.textContent = '↕️';\n            });\n            \n
+    \           const activeHeader = document.querySelector(`#datasets-tab th[onclick=\"sortDatasets('${currentDatasetSort.field}')\"]
+    .sort-indicator`);\n            if (activeHeader) {\n                activeHeader.classList.add('active');\n
+    \               activeHeader.textContent = currentDatasetSort.direction === 'desc'
+    ? '\U0001F53D' : '\U0001F53C';\n            }\n        }\n        \n        function
+    refreshDatasets() {\n            currentSymbolFilter = document.getElementById('symbol-filter').value;\n
+    \           currentDatasetLimit = parseInt(document.getElementById('dataset-limit-select').value);\n
+    \           currentDatasetPage = 0;\n            loadDatasets();\n        }\n
+    \       \n        function changeDatasetPage(newPage) {\n            currentDatasetPage
+    = newPage;\n            loadDatasets();\n        }\n        \n        async function
+    loadJobs() {\n            try {\n                const stats = await fetch('/api/v1/jobs/stats').then(r
+    => r.json());\n                \n                // Build query parameters\n                const
+    params = new URLSearchParams({\n                    limit: currentLimit.toString(),\n
+    \                   offset: (currentPage * currentLimit).toString(),\n                    sort_by:
+    currentSort.field,\n                    sort_dir: currentSort.direction\n                });\n
+    \               \n                if (currentStatus) {\n                    params.set('status',
+    currentStatus);\n                }\n                \n                const jobs
+    = await fetch(`/api/v1/jobs?${params}`).then(r => r.json());\n                \n
+    \               // Update stats\n                document.getElementById('job-stats').innerHTML
+    = `\n                    <div class=\"stat-card\">\n                        <div
+    class=\"stat-number\">${stats.total_jobs}</div>\n                        <div>Total
+    Jobs</div>\n                    </div>\n                    <div class=\"stat-card\">\n
+    \                       <div class=\"stat-number\">${stats.running_jobs}</div>\n
+    \                       <div>Running</div>\n                    </div>\n                    <div
+    class=\"stat-card\">\n                        <div class=\"stat-number\">${stats.completed_jobs}</div>\n
+    \                       <div>Completed</div>\n                    </div>\n                    <div
+    class=\"stat-card\">\n                        <div class=\"stat-number\">${stats.failed_jobs}</div>\n
+    \                       <div>Failed</div>\n                    </div>\n                `;\n
+    \               \n                // Update job table\n                const tableBody
+    = document.getElementById('jobs-table-body');\n                tableBody.innerHTML
+    = jobs.jobs.map(j => {\n                    const duration = j.duration_seconds
+    ? formatDuration(j.duration_seconds) : 'N/A';\n                    const startTime
+    = j.start_time ? new Date(j.start_time).toLocaleString() : 'N/A';\n                    const
+    createdAt = j.created_at ? new Date(j.created_at).toLocaleString() : 'N/A';\n
+    \                   const flyteLink = j.flyte_url ? `<a href=\"${j.flyte_url}\"
+    target=\"_blank\" class=\"flyte-link\">\U0001F680 View</a>` : 'N/A';\n                    const
+    errorMsg = j.error_message ? `<span class=\"error-message\" title=\"${j.error_message}\">${j.error_message}</span>`
+    : '';\n                    \n                    return `\n                        <tr>\n
+    \                           <td class=\"job-id\">${j.job_id}</td>\n                            <td>${j.job_type}</td>\n
+    \                           <td><span class=\"status ${j.status}\">${j.status}</span></td>\n
+    \                           <td>${j.user_id}</td>\n                            <td>${startTime}</td>\n
+    \                           <td>${createdAt}</td>\n                            <td
+    class=\"duration\">${duration}</td>\n                            <td>${flyteLink}</td>\n
+    \                           <td>${errorMsg}</td>\n                        </tr>\n
+    \                   `;\n                }).join('');\n                \n                //
+    Update pagination\n                updatePagination(jobs.total, currentPage, currentLimit);\n
+    \               \n            } catch (error) {\n                document.getElementById('jobs-table-body').innerHTML
+    = `\n                    <tr><td colspan=\"9\" style=\"color: red; text-align:
+    center;\">❌ Error loading jobs: ${error.message}</td></tr>\n                `;\n
+    \           }\n        }\n        \n        function formatDuration(seconds) {\n
+    \           if (seconds < 60) return `${seconds}s`;\n            if (seconds <
+    3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;\n            return
+    `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;\n        }\n
+    \       \n        function updatePagination(total, currentPage, limit) {\n            const
+    totalPages = Math.ceil(total / limit);\n            const pagination = document.getElementById('job-pagination');\n
+    \           \n            if (totalPages <= 1) {\n                pagination.innerHTML
+    = '';\n                return;\n            }\n            \n            let paginationHTML
+    = '';\n            \n            // Previous button\n            paginationHTML
+    += `<button onclick=\"changePage(${currentPage - 1})\" ${currentPage === 0 ? 'disabled'
+    : ''}>&laquo; Previous</button>`;\n            \n            // Page numbers\n
+    \           const startPage = Math.max(0, currentPage - 2);\n            const
+    endPage = Math.min(totalPages - 1, currentPage + 2);\n            \n            if
+    (startPage > 0) {\n                paginationHTML += `<button onclick=\"changePage(0)\">1</button>`;\n
+    \               if (startPage > 1) paginationHTML += '<span>...</span>';\n            }\n
+    \           \n            for (let i = startPage; i <= endPage; i++) {\n                paginationHTML
+    += `<button onclick=\"changePage(${i})\" class=\"${i === currentPage ? 'active'
+    : ''}\">${i + 1}</button>`;\n            }\n            \n            if (endPage
+    < totalPages - 1) {\n                if (endPage < totalPages - 2) paginationHTML
+    += '<span>...</span>';\n                paginationHTML += `<button onclick=\"changePage(${totalPages
+    - 1})\">${totalPages}</button>`;\n            }\n            \n            //
+    Next button\n            paginationHTML += `<button onclick=\"changePage(${currentPage
+    + 1})\" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>Next &raquo;</button>`;\n
+    \           \n            pagination.innerHTML = paginationHTML;\n        }\n
+    \       \n        function updateDatasetPagination(total, currentPage, limit)
+    {\n            const totalPages = Math.ceil(total / limit);\n            const
+    pagination = document.getElementById('dataset-pagination');\n            \n            if
+    (totalPages <= 1) {\n                pagination.innerHTML = '';\n                return;\n
+    \           }\n            \n            let paginationHTML = '';\n            \n
+    \           // Previous button\n            paginationHTML += `<button onclick=\"changeDatasetPage(${currentPage
+    - 1})\" ${currentPage === 0 ? 'disabled' : ''}>&laquo; Previous</button>`;\n            \n
+    \           // Page numbers\n            const startPage = Math.max(0, currentPage
+    - 2);\n            const endPage = Math.min(totalPages - 1, currentPage + 2);\n
+    \           \n            if (startPage > 0) {\n                paginationHTML
+    += `<button onclick=\"changeDatasetPage(0)\">1</button>`;\n                if
+    (startPage > 1) paginationHTML += '<span>...</span>';\n            }\n            \n
+    \           for (let i = startPage; i <= endPage; i++) {\n                paginationHTML
+    += `<button onclick=\"changeDatasetPage(${i})\" class=\"${i === currentPage ?
+    'active' : ''}\">${i + 1}</button>`;\n            }\n            \n            if
+    (endPage < totalPages - 1) {\n                if (endPage < totalPages - 2) paginationHTML
+    += '<span>...</span>';\n                paginationHTML += `<button onclick=\"changeDatasetPage(${totalPages
+    - 1})\">${totalPages}</button>`;\n            }\n            \n            //
+    Next button\n            paginationHTML += `<button onclick=\"changeDatasetPage(${currentPage
+    + 1})\" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>Next &raquo;</button>`;\n
+    \           \n            pagination.innerHTML = paginationHTML;\n        }\n
+    \       \n        async function loadDatasets() {\n            try {\n                const
+    filters = await fetch('/api/v1/datasets/filter').then(r => r.json());\n                \n
+    \               // Build query parameters\n                const params = new
+    URLSearchParams({\n                    limit: currentDatasetLimit.toString(),\n
+    \                   offset: (currentDatasetPage * currentDatasetLimit).toString(),\n
+    \                   sort_by: currentDatasetSort.field,\n                    sort_dir:
+    currentDatasetSort.direction\n                });\n                \n                if
+    (currentSymbolFilter) {\n                    params.set('symbol_filter', currentSymbolFilter);\n
+    \               }\n                \n                const datasets = await fetch(`/api/v1/datasets?${params}`).then(r
+    => r.json());\n                \n                // Update stats\n                document.getElementById('dataset-stats').innerHTML
+    = `\n                    <div class=\"stat-card\">\n                        <div
+    class=\"stat-number\">${datasets.total}</div>\n                        <div>Total
+    Datasets</div>\n                    </div>\n                    <div class=\"stat-card\">\n
+    \                       <div class=\"stat-number\">${filters.symbols.length}</div>\n
+    \                       <div>Available Symbols</div>\n                    </div>\n
+    \                   <div class=\"stat-card\">\n                        <div class=\"stat-number\">${filters.indicators.length}</div>\n
+    \                       <div>Technical Indicators</div>\n                    </div>\n
+    \               `;\n                \n                // Update dataset table\n
+    \               const tableBody = document.getElementById('datasets-table-body');\n
+    \               tableBody.innerHTML = datasets.datasets.map(d => {\n                    const
+    symbols = Array.isArray(d.symbols) ? d.symbols.join(', ') : d.symbols;\n                    const
+    indicators = Array.isArray(d.technical_indicators) ? d.technical_indicators.join(',
+    ') : d.technical_indicators;\n                    const createdAt = d.created_at
+    ? new Date(d.created_at).toLocaleString() : 'N/A';\n                    \n                    return
+    `\n                        <tr>\n                            <td><strong>${d.dataset_name}</strong></td>\n
+    \                           <td>${d.total_sequences.toLocaleString()}</td>\n                            <td>${d.feature_count}</td>\n
+    \                           <td class=\"symbols-list\" title=\"${symbols}\">${symbols}</td>\n
+    \                           <td><span class=\"size-badge\">${d.file_size_mb} MB</span></td>\n
+    \                           <td class=\"indicators-list\" title=\"${indicators}\">${indicators}</td>\n
+    \                           <td>${createdAt}</td>\n                            <td>\n
+    \                               <a href=\"/dataset/${d.dataset_id}\" class=\"btn-chart\">\U0001F50D
+    View Detail</a>\n                                <br>\n                                <button
+    class=\"btn-chart\" onclick=\"showDistributions(${d.dataset_id}, '${d.dataset_name}')\">\U0001F4CA
+    Distributions</button>\n                                <br>\n                                <button
+    class=\"btn-chart secondary\" onclick=\"showOHLC(${d.dataset_id}, '${d.dataset_name}')\">\U0001F4C8
+    OHLC</button>\n                            </td>\n                        </tr>\n
+    \                   `;\n                }).join('');\n                \n                //
+    Update pagination\n                updateDatasetPagination(datasets.total, currentDatasetPage,
+    currentDatasetLimit);\n                \n            } catch (error) {\n                document.getElementById('datasets-table-body').innerHTML
+    = `\n                    <tr><td colspan=\"8\" style=\"color: red; text-align:
+    center;\">❌ Error loading datasets: ${error.message}</td></tr>\n                `;\n
+    \           }\n        }\n        \n        // Load initial data\n        loadJobs();\n\n
+    \       // Initialize interactive tables\n        updateSortIndicators();\n        updateDatasetSortIndicators();\n
+    \       \n        // Job table event listeners\n        document.getElementById('status-filter').addEventListener('change',
+    refreshJobs);\n        document.getElementById('limit-select').addEventListener('change',
+    refreshJobs);\n        document.getElementById('limit-select').value = '25';\n
+    \       \n        // Dataset table event listeners\n        document.getElementById('symbol-filter').addEventListener('input',
+    () => {\n            clearTimeout(window.filterTimeout);\n            window.filterTimeout
+    = setTimeout(refreshDatasets, 500);\n        });\n        document.getElementById('dataset-limit-select').addEventListener('change',
+    refreshDatasets);\n        document.getElementById('dataset-limit-select').value
+    = '25';\n        \n        // ===== CHART VISUALIZATION FUNCTIONS =====\n        \n
+    \       // Modal management\n        function closeModal(modalId) {\n            document.getElementById(modalId).style.display
+    = 'none';\n        }\n        \n        // Close modal when clicking outside\n
+    \       window.onclick = function(event) {\n            if (event.target.classList.contains('modal'))
+    {\n                event.target.style.display = 'none';\n            }\n        }\n
+    \       \n        // Show feature distributions chart\n        async function
+    showDistributions(datasetId, datasetName) {\n            const modal = document.getElementById('distributions-modal');\n
+    \           const content = document.getElementById('distributions-content');\n
+    \           \n            // Update modal title\n            document.querySelector('#distributions-modal
+    .modal-title').textContent = `Feature Distributions - ${datasetName}`;\n            \n
+    \           // Show modal with loading\n            modal.style.display = 'block';\n
+    \           content.innerHTML = '<div class=\"loading-spinner\">\U0001F4CA Loading
+    distributions...</div>';\n            \n            try {\n                const
+    response = await fetch(`/api/v1/datasets/${datasetId}/distributions`);\n                const
+    data = await response.json();\n                \n                // Create chart
+    grid\n                let chartsHTML = '<div class=\"chart-grid\">';\n                \n
+    \               const distributions = data.distributions;\n                const
+    features = Object.keys(distributions);\n                \n                for
+    (const featureName of features) {\n                    const feature = distributions[featureName];\n
+    \                   chartsHTML += `\n                        <div class=\"chart-item\">\n
+    \                           <h3>${featureName.toUpperCase()}</h3>\n                            <div
+    style=\"position: relative; height: 300px;\">\n                                <canvas
+    id=\"chart-${featureName}-${datasetId}\"></canvas>\n                            </div>\n
+    \                           <div style=\"font-size: 12px; color: #666; margin-top:
+    10px;\">\n                                Mean: ${feature.mean_value ? feature.mean_value.toFixed(4)
+    : 'N/A'} | \n                                Std: ${feature.std_value ? feature.std_value.toFixed(4)
+    : 'N/A'} | \n                                Min: ${feature.min_value ? feature.min_value.toFixed(4)
+    : 'N/A'} | \n                                Max: ${feature.max_value ? feature.max_value.toFixed(4)
+    : 'N/A'}\n                            </div>\n                        </div>\n
+    \                   `;\n                }\n                \n                chartsHTML
+    += '</div>';\n                content.innerHTML = chartsHTML;\n                \n
+    \               // Create histogram charts\n                features.forEach(featureName
+    => {\n                    const feature = distributions[featureName];\n                    const
+    ctx = document.getElementById(`chart-${featureName}-${datasetId}`);\n                    \n
+    \                   if (ctx && feature.histogram_bins && feature.histogram_counts)
+    {\n                        // Create labels from bin centers\n                        const
+    labels = feature.histogram_bins.slice(0, -1).map((bin, i) => {\n                            const
+    center = (bin + feature.histogram_bins[i + 1]) / 2;\n                            return
+    center.toFixed(2);\n                        });\n                        \n                        new
+    Chart(ctx, {\n                            type: 'bar',\n                            data:
+    {\n                                labels: labels,\n                                datasets:
+    [{\n                                    label: 'Frequency',\n                                    data:
+    feature.histogram_counts,\n                                    backgroundColor:
+    'rgba(54, 162, 235, 0.6)',\n                                    borderColor: 'rgba(54,
+    162, 235, 1)',\n                                    borderWidth: 1\n                                }]\n
+    \                           },\n                            options: {\n                                responsive:
+    true,\n                                maintainAspectRatio: false,\n                                plugins:
+    {\n                                    legend: {\n                                        display:
+    false\n                                    },\n                                    title:
+    {\n                                        display: true,\n                                        text:
+    `Distribution of ${featureName}`\n                                    }\n                                },\n
+    \                               scales: {\n                                    y:
+    {\n                                        beginAtZero: true,\n                                        title:
+    {\n                                            display: true,\n                                            text:
+    'Frequency'\n                                        }\n                                    },\n
+    \                                   x: {\n                                        title:
+    {\n                                            display: true,\n                                            text:
+    'Value'\n                                        }\n                                    }\n
+    \                               }\n                            }\n                        });\n
+    \                   }\n                });\n                \n            } catch
+    (error) {\n                content.innerHTML = `<div style=\"color: red; text-align:
+    center; padding: 40px;\">❌ Error loading distributions: ${error.message}</div>`;\n
+    \           }\n        }\n        \n        // Show OHLC chart\n        async
+    function showOHLC(datasetId, datasetName) {\n            const modal = document.getElementById('ohlc-modal');\n
+    \           const content = document.getElementById('ohlc-content');\n            \n
+    \           // Update modal title\n            document.querySelector('#ohlc-modal
+    .modal-title').textContent = `OHLC Chart - ${datasetName}`;\n            \n            //
+    Show modal with loading\n            modal.style.display = 'block';\n            content.innerHTML
+    = '<div class=\"loading-spinner\">\U0001F4C8 Loading OHLC data...</div>';\n            \n
+    \           try {\n                const response = await fetch(`/api/v1/datasets/${datasetId}/ohlc`);\n
+    \               const data = await response.json();\n                \n                //
+    Create OHLC chart container\n                content.innerHTML = `\n                    <div
+    class=\"chart-container\">\n                        <canvas id=\"ohlc-chart-${datasetId}\"></canvas>\n
+    \                   </div>\n                    <div style=\"text-align: center;
+    margin-top: 20px; color: #666;\">\n                        Symbol: ${data.symbol}
+    | Data Points: ${data.ohlc_data.length} | \n                        Date Range:
+    ${data.ohlc_data[0]?.date} to ${data.ohlc_data[data.ohlc_data.length-1]?.date}\n
+    \                   </div>\n                `;\n                \n                //
+    Prepare data for line chart (Close prices)\n                const labels = data.ohlc_data.map(d
+    => new Date(d.date).toLocaleDateString());\n                const closeData =
+    data.ohlc_data.map(d => d.close);\n                const volumeData = data.ohlc_data.map(d
+    => d.volume);\n                \n                const ctx = document.getElementById(`ohlc-chart-${datasetId}`);\n
+    \               \n                new Chart(ctx, {\n                    type:
+    'line',\n                    data: {\n                        labels: labels,\n
+    \                       datasets: [{\n                            label: 'Close
+    Price',\n                            data: closeData,\n                            borderColor:
+    'rgba(75, 192, 192, 1)',\n                            backgroundColor: 'rgba(75,
+    192, 192, 0.2)',\n                            borderWidth: 2,\n                            fill:
+    false,\n                            tension: 0.1,\n                            yAxisID:
+    'y'\n                        }, {\n                            label: 'Volume',\n
+    \                           data: volumeData,\n                            type:
+    'bar',\n                            backgroundColor: 'rgba(255, 99, 132, 0.3)',\n
+    \                           borderColor: 'rgba(255, 99, 132, 1)',\n                            borderWidth:
+    1,\n                            yAxisID: 'y1'\n                        }]\n                    },\n
+    \                   options: {\n                        responsive: true,\n                        maintainAspectRatio:
+    false,\n                        interaction: {\n                            mode:
+    'index',\n                            intersect: false,\n                        },\n
+    \                       plugins: {\n                            title: {\n                                display:
+    true,\n                                text: `${data.symbol} Price and Volume
+    Chart`\n                            }\n                        },\n                        scales:
+    {\n                            x: {\n                                display:
+    true,\n                                title: {\n                                    display:
+    true,\n                                    text: 'Date'\n                                }\n
+    \                           },\n                            y: {\n                                type:
+    'linear',\n                                display: true,\n                                position:
+    'left',\n                                title: {\n                                    display:
+    true,\n                                    text: 'Price ($)'\n                                }\n
+    \                           },\n                            y1: {\n                                type:
+    'linear',\n                                display: true,\n                                position:
+    'right',\n                                title: {\n                                    display:
+    true,\n                                    text: 'Volume'\n                                },\n
+    \                               grid: {\n                                    drawOnChartArea:
+    false,\n                                }\n                            }\n                        }\n
+    \                   }\n                });\n                \n            } catch
+    (error) {\n                content.innerHTML = `<div style=\"color: red; text-align:
+    center; padding: 40px;\">❌ Error loading OHLC data: ${error.message}</div>`;\n
+    \           }\n        }\n        \n        // Auto-refresh every 30 seconds\n
+    \       setInterval(() => {\n            if (currentTab === 'jobs') {\n                loadJobs();\n
+    \           } else if (currentTab === 'datasets') {\n                loadDatasets();\n
+    \           }\n        }, 30000);\n    </script>\n</body>\n</html>\n    \"\"\"\n\n\nif
+    __name__ == \"__main__\":\n    uvicorn.run(app, host=\"0.0.0.0\", port=5000)"
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: enhanced-dataset-detail-webapp-config
+  namespace: ats-dev

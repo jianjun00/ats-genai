@@ -1,0 +1,97 @@
+name: Jira Integration
+
+on:
+  pull_request:
+    types: [opened, closed, synchronize]
+  issues:
+    types: [opened, closed]
+  push:
+    branches: [main, develop, 'PGPT-*']
+
+jobs:
+  update-jira:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract Jira Issue Key
+        id: jira
+        run: |
+          # Extract PGPT-XXX from branch name, PR title, or commit message
+          ISSUE_KEY=""
+          
+          # Check branch name first
+          if [[ "${{ github.head_ref }}" =~ PGPT-[0-9]+ ]]; then
+            ISSUE_KEY=$(echo "${{ github.head_ref }}" | grep -o 'PGPT-[0-9]\+')
+          # Check PR title
+          elif [[ "${{ github.event.pull_request.title }}" =~ PGPT-[0-9]+ ]]; then
+            ISSUE_KEY=$(echo "${{ github.event.pull_request.title }}" | grep -o 'PGPT-[0-9]\+')
+          # Check commit message
+          elif [[ "${{ github.event.head_commit.message }}" =~ PGPT-[0-9]+ ]]; then
+            ISSUE_KEY=$(echo "${{ github.event.head_commit.message }}" | grep -o 'PGPT-[0-9]\+')
+          fi
+          
+          echo "issue_key=$ISSUE_KEY" >> $GITHUB_OUTPUT
+          echo "Found Jira issue key: $ISSUE_KEY"
+      
+      - name: Add Comment to Jira Issue (PR opened)
+        if: steps.jira.outputs.issue_key && github.event.action == 'opened' && github.event.pull_request
+        uses: atlassian/gajira-comment@master
+        with:
+          issue: ${{ steps.jira.outputs.issue_key }}
+          comment: |
+            Pull Request opened: ${{ github.event.pull_request.html_url }}
+            Title: ${{ github.event.pull_request.title }}
+            Author: ${{ github.event.pull_request.user.login }}
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+      
+      - name: Transition Jira Issue (PR opened)
+        if: steps.jira.outputs.issue_key && github.event.action == 'opened' && github.event.pull_request
+        uses: atlassian/gajira-transition@master
+        with:
+          issue: ${{ steps.jira.outputs.issue_key }}
+          transition: "In Review"
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+      
+      - name: Add Comment to Jira Issue (PR merged)
+        if: steps.jira.outputs.issue_key && github.event.action == 'closed' && github.event.pull_request.merged
+        uses: atlassian/gajira-comment@master
+        with:
+          issue: ${{ steps.jira.outputs.issue_key }}
+          comment: |
+            Pull Request merged: ${{ github.event.pull_request.html_url }}
+            Merged by: ${{ github.event.pull_request.merged_by.login }}
+            Commits: ${{ github.event.pull_request.commits }}
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+      
+      - name: Transition Jira Issue (PR merged)
+        if: steps.jira.outputs.issue_key && github.event.action == 'closed' && github.event.pull_request.merged
+        uses: atlassian/gajira-transition@master
+        with:
+          issue: ${{ steps.jira.outputs.issue_key }}
+          transition: "Done"
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+      
+      - name: Add Comment to Jira Issue (Push to main)
+        if: steps.jira.outputs.issue_key && github.ref == 'refs/heads/main'
+        uses: atlassian/gajira-comment@master
+        with:
+          issue: ${{ steps.jira.outputs.issue_key }}
+          comment: |
+            Code pushed to main branch: ${{ github.event.head_commit.url }}
+            Commit: ${{ github.event.head_commit.message }}
+            Author: ${{ github.event.head_commit.author.name }}
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
