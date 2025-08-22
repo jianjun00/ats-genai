@@ -1,0 +1,101 @@
+{
+  "dataset_name": "dataset_20250819_224743",
+  "creation_timestamp": "2025-08-19T22:47:43.370761",
+  "total_sequences": 42,
+  "sequence_length": 8,
+  "prediction_horizon": 2,
+  "feature_count": 1,
+  "label_count": 1,
+  "features": [
+    {
+      "name": "returns_1d_pct_change_lag1",
+      "feature_type": "return",
+      "data_type": "float32",
+      "dimension": 8,
+      "description": "Return calculation with 1 period lag",
+      "source_column": null,
+      "lag_periods": 1,
+      "lead_periods": null,
+      "window_size": null,
+      "parameters": {
+        "name": "returns_1d",
+        "feature_type": "transform",
+        "parameters": {
+          "transform_type": "pct_change",
+          "column": "close",
+          "periods": 1
+        },
+        "lag_periods": 1,
+        "enabled": true
+      },
+      "visualization_type": "distribution",
+      "min_value": -1.3448807001113892,
+      "max_value": 1.244465708732605,
+      "mean_value": -0.010778721421957016,
+      "std_value": 0.6295179724693298,
+      "null_count": 0,
+      "is_primary_key": false
+    }
+  ],
+  "labels": [
+    {
+      "name": "future_return_1d_simple_lead1",
+      "label_type": "return",
+      "data_type": "float32",
+      "dimension": 2,
+      "description": "Return label predicting 1 periods ahead",
+      "lead_periods": 1,
+      "parameters": {
+        "name": "future_return_1d",
+        "label_type": "return",
+        "parameters": {
+          "return_type": "simple",
+          "column": "close"
+        },
+        "lead_periods": 1,
+        "enabled": true
+      },
+      "visualization_type": "distribution",
+      "min_value": -0.06209132820367813,
+      "max_value": 0.0562543086707592,
+      "unique_values": null,
+      "class_distribution": null
+    }
+  ],
+  "symbols": [
+    "AAPL",
+    "MSFT"
+  ],
+  "date_range": {
+    "start": "2025-07-01",
+    "end": "2025-07-30"
+  },
+  "data_sources": [
+    "unknown"
+  ],
+  "data_file_path": "training_data_output/dataset_20250819_224743_features.npy",
+  "feature_file_path": "training_data_output/dataset_20250819_224743_features.npy",
+  "label_file_path": "training_data_output/dataset_20250819_224743_labels.npy",
+  "sample_ids": [],
+  "primary_key_feature": "returns_1d_pct_change_lag1",
+  "primary_key_type": null,
+  "gin_config_path": null,
+  "generation_parameters": {
+    "sequence_length": 8,
+    "prediction_horizon": 2,
+    "normalize_features": true,
+    "normalize_labels": false,
+    "remove_outliers": true,
+    "min_valid_ratio": 0.6,
+    "output_format": "pytorch"
+  },
+  "data_quality_metrics": {
+    "feature_missing_ratio": 0.0,
+    "label_missing_ratio": 0.0,
+    "overall_missing_ratio": 0.0,
+    "feature_completeness": 1.0,
+    "label_completeness": 1.0
+  },
+  "outlier_count": 0,
+  "missing_data_ratio": 0.0
+}

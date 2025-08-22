@@ -74,8 +74,23 @@ class Database:
         # For Kubernetes environments, use appropriate connection parameters
         if is_kubernetes:
             logger.info(f"Kubernetes environment detected for {self.env_type}, using connection for {self.host}")
-            # Use connection timeout and disable SSL for all Kubernetes environments
-            return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}?connect_timeout=10&sslmode=disable"
+            
+            # Check for custom connection parameters from environment
+            custom_params = os.getenv("DB_CONNECTION_PARAMS")
+            if custom_params:
+                logger.info(f"Using custom connection parameters from DB_CONNECTION_PARAMS: {custom_params}")
+                return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}?{custom_params}"
+            
+            # Check if connect_timeout should be disabled
+            disable_connect_timeout = os.getenv("DB_DISABLE_CONNECT_TIMEOUT", "").lower() in ("true", "1", "yes")
+            
+            if disable_connect_timeout:
+                logger.info("DB_DISABLE_CONNECT_TIMEOUT is set, omitting connect_timeout parameter")
+                return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}?sslmode=disable"
+            else:
+                # Use connection timeout and disable SSL for all Kubernetes environments
+                logger.info("Using connection with connect_timeout parameter")
+                return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}?connect_timeout=10&sslmode=disable"
         else:
             # For local development, use standard connection string
             logger.info(f"Local environment detected, using standard connection for {self.host}")

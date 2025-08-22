@@ -1,0 +1,15 @@
+# Gin config for dev environment
+bind = ['env_type', 'dev']
+
+# API keys - use actual values for dev
+polygon_api_key = 'REPLACE_WITH_ACTUAL_POLYGON_API_KEY'
+tiingo_api_key = 'REPLACE_WITH_ACTUAL_TIINGO_API_KEY'
+
+# Logging
+LoggingConfig.log_level = 'INFO'
+LoggingConfig.log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
+# Features
+bind = ['enable_caching', False]
+bind = ['enable_metrics', False]
+bind = ['strict_validation', True]

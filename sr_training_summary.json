@@ -1,0 +1,21 @@
+{
+  "timestamp": "2025-08-20T02:42:27.541489",
+  "symbols": [
+    "AAPL",
+    "TSLA"
+  ],
+  "total_examples": 2568,
+  "examples_per_symbol": {
+    "AAPL": 1284,
+    "TSLA": 1284
+  },
+  "feature_count": 11,
+  "date_range": {
+    "start": "2020-01-01",
+    "end": "2024-12-31"
+  },
+  "files": {
+    "pickle": "/data/training/support_resistance_20250820_024227/sr_training_aapl_tsla.pkl",
+    "csv": "/data/training/support_resistance_20250820_024227/sr_training_aapl_tsla.csv"
+  }
+}

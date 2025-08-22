@@ -1,0 +1,234 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: price-unification-migration-script
+  namespace: ats-dev
+data:
+  migration.sql: |
+    -- Migration 034: Create price unification tables
+
+    -- Runs table to track price unification job executions
+    CREATE TABLE IF NOT EXISTS dev_runs (
+        id SERIAL PRIMARY KEY,
+        run_type TEXT NOT NULL, -- 'daily_price_unification', 'backfill', etc.
+        start_time TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
+        end_time TIMESTAMP WITHOUT TIME ZONE,
+        status TEXT NOT NULL DEFAULT 'running', -- 'running', 'completed', 'failed', 'cancelled'
+        command_line TEXT,
+        git_commit_hash TEXT,
+        git_branch TEXT,
+        environment TEXT,
+        parameters JSONB,
+        results JSONB,
+        error_message TEXT,
+        created_by TEXT,
+        created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
+        updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now()
+    );
+
+    -- Index for efficient querying
+    CREATE INDEX IF NOT EXISTS idx_dev_runs_run_type ON dev_runs(run_type);
+    CREATE INDEX IF NOT EXISTS idx_dev_runs_status ON dev_runs(status);
+    CREATE INDEX IF NOT EXISTS idx_dev_runs_start_time ON dev_runs(start_time);
+
+    -- Validation status codes for price validation
+    CREATE TABLE IF NOT EXISTS dev_price_validation_status (
+        id SERIAL PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        description TEXT NOT NULL,
+        created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now()
+    );
+
+    -- Insert standard validation status codes
+    INSERT INTO dev_price_validation_status (code, description) VALUES 
+        ('valid', 'Price passed all validation checks'),
+        ('outlier_statistical', 'Price rejected due to statistical outlier (>4-6 sigma deviation)'),
+        ('outlier_vendor_disagreement', 'Price rejected due to significant vendor disagreement'),
+        ('missing_vendor_data', 'Insufficient vendor data for validation'),
+        ('manual_review', 'Price flagged for manual review'),
+        ('holiday_excluded', 'Trading date excluded due to market holiday'),
+        ('corporate_action', 'Price adjusted due to detected corporate action'),
+        ('data_quality_issue', 'Price rejected due to data quality concerns')
+    ON CONFLICT (code) DO NOTHING;
+
+    -- Unified daily prices table
+    CREATE TABLE IF NOT EXISTS dev_daily_prices (
+        id SERIAL PRIMARY KEY,
+        instrument_id INTEGER NOT NULL REFERENCES dev_instruments(id),
+        date DATE NOT NULL,
+        open_price NUMERIC,
+        high_price NUMERIC,
+        low_price NUMERIC,
+        close NUMERIC NOT NULL,
+        adj_close NUMERIC,
+        volume BIGINT NOT NULL DEFAULT 0,
+        dollar_volume BIGINT GENERATED ALWAYS AS (ROUND(close * volume::numeric)) STORED,
+        
+        -- Validation fields
+        validation_status_id INTEGER NOT NULL REFERENCES dev_price_validation_status(id),
+        run_id INTEGER NOT NULL REFERENCES dev_runs(id),
+        
+        -- Source tracking
+        primary_vendor TEXT, -- 'polygon', 'tiingo', 'fmp', 'alphavantage', 'yfinance'
+        secondary_vendors TEXT[], -- List of other vendors that provided data
+        vendor_count INTEGER DEFAULT 1, -- Number of vendors that provided this price
+        
+        -- Price validation metadata
+        price_variance NUMERIC, -- Variance across vendor prices
+        statistical_score NUMERIC, -- Z-score or similar statistical measure
+        confidence_score NUMERIC DEFAULT 1.0, -- 0.0 to 1.0, confidence in the price
+        
+        -- Vendor-specific prices for audit trail
+        polygon_price NUMERIC,
+        tiingo_price NUMERIC,
+        fmp_price NUMERIC,
+        alphavantage_price NUMERIC,
+        yfinance_price NUMERIC,
+        
+        -- Validation notes
+        validation_notes TEXT,
+        rejection_reason TEXT,
+        
+        created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
+        updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
+        
+        -- Constraints
+        CONSTRAINT dev_daily_prices_instrument_date_unique UNIQUE (instrument_id, date),
+        CONSTRAINT dev_daily_prices_positive_prices CHECK (close > 0 AND (adj_close IS NULL OR adj_close > 0)),
+        CONSTRAINT dev_daily_prices_positive_volume CHECK (volume >= 0),
+        CONSTRAINT dev_daily_prices_confidence_range CHECK (confidence_score >= 0.0 AND confidence_score <= 1.0)
+    );
+
+    -- Indexes for efficient querying
+    CREATE INDEX IF NOT EXISTS idx_dev_daily_prices_instrument_id ON dev_daily_prices(instrument_id);
+    CREATE INDEX IF NOT EXISTS idx_dev_daily_prices_date ON dev_daily_prices(date);
+    CREATE INDEX IF NOT EXISTS idx_dev_daily_prices_instrument_date ON dev_daily_prices(instrument_id, date);
+    CREATE INDEX IF NOT EXISTS idx_dev_daily_prices_run_id ON dev_daily_prices(run_id);
+    CREATE INDEX IF NOT EXISTS idx_dev_daily_prices_validation_status ON dev_daily_prices(validation_status_id);
+    CREATE INDEX IF NOT EXISTS idx_dev_daily_prices_primary_vendor ON dev_daily_prices(primary_vendor);
+    CREATE INDEX IF NOT EXISTS idx_dev_daily_prices_confidence ON dev_daily_prices(confidence_score);
+
+    -- Price validation details table for storing individual vendor validations
+    CREATE TABLE IF NOT EXISTS dev_price_validation_details (
+        id SERIAL PRIMARY KEY,
+        daily_price_id INTEGER NOT NULL REFERENCES dev_daily_prices(id) ON DELETE CASCADE,
+        vendor TEXT NOT NULL,
+        vendor_price NUMERIC,
+        vendor_volume BIGINT,
+        validation_passed BOOLEAN NOT NULL,
+        validation_notes TEXT,
+        statistical_score NUMERIC,
+        created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
+        
+        CONSTRAINT dev_price_validation_details_unique UNIQUE (daily_price_id, vendor)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_dev_price_validation_details_daily_price ON dev_price_validation_details(daily_price_id);
+    CREATE INDEX IF NOT EXISTS idx_dev_price_validation_details_vendor ON dev_price_validation_details(vendor);
+
+    -- Update trigger for updated_at columns
+    CREATE OR REPLACE FUNCTION update_updated_at_column()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        NEW.updated_at = now();
+        RETURN NEW;
+    END;
+    $$ language 'plpgsql';
+
+    CREATE TRIGGER update_dev_runs_updated_at BEFORE UPDATE ON dev_runs 
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE TRIGGER update_dev_daily_prices_updated_at BEFORE UPDATE ON dev_daily_prices 
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+  run_migration.py: |
+    """
+    Run price unification migration
+    """
+    import asyncio
+    import asyncpg
+    import logging
+
+    async def main():
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+        
+        db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+        
+        # Wait for database
+        max_retries = 10
+        for attempt in range(max_retries):
+            try:
+                conn = await asyncpg.connect(db_url)
+                logger.info("✅ Connected to database")
+                break
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(2)
+                else:
+                    raise Exception(f"Could not connect after {max_retries} attempts: {e}")
+        
+        try:
+            logger.info("🔧 Running price unification migration...")
+            
+            # Read migration SQL
+            with open('/scripts/migration.sql', 'r') as f:
+                migration_sql = f.read()
+            
+            # Execute migration
+            await conn.execute(migration_sql)
+            logger.info("✅ Price unification migration completed successfully")
+            
+            # Verify tables were created
+            table_check = await conn.fetch("""
+                SELECT tablename 
+                FROM pg_tables 
+                WHERE schemaname = 'public' 
+                  AND tablename IN ('dev_runs', 'dev_price_validation_status', 'dev_daily_prices', 'dev_price_validation_details')
+                ORDER BY tablename;
+            """)
+            
+            logger.info(f"📋 Created price unification tables:")
+            for table in table_check:
+                logger.info(f"  ✓ {table['tablename']}")
+            
+            print("🎉 PRICE UNIFICATION MIGRATION COMPLETED SUCCESSFULLY!")
+            print(f"Created {len(table_check)} new tables for price validation and unification")
+            
+        finally:
+            await conn.close()
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: price-unification-migration-job
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      containers:
+      - name: migrate-db
+        image: python:3.12-slim
+        command: ["/bin/bash"]
+        args:
+          - -c
+          - |
+            echo "📦 Installing dependencies..."
+            pip install asyncpg
+            
+            echo "🔧 Running price unification migration..."
+            python /scripts/run_migration.py
+            
+            echo "✅ Migration job completed!"
+        volumeMounts:
+        - name: script-volume
+          mountPath: /scripts
+      volumes:
+      - name: script-volume
+        configMap:
+          name: price-unification-migration-script
+      restartPolicy: Never
+  backoffLimit: 3

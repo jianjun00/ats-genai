@@ -1,0 +1,610 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: immediate-full-universe-fix-script
+  namespace: ats-dev
+data:
+  environment.py: |
+    """Environment configuration"""
+    import os
+    
+    class Environment:
+        def __init__(self):
+            self.db_host = os.getenv('DB_HOST', 'postgres-simple')
+            self.db_port = os.getenv('DB_PORT', '5432')
+            self.db_user = os.getenv('DB_USER', 'postgres')
+            self.db_password = os.getenv('DB_PASSWORD', 'dev_password')
+            self.db_name = os.getenv('DB_NAME', 'dev_db')
+            
+        def get_database_url(self):
+            return f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+
+  run_immediate_full_universe.py: |
+    """
+    Immediate Full Universe Fix - Process ALL 10,000 symbols
+    
+    Simple, direct approach to unify prices for the complete universe
+    of 10,000 instruments for recent data (2024-2025).
+    """
+    import asyncio
+    import asyncpg
+    import logging
+    import json
+    import sys
+    import os
+    import psutil
+    import time
+    from datetime import date, datetime, timedelta
+    from decimal import Decimal
+    from collections import defaultdict, Counter
+    from statistics import mean, median
+    from environment import Environment
+
+    class ImmediateFullUniverseFix:
+        def __init__(self):
+            self.env = Environment()
+            self.conn = None
+            self.start_time = datetime.now()
+            self.logger = logging.getLogger(__name__)
+            
+            # Configuration for FULL universe processing
+            self.batch_size = int(os.getenv('BATCH_SIZE', '100'))  # Larger batches
+            self.start_date = date.fromisoformat(os.getenv('START_DATE', '2024-01-01'))
+            self.end_date = date.fromisoformat(os.getenv('END_DATE', '2025-08-19'))
+            self.skip_existing = os.getenv('SKIP_EXISTING', 'true').lower() == 'true'
+            
+            # Process ALL instruments - no limits
+            self.process_all = True
+            
+            # Statistics tracking
+            self.stats = {
+                'total_symbols': 0,
+                'total_dates': 0,
+                'total_price_points': 0,
+                'successful_unifications': 0,
+                'failed_unifications': 0,
+                'validation_failures': 0,
+                'vendor_disagreements': 0,
+                'statistical_outliers': 0,
+                'manual_review_flagged': 0,
+                'holiday_exclusions': 0,
+                'polygon_coverage': 0,
+                'tiingo_coverage': 0,
+                'fmp_coverage': 0,
+                'confidence_scores': [],
+                'vendor_counts': [],
+                'price_variances': [],
+                'statistical_scores': [],
+                'single_vendor_records': 0,
+                'multi_vendor_records': 0,
+                'database_queries': 0,
+                'processed_symbols': 0,
+                'skipped_existing': 0,
+                'new_records': 0,
+                'updated_records': 0
+            }
+            
+        def safe_float(self, value):
+            """Safely convert value to float, handling Decimal and None"""
+            if value is None:
+                return None
+            if isinstance(value, (Decimal, float, int)):
+                return float(value)
+            return float(value)
+                
+        async def connect(self):
+            """Connect to database"""
+            self.conn = await asyncpg.connect(self.env.get_database_url())
+            self.logger.info("✅ Connected to database")
+            
+        async def disconnect(self):
+            """Disconnect from database"""
+            if self.conn:
+                await self.conn.close()
+                
+        async def create_run_record(self):
+            """Create detailed run record for full universe fix"""
+            parameters = {
+                'start_date': self.start_date.isoformat(),
+                'end_date': self.end_date.isoformat(),
+                'batch_size': self.batch_size,
+                'skip_existing': self.skip_existing,
+                'process_scope': 'FULL_UNIVERSE_ALL_10000_SYMBOLS'
+            }
+            
+            query = """
+                INSERT INTO dev_runs (
+                    run_type, status, command_line, environment, parameters, 
+                    created_by, date_range_start, date_range_end
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                RETURNING id
+            """
+            
+            run_id = await self.conn.fetchval(
+                query,
+                'immediate_full_universe_fix',
+                'running',
+                ' '.join(sys.argv),
+                'dev',
+                json.dumps(parameters),
+                'full_universe_fix_job',
+                self.start_date,
+                self.end_date
+            )
+            
+            self.stats['database_queries'] += 1
+            self.logger.info(f"📋 Created run record: {run_id}")
+            return run_id
+            
+        async def get_all_instruments(self):
+            """Get ALL 10,000 instruments - no filtering"""
+            query = """
+                SELECT symbol, id as instrument_id
+                FROM dev_instruments 
+                WHERE symbol IS NOT NULL
+                ORDER BY id
+            """
+            
+            rows = await self.conn.fetch(query)
+            self.stats['database_queries'] += 1
+            
+            symbols = [(row['symbol'], row['instrument_id']) for row in rows]
+            self.stats['total_symbols'] = len(symbols)
+            
+            self.logger.info(f"📊 Processing FULL UNIVERSE: {len(symbols)} instruments")
+            self.logger.info(f"🌍 This is the complete universe - not just major symbols!")
+            
+            return symbols
+            
+        async def get_recent_trading_dates(self):
+            """Get recent trading dates (focus on 2024-2025)"""
+            dates = []
+            current_date = self.start_date
+            
+            while current_date <= self.end_date:
+                if current_date.weekday() < 5:  # Skip weekends
+                    dates.append(current_date)
+                current_date += timedelta(days=1)
+                
+            self.stats['total_dates'] = len(dates)
+            self.stats['total_price_points'] = self.stats['total_symbols'] * len(dates)
+            
+            self.logger.info(f"📅 Processing {len(dates)} trading dates ({self.start_date} to {self.end_date})")
+            self.logger.info(f"📊 MASSIVE SCOPE: {self.stats['total_price_points']:,} price points for FULL UNIVERSE")
+            return dates
+            
+        async def fetch_vendor_prices(self, instrument_id, target_date):
+            """Fetch prices from vendor tables efficiently"""
+            vendor_prices = {}
+            
+            # Polygon (primary source for full universe)
+            try:
+                row = await self.conn.fetchrow("""
+                    SELECT open_price, high_price, low_price, close, volume
+                    FROM dev_daily_prices_polygon 
+                    WHERE instrument_id = $1 AND date = $2
+                """, instrument_id, target_date)
+                if row and row['close']:
+                    vendor_prices['polygon'] = {
+                        'open_price': self.safe_float(row['open_price']),
+                        'high_price': self.safe_float(row['high_price']),
+                        'low_price': self.safe_float(row['low_price']),
+                        'close': self.safe_float(row['close']),
+                        'volume': int(row['volume']) if row['volume'] else 0
+                    }
+                    self.stats['polygon_coverage'] += 1
+                self.stats['database_queries'] += 1
+            except Exception as e:
+                self.logger.debug(f"Polygon query error: {e}")
+                
+            # Tiingo (secondary source for full universe)
+            try:
+                row = await self.conn.fetchrow("""
+                    SELECT open_price, high_price, low_price, close, adj_close, volume
+                    FROM dev_daily_prices_tiingo 
+                    WHERE instrument_id = $1 AND date = $2
+                """, instrument_id, target_date)
+                if row and row['close']:
+                    vendor_prices['tiingo'] = {
+                        'open_price': self.safe_float(row['open_price']),
+                        'high_price': self.safe_float(row['high_price']),
+                        'low_price': self.safe_float(row['low_price']),
+                        'close': self.safe_float(row['close']),
+                        'adj_close': self.safe_float(row['adj_close']),
+                        'volume': int(row['volume']) if row['volume'] else 0
+                    }
+                    self.stats['tiingo_coverage'] += 1
+                self.stats['database_queries'] += 1
+            except Exception as e:
+                self.logger.debug(f"Tiingo query error: {e}")
+                
+            # FMP (limited coverage, but include if available)
+            try:
+                row = await self.conn.fetchrow("""
+                    SELECT open_price, high_price, low_price, close, adj_close, volume
+                    FROM dev_daily_prices_fmp 
+                    WHERE instrument_id = $1 AND date = $2
+                """, instrument_id, target_date)
+                if row and row['close']:
+                    vendor_prices['fmp'] = {
+                        'open_price': self.safe_float(row['open_price']),
+                        'high_price': self.safe_float(row['high_price']),
+                        'low_price': self.safe_float(row['low_price']),
+                        'close': self.safe_float(row['close']),
+                        'adj_close': self.safe_float(row['adj_close']),
+                        'volume': int(row['volume']) if row['volume'] else 0
+                    }
+                    self.stats['fmp_coverage'] += 1
+                self.stats['database_queries'] += 1
+            except Exception as e:
+                self.logger.debug(f"FMP query error: {e}")
+                
+            return vendor_prices
+            
+        def validate_price_statistically(self, price):
+            """Simple validation for full universe processing"""
+            # Basic sanity checks for full universe
+            if price <= 0:
+                return {
+                    'is_valid': False,
+                    'status': 'invalid_price',
+                    'confidence': 0.0,
+                    'z_score': None,
+                    'notes': 'Invalid price: <= 0'
+                }
+            elif price > 10000:  # Suspiciously high price
+                return {
+                    'is_valid': False,
+                    'status': 'outlier_statistical',
+                    'confidence': 0.0,
+                    'z_score': None,
+                    'notes': f'Suspiciously high price: ${price:.2f}'
+                }
+            else:
+                return {
+                    'is_valid': True,
+                    'status': 'valid',
+                    'confidence': 0.8,  # Good confidence for full universe
+                    'z_score': None,
+                    'notes': 'Basic validation passed'
+                }
+                
+        def reconcile_vendor_prices(self, vendor_prices):
+            """Simple vendor reconciliation for full universe"""
+            if not vendor_prices:
+                self.stats['failed_unifications'] += 1
+                return None
+                
+            vendor_count = len(vendor_prices)
+            self.stats['vendor_counts'].append(vendor_count)
+            
+            if vendor_count == 1:
+                self.stats['single_vendor_records'] += 1
+            else:
+                self.stats['multi_vendor_records'] += 1
+                
+            # Extract close prices
+            close_prices = []
+            for vp in vendor_prices.values():
+                if vp['close'] and vp['close'] > 0:
+                    close_prices.append(vp['close'])
+            
+            if not close_prices:
+                self.stats['failed_unifications'] += 1
+                return None
+                
+            # Calculate consensus
+            if len(close_prices) == 1:
+                consensus_price = close_prices[0]
+                price_variance = 0.0
+                confidence = 0.7  # Good for single vendor in full universe
+            else:
+                consensus_price = mean(close_prices)
+                price_variance = max(close_prices) - min(close_prices)
+                max_deviation_pct = (price_variance / consensus_price) if consensus_price > 0 else 0
+                
+                self.stats['price_variances'].append(price_variance)
+                
+                # Reasonable disagreement threshold for full universe
+                if max_deviation_pct > 0.10:  # 10% disagreement
+                    self.stats['vendor_disagreements'] += 1
+                    confidence = 0.5
+                else:
+                    confidence = min(1.0, 0.8 + (vendor_count * 0.05))
+                
+            # Select primary vendor (prefer Polygon for full universe)
+            primary_vendor = 'polygon' if 'polygon' in vendor_prices else list(vendor_prices.keys())[0]
+            primary_data = vendor_prices[primary_vendor]
+            
+            return {
+                'close': consensus_price,
+                'open_price': primary_data.get('open_price'),
+                'high_price': primary_data.get('high_price'),
+                'low_price': primary_data.get('low_price'),
+                'adj_close': primary_data.get('adj_close'),
+                'volume': primary_data.get('volume'),
+                'primary_vendor': primary_vendor,
+                'vendor_count': vendor_count,
+                'price_variance': price_variance,
+                'confidence': confidence,
+                'vendor_prices': {vendor: data['close'] for vendor, data in vendor_prices.items()}
+            }
+            
+        async def store_unified_price(self, run_id, instrument_id, target_date, unified_data, validation_result):
+            """Store unified price efficiently for full universe"""
+            
+            # Get validation status ID
+            status_code = validation_result['status']
+            status_id = await self.conn.fetchval(
+                "SELECT id FROM dev_price_validation_status WHERE code = $1", status_code
+            )
+            self.stats['database_queries'] += 1
+            
+            if not status_id:
+                status_id = 1  # Default to 'valid'
+                
+            # Check if this is an update or new record
+            existing = await self.conn.fetchval(
+                "SELECT id FROM dev_daily_prices WHERE instrument_id = $1 AND date = $2",
+                instrument_id, target_date
+            )
+            
+            # Insert unified price
+            query = """
+                INSERT INTO dev_daily_prices (
+                    instrument_id, date, open_price, high_price, low_price, close, adj_close, volume,
+                    validation_status_id, run_id, primary_vendor, vendor_count,
+                    price_variance, statistical_score, confidence_score,
+                    polygon_price, tiingo_price, fmp_price, validation_notes
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+                ON CONFLICT (instrument_id, date) 
+                DO UPDATE SET
+                    close = EXCLUDED.close,
+                    confidence_score = EXCLUDED.confidence_score,
+                    run_id = EXCLUDED.run_id,
+                    updated_at = now()
+                RETURNING id
+            """
+            
+            unified_id = await self.conn.fetchval(
+                query,
+                instrument_id, target_date,
+                unified_data.get('open_price'), unified_data.get('high_price'), 
+                unified_data.get('low_price'), unified_data['close'], 
+                unified_data.get('adj_close'), unified_data.get('volume'),
+                status_id, run_id, unified_data['primary_vendor'], unified_data['vendor_count'],
+                unified_data.get('price_variance'), validation_result.get('z_score'),
+                unified_data['confidence'],
+                unified_data['vendor_prices'].get('polygon'),
+                unified_data['vendor_prices'].get('tiingo'),
+                unified_data['vendor_prices'].get('fmp'),
+                validation_result['notes']
+            )
+            
+            self.stats['database_queries'] += 1
+            
+            if validation_result['is_valid']:
+                self.stats['successful_unifications'] += 1
+                self.stats['confidence_scores'].append(unified_data['confidence'])
+                    
+                if existing:
+                    self.stats['updated_records'] += 1
+                else:
+                    self.stats['new_records'] += 1
+            else:
+                self.stats['validation_failures'] += 1
+                
+            return unified_id
+            
+        async def process_symbol_batch(self, run_id, symbol_batch, trading_dates):
+            """Process a batch of symbols efficiently for full universe"""
+            batch_start = time.time()
+            batch_successful = 0
+            batch_processed = 0
+            
+            for symbol, instrument_id in symbol_batch:
+                symbol_start = time.time()
+                symbol_successful = 0
+                symbol_processed = 0
+                
+                try:
+                    for target_date in trading_dates:
+                        try:
+                            # Skip if already exists and skip_existing is True
+                            if self.skip_existing:
+                                existing = await self.conn.fetchval(
+                                    "SELECT id FROM dev_daily_prices WHERE instrument_id = $1 AND date = $2",
+                                    instrument_id, target_date
+                                )
+                                if existing:
+                                    self.stats['skipped_existing'] += 1
+                                    continue
+                                    
+                            # Fetch vendor prices
+                            vendor_prices = await self.fetch_vendor_prices(instrument_id, target_date)
+                            
+                            if not vendor_prices:
+                                self.stats['holiday_exclusions'] += 1
+                                continue
+                                
+                            # Reconcile vendor prices
+                            unified_data = self.reconcile_vendor_prices(vendor_prices)
+                            if not unified_data:
+                                continue
+                                
+                            # Simple validation for full universe
+                            validation_result = self.validate_price_statistically(unified_data['close'])
+                            
+                            # Store unified price
+                            await self.store_unified_price(
+                                run_id, instrument_id, target_date, unified_data, validation_result
+                            )
+                            
+                            symbol_processed += 1
+                            if validation_result['is_valid']:
+                                symbol_successful += 1
+                            
+                        except Exception as e:
+                            self.logger.debug(f"Error processing {symbol} on {target_date}: {e}")
+                            self.stats['failed_unifications'] += 1
+                            
+                    # Update stats
+                    batch_processed += symbol_processed
+                    batch_successful += symbol_successful
+                    self.stats['processed_symbols'] += 1
+                    
+                    # Log progress for significant symbols
+                    if symbol_processed > 0:
+                        symbol_duration = time.time() - symbol_start
+                        self.logger.debug(f"✅ {symbol}: {symbol_successful}/{symbol_processed} in {symbol_duration:.1f}s")
+                        
+                except Exception as e:
+                    self.logger.error(f"❌ {symbol}: Failed completely - {e}")
+                    
+            batch_duration = time.time() - batch_start
+            if batch_processed > 0:
+                self.logger.info(f"📦 Batch: {batch_successful}/{batch_processed} successful in {batch_duration:.1f}s")
+            
+        async def run(self):
+            """Main execution method for immediate full universe fix"""
+            self.logger.info(f"🚀 Starting IMMEDIATE FULL UNIVERSE FIX")
+            self.logger.info(f"🌍 Processing ALL 10,000 instruments - complete universe!")
+            self.logger.info(f"📅 Date range: {self.start_date} to {self.end_date}")
+            self.logger.info(f"📊 Batch size: {self.batch_size}")
+            self.logger.info(f"🔄 Skip existing: {self.skip_existing}")
+            
+            run_id = None
+            
+            try:
+                await self.connect()
+                
+                # Create run record
+                run_id = await self.create_run_record()
+                
+                # Get ALL instruments and recent dates
+                symbols = await self.get_all_instruments()
+                trading_dates = await self.get_recent_trading_dates()
+                
+                self.logger.info(f"📈 MASSIVE SCOPE: {len(symbols)} symbols × {len(trading_dates)} dates = {len(symbols) * len(trading_dates):,} price points")
+                self.logger.info(f"🌍 This is TRUE FULL UNIVERSE processing!")
+                
+                # Process in batches
+                total_batches = (len(symbols) + self.batch_size - 1) // self.batch_size
+                
+                for batch_num in range(total_batches):
+                    start_idx = batch_num * self.batch_size
+                    end_idx = min(start_idx + self.batch_size, len(symbols))
+                    batch_symbols = symbols[start_idx:end_idx]
+                    
+                    self.logger.info(f"📦 Processing batch {batch_num + 1}/{total_batches} ({len(batch_symbols)} symbols)")
+                    
+                    await self.process_symbol_batch(run_id, batch_symbols, trading_dates)
+                    
+                    # Progress update every 10 batches
+                    if (batch_num + 1) % 10 == 0 or (batch_num + 1) == total_batches:
+                        progress_pct = ((batch_num + 1) / total_batches) * 100
+                        self.logger.info(f"📊 UNIVERSE Progress: {progress_pct:.1f}% ({self.stats['successful_unifications']:,} successful, {self.stats['new_records']:,} new)")
+                
+                # Final summary
+                final_summary = {
+                    'total_symbols': self.stats['total_symbols'],
+                    'processed_symbols': self.stats['processed_symbols'], 
+                    'total_dates': self.stats['total_dates'],
+                    'total_price_points': self.stats['total_price_points'],
+                    'successful_unifications': self.stats['successful_unifications'],
+                    'new_records': self.stats['new_records'],
+                    'updated_records': self.stats['updated_records'],
+                    'skipped_existing': self.stats['skipped_existing'],
+                    'vendor_coverage': {
+                        'polygon': self.stats['polygon_coverage'],
+                        'tiingo': self.stats['tiingo_coverage'],
+                        'fmp': self.stats['fmp_coverage']
+                    }
+                }
+                
+                await self.conn.execute(
+                    "UPDATE dev_runs SET status = $1, end_time = now(), results = $2 WHERE id = $3",
+                    'completed', json.dumps(final_summary), run_id
+                )
+                
+                self.logger.info(f"🎉 FULL UNIVERSE FIX COMPLETED!")
+                self.logger.info(f"📊 Final Results:")
+                self.logger.info(f"   Universe symbols processed: {self.stats['processed_symbols']}/{self.stats['total_symbols']}")
+                self.logger.info(f"   Successful unifications: {self.stats['successful_unifications']:,}")
+                self.logger.info(f"   New records: {self.stats['new_records']:,}")
+                self.logger.info(f"   Updated records: {self.stats['updated_records']:,}")
+                self.logger.info(f"   Vendor coverage: P:{self.stats['polygon_coverage']:,}, T:{self.stats['tiingo_coverage']:,}, F:{self.stats['fmp_coverage']:,}")
+                
+            except Exception as e:
+                self.logger.error(f"💥 Full universe fix failed: {e}")
+                if run_id:
+                    await self.conn.execute(
+                        "UPDATE dev_runs SET status = $1, error_message = $2 WHERE id = $3",
+                        'failed', str(e), run_id
+                    )
+                raise
+            finally:
+                await self.disconnect()
+
+    async def main():
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s'
+        )
+        
+        fix = ImmediateFullUniverseFix()
+        await fix.run()
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: immediate-full-universe-fix
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      containers:
+      - name: full-universe-fix
+        image: python:3.12-slim
+        command: ["/bin/bash"]
+        args:
+          - -c
+          - |
+            echo "📦 Installing dependencies..."
+            pip install asyncpg psutil
+            
+            echo "🌍 Running IMMEDIATE FULL UNIVERSE FIX..."
+            cd /scripts
+            python run_immediate_full_universe.py
+            
+            echo "✅ Full universe fix completed!"
+        env:
+        - name: START_DATE
+          value: "2024-01-01"  # Focus on recent data first
+        - name: END_DATE
+          value: "2025-08-19"
+        - name: BATCH_SIZE
+          value: "100"  # Large batches for efficiency
+        - name: SKIP_EXISTING
+          value: "true"  # Skip existing for speed
+        resources:
+          requests:
+            memory: "8Gi"
+            cpu: "4000m"
+          limits:
+            memory: "16Gi"
+            cpu: "8000m"
+        volumeMounts:
+        - name: script-volume
+          mountPath: /scripts
+      volumes:
+      - name: script-volume
+        configMap:
+          name: immediate-full-universe-fix-script
+      restartPolicy: Never
+  backoffLimit: 2

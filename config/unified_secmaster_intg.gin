@@ -4,7 +4,7 @@
 Database.host = 'localhost'
 Database.port = 5432
 Database.user = 'postgres'
-Database.password = 'password'
+Database.password = 'REPLACE_WITH_ACTUAL_DB_PASSWORD'
 Database.database = 'intg_db'
 Database.pool_min_size = 1
 Database.pool_max_size = 10

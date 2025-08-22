@@ -426,3 +426,7 @@ class Environment:
         """Detailed string representation."""
         return f"Environment(type={self.env_type.value}, db_url={self.db_url})"
 
+
+# Global environment instance for easy access
+env = Environment()
+

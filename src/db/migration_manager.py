@@ -947,11 +947,16 @@ async def main():
 
     parser = argparse.ArgumentParser(description="Migration Manager CLI")
     parser.add_argument("command", choices=["migrate", "validate", "version"], help="Migration command to run")
-    parser.add_argument("--environment", "-e", choices=["test", "intg", "prod"], default="test", help="Environment to use (test, intg, prod)")
+    parser.add_argument("--environment", "-e", choices=["test", "dev", "intg", "prod"], default="test", help="Environment to use (test, dev, intg, prod)")
+    parser.add_argument("--db-url", help="Database URL (overrides environment-based URL)")
     args = parser.parse_args()
 
-    # Select db_url based on environment
-    if args.environment == "intg":
+    # Use explicit db_url if provided, otherwise select based on environment
+    if args.db_url:
+        db_url = args.db_url
+    elif args.environment == "dev":
+        db_url = "postgresql://postgres:password@localhost:5432/dev_db"
+    elif args.environment == "intg":
         db_url = "postgresql://postgres:password@localhost:5432/intg_db"
     elif args.environment == "test":
         db_url = "postgresql://postgres:password@localhost:5432/test_db"

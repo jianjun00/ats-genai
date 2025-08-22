@@ -1,0 +1,221 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fixed-investigate-price-dates
+  namespace: ats-dev
+  labels:
+    app: ats-genai
+    component: price-date-investigation
+spec:
+  ttlSecondsAfterFinished: 7200
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: price-date-investigator
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "Installing dependencies..."
+          pip install --no-cache-dir asyncpg aiohttp
+          
+          echo "Investigating price date freshness (fixed)..."
+          cat > /tmp/investigate_price_dates_fixed.py << 'EOF'
+          import asyncio
+          import asyncpg
+          import aiohttp
+          import os
+          from datetime import date, timedelta
+          
+          async def investigate_price_dates():
+              """Investigate when our $80.18 AAPL price is from vs current prices"""
+              
+              pool = await asyncpg.create_pool(
+                  host="postgres-simple",
+                  port=5432,
+                  user="postgres",
+                  password="dev_password",
+                  database="dev_db",
+                  min_size=1,
+                  max_size=3
+              )
+              
+              try:
+                  async with pool.acquire() as conn:
+                      print("\n=== PRICE DATE INVESTIGATION ===")
+                      
+                      # First check what columns we have
+                      columns = await conn.fetch("""
+                          SELECT column_name 
+                          FROM information_schema.columns 
+                          WHERE table_name = 'dev_daily_prices_polygon'
+                          ORDER BY column_name
+                      """)
+                      print("Available columns in dev_daily_prices_polygon:")
+                      for col in columns:
+                          print(f"  - {col['column_name']}")
+                      
+                      # Check AAPL price history in our database
+                      print("\nAAPL Price History in Our Database:")
+                      aapl_prices = await conn.fetch("""
+                          SELECT 
+                              p.date,
+                              p.close,
+                              p.volume
+                          FROM dev_daily_prices_polygon p
+                          JOIN dev_instruments i ON p.instrument_id = i.id
+                          WHERE i.symbol = 'AAPL'
+                          ORDER BY p.date DESC
+                          LIMIT 20
+                      """)
+                      
+                      print("  Date       | Close   | Volume")
+                      print("  -----------|---------|-----------")
+                      for row in aapl_prices:
+                          print(f"  {row['date']} | ${float(row['close']):6.2f} | {row['volume']:,}")
+                      
+                      # Check when we have the $80.18 price
+                      target_price = 80.18
+                      price_80_dates = await conn.fetch("""
+                          SELECT 
+                              p.date,
+                              p.close,
+                              ABS(p.close - $2) as price_diff
+                          FROM dev_daily_prices_polygon p
+                          JOIN dev_instruments i ON p.instrument_id = i.id
+                          WHERE i.symbol = 'AAPL'
+                            AND ABS(p.close - $2) < 0.50  -- Within 50 cents of $80.18
+                          ORDER BY ABS(p.close - $2)
+                          LIMIT 10
+                      """, 'AAPL', target_price)
+                      
+                      print(f"\nDates when AAPL was around ${target_price}:")
+                      if price_80_dates:
+                          for row in price_80_dates:
+                              print(f"  {row['date']}: ${float(row['close']):.2f} (diff: ${float(row['price_diff']):.2f})")
+                      else:
+                          print(f"  No dates found with AAPL price close to ${target_price}")
+                      
+                      # Check our market cap calculation date
+                      market_cap_date = await conn.fetchrow("""
+                          SELECT 
+                              mc.date,
+                              mc.market_cap/1000000000 as market_cap_billions,
+                              p.close as price_used
+                          FROM dev_daily_market_cap mc
+                          JOIN dev_instruments i ON mc.instrument_id = i.id  
+                          JOIN dev_daily_prices_polygon p ON mc.instrument_id = p.instrument_id AND mc.date = p.date
+                          WHERE i.symbol = 'AAPL'
+                          ORDER BY mc.date DESC
+                          LIMIT 1
+                      """)
+                      
+                      if market_cap_date:
+                          print(f"\nOur Market Cap Calculation:")
+                          print(f"  Date: {market_cap_date['date']}")
+                          print(f"  Price used: ${float(market_cap_date['price_used']):.2f}")
+                          print(f"  Market cap: ${float(market_cap_date['market_cap_billions']):.1f}B")
+                      
+                      # Check data freshness across all stocks
+                      print(f"\n=== DATA FRESHNESS CHECK ===")
+                      freshness_stats = await conn.fetchrow("""
+                          SELECT 
+                              MIN(date) as oldest_date,
+                              MAX(date) as newest_date,
+                              COUNT(DISTINCT date) as unique_dates,
+                              COUNT(DISTINCT instrument_id) as instruments_with_data
+                          FROM dev_daily_prices_polygon
+                          WHERE date >= $1
+                      """, date.today() - timedelta(days=30))
+                      
+                      print(f"Last 30 days price data:")
+                      print(f"  Date range: {freshness_stats['oldest_date']} to {freshness_stats['newest_date']}")
+                      print(f"  Trading days: {freshness_stats['unique_dates']}")
+                      print(f"  Instruments: {freshness_stats['instruments_with_data']}")
+                      
+                      today = date.today()
+                      days_behind = (today - freshness_stats['newest_date']).days
+                      print(f"  Days behind current date: {days_behind}")
+                      
+                      if days_behind > 1:
+                          print(f"  🚨 WARNING: Price data is {days_behind} days stale!")
+                      else:
+                          print(f"  ✅ Price data appears current")
+                      
+                      # Check if our $80.18 price is actually from an older period
+                      print(f"\n=== HISTORICAL ANALYSIS ===")
+                      
+                      # Look for prices around $80 in a wider historical range  
+                      historical_80s = await conn.fetch("""
+                          SELECT 
+                              p.date,
+                              p.close
+                          FROM dev_daily_prices_polygon p
+                          JOIN dev_instruments i ON p.instrument_id = i.id
+                          WHERE i.symbol = 'AAPL'
+                            AND p.close BETWEEN 75 AND 85  -- $75-$85 range
+                          ORDER BY p.date DESC
+                          LIMIT 20
+                      """)
+                      
+                      print("Historical AAPL prices in $75-$85 range:")
+                      for row in historical_80s:
+                          print(f"  {row['date']}: ${float(row['close']):.2f}")
+                      
+                      # Check how our market cap date compares to latest price data
+                      if market_cap_date:
+                          latest_price_date = aapl_prices[0]['date'] if aapl_prices else None
+                          mc_date = market_cap_date['date']
+                          
+                          if latest_price_date and mc_date:
+                              date_diff = (latest_price_date - mc_date).days
+                              print(f"\nDate Comparison:")
+                              print(f"  Latest price data: {latest_price_date}")
+                              print(f"  Market cap calculation: {mc_date}")
+                              print(f"  Difference: {date_diff} days")
+                              
+                              if date_diff > 0:
+                                  print(f"  ⚠️  Market cap is using older price data!")
+                                  
+                                  # Get the most recent price for comparison
+                                  latest_price = float(aapl_prices[0]['close'])
+                                  mc_price = float(market_cap_date['price_used'])
+                                  print(f"  Latest AAPL price: ${latest_price:.2f}")
+                                  print(f"  Market cap using: ${mc_price:.2f}")
+                                  print(f"  Price difference: ${latest_price - mc_price:.2f}")
+                      
+                      print(f"\n=== CONCLUSION ===")
+                      print("Key findings:")
+                      if market_cap_date:
+                          actual_date = market_cap_date['date']
+                          actual_price = float(market_cap_date['price_used'])
+                          print(f"1. Our ${actual_price:.2f} price is from: {actual_date}")
+                      print("2. We should use market cap from the SAME DATE as price data")
+                      print("3. For universe filtering, use historical market caps consistently")
+                      print("4. Don't mix current market caps with historical prices")
+                      
+              finally:
+                  await pool.close()
+          
+          if __name__ == "__main__":
+              asyncio.run(investigate_price_dates())
+          EOF
+          
+          python /tmp/investigate_price_dates_fixed.py
+        env:
+        - name: POLYGON_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-credentials-dev
+              key: POLYGON_API_KEY
+        - name: PYTHONPATH
+          value: "/tmp"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"

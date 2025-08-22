@@ -1,0 +1,8 @@
+{
+  "feature_names": [
+    "returns_1d_pct_change_lag1"
+  ],
+  "label_names": [
+    "future_return_1d_simple_lead1"
+  ]
+}

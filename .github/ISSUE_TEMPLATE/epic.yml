@@ -1,0 +1,116 @@
+name: 🚀 Epic
+description: Create a new epic for major feature areas
+title: "[EPIC]: "
+labels: ["type:epic", "priority:high"]
+projects: ["jianjun00/1"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Create a new epic to organize related user stories and features.
+
+  - type: input
+    id: epic-name
+    attributes:
+      label: Epic Name
+      description: Short, descriptive name for this epic
+      placeholder: e.g., "Hourly Recommendation Engine"
+    validations:
+      required: true
+
+  - type: textarea
+    id: epic-description
+    attributes:
+      label: Epic Description
+      description: High-level description of what this epic accomplishes
+      placeholder: |
+        Describe the overall goal and value of this epic.
+        What business problem does it solve?
+        What user needs does it address?
+    validations:
+      required: true
+
+  - type: textarea
+    id: success-criteria
+    attributes:
+      label: Success Criteria
+      description: How will we know this epic is successful?
+      placeholder: |
+        - Measurable outcome 1
+        - Measurable outcome 2
+        - User satisfaction metric
+        - Technical performance metric
+    validations:
+      required: true
+
+  - type: textarea
+    id: user-personas
+    attributes:
+      label: Target User Personas
+      description: Who will benefit from this epic?
+      placeholder: |
+        - Portfolio managers seeking hourly insights
+        - Retail investors wanting AI recommendations
+        - API developers integrating recommendation data
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope & Key Features
+      description: List the main features and capabilities included in this epic
+      placeholder: |
+        In Scope:
+        - Feature 1
+        - Feature 2
+        
+        Out of Scope:
+        - Feature X (future iteration)
+        - Feature Y (different epic)
+
+  - type: dropdown
+    id: target-milestone
+    attributes:
+      label: Target Milestone
+      description: Which sprint/milestone should this epic target?
+      options:
+        - Sprint 1 (Weeks 1-2)
+        - Sprint 2 (Weeks 3-4)
+        - Sprint 3 (Weeks 5-6)
+        - Sprint 4 (Weeks 7-8)
+        - Post-MVP
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Epic Dependencies
+      description: What other epics or external dependencies are required?
+      placeholder: |
+        - Depends on Epic: [Epic Name] - Reason
+        - External dependency: [Service/API] - What's needed
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks & Mitigation
+      description: What could go wrong and how will we handle it?
+      placeholder: |
+        Risk 1: Description
+        Mitigation: How we'll address it
+        
+        Risk 2: Description
+        Mitigation: How we'll address it
+
+  - type: textarea
+    id: technical-considerations
+    attributes:
+      label: Technical Considerations
+      description: Architecture, performance, or technical requirements
+      placeholder: |
+        - API design patterns
+        - Database schema changes
+        - Performance requirements
+        - Security considerations
+        - Third-party integrations

@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: verify-market-cap-data
+  namespace: ats-dev
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: verify-data
+        image: postgres:14
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "Verifying market cap data..."
+          PGPASSWORD=dev_password psql -h postgres-simple -U postgres -d dev_db -c "
+          SELECT 
+              i.symbol, 
+              ROUND(mc.market_cap/1000000000, 2) as market_cap_billions,
+              mc.shares_outstanding/1000000 as shares_millions,
+              mc.date
+          FROM dev_daily_market_cap mc
+          JOIN dev_instruments i ON mc.instrument_id = i.id
+          WHERE mc.date = (SELECT MAX(date) FROM dev_daily_market_cap)
+          ORDER BY mc.market_cap DESC
+          LIMIT 20;"
+          
+          echo ""
+          echo "Total market cap records:"
+          PGPASSWORD=dev_password psql -h postgres-simple -U postgres -d dev_db -c "
+          SELECT COUNT(*) as total_records FROM dev_daily_market_cap;"
+        env:
+        - name: PGPASSWORD
+          value: "dev_password"

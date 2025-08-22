@@ -1,0 +1,613 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: polygon-10year-minute-backfill
+  namespace: ats-dev
+  labels:
+    app: ats-genai
+    component: minute-backfill
+    vendor: polygon
+    period: 2010-2020
+spec:
+  ttlSecondsAfterFinished: 21600  # 6 hours
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: polygon-minute-backfiller
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "📦 Installing dependencies for Polygon 10-year minute backfill..."
+          pip install --no-cache-dir asyncpg aiohttp
+          
+          echo "🚀 Starting Polygon 10-year minute backfill (2010-2020)..."
+          echo "⏰ Start time: $(date)"
+          echo "📊 Target: 5,000 high-priority instruments"
+          echo "📅 Period: 2010-2020 (10 years)"
+          echo "📈 Estimated: ~3-5 billion minute data points"
+          echo ""
+          
+          # Run the backfill
+          python << 'PYEOF'
+          import asyncio
+          import asyncpg
+          import aiohttp
+          import logging
+          import os
+          from datetime import date, datetime, timedelta
+          from typing import List, Dict, Optional, Tuple
+          from dataclasses import dataclass
+          
+          @dataclass
+          class MinuteDataPoint:
+              instrument_id: int
+              timestamp: datetime
+              open_price: float
+              high_price: float
+              low_price: float
+              close_price: float
+              volume: int
+              vwap: Optional[float] = None
+              transactions: Optional[int] = None
+              otc: Optional[bool] = False
+          
+          class PolygonTenYearBackfiller:
+              def __init__(self):
+                  self.api_key = os.getenv('POLYGON_API_KEY')
+                  self.db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+                  self.base_url = 'https://api.polygon.io'
+                  self.rate_limit_delay = 0.25  # 4 calls/min for safety
+                  
+                  logging.basicConfig(level=logging.INFO)
+                  self.logger = logging.getLogger("polygon_backfill")
+                  
+                  if not self.api_key:
+                      raise ValueError("POLYGON_API_KEY required")
+              
+              async def get_target_instruments(self) -> List[Tuple[int, str]]:
+                  """Get high-priority instruments for backfill"""
+                  
+                  conn = await asyncpg.connect(self.db_url)
+                  
+                  try:
+                      # Get instruments that already have minute data (proven active)
+                      rows = await conn.fetch("""
+                          SELECT DISTINCT i.id, i.symbol
+                          FROM dev_instruments i
+                          WHERE EXISTS (
+                              SELECT 1 FROM dev_minute_prices_polygon mp 
+                              WHERE mp.instrument_id = i.id
+                          )
+                          AND i.symbol ~ '^[A-Z]{1,5}$'
+                          ORDER BY i.symbol
+                          LIMIT 3000  -- Focus on 3K proven instruments
+                      """)
+                      
+                      instruments = [(row['id'], row['symbol']) for row in rows]
+                      self.logger.info(f"Selected {len(instruments)} proven instruments for backfill")
+                      
+                      return instruments
+                  
+                  finally:
+                      await conn.close()
+              
+              async def fetch_polygon_data(self, symbol: str, start_date: date, end_date: date, 
+                                         session: aiohttp.ClientSession) -> List[MinuteDataPoint]:
+                  """Fetch minute data from Polygon"""
+                  
+                  url = f"{self.base_url}/v2/aggs/ticker/{symbol}/range/1/minute/{start_date}/{end_date}"
+                  params = {'adjusted': 'true', 'sort': 'asc', 'limit': 50000}
+                  headers = {'Authorization': f'Bearer {self.api_key}'}
+                  
+                  try:
+                      await asyncio.sleep(self.rate_limit_delay)
+                      
+                      async with session.get(url, params=params, headers=headers) as response:
+                          if response.status == 429:
+                              self.logger.warning(f"Rate limit for {symbol}, waiting...")
+                              await asyncio.sleep(60)
+                              return []
+                          
+                          if response.status != 200:
+                              return []
+                          
+                          data = await response.json()
+                          
+                          if 'results' not in data or not data['results']:
+                              return []
+                          
+                          results = []
+                          for bar in data['results']:
+                              timestamp = datetime.fromtimestamp(bar['t'] / 1000)
+                              
+                              minute_data = MinuteDataPoint(
+                                  instrument_id=0,  # Will be set later
+                                  timestamp=timestamp,
+                                  open_price=float(bar['o']),
+                                  high_price=float(bar['h']),
+                                  low_price=float(bar['l']),
+                                  close_price=float(bar['c']),
+                                  volume=int(bar['v']),
+                                  vwap=bar.get('vw'),
+                                  transactions=bar.get('n'),
+                                  otc=False
+                              )
+                              results.append(minute_data)
+                          
+                          return results
+                  
+                  except Exception as e:
+                      self.logger.error(f"Error fetching {symbol}: {e}")
+                      return []
+              
+              async def save_minute_data(self, instrument_id: int, minute_data: List[MinuteDataPoint]) -> int:
+                  """Save minute data to database"""
+                  
+                  if not minute_data:
+                      return 0
+                  
+                  conn = await asyncpg.connect(self.db_url)
+                  
+                  try:
+                      values = []
+                      for dp in minute_data:
+                          values.append((
+                              instrument_id,
+                              dp.timestamp,
+                              dp.open_price,
+                              dp.high_price,
+                              dp.low_price,
+                              dp.close_price,
+                              dp.volume,
+                              dp.vwap,
+                              dp.transactions,
+                              dp.otc,
+                              datetime.now()
+                          ))
+                      
+                      await conn.executemany("""
+                          INSERT INTO dev_minute_prices_polygon 
+                          (instrument_id, timestamp, open_price, high_price, low_price, close_price, 
+                           volume, vwap, transactions, otc, created_at)
+                          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                          ON CONFLICT (instrument_id, timestamp) DO NOTHING
+                      """, values)
+                      
+                      return len(values)
+                  
+                  finally:
+                      await conn.close()
+              
+              async def run_backfill(self):
+                  """Run the complete backfill"""
+                  
+                  start_time = datetime.now()
+                  self.logger.info("Starting Polygon 10-year minute backfill...")
+                  
+                  # Get instruments
+                  instruments = await self.get_target_instruments()
+                  
+                  if not instruments:
+                      self.logger.error("No instruments found")
+                      return
+                  
+                  # Generate yearly chunks
+                  year_chunks = []
+                  for year in range(2010, 2021):  # 2010-2020 inclusive
+                      start_date = date(year, 1, 1)
+                      end_date = date(year, 12, 31)
+                      year_chunks.append((year, start_date, end_date))
+                  
+                  total_records = 0
+                  total_success = 0
+                  
+                  # Process each year
+                  timeout = aiohttp.ClientTimeout(total=300)
+                  async with aiohttp.ClientSession(timeout=timeout) as session:
+                      
+                      for year, start_date, end_date in year_chunks:
+                          self.logger.info(f"🗓️  Processing year {year} ({start_date} to {end_date})")
+                          year_start = datetime.now()
+                          year_records = 0
+                          year_success = 0
+                          
+                          # Process instruments in smaller batches for the year
+                          batch_size = 50
+                          for i in range(0, len(instruments), batch_size):
+                              batch = instruments[i:i + batch_size]
+                              batch_num = (i // batch_size) + 1
+                              total_batches = (len(instruments) + batch_size - 1) // batch_size
+                              
+                              self.logger.info(f"  📦 Year {year} - Batch {batch_num}/{total_batches} ({len(batch)} instruments)")
+                              
+                              # Process batch
+                              for instrument_id, symbol in batch:
+                                  try:
+                                      # Check if we already have data for this year
+                                      conn = await asyncpg.connect(self.db_url)
+                                      existing_count = await conn.fetchval("""
+                                          SELECT COUNT(*) FROM dev_minute_prices_polygon
+                                          WHERE instrument_id = $1
+                                            AND DATE(timestamp) >= $2
+                                            AND DATE(timestamp) <= $3
+                                      """, instrument_id, start_date, end_date)
+                                      await conn.close()
+                                      
+                                      if existing_count > 0:
+                                          continue  # Skip if we have data
+                                      
+                                      # Fetch data
+                                      minute_data = await self.fetch_polygon_data(symbol, start_date, end_date, session)
+                                      
+                                      if minute_data:
+                                          saved = await self.save_minute_data(instrument_id, minute_data)
+                                          if saved > 0:
+                                              year_records += saved
+                                              year_success += 1
+                                              self.logger.info(f"    ✅ {symbol}: {saved:,} records")
+                                  
+                                  except Exception as e:
+                                      self.logger.error(f"    ❌ {symbol}: {e}")
+                                      continue
+                              
+                              # Brief delay between batches
+                              await asyncio.sleep(2)
+                          
+                          # Year summary
+                          year_duration = datetime.now() - year_start
+                          total_records += year_records
+                          total_success += year_success
+                          
+                          self.logger.info(f"  📊 Year {year} completed: {year_success} instruments, {year_records:,} records")
+                          self.logger.info(f"  ⏱️  Duration: {year_duration}")
+                  
+                  # Final summary
+                  total_duration = datetime.now() - start_time
+                  self.logger.info(f"🎉 Polygon 10-year backfill completed!")
+                  self.logger.info(f"📈 Total records: {total_records:,}")
+                  self.logger.info(f"📊 Successful instruments: {total_success}")
+                  self.logger.info(f"⏱️  Total duration: {total_duration}")
+          
+          # Run the backfill
+          async def main():
+              backfiller = PolygonTenYearBackfiller()
+              await backfiller.run_backfill()
+          
+          asyncio.run(main())
+          PYEOF
+          
+          echo ""
+          echo "✅ Polygon 10-year minute backfill completed!"
+          echo "⏰ End time: $(date)"
+        env:
+        - name: DB_HOST
+          value: "postgres-simple"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+        - name: POLYGON_API_KEY
+          value: "wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "2"
+          limits:
+            memory: "8Gi"
+            cpu: "4"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tiingo-10year-minute-backfill
+  namespace: ats-dev
+  labels:
+    app: ats-genai
+    component: minute-backfill
+    vendor: tiingo
+    period: 2010-2020
+spec:
+  ttlSecondsAfterFinished: 21600  # 6 hours
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: tiingo-minute-backfiller
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "📦 Installing dependencies for Tiingo 10-year minute backfill..."
+          pip install --no-cache-dir asyncpg aiohttp
+          
+          echo "🚀 Starting Tiingo 10-year minute backfill (2010-2020)..."
+          echo "⏰ Start time: $(date)"
+          echo "📊 Target: 3,000 high-priority instruments"
+          echo "📅 Period: 2010-2020 (10 years)"
+          echo "📈 Estimated: ~3-5 billion minute data points"
+          echo ""
+          
+          # Run the backfill (similar to Polygon but for Tiingo)
+          python << 'PYEOF'
+          import asyncio
+          import asyncpg
+          import aiohttp
+          import logging
+          import os
+          from datetime import date, datetime, timedelta
+          from typing import List, Dict, Optional, Tuple
+          from dataclasses import dataclass
+          
+          @dataclass
+          class MinuteDataPoint:
+              instrument_id: int
+              timestamp: datetime
+              open_price: float
+              high_price: float
+              low_price: float
+              close_price: float
+              volume: int
+              vwap: Optional[float] = None
+              transactions: Optional[int] = None
+              otc: Optional[bool] = False
+          
+          class TiingoTenYearBackfiller:
+              def __init__(self):
+                  self.api_key = os.getenv('TIINGO_API_KEY')
+                  self.db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+                  self.base_url = 'https://api.tiingo.com'
+                  self.rate_limit_delay = 0.15  # More generous for Tiingo
+                  
+                  logging.basicConfig(level=logging.INFO)
+                  self.logger = logging.getLogger("tiingo_backfill")
+                  
+                  if not self.api_key:
+                      raise ValueError("TIINGO_API_KEY required")
+              
+              async def get_target_instruments(self) -> List[Tuple[int, str]]:
+                  """Get high-priority instruments for backfill"""
+                  
+                  conn = await asyncpg.connect(self.db_url)
+                  
+                  try:
+                      # Get instruments that already have minute data
+                      rows = await conn.fetch("""
+                          SELECT DISTINCT i.id, i.symbol
+                          FROM dev_instruments i
+                          WHERE EXISTS (
+                              SELECT 1 FROM dev_minute_prices_tiingo mt 
+                              WHERE mt.instrument_id = i.id
+                          )
+                          AND i.symbol ~ '^[A-Z]{1,5}$'
+                          ORDER BY i.symbol
+                          LIMIT 2000  -- Focus on 2K proven instruments for Tiingo
+                      """)
+                      
+                      instruments = [(row['id'], row['symbol']) for row in rows]
+                      self.logger.info(f"Selected {len(instruments)} proven instruments for Tiingo backfill")
+                      
+                      return instruments
+                  
+                  finally:
+                      await conn.close()
+              
+              async def fetch_tiingo_data(self, symbol: str, start_date: date, end_date: date, 
+                                        session: aiohttp.ClientSession) -> List[MinuteDataPoint]:
+                  """Fetch minute data from Tiingo"""
+                  
+                  url = f"{self.base_url}/iex/{symbol}/prices"
+                  params = {
+                      'startDate': start_date.strftime('%Y-%m-%d'),
+                      'endDate': end_date.strftime('%Y-%m-%d'),
+                      'resampleFreq': '1min',
+                      'token': self.api_key
+                  }
+                  
+                  try:
+                      await asyncio.sleep(self.rate_limit_delay)
+                      
+                      async with session.get(url, params=params) as response:
+                          if response.status == 429:
+                              self.logger.warning(f"Rate limit for {symbol}, waiting...")
+                              await asyncio.sleep(30)
+                              return []
+                          
+                          if response.status != 200:
+                              return []
+                          
+                          data = await response.json()
+                          
+                          if not data:
+                              return []
+                          
+                          results = []
+                          for bar in data:
+                              timestamp = datetime.fromisoformat(bar['date'].replace('Z', '+00:00'))
+                              
+                              minute_data = MinuteDataPoint(
+                                  instrument_id=0,  # Will be set later
+                                  timestamp=timestamp,
+                                  open_price=float(bar['open']),
+                                  high_price=float(bar['high']),
+                                  low_price=float(bar['low']),
+                                  close_price=float(bar['close']),
+                                  volume=int(bar['volume']),
+                                  vwap=None,
+                                  transactions=None,
+                                  otc=False
+                              )
+                              results.append(minute_data)
+                          
+                          return results
+                  
+                  except Exception as e:
+                      self.logger.error(f"Error fetching {symbol}: {e}")
+                      return []
+              
+              async def save_minute_data(self, instrument_id: int, minute_data: List[MinuteDataPoint]) -> int:
+                  """Save minute data to database"""
+                  
+                  if not minute_data:
+                      return 0
+                  
+                  conn = await asyncpg.connect(self.db_url)
+                  
+                  try:
+                      values = []
+                      for dp in minute_data:
+                          values.append((
+                              instrument_id,
+                              dp.timestamp,
+                              dp.open_price,
+                              dp.high_price,
+                              dp.low_price,
+                              dp.close_price,
+                              dp.volume,
+                              dp.vwap,
+                              dp.transactions,
+                              dp.otc,
+                              datetime.now()
+                          ))
+                      
+                      await conn.executemany("""
+                          INSERT INTO dev_minute_prices_tiingo 
+                          (instrument_id, timestamp, open_price, high_price, low_price, close_price, 
+                           volume, vwap, transactions, otc, created_at)
+                          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                          ON CONFLICT (instrument_id, timestamp) DO NOTHING
+                      """, values)
+                      
+                      return len(values)
+                  
+                  finally:
+                      await conn.close()
+              
+              async def run_backfill(self):
+                  """Run the complete backfill"""
+                  
+                  start_time = datetime.now()
+                  self.logger.info("Starting Tiingo 10-year minute backfill...")
+                  
+                  # Get instruments
+                  instruments = await self.get_target_instruments()
+                  
+                  if not instruments:
+                      self.logger.error("No instruments found")
+                      return
+                  
+                  # Generate yearly chunks
+                  year_chunks = []
+                  for year in range(2010, 2021):  # 2010-2020 inclusive
+                      start_date = date(year, 1, 1)
+                      end_date = date(year, 12, 31)
+                      year_chunks.append((year, start_date, end_date))
+                  
+                  total_records = 0
+                  total_success = 0
+                  
+                  # Process each year
+                  timeout = aiohttp.ClientTimeout(total=300)
+                  async with aiohttp.ClientSession(timeout=timeout) as session:
+                      
+                      for year, start_date, end_date in year_chunks:
+                          self.logger.info(f"🗓️  Processing year {year} ({start_date} to {end_date})")
+                          year_start = datetime.now()
+                          year_records = 0
+                          year_success = 0
+                          
+                          # Process instruments in smaller batches for the year
+                          batch_size = 30  # Smaller batches for Tiingo
+                          for i in range(0, len(instruments), batch_size):
+                              batch = instruments[i:i + batch_size]
+                              batch_num = (i // batch_size) + 1
+                              total_batches = (len(instruments) + batch_size - 1) // batch_size
+                              
+                              self.logger.info(f"  📦 Year {year} - Batch {batch_num}/{total_batches} ({len(batch)} instruments)")
+                              
+                              # Process batch
+                              for instrument_id, symbol in batch:
+                                  try:
+                                      # Check if we already have data for this year
+                                      conn = await asyncpg.connect(self.db_url)
+                                      existing_count = await conn.fetchval("""
+                                          SELECT COUNT(*) FROM dev_minute_prices_tiingo
+                                          WHERE instrument_id = $1
+                                            AND DATE(timestamp) >= $2
+                                            AND DATE(timestamp) <= $3
+                                      """, instrument_id, start_date, end_date)
+                                      await conn.close()
+                                      
+                                      if existing_count > 0:
+                                          continue  # Skip if we have data
+                                      
+                                      # Fetch data
+                                      minute_data = await self.fetch_tiingo_data(symbol, start_date, end_date, session)
+                                      
+                                      if minute_data:
+                                          saved = await self.save_minute_data(instrument_id, minute_data)
+                                          if saved > 0:
+                                              year_records += saved
+                                              year_success += 1
+                                              self.logger.info(f"    ✅ {symbol}: {saved:,} records")
+                                  
+                                  except Exception as e:
+                                      self.logger.error(f"    ❌ {symbol}: {e}")
+                                      continue
+                              
+                              # Brief delay between batches
+                              await asyncio.sleep(3)
+                          
+                          # Year summary
+                          year_duration = datetime.now() - year_start
+                          total_records += year_records
+                          total_success += year_success
+                          
+                          self.logger.info(f"  📊 Year {year} completed: {year_success} instruments, {year_records:,} records")
+                          self.logger.info(f"  ⏱️  Duration: {year_duration}")
+                  
+                  # Final summary
+                  total_duration = datetime.now() - start_time
+                  self.logger.info(f"🎉 Tiingo 10-year backfill completed!")
+                  self.logger.info(f"📈 Total records: {total_records:,}")
+                  self.logger.info(f"📊 Successful instruments: {total_success}")
+                  self.logger.info(f"⏱️  Total duration: {total_duration}")
+          
+          # Run the backfill
+          async def main():
+              backfiller = TiingoTenYearBackfiller()
+              await backfiller.run_backfill()
+          
+          asyncio.run(main())
+          PYEOF
+          
+          echo ""
+          echo "✅ Tiingo 10-year minute backfill completed!"
+          echo "⏰ End time: $(date)"
+        env:
+        - name: DB_HOST
+          value: "postgres-simple"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+        - name: TIINGO_API_KEY
+          value: "9f7df748b42f4888de0ba4f6eff5e0dc44c85b12"
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "2"
+          limits:
+            memory: "8Gi"
+            cpu: "4"

@@ -1,0 +1,171 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-market-cap-accuracy
+  namespace: ats-dev
+  labels:
+    app: ats-genai
+    component: market-cap-testing
+spec:
+  ttlSecondsAfterFinished: 7200
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: accuracy-test
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "Installing dependencies..."
+          pip install --no-cache-dir asyncpg aiohttp pytest pytest-asyncio
+          
+          echo "Running market cap accuracy tests..."
+          cat > /tmp/test_accuracy.py << 'EOF'
+          import pytest
+          import asyncio
+          import asyncpg
+          import aiohttp
+          import os
+          from datetime import date, timedelta
+          
+          @pytest.mark.asyncio
+          async def test_identify_price_data_issue():
+              """Identify why our prices are wrong compared to market cap"""
+              
+              pool = await asyncpg.create_pool(
+                  host="postgres-simple",
+                  port=5432,
+                  user="postgres",
+                  password="dev_password",
+                  database="dev_db",
+                  min_size=1,
+                  max_size=3
+              )
+              
+              polygon_api_key = os.environ.get("POLYGON_API_KEY")
+              assert polygon_api_key, "POLYGON_API_KEY required for this test"
+              
+              try:
+                  async with pool.acquire() as conn:
+                      print("\n=== PRICE DATA INVESTIGATION ===")
+                      
+                      # Test AAPL specifically
+                      aapl_data = await conn.fetchrow("""
+                          SELECT 
+                              mc.market_cap/1000000000 as our_market_cap_billions,
+                              mc.shares_outstanding,
+                              p.close as our_price,
+                              p.date
+                          FROM dev_daily_market_cap mc
+                          JOIN dev_instruments i ON mc.instrument_id = i.id
+                          JOIN dev_daily_prices_polygon p ON mc.instrument_id = p.instrument_id AND mc.date = p.date
+                          WHERE i.symbol = 'AAPL'
+                            AND mc.date = (SELECT MAX(date) FROM dev_daily_market_cap WHERE instrument_id = mc.instrument_id)
+                      """)
+                      
+                      print(f"AAPL Our Data:")
+                      print(f"  Market Cap: ${aapl_data['our_market_cap_billions']:.1f}B") 
+                      print(f"  Shares: {aapl_data['shares_outstanding']:,}")
+                      print(f"  Price: ${aapl_data['our_price']:.2f}")
+                      print(f"  Date: {aapl_data['date']}")
+                      
+                      # Get fresh Polygon data for AAPL
+                      url = "https://api.polygon.io/v3/reference/tickers/AAPL"
+                      params = {"apikey": polygon_api_key}
+                      
+                      async with aiohttp.ClientSession() as session:
+                          async with session.get(url, params=params) as response:
+                              assert response.status == 200
+                              data = await response.json()
+                              results = data.get('results', {})
+                              
+                              api_market_cap = results.get('market_cap', 0) / 1000000000
+                              api_shares = results.get('share_class_shares_outstanding', 0)
+                              
+                              print(f"\\nAAPL Polygon API Data:")
+                              print(f"  Market Cap: ${api_market_cap:.1f}B")
+                              print(f"  Shares: {api_shares:,}")
+                              
+                              # Calculate what the price should be
+                              correct_price = api_market_cap * 1000000000 / api_shares
+                              print(f"  Implied Price: ${correct_price:.2f}")
+                              
+                              # Get most recent price from different sources
+                              print(f"\\nPrice Comparison:")
+                              print(f"  Our price: ${aapl_data['our_price']:.2f}")
+                              print(f"  Should be: ${correct_price:.2f}")
+                              print(f"  Ratio: {aapl_data['our_price']/correct_price:.3f} (our price / correct price)")
+                              
+                              # The issue might be stock splits or adjustment factors
+                              # Let's check if there's a pattern
+                              split_ratio = correct_price / aapl_data['our_price']
+                              print(f"  Split factor: {split_ratio:.3f}")
+                              
+                              # Test if this could be a 4:1 split issue (common for AAPL)
+                              if abs(split_ratio - 4.0) < 0.1:
+                                  print("  ❌ LIKELY ISSUE: Missing 4:1 stock split adjustment!")
+                              elif abs(split_ratio - 2.0) < 0.1:
+                                  print("  ❌ LIKELY ISSUE: Missing 2:1 stock split adjustment!")
+                              else:
+                                  print(f"  ❌ ISSUE: Price needs adjustment by factor of {split_ratio:.2f}")
+                      
+                      # Check other major stocks for the same pattern
+                      print(f"\\n=== CHECKING OTHER MAJOR STOCKS ===")
+                      
+                      major_stocks = ['MSFT', 'GOOGL', 'NVDA']
+                      for symbol in major_stocks:
+                          stock_data = await conn.fetchrow("""
+                              SELECT 
+                                  mc.market_cap/1000000000 as our_market_cap_billions,
+                                  mc.shares_outstanding,
+                                  p.close as our_price
+                              FROM dev_daily_market_cap mc
+                              JOIN dev_instruments i ON mc.instrument_id = i.id
+                              JOIN dev_daily_prices_polygon p ON mc.instrument_id = p.instrument_id AND mc.date = p.date
+                              WHERE i.symbol = $1
+                                AND mc.date = (SELECT MAX(date) FROM dev_daily_market_cap WHERE instrument_id = mc.instrument_id)
+                          """, symbol)
+                          
+                          if stock_data:
+                              url = f"https://api.polygon.io/v3/reference/tickers/{symbol}"
+                              async with aiohttp.ClientSession() as session:
+                                  async with session.get(url, params=params) as response:
+                                      if response.status == 200:
+                                          data = await response.json()
+                                          results = data.get('results', {})
+                                          api_market_cap = results.get('market_cap', 0) / 1000000000
+                                          
+                                          accuracy = (stock_data['our_market_cap_billions'] / api_market_cap) * 100
+                                          print(f"  {symbol}: Our=${stock_data['our_market_cap_billions']:,.0f}B, API=${api_market_cap:,.0f}B, Accuracy={accuracy:.1f}%")
+                              
+                              await asyncio.sleep(0.2)
+                      
+                      print(f"\\n=== CONCLUSION ===")
+                      print("✅ Test completed - identified price adjustment issues")
+                      
+              finally:
+                  await pool.close()
+          
+          if __name__ == "__main__":
+              # Run the test
+              asyncio.run(test_identify_price_data_issue())
+          EOF
+          
+          python /tmp/test_accuracy.py
+        env:
+        - name: POLYGON_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-credentials-dev
+              key: POLYGON_API_KEY
+        - name: PYTHONPATH
+          value: "/tmp"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"

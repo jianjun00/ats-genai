@@ -10,8 +10,8 @@ from src.db.migration_manager import MigrationManager
 
 
 
-@pytest.mark.unit
 @pytest.mark.database
+@pytest.mark.requires_external
 @pytest.mark.asyncio
 async def test_migration_manager_initial_version(unit_test_db_clean):
     """Test that migration manager can track initial version."""
@@ -23,8 +23,8 @@ async def test_migration_manager_initial_version(unit_test_db_clean):
     assert version >= 0
 
 
-@pytest.mark.unit
 @pytest.mark.database
+@pytest.mark.requires_external
 @pytest.mark.asyncio
 async def test_migration_validation(unit_test_db_clean):
     """Test migration validation functionality."""
@@ -39,8 +39,8 @@ async def test_migration_validation(unit_test_db_clean):
     assert is_valid is True
 
 
-@pytest.mark.unit
 @pytest.mark.database
+@pytest.mark.requires_external
 @pytest.mark.asyncio
 async def test_table_prefix_application(unit_test_db_clean):
     """Test that table prefixes are correctly applied in migrations."""

@@ -1,0 +1,39 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: run-price-unification-migration
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: migration
+        image: python:3.11-slim
+        command: ["/bin/bash"]
+        args:
+        - -c
+        - |
+          echo "Installing dependencies..."
+          pip install --no-cache-dir -r requirements.txt
+          
+          echo "Running price unification migration..."
+          cd /app
+          PYTHONPATH=src python src/db/migration_manager.py migrate --db-url "${DB_URL}"
+          
+          echo "Migration completed successfully!"
+        env:
+        - name: DB_URL
+          value: "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+        - name: ENVIRONMENT
+          value: "dev"
+        volumeMounts:
+        - name: app-source
+          mountPath: /app
+        workingDir: /app
+      volumes:
+      - name: app-source
+        hostPath:
+          path: /home/jianjun/ats-genai
+          type: Directory
+  backoffLimit: 1

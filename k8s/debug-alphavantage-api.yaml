@@ -1,0 +1,138 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: debug-alphavantage-api
+  namespace: ats-dev
+  labels:
+    app: ats-genai
+    component: alphavantage-debug
+spec:
+  ttlSecondsAfterFinished: 7200
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: alphavantage-debug
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "Installing dependencies..."
+          pip install --no-cache-dir aiohttp
+          
+          echo "Testing Alpha Vantage API directly..."
+          cat > /tmp/test_alphavantage_api.py << 'EOF'
+          import asyncio
+          import aiohttp
+          import json
+          import os
+          
+          async def test_alpha_vantage_api():
+              api_key = os.environ.get("ALPHA_VANTAGE_API_KEY")
+              if not api_key:
+                  print("❌ No API key found")
+                  return
+              
+              print(f"✅ Using API key: {api_key[:8]}...")
+              
+              base_url = "https://www.alphavantage.co/query"
+              
+              # Test different Alpha Vantage functions
+              test_functions = [
+                  {
+                      "name": "TIME_SERIES_DAILY_ADJUSTED",
+                      "params": {
+                          'function': 'TIME_SERIES_DAILY_ADJUSTED',
+                          'symbol': 'AAPL',
+                          'outputsize': 'compact',
+                          'apikey': api_key
+                      }
+                  },
+                  {
+                      "name": "TIME_SERIES_DAILY",
+                      "params": {
+                          'function': 'TIME_SERIES_DAILY',
+                          'symbol': 'AAPL',
+                          'outputsize': 'compact',
+                          'apikey': api_key
+                      }
+                  },
+                  {
+                      "name": "GLOBAL_QUOTE",
+                      "params": {
+                          'function': 'GLOBAL_QUOTE',
+                          'symbol': 'AAPL',
+                          'apikey': api_key
+                      }
+                  }
+              ]
+              
+              timeout = aiohttp.ClientTimeout(total=30)
+              async with aiohttp.ClientSession(timeout=timeout) as session:
+                  for test in test_functions:
+                      print(f"\n=== Testing {test['name']} ===")
+                      try:
+                          async with session.get(base_url, params=test['params']) as response:
+                              print(f"Status: {response.status}")
+                              
+                              if response.status == 200:
+                                  data = await response.json()
+                                  print(f"Response keys: {list(data.keys())}")
+                                  print(f"Full response: {json.dumps(data, indent=2)}")
+                              else:
+                                  error_text = await response.text()
+                                  print(f"Error response: {error_text}")
+                                  
+                      except Exception as e:
+                          print(f"Exception: {e}")
+                      
+                      # Wait between requests to respect rate limits
+                      await asyncio.sleep(15)
+              
+              print("\n=== API Key Validation ===")
+              # Test a simple function to validate the API key
+              validation_params = {
+                  'function': 'GLOBAL_QUOTE',
+                  'symbol': 'AAPL',
+                  'apikey': api_key
+              }
+              
+              async with aiohttp.ClientSession(timeout=timeout) as session:
+                  try:
+                      async with session.get(base_url, params=validation_params) as response:
+                          data = await response.json()
+                          
+                          if "Error Message" in data:
+                              print(f"❌ API Error: {data['Error Message']}")
+                          elif "Note" in data:
+                              print(f"⚠️  API Note: {data['Note']}")
+                          elif "Information" in data:
+                              print(f"ℹ️  API Info: {data['Information']}")
+                          else:
+                              print(f"✅ API appears to be working")
+                              print(f"Response: {json.dumps(data, indent=2)}")
+                              
+                  except Exception as e:
+                      print(f"❌ Exception during validation: {e}")
+          
+          if __name__ == "__main__":
+              asyncio.run(test_alpha_vantage_api())
+          EOF
+          
+          python /tmp/test_alphavantage_api.py
+        env:
+        - name: ALPHA_VANTAGE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-credentials-dev
+              key: ALPHA_VANTAGE_API_KEY
+        - name: PYTHONPATH
+          value: "/tmp"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"

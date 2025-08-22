@@ -1,0 +1,83 @@
+# Pre-commit hooks to prevent schema errors
+# 
+# These hooks run before every commit to catch schema issues early
+
+repos:
+  - repo: local
+    hooks:
+      - id: schema-anti-patterns
+        name: Check for database schema anti-patterns
+        entry: bash -c '
+          echo "🔍 Checking for schema anti-patterns..."
+          
+          # Check for incorrect table names
+          if grep -r "dev_training_datasets" src/ --include="*.py" 2>/dev/null; then
+            echo "❌ Found incorrect table name '\''dev_training_datasets'\'' (should be '\''dev_training_dataset'\'')"
+            exit 1
+          fi
+          
+          # Check for incorrect column names  
+          if grep -r "created_at" src/ --include="*.py" 2>/dev/null; then
+            echo "❌ Found incorrect column name '\''created_at'\'' (should be '\''creation_timestamp'\'')"
+            exit 1
+          fi
+          
+          if grep -r "file_size_bytes" src/ --include="*.py" 2>/dev/null; then
+            echo "❌ Found incorrect column name '\''file_size_bytes'\'' (should be '\''file_size_mb'\'')"
+            exit 1
+          fi
+          
+          echo "✅ No schema anti-patterns found"
+        '
+        language: system
+        files: '^src/.*\.py$'
+        pass_filenames: false
+        
+      - id: sql-syntax-check
+        name: Basic SQL syntax validation
+        entry: bash -c '
+          echo "🔍 Checking SQL syntax..."
+          
+          # Look for SQL queries with obvious syntax issues
+          if grep -r "SELECT.*FROM.*dev_training_datasets" src/ --include="*.py" 2>/dev/null; then
+            echo "❌ Found query referencing non-existent table '\''dev_training_datasets'\''"
+            exit 1
+          fi
+          
+          # Check for unquoted column names that might be keywords
+          if grep -r "SELECT.*order\|SELECT.*group" src/ --include="*.py" 2>/dev/null; then
+            echo "⚠️  Found potentially unquoted SQL keywords - review for proper quoting"
+          fi
+          
+          echo "✅ Basic SQL syntax checks passed"
+        '
+        language: system
+        files: '^src/.*\.py$'
+        pass_filenames: false
+        
+      - id: database-imports-check
+        name: Check database import patterns
+        entry: bash -c '
+          echo "🔍 Checking database import patterns..."
+          
+          # Ensure database code imports proper modules
+          for file in $(find src/ -name "*.py" -exec grep -l "asyncpg\|database" {} \;); do
+            if grep -q "from.*database" "$file" && ! grep -q "Environment\|config" "$file"; then
+              echo "⚠️  File $file uses database but may not use proper config"
+            fi
+          done
+          
+          echo "✅ Database import patterns check completed"
+        '
+        language: system
+        files: '^src/.*\.py$'
+        pass_filenames: false
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict

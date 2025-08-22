@@ -42,6 +42,7 @@ from dao.universe_state_interval_dao import UniverseStateIntervalDAO
 from dao.instrument_interval_dao import InstrumentIntervalDAO
 from dao.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
 from dao.factor_interval_dao import FactorIntervalDAO
+from core.run_context import RunContext
 
 @gin.configurable
 class UniverseStateManager:

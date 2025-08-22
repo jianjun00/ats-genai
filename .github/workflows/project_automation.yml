@@ -1,0 +1,61 @@
+name: Project Management Automation
+
+on:
+  issues:
+    types: [opened, closed, reopened, labeled, unlabeled]
+  pull_request:
+    types: [opened, closed, converted_to_draft, ready_for_review]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  manage-project-board:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add new issues to project
+        if: github.event.action == 'opened' && github.event.issue
+        uses: actions/add-to-project@v0.4.0
+        with:
+          project-url: https://github.com/users/${{ github.repository_owner }}/projects/1
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+
+      - name: Move to Sprint Ready when labeled
+        if: contains(github.event.label.name, 'sprint-ready')
+        uses: actions/add-to-project@v0.4.0
+        with:
+          project-url: https://github.com/users/${{ github.repository_owner }}/projects/1
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+
+      - name: Set status to In Progress when PR opened
+        if: github.event.action == 'opened' && github.event.pull_request
+        run: |
+          # Get linked issues from PR body and move to In Progress
+          echo "Moving linked issues to In Progress"
+
+      - name: Move to Review when PR ready
+        if: github.event.action == 'ready_for_review'
+        run: |
+          echo "Moving linked issues to Review"
+
+      - name: Move to Done when PR merged
+        if: github.event.pull_request.merged == true
+        run: |
+          echo "Moving linked issues to Done"
+
+  sprint-metrics:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed'
+    steps:
+      - name: Update sprint velocity
+        run: |
+          echo "Calculating sprint velocity metrics"
+          # Add logic to calculate and store sprint metrics
+
+  notify-team:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'priority:critical')
+    steps:
+      - name: Notify team of critical issue
+        run: |
+          echo "Critical issue created: ${{ github.event.issue.title }}"
+          # Add Slack/email notification logic

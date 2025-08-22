@@ -1,0 +1,131 @@
+# ATS Deployment Template with Standardized Credentials
+# Use this template for all deployments to ensure consistent credential handling
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${APP_NAME}
+  namespace: ${NAMESPACE}  # ats-dev, ats-intg, or ats-prod
+  labels:
+    app: ${APP_NAME}
+    environment: ${ENVIRONMENT}  # dev, intg, or prod
+    component: ${COMPONENT}      # api-server, webapp, worker, etc.
+spec:
+  replicas: ${REPLICAS:-1}
+  selector:
+    matchLabels:
+      app: ${APP_NAME}
+      component: ${COMPONENT}
+  template:
+    metadata:
+      labels:
+        app: ${APP_NAME}
+        component: ${COMPONENT}
+    spec:
+      containers:
+      - name: ${CONTAINER_NAME}
+        image: ${IMAGE}
+        command: ${COMMAND}
+        args: ${ARGS}
+        env:
+        # Standard environment variables
+        - name: PYTHONPATH
+          value: src
+        - name: ENVIRONMENT
+          value: ${ENVIRONMENT}
+        - name: DB_CONNECTION_PARAMS
+          value: sslmode=disable
+        
+        # Database credentials from centralized secret
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-${ENVIRONMENT}
+              key: DB_HOST
+        - name: DB_PORT
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-${ENVIRONMENT}
+              key: DB_PORT
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-${ENVIRONMENT}
+              key: DB_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-${ENVIRONMENT}
+              key: DB_PASSWORD
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-${ENVIRONMENT}
+              key: DB_NAME
+        
+        # API keys from centralized secret
+        - name: POLYGON_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-keys-${ENVIRONMENT}
+              key: POLYGON_API_KEY
+              optional: true
+        - name: TIINGO_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-keys-${ENVIRONMENT}
+              key: TIINGO_API_KEY
+              optional: true
+        - name: FINNHUB_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-keys-${ENVIRONMENT}
+              key: FINNHUB_API_KEY
+              optional: true
+        
+        ports:
+        - containerPort: ${PORT:-8000}
+          name: http
+        
+        livenessProbe:
+          httpGet:
+            path: ${HEALTH_PATH:-/health}
+            port: ${PORT:-8000}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        
+        readinessProbe:
+          httpGet:
+            path: ${HEALTH_PATH:-/health}
+            port: ${PORT:-8000}
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        
+        resources:
+          requests:
+            memory: ${MEMORY_REQUEST:-1Gi}
+            cpu: ${CPU_REQUEST:-500m}
+          limits:
+            memory: ${MEMORY_LIMIT:-2Gi}
+            cpu: ${CPU_LIMIT:-1000m}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${SERVICE_NAME}
+  namespace: ${NAMESPACE}
+  labels:
+    app: ${APP_NAME}
+    environment: ${ENVIRONMENT}
+spec:
+  type: ${SERVICE_TYPE:-ClusterIP}
+  ports:
+  - port: ${PORT:-8000}
+    targetPort: ${PORT:-8000}
+    protocol: TCP
+    name: http
+    nodePort: ${NODE_PORT}  # Only for NodePort services
+  selector:
+    app: ${APP_NAME}
+    component: ${COMPONENT}

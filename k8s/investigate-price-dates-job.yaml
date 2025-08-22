@@ -1,0 +1,198 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: investigate-price-dates
+  namespace: ats-dev
+  labels:
+    app: ats-genai
+    component: price-date-investigation
+spec:
+  ttlSecondsAfterFinished: 7200
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: price-date-investigator
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "Installing dependencies..."
+          pip install --no-cache-dir asyncpg aiohttp
+          
+          echo "Investigating price date freshness..."
+          cat > /tmp/investigate_price_dates.py << 'EOF'
+          import asyncio
+          import asyncpg
+          import aiohttp
+          import os
+          from datetime import date, timedelta
+          
+          async def investigate_price_dates():
+              """Investigate when our $80.18 AAPL price is from vs current prices"""
+              
+              pool = await asyncpg.create_pool(
+                  host="postgres-simple",
+                  port=5432,
+                  user="postgres",
+                  password="dev_password",
+                  database="dev_db",
+                  min_size=1,
+                  max_size=3
+              )
+              
+              try:
+                  async with pool.acquire() as conn:
+                      print("\n=== PRICE DATE INVESTIGATION ===")
+                      
+                      # Check AAPL price history in our database
+                      print("AAPL Price History in Our Database:")
+                      aapl_prices = await conn.fetch("""
+                          SELECT 
+                              p.date,
+                              p.close,
+                              p.open,
+                              p.high,
+                              p.low,
+                              p.volume
+                          FROM dev_daily_prices_polygon p
+                          JOIN dev_instruments i ON p.instrument_id = i.id
+                          WHERE i.symbol = 'AAPL'
+                          ORDER BY p.date DESC
+                          LIMIT 20
+                      """)
+                      
+                      print("  Date       | Close   | Open    | High    | Low     | Volume")
+                      print("  -----------|---------|---------|---------|---------|----------")
+                      for row in aapl_prices:
+                          print(f"  {row['date']} | ${float(row['close']):6.2f} | ${float(row['open']):6.2f} | ${float(row['high']):6.2f} | ${float(row['low']):6.2f} | {row['volume']:,}")
+                      
+                      # Check when we have the $80.18 price
+                      target_price = 80.18
+                      price_80_dates = await conn.fetch("""
+                          SELECT 
+                              p.date,
+                              p.close,
+                              ABS(p.close - $2) as price_diff
+                          FROM dev_daily_prices_polygon p
+                          JOIN dev_instruments i ON p.instrument_id = i.id
+                          WHERE i.symbol = 'AAPL'
+                            AND ABS(p.close - $2) < 0.50  -- Within 50 cents of $80.18
+                          ORDER BY ABS(p.close - $2)
+                          LIMIT 10
+                      """, 'AAPL', target_price)
+                      
+                      print(f"\\nDates when AAPL was around ${target_price}:")
+                      for row in price_80_dates:
+                          print(f"  {row['date']}: ${float(row['close']):.2f} (diff: ${float(row['price_diff']):.2f})")
+                      
+                      # Check our market cap calculation date
+                      market_cap_date = await conn.fetchrow("""
+                          SELECT 
+                              mc.date,
+                              mc.market_cap/1000000000 as market_cap_billions,
+                              p.close as price_used
+                          FROM dev_daily_market_cap mc
+                          JOIN dev_instruments i ON mc.instrument_id = i.id  
+                          JOIN dev_daily_prices_polygon p ON mc.instrument_id = p.instrument_id AND mc.date = p.date
+                          WHERE i.symbol = 'AAPL'
+                          ORDER BY mc.date DESC
+                          LIMIT 1
+                      """)
+                      
+                      print(f"\\nOur Market Cap Calculation:")
+                      print(f"  Date: {market_cap_date['date']}")
+                      print(f"  Price used: ${float(market_cap_date['price_used']):.2f}")
+                      print(f"  Market cap: ${float(market_cap_date['market_cap_billions']):.1f}B")
+                      
+                      # Check data freshness across all stocks
+                      print(f"\\n=== DATA FRESHNESS CHECK ===")
+                      freshness_stats = await conn.fetchrow("""
+                          SELECT 
+                              MIN(date) as oldest_date,
+                              MAX(date) as newest_date,
+                              COUNT(DISTINCT date) as unique_dates,
+                              COUNT(DISTINCT instrument_id) as instruments_with_data
+                          FROM dev_daily_prices_polygon
+                          WHERE date >= $1
+                      """, date.today() - timedelta(days=30))
+                      
+                      print(f"Last 30 days price data:")
+                      print(f"  Date range: {freshness_stats['oldest_date']} to {freshness_stats['newest_date']}")
+                      print(f"  Trading days: {freshness_stats['unique_dates']}")
+                      print(f"  Instruments: {freshness_stats['instruments_with_data']}")
+                      
+                      today = date.today()
+                      days_behind = (today - freshness_stats['newest_date']).days
+                      print(f"  Days behind current date: {days_behind}")
+                      
+                      if days_behind > 1:
+                          print(f"  🚨 WARNING: Price data is {days_behind} days stale!")
+                      else:
+                          print(f"  ✅ Price data appears current")
+                      
+                      # Get current price from Polygon for comparison
+                      polygon_api_key = os.environ.get("POLYGON_API_KEY")
+                      if polygon_api_key:
+                          print(f"\\n=== CURRENT POLYGON PRICE CHECK ===")
+                          
+                          # Get the most recent trading day price
+                          url = f"https://api.polygon.io/v2/aggs/ticker/AAPL/range/1/day/{freshness_stats['newest_date']}/{today}"
+                          params = {"apikey": polygon_api_key, "adjusted": "true", "sort": "desc", "limit": 1}
+                          
+                          async with aiohttp.ClientSession() as session:
+                              async with session.get(url, params=params) as response:
+                                  if response.status == 200:
+                                      data = await response.json()
+                                      results = data.get('results', [])
+                                      if results:
+                                          latest_bar = results[0]
+                                          timestamp = latest_bar.get('t', 0)
+                                          close_price = latest_bar.get('c', 0)
+                                          trading_date = date.fromtimestamp(timestamp / 1000)
+                                          
+                                          print(f"  Polygon latest trading day: {trading_date}")
+                                          print(f"  Polygon close price: ${close_price:.2f}")
+                                          
+                                          our_latest_price = float(aapl_prices[0]['close']) if aapl_prices else 0
+                                          print(f"  Our latest price: ${our_latest_price:.2f}")
+                                          
+                                          if abs(close_price - our_latest_price) < 1.0:
+                                              print(f"  ✅ Our price matches recent Polygon price")
+                                          else:
+                                              print(f"  ❌ Price mismatch - difference: ${abs(close_price - our_latest_price):.2f}")
+                                              print(f"  🔍 This confirms our price data is STALE or from a different date")
+                                  else:
+                                      print(f"  ❌ Failed to get current Polygon price: HTTP {response.status}")
+                      
+                      print(f"\\n=== CONCLUSION ===")
+                      print("If $80.18 is from an older date, this explains the market cap discrepancy:")
+                      print("- Stock prices change daily")
+                      print("- Market cap = shares × CURRENT price")  
+                      print("- Using old prices gives old market caps")
+                      print("- Need to ensure we're using the most recent price data")
+                      
+              finally:
+                  await pool.close()
+          
+          if __name__ == "__main__":
+              asyncio.run(investigate_price_dates())
+          EOF
+          
+          python /tmp/investigate_price_dates.py
+        env:
+        - name: POLYGON_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-credentials-dev
+              key: POLYGON_API_KEY
+        - name: PYTHONPATH
+          value: "/tmp"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"

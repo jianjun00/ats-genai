@@ -139,3 +139,12 @@ src/db/migrations/backups/
 k8s/generated/*
 !k8s/generated/.gitkeep
 
+# Ignore data directory
+data/
+
+k8s/experiments/
+k8s/dev/
+
+# Training data outputs
+training_data_output/
+*.npy

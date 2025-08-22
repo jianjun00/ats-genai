@@ -3,6 +3,9 @@ from signals.indicator import PL, OneOneHigh
 from state.instrument_interval import InstrumentInterval
 from datetime import datetime, timedelta
 
+# Mark all tests in this module as unit tests
+pytestmark = pytest.mark.unit
+
 @pytest.fixture
 def three_ok_intervals():
     base = datetime(2023, 1, 1)

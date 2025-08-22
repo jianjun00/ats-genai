@@ -1,0 +1,484 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: realtime-collector-config
+  namespace: ats-dev
+data:
+  streaming_collector.py: |
+    # Real-time streaming collector configuration
+    # This would contain the actual Python code for deployment
+    # In practice, you'd use a proper Docker image
+    
+---
+# Real-Time Streaming Service (Always Running)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: realtime-minute-collector
+  namespace: ats-dev
+  labels:
+    app: realtime-collector
+    component: streaming-service
+spec:
+  replicas: 2  # High availability
+  selector:
+    matchLabels:
+      app: realtime-collector
+  template:
+    metadata:
+      labels:
+        app: realtime-collector
+    spec:
+      containers:
+      - name: streaming-collector
+        image: python:3.12-slim
+        command: ["/bin/bash"]
+        args:
+          - -c
+          - |
+            echo "📦 Installing dependencies..."
+            pip install asyncpg aiohttp websockets pytz
+            
+            echo "🚀 Starting real-time streaming collector..."
+            cd /app
+            python streaming_collector.py
+        env:
+        # Market configuration
+        - name: UNIVERSE_SIZE
+          value: "2000"
+        - name: MARKET_HOURS_ONLY
+          value: "true"
+        - name: ENABLE_PREMARKET
+          value: "false"
+        - name: ENABLE_AFTERHOURS
+          value: "true"
+        - name: MAX_LATENCY_SECONDS
+          value: "120"
+        
+        # API Keys (from secrets in production)
+        - name: POLYGON_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-credentials
+              key: polygon-api-key
+        - name: TIINGO_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-credentials
+              key: tiingo-api-key
+        - name: FMP_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-credentials
+              key: fmp-api-key
+              
+        # Database configuration
+        - name: DB_HOST
+          value: "postgres-simple"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+          
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "2000m"
+          limits:
+            memory: "8Gi"
+            cpu: "4000m"
+            
+        # Health checks
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import psutil; exit(0 if any('streaming_collector' in p.name() for p in psutil.process_iter()) else 1)"
+          initialDelaySeconds: 30
+          periodSeconds: 60
+          
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import asyncpg, asyncio; loop = asyncio.get_event_loop(); conn = loop.run_until_complete(asyncpg.connect('postgresql://postgres:dev_password@postgres-simple:5432/dev_db')); loop.run_until_complete(conn.close()); exit(0)"
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          
+        volumeMounts:
+        - name: app-code
+          mountPath: /app
+          
+      volumes:
+      - name: app-code
+        configMap:
+          name: realtime-collector-config
+          
+      # Ensure database is ready
+      initContainers:
+      - name: db-check
+        image: postgres:15
+        command: ['pg_isready', '-h', 'postgres-simple', '-p', '5432', '-U', 'postgres']
+        
+      restartPolicy: Always
+      
+---
+# Service for metrics and health checks
+apiVersion: v1
+kind: Service
+metadata:
+  name: realtime-collector-service
+  namespace: ats-dev
+spec:
+  selector:
+    app: realtime-collector
+  ports:
+  - name: metrics
+    port: 8080
+    targetPort: 8080
+  - name: health
+    port: 8081
+    targetPort: 8081
+    
+---
+# Daily Validation CronJob (Runs after market close)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: daily-realtime-validation
+  namespace: ats-dev
+spec:
+  schedule: "0 20 * * 1-5"  # 8:00 PM EST, Monday-Friday
+  timeZone: "America/New_York"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: validation-service
+            image: python:3.12-slim
+            command: ["/bin/bash"]
+            args:
+              - -c
+              - |
+                echo "📦 Installing dependencies..."
+                pip install asyncpg aiohttp statistics
+                
+                echo "🔍 Running daily real-time validation..."
+                cd /validation
+                python realtime_batch_validator.py
+                
+                echo "✅ Daily validation completed!"
+            env:
+            # Validation configuration
+            - name: VALIDATION_BATCH_SIZE
+              value: "50"
+            - name: MAX_LATENCY_MINUTES
+              value: "5.0"
+            - name: MAX_PRICE_DIFF_PCT
+              value: "0.5"
+            - name: MIN_ACCURACY_SCORE
+              value: "0.95"
+            - name: MIN_COMPLETENESS
+              value: "0.90"
+            
+            # Override validation date for testing
+            # - name: VALIDATION_DATE
+            #   value: "2025-08-22"
+            
+            # API credentials
+            - name: POLYGON_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: polygon-api-key
+            - name: TIINGO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: tiingo-api-key
+            - name: FMP_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: fmp-api-key
+                  
+            # Database configuration
+            - name: DB_HOST
+              value: "postgres-simple"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: "dev_password"
+            - name: DB_NAME
+              value: "dev_db"
+              
+            resources:
+              requests:
+                memory: "2Gi"
+                cpu: "1000m"
+              limits:
+                memory: "4Gi"
+                cpu: "2000m"
+                
+            volumeMounts:
+            - name: validation-code
+              mountPath: /validation
+              
+          volumes:
+          - name: validation-code
+            configMap:
+              name: validation-scripts
+              
+          restartPolicy: OnFailure
+          
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 3
+  
+---
+# Gap Detection and Backfill CronJob
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: gap-detection-backfill
+  namespace: ats-dev
+spec:
+  schedule: "*/30 * * * 1-5"  # Every 30 minutes during weekdays
+  timeZone: "America/New_York"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: gap-detector
+            image: python:3.12-slim
+            command: ["/bin/bash"]
+            args:
+              - -c
+              - |
+                echo "🔍 Running gap detection..."
+                cd /gap-detection
+                python gap_detector.py
+                
+                echo "✅ Gap detection completed!"
+            env:
+            - name: MAX_GAP_MINUTES
+              value: "10"
+            - name: BACKFILL_PRIORITY_THRESHOLD
+              value: "3"
+            - name: MAX_CONCURRENT_BACKFILLS
+              value: "5"
+              
+            # Database configuration
+            - name: DB_HOST
+              value: "postgres-simple"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: "dev_password"
+            - name: DB_NAME
+              value: "dev_db"
+              
+            resources:
+              requests:
+                memory: "1Gi"
+                cpu: "500m"
+              limits:
+                memory: "2Gi"
+                cpu: "1000m"
+                
+          restartPolicy: OnFailure
+          
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 2
+  
+---
+# Weekly Comprehensive Backfill Job
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: weekly-comprehensive-backfill
+  namespace: ats-dev
+spec:
+  schedule: "0 2 * * 6"  # Saturday 2:00 AM
+  timeZone: "America/New_York"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: comprehensive-backfill
+            image: python:3.12-slim
+            command: ["/bin/bash"]
+            args:
+              - -c
+              - |
+                echo "🔄 Running weekly comprehensive backfill..."
+                cd /backfill
+                python comprehensive_backfill.py
+                
+                echo "✅ Weekly backfill completed!"
+            env:
+            - name: BACKFILL_DAYS
+              value: "7"
+            - name: MAX_SYMBOLS_PER_BATCH
+              value: "100"
+            - name: CHUNK_SIZE_HOURS
+              value: "24"
+              
+            # API credentials
+            - name: POLYGON_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: polygon-api-key
+            - name: TIINGO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: tiingo-api-key
+            - name: FMP_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: fmp-api-key
+                  
+            # Database configuration
+            - name: DB_HOST
+              value: "postgres-simple"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: "dev_password"
+            - name: DB_NAME
+              value: "dev_db"
+              
+            resources:
+              requests:
+                memory: "8Gi"
+                cpu: "4000m"
+              limits:
+                memory: "16Gi"
+                cpu: "8000m"
+                
+          restartPolicy: OnFailure
+          
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 1
+  
+---
+# Data Quality Monitoring Dashboard (Optional - lightweight always-on service)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-quality-monitor
+  namespace: ats-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-quality-monitor
+  template:
+    metadata:
+      labels:
+        app: data-quality-monitor
+    spec:
+      containers:
+      - name: monitor
+        image: python:3.12-slim
+        command: ["/bin/bash"]
+        args:
+          - -c
+          - |
+            echo "📊 Starting data quality monitor..."
+            cd /monitor
+            python quality_monitor.py
+        env:
+        - name: ALERT_THRESHOLD_ACCURACY
+          value: "0.9"
+        - name: ALERT_THRESHOLD_LATENCY
+          value: "300"  # 5 minutes
+        - name: CHECK_INTERVAL_SECONDS
+          value: "300"  # 5 minutes
+          
+        # Database configuration
+        - name: DB_HOST
+          value: "postgres-simple"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+          
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+            
+        # Lightweight health checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 60
+          
+---
+# Service for data quality monitor
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-quality-monitor-service
+  namespace: ats-dev
+spec:
+  selector:
+    app: data-quality-monitor
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    
+---
+# ConfigMap for validation scripts
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: validation-scripts
+  namespace: ats-dev
+data:
+  realtime_batch_validator.py: |
+    # Validation script content would go here
+    # In practice, use proper Docker images with baked-in code
+    
+---
+# Secret for API credentials (create manually)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: api-credentials
+  namespace: ats-dev
+type: Opaque
+data:
+  # Base64 encoded API keys
+  # Create with: echo -n "your-api-key" | base64
+  polygon-api-key: ""  # Add your base64 encoded Polygon API key
+  tiingo-api-key: ""   # Add your base64 encoded Tiingo API key  
+  fmp-api-key: ""      # Add your base64 encoded FMP API key
