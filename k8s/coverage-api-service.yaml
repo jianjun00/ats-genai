@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: coverage-api-service
+  namespace: ats-dev
+  labels:
+    app: coverage-api
+    component: api
+spec:
+  type: NodePort
+  ports:
+  - port: 8001
+    targetPort: 8001
+    nodePort: 30801
+    name: http
+    protocol: TCP
+  selector:
+    job-name: deploy-coverage-api
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coverage-api-config
+  namespace: ats-dev
+  labels:
+    app: coverage-api
+data:
+  SLACK_WEBHOOK_URL: "https://hooks.slack.com/services/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"
+  LOG_LEVEL: "info"
+  CORS_ORIGINS: "http://localhost:3000,http://localhost:8080"
+  API_PORT: "8001"

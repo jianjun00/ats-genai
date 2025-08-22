@@ -1,0 +1,314 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: realtime-alerting-rules
+  namespace: ats-dev
+  labels:
+    app: prometheus
+    component: alerting
+data:
+  realtime_alerts.yml: |
+    groups:
+    - name: realtime_data_collection
+      rules:
+      
+      # Critical Alerts - Immediate Response Required
+      - alert: RealtimeDataCollectionDown
+        expr: sum(realtime_connection_status) == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: realtime-data-collection
+        annotations:
+          summary: "Real-time data collection is completely down"
+          description: "No vendors are currently connected for real-time data collection"
+          
+      - alert: RealtimeDataCollectionSevereDegradation
+        expr: avg(realtime_collection_health_score) < 0.5
+        for: 10m
+        labels:
+          severity: critical
+          service: realtime-data-collection
+        annotations:
+          summary: "Severe degradation in real-time data collection"
+          description: "Average collection health score is {{ $value }} (below 0.5 threshold)"
+          
+      - alert: RealtimeHighLatency
+        expr: histogram_quantile(0.95, rate(realtime_collection_latency_seconds_bucket[5m])) > 300
+        for: 15m
+        labels:
+          severity: critical
+          service: realtime-data-collection
+        annotations:
+          summary: "High latency in real-time data collection"
+          description: "95th percentile latency is {{ $value }}s (above 300s threshold)"
+          
+      - alert: RealtimeMassiveDataGaps
+        expr: rate(realtime_gaps_detected_total{severity="critical"}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: realtime-data-collection
+        annotations:
+          summary: "Massive critical data gaps detected"
+          description: "Critical gaps being detected at rate of {{ $value }} per second"
+          
+      # Warning Alerts - Monitor and Investigate
+      - alert: RealtimeVendorDisconnected
+        expr: realtime_connection_status == 0
+        for: 10m
+        labels:
+          severity: warning
+          service: realtime-data-collection
+        annotations:
+          summary: "Vendor {{ $labels.vendor }} disconnected"
+          description: "Vendor {{ $labels.vendor }} has been disconnected for more than 10 minutes"
+          
+      - alert: RealtimeLowDataQuality
+        expr: avg(realtime_data_quality_score) by (vendor) < 0.7
+        for: 20m
+        labels:
+          severity: warning
+          service: realtime-data-collection
+        annotations:
+          summary: "Low data quality for vendor {{ $labels.vendor }}"
+          description: "Average data quality score is {{ $value }} for vendor {{ $labels.vendor }}"
+          
+      - alert: RealtimeCollectionSlowdown
+        expr: rate(realtime_bars_collected_total[5m]) * 60 < 100
+        for: 15m
+        labels:
+          severity: warning
+          service: realtime-data-collection
+        annotations:
+          summary: "Slowdown in data collection for {{ $labels.vendor }}"
+          description: "Collection rate is {{ $value }} bars/min (below 100 threshold)"
+          
+      - alert: RealtimeDataGapsIncreasing
+        expr: rate(realtime_gaps_detected_total[5m]) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          service: realtime-data-collection
+        annotations:
+          summary: "Increasing data gaps for {{ $labels.vendor }}/{{ $labels.symbol }}"
+          description: "Gap detection rate: {{ $value }} per second"
+          
+      - alert: RealtimeValidationAccuracyLow
+        expr: avg(realtime_validation_accuracy) by (vendor) < 0.95
+        for: 30m
+        labels:
+          severity: warning
+          service: realtime-data-collection
+        annotations:
+          summary: "Low validation accuracy for {{ $labels.vendor }}"
+          description: "Validation accuracy is {{ $value }} (below 95% threshold)"
+          
+      # Info Alerts - Awareness and Tracking
+      - alert: RealtimeCollectionProgress
+        expr: (realtime_trading_day_bars_collected / realtime_trading_day_bars_expected) < 0.8
+        for: 60m
+        labels:
+          severity: info
+          service: realtime-data-collection
+        annotations:
+          summary: "Collection progress behind for {{ $labels.vendor }}"
+          description: "Daily collection progress is {{ $value }} (below 80%)"
+          
+      - alert: RealtimeBackfillsActive
+        expr: rate(realtime_backfill_requests_total{status="in_progress"}[10m]) > 0.01
+        for: 5m
+        labels:
+          severity: info
+          service: realtime-data-collection
+        annotations:
+          summary: "Active backfill operations detected"
+          description: "Backfill rate: {{ $value }} requests per second for {{ $labels.vendor }}/{{ $labels.symbol }}"
+          
+    - name: realtime_system_health
+      rules:
+      
+      # System Resource and Health Alerts
+      - alert: RealtimeHighMemoryUsage
+        expr: (container_memory_working_set_bytes{pod=~"realtime-streaming-collector.*"} / container_spec_memory_limit_bytes) > 0.9
+        for: 10m
+        labels:
+          severity: warning
+          service: realtime-data-collection
+        annotations:
+          summary: "High memory usage in realtime collector"
+          description: "Memory usage is {{ $value }} (above 90% threshold)"
+          
+      - alert: RealtimeHighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{pod=~"realtime-streaming-collector.*"}[5m]) > 1.8
+        for: 15m
+        labels:
+          severity: warning
+          service: realtime-data-collection
+        annotations:
+          summary: "High CPU usage in realtime collector"
+          description: "CPU usage is {{ $value }} cores (above 1.8 threshold)"
+          
+      - alert: RealtimeDatabaseQuerySlow
+        expr: histogram_quantile(0.95, rate(realtime_database_query_duration_seconds_bucket[5m])) > 1.0
+        for: 10m
+        labels:
+          severity: warning
+          service: realtime-data-collection
+        annotations:
+          summary: "Slow database queries detected"
+          description: "95th percentile query time is {{ $value }}s"
+          
+      - alert: RealtimeAPIRequestSlow
+        expr: histogram_quantile(0.95, rate(realtime_api_request_duration_seconds_bucket[5m])) > 10.0
+        for: 10m
+        labels:
+          severity: warning
+          service: realtime-data-collection
+        annotations:
+          summary: "Slow API requests to {{ $labels.vendor }}"
+          description: "95th percentile API request time is {{ $value }}s"
+          
+      - alert: RealtimePodRestarts
+        expr: increase(kube_pod_container_status_restarts_total{pod=~"realtime-streaming-collector.*"}[1h]) > 3
+        for: 5m
+        labels:
+          severity: warning
+          service: realtime-data-collection
+        annotations:
+          summary: "Frequent pod restarts detected"
+          description: "Pod {{ $labels.pod }} has restarted {{ $value }} times in the last hour"
+          
+    - name: realtime_market_hours
+      rules:
+      
+      # Market Hours Specific Alerts
+      - alert: RealtimeMarketHoursNoData
+        expr: realtime_market_hours_status == 1 and sum(rate(realtime_bars_collected_total[5m])) == 0
+        for: 10m
+        labels:
+          severity: critical
+          service: realtime-data-collection
+        annotations:
+          summary: "No data collection during market hours"
+          description: "Market is open but no data is being collected"
+          
+      - alert: RealtimePreMarketIssues
+        expr: hour() >= 4 and hour() < 9 and sum(realtime_connection_status) == 0
+        for: 30m
+        labels:
+          severity: warning
+          service: realtime-data-collection
+        annotations:
+          summary: "Pre-market data collection issues"
+          description: "No connections active during pre-market hours"
+          
+    - name: realtime_data_quality
+      rules:
+      
+      # Data Quality Specific Alerts
+      - alert: RealtimePriceDiscrepancies
+        expr: rate(realtime_price_discrepancies_total[10m]) > 0.01
+        for: 15m
+        labels:
+          severity: warning
+          service: realtime-data-collection
+        annotations:
+          summary: "Price discrepancies detected for {{ $labels.vendor }}/{{ $labels.symbol }}"
+          description: "Price discrepancy rate: {{ $value }} per second"
+          
+      - alert: RealtimeMissingBarsAccumulating
+        expr: rate(realtime_missing_bars_total[10m]) > 1.0
+        for: 20m
+        labels:
+          severity: warning
+          service: realtime-data-collection
+        annotations:
+          summary: "Missing bars accumulating for {{ $labels.vendor }}/{{ $labels.symbol }}"
+          description: "Missing bars rate: {{ $value }} per second"
+          
+      - alert: RealtimeConsistentLateBars
+        expr: rate(realtime_late_bars_total[10m]) > 0.1
+        for: 30m
+        labels:
+          severity: info
+          service: realtime-data-collection
+        annotations:
+          summary: "Consistent late bars for {{ $labels.vendor }}/{{ $labels.symbol }}"
+          description: "Late bars rate: {{ $value }} per second"
+          
+    - name: realtime_validation
+      rules:
+      
+      # Daily Validation Alerts
+      - alert: RealtimeDailyValidationFailed
+        expr: increase(realtime_validation_accuracy{vendor!="weekly_backfill"}[24h]) == 0
+        for: 2h
+        labels:
+          severity: warning
+          service: realtime-data-collection
+        annotations:
+          summary: "Daily validation not running"
+          description: "No validation metrics updated in 24 hours"
+          
+      - alert: RealtimeValidationLowAccuracy
+        expr: avg_over_time(realtime_validation_accuracy[24h]) < 0.99
+        for: 1h
+        labels:
+          severity: warning
+          service: realtime-data-collection
+        annotations:
+          summary: "Low validation accuracy trend"
+          description: "24-hour average validation accuracy is {{ $value }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: realtime-notification-config
+  namespace: ats-dev
+  labels:
+    app: prometheus
+    component: alerting
+data:
+  notification_template.yml: |
+    templates:
+    - name: realtime.title
+      text: '🚨 [{{ .Status | toUpper }}] {{ .GroupLabels.service }}: {{ .CommonAnnotations.summary }}'
+      
+    - name: realtime.description
+      text: |-
+        {{ if eq .Status "firing" }}
+        🔥 **ALERT FIRING**
+        {{ else }}
+        ✅ **ALERT RESOLVED**
+        {{ end }}
+        
+        **Service:** {{ .GroupLabels.service }}
+        **Severity:** {{ .GroupLabels.severity | toUpper }}
+        **Alert Count:** {{ len .Alerts }}
+        
+        {{ range .Alerts }}
+        **{{ .Annotations.summary }}**
+        {{ .Annotations.description }}
+        
+        **Labels:**
+        {{ range .Labels.SortedPairs }}• {{ .Name }}: {{ .Value }}
+        {{ end }}
+        
+        **Started:** {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+        {{ if ne .EndsAt.Unix 0 }}**Ended:** {{ .EndsAt.Format "2006-01-02 15:04:05 UTC" }}{{ end }}
+        
+        ---
+        {{ end }}
+        
+        **Runbook:** https://wiki.company.com/realtime-data-troubleshooting
+        **Dashboard:** https://grafana.company.com/d/realtime-market-data
+        **Prometheus:** https://prometheus.company.com/alerts
+        
+    - name: realtime.slack.color
+      text: >-
+        {{ if eq .Status "firing" }}
+          {{ if eq .GroupLabels.severity "critical" }}danger{{ else }}warning{{ end }}
+        {{ else }}
+          good
+        {{ end }}

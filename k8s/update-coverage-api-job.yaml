@@ -1,0 +1,427 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: update-coverage-api
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      containers:
+      - name: update-coverage-api
+        image: python:3.10-slim
+        command: ["sh", "-c"]
+        args:
+          - |
+            set -e
+            echo "🚀 Installing dependencies..."
+            pip install --no-cache-dir fastapi uvicorn asyncpg pydantic requests
+            
+            echo "📁 Creating app directory..."
+            mkdir -p /app && cd /app
+            
+            echo "📋 Creating Updated Coverage API application..."
+            cat > coverage_api.py << 'EOF'
+            """
+            Data Coverage API - Updated with proper null handling
+            """
+            
+            import asyncio
+            import asyncpg
+            import logging
+            import json
+            import requests
+            from datetime import date, datetime, timedelta
+            from typing import Dict, List, Optional, Any
+            from decimal import Decimal
+            
+            from fastapi import FastAPI, Depends, Query, Path, HTTPException, WebSocket, WebSocketDisconnect
+            from fastapi.middleware.cors import CORSMiddleware
+            from fastapi.responses import JSONResponse
+            from pydantic import BaseModel, Field
+            import uvicorn
+            
+            # Configure logging
+            logging.basicConfig(level=logging.INFO)
+            logger = logging.getLogger(__name__)
+            
+            # Slack webhook URL for alerts
+            SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/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"
+            
+            # Pydantic models with proper null handling
+            class CoverageSummary(BaseModel):
+                symbol: str
+                vendor: str
+                data_type: str
+                current_status: str
+                coverage_24h: float
+                quality_24h: Optional[float] = None
+                records_24h: int
+                coverage_7d: Optional[float] = None
+                coverage_30d: Optional[float] = None
+                latest_data_time: Optional[datetime] = None
+                hours_since_update: Optional[float] = None  # Changed to Optional
+                coverage_trend: Optional[str] = None
+                quality_trend: Optional[str] = None
+            
+            class CoverageOverview(BaseModel):
+                vendor: str
+                data_type: str
+                total_symbols: int
+                avg_coverage: float
+                active_symbols: int
+                stale_symbols: int
+                missing_symbols: int
+            
+            class VendorComparison(BaseModel):
+                symbol: str
+                data_type: str
+                time_period: str
+                vendors: List[Dict[str, Any]]
+                best_vendor: Optional[Dict[str, Any]] = None
+                worst_vendor: Optional[Dict[str, Any]] = None
+                average_coverage: float
+                coverage_variance: float
+                vendor_count: int
+            
+            # Database connection management
+            class DatabaseManager:
+                def __init__(self):
+                    self.db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+                    self.pool = None
+                
+                async def initialize(self):
+                    try:
+                        self.pool = await asyncpg.create_pool(
+                            self.db_url,
+                            min_size=5,
+                            max_size=20,
+                            command_timeout=60
+                        )
+                        logger.info("✅ Database connection pool initialized")
+                    except Exception as e:
+                        logger.error(f"❌ Failed to initialize database: {e}")
+                        raise
+                
+                async def close(self):
+                    if self.pool:
+                        await self.pool.close()
+                        logger.info("Database connection pool closed")
+            
+            # Slack alerting service
+            class SlackAlerter:
+                @staticmethod
+                async def send_alert(message: str, severity: str = "warning"):
+                    try:
+                        color_map = {
+                            "info": "#36a64f",
+                            "warning": "#ff9500",
+                            "error": "#ff0000",
+                            "critical": "#8B0000"
+                        }
+                        
+                        payload = {
+                            "attachments": [{
+                                "color": color_map.get(severity, "#ff9500"),
+                                "title": f"🚨 Data Coverage Alert ({severity.upper()})",
+                                "text": message,
+                                "footer": "ATS Coverage Monitoring",
+                                "ts": int(datetime.now().timestamp())
+                            }]
+                        }
+                        
+                        response = requests.post(SLACK_WEBHOOK_URL, json=payload, timeout=10)
+                        if response.status_code == 200:
+                            logger.info(f"✅ Slack alert sent: {message[:100]}...")
+                        else:
+                            logger.error(f"❌ Failed to send Slack alert: {response.status_code}")
+                            
+                    except Exception as e:
+                        logger.error(f"❌ Error sending Slack alert: {e}")
+            
+            # Coverage analytics engine
+            class CoverageAnalyticsEngine:
+                def __init__(self, db_manager: DatabaseManager):
+                    self.db_manager = db_manager
+                    self.alerter = SlackAlerter()
+                
+                async def get_coverage_overview(self) -> List[CoverageOverview]:
+                    async with self.db_manager.pool.acquire() as conn:
+                        rows = await conn.fetch("""
+                            SELECT 
+                                vendor,
+                                data_type,
+                                COUNT(*) as total_symbols,
+                                ROUND(AVG(coverage_24h), 2) as avg_coverage,
+                                COUNT(*) FILTER (WHERE current_status = 'active') as active_symbols,
+                                COUNT(*) FILTER (WHERE current_status = 'stale') as stale_symbols,
+                                COUNT(*) FILTER (WHERE current_status = 'missing') as missing_symbols
+                            FROM coverage_summary
+                            GROUP BY vendor, data_type
+                            ORDER BY vendor, data_type
+                        """)
+                        
+                        return [CoverageOverview(**dict(row)) for row in rows]
+                
+                async def get_coverage_summary(
+                    self, 
+                    symbols: Optional[List[str]] = None,
+                    vendors: Optional[List[str]] = None,
+                    data_types: Optional[List[str]] = None,
+                    min_coverage: Optional[float] = None
+                ) -> List[CoverageSummary]:
+                    
+                    where_conditions = []
+                    params = []
+                    param_count = 0
+                    
+                    if symbols:
+                        param_count += 1
+                        where_conditions.append(f"symbol = ANY(${param_count})")
+                        params.append(symbols)
+                    
+                    if vendors:
+                        param_count += 1
+                        where_conditions.append(f"vendor = ANY(${param_count})")
+                        params.append(vendors)
+                    
+                    if data_types:
+                        param_count += 1
+                        where_conditions.append(f"data_type = ANY(${param_count})")
+                        params.append(data_types)
+                    
+                    if min_coverage:
+                        param_count += 1
+                        where_conditions.append(f"coverage_24h >= ${param_count}")
+                        params.append(min_coverage)
+                    
+                    where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+                    
+                    async with self.db_manager.pool.acquire() as conn:
+                        rows = await conn.fetch(f"""
+                            SELECT 
+                                symbol, vendor, data_type, current_status,
+                                coverage_24h, quality_24h, records_24h,
+                                coverage_7d, coverage_30d,
+                                latest_data_time, 
+                                COALESCE(EXTRACT(EPOCH FROM (NOW() - latest_data_time)) / 3600.0, 0) as hours_since_update,
+                                coverage_trend, quality_trend
+                            FROM coverage_summary
+                            {where_clause}
+                            ORDER BY symbol, vendor, data_type
+                        """, *params)
+                        
+                        # Convert records to dictionaries with proper null handling
+                        result = []
+                        for row in rows:
+                            row_dict = dict(row)
+                            # Ensure hours_since_update is not None
+                            if row_dict['hours_since_update'] is None:
+                                row_dict['hours_since_update'] = 0.0
+                            result.append(CoverageSummary(**row_dict))
+                        
+                        return result
+                
+                async def get_vendor_comparison(
+                    self,
+                    symbol: str,
+                    data_type: str = 'minute',
+                    time_period: str = '24h'
+                ) -> VendorComparison:
+                    
+                    time_field_map = {
+                        '24h': 'coverage_24h',
+                        '7d': 'coverage_7d', 
+                        '30d': 'coverage_30d'
+                    }
+                    
+                    coverage_field = time_field_map.get(time_period, 'coverage_24h')
+                    quality_field = coverage_field.replace('coverage_', 'quality_')
+                    
+                    async with self.db_manager.pool.acquire() as conn:
+                        rows = await conn.fetch(f"""
+                            SELECT 
+                                vendor,
+                                {coverage_field} as coverage_percentage,
+                                {quality_field} as quality_score,
+                                current_status,
+                                latest_data_time,
+                                COALESCE(EXTRACT(EPOCH FROM (NOW() - latest_data_time)) / 3600.0, 0) as hours_since_update
+                            FROM coverage_summary
+                            WHERE symbol = $1 AND data_type = $2
+                            AND {coverage_field} IS NOT NULL
+                            ORDER BY {coverage_field} DESC
+                        """, symbol, data_type)
+                        
+                        vendors = []
+                        for row in rows:
+                            vendors.append({
+                                'vendor': row['vendor'],
+                                'coverage_percentage': float(row['coverage_percentage'] or 0),
+                                'quality_score': float(row['quality_score'] or 0),
+                                'status': row['current_status'],
+                                'latest_data_time': row['latest_data_time'],
+                                'hours_since_update': float(row['hours_since_update'] or 0)
+                            })
+                        
+                        # Calculate comparison metrics
+                        if vendors:
+                            best_vendor = vendors[0]
+                            worst_vendor = vendors[-1]
+                            avg_coverage = sum(v['coverage_percentage'] for v in vendors) / len(vendors)
+                            coverage_values = [v['coverage_percentage'] for v in vendors]
+                            coverage_variance = sum((x - avg_coverage) ** 2 for x in coverage_values) / len(coverage_values)
+                        else:
+                            best_vendor = worst_vendor = None
+                            avg_coverage = coverage_variance = 0
+                        
+                        return VendorComparison(
+                            symbol=symbol,
+                            data_type=data_type,
+                            time_period=time_period,
+                            vendors=vendors,
+                            best_vendor=best_vendor,
+                            worst_vendor=worst_vendor,
+                            average_coverage=avg_coverage,
+                            coverage_variance=coverage_variance,
+                            vendor_count=len(vendors)
+                        )
+            
+            # Initialize FastAPI app
+            app = FastAPI(
+                title="Data Coverage API",
+                description="Real-time data coverage monitoring and analytics",
+                version="1.0.0"
+            )
+            
+            # Add CORS middleware
+            app.add_middleware(
+                CORSMiddleware,
+                allow_origins=["*"],  # Allow all origins for dev
+                allow_credentials=True,
+                allow_methods=["*"],
+                allow_headers=["*"],
+            )
+            
+            # Global dependencies
+            db_manager = DatabaseManager()
+            coverage_engine = None
+            
+            async def get_coverage_engine() -> CoverageAnalyticsEngine:
+                global coverage_engine
+                if coverage_engine is None:
+                    coverage_engine = CoverageAnalyticsEngine(db_manager)
+                return coverage_engine
+            
+            @app.on_event("startup")
+            async def startup_event():
+                await db_manager.initialize()
+                global coverage_engine
+                coverage_engine = CoverageAnalyticsEngine(db_manager)
+                logger.info("✅ Data Coverage API started (updated version)")
+            
+            @app.on_event("shutdown")
+            async def shutdown_event():
+                await db_manager.close()
+                logger.info("Data Coverage API shutdown")
+            
+            # Health check endpoint
+            @app.get("/health")
+            async def health_check():
+                return {
+                    "status": "healthy", 
+                    "timestamp": datetime.now(),
+                    "service": "data_coverage_api",
+                    "version": "1.1.0"
+                }
+            
+            # Coverage overview endpoints
+            @app.get("/api/v1/coverage/overview", response_model=List[CoverageOverview])
+            async def get_coverage_overview(
+                engine: CoverageAnalyticsEngine = Depends(get_coverage_engine)
+            ):
+                try:
+                    return await engine.get_coverage_overview()
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"Failed to get coverage overview: {str(e)}")
+            
+            @app.get("/api/v1/coverage/summary", response_model=List[CoverageSummary])
+            async def get_coverage_summary(
+                symbols: Optional[List[str]] = Query(None),
+                vendors: Optional[List[str]] = Query(None),
+                data_types: Optional[List[str]] = Query(None),
+                min_coverage: Optional[float] = Query(None, ge=0, le=100),
+                engine: CoverageAnalyticsEngine = Depends(get_coverage_engine)
+            ):
+                try:
+                    return await engine.get_coverage_summary(symbols, vendors, data_types, min_coverage)
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"Failed to get coverage summary: {str(e)}")
+            
+            @app.get("/api/v1/coverage/comparison/{symbol}", response_model=VendorComparison)
+            async def get_vendor_comparison(
+                symbol: str = Path(..., description="Symbol to compare vendors for"),
+                data_type: str = Query("minute", regex="^(minute|daily)$"),
+                time_period: str = Query("24h", regex="^(24h|7d|30d)$"),
+                engine: CoverageAnalyticsEngine = Depends(get_coverage_engine)
+            ):
+                try:
+                    return await engine.get_vendor_comparison(symbol, data_type, time_period)
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"Failed to get vendor comparison: {str(e)}")
+            
+            # Test Slack alerts
+            @app.post("/api/v1/coverage/alerts/test")
+            async def test_slack_alert():
+                try:
+                    message = "🧪 Test alert from ATS Coverage Monitoring System (Updated API)"
+                    alerter = SlackAlerter()
+                    await alerter.send_alert(message, "info")
+                    return {
+                        "status": "success",
+                        "message": "Test alert sent to Slack",
+                        "timestamp": datetime.now()
+                    }
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"Failed to send test alert: {str(e)}")
+            
+            if __name__ == "__main__":
+                uvicorn.run(
+                    "coverage_api:app",
+                    host="0.0.0.0",
+                    port=8002,  # Use different port
+                    reload=False,
+                    log_level="info"
+                )
+            EOF
+            
+            echo "🚀 Starting Updated Coverage API server on port 8002..."
+            python coverage_api.py &
+            
+            # Keep the job running
+            echo "✅ Updated Coverage API deployed and running on port 8002"
+            echo "📊 Health check: http://localhost:8002/health"
+            echo "📈 Coverage overview: http://localhost:8002/api/v1/coverage/overview"
+            echo "🚨 Test Slack alerts: http://localhost:8002/api/v1/coverage/alerts/test"
+            
+            # Wait indefinitely to keep the job running
+            tail -f /dev/null
+        env:
+        - name: DB_HOST
+          value: "postgres-simple"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      restartPolicy: Never
+  backoffLimit: 1

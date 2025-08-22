@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import ModelComparisonDashboard from './ModelComparisonDashboard';
 import PortfolioBreakdownDashboard from './PortfolioBreakdownDashboard';
+import DataCoverageDashboard from './DataCoverageDashboard';
 import './EnhancedAnalyticsDashboard.css';
 
 const EnhancedAnalyticsDashboard = () => {
@@ -271,6 +272,12 @@ const EnhancedAnalyticsDashboard = () => {
           onClick={() => setActiveTab('comparison')}
         >
           Model Comparison
+        </button>
+        <button 
+          className={activeTab === 'coverage' ? 'nav-tab active' : 'nav-tab'}
+          onClick={() => setActiveTab('coverage')}
+        >
+          Data Coverage
         </button>
       </nav>
 
@@ -961,6 +968,13 @@ const EnhancedAnalyticsDashboard = () => {
             <ModelComparisonDashboard />
           </div>
         )}
+
+        {/* Data Coverage Tab */}
+        {activeTab === 'coverage' && (
+          <div className="coverage-tab">
+            <DataCoverageDashboard />
+          </div>
+        )}
       </main>
 
       {/* Footer */}
@@ -968,6 +982,7 @@ const EnhancedAnalyticsDashboard = () => {
         <div className="footer-content">
           <span>🔗 Connected to: {API_BASE_URL}</span>
           <span>📊 {backtests.length} backtests available</span>
+          <span>📈 Data coverage monitoring enabled</span>
           <span>⚡ Real-time analytics platform</span>
         </div>
       </footer>
