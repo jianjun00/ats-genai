@@ -30,13 +30,13 @@ bind = ['strict_validation', True]
 # universe.universe_manager.UniverseManager.universe_id = 1
 
 # Database
-Database.host = 'localhost'
-Database.port = 5432
-Database.user = 'postgres'
-Database.password = 'password'
-Database.database = 'test_db'
-Database.base_database = 'test_db'
-Database.pool_min_size = 1
-Database.pool_max_size = 10
-Database.command_timeout = 60
+config.database.Database.host = 'localhost'
+config.database.Database.port = 5432
+config.database.Database.user = 'postgres'
+config.database.Database.password = 'password'
+config.database.Database.database = 'test_db'
+config.database.Database.base_database = 'test_db'
+config.database.Database.pool_min_size = 1
+config.database.Database.pool_max_size = 10
+config.database.Database.command_timeout = 60
 bind = ['TestDatabaseManager.database_name', 'test_db']
