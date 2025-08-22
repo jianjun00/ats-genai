@@ -20,6 +20,7 @@ from core.run_context import (
 )
 
 
+@pytest.mark.unit
 class TestRunIdGenerator:
     """Test run ID generation functionality."""
     
@@ -72,6 +73,7 @@ class TestRunIdGenerator:
             assert timestamp is None
 
 
+@pytest.mark.unit  
 class TestRunContext:
     """Test RunContext dataclass functionality."""
     
@@ -144,6 +146,7 @@ class TestRunContext:
             assert saved_data["metadata"]["test"] == "data"
 
 
+@pytest.mark.integration
 class TestRunContextManager:
     """Test RunContextManager functionality."""
     
@@ -234,6 +237,7 @@ class TestRunContextManager:
         assert not run_context.base_dir.exists()
 
 
+@pytest.mark.unit
 class TestConvenienceFunctions:
     """Test convenience functions."""
     
@@ -260,6 +264,7 @@ class TestConvenienceFunctions:
         assert manager1 is manager2
 
 
+@pytest.mark.integration
 class TestRunContextIntegration:
     """Integration tests for run context system."""
     

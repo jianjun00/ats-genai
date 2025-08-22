@@ -3,6 +3,9 @@ Tests for enhanced technical indicators for residual return prediction.
 """
 
 import pytest
+
+# Mark all tests in this module as unit tests by default
+pytestmark = pytest.mark.unit
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta

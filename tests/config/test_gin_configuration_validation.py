@@ -25,6 +25,7 @@ from modeling.configurable_train_data_generator import (
     create_configurable_training_data_config
 )
 
+@pytest.mark.unit
 class TestGinConfigurationValidation:
     """Test gin configuration validation and error handling."""
     
@@ -422,6 +423,7 @@ create_label_registry.label_configs = [@base_label/create_label_config()]
                     os.unlink(base_file.name)
                     os.unlink(override_file.name)
 
+@pytest.mark.unit
 class TestConfigurationErrorRecovery:
     """Test error recovery and fallback mechanisms."""
     
@@ -526,6 +528,8 @@ create_configurable_training_data_config.sequence_length = 25
             finally:
                 os.unlink(f.name)
 
+@pytest.mark.gin_heavy
+@pytest.mark.skip_in_batch  
 class TestConfigurationIntegration:
     """Test integration of gin configuration with the full pipeline."""
     

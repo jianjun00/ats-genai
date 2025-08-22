@@ -24,6 +24,7 @@ from core.run_aware_logging import (
 )
 
 
+@pytest.mark.unit
 class TestRunAwareFormatter:
     """Test run-aware logging formatter."""
     
@@ -117,6 +118,7 @@ class TestRunAwareFormatter:
         assert "Warning message" in formatted
 
 
+@pytest.mark.unit
 class TestRunAwareFileHandler:
     """Test run-aware file handler."""
     
@@ -202,6 +204,7 @@ class TestRunAwareFileHandler:
             assert log_file.exists()
 
 
+@pytest.mark.unit
 class TestLoggingConfiguration:
     """Test logging configuration functions."""
     
@@ -314,6 +317,7 @@ class TestLoggingConfiguration:
         assert log_file.exists()
 
 
+@pytest.mark.integration
 class TestLoggingIntegration:
     """Integration tests for run-aware logging."""
     
@@ -479,6 +483,7 @@ class TestLoggingIntegration:
         assert "Error message" in content
 
 
+@pytest.mark.unit
 class TestContextVarBehavior:
     """Test context variable behavior in different scenarios."""
     
