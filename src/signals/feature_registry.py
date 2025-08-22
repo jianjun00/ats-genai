@@ -218,6 +218,8 @@ class FeatureRegistry:
                 generator = self.generators.get(config.feature_type)
                 if generator is None:
                     print(f"Warning: Unknown feature type {config.feature_type} for feature {config.name}")
+                    # Add NaN series as placeholder for unknown feature types
+                    feature_data[config.name] = pd.Series([np.nan] * len(data), index=data.index)
                     continue
                 
                 values = generator.generate(data, config)

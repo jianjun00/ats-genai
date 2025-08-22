@@ -17,7 +17,7 @@ from dataclasses import dataclass
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 import numpy as np
 from pathlib import Path
@@ -692,9 +692,9 @@ async def list_dataset_sequences(
     """List sequences within a dataset with filtering capabilities."""
     # Map dataset_id to actual dataset name
     dataset_mapping = {
-        1: "sample_test_dataset",
-        2: "dataset_20250821_183848",
-        3: "dataset_20250821_183855"
+        1: "enhanced_20250822_035008_aapl",
+        2: "enhanced_20250822_035003_tsla", 
+        3: "aapl_demo_dataset"
     }
     
     dataset_name = dataset_mapping.get(dataset_id)
@@ -715,9 +715,9 @@ async def list_dataset_sequences(
 async def get_sequence_details(dataset_id: int, sequence_id: int):
     """Get detailed information for a specific sequence."""
     dataset_mapping = {
-        1: "sample_test_dataset",
-        2: "dataset_20250821_183848", 
-        3: "dataset_20250821_183855"
+        1: "enhanced_20250822_035008_aapl",
+        2: "enhanced_20250822_035003_tsla",
+        3: "aapl_demo_dataset"
     }
     
     dataset_name = dataset_mapping.get(dataset_id)
@@ -738,9 +738,9 @@ async def get_sequence_details(dataset_id: int, sequence_id: int):
 async def get_sequence_ohlc(dataset_id: int, sequence_id: int):
     """Get OHLC + technical indicators data for dual-axis chart."""
     dataset_mapping = {
-        1: "sample_test_dataset",
-        2: "dataset_20250821_183848",
-        3: "dataset_20250821_183855"
+        1: "enhanced_20250822_035008_aapl",
+        2: "enhanced_20250822_035003_tsla", 
+        3: "aapl_demo_dataset"
     }
     
     dataset_name = dataset_mapping.get(dataset_id)
@@ -764,9 +764,9 @@ async def get_filtered_distributions(
 ):
     """Get dynamic distributions for filtered sequences."""
     dataset_mapping = {
-        1: "sample_test_dataset",
-        2: "dataset_20250821_183848",
-        3: "dataset_20250821_183855"
+        1: "enhanced_20250822_035008_aapl",
+        2: "enhanced_20250822_035003_tsla", 
+        3: "aapl_demo_dataset"
     }
     
     dataset_name = dataset_mapping.get(dataset_id)
@@ -823,6 +823,26 @@ async def dataset_detail_page(dataset_id: int):
         </body>
         </html>
         """
+
+@app.get("/dataset-detail", response_class=HTMLResponse)
+async def dataset_detail_page():
+    """Serve the dataset detail page."""
+    try:
+        with open('/app/dataset_detail_page_frontend.html', 'r') as f:
+            return f.read()
+    except FileNotFoundError:
+        return "<h1>Dataset Detail Page</h1><p>Page not found. Please ensure the frontend file is deployed.</p>"
+
+
+@app.get("/dual_axis_ohlc_chart.js")
+async def serve_chart_js():
+    """Serve the dual-axis OHLC chart JavaScript."""
+    try:
+        with open('/app/dual_axis_ohlc_chart.js', 'r') as f:
+            return Response(content=f.read(), media_type="application/javascript")
+    except FileNotFoundError:
+        return Response(content="// Chart.js file not found", media_type="application/javascript")
+
 
 @app.get("/", response_class=HTMLResponse)
 async def web_interface():
@@ -1355,7 +1375,7 @@ async def web_interface():
                             <td class="indicators-list" title="${indicators}">${indicators}</td>
                             <td>${createdAt}</td>
                             <td>
-                                <a href="/dataset/${d.dataset_id}" class="btn-chart">🔍 View Detail</a>
+                                <a href="/dataset-detail?id=${d.dataset_id}" class="btn-chart">🔍 View Detail</a>
                                 <br>
                                 <button class="btn-chart" onclick="showDistributions(${d.dataset_id}, '${d.dataset_name}')">📊 Distributions</button>
                                 <br>

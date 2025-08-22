@@ -17,8 +17,8 @@ import numpy as np
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from signals.feature_registry import FeatureRegistry, FeatureConfig, create_feature_config
-from signals.label_registry import LabelRegistry, LabelConfig, create_label_config
+from signals.feature_registry import FeatureRegistry, FeatureConfig, create_feature_config, create_feature_registry
+from signals.label_registry import LabelRegistry, LabelConfig, create_label_config, create_label_registry
 from modeling.configurable_train_data_generator import (
     ConfigurableTrainingDataGenerator,
     ConfigurableTrainingDataConfig,
@@ -166,7 +166,8 @@ create_feature_registry.feature_configs = [@incomplete_feature/create_feature_co
                 })
                 
                 result = registry.generate_features(test_data)
-                assert 'incomplete' in result.columns
+                # Feature should be generated with indicator name suffix
+                assert 'incomplete_sma' in result.columns
                 
             finally:
                 os.unlink(f.name)

@@ -449,7 +449,10 @@ class TestSessionVWAPIndicator:
     
     def test_session_vwap_metrics_structure(self):
         """Test that session VWAP returns expected metrics structure."""
-        base_time = datetime(2024, 8, 17, 9, 30)
+        import pytz
+        # Create timezone-aware timestamps for US Eastern time
+        eastern = pytz.timezone('US/Eastern')
+        base_time = eastern.localize(datetime(2024, 8, 17, 9, 30))
         timestamps = pd.date_range(base_time, periods=60, freq='1min')
         
         data = pd.DataFrame({
