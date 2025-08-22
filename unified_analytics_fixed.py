@@ -392,6 +392,8 @@ async def web_interface():
 <html>
 <head>
     <title>Unified Analytics Platform (Fixed)</title>
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: Arial, sans-serif; margin: 0; background: #f5f5f5; }
         .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; }
@@ -445,6 +447,23 @@ async def web_interface():
         .flyte-link { color: #007bff; text-decoration: none; }
         .flyte-link:hover { text-decoration: underline; }
         .job-id { font-family: monospace; }
+        
+        /* Chart Visualization Modal Styles */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: white; margin: 2% auto; padding: 20px; border-radius: 8px; width: 90%; max-width: 1200px; max-height: 90%; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .modal-title { font-size: 24px; font-weight: bold; color: #333; }
+        .close-modal { font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; background: none; border: none; }
+        .close-modal:hover { color: #000; }
+        .chart-container { position: relative; height: 400px; margin: 20px 0; }
+        .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin: 20px 0; }
+        .chart-item { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd; }
+        .chart-item h3 { margin: 0 0 10px 0; font-size: 16px; color: #333; }
+        .loading-spinner { text-align: center; padding: 40px; font-size: 18px; color: #666; }
+        .btn-chart { background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin: 2px; text-decoration: none; display: inline-block; }
+        .btn-chart:hover { background: #218838; }
+        .btn-chart.secondary { background: #6c757d; }
+        .btn-chart.secondary:hover { background: #5a6268; }
     </style>
 </head>
 <body>
@@ -558,6 +577,31 @@ async def web_interface():
             </div>
             
             <div id="dataset-pagination" class="pagination"></div>
+        </div>
+    </div>
+
+    <!-- Visualization Modals -->
+    <div id="distributions-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Feature Distributions</h2>
+                <button class="close-modal" onclick="closeModal('distributions-modal')">&times;</button>
+            </div>
+            <div id="distributions-content">
+                <div class="loading-spinner">📊 Loading distributions...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="ohlc-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">OHLC Chart</h2>
+                <button class="close-modal" onclick="closeModal('ohlc-modal')">&times;</button>
+            </div>
+            <div id="ohlc-content">
+                <div class="loading-spinner">📈 Loading OHLC data...</div>
+            </div>
         </div>
     </div>
 
@@ -872,9 +916,9 @@ async def web_interface():
                             <td class="indicators-list" title="${indicators}">${indicators}</td>
                             <td>${createdAt}</td>
                             <td>
-                                <a href="/api/v1/datasets/${d.dataset_id}/distributions" target="_blank" class="link">📊 Distributions</a>
+                                <button class="btn-chart" onclick="showDistributions(${d.dataset_id}, '${d.dataset_name}')">📊 Distributions</button>
                                 <br>
-                                <a href="/api/v1/datasets/${d.dataset_id}/ohlc" target="_blank" class="link">📈 OHLC</a>
+                                <button class="btn-chart secondary" onclick="showOHLC(${d.dataset_id}, '${d.dataset_name}')">📈 OHLC</button>
                             </td>
                         </tr>
                     `;
@@ -909,6 +953,232 @@ async def web_interface():
         });
         document.getElementById('dataset-limit-select').addEventListener('change', refreshDatasets);
         document.getElementById('dataset-limit-select').value = '25';
+        
+        // ===== CHART VISUALIZATION FUNCTIONS =====
+        
+        // Modal management
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = 'none';
+            }
+        }
+        
+        // Show feature distributions chart
+        async function showDistributions(datasetId, datasetName) {
+            const modal = document.getElementById('distributions-modal');
+            const content = document.getElementById('distributions-content');
+            
+            // Update modal title
+            document.querySelector('#distributions-modal .modal-title').textContent = `Feature Distributions - ${datasetName}`;
+            
+            // Show modal with loading
+            modal.style.display = 'block';
+            content.innerHTML = '<div class="loading-spinner">📊 Loading distributions...</div>';
+            
+            try {
+                const response = await fetch(`/api/v1/datasets/${datasetId}/distributions`);
+                const data = await response.json();
+                
+                // Create chart grid
+                let chartsHTML = '<div class="chart-grid">';
+                
+                const distributions = data.distributions;
+                const features = Object.keys(distributions);
+                
+                for (const featureName of features) {
+                    const feature = distributions[featureName];
+                    chartsHTML += `
+                        <div class="chart-item">
+                            <h3>${featureName.toUpperCase()}</h3>
+                            <div style="position: relative; height: 300px;">
+                                <canvas id="chart-${featureName}-${datasetId}"></canvas>
+                            </div>
+                            <div style="font-size: 12px; color: #666; margin-top: 10px;">
+                                Mean: ${feature.mean_value ? feature.mean_value.toFixed(4) : 'N/A'} | 
+                                Std: ${feature.std_value ? feature.std_value.toFixed(4) : 'N/A'} | 
+                                Min: ${feature.min_value ? feature.min_value.toFixed(4) : 'N/A'} | 
+                                Max: ${feature.max_value ? feature.max_value.toFixed(4) : 'N/A'}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                chartsHTML += '</div>';
+                content.innerHTML = chartsHTML;
+                
+                // Create histogram charts
+                features.forEach(featureName => {
+                    const feature = distributions[featureName];
+                    const ctx = document.getElementById(`chart-${featureName}-${datasetId}`);
+                    
+                    if (ctx && feature.histogram_bins && feature.histogram_counts) {
+                        // Create labels from bin centers
+                        const labels = feature.histogram_bins.slice(0, -1).map((bin, i) => {
+                            const center = (bin + feature.histogram_bins[i + 1]) / 2;
+                            return center.toFixed(2);
+                        });
+                        
+                        new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: 'Frequency',
+                                    data: feature.histogram_counts,
+                                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                                    borderColor: 'rgba(54, 162, 235, 1)',
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        display: false
+                                    },
+                                    title: {
+                                        display: true,
+                                        text: `Distribution of ${featureName}`
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        title: {
+                                            display: true,
+                                            text: 'Frequency'
+                                        }
+                                    },
+                                    x: {
+                                        title: {
+                                            display: true,
+                                            text: 'Value'
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+                
+            } catch (error) {
+                content.innerHTML = `<div style="color: red; text-align: center; padding: 40px;">❌ Error loading distributions: ${error.message}</div>`;
+            }
+        }
+        
+        // Show OHLC chart
+        async function showOHLC(datasetId, datasetName) {
+            const modal = document.getElementById('ohlc-modal');
+            const content = document.getElementById('ohlc-content');
+            
+            // Update modal title
+            document.querySelector('#ohlc-modal .modal-title').textContent = `OHLC Chart - ${datasetName}`;
+            
+            // Show modal with loading
+            modal.style.display = 'block';
+            content.innerHTML = '<div class="loading-spinner">📈 Loading OHLC data...</div>';
+            
+            try {
+                const response = await fetch(`/api/v1/datasets/${datasetId}/ohlc`);
+                const data = await response.json();
+                
+                // Create OHLC chart container
+                content.innerHTML = `
+                    <div class="chart-container">
+                        <canvas id="ohlc-chart-${datasetId}"></canvas>
+                    </div>
+                    <div style="text-align: center; margin-top: 20px; color: #666;">
+                        Symbol: ${data.symbol} | Data Points: ${data.ohlc_data.length} | 
+                        Date Range: ${data.ohlc_data[0]?.date} to ${data.ohlc_data[data.ohlc_data.length-1]?.date}
+                    </div>
+                `;
+                
+                // Prepare data for line chart (Close prices)
+                const labels = data.ohlc_data.map(d => new Date(d.date).toLocaleDateString());
+                const closeData = data.ohlc_data.map(d => d.close);
+                const volumeData = data.ohlc_data.map(d => d.volume);
+                
+                const ctx = document.getElementById(`ohlc-chart-${datasetId}`);
+                
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Close Price',
+                            data: closeData,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.1,
+                            yAxisID: 'y'
+                        }, {
+                            label: 'Volume',
+                            data: volumeData,
+                            type: 'bar',
+                            backgroundColor: 'rgba(255, 99, 132, 0.3)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y1'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: `${data.symbol} Price and Volume Chart`
+                            }
+                        },
+                        scales: {
+                            x: {
+                                display: true,
+                                title: {
+                                    display: true,
+                                    text: 'Date'
+                                }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: 'Price ($)'
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: 'Volume'
+                                },
+                                grid: {
+                                    drawOnChartArea: false,
+                                }
+                            }
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                content.innerHTML = `<div style="color: red; text-align: center; padding: 40px;">❌ Error loading OHLC data: ${error.message}</div>`;
+            }
+        }
         
         // Auto-refresh every 30 seconds
         setInterval(() => {
