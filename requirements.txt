@@ -1,0 +1,25 @@
+# Core dependencies
+asyncpg==0.30.0
+aiohttp==3.12.15
+websockets==15.0.1
+pytz==2025.2
+
+# Data processing
+pandas==2.2.3
+numpy==2.1.3
+
+# Monitoring and metrics
+prometheus-client==0.21.1
+psutil==6.0.0
+
+# Logging and configuration
+structlog==25.1.0
+python-dotenv==1.0.1
+
+# Async utilities
+aiohappyeyeballs==2.6.1
+aiosignal==1.4.0
+
+# Additional utilities
+attrs==25.3.0
+typing-extensions==4.14.1

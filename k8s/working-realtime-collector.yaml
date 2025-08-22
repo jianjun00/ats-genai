@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: realtime-streaming-collector
+  namespace: ats-dev
+  labels:
+    app: realtime-streaming-collector
+    component: data-collection
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: realtime-streaming-collector
+  template:
+    metadata:
+      labels:
+        app: realtime-streaming-collector
+        component: data-collection
+    spec:
+      containers:
+      - name: streaming-collector
+        image: ats-realtime-collector:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: DB_HOST
+          value: "postgres-simple"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+        - name: POLYGON_API_KEY
+          value: "demo_key"
+        - name: TIINGO_API_KEY
+          value: "demo_key"
+        - name: FMP_API_KEY
+          value: "demo_key"
+        - name: UNIVERSE_SIZE
+          value: "10"
+        - name: MARKET_HOURS_ONLY
+          value: "false"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: realtime-streaming-service
+  namespace: ats-dev
+  labels:
+    app: realtime-streaming-collector
+spec:
+  selector:
+    app: realtime-streaming-collector
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+  - name: metrics
+    port: 9090
+    targetPort: metrics
+  type: NodePort
