@@ -764,12 +764,19 @@ data:
 
     @app.get("/api/v1/jobs/stats")
     async def get_job_stats():
-        """Get job statistics - Returns JSON even on database errors"""
+        """Get job statistics - Returns consistent structure even on database errors"""
         try:
             return await manager.get_job_stats()
         except Exception as e:
-            # This will be caught by universal_exception_handler and return JSON
-            raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+            # Return consistent structure with default values
+            return {
+                "total_jobs": 0,
+                "running_jobs": 0, 
+                "completed_jobs": 0,
+                "failed_jobs": 0,
+                "error": "database_error",
+                "message": f"Database connection failed: {str(e)}"
+            }
 
     @app.get("/api/v1/jobs")
     async def list_jobs(
@@ -779,12 +786,17 @@ data:
         sort_by: str = Query("created_at"),
         sort_dir: str = Query("desc")
     ):
-        """List jobs with filtering/sorting - Returns JSON even on database errors"""
+        """List jobs with filtering/sorting - Returns consistent structure even on database errors"""
         try:
             return await manager.list_jobs(limit, offset, status, sort_by, sort_dir)
         except Exception as e:
-            # This will be caught by universal_exception_handler and return JSON
-            raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+            # Return consistent structure so frontend .map() doesn't fail
+            return {
+                "jobs": [],
+                "total": 0,
+                "error": "database_error",
+                "message": f"Database connection failed: {str(e)}"
+            }
 
     @app.get("/api/v1/datasets")
     async def list_datasets(
@@ -1594,46 +1606,63 @@ data:
                     ]);
                     
                     // Update stats
-                    document.getElementById('job-stats').innerHTML = `
-                        <div class="stat-card">
-                            <div class="stat-number">${stats.total_jobs}</div>
-                            <div>Total Jobs</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">${stats.running_jobs}</div>
-                            <div>Running</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">${stats.completed_jobs}</div>
-                            <div>Completed</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">${stats.failed_jobs}</div>
-                            <div>Failed</div>
-                        </div>
-                    `;
+                    if (stats.error) {
+                        document.getElementById('job-stats').innerHTML = `<div style="color: red; text-align: center; padding: 20px;">Error loading stats: ${stats.message || stats.error}</div>`;
+                    } else {
+                        document.getElementById('job-stats').innerHTML = `
+                            <div class="stat-card">
+                                <div class="stat-number">${stats.total_jobs || 0}</div>
+                                <div>Total Jobs</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number">${stats.running_jobs || 0}</div>
+                                <div>Running</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number">${stats.completed_jobs || 0}</div>
+                                <div>Completed</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number">${stats.failed_jobs || 0}</div>
+                                <div>Failed</div>
+                            </div>
+                        `;
+                    }
                     
                     // Update job list
                     const jobsList = document.getElementById('jobs-list');
-                    jobsList.innerHTML = jobs.jobs.map(j => `
-                        <div class="job">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <strong>Job ${j.job_id}</strong> - ${j.job_type}
-                                    <div style="font-size: 0.9em; color: #666;">
-                                        Created: ${j.created_at ? new Date(j.created_at).toLocaleString() : 'N/A'}
-                                        ${j.user_id ? ` by ${j.user_id}` : ''}
-                                    </div>
-                                    ${j.duration_seconds ? `<div style="font-size: 0.8em; color: #888;">Duration: ${j.duration_seconds}s</div>` : ''}
-                                </div>
-                                <span class="status ${j.status}">${j.status}</span>
-                            </div>
-                            ${j.error_message ? `<div style="color: #dc3545; font-size: 0.9em; margin-top: 10px;">${j.error_message}</div>` : ''}
-                        </div>
-                    `).join('');
                     
-                    if (jobs.jobs.length === 0) {
-                        jobsList.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">No jobs found matching the current filters.</div>';
+                    // Check if this is an error response
+                    if (jobs.error) {
+                        jobsList.innerHTML = `<div style="color: red; text-align: center; padding: 20px;">Error loading jobs: ${jobs.message || jobs.error}</div>`;
+                        return;
+                    }
+                    
+                    // Check if jobs array exists and handle normally
+                    if (jobs.jobs && Array.isArray(jobs.jobs)) {
+                        jobsList.innerHTML = jobs.jobs.map(j => `
+                            <div class="job">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <strong>Job ${j.job_id}</strong> - ${j.job_type}
+                                        <div style="font-size: 0.9em; color: #666;">
+                                            Created: ${j.created_at ? new Date(j.created_at).toLocaleString() : 'N/A'}
+                                            ${j.user_id ? ` by ${j.user_id}` : ''}
+                                        </div>
+                                        ${j.duration_seconds ? `<div style="font-size: 0.8em; color: #888;">Duration: ${j.duration_seconds}s</div>` : ''}
+                                    </div>
+                                    <span class="status ${j.status}">${j.status}</span>
+                                </div>
+                                ${j.error_message ? `<div style="color: #dc3545; font-size: 0.9em; margin-top: 10px;">${j.error_message}</div>` : ''}
+                            </div>
+                        `).join('');
+                        
+                        if (jobs.jobs.length === 0) {
+                            jobsList.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">No jobs found matching the current filters.</div>';
+                        }
+                    } else {
+                        // Fallback for unexpected response structure
+                        jobsList.innerHTML = '<div style="color: orange; text-align: center; padding: 20px;">Unexpected response format from server</div>';
                     }
                     
                 } catch (error) {
