@@ -18,15 +18,41 @@ jobs:
           # Extract PGPT-XXX from branch name, PR title, or commit message
           ISSUE_KEY=""
           
-          # Check branch name first
-          if [[ "${{ github.head_ref }}" =~ PGPT-[0-9]+ ]]; then
-            ISSUE_KEY=$(echo "${{ github.head_ref }}" | grep -o 'PGPT-[0-9]\+')
-          # Check PR title
-          elif [[ "${{ github.event.pull_request.title }}" =~ PGPT-[0-9]+ ]]; then
-            ISSUE_KEY=$(echo "${{ github.event.pull_request.title }}" | grep -o 'PGPT-[0-9]\+')
-          # Check commit message
-          elif [[ "${{ github.event.head_commit.message }}" =~ PGPT-[0-9]+ ]]; then
-            ISSUE_KEY=$(echo "${{ github.event.head_commit.message }}" | grep -o 'PGPT-[0-9]\+')
+          echo "Debug: Checking for JIRA issue key..."
+          echo "Branch ref: ${{ github.head_ref }}"
+          echo "PR title: ${{ github.event.pull_request.title }}"
+          echo "Commit message: ${{ github.event.head_commit.message }}"
+          
+          # Check branch name first (for PRs)
+          BRANCH_NAME="${{ github.head_ref }}"
+          if [[ -n "$BRANCH_NAME" ]]; then
+            echo "Checking branch name: $BRANCH_NAME"
+            ISSUE_KEY=$(echo "$BRANCH_NAME" | grep -o 'PGPT-[0-9]\+' || echo "")
+          fi
+          
+          # Check current branch for direct pushes
+          if [[ -z "$ISSUE_KEY" ]]; then
+            REF_NAME="${{ github.ref_name }}"
+            echo "Checking ref name: $REF_NAME"
+            ISSUE_KEY=$(echo "$REF_NAME" | grep -o 'PGPT-[0-9]\+' || echo "")
+          fi
+          
+          # Check PR title if no key found yet
+          if [[ -z "$ISSUE_KEY" ]]; then
+            PR_TITLE="${{ github.event.pull_request.title }}"
+            if [[ -n "$PR_TITLE" ]]; then
+              echo "Checking PR title: $PR_TITLE"
+              ISSUE_KEY=$(echo "$PR_TITLE" | grep -o 'PGPT-[0-9]\+' || echo "")
+            fi
+          fi
+          
+          # Check commit message if no key found yet
+          if [[ -z "$ISSUE_KEY" ]]; then
+            COMMIT_MSG="${{ github.event.head_commit.message }}"
+            if [[ -n "$COMMIT_MSG" ]]; then
+              echo "Checking commit message: $COMMIT_MSG"
+              ISSUE_KEY=$(echo "$COMMIT_MSG" | grep -o 'PGPT-[0-9]\+' || echo "")
+            fi
           fi
           
           echo "issue_key=$ISSUE_KEY" >> $GITHUB_OUTPUT
