@@ -10,6 +10,7 @@ import os
 import json
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
+from dataclasses import dataclass
 import aiohttp
 from aiohttp import web
 import asyncpg
@@ -20,6 +21,18 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+@dataclass
+class MinuteBar:
+    """Represents a minute bar of market data"""
+    symbol: str
+    timestamp: datetime
+    open_price: float
+    high_price: float
+    low_price: float
+    close_price: float
+    volume: int
+    vendor: str = 'unknown'
 
 class SimpleStreamingCollector:
     """Simplified real-time data collector for deployment testing"""

@@ -21,9 +21,17 @@ from api.backtest_analytics_api import app
 from analytics.portfolio_analytics import PortfolioMetrics, AttributionMetrics, ModelPerformanceMetrics
 
 @pytest.fixture
-def client():
+def client(mock_analytics_engine):
     """Create test client for the FastAPI app"""
-    return TestClient(app)
+    from api.backtest_analytics_api import get_analytics_engine
+    
+    # Override the dependency
+    app.dependency_overrides[get_analytics_engine] = lambda: mock_analytics_engine
+    
+    yield TestClient(app)
+    
+    # Clear overrides after test
+    app.dependency_overrides.clear()
 
 @pytest.fixture
 def mock_analytics_engine():
@@ -163,10 +171,8 @@ class TestBacktestListEndpoint:
 class TestPortfolioEndpoints:
     """Test portfolio analytics endpoints"""
     
-    @patch('api.backtest_analytics_api.get_analytics_engine')
-    def test_get_portfolio_metrics(self, mock_get_engine, client, mock_analytics_engine):
+    def test_get_portfolio_metrics(self, client, mock_analytics_engine):
         """Test getting portfolio metrics"""
-        mock_get_engine.return_value = mock_analytics_engine
         
         response = client.get("/api/v1/backtests/test_id/portfolio/metrics")
         assert response.status_code == 200
