@@ -19,19 +19,25 @@ jobs:
     name: Unit Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    container:
-      image: dragonflyer762/ats-genai:latest
-      credentials:
-        username: dragonflyer762
-        password: dckr_pat_m7NlQdc5Rm6KGZnZZZ4iVlt9m20
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: dragonflyer762
+        password: dckr_pat_m7NlQdc5Rm6KGZnZZZ4iVlt9m20
         
-    - name: Run fast unit tests
+    - name: Run fast unit tests in Docker container
       run: |
-        PYTHONPATH=src pytest tests/core/ tests/config/ tests/signals/test_indicator.py -v --tb=short --maxfail=10
+        docker run --rm \
+          -v ${{ github.workspace }}:/workspace \
+          -w /workspace \
+          -e PYTHONPATH=src \
+          dragonflyer762/ats-genai:latest \
+          pytest tests/core/ tests/config/ tests/signals/test_indicator.py -v --tb=short --maxfail=10
         
     - name: Upload test results
       uses: actions/upload-artifact@v4
@@ -50,11 +56,6 @@ jobs:
     needs: unit-tests
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/chore/dev-db-migration-job'
     timeout-minutes: 20
-    container:
-      image: dragonflyer762/ats-genai:latest
-      credentials:
-        username: dragonflyer762
-        password: dckr_pat_m7NlQdc5Rm6KGZnZZZ4iVlt9m20
     
     services:
       postgres:
@@ -74,19 +75,35 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: dragonflyer762
+        password: dckr_pat_m7NlQdc5Rm6KGZnZZZ4iVlt9m20
         
-    - name: Run database migrations
-      env:
-        DATABASE_URL: postgresql://postgres:test_password@localhost:5432/test_db
+    - name: Run database migrations in Docker container
       run: |
-        PYTHONPATH=src python src/db/migration_manager.py migrate --db-url $DATABASE_URL
+        docker run --rm \
+          -v ${{ github.workspace }}:/workspace \
+          -w /workspace \
+          -e PYTHONPATH=src \
+          -e DATABASE_URL=postgresql://postgres:test_password@host.docker.internal:5432/test_db \
+          --add-host host.docker.internal:host-gateway \
+          dragonflyer762/ats-genai:latest \
+          python src/db/migration_manager.py migrate --db-url postgresql://postgres:test_password@host.docker.internal:5432/test_db
         
-    - name: Run integration tests
-      env:
-        DATABASE_URL: postgresql://postgres:test_password@localhost:5432/test_db
-        ENVIRONMENT: test
+    - name: Run integration tests in Docker container
       run: |
-        PYTHONPATH=src pytest tests/market_data/realtime/ -v --tb=short -m "not benchmark" --maxfail=5
+        docker run --rm \
+          -v ${{ github.workspace }}:/workspace \
+          -w /workspace \
+          -e PYTHONPATH=src \
+          -e DATABASE_URL=postgresql://postgres:test_password@host.docker.internal:5432/test_db \
+          -e ENVIRONMENT=test \
+          --add-host host.docker.internal:host-gateway \
+          dragonflyer762/ats-genai:latest \
+          pytest tests/market_data/realtime/ -v --tb=short -m "not benchmark" --maxfail=5
 
   # Security and Code Quality Checks
   security-checks:
