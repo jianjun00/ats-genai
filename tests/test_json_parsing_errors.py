@@ -8,6 +8,9 @@ This test detects the specific issue:
 This error occurs when:
 1. API endpoint returns "Internal Server Error" (plain text)
 2. Frontend expects JSON response
+
+RESOLUTION: Fixed by creating missing dev_runs table and implementing proper
+universal exception handler that returns JSON responses with proper Content-Type headers.
 3. JSON.parse() fails on "Internal Server Error" text
 """
 
