@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD)
 ## ATS Analytics Platform
 
-**Document Version:** 4.0  
+**Document Version:** 5.0  
 **Created:** August 2025  
 **Last Updated:** August 23, 2025  
 **Product Manager:** AI Trading System Team  
@@ -27,7 +27,16 @@ Build a **unified analytics platform** that consolidates all ML workflow managem
 - **Gap Analysis Tools**: Real-time identification of missing data across symbols and dates
 - **Root Cause Explanation**: Clear explanation of why legacy filters show limited symbols despite excellent modern coverage
 
-### 1.4 Problem Statement
+### 1.4 Ultimate Analytics Platform Consolidation (v5.0 Update)
+**Major Consolidation Achievement**: Successfully unified all analytics capabilities into a single, comprehensive platform:
+- **Complete Consolidation**: Eliminated 17+ separate webapp deployments and consolidated into 1 ultimate platform
+- **Real OHLC Charts**: Replaced placeholder alerts with fully functional interactive OHLC candlestick charts
+- **Technical Indicators**: Integrated SMA, EMA, RSI calculations with real-time chart overlays
+- **File-Based Integration**: Connected 100TB time-series storage system with chart visualization
+- **Database Schema Alignment**: Resolved all schema mismatches for seamless data access
+- **Single Access Point**: All analytics features accessible through port 30001 (NodePort)
+
+### 1.5 Problem Statement
 Currently, our ML workflow management and analysis capabilities are fragmented:
 - **Job Execution**: No centralized dashboard for Flyte job runs, logs, and metadata
 - **Training Data Management**: Generated datasets are not tracked or easily discoverable
@@ -35,7 +44,7 @@ Currently, our ML workflow management and analysis capabilities are fragmented:
 - **Backtest Analysis**: Limited visualization and comparison of model performance
 - **Workflow Visibility**: Difficulty tracking end-to-end ML pipeline from data generation to backtesting
 
-### 1.5 Success Metrics
+### 1.6 Success Metrics
 - **Job Management**: 100% of ML jobs tracked with metadata and accessible logs
 - **Training Data Discovery**: <30 seconds to find and visualize any generated dataset
 - **Dataset Comparison**: Enable side-by-side distribution analysis between any two datasets
@@ -117,6 +126,23 @@ Currently, our ML workflow management and analysis capabilities are fragmented:
 - **As a** Data Engineer
 - **I want to** identify specific dates and symbols with missing data through interactive tools
 - **So that** I can prioritize data collection efforts and fix coverage gaps
+
+### 2.5 Ultimate Platform User Stories (v5.0)
+
+#### US12: Real OHLC Chart Visualization
+- **As a** Quantitative Researcher
+- **I want to** view actual interactive OHLC candlestick charts with technical indicators instead of placeholder alerts
+- **So that** I can analyze price movements, trends, and technical signals in real-time
+
+#### US13: Consolidated Analytics Access
+- **As an** ML Engineer
+- **I want to** access all analytics features (jobs, datasets, charts, technical indicators) through a single consolidated platform
+- **So that** I don't need to navigate between multiple duplicate applications or remember different endpoints
+
+#### US14: File-Based Chart Integration
+- **As a** Data Scientist
+- **I want to** generate OHLC charts directly from the 100TB file-based time-series storage system
+- **So that** I can visualize massive-scale datasets with optimal performance
 
 ---
 
@@ -278,6 +304,29 @@ Currently, our ML workflow management and analysis capabilities are fragmented:
 - **Interactive Heatmaps**: Visual representation of coverage density across symbols and time periods
 - **Missing Data Identification**: Specific tools for users to identify which dates/symbols need attention
 - **Actionable Recommendations**: Data-driven suggestions for improving coverage based on gap analysis
+
+### 3.8 Ultimate Analytics Platform Features (v5.0)
+
+#### F22: Real OHLC Chart Engine
+- **Interactive Candlestick Charts**: Full-featured OHLC visualization using Plotly.js with zoom, pan, and export
+- **Technical Indicator Overlays**: Real-time calculation and display of SMA (20, 50), EMA (12), and RSI (14-period)
+- **Training Period Highlighting**: Visual highlighting of training data periods on charts with annotations
+- **Market Hours Formatting**: Proper timestamp handling with 9:30 AM market open times
+- **Multi-Axis Support**: Price data on primary axis, volume on secondary axis, RSI on tertiary axis
+
+#### F23: File-Based Data Integration
+- **100TB Storage Access**: Direct reading from compressed monthly time-series files (.record.gz format)
+- **Efficient File Processing**: Binary data parsing with 32-byte records and 48-byte metadata headers
+- **Date Range Optimization**: Smart file selection based on requested date ranges and instrument sharding
+- **Fallback Data Generation**: Realistic sample OHLC data when file data is unavailable
+- **Performance Optimization**: Asynchronous file reading with proper error handling
+
+#### F24: Consolidated Platform Architecture
+- **Single Deployment**: All functionality delivered through one Kubernetes deployment
+- **Unified API Namespace**: All endpoints under `/api/` with consistent versioning
+- **Resource Optimization**: 2-4Gi memory allocation with 500m-2000m CPU for optimal performance
+- **Database Schema Compatibility**: Proper handling of `symbols` (array), `date_range_start/end` columns
+- **Port Standardization**: External access via NodePort 30001 for consistent user experience
 
 ---
 

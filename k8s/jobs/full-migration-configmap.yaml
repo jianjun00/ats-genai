@@ -1,0 +1,353 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: full-migration-scripts
+  namespace: ats-dev
+data:
+  full_migration.py: |
+    #!/usr/bin/env python3
+    """
+    Full Database-to-File Migration for All Historical Data
+    
+    This script migrates all available data from PostgreSQL tables to the file-based
+    storage system, handling massive scale with batch processing and progress tracking.
+    """
+    import asyncio
+    import asyncpg
+    import logging
+    import os
+    import gzip
+    import struct
+    from datetime import datetime, timedelta
+    from pathlib import Path
+    import json
+    import psutil
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+    logger = logging.getLogger(__name__)
+
+    class FullMigrationManager:
+        def __init__(self):
+            self.db_url = f"postgresql://postgres:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST', 'postgres-simple')}:5432/{os.getenv('DB_NAME', 'dev_db')}"
+            self.storage_path = Path(os.getenv('STORAGE_BASE_PATH', '/data/monthly/interval'))
+            self.batch_size = int(os.getenv('BATCH_SIZE', '10000'))
+            self.concurrent_ops = int(os.getenv('CONCURRENT_OPERATIONS', '20'))
+            
+            # Migration tables to process
+            self.migration_tables = [
+                'dev_minute_prices_fmp',
+                'dev_minute_prices_polygon', 
+                'dev_minute_prices_tiingo'
+            ]
+            
+            # Stats tracking
+            self.stats = {
+                'total_records_processed': 0,
+                'total_files_created': 0,
+                'total_bytes_written': 0,
+                'tables_processed': 0,
+                'errors': 0,
+                'start_time': datetime.now()
+            }
+        
+        async def run_full_migration(self):
+            """Execute complete migration of all historical data"""
+            logger.info("🚀 Starting Full Historical Data Migration")
+            logger.info(f"📊 Configuration:")
+            logger.info(f"   Storage Path: {self.storage_path}")
+            logger.info(f"   Batch Size: {self.batch_size}")
+            logger.info(f"   Concurrent Ops: {self.concurrent_ops}")
+            logger.info(f"   Tables: {', '.join(self.migration_tables)}")
+            
+            # Create storage directories
+            self.storage_path.mkdir(parents=True, exist_ok=True)
+            logger.info(f"✅ Storage directory ready: {self.storage_path}")
+            
+            # Connect to database
+            pool = await asyncpg.create_pool(self.db_url, min_size=5, max_size=20)
+            logger.info("✅ Connected to database")
+            
+            try:
+                # Process each table
+                for table_name in self.migration_tables:
+                    logger.info(f"\n🔄 Processing table: {table_name}")
+                    await self.migrate_table(pool, table_name)
+                    self.stats['tables_processed'] += 1
+                
+                # Final summary
+                await self.log_final_summary()
+                
+            finally:
+                await pool.close()
+        
+        async def migrate_table(self, pool, table_name: str):
+            """Migrate all data from a specific table"""
+            
+            async with pool.acquire() as conn:
+                # Check if table exists and get record count
+                try:
+                    total_records = await conn.fetchval(f"SELECT COUNT(*) FROM {table_name}")
+                    if total_records == 0:
+                        logger.info(f"⏭️  {table_name}: No records found, skipping")
+                        return
+                    
+                    logger.info(f"📊 {table_name}: {total_records:,} records to migrate")
+                    
+                except Exception as e:
+                    logger.warning(f"⚠️  {table_name}: Table not found or accessible: {e}")
+                    return
+                
+                # Process in batches
+                processed = 0
+                batch_num = 1
+                
+                while processed < total_records:
+                    batch_start = datetime.now()
+                    
+                    # Get batch of records
+                    query = f"""
+                        SELECT instrument_id, timestamp, open_price, high_price, 
+                               low_price, close_price, volume
+                        FROM {table_name}
+                        ORDER BY instrument_id, timestamp
+                        OFFSET {processed} LIMIT {self.batch_size}
+                    """
+                    
+                    rows = await conn.fetch(query)
+                    if not rows:
+                        break
+                    
+                    # Process batch
+                    files_created = await self.process_batch(rows, table_name)
+                    
+                    processed += len(rows)
+                    batch_duration = (datetime.now() - batch_start).total_seconds()
+                    records_per_sec = len(rows) / max(batch_duration, 0.001)
+                    
+                    logger.info(f"✅ {table_name} Batch {batch_num}: {len(rows)} records, "
+                              f"{files_created} files, {records_per_sec:,.0f} rec/sec, "
+                              f"Progress: {processed:,}/{total_records:,} ({processed/total_records*100:.1f}%)")
+                    
+                    # Update stats
+                    self.stats['total_records_processed'] += len(rows)
+                    self.stats['total_files_created'] += files_created
+                    batch_num += 1
+                    
+                    # Memory and resource check
+                    if batch_num % 10 == 0:
+                        await self.log_resource_usage()
+                
+                logger.info(f"🎉 {table_name}: Migration completed - {processed:,} records processed")
+        
+        async def process_batch(self, rows, table_name: str) -> int:
+            """Process a batch of records into monthly files"""
+            
+            # Group by instrument and month
+            monthly_data = {}
+            
+            for row in rows:
+                instrument_id = row['instrument_id']
+                timestamp = row['timestamp']
+                year = timestamp.year
+                month = timestamp.month
+                
+                key = (instrument_id, year, month, table_name)
+                if key not in monthly_data:
+                    monthly_data[key] = []
+                
+                monthly_data[key].append(row)
+            
+            # Write files concurrently
+            semaphore = asyncio.Semaphore(self.concurrent_ops)
+            tasks = []
+            
+            for (instrument_id, year, month, vendor), records in monthly_data.items():
+                task = self.write_monthly_file(semaphore, instrument_id, year, month, records, vendor)
+                tasks.append(task)
+            
+            # Execute all file writes
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Count successful writes
+            files_created = 0
+            for result in results:
+                if isinstance(result, bool) and result:
+                    files_created += 1
+                elif isinstance(result, Exception):
+                    self.stats['errors'] += 1
+                    logger.error(f"❌ File write error: {result}")
+            
+            return files_created
+        
+        async def write_monthly_file(self, semaphore, instrument_id: int, year: int, month: int, records, vendor: str) -> bool:
+            """Write a monthly file for an instrument"""
+            
+            async with semaphore:
+                try:
+                    # Create directory structure
+                    shard = instrument_id % 100
+                    file_dir = self.storage_path / str(year) / f"{month:02d}" / f"{shard:02d}"
+                    file_dir.mkdir(parents=True, exist_ok=True)
+                    
+                    # Create filename with vendor suffix
+                    vendor_suffix = vendor.replace('dev_minute_prices_', '')
+                    filename = f"{instrument_id}_{year}_{month:02d}_{vendor_suffix}.record.gz"
+                    file_path = file_dir / filename
+                    
+                    # Write compressed file
+                    with gzip.open(file_path, 'wb', compresslevel=6) as f:
+                        # Metadata (48 bytes)
+                        record_count = len(records)
+                        first_timestamp = int(records[0]['timestamp'].timestamp())
+                        last_timestamp = int(records[-1]['timestamp'].timestamp())
+                        
+                        metadata = struct.pack('<4I8xII16x', 
+                                             instrument_id, year, month, record_count,
+                                             first_timestamp, last_timestamp)
+                        f.write(metadata)
+                        
+                        # Records (32 bytes each)
+                        for record in records:
+                            timestamp_int = int(record['timestamp'].timestamp())
+                            record_bytes = struct.pack('<Q4fQ',
+                                timestamp_int,
+                                float(record['open_price'] or 0),
+                                float(record['high_price'] or 0),
+                                float(record['low_price'] or 0),
+                                float(record['close_price'] or 0),
+                                int(record['volume'] or 0)
+                            )
+                            f.write(record_bytes)
+                    
+                    # Track bytes written
+                    file_size = file_path.stat().st_size
+                    self.stats['total_bytes_written'] += file_size
+                    
+                    return True
+                    
+                except Exception as e:
+                    logger.error(f"❌ Error writing {instrument_id}_{year}_{month:02d}_{vendor_suffix}: {e}")
+                    return False
+        
+        async def log_resource_usage(self):
+            """Log current resource usage"""
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage(str(self.storage_path))
+            
+            logger.info(f"📊 Resource Usage:")
+            logger.info(f"   Memory: {memory.percent:.1f}% ({memory.used//1024//1024//1024:.1f}GB/{memory.total//1024//1024//1024:.1f}GB)")
+            logger.info(f"   Disk: {disk.percent:.1f}% ({disk.used//1024//1024//1024:.1f}GB/{disk.total//1024//1024//1024:.1f}GB)")
+        
+        async def log_final_summary(self):
+            """Log final migration summary"""
+            duration = (datetime.now() - self.stats['start_time']).total_seconds()
+            
+            logger.info("\n" + "="*80)
+            logger.info("🎉 FULL MIGRATION COMPLETED!")
+            logger.info("="*80)
+            logger.info(f"📊 Migration Summary:")
+            logger.info(f"   Total Records: {self.stats['total_records_processed']:,}")
+            logger.info(f"   Files Created: {self.stats['total_files_created']:,}")
+            logger.info(f"   Data Written: {self.stats['total_bytes_written'] / 1024 / 1024 / 1024:.2f} GB")
+            logger.info(f"   Tables Processed: {self.stats['tables_processed']}")
+            logger.info(f"   Errors: {self.stats['errors']}")
+            logger.info(f"   Duration: {duration:.1f} seconds")
+            logger.info(f"   Average Speed: {self.stats['total_records_processed'] / max(duration, 1):,.0f} records/sec")
+            logger.info("="*80)
+            
+            # Save stats to file
+            stats_file = self.storage_path / "migration_stats.json"
+            with open(stats_file, 'w') as f:
+                json.dump({
+                    **self.stats,
+                    'start_time': self.stats['start_time'].isoformat(),
+                    'end_time': datetime.now().isoformat(),
+                    'duration_seconds': duration
+                }, f, indent=2)
+            
+            logger.info(f"💾 Migration statistics saved to: {stats_file}")
+
+    async def main():
+        """Main migration function"""
+        try:
+            migration_manager = FullMigrationManager()
+            await migration_manager.run_full_migration()
+        except Exception as e:
+            logger.error(f"❌ Migration failed: {e}")
+            raise
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: full-historical-migration
+  namespace: ats-dev
+  labels:
+    app: full-migration
+    phase: production-migration
+spec:
+  backoffLimit: 1  # Only retry once for this massive job
+  activeDeadlineSeconds: 86400  # 24 hour timeout
+  template:
+    metadata:
+      labels:
+        app: full-migration
+        phase: production-migration
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: full-migrator
+        image: python:3.11-slim
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "🚀 Installing dependencies for full migration..."
+          pip install --no-cache-dir asyncpg psutil &&
+          echo "📊 Starting full historical data migration..." &&
+          echo "💾 Available disk space:" && df -h /data &&
+          python /scripts/full_migration.py
+        env:
+        - name: DB_HOST
+          value: "postgres-simple"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_PASSWORD
+        - name: DB_NAME
+          value: "dev_db"
+        - name: DB_USER
+          value: "postgres"
+        - name: STORAGE_BASE_PATH
+          value: "/data/monthly/interval"
+        - name: BATCH_SIZE
+          value: "20000"  # Larger batches for efficiency
+        - name: CONCURRENT_OPERATIONS
+          value: "30"     # More concurrent operations
+        volumeMounts:
+        - name: timeseries-data
+          mountPath: /data
+        - name: script-volume
+          mountPath: /scripts
+          readOnly: true
+        resources:
+          requests:
+            memory: "8Gi"     # More memory for large operations
+            cpu: "2000m"      # More CPU for faster processing
+          limits:
+            memory: "16Gi"    # High memory limit
+            cpu: "4000m"      # High CPU limit
+      volumes:
+      - name: timeseries-data
+        persistentVolumeClaim:
+          claimName: timeseries-storage-100tb-pvc  # Use new 100TB storage
+      - name: script-volume
+        configMap:
+          name: full-migration-scripts
+          defaultMode: 0755
