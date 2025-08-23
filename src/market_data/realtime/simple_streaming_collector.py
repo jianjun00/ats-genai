@@ -257,5 +257,8 @@ async def main():
     finally:
         await collector.stop()
 
+# Alias for test compatibility
+RealtimeStreamingCollector = SimpleStreamingCollector
+
 if __name__ == "__main__":
     asyncio.run(main())

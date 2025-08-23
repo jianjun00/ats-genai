@@ -503,5 +503,9 @@ async def main():
     finally:
         await exporter.shutdown()
 
+# Aliases for test compatibility
+RealtimeMetricsExporter = RealTimeMetricsExporter
+MetricsCollector = RealTimeMetricsExporter
+
 if __name__ == "__main__":
     asyncio.run(main())

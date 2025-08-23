@@ -800,29 +800,334 @@ async def health_check():
 
 @app.get("/dataset/{dataset_id}", response_class=HTMLResponse)
 async def dataset_detail_page(dataset_id: int):
-    """Dataset detail page with row-level filtering and dual-axis OHLC charts."""
+    """Enhanced dataset detail page with row-level filtering and OHLC charts."""
     
-    # Read the dataset detail page HTML file
-    try:
-        with open("dataset_detail_page_frontend.html", "r") as f:
-            html_content = f.read()
+    return f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dataset {dataset_id} Detail - ATS Analytics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <style>
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f8f9fa; }}
+        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; }}
+        .breadcrumb {{ margin: 10px 0; font-size: 14px; opacity: 0.9; }}
+        .breadcrumb a {{ color: white; text-decoration: none; }}
+        .breadcrumb a:hover {{ text-decoration: underline; }}
+        .container {{ max-width: 1400px; margin: 0 auto; padding: 20px; }}
         
-        # Replace placeholder dataset ID with actual ID
-        html_content = html_content.replace("currentDatasetId = 1", f"currentDatasetId = {dataset_id}")
-        return html_content
+        .dataset-overview {{ background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+        .dataset-meta {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px; }}
+        .meta-item {{ text-align: center; padding: 15px; background: #f8f9fa; border-radius: 8px; }}
+        .meta-value {{ font-size: 24px; font-weight: bold; color: #667eea; }}
+        .meta-label {{ font-size: 12px; color: #666; text-transform: uppercase; margin-top: 5px; }}
         
-    except FileNotFoundError:
-        # Fallback to a simple message if the file doesn't exist
-        return f"""
-        <html>
-        <head><title>Dataset {dataset_id} Detail</title></head>
-        <body>
-            <h1>Dataset {dataset_id} Detail Page</h1>
-            <p>Enhanced dataset detail page is being deployed...</p>
-            <p><a href="/">← Back to Analytics Platform</a></p>
-        </body>
-        </html>
-        """
+        .filter-section {{ background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+        .filter-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 15px; }}
+        .filter-group {{ display: flex; flex-direction: column; }}
+        .filter-group label {{ font-weight: 600; margin-bottom: 8px; color: #555; }}
+        .filter-group input, .filter-group select {{ padding: 10px; border: 2px solid #e9ecef; border-radius: 6px; font-size: 14px; }}
+        .filter-actions {{ margin-top: 20px; display: flex; gap: 10px; }}
+        .btn {{ padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.3s; }}
+        .btn-primary {{ background: #667eea; color: white; }}
+        .btn-primary:hover {{ background: #5a6fd8; }}
+        .btn-secondary {{ background: #6c757d; color: white; }}
+        
+        .sequences-section {{ background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+        .table-container {{ overflow-x: auto; margin-top: 15px; }}
+        .sequences-table {{ width: 100%; border-collapse: collapse; min-width: 800px; }}
+        .sequences-table th {{ background: #f8f9fa; padding: 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #dee2e6; }}
+        .sequences-table td {{ padding: 12px; border-bottom: 1px solid #dee2e6; }}
+        .sequences-table tr:hover {{ background: #f8f9fa; }}
+        .sequence-id {{ font-weight: 600; color: #667eea; }}
+        .feature-stats {{ font-size: 12px; color: #666; }}
+        .btn-chart {{ background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; }}
+        .btn-chart:hover {{ transform: translateY(-1px); }}
+        
+        .loading {{ text-align: center; padding: 40px; font-size: 18px; color: #667eea; }}
+        .error {{ text-align: center; padding: 40px; color: #dc3545; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <div class="breadcrumb">
+                <a href="/">Home</a> > <a href="/#datasets">Datasets</a> > Dataset Detail
+            </div>
+            <h1 id="dataset-title">Dataset {dataset_id} Detail</h1>
+            <p id="dataset-description">Loading dataset information...</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Dataset Overview -->
+        <div class="dataset-overview">
+            <h2>📊 Dataset Overview</h2>
+            <div class="dataset-meta" id="dataset-meta">
+                <div class="loading">Loading dataset metadata...</div>
+            </div>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="filter-section">
+            <h2>🔍 Filter Sequences</h2>
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label for="symbol-filter">Symbol</label>
+                    <select id="symbol-filter">
+                        <option value="">All Symbols</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="feature-filter">Feature</label>
+                    <select id="feature-filter">
+                        <option value="">Select Feature</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="value-min">Min Value</label>
+                    <input type="number" id="value-min" placeholder="Minimum value" step="0.01">
+                </div>
+                <div class="filter-group">
+                    <label for="value-max">Max Value</label>
+                    <input type="number" id="value-max" placeholder="Maximum value" step="0.01">
+                </div>
+            </div>
+            <div class="filter-actions">
+                <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+                <button class="btn btn-secondary" onclick="clearFilters()">Clear All</button>
+            </div>
+        </div>
+
+        <!-- Sequences Table -->
+        <div class="sequences-section">
+            <h2>📋 Training Sequences <span id="sequence-count">(Loading...)</span></h2>
+            <div class="table-container">
+                <table class="sequences-table">
+                    <thead>
+                        <tr>
+                            <th>Sequence ID</th>
+                            <th>Date Range</th>
+                            <th>Symbols</th>
+                            <th>Feature Statistics</th>
+                            <th>Label Preview</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sequences-table-body">
+                        <tr><td colspan="6" class="loading">Loading sequences...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const currentDatasetId = {dataset_id};
+        let currentSequences = [];
+        
+        // Load dataset overview
+        async function loadDatasetOverview() {{
+            try {{
+                const response = await fetch('/api/v1/datasets');
+                const data = await response.json();
+                const dataset = data.datasets.find(d => d.dataset_id == currentDatasetId);
+                
+                if (dataset) {{
+                    document.getElementById('dataset-title').textContent = dataset.dataset_name;
+                    document.getElementById('dataset-description').textContent = 
+                        `${{dataset.symbols.join(', ')}} | ${{dataset.total_sequences}} sequences | ${{dataset.feature_count}} features`;
+                    
+                    document.getElementById('dataset-meta').innerHTML = `
+                        <div class="meta-item">
+                            <div class="meta-value">${{dataset.total_sequences}}</div>
+                            <div class="meta-label">Total Sequences</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-value">${{dataset.feature_count}}</div>
+                            <div class="meta-label">Features</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-value">${{dataset.symbols.length}}</div>
+                            <div class="meta-label">Symbols</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-value">${{dataset.file_size_mb.toFixed(1)}}MB</div>
+                            <div class="meta-label">File Size</div>
+                        </div>
+                    `;
+                }} else {{
+                    document.getElementById('dataset-meta').innerHTML = '<div class="error">Dataset not found</div>';
+                }}
+            }} catch (error) {{
+                document.getElementById('dataset-meta').innerHTML = '<div class="error">Error loading dataset: ' + error.message + '</div>';
+            }}
+        }}
+        
+        // Load sequences
+        async function loadSequences() {{
+            try {{
+                const params = new URLSearchParams({{
+                    limit: 20,
+                    offset: 0
+                }});
+                
+                const response = await fetch(`/api/v1/datasets/${{currentDatasetId}}/sequences?${{params}}`);
+                
+                if (!response.ok) {{
+                    throw new Error(`HTTP ${{response.status}}: ${{response.statusText}}`);
+                }}
+                
+                const data = await response.json();
+                currentSequences = data.sequences;
+                
+                if (data.sequences && data.sequences.length > 0) {{
+                    document.getElementById('sequence-count').textContent = `(${{data.sequences.length}} of ${{data.total_sequences}})`;
+                    
+                    // Populate filter options
+                    const symbolSelect = document.getElementById('symbol-filter');
+                    const featureSelect = document.getElementById('feature-filter');
+                    
+                    // Clear and populate symbol filter
+                    symbolSelect.innerHTML = '<option value="">All Symbols</option>';
+                    if (data.available_symbols) {{
+                        data.available_symbols.forEach(symbol => {{
+                            const option = document.createElement('option');
+                            option.value = symbol;
+                            option.textContent = symbol;
+                            symbolSelect.appendChild(option);
+                        }});
+                    }}
+                    
+                    // Clear and populate feature filter
+                    featureSelect.innerHTML = '<option value="">Select Feature</option>';
+                    if (data.feature_names) {{
+                        data.feature_names.forEach(feature => {{
+                            const option = document.createElement('option');
+                            option.value = feature;
+                            option.textContent = feature;
+                            featureSelect.appendChild(option);
+                        }});
+                    }}
+                    
+                    renderSequencesTable(data.sequences);
+                }} else {{
+                    // Show enhanced dataset visualization if sequence data is not available
+                    document.getElementById('sequences-table-body').innerHTML = `
+                        <tr><td colspan="6" style="text-align:center; padding: 40px;">
+                            <h3>📊 Enhanced Dataset Visualization Available</h3>
+                            <p>This dataset has enhanced visualization features:</p>
+                            <div style="margin: 20px 0;">
+                                <button class="btn-chart" onclick="showDatasetDistributions()">📊 Feature Distributions</button>
+                                <button class="btn-chart" onclick="showDatasetOHLC()">📈 OHLC Chart</button>
+                            </div>
+                            <p><em>Sequence-level data will be available once the enhanced training data is loaded.</em></p>
+                        </td></tr>
+                    `;
+                    document.getElementById('sequence-count').textContent = '(Enhanced visualizations available)';
+                }}
+                
+            }} catch (error) {{
+                console.error('Error loading sequences:', error);
+                document.getElementById('sequences-table-body').innerHTML = `
+                    <tr><td colspan="6" class="error">
+                        <h3>📊 Dataset Visualization Available</h3>
+                        <p>Enhanced visualizations are available for this dataset:</p>
+                        <div style="margin: 20px 0;">
+                            <button class="btn-chart" onclick="showDatasetDistributions()">📊 Feature Distributions</button>
+                            <button class="btn-chart" onclick="showDatasetOHLC()">📈 OHLC Chart</button>
+                        </div>
+                        <p><em>Note: ${{error.message}}</em></p>
+                    </td></tr>
+                `;
+                document.getElementById('sequence-count').textContent = '(Visualizations available)';
+            }}
+        }}
+        
+        function renderSequencesTable(sequences) {{
+            const tbody = document.getElementById('sequences-table-body');
+            
+            if (!sequences || sequences.length === 0) {{
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666;">No sequences match current filters</td></tr>';
+                return;
+            }}
+            
+            tbody.innerHTML = sequences.map(seq => `
+                <tr>
+                    <td><span class="sequence-id">#${{seq.sequence_id}}</span></td>
+                    <td>
+                        <div>${{new Date(seq.start_date).toLocaleDateString()}}</div>
+                        <div style="font-size:12px; color:#666;">to ${{new Date(seq.end_date).toLocaleDateString()}}</div>
+                    </td>
+                    <td>${{seq.symbols.join(', ')}}</td>
+                    <td>
+                        <div class="feature-stats">
+                            ${{Object.entries(seq.feature_stats).slice(0, 2).map(([name, stats]) => 
+                                `<div>${{name}}: μ=${{stats.mean.toFixed(3)}}, σ=${{stats.std.toFixed(3)}}</div>`
+                            ).join('')}}
+                            ${{Object.keys(seq.feature_stats).length > 2 ? 
+                                `<div style="color:#667eea;">+${{Object.keys(seq.feature_stats).length - 2}} more</div>` : ''}}
+                        </div>
+                    </td>
+                    <td>
+                        <div style="font-size:12px; color:#666;">
+                            ${{Array.isArray(seq.label_preview[0]) ? 
+                                seq.label_preview.slice(0, 2).map(l => `[${{l.map(v => v.toFixed(3)).join(', ')}}]`).join('<br>') :
+                                seq.label_preview.slice(0, 3).map(v => v.toFixed(3)).join(', ')
+                            }}
+                        </div>
+                    </td>
+                    <td>
+                        <button class="btn-chart" onclick="showSequenceOHLC(${{seq.sequence_id}}, '${{seq.symbols.join(', ')}}')">
+                            📈 OHLC Chart
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }}
+        
+        function applyFilters() {{
+            loadSequences(); // Reload with current filter values
+        }}
+        
+        function clearFilters() {{
+            document.getElementById('symbol-filter').value = '';
+            document.getElementById('feature-filter').value = '';
+            document.getElementById('value-min').value = '';
+            document.getElementById('value-max').value = '';
+            loadSequences();
+        }}
+        
+        function showDatasetDistributions() {{
+            window.open(`/?tab=datasets#distributions-${{currentDatasetId}}`, '_blank');
+        }}
+        
+        function showDatasetOHLC() {{
+            window.open(`/?tab=datasets#ohlc-${{currentDatasetId}}`, '_blank');
+        }}
+        
+        async function showSequenceOHLC(sequenceId, symbols) {{
+            try {{
+                const response = await fetch(`/api/v1/datasets/${{currentDatasetId}}/sequences/${{sequenceId}}/ohlc`);
+                const data = await response.json();
+                
+                alert(`OHLC data loaded for sequence ${{sequenceId}} (${{symbols}})\\n\\nData points: ${{data.ohlc_data.length}}\\nIndicators: ${{Object.keys(data.technical_indicators).join(', ')}}`);
+            }} catch (error) {{
+                alert(`Error loading OHLC data: ${{error.message}}`);
+            }}
+        }}
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {{
+            loadDatasetOverview();
+            loadSequences();
+        }});
+    </script>
+</body>
+</html>
+    """
 
 @app.get("/dataset-detail", response_class=HTMLResponse)
 async def dataset_detail_page():
@@ -1375,7 +1680,7 @@ async def web_interface():
                             <td class="indicators-list" title="${indicators}">${indicators}</td>
                             <td>${createdAt}</td>
                             <td>
-                                <a href="/dataset-detail?id=${d.dataset_id}" class="btn-chart">🔍 View Detail</a>
+                                <a href="/dataset/${d.dataset_id}" class="btn-chart">🔍 Enhanced Detail</a>
                                 <br>
                                 <button class="btn-chart" onclick="showDistributions(${d.dataset_id}, '${d.dataset_name}')">📊 Distributions</button>
                                 <br>
