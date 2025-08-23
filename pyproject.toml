@@ -16,6 +16,7 @@ dependencies = [
   "alpaca-py",
   "pandas",
   "pandas_ta",
+  "pandas-market-calendars>=4.4.1",
   "torch",
   "typing-extensions",
   "httpx[http2]",
