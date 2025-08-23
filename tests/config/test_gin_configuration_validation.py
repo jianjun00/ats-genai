@@ -73,6 +73,7 @@ create_configurable_training_data_config.sequence_length = 10
 create_configurable_training_data_config.prediction_horizon = 3
 create_configurable_training_data_config.feature_registry = @create_feature_registry()
 create_configurable_training_data_config.label_registry = @create_label_registry()
+create_configurable_training_data_config.output_format = 'numpy'
 """
         
         with tempfile.NamedTemporaryFile(mode='w', suffix='.gin', delete=False) as f:

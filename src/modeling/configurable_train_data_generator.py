@@ -6,9 +6,16 @@ Supports multiple timeframes, custom indicators, and flexible windowing strategi
 """
 
 import gin
-import torch
 import numpy as np
 import pandas as pd
+
+# Optional PyTorch import for tensor operations
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    torch = None
+    TORCH_AVAILABLE = False
 from typing import Dict, List, Any, Optional, Tuple, Union
 from dataclasses import dataclass, field
 from datetime import datetime, date, timedelta
@@ -61,7 +68,7 @@ class ConfigurableTrainingDataConfig:
     remove_outliers: bool = True
     
     # Output format
-    output_format: str = 'pytorch'  # 'pytorch', 'numpy', 'pandas'
+    output_format: str = 'numpy'  # 'pytorch', 'numpy', 'pandas' (default to numpy if torch not available)
     device: str = 'cpu'  # 'cpu', 'cuda'
 
 class ConfigurableTrainingDataGenerator:
@@ -380,6 +387,8 @@ class ConfigurableTrainingDataGenerator:
         }
         
         if self.config.output_format == 'pytorch':
+            if not TORCH_AVAILABLE:
+                raise ImportError("PyTorch is not available. Install torch or use 'numpy' or 'pandas' output format.")
             result['features'] = torch.tensor(features_array, device=self.config.device)
             result['labels'] = torch.tensor(labels_array, device=self.config.device)
             result['feature_masks'] = torch.tensor(feature_masks, device=self.config.device)
@@ -598,6 +607,8 @@ class ConfigurableTrainDataCallback(RunnerCallback):
             
             # Save to file
             if self.config.output_format == 'pytorch':
+                if not TORCH_AVAILABLE:
+                    raise ImportError("PyTorch is not available. Install torch or use 'numpy' or 'pandas' output format.")
                 torch.save(result, self.output_path)
             else:
                 import pickle
