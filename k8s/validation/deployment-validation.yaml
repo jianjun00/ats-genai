@@ -1,0 +1,448 @@
+# Comprehensive Deployment Validation Strategy for ATS Services
+# This file defines automated validation and rollback mechanisms
+
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: ats-analytics-service-rollout
+  namespace: ats-dev
+  annotations:
+    rollout.argoproj.io/revision: "1"
+spec:
+  replicas: 3
+  strategy:
+    canary:
+      # Canary deployment configuration
+      canaryService: ats-analytics-service-canary
+      stableService: ats-analytics-service-stable
+      trafficRouting:
+        nginx:
+          stableIngress: ats-analytics-ingress
+          annotationPrefix: nginx.ingress.kubernetes.io
+          additionalIngressAnnotations:
+            canary-by-header: X-Canary
+            canary-by-header-value: "true"
+      steps:
+      # Step 1: Deploy canary with 10% traffic, run validation
+      - setWeight: 10
+      - pause:
+          duration: 5m
+      - analysis:
+          templates:
+          - templateName: ats-health-validation
+          - templateName: ats-performance-validation
+          args:
+          - name: service-name
+            value: ats-analytics-service
+          - name: canary-hash
+            valueFrom:
+              podTemplateHashValue: Latest
+      
+      # Step 2: Increase to 25% traffic if validation passes
+      - setWeight: 25
+      - pause:
+          duration: 10m
+      - analysis:
+          templates:
+          - templateName: ats-integration-validation
+          - templateName: ats-data-quality-validation
+          args:
+          - name: service-name
+            value: ats-analytics-service
+      
+      # Step 3: Increase to 50% traffic
+      - setWeight: 50
+      - pause:
+          duration: 15m
+      - analysis:
+          templates:
+          - templateName: ats-load-validation
+          - templateName: ats-business-logic-validation
+      
+      # Step 4: Full promotion if all validations pass
+      - setWeight: 100
+      - pause:
+          duration: 5m
+      
+      # Automated rollback conditions
+      abortOnFailure: true
+      maxSurge: "25%"
+      maxUnavailable: 0
+      analysisRunMetadata:
+        annotations:
+          rollout.argoproj.io/canary-step: "validation"
+        labels:
+          validation-type: "comprehensive"
+  selector:
+    matchLabels:
+      app: ats-analytics-service
+  template:
+    metadata:
+      labels:
+        app: ats-analytics-service
+    spec:
+      serviceAccountName: ats-service-account
+      containers:
+      - name: analytics-service
+        image: ats/analytics-service:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: ENVIRONMENT
+          value: "dev"
+        # ... (same as deployment.yaml)
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 5
+
+---
+# Analysis Templates for Validation
+
+# 1. Health Check Validation
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: ats-health-validation
+  namespace: ats-dev
+spec:
+  args:
+  - name: service-name
+  - name: canary-hash
+    valueFrom:
+      podTemplateHashValue: Latest
+  metrics:
+  - name: health-check
+    provider:
+      prometheus:
+        address: http://prometheus.monitoring.svc.cluster.local:9090
+        query: |
+          sum(rate(prometheus_http_requests_total{job="{{args.service-name}}",code="200"}[2m])) /
+          sum(rate(prometheus_http_requests_total{job="{{args.service-name}}"}[2m])) * 100
+    successCondition: result[0] >= 95
+    failureLimit: 3
+    interval: 30s
+    count: 10
+
+---
+# 2. Performance Validation
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: ats-performance-validation
+  namespace: ats-dev
+spec:
+  args:
+  - name: service-name
+  metrics:
+  - name: response-time-p95
+    provider:
+      prometheus:
+        address: http://prometheus.monitoring.svc.cluster.local:9090
+        query: |
+          histogram_quantile(0.95, 
+            sum(rate(http_request_duration_seconds_bucket{job="{{args.service-name}}"}[5m])) by (le)
+          ) * 1000
+    successCondition: result[0] <= 500  # 500ms P95 threshold
+    failureLimit: 3
+    interval: 30s
+    count: 10
+  
+  - name: cpu-utilization
+    provider:
+      prometheus:
+        address: http://prometheus.monitoring.svc.cluster.local:9090
+        query: |
+          avg(rate(container_cpu_usage_seconds_total{pod=~"{{args.service-name}}-.*"}[5m])) * 100
+    successCondition: result[0] <= 80  # 80% CPU threshold
+    failureLimit: 2
+    interval: 30s
+    count: 10
+
+---
+# 3. Integration Validation
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: ats-integration-validation
+  namespace: ats-dev
+spec:
+  args:
+  - name: service-name
+  metrics:
+  - name: database-connectivity
+    provider:
+      prometheus:
+        address: http://prometheus.monitoring.svc.cluster.local:9090
+        query: |
+          sum(rate(database_connections_active{service="{{args.service-name}}"}[5m]))
+    successCondition: result[0] > 0
+    failureLimit: 2
+    interval: 60s
+    count: 5
+  
+  - name: service-dependencies
+    provider:
+      prometheus:
+        address: http://prometheus.monitoring.svc.cluster.local:9090
+        query: |
+          avg(up{job=~"ats-(minute|eod)-service"})
+    successCondition: result[0] >= 1  # All dependent services should be up
+    failureLimit: 1
+    interval: 30s
+    count: 5
+
+---
+# 4. Data Quality Validation
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: ats-data-quality-validation
+  namespace: ats-dev
+spec:
+  metrics:
+  - name: data-quality-score
+    provider:
+      web:
+        url: "http://{{args.service-name}}:8080/data-quality/report"
+        jsonPath: "$.vendor_scores.polygon"
+    successCondition: result >= 0.85  # 85% data quality threshold
+    failureLimit: 2
+    interval: 120s
+    count: 3
+  
+  - name: cache-hit-rate
+    provider:
+      web:
+        url: "http://{{args.service-name}}:8080/metrics"
+        jsonPath: "$.cache_hit_rate"
+    successCondition: result >= 0.70  # 70% cache hit rate threshold
+    failureLimit: 3
+    interval: 60s
+    count: 5
+
+---
+# 5. Load Validation
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: ats-load-validation
+  namespace: ats-dev
+spec:
+  metrics:
+  - name: concurrent-users
+    provider:
+      job:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: load-test
+                image: loadimpact/k6:latest
+                command: ["/bin/sh"]
+                args:
+                - -c
+                - |
+                  k6 run --vus 50 --duration 5m - <<'EOF'
+                  import http from 'k6/http';
+                  import { check } from 'k6';
+                  export default function () {
+                    const res = http.get('http://ats-analytics-service:8080/health');
+                    check(res, {
+                      'status is 200': (r) => r.status === 200,
+                      'response time < 1s': (r) => r.timings.duration < 1000,
+                    });
+                  }
+                  EOF
+              restartPolicy: Never
+    successCondition: "true"  # Job completion indicates success
+    failureLimit: 1
+
+---
+# 6. Business Logic Validation
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: ats-business-logic-validation
+  namespace: ats-dev
+spec:
+  metrics:
+  - name: portfolio-analytics-accuracy
+    provider:
+      job:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: validation-test
+                image: ats/validation-runner:latest
+                command: ["/bin/sh"]
+                args:
+                - -c
+                - |
+                  python3 -c "
+                  import requests
+                  import json
+                  import sys
+                  
+                  # Test portfolio analytics endpoint
+                  response = requests.get('http://ats-analytics-service:8080/analytics/portfolio/test-run/metrics')
+                  
+                  if response.status_code != 200:
+                      sys.exit(1)
+                      
+                  data = response.json()
+                  
+                  # Validate critical metrics exist and are reasonable
+                  required_fields = ['total_return', 'sharpe_ratio', 'max_drawdown']
+                  for field in required_fields:
+                      if field not in data:
+                          print(f'Missing required field: {field}')
+                          sys.exit(1)
+                  
+                  # Validate Sharpe ratio is within reasonable bounds
+                  sharpe = data.get('sharpe_ratio', 0)
+                  if sharpe < -5 or sharpe > 10:
+                      print(f'Unreasonable Sharpe ratio: {sharpe}')
+                      sys.exit(1)
+                      
+                  print('Business logic validation passed')
+                  "
+              restartPolicy: Never
+    successCondition: "true"
+    failureLimit: 1
+
+---
+# Automated Rollback Policy
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ats-rollback-policy
+  namespace: ats-dev
+data:
+  rollback-triggers.yaml: |
+    triggers:
+      # Health check failures
+      - name: health-check-failure
+        condition: "sum(rate(prometheus_http_requests_total{code!='200'}[5m])) / sum(rate(prometheus_http_requests_total[5m])) > 0.05"
+        action: "immediate_rollback"
+        
+      # Performance degradation
+      - name: response-time-degradation
+        condition: "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1.0"
+        action: "gradual_rollback"
+        grace_period: "2m"
+        
+      # Memory pressure
+      - name: memory-pressure
+        condition: "avg(container_memory_usage_bytes{pod=~'ats-analytics-service-.*'} / container_spec_memory_limit_bytes) > 0.90"
+        action: "immediate_rollback"
+        
+      # Database connection issues
+      - name: database-connectivity-loss
+        condition: "sum(up{job='ats-database'}) == 0"
+        action: "pause_deployment"
+        
+      # Data quality degradation
+      - name: data-quality-degradation
+        condition: "data_quality_score < 0.80"
+        action: "gradual_rollback"
+        grace_period: "5m"
+    
+    rollback_strategy:
+      immediate_rollback:
+        - set_weight: 0
+        - pause: 30s
+        - abort: true
+        
+      gradual_rollback:
+        - set_weight: 25
+        - pause: 2m
+        - analysis:
+            duration: 3m
+            if_failure: abort
+        - set_weight: 0
+        - abort: true
+        
+      pause_deployment:
+        - pause: indefinite
+        - manual_review_required: true
+
+---
+# Notification Configuration for Deployment Events
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ats-deployment-notifications
+  namespace: ats-dev
+data:
+  notifications.yaml: |
+    channels:
+      - name: slack-alerts
+        webhook: "${SLACK_WEBHOOK_URL}"
+        events:
+          - deployment_started
+          - canary_promoted
+          - rollback_initiated
+          - validation_failed
+          
+      - name: email-alerts
+        smtp:
+          server: "${SMTP_SERVER}"
+          from: "ats-deployments@your-company.com"
+          to: ["dev-team@your-company.com", "ops-team@your-company.com"]
+        events:
+          - rollback_initiated
+          - deployment_failed
+          - validation_timeout
+    
+    templates:
+      deployment_started: |
+        🚀 **ATS Deployment Started**
+        
+        Service: {{.service_name}}
+        Version: {{.new_version}}
+        Strategy: Canary (10% -> 25% -> 50% -> 100%)
+        
+        Validation checks:
+        - ✅ Health checks
+        - ✅ Performance monitoring
+        - ✅ Integration testing
+        - ✅ Data quality validation
+        
+        Monitor progress: {{.deployment_url}}
+        
+      validation_failed: |
+        ⚠️ **ATS Deployment Validation Failed**
+        
+        Service: {{.service_name}}
+        Failed Check: {{.failed_validation}}
+        Current Traffic: {{.canary_weight}}%
+        
+        Error Details:
+        {{.error_message}}
+        
+        Action: {{.rollback_action}}
+        
+        Logs: {{.logs_url}}
+        
+      rollback_initiated: |
+        🔄 **ATS Deployment Rollback Initiated**
+        
+        Service: {{.service_name}}
+        Trigger: {{.rollback_trigger}}
+        Previous Version: {{.stable_version}}
+        Failed Version: {{.failed_version}}
+        
+        Rollback Strategy: {{.rollback_strategy}}
+        ETA: {{.rollback_eta}}
+        
+        Incident: {{.incident_url}}

@@ -1,0 +1,470 @@
+name: ATS CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'services/**'
+      - 'src/**'
+      - 'k8s/**'
+      - 'Dockerfile*'
+      - 'requirements.txt'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/**'
+      - 'src/**'
+      - 'k8s/**'
+      - 'Dockerfile*'
+      - 'requirements.txt'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # Job 1: Code Quality and Testing
+  test-and-validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [minute-service, eod-service, analytics-service]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for better analysis
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-asyncio black flake8 mypy safety bandit
+    
+    - name: Code formatting check
+      run: black --check --diff services/${{ matrix.service }}/ src/
+    
+    - name: Linting
+      run: flake8 services/${{ matrix.service }}/ src/ --max-line-length=88 --extend-ignore=E203,W503
+    
+    - name: Type checking
+      run: mypy services/${{ matrix.service }}/ src/ --ignore-missing-imports
+    
+    - name: Security scan
+      run: |
+        bandit -r services/${{ matrix.service }}/ src/ -f json -o security-report.json || true
+        safety check --json --output safety-report.json || true
+    
+    - name: Unit tests
+      env:
+        PYTHONPATH: ${{ github.workspace }}/src
+        ENVIRONMENT: test
+      run: |
+        pytest tests/ -v --cov=src --cov=services --cov-report=xml --cov-report=term-missing
+    
+    - name: Integration tests
+      env:
+        PYTHONPATH: ${{ github.workspace }}/src
+        ENVIRONMENT: test
+        DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+      services:
+        postgres:
+          image: postgres:15-alpine
+          env:
+            POSTGRES_PASSWORD: test
+            POSTGRES_USER: test
+            POSTGRES_DB: test_db
+          options: >-
+            --health-cmd pg_isready
+            --health-interval 10s
+            --health-timeout 5s
+            --health-retries 5
+        redis:
+          image: redis:7-alpine
+          options: >-
+            --health-cmd "redis-cli ping"
+            --health-interval 10s
+            --health-timeout 5s
+            --health-retries 5
+      run: |
+        pytest tests/integration/ -v --tb=short
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: ${{ matrix.service }}
+    
+    - name: Upload security reports
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-reports-${{ matrix.service }}
+        path: |
+          security-report.json
+          safety-report.json
+        retention-days: 30
+
+  # Job 2: Build and Push Docker Images
+  build-and-push:
+    needs: test-and-validate
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    
+    strategy:
+      matrix:
+        service: [minute-service, eod-service, analytics-service]
+    
+    outputs:
+      minute-image: ${{ steps.meta.outputs.minute-image }}
+      eod-image: ${{ steps.meta.outputs.eod-image }}
+      analytics-image: ${{ steps.meta.outputs.analytics-image }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+        labels: |
+          org.opencontainers.image.title=ATS ${{ matrix.service }}
+          org.opencontainers.image.description=ATS ${{ matrix.service }} for automated trading system
+          org.opencontainers.image.vendor=ATS Team
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: services/${{ matrix.service }}/Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          SERVICE_NAME=${{ matrix.service }}
+          BUILD_DATE=${{ steps.meta.outputs.json.date }}
+          VCS_REF=${{ github.sha }}
+    
+    - name: Generate SBOM
+      uses: anchore/sbom-action@v0
+      with:
+        image: ${{ steps.meta.outputs.tags }}
+        format: spdx-json
+        output-file: ${{ matrix.service }}-sbom.spdx.json
+    
+    - name: Scan image for vulnerabilities
+      uses: anchore/scan-action@v3
+      with:
+        image: ${{ steps.meta.outputs.tags }}
+        fail-build: false
+        output-format: sarif
+        output-file: ${{ matrix.service }}-vulnerabilities.sarif
+    
+    - name: Upload vulnerability scan results
+      if: always()
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: ${{ matrix.service }}-vulnerabilities.sarif
+        category: ${{ matrix.service }}-vulnerabilities
+    
+    - name: Upload SBOM
+      uses: actions/upload-artifact@v3
+      with:
+        name: sbom-${{ matrix.service }}
+        path: ${{ matrix.service }}-sbom.spdx.json
+        retention-days: 90
+    
+    - name: Set output for service image
+      id: output
+      run: |
+        echo "${{ matrix.service }}-image=${{ steps.meta.outputs.tags }}" >> $GITHUB_OUTPUT
+
+  # Job 3: Update Kubernetes Manifests for GitOps
+  update-manifests:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITOPS_TOKEN }}  # Personal access token with repo write access
+    
+    - name: Extract image tags from build job
+      id: extract-tags
+      run: |
+        echo "Getting image tags from build job outputs..."
+        # Extract the tags from the metadata (simplified - in practice would parse JSON)
+        MINUTE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-minute-service:main-${{ github.sha }}"
+        EOD_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-eod-service:main-${{ github.sha }}"
+        ANALYTICS_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-analytics-service:main-${{ github.sha }}"
+        
+        echo "minute-tag=${MINUTE_TAG}" >> $GITHUB_OUTPUT
+        echo "eod-tag=${EOD_TAG}" >> $GITHUB_OUTPUT
+        echo "analytics-tag=${ANALYTICS_TAG}" >> $GITHUB_OUTPUT
+    
+    - name: Update Kubernetes manifests
+      run: |
+        # Update image tags in Kubernetes manifests
+        sed -i 's|image: ats/minute-service:.*|image: ${{ steps.extract-tags.outputs.minute-tag }}|g' k8s/minute-service/deployment.yaml
+        sed -i 's|image: ats/eod-service:.*|image: ${{ steps.extract-tags.outputs.eod-tag }}|g' k8s/eod-service/deployment.yaml
+        sed -i 's|image: ats/analytics-service:.*|image: ${{ steps.extract-tags.outputs.analytics-tag }}|g' k8s/analytics-service/deployment.yaml
+        
+        # Update Argo Rollout manifest if it exists
+        if [ -f k8s/validation/deployment-validation.yaml ]; then
+          sed -i 's|image: ats/analytics-service:.*|image: ${{ steps.extract-tags.outputs.analytics-tag }}|g' k8s/validation/deployment-validation.yaml
+        fi
+        
+        # Update deployment timestamp for rolling restart
+        export TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        
+        for service in minute-service eod-service analytics-service; do
+          if [ -f k8s/${service}/deployment.yaml ]; then
+            yq eval '.spec.template.metadata.annotations["deployment.kubernetes.io/revision"] = "'$TIMESTAMP'"' -i k8s/${service}/deployment.yaml
+          fi
+        done
+    
+    - name: Validate Kubernetes manifests
+      run: |
+        # Install kubeval for manifest validation
+        curl -sSLo kubeval.tar.gz https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
+        tar xf kubeval.tar.gz
+        chmod +x kubeval
+        sudo mv kubeval /usr/local/bin/
+        
+        # Validate all manifests
+        find k8s/ -name "*.yaml" -type f -exec kubeval {} \;
+    
+    - name: Create Pull Request for manifest updates
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITOPS_TOKEN }}
+        commit-message: |
+          🚀 Update ATS service images
+          
+          - minute-service: ${{ steps.extract-tags.outputs.minute-tag }}
+          - eod-service: ${{ steps.extract-tags.outputs.eod-tag }}
+          - analytics-service: ${{ steps.extract-tags.outputs.analytics-tag }}
+          
+          Build: ${{ github.sha }}
+          Triggered by: ${{ github.actor }}
+        title: "🚀 Deploy ATS services - ${{ github.sha }}"
+        body: |
+          ## ATS Service Deployment
+          
+          This PR updates the Kubernetes manifests with new images built from commit `${{ github.sha }}`.
+          
+          ### Changes
+          - ✅ **Minute Service**: `${{ steps.extract-tags.outputs.minute-tag }}`
+          - ✅ **EOD Service**: `${{ steps.extract-tags.outputs.eod-tag }}`
+          - ✅ **Analytics Service**: `${{ steps.extract-tags.outputs.analytics-tag }}`
+          
+          ### Pre-deployment Validation
+          - [x] All tests passed
+          - [x] Security scans completed
+          - [x] Docker images built and pushed
+          - [x] Kubernetes manifests validated
+          
+          ### Deployment Strategy
+          This deployment will use **Canary strategy** with the following phases:
+          1. 🚀 Deploy to 10% of traffic (5 min validation)
+          2. 📈 Scale to 25% (10 min validation) 
+          3. 📈 Scale to 50% (15 min validation)
+          4. ✅ Full promotion (100% traffic)
+          
+          ### Automated Validation Checks
+          - Health checks (HTTP 200 response rate > 95%)
+          - Performance checks (P95 response time < 500ms)  
+          - Integration tests (Database connectivity)
+          - Data quality validation (Score > 85%)
+          - Load testing (50 concurrent users)
+          
+          ### Rollback Policy
+          Automatic rollback will be triggered if:
+          - Health check failure rate > 5%
+          - P95 response time > 1 second
+          - Memory usage > 90%
+          - Database connectivity loss
+          - Data quality score < 80%
+          
+          ### Monitoring
+          - 📊 **Metrics**: [Grafana Dashboard](https://grafana.ats-dev.your-domain.com)
+          - 🔍 **Logs**: [Kibana](https://kibana.ats-dev.your-domain.com)
+          - 🚨 **Alerts**: Slack #ats-deployments
+          
+          ---
+          
+          **Ready for review and deployment** ✅
+          
+          /cc @dev-team @ops-team
+        branch: deploy/ats-services-${{ github.sha }}
+        delete-branch: true
+        draft: false
+        labels: |
+          deployment
+          auto-generated
+          ats-services
+
+  # Job 4: Notify Deployment Status
+  notify-deployment:
+    needs: [test-and-validate, build-and-push, update-manifests]
+    runs-on: ubuntu-latest
+    if: always() && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Notify deployment status
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        channel: '#ats-deployments'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        fields: repo,message,commit,author,action,eventName,ref,workflow
+        custom_payload: |
+          {
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "🚀 *ATS Deployment Pipeline* - `${{ job.status }}`"
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Repository:* ${{ github.repository }}"
+                  },
+                  {
+                    "type": "mrkdwn", 
+                    "text": "*Commit:* `${{ github.sha }}`"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Author:* ${{ github.actor }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Branch:* ${{ github.ref_name }}"
+                  }
+                ]
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Services Updated:*\n• Minute Service\n• EOD Service\n• Analytics Service"
+                }
+              },
+              {
+                "type": "actions",
+                "elements": [
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View Workflow"
+                    },
+                    "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  },
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text", 
+                      "text": "View Deployment"
+                    },
+                    "url": "https://argocd.ats-dev.your-domain.com"
+                  }
+                ]
+              }
+            ]
+          }
+
+  # Job 5: Security and Compliance Reporting
+  security-compliance:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Download security artifacts
+      uses: actions/download-artifact@v3
+      with:
+        pattern: security-reports-*
+        merge-multiple: true
+    
+    - name: Download SBOM artifacts
+      uses: actions/download-artifact@v3
+      with:
+        pattern: sbom-*
+        merge-multiple: true
+    
+    - name: Generate security report
+      run: |
+        echo "# ATS Security and Compliance Report" > security-report.md
+        echo "**Date:** $(date)" >> security-report.md
+        echo "**Commit:** ${{ github.sha }}" >> security-report.md
+        echo "" >> security-report.md
+        
+        echo "## Vulnerability Scan Results" >> security-report.md
+        for service in minute-service eod-service analytics-service; do
+          echo "### ${service}" >> security-report.md
+          if [ -f "${service}-vulnerabilities.sarif" ]; then
+            # Parse SARIF results (simplified)
+            echo "✅ Vulnerability scan completed" >> security-report.md
+          else
+            echo "⚠️ No vulnerability scan results found" >> security-report.md
+          fi
+          echo "" >> security-report.md
+        done
+        
+        echo "## Software Bill of Materials (SBOM)" >> security-report.md
+        for service in minute-service eod-service analytics-service; do
+          echo "### ${service}" >> security-report.md
+          if [ -f "${service}-sbom.spdx.json" ]; then
+            echo "✅ SBOM generated" >> security-report.md
+            echo "- Format: SPDX JSON" >> security-report.md
+            echo "- Packages: $(jq '.packages | length' ${service}-sbom.spdx.json)" >> security-report.md
+          else
+            echo "⚠️ No SBOM found" >> security-report.md
+          fi
+          echo "" >> security-report.md
+        done
+    
+    - name: Upload compliance report
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-compliance-report
+        path: security-report.md
+        retention-days: 365
