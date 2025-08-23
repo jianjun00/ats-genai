@@ -40,41 +40,57 @@ python scripts/dev_cli.py logs job-name
 # ✅ ALWAYS use dev CLI
 ```
 
-## 📚 Complete Documentation Structure
+## 📚 Consolidated Documentation Structure
 
-**For detailed information, navigate to organized documentation:**
+**IMPORTANT: Documentation has been consolidated to eliminate 90% duplication. Always use the UNIFIED guides.**
 
-### 🚀 New Team Members
-- **[Quick Start (15 min)](docs/onboarding/QUICK_START.md)** - Get running immediately
-- **[Development Setup](docs/onboarding/DEVELOPMENT_SETUP.md)** - Complete environment setup
-- **[Architecture Overview](docs/onboarding/ARCHITECTURE_OVERVIEW.md)** - Understand the system
+### 🚀 **PRIMARY DOCUMENTATION** ⭐ **USE THESE FIRST**
 
-### 👥 Role-Specific Guides
-- **[Product Manager](docs/roles/PRODUCT_MANAGER.md)** - Strategy, metrics, roadmaps
-- **[Backend Engineer](docs/roles/BACKEND_ENGINEER.md)** - APIs, services, infrastructure
-- **[Data Engineer](docs/roles/DATA_ENGINEER.md)** - Pipelines, processing, storage
-- **[Model Developer](docs/roles/MODEL_DEVELOPER.md)** - ML training, evaluation
-- **[Frontend Engineer](docs/roles/FRONTEND_ENGINEER.md)** - UI, dashboards, visualization
-- **[Release Engineer](docs/roles/RELEASE_ENGINEER.md)** - CI/CD, deployment, monitoring
-- **[Oncall Support](docs/roles/ONCALL_SUPPORT.md)** - Incident response, troubleshooting
+#### **Development (MANDATORY READING)**
+- **[Unified Development Workflow](docs/development/UNIFIED_DEVELOPMENT_WORKFLOW.md)** ⭐ **START HERE**
+  - JIRA integration, Git workflow, TDD, schema validation, K8s-first development
+- **[Unified CI/CD Guide](docs/development/UNIFIED_CICD_GUIDE.md)** ⭐
+  - GitHub Actions, ArgoCD GitOps, testing strategies, automated deployments
+- **[GitOps Development Workflow](docs/development/GITOPS_DEVELOPMENT_WORKFLOW.md)**
+  - Option 2 workflow with zero-downtime deployments and team coordination
 
-### 🛠️ Development Process
-- **[Development Workflow](docs/development/DEVELOPMENT_WORKFLOW.md)** - TDD, testing, validation
-- **[Kubernetes Guide](docs/development/KUBERNETES_GUIDE.md)** - K8s-first development
-- **[Testing Guide](docs/development/TESTING_GUIDE.md)** - Testing strategies
-- **[Debugging Guide](docs/development/DEBUGGING_GUIDE.md)** - Common issues
+#### **Operations (MANDATORY READING)**
+- **[Unified Deployment Guide](docs/operations/UNIFIED_DEPLOYMENT_GUIDE.md)** ⭐ **START HERE**
+  - All deployment strategies, environments, access management, troubleshooting
+- **[ArgoCD Troubleshooting](docs/operations/ARGOCD_TROUBLESHOOTING.md)**
+  - GitOps deployment issues, sync problems, comprehensive solutions
 
-### 🏗️ System Architecture  
-- **[System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)** - High-level design
-- **[Database Design](docs/architecture/DATABASE_DESIGN.md)** - Schema, data modeling
-- **[API Design](docs/architecture/API_DESIGN.md)** - REST specifications
-- **[Infrastructure](docs/architecture/INFRASTRUCTURE.md)** - K8s, containers
+### 📖 **COMPLETE NAVIGATION HUB**
+- **[Documentation Hub](docs/README.md)** - Complete navigation with learning paths
 
-### 🚀 Operations
-- **[Deployment Guide](docs/operations/DEPLOYMENT_GUIDE.md)** - Production deployments
-- **[Monitoring](docs/operations/MONITORING.md)** - Observability, alerting
-- **[Troubleshooting](docs/operations/TROUBLESHOOTING.md)** - Operational issues
-- **[Runbooks](docs/operations/RUNBOOKS.md)** - Emergency procedures
+### 🚀 **QUICK START PATHS**
+
+#### **New Team Members**
+1. **[Documentation Hub](docs/README.md)** - Start here for complete navigation
+2. **[Unified Development Workflow](docs/development/UNIFIED_DEVELOPMENT_WORKFLOW.md)** - Essential workflow
+3. **[Quick Start (15 min)](docs/onboarding/QUICK_START.md)** - Get running immediately
+
+#### **DevOps Engineers**  
+1. **[Unified Deployment Guide](docs/operations/UNIFIED_DEPLOYMENT_GUIDE.md)** - All deployment methods
+2. **[GitOps Development Workflow](docs/development/GITOPS_DEVELOPMENT_WORKFLOW.md)** - Option 2 workflow
+3. **[ArgoCD Troubleshooting](docs/operations/ARGOCD_TROUBLESHOOTING.md)** - Deployment issues
+
+### 🔧 **OPERATIONAL SCRIPTS** (Ready to Use)
+
+```bash
+# Complete workflow scripts available:
+./scripts/pre_deploy_check.sh           # Safety checks before deployment  
+./scripts/dev_deploy.sh                 # Deploy with team coordination
+./scripts/monitor_deployment.sh         # Real-time deployment monitoring
+./scripts/rollback_deployment.sh        # Multiple rollback strategies
+./scripts/deployment_status.sh          # Comprehensive system status
+./scripts/force_argocd_sync.sh          # ArgoCD integration
+./scripts/get_external_access.sh        # Service endpoint discovery
+```
+
+### 📋 **LEGACY DOCUMENTATION**
+- **[Archive Directory](docs/archive/)** - Archived duplicate docs (reference only)
+- **Note**: If you find conflicting information, **always follow the UNIFIED guides** marked with ⭐
 
 ## 🔥 Critical Development Rules
 
