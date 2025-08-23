@@ -160,19 +160,3 @@ spec:
   selector:
     app: ats-minute-service
 
----
-apiVersion: v1
-kind: ServiceMonitor
-metadata:
-  name: ats-minute-service
-  namespace: ats-dev
-  labels:
-    app: ats-minute-service
-spec:
-  selector:
-    matchLabels:
-      app: ats-minute-service
-  endpoints:
-  - port: http
-    path: /metrics
-    interval: 30s

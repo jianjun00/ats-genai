@@ -154,23 +154,6 @@ spec:
     app: ats-eod-service
 
 ---
-apiVersion: v1
-kind: ServiceMonitor
-metadata:
-  name: ats-eod-service
-  namespace: ats-dev
-  labels:
-    app: ats-eod-service
-spec:
-  selector:
-    matchLabels:
-      app: ats-eod-service
-  endpoints:
-  - port: http
-    path: /metrics
-    interval: 30s
-
----
 # CronJob for scheduled EOD collection
 apiVersion: batch/v1
 kind: CronJob

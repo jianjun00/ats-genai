@@ -190,22 +190,6 @@ spec:
             port:
               number: 8080
 
----
-apiVersion: v1
-kind: ServiceMonitor
-metadata:
-  name: ats-analytics-service
-  namespace: ats-dev
-  labels:
-    app: ats-analytics-service
-spec:
-  selector:
-    matchLabels:
-      app: ats-analytics-service
-  endpoints:
-  - port: http
-    path: /metrics
-    interval: 30s
 
 ---
 # HorizontalPodAutoscaler for analytics service
