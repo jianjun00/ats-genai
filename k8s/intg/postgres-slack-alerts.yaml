@@ -1,0 +1,200 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-monitor-config
+  namespace: ats-intg
+data:
+  monitor.py: |
+    #!/usr/bin/env python3
+    import asyncio
+    import asyncpg
+    import aiohttp
+    import json
+    import os
+    import logging
+    from datetime import datetime
+
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger(__name__)
+
+    SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL')
+    ENVIRONMENT = os.getenv('ENVIRONMENT', 'integration')
+    
+    async def check_postgres():
+        try:
+            conn = await asyncpg.connect(
+                host='postgres', port=5432, user='postgres', 
+                password='postgres', database='intg_db'
+            )
+            
+            # Check basic health
+            version = await conn.fetchval('SELECT version()')
+            connections = await conn.fetchval("SELECT count(*) FROM pg_stat_activity")
+            
+            # Check intg_ tables
+            intg_tables = await conn.fetchval(
+                "SELECT count(*) FROM information_schema.tables WHERE table_name LIKE 'intg_%'"
+            )
+            
+            # Check for issues
+            long_queries = await conn.fetch("""
+                SELECT pid, query FROM pg_stat_activity 
+                WHERE (now() - query_start) > interval '10 minutes' AND state = 'active'
+            """)
+            
+            # Check database size
+            db_size = await conn.fetchval("SELECT pg_size_pretty(pg_database_size(current_database()))")
+            
+            await conn.close()
+            
+            status = "healthy"
+            issues = []
+            
+            if long_queries:
+                issues.append(f"{len(long_queries)} long-running queries (>10min)")
+                status = "warning"
+            
+            if connections > 50:  # Lower threshold for integration
+                issues.append(f"High connection count: {connections}")
+                status = "warning"
+            
+            # Send alert if issues found
+            if issues and SLACK_WEBHOOK_URL:
+                payload = {
+                    "channel": "#ats-intg-alerts",
+                    "username": "ATS Integration Monitor",
+                    "icon_emoji": ":gear:",
+                    "text": f":warning: ATS Integration PostgreSQL Alert",
+                    "attachments": [{
+                        "color": "warning" if status == "warning" else "good",
+                        "title": f"PostgreSQL {status.upper()} - Integration Environment",
+                        "fields": [
+                            {"title": "Environment", "value": "ats-intg", "short": True},
+                            {"title": "Database", "value": "intg_db", "short": True},
+                            {"title": "Status", "value": status, "short": True},
+                            {"title": "Connections", "value": str(connections), "short": True},
+                            {"title": "INTG Tables", "value": str(intg_tables), "short": True},
+                            {"title": "DB Size", "value": db_size, "short": True},
+                            {"title": "Issues", "value": "\\n".join(issues) if issues else "None", "short": False},
+                            {"title": "Timestamp", "value": datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC'), "short": True}
+                        ],
+                        "footer": "ATS Integration PostgreSQL Monitoring"
+                    }]
+                }
+                
+                async with aiohttp.ClientSession() as session:
+                    await session.post(SLACK_WEBHOOK_URL, json=payload)
+                    logger.info(f"Sent Integration Slack alert: {status}")
+            
+            # Log regular status
+            logger.info(f"Integration PostgreSQL: {status}, connections: {connections}, intg_tables: {intg_tables}")
+            
+        except Exception as e:
+            logger.error(f"Integration PostgreSQL check failed: {e}")
+            if SLACK_WEBHOOK_URL:
+                payload = {
+                    "channel": "#ats-intg-alerts",
+                    "username": "ATS Integration Monitor", 
+                    "icon_emoji": ":red_circle:",
+                    "text": f":red_circle: *CRITICAL* - ATS Integration PostgreSQL Error",
+                    "attachments": [{
+                        "color": "danger",
+                        "title": "Database Connection Failed",
+                        "fields": [
+                            {"title": "Environment", "value": "ats-intg", "short": True},
+                            {"title": "Error", "value": str(e), "short": False},
+                            {"title": "Timestamp", "value": datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC'), "short": True}
+                        ]
+                    }]
+                }
+                async with aiohttp.ClientSession() as session:
+                    await session.post(SLACK_WEBHOOK_URL, json=payload)
+
+    async def send_startup_notification():
+        """Send notification when monitoring starts"""
+        if SLACK_WEBHOOK_URL:
+            payload = {
+                "channel": "#ats-intg-alerts",
+                "username": "ATS Integration Monitor",
+                "icon_emoji": ":white_check_mark:",
+                "text": f":white_check_mark: PostgreSQL monitoring started for Integration environment",
+                "attachments": [{
+                    "color": "good",
+                    "title": "Monitoring Service Started",
+                    "fields": [
+                        {"title": "Environment", "value": "ats-intg", "short": True},
+                        {"title": "Database", "value": "intg_db", "short": True},
+                        {"title": "Check Interval", "value": "5 minutes", "short": True},
+                        {"title": "Alert Channel", "value": "#ats-intg-alerts", "short": True}
+                    ]
+                }]
+            }
+            async with aiohttp.ClientSession() as session:
+                await session.post(SLACK_WEBHOOK_URL, json=payload)
+
+    async def main():
+        logger.info("Starting Integration PostgreSQL Slack monitoring")
+        await send_startup_notification()
+        
+        while True:
+            await check_postgres()
+            await asyncio.sleep(300)  # Check every 5 minutes
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-slack-alerts
+  namespace: ats-intg
+  labels:
+    app: postgres-slack-alerts
+    environment: integration
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-slack-alerts
+  template:
+    metadata:
+      labels:
+        app: postgres-slack-alerts
+        environment: integration
+    spec:
+      containers:
+      - name: monitor
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          pip install asyncpg aiohttp
+          python /config/monitor.py
+        env:
+        - name: SLACK_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: slack-credentials
+              key: webhook_url
+        - name: ENVIRONMENT
+          value: "integration"
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 100m
+            memory: 256Mi
+        livenessProbe:
+          exec:
+            command: ["pgrep", "-f", "monitor.py"]
+          initialDelaySeconds: 60
+          periodSeconds: 30
+      volumes:
+      - name: config
+        configMap:
+          name: postgres-monitor-config
+      restartPolicy: Always
