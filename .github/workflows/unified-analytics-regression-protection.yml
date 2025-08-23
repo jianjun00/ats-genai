@@ -1,0 +1,397 @@
+name: Unified Analytics Regression Protection
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'k8s/unified-analytics-app.yaml'
+      - 'tests/integration/test_unified_analytics_*'
+      - 'scripts/test_unified_analytics_before_deploy.py'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'k8s/unified-analytics-app.yaml'
+      - 'tests/integration/test_unified_analytics_*'
+      - 'scripts/test_unified_analytics_before_deploy.py'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test'
+        required: false
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+env:
+  PYTHON_VERSION: '3.12'
+  KUBECTL_VERSION: 'v1.28.0'
+
+jobs:
+  detect-changes:
+    name: Detect Unified Analytics Changes
+    runs-on: ubuntu-latest
+    outputs:
+      unified-analytics-changed: ${{ steps.changes.outputs.unified-analytics }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            unified-analytics:
+              - 'k8s/unified-analytics-app.yaml'
+              - 'tests/integration/test_unified_analytics_*'
+              - 'scripts/test_unified_analytics_before_deploy.py'
+
+  regression-protection-tests:
+    name: Regression Protection Tests
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.unified-analytics-changed == 'true'
+    
+    strategy:
+      matrix:
+        test-type: [quick, comprehensive]
+        
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest requests pyyaml
+          # Install additional dependencies if requirements.txt exists
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+
+      - name: Configure kubectl for dev environment
+        if: github.event.inputs.environment == 'dev' || github.event.inputs.environment == ''
+        run: |
+          # This would be configured in your specific environment
+          # Example for local minikube or specific K8s cluster
+          echo "Configure kubectl for development environment"
+          # kubectl config use-context dev-context
+
+      - name: Wait for Unified Analytics Service
+        id: wait-service
+        run: |
+          echo "Waiting for unified-analytics service to be ready..."
+          
+          # Check if service exists in Kubernetes
+          if kubectl get service unified-analytics-service -n ats-dev > /dev/null 2>&1; then
+            echo "Service exists in Kubernetes"
+            
+            # Port forward to make service accessible
+            kubectl port-forward service/unified-analytics-service 8081:3000 -n ats-dev &
+            PORT_FORWARD_PID=$!
+            echo "port_forward_pid=$PORT_FORWARD_PID" >> $GITHUB_OUTPUT
+            
+            # Wait for port forward to be ready
+            sleep 10
+            
+            # Test if service is accessible
+            for i in {1..30}; do
+              if curl -f http://localhost:8081/health > /dev/null 2>&1; then
+                echo "Service is accessible"
+                echo "service_ready=true" >> $GITHUB_OUTPUT
+                break
+              fi
+              echo "Waiting for service... ($i/30)"
+              sleep 2
+            done
+          else
+            echo "Service not found in Kubernetes - may be running in different environment"
+            echo "service_ready=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Quick Regression Tests
+        if: matrix.test-type == 'quick'
+        run: |
+          python scripts/test_unified_analytics_before_deploy.py --quick --verbose --url http://localhost:8081
+
+      - name: Run Comprehensive Regression Tests
+        if: matrix.test-type == 'comprehensive'
+        run: |
+          python scripts/test_unified_analytics_before_deploy.py --verbose --url http://localhost:8081
+
+      - name: Run Pytest Regression Tests
+        if: matrix.test-type == 'comprehensive'
+        env:
+          PYTHONPATH: src
+          UNIFIED_ANALYTICS_BASE_URL: http://localhost:8081
+        run: |
+          pytest tests/integration/test_unified_analytics_regression_protection.py -v --tb=short
+          pytest tests/integration/test_unified_analytics_deployment_protection.py -v --tb=short
+
+      - name: Upload Test Reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: unified-analytics-test-reports-${{ matrix.test-type }}
+          path: |
+            unified_analytics_test_report.json
+            pytest_report.xml
+          retention-days: 30
+
+      - name: Cleanup Port Forward
+        if: always() && steps.wait-service.outputs.port_forward_pid
+        run: |
+          kill ${{ steps.wait-service.outputs.port_forward_pid }} || true
+
+  deployment-validation:
+    name: Deployment Configuration Validation
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.unified-analytics-changed == 'true'
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Validate Unified Analytics Configuration
+        run: |
+          python -c "
+          import yaml
+          import sys
+          
+          # Load and validate unified-analytics-app.yaml
+          with open('k8s/unified-analytics-app.yaml', 'r') as f:
+              config = yaml.safe_load_all(f)
+              configs = list(config)
+          
+          print(f'✅ Found {len(configs)} Kubernetes resources')
+          
+          # Find ConfigMap
+          configmap = None
+          deployment = None
+          
+          for resource in configs:
+              if resource.get('kind') == 'ConfigMap' and resource.get('metadata', {}).get('name') == 'unified-analytics-config':
+                  configmap = resource
+              elif resource.get('kind') == 'Deployment' and resource.get('metadata', {}).get('name') == 'unified-analytics-webapp':
+                  deployment = resource
+          
+          if not configmap:
+              print('❌ unified-analytics-config ConfigMap not found')
+              sys.exit(1)
+          
+          if not deployment:
+              print('❌ unified-analytics-webapp Deployment not found')
+              sys.exit(1)
+          
+          # Validate ConfigMap content
+          app_py = configmap['data']['app.py']
+          
+          required_content = [
+              'import numpy',
+              '/dataset/{dataset_id}',
+              '/jobs',
+              '/datasets',
+              'from fastapi import',
+              'DATABASE_URL'
+          ]
+          
+          missing_content = []
+          for content in required_content:
+              if content not in app_py:
+                  missing_content.append(content)
+          
+          if missing_content:
+              print(f'❌ ConfigMap missing required content: {missing_content}')
+              sys.exit(1)
+          
+          # Validate Deployment configuration
+          container = deployment['spec']['template']['spec']['containers'][0]
+          install_args = ' '.join(container.get('args', []))
+          
+          if 'numpy' not in install_args:
+              print('❌ Deployment does not install numpy dependency')
+              sys.exit(1)
+          
+          # Check volume reference
+          volumes = deployment['spec']['template']['spec'].get('volumes', [])
+          webapp_config_volume = None
+          for volume in volumes:
+              if volume.get('name') == 'webapp-config':
+                  webapp_config_volume = volume
+                  break
+          
+          if not webapp_config_volume:
+              print('❌ webapp-config volume not found')
+              sys.exit(1)
+          
+          configmap_ref = webapp_config_volume.get('configMap', {}).get('name')
+          if configmap_ref != 'unified-analytics-config':
+              print(f'❌ Deployment references wrong ConfigMap: {configmap_ref}')
+              sys.exit(1)
+          
+          print('✅ All configuration validations passed')
+          "
+
+      - name: Check for Anti-Patterns
+        run: |
+          python -c "
+          import yaml
+          import sys
+          
+          with open('k8s/unified-analytics-app.yaml', 'r') as f:
+              content = f.read()
+          
+          # Check for dangerous anti-patterns
+          anti_patterns = [
+              ('enhanced-analytics-config', 'Wrong ConfigMap reference that caused crashloop'),
+              ('demo_data', 'Demo data usage (prohibited by CLAUDE.md)'),
+              ('mock_data', 'Mock data usage (prohibited by CLAUDE.md)'),
+              ('generate_demo_', 'Demo data generation (prohibited)'),
+          ]
+          
+          found_anti_patterns = []
+          for pattern, description in anti_patterns:
+              if pattern in content:
+                  found_anti_patterns.append(f'{pattern}: {description}')
+          
+          if found_anti_patterns:
+              print('❌ Anti-patterns detected:')
+              for pattern in found_anti_patterns:
+                  print(f'  - {pattern}')
+              sys.exit(1)
+          
+          print('✅ No anti-patterns detected')
+          "
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.unified-analytics-changed == 'true'
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Run Kubernetes Security Scan
+        uses: azure/k8s-lint@v1
+        with:
+          manifests: |
+            k8s/unified-analytics-app.yaml
+
+      - name: Check for Hardcoded Secrets
+        run: |
+          # Check for potential hardcoded secrets in configuration
+          if grep -r -i "password\|secret\|token\|key" k8s/unified-analytics-app.yaml | grep -v "secretKeyRef\|configMapKeyRef"; then
+            echo "❌ Potential hardcoded secrets detected"
+            exit 1
+          else
+            echo "✅ No hardcoded secrets detected"
+          fi
+
+  summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [regression-protection-tests, deployment-validation, security-scan]
+    if: always() && needs.detect-changes.outputs.unified-analytics-changed == 'true'
+    
+    steps:
+      - name: Test Results Summary
+        run: |
+          echo "## Unified Analytics Regression Protection Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.regression-protection-tests.result }}" == "success" ]; then
+            echo "✅ **Regression Protection Tests**: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Regression Protection Tests**: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ needs.deployment-validation.result }}" == "success" ]; then
+            echo "✅ **Deployment Validation**: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Deployment Validation**: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ needs.security-scan.result }}" == "success" ]; then
+            echo "✅ **Security Scan**: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Security Scan**: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.regression-protection-tests.result }}" == "success" ] && [ "${{ needs.deployment-validation.result }}" == "success" ] && [ "${{ needs.security-scan.result }}" == "success" ]; then
+            echo "🎉 **Overall Status**: ALL TESTS PASSED - Deployment approved!" >> $GITHUB_STEP_SUMMARY
+            echo "The unified-analytics platform is ready for deployment." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "🚫 **Overall Status**: TESTS FAILED - Deployment blocked!" >> $GITHUB_STEP_SUMMARY
+            echo "Please fix the failing tests before deploying." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+  notify-on-failure:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: [regression-protection-tests, deployment-validation, security-scan]
+    if: failure()
+    
+    steps:
+      - name: Create Issue on Test Failure
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const title = `🚫 Unified Analytics Regression Detected - ${context.sha.substring(0, 7)}`;
+            const body = `
+            ## Regression Detection Alert
+            
+            **Commit**: ${context.sha}
+            **Branch**: ${context.ref}
+            **Workflow**: ${context.workflow}
+            **Run**: ${context.runNumber}
+            
+            ### Failed Checks
+            ${context.payload.workflow_run ? 'Check the workflow run for details.' : 'Multiple regression protection tests failed.'}
+            
+            ### Action Required
+            1. Review the failing tests in the workflow run
+            2. Fix any regressions in unified-analytics configuration
+            3. Ensure all tests pass before merging
+            4. Do NOT deploy until all tests are green
+            
+            ### Critical Areas to Check
+            - [ ] ConfigMap references correct configuration
+            - [ ] Numpy dependency is properly installed
+            - [ ] All restored features are present
+            - [ ] No mock/demo data is being used
+            - [ ] Kubernetes deployment configuration
+            
+            **⚠️ This issue was automatically created to prevent deployment of broken code.**
+            `;
+            
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['bug', 'regression', 'unified-analytics', 'critical']
+            });

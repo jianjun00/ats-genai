@@ -1,0 +1,154 @@
+{
+  "timestamp": "2025-08-22 22:59:18",
+  "base_url": "http://localhost:8081",
+  "test_results": [
+    {
+      "name": "Service Availability",
+      "result": {
+        "success": true,
+        "health_data": {
+          "status": "healthy",
+          "database": "connected",
+          "training_data": "accessible: 6 files",
+          "features": [
+            "jobs",
+            "datasets",
+            "enhanced_dataset_details",
+            "filterable_tables",
+            "ohlc_charts",
+            "coverage_catalog",
+            "real_training_files"
+          ],
+          "timestamp": "2025-08-23T05:59:16.488675",
+          "version": "7.0.0",
+          "data_summary": {
+            "jobs": 21,
+            "datasets": 7
+          },
+          "training_directories": [
+            "latest_support_resistance",
+            "support_resistance_20250820_024227"
+          ]
+        },
+        "attempt": 1
+      }
+    },
+    {
+      "name": "Critical Endpoints",
+      "result": {
+        "success": true,
+        "total_endpoints": 6,
+        "successful_endpoints": 6,
+        "results": [
+          {
+            "name": "Health Check",
+            "path": "/health",
+            "status_code": 200,
+            "accessible": true,
+            "content_size": 403,
+            "success": true
+          },
+          {
+            "name": "Main Page",
+            "path": "/",
+            "status_code": 200,
+            "accessible": true,
+            "content_size": 3572,
+            "success": true
+          },
+          {
+            "name": "Data Catalog",
+            "path": "/datasets",
+            "status_code": 200,
+            "accessible": true,
+            "content_size": 3369,
+            "success": true
+          },
+          {
+            "name": "Job Management",
+            "path": "/jobs",
+            "status_code": 200,
+            "accessible": true,
+            "content_size": 3163,
+            "success": true
+          },
+          {
+            "name": "Datasets API",
+            "path": "/api/v1/datasets",
+            "status_code": 200,
+            "accessible": true,
+            "content_size": 1338,
+            "success": true
+          },
+          {
+            "name": "Jobs API",
+            "path": "/api/v1/jobs",
+            "status_code": 200,
+            "accessible": true,
+            "content_size": 3685,
+            "success": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "Feature Completeness",
+      "result": {
+        "success": true,
+        "required_features": [
+          "jobs",
+          "datasets",
+          "enhanced_dataset_details",
+          "filterable_tables",
+          "coverage_catalog",
+          "real_training_files"
+        ],
+        "available_features": [
+          "jobs",
+          "datasets",
+          "enhanced_dataset_details",
+          "filterable_tables",
+          "ohlc_charts",
+          "coverage_catalog",
+          "real_training_files"
+        ],
+        "missing_features": [],
+        "dataset_detail_accessible": true
+      }
+    },
+    {
+      "name": "Data Validation",
+      "result": {
+        "success": true,
+        "mock_patterns_found": [],
+        "datasets_checked": 7,
+        "jobs_checked": 21
+      }
+    },
+    {
+      "name": "Kubernetes Deployment",
+      "result": {
+        "success": true,
+        "total_pods": 1,
+        "running_pods": 1,
+        "crashloop_pods": 0,
+        "kubernetes_available": true
+      }
+    },
+    {
+      "name": "Pytest Regression Tests",
+      "result": {
+        "success": true,
+        "returncode": 0,
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.12.3, pytest-8.4.1, pluggy-1.6.0 -- /home/jianjun/ats-genai/.venv/bin/python\ncachedir: .pytest_cache\nrootdir: /home/jianjun/ats-genai-data\nconfigfile: pytest.ini\nplugins: asyncio-1.1.0, anyio-4.10.0, hydra-core-1.3.2\nasyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\ncollecting ... collected 23 items\n\ntests/integration/test_unified_analytics_regression_protection.py::TestUnifiedAnalyticsRegressionProtection::test_health_endpoint_regression_protection PASSED [  4%]\ntests/integration/test_unified_analytics_regression_protection.py::TestUnifiedAnalyticsRegressionProtection::test_main_page_regression_protection PASSED [  8%]\ntests/integration/test_unified_analytics_regression_protection.py::TestUnifiedAnalyticsRegressionProtection::test_data_catalog_regression_protection PASSED [ 13%]\ntests/integration/test_unified_analytics_regression_protection.py::TestUnifiedAnalyticsRegressionProtection::test_job_management_regression_protection PASSED [ 17%]\ntests/integration/test_unified_analytics_regression_protection.py::TestUnifiedAnalyticsRegressionProtection::test_dataset_detail_regression_protection PASSED [ 21%]\ntests/integration/test_unified_analytics_regression_protection.py::TestUnifiedAnalyticsRegressionProtection::test_api_endpoints_regression_protection PASSED [ 26%]\ntests/integration/test_unified_analytics_regression_protection.py::TestUnifiedAnalyticsRegressionProtection::test_no_mock_data_regression_protection PASSED [ 30%]\ntests/integration/test_unified_analytics_regression_protection.py::TestUnifiedAnalyticsRegressionProtection::test_kubernetes_deployment_regression_protection PASSED [ 34%]\ntests/integration/test_unified_analytics_regression_protection.py::TestUnifiedAnalyticsRegressionProtection::test_numpy_dependency_regression_protection PASSED [ 39%]\ntests/integration/test_unified_analytics_regression_protection.py::TestUnifiedAnalyticsRegressionProtection::test_configmap_regression_protection PASSED [ 43%]\ntests/integration/test_unified_analytics_regression_protection.py::TestUnifiedAnalyticsStabilityProtection::test_concurrent_requests_stability PASSED [ 47%]\ntests/integration/test_unified_analytics_regression_protection.py::TestUnifiedAnalyticsStabilityProtection::test_memory_leak_protection PASSED [ 52%]\ntests/integration/test_unified_analytics_regression_protection.py::TestUnifiedAnalyticsPerformanceBaseline::test_health_endpoint_response_time PASSED [ 56%]\ntests/integration/test_unified_analytics_regression_protection.py::TestUnifiedAnalyticsPerformanceBaseline::test_datasets_api_response_time PASSED [ 60%]\ntests/integration/test_unified_analytics_regression_protection.py::TestUnifiedAnalyticsPerformanceBaseline::test_jobs_api_response_time PASSED [ 65%]\ntests/integration/test_unified_analytics_deployment_protection.py::TestUnifiedAnalyticsDeploymentProtection::test_configmap_content_regression_protection PASSED [ 69%]\ntests/integration/test_unified_analytics_deployment_protection.py::TestUnifiedAnalyticsDeploymentProtection::test_deployment_configuration_regression_protection PASSED [ 73%]\ntests/integration/test_unified_analytics_deployment_protection.py::TestUnifiedAnalyticsDeploymentProtection::test_pod_health_regression_protection PASSED [ 78%]\ntests/integration/test_unified_analytics_deployment_protection.py::TestUnifiedAnalyticsDeploymentProtection::test_service_configuration_regression_protection PASSED [ 82%]\ntests/integration/test_unified_analytics_deployment_protection.py::TestUnifiedAnalyticsDeploymentProtection::test_pod_logs_regression_protection SKIPPED [ 86%]\ntests/integration/test_unified_analytics_deployment_protection.py::TestUnifiedAnalyticsDeploymentProtection::test_external_accessibility_regression_protection PASSED [ 91%]\ntests/integration/test_unified_analytics_deployment_protection.py::TestUnifiedAnalyticsDeploymentStability::test_deployment_rollout_stability PASSED [ 95%]\ntests/integration/test_unified_analytics_deployment_protection.py::TestUnifiedAnalyticsDeploymentStability::test_resource_usage_stability SKIPPED [100%]\n\n=========================== short test summary info ============================\nSKIPPED [1] tests/integration/test_unified_analytics_deployment_protection.py:473: Pod logs validation skipped: pod_names_not_accessible\nSKIPPED [1] tests/integration/test_unified_analytics_deployment_protection.py:540: Resource usage metrics not available\n=================== 21 passed, 2 skipped, 1 warning in 1.59s ===================\n",
+        "stderr": "",
+        "tests_run": 2
+      }
+    }
+  ],
+  "failed_tests": [],
+  "total_tests": 6,
+  "failed_count": 0,
+  "success_rate": 1.0,
+  "overall_success": true
+}

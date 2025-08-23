@@ -28,6 +28,7 @@ data:
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import HTMLResponse, JSONResponse
     from pydantic import BaseModel
+    import numpy as np
 
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
@@ -2210,6 +2211,171 @@ data:
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
         
+        @app.get("/dataset/{dataset_id}", response_class=HTMLResponse)
+        async def dataset_detail_page(dataset_id: int):
+            """Enhanced dataset detail page with sequence-level access using REAL DATA ONLY"""
+            
+            return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Dataset {dataset_id} Detail - ATS Analytics</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <style>
+            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f8f9fa; }}
+            .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; }}
+            .breadcrumb {{ margin: 10px 0; font-size: 14px; opacity: 0.9; }}
+            .breadcrumb a {{ color: white; text-decoration: none; }}
+            .container {{ max-width: 1400px; margin: 0 auto; padding: 20px; }}
+            
+            .dataset-overview {{ background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+            .dataset-meta {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px; }}
+            .meta-item {{ text-align: center; padding: 15px; background: #f8f9fa; border-radius: 8px; }}
+            .meta-value {{ font-size: 24px; font-weight: bold; color: #667eea; }}
+            .meta-label {{ font-size: 12px; color: #666; text-transform: uppercase; margin-top: 5px; }}
+            
+            .sequences-section {{ background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+            .table-container {{ overflow-x: auto; margin-top: 15px; }}
+            .sequences-table {{ width: 100%; border-collapse: collapse; min-width: 800px; }}
+            .sequences-table th {{ background: #f8f9fa; padding: 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #dee2e6; }}
+            .sequences-table td {{ padding: 12px; border-bottom: 1px solid #dee2e6; }}
+            .sequences-table tr:hover {{ background: #f8f9fa; }}
+            .sequence-id {{ font-weight: 600; color: #667eea; }}
+            .feature-stats {{ font-size: 12px; color: #666; }}
+            .btn-chart {{ background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; }}
+            
+            .loading {{ text-align: center; padding: 40px; font-size: 18px; color: #667eea; }}
+            .success {{ text-align: center; padding: 40px; font-size: 16px; color: #28a745; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="container">
+                <div class="breadcrumb">
+                    <a href="/">Home</a> > <a href="/datasets">Datasets</a> > Dataset Detail
+                </div>
+                <h1 id="dataset-title">Dataset {dataset_id} Detail</h1>
+                <p id="dataset-description">Enhanced dataset detail with sequence-level access - REAL DATA ONLY</p>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- Dataset Overview -->
+            <div class="dataset-overview">
+                <h2>📊 Dataset Overview</h2>
+                <div class="dataset-meta" id="dataset-meta">
+                    <div class="loading">Loading dataset information...</div>
+                </div>
+            </div>
+
+            <!-- Sequence Data Table -->
+            <div class="sequences-section">
+                <h2>📈 Training Sequences</h2>
+                <p>Real sequence data from database with technical indicators</p>
+                <div class="table-container">
+                    <table class="sequences-table">
+                        <thead>
+                            <tr>
+                                <th>Sequence ID</th>
+                                <th>Symbol</th>
+                                <th>Date Range</th>
+                                <th>OHLC Range</th>
+                                <th>Volume</th>
+                                <th>Technical Indicators</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sequences-table-body">
+                            <tr><td colspan="7" class="loading">Loading sequence data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Load dataset overview data
+            async function loadDatasetOverview() {{
+                try {{
+                    const response = await fetch(`/api/v1/datasets/{dataset_id}`);
+                    const data = await response.json();
+                    
+                    const metaDiv = document.getElementById('dataset-meta');
+                    metaDiv.innerHTML = `
+                        <div class="meta-item">
+                            <div class="meta-value">${{data.total_sequences}}</div>
+                            <div class="meta-label">Total Sequences</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-value">${{data.sequence_length}}</div>
+                            <div class="meta-label">Sequence Length</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-value">${{data.feature_count}}</div>
+                            <div class="meta-label">Features</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-value">${{data.data_quality_score}}</div>
+                            <div class="meta-label">Quality Score</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-value">${{data.symbols.join(', ')}}</div>
+                            <div class="meta-label">Symbols</div>
+                        </div>
+                    `;
+                    
+                    document.getElementById('dataset-title').textContent = `${{data.dataset_name}} Detail`;
+                }} catch (error) {{
+                    document.getElementById('dataset-meta').innerHTML = '<div class="error">Error loading dataset information</div>';
+                }}
+            }}
+            
+            // Load sequence data table
+            async function loadSequenceData() {{
+                try {{
+                    const response = await fetch(`/api/v1/datasets/{dataset_id}/enhanced-data`);
+                    const sequences = await response.json();
+                    
+                    const tbody = document.getElementById('sequences-table-body');
+                    tbody.innerHTML = sequences.map((seq, index) => `
+                        <tr>
+                            <td class="sequence-id">SEQ-${{index + 1}}</td>
+                            <td>${{seq.symbol}}</td>
+                            <td>${{seq.date_start}} to ${{seq.date_end}}</td>
+                            <td>
+                                <div class="feature-stats">
+                                    O: ${{seq.ohlc.open_range.toFixed(2)}} | H: ${{seq.ohlc.high_range.toFixed(2)}}
+                                    <br>L: ${{seq.ohlc.low_range.toFixed(2)}} | C: ${{seq.ohlc.close_range.toFixed(2)}}
+                                </div>
+                            </td>
+                            <td>${{seq.volume_range.toLocaleString()}}</td>
+                            <td>
+                                <div class="feature-stats">
+                                    ${{Object.keys(seq.technical_indicators).join(', ')}}
+                                </div>
+                            </td>
+                            <td>
+                                <button class="btn-chart" onclick="showChart(${{index}})">📊 Chart</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }} catch (error) {{
+                    document.getElementById('sequences-table-body').innerHTML = '<tr><td colspan="7" class="error">Error loading sequence data</td></tr>';
+                }}
+            }}
+            
+            function showChart(sequenceIndex) {{
+                alert(`Chart visualization for sequence ${{sequenceIndex + 1}} - Feature coming soon!`);
+            }}
+            
+            // Load all data
+            loadDatasetOverview();
+            loadSequenceData();
+        </script>
+    </body>
+    </html>
+    """
+        
         return app
 
     if __name__ == "__main__":
@@ -2250,6 +2416,7 @@ spec:
             set -e
             echo "🚀 Installing dependencies..."
             pip install --no-cache-dir fastapi==0.104.1 uvicorn[standard]==0.24.0 asyncpg==0.29.0 pydantic==2.5.0
+            pip install --no-cache-dir numpy
             
             echo "📂 Setting up application..."
             cp /config/app.py /app.py
