@@ -88,7 +88,8 @@ class Environment:
                     self.env_type = EnvironmentType.TEST
         else:
             # Try to infer from GIN_CONFIG or default
-            gin_cfg = gin_config_path or os.getenv("GIN_CONFIG", "config/app.gin")
+            config_dir = Path(__file__).parent.parent.parent / "config"
+            gin_cfg = gin_config_path or os.getenv("GIN_CONFIG", str(config_dir / "app.gin"))
             if "intg" in gin_cfg:
                 self.env_type = EnvironmentType.INTEGRATION
             elif "prod" in gin_cfg:
@@ -112,18 +113,23 @@ class Environment:
                 env_type_str = env_type.value
             else:
                 env_type_str = str(env_type)
+            # Get absolute path to config directory
+            config_dir = Path(__file__).parent.parent.parent / "config"
+            
             if env_type_str in ("test", "TEST"):
-                config_path = "config/app.gin"
+                config_path = str(config_dir / "app.gin")
             elif env_type_str in ("dev", "DEV"):
-                config_path = "config/app_docker.gin"
+                config_path = str(config_dir / "app_docker.gin")
             elif env_type_str in ("intg", "integration", "INTEGRATION"):
-                config_path = "config/app_intg.gin"
+                config_path = str(config_dir / "app_intg.gin")
             elif env_type_str in ("prod", "production", "PRODUCTION"):
-                config_path = "config/app_prod.gin"
+                config_path = str(config_dir / "app_prod.gin")
             else:
-                config_path = "config/app.gin"
+                config_path = str(config_dir / "app.gin")
         else:
-            config_path = os.getenv("GIN_CONFIG", "config/app.gin")
+            # Use absolute path for fallback as well
+            config_dir = Path(__file__).parent.parent.parent / "config"
+            config_path = os.getenv("GIN_CONFIG", str(config_dir / "app.gin"))
         import logging
         print(f"[GIN DEBUG] Using Gin config: {config_path}, env_type={getattr(self, 'env_type', None)}")
         self.gin_config_path = config_path

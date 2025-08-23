@@ -1,0 +1,178 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ats-service-alerts
+  namespace: monitoring
+  labels:
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+  - name: ats.services
+    interval: 15s
+    rules:
+    # Service Health Alerts
+    - alert: ATSServiceDown
+      expr: up{job=~"ats-.*-service"} == 0
+      for: 30s
+      labels:
+        severity: critical
+        component: ats-services
+        service: "{{ $labels.job }}"
+      annotations:
+        summary: "ATS Service {{ $labels.job }} is down"
+        description: "ATS service {{ $labels.job }} on instance {{ $labels.instance }} has been down for more than 30 seconds"
+        runbook_url: "https://github.com/your-org/ats-genai/blob/main/docs/runbooks/service-down.md"
+
+    - alert: ATSServiceHighErrorRate
+      expr: rate(http_requests_total{job=~"ats-.*-service", status=~"5.."}[5m]) / rate(http_requests_total{job=~"ats-.*-service"}[5m]) > 0.05
+      for: 2m
+      labels:
+        severity: critical
+        component: ats-services
+        service: "{{ $labels.job }}"
+      annotations:
+        summary: "High error rate on ATS service {{ $labels.job }}"
+        description: "ATS service {{ $labels.job }} has error rate of {{ $value | humanizePercentage }} over the last 5 minutes"
+        current_value: "{{ $value | humanizePercentage }}"
+        threshold: "5%"
+
+    - alert: ATSServiceHighResponseTime
+      expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=~"ats-.*-service"}[5m])) > 1
+      for: 5m
+      labels:
+        severity: warning
+        component: ats-services
+        service: "{{ $labels.job }}"
+      annotations:
+        summary: "High response time on ATS service {{ $labels.job }}"
+        description: "ATS service {{ $labels.job }} 95th percentile response time is {{ $value }}s"
+        current_value: "{{ $value }}s"
+        threshold: "1s"
+
+    - alert: ATSServicePodCrashLooping
+      expr: increase(kube_pod_container_status_restarts_total{namespace="ats-dev", container=~".*-service"}[1h]) > 5
+      for: 5m
+      labels:
+        severity: critical
+        component: ats-services
+        service: "{{ $labels.container }}"
+      annotations:
+        summary: "ATS service {{ $labels.container }} is crash looping"
+        description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has restarted {{ $value }} times in the last hour"
+        current_value: "{{ $value }} restarts"
+        threshold: "5 restarts/hour"
+
+  - name: ats.resources
+    interval: 30s
+    rules:
+    # Resource Usage Alerts
+    - alert: ATSHighCPUUsage
+      expr: rate(container_cpu_usage_seconds_total{namespace="ats-dev", container=~".*-service"}[5m]) * 100 > 80
+      for: 5m
+      labels:
+        severity: warning
+        component: ats-services
+        service: "{{ $labels.container }}"
+      annotations:
+        summary: "High CPU usage on ATS service {{ $labels.container }}"
+        description: "ATS service {{ $labels.container }} is using {{ $value }}% CPU"
+        current_value: "{{ $value }}%"
+        threshold: "80%"
+
+    - alert: ATSHighMemoryUsage
+      expr: container_memory_usage_bytes{namespace="ats-dev", container=~".*-service"} / container_spec_memory_limit_bytes{namespace="ats-dev", container=~".*-service"} * 100 > 85
+      for: 5m
+      labels:
+        severity: warning
+        component: ats-services
+        service: "{{ $labels.container }}"
+      annotations:
+        summary: "High memory usage on ATS service {{ $labels.container }}"
+        description: "ATS service {{ $labels.container }} is using {{ $value }}% of available memory"
+        current_value: "{{ $value }}%"
+        threshold: "85%"
+
+  - name: ats.deployments
+    interval: 30s
+    rules:
+    # Deployment Alerts
+    - alert: ATSDeploymentReplicasMismatch
+      expr: kube_deployment_status_replicas{namespace="ats-dev", deployment=~"ats-.*-service"} != kube_deployment_status_replicas_available{namespace="ats-dev", deployment=~"ats-.*-service"}
+      for: 5m
+      labels:
+        severity: critical
+        component: ats-services
+        deployment: "{{ $labels.deployment }}"
+      annotations:
+        summary: "ATS deployment {{ $labels.deployment }} has mismatched replicas"
+        description: "Deployment {{ $labels.deployment }} has {{ $value }} replicas but not all are available"
+        current_value: "{{ $value }} total replicas"
+
+    - alert: ATSPodNotReady
+      expr: kube_pod_status_ready{namespace="ats-dev", pod=~"ats-.*-service-.*"} == 0
+      for: 2m
+      labels:
+        severity: warning
+        component: ats-services
+        service: "{{ $labels.pod | regexReplaceAll \"ats-(.*)-service-.*\" \"$1\" }}"
+      annotations:
+        summary: "ATS pod {{ $labels.pod }} is not ready"
+        description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has been not ready for more than 2 minutes"
+
+  - name: ats.data_quality
+    interval: 60s
+    rules:
+    # Data Quality Alerts (these will need custom metrics from services)
+    - alert: ATSDataCollectionStopped
+      expr: increase(ats_data_collection_total{service=~"minute-service|eod-service"}[10m]) == 0
+      for: 10m
+      labels:
+        severity: critical
+        component: ats-services
+        service: "{{ $labels.service }}"
+      annotations:
+        summary: "ATS {{ $labels.service }} has stopped collecting data"
+        description: "No data collection activity detected for {{ $labels.service }} in the last 10 minutes"
+
+    - alert: ATSDataQualityLow
+      expr: ats_data_quality_score < 0.9
+      for: 5m
+      labels:
+        severity: warning
+        component: ats-services
+        service: "{{ $labels.service }}"
+        vendor: "{{ $labels.vendor }}"
+      annotations:
+        summary: "Low data quality detected for {{ $labels.vendor }} in {{ $labels.service }}"
+        description: "Data quality score for {{ $labels.vendor }} is {{ $value }}, below threshold of 0.9"
+        current_value: "{{ $value }}"
+        threshold: "0.9"
+
+  - name: ats.database
+    interval: 30s
+    rules:
+    # Database Connectivity Alerts
+    - alert: ATSDatabaseConnectionFailing
+      expr: ats_database_connection_errors_total > 10
+      for: 2m
+      labels:
+        severity: critical
+        component: database
+        service: "{{ $labels.service }}"
+      annotations:
+        summary: "ATS service {{ $labels.service }} cannot connect to database"
+        description: "Service {{ $labels.service }} has {{ $value }} database connection errors"
+        current_value: "{{ $value }} errors"
+
+    - alert: ATSDatabaseSlowQueries
+      expr: ats_database_query_duration_seconds{quantile="0.95"} > 5
+      for: 5m
+      labels:
+        severity: warning
+        component: database
+      annotations:
+        summary: "ATS database queries are slow"
+        description: "95th percentile database query time is {{ $value }}s"
+        current_value: "{{ $value }}s"
+        threshold: "5s"

@@ -22,6 +22,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   PYTHON_VERSION: "3.11"
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
 jobs:
   # Job 1: Code Quality and Testing
@@ -468,3 +469,151 @@ jobs:
         name: security-compliance-report
         path: security-report.md
         retention-days: 365
+
+  # Job 6: Success Notification
+  notify-success:
+    needs: [test-and-validate, build-and-push, update-manifests, security-compliance]
+    runs-on: ubuntu-latest
+    if: success() && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Notify Slack - Deployment Success
+      if: env.SLACK_WEBHOOK_URL != ''
+      run: |
+        curl -X POST -H 'Content-type: application/json' \
+        --data '{
+          "text": "✅ ATS Deployment Successful",
+          "blocks": [
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "*🚀 ATS 3-Service Deployment Completed Successfully*"
+              }
+            },
+            {
+              "type": "section",
+              "fields": [
+                {
+                  "type": "mrkdwn",
+                  "text": "*Repository:*\n${{ github.repository }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Branch:*\n${{ github.ref_name }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Commit:*\n`${{ github.sha }}`"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Triggered by:*\n${{ github.actor }}"
+                }
+              ]
+            },
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "*Services Deployed:*\n• ats-minute-service\n• ats-eod-service\n• ats-analytics-service"
+              }
+            },
+            {
+              "type": "actions",
+              "elements": [
+                {
+                  "type": "button",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "View Workflow"
+                  },
+                  "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                },
+                {
+                  "type": "button",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "View Services"
+                  },
+                  "url": "https://argocd.ats-dev.local"
+                }
+              ]
+            }
+          ]
+        }' \
+        ${{ env.SLACK_WEBHOOK_URL }}
+
+  # Job 7: Failure Notification
+  notify-failure:
+    needs: [test-and-validate, build-and-push, update-manifests, security-compliance]
+    runs-on: ubuntu-latest
+    if: failure()
+    
+    steps:
+    - name: Notify Slack - Deployment Failure
+      if: env.SLACK_WEBHOOK_URL != ''
+      run: |
+        curl -X POST -H 'Content-type: application/json' \
+        --data '{
+          "text": "❌ ATS Deployment Failed",
+          "blocks": [
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "*🚨 ATS Deployment Failed*"
+              }
+            },
+            {
+              "type": "section",
+              "fields": [
+                {
+                  "type": "mrkdwn",
+                  "text": "*Repository:*\n${{ github.repository }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Branch:*\n${{ github.ref_name }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Commit:*\n`${{ github.sha }}`"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Triggered by:*\n${{ github.actor }}"
+                }
+              ]
+            },
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "*Action Required:* Check workflow logs and fix issues before retry"
+              }
+            },
+            {
+              "type": "actions",
+              "elements": [
+                {
+                  "type": "button",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "View Failed Workflow"
+                  },
+                  "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                },
+                {
+                  "type": "button",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "View Logs"
+                  },
+                  "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                }
+              ]
+            }
+          ]
+        }' \
+        ${{ env.SLACK_WEBHOOK_URL }}
