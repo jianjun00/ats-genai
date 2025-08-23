@@ -40,7 +40,7 @@ data:
     
     class Environment:
         def get_database_url(self) -> str:
-            return "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+            return "postgresql://postgres:dev_password@postgres:5432/dev_db"
     
     
     class FileTimeSeriesReader:
