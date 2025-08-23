@@ -14,12 +14,40 @@ import os
 from datetime import datetime, timedelta, date
 from typing import Dict, List, Optional, Set
 from dataclasses import dataclass
+from enum import Enum
 import pytz
 
 from config.environment import Environment
 from calendars.market_calendar_utils import get_trading_days
 
 logger = logging.getLogger(__name__)
+
+class BackfillStatus(Enum):
+    """Enumeration of backfill job statuses"""
+    PENDING = 'pending'
+    RUNNING = 'running'
+    COMPLETED = 'completed'
+    FAILED = 'failed'
+    CANCELLED = 'cancelled'
+
+@dataclass
+class BackfillJob:
+    """Represents a backfill job with progress tracking"""
+    job_id: str
+    vendor: str
+    symbol: str
+    start_date: date
+    end_date: date
+    priority: int
+    status: str
+    progress_percentage: float
+    bars_processed: int
+    bars_total: int
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    error_message: Optional[str] = None
+    retry_count: int = 0
 
 @dataclass
 class BackfillTask:

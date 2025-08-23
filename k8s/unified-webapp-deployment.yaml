@@ -323,7 +323,7 @@ data:
                             <h4>🚀 Kubernetes Deployment Status</h4>
                             <p><strong>Namespace:</strong> ats-dev</p>
                             <p><strong>Service:</strong> unified-webapp-service</p>
-                            <p><strong>External Access:</strong> NodePort 30001</p>
+                            <p><strong>External Access:</strong> NodePort 30011</p>
                             <p><strong>Database:</strong> postgres-simple (K8s service)</p>
                         </div>
                         
@@ -510,4 +510,4 @@ spec:
   - name: http
     port: 3000
     targetPort: 3000
-    nodePort: 30001
+    nodePort: 30011

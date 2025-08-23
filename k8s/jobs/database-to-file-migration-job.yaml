@@ -1,0 +1,89 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: database-to-file-migration
+  namespace: ats-dev
+  labels:
+    app: timeseries-migration
+    phase: database-to-file
+spec:
+  backoffLimit: 3  # Retry up to 3 times on failure
+  template:
+    metadata:
+      labels:
+        app: timeseries-migration
+        phase: database-to-file
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: migration
+        image: python:3.11-slim
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "🚀 Installing dependencies..."
+          pip install --no-cache-dir asyncio asyncpg aiofiles numpy psutil &&
+          echo "📂 Setting up directory structure..." &&
+          mkdir -p /data/monthly/interval &&
+          echo "🔄 Starting database-to-file migration..." &&
+          cd /app &&
+          python -u scripts/migration/database_to_file_migration.py \
+            --batch-size=5000 \
+            --concurrent-operations=10 \
+            --storage-path=/data/monthly/interval \
+            --enable-checkpoints \
+            --log-level=INFO
+        env:
+        - name: DB_HOST
+          value: "postgres-simple"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials-dev
+              key: DB_PASSWORD
+        - name: DB_NAME
+          value: "dev_db"
+        - name: DB_USER
+          value: "postgres"
+        - name: STORAGE_BASE_PATH
+          value: "/data/monthly/interval"
+        - name: PYTHONPATH
+          value: "/app/src"
+        volumeMounts:
+        - name: timeseries-data
+          mountPath: /data
+        - name: app-source
+          mountPath: /app
+          readOnly: true
+        - name: migration-logs
+          mountPath: /app/logs
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "1000m"
+          limits:
+            memory: "8Gi"
+            cpu: "2000m"
+      volumes:
+      - name: timeseries-data
+        persistentVolumeClaim:
+          claimName: timeseries-storage-pvc
+      - name: app-source
+        hostPath:
+          path: /home/jianjun/ats-genai-model
+          type: Directory
+      - name: migration-logs
+        emptyDir: {}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: migration-config
+  namespace: ats-dev
+data:
+  batch_size: "5000"
+  concurrent_operations: "10"
+  enable_checkpoints: "true"
+  log_level: "INFO"
+  storage_path: "/data/monthly/interval"

@@ -5,17 +5,14 @@ High-performance analytics engine for computing portfolio metrics,
 attribution analysis, and performance visualization data.
 """
 
-import asyncio
 import logging
 import numpy as np
 import pandas as pd
-from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Tuple, Any, Union
+from datetime import datetime, date
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
-from decimal import Decimal
 import asyncpg
 import redis.asyncio as redis
-from pathlib import Path
 
 from config.environment import Environment
 
@@ -777,7 +774,7 @@ class PortfolioAnalyticsEngine:
                 accuracy_by_version[int(version)] = float(avg_accuracy) if pd.notna(avg_accuracy) else 0.0
         
         if 'retraining_occurred' in model_data.columns:
-            retrain_mask = model_data['retraining_occurred'] == True
+            retrain_mask = model_data['retraining_occurred']
             retrain_dates = model_data[retrain_mask]['date'].tolist()
         
         # Confidence calibration (simplified)

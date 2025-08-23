@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ats-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    notifications.argoproj.io/subscribe.on-deployed.slack: ats-deployments
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: ats-alerts
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/AkoloTechnologies/ats-genai.git
+    targetRevision: main
+    path: k8s
+    directory:
+      exclude: |
+        **/.venv/**
+        **/flyte-venv/**
+        **/__pycache__/**
+        **/*.pyc
+        **/node_modules/**
+        **/templates/**
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ats-prod
+  syncPolicy:
+    # Manual sync for production - no automated deployment
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 10m
+  
+  # Additional production safeguards
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/replicas
+    # Ignore replica differences for production scaling

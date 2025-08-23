@@ -1,0 +1,249 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ats-analytics-service
+  namespace: ats-dev
+  labels:
+    app: ats-analytics-service
+    component: analytics
+    tier: frontend
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0  # Ensure zero-downtime deployment
+  selector:
+    matchLabels:
+      app: ats-analytics-service
+  template:
+    metadata:
+      labels:
+        app: ats-analytics-service
+        component: analytics
+        tier: frontend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: ats-service-account
+      containers:
+      - name: analytics-service
+        image: ats/analytics-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: "dev"
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: ats-db-secret
+              key: host
+        - name: DB_PORT
+          valueFrom:
+            secretKeyRef:
+              name: ats-db-secret
+              key: port
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: ats-db-secret
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ats-db-secret
+              key: password
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: ats-db-secret
+              key: database
+        - name: REDIS_URL
+          value: "redis://ats-redis-service:6379"
+        - name: MINUTE_SERVICE_URL
+          value: "http://ats-minute-service:8081"
+        - name: EOD_SERVICE_URL
+          value: "http://ats-eod-service:8082"
+        - name: PYTHONPATH
+          value: "/app/src"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+          readOnly: true
+        - name: gin-config
+          mountPath: /app/config/app_dev.gin
+          subPath: app_dev.gin
+          readOnly: true
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 8
+      volumes:
+      - name: config-volume
+        configMap:
+          name: ats-config
+      - name: gin-config
+        configMap:
+          name: ats-gin-config
+          items:
+          - key: app_dev.gin
+            path: app_dev.gin
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ats-analytics-service
+  namespace: ats-dev
+  labels:
+    app: ats-analytics-service
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-internal: "false"
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  - port: 443
+    targetPort: 8080
+    protocol: TCP  
+    name: https
+  selector:
+    app: ats-analytics-service
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ats-analytics-ingress
+  namespace: ats-dev
+  labels:
+    app: ats-analytics-service
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-body-size: "32m"
+    # WebSocket support
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+spec:
+  tls:
+  - hosts:
+    - analytics.ats-dev.your-domain.com
+    secretName: ats-analytics-tls
+  rules:
+  - host: analytics.ats-dev.your-domain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ats-analytics-service
+            port:
+              number: 8080
+
+---
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: ats-analytics-service
+  namespace: ats-dev
+  labels:
+    app: ats-analytics-service
+spec:
+  selector:
+    matchLabels:
+      app: ats-analytics-service
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+
+---
+# HorizontalPodAutoscaler for analytics service
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ats-analytics-service-hpa
+  namespace: ats-dev
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ats-analytics-service
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60

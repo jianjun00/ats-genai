@@ -73,6 +73,7 @@ create_configurable_training_data_config.sequence_length = 10
 create_configurable_training_data_config.prediction_horizon = 3
 create_configurable_training_data_config.feature_registry = @create_feature_registry()
 create_configurable_training_data_config.label_registry = @create_label_registry()
+create_configurable_training_data_config.output_format = 'numpy'
 """
         
         with tempfile.NamedTemporaryFile(mode='w', suffix='.gin', delete=False) as f:
@@ -543,110 +544,152 @@ class TestConfigurationIntegration:
     
     def test_end_to_end_configuration_pipeline(self):
         """Test complete end-to-end pipeline with gin configuration."""
-        # Use the simple working configuration
-        gin.parse_config_file('config/configurable_training_simple.gin')
+        # Set working directory to project root so gin can find config files
+        try:
+            original_cwd = os.getcwd()
+        except FileNotFoundError:
+            # If current directory doesn't exist, use the test file directory
+            original_cwd = os.path.dirname(os.path.abspath(__file__))
         
-        # Create test data
-        dates = pd.date_range('2023-01-01', periods=30, freq='D')
-        data = pd.DataFrame({
-            'symbol': ['AAPL'] * 30,
-            'open': np.random.uniform(100, 110, 30),
-            'high': np.random.uniform(110, 120, 30),
-            'low': np.random.uniform(90, 100, 30),
-            'close': np.random.uniform(95, 115, 30),
-            'volume': np.random.uniform(1000000, 5000000, 30)
-        }, index=dates)
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        os.chdir(project_root)
         
-        # Create configuration from gin
-        config = create_configurable_training_data_config()
-        
-        # Create generator and run pipeline
-        generator = ConfigurableTrainingDataGenerator(config)
-        result = generator.generate_training_data(data, symbols=['AAPL'])
-        
-        # Verify end-to-end success
-        assert result['features'].shape[0] > 0
-        assert result['labels'].shape[0] > 0
-        assert len(result['feature_names']) > 0
-        assert len(result['label_names']) > 0
+        try:
+            # Use the simple working configuration
+            gin.parse_config_file('config/configurable_training_simple.gin')
+            
+            # Create test data
+            dates = pd.date_range('2023-01-01', periods=30, freq='D')
+            data = pd.DataFrame({
+                'symbol': ['AAPL'] * 30,
+                'open': np.random.uniform(100, 110, 30),
+                'high': np.random.uniform(110, 120, 30),
+                'low': np.random.uniform(90, 100, 30),
+                'close': np.random.uniform(95, 115, 30),
+                'volume': np.random.uniform(1000000, 5000000, 30)
+            }, index=dates)
+            
+            # Create configuration from gin
+            config = create_configurable_training_data_config()
+            
+            # Create generator and run pipeline
+            generator = ConfigurableTrainingDataGenerator(config)
+            result = generator.generate_training_data(data, symbols=['AAPL'])
+            
+            # Verify end-to-end success
+            assert result['features'].shape[0] > 0
+            assert result['labels'].shape[0] > 0
+            assert len(result['feature_names']) > 0
+            assert len(result['label_names']) > 0
+        finally:
+            # Restore original working directory
+            os.chdir(original_cwd)
     
     def test_configuration_validation_with_real_data(self):
         """Test configuration validation using realistic market data."""
-        # Create realistic market data scenario
-        np.random.seed(42)
-        dates = pd.date_range('2023-01-01', periods=100, freq='D')
+        # Set working directory to project root so gin can find config files
+        try:
+            original_cwd = os.getcwd()
+        except FileNotFoundError:
+            # If current directory doesn't exist, use the test file directory
+            original_cwd = os.path.dirname(os.path.abspath(__file__))
         
-        # Create data with realistic patterns
-        returns = np.random.normal(0.001, 0.02, 100)
-        prices = [100]
-        for ret in returns:
-            prices.append(prices[-1] * (1 + ret))
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        os.chdir(project_root)
         
-        data = pd.DataFrame({
-            'symbol': ['AAPL'] * 100,
-            'open': [p * np.random.uniform(0.995, 1.005) for p in prices[1:]],
-            'high': [p * np.random.uniform(1.005, 1.025) for p in prices[1:]],
-            'low': [p * np.random.uniform(0.975, 0.995) for p in prices[1:]],
-            'close': prices[1:],
-            'volume': np.random.lognormal(14, 0.5, 100)
-        }, index=dates)
-        
-        # Test each provided configuration
-        config_files = [
-            'config/configurable_training_simple.gin',
-            'config/configurable_training_basic.gin',
-            # Skip advanced config as it may have indicator issues
-        ]
-        
-        for config_file in config_files:
-            gin.clear_config()
+        try:
+            # Create realistic market data scenario
+            np.random.seed(42)
+            dates = pd.date_range('2023-01-01', periods=100, freq='D')
             
-            try:
-                gin.parse_config_file(config_file)
-                config = create_configurable_training_data_config()
-                generator = ConfigurableTrainingDataGenerator(config)
+            # Create data with realistic patterns
+            returns = np.random.normal(0.001, 0.02, 100)
+            prices = [100]
+            for ret in returns:
+                prices.append(prices[-1] * (1 + ret))
+            
+            data = pd.DataFrame({
+                'symbol': ['AAPL'] * 100,
+                'open': [p * np.random.uniform(0.995, 1.005) for p in prices[1:]],
+                'high': [p * np.random.uniform(1.005, 1.025) for p in prices[1:]],
+                'low': [p * np.random.uniform(0.975, 0.995) for p in prices[1:]],
+                'close': prices[1:],
+                'volume': np.random.lognormal(14, 0.5, 100)
+            }, index=dates)
+            
+            # Test each provided configuration
+            config_files = [
+                'config/configurable_training_simple.gin',
+                'config/configurable_training_basic.gin',
+                # Skip advanced config as it may have indicator issues
+            ]
+            
+            for config_file in config_files:
+                gin.clear_config()
                 
-                result = generator.generate_training_data(data, symbols=['AAPL'])
-                
-                # Each configuration should produce valid results
-                assert result['features'].shape[0] > 0, f"Failed for {config_file}"
-                assert result['labels'].shape[0] > 0, f"Failed for {config_file}"
-                
-                print(f"✓ {config_file}: {result['features'].shape[0]} sequences generated")
-                
-            except Exception as e:
-                pytest.fail(f"Configuration {config_file} failed: {e}")
+                try:
+                    gin.parse_config_file(config_file)
+                    config = create_configurable_training_data_config()
+                    generator = ConfigurableTrainingDataGenerator(config)
+                    
+                    result = generator.generate_training_data(data, symbols=['AAPL'])
+                    
+                    # Each configuration should produce valid results
+                    assert result['features'].shape[0] > 0, f"Failed for {config_file}"
+                    assert result['labels'].shape[0] > 0, f"Failed for {config_file}"
+                    
+                    print(f"✓ {config_file}: {result['features'].shape[0]} sequences generated")
+                    
+                except Exception as e:
+                    pytest.fail(f"Configuration {config_file} failed: {e}")
+        finally:
+            # Restore original working directory
+            os.chdir(original_cwd)
     
     def test_configuration_consistency_across_runs(self):
         """Test that gin configuration produces consistent results."""
-        gin.parse_config_file('config/configurable_training_simple.gin')
+        # Set working directory to project root so gin can find config files
+        try:
+            original_cwd = os.getcwd()
+        except FileNotFoundError:
+            # If current directory doesn't exist, use the test file directory
+            original_cwd = os.path.dirname(os.path.abspath(__file__))
         
-        # Create deterministic test data
-        np.random.seed(42)
-        dates = pd.date_range('2023-01-01', periods=50, freq='D')
-        data = pd.DataFrame({
-            'symbol': ['AAPL'] * 50,
-            'open': np.random.uniform(100, 110, 50),
-            'high': np.random.uniform(110, 120, 50),
-            'low': np.random.uniform(90, 100, 50),
-            'close': np.random.uniform(95, 115, 50),
-            'volume': np.random.uniform(1000000, 5000000, 50)
-        }, index=dates)
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        os.chdir(project_root)
         
-        # Run pipeline multiple times
-        results = []
-        for i in range(3):
-            config = create_configurable_training_data_config()
-            generator = ConfigurableTrainingDataGenerator(config)
-            result = generator.generate_training_data(data, symbols=['AAPL'])
-            results.append(result)
+        try:
+            gin.parse_config_file('config/configurable_training_simple.gin')
         
-        # Results should be consistent (same shapes, same feature/label names)
-        for i in range(1, len(results)):
-            assert results[i]['features'].shape == results[0]['features'].shape
-            assert results[i]['labels'].shape == results[0]['labels'].shape
-            assert results[i]['feature_names'] == results[0]['feature_names']
-            assert results[i]['label_names'] == results[0]['label_names']
+            # Create deterministic test data
+            np.random.seed(42)
+            dates = pd.date_range('2023-01-01', periods=50, freq='D')
+            data = pd.DataFrame({
+                'symbol': ['AAPL'] * 50,
+                'open': np.random.uniform(100, 110, 50),
+                'high': np.random.uniform(110, 120, 50),
+                'low': np.random.uniform(90, 100, 50),
+                'close': np.random.uniform(95, 115, 50),
+                'volume': np.random.uniform(1000000, 5000000, 50)
+            }, index=dates)
+            
+            # Run pipeline multiple times
+            results = []
+            for i in range(3):
+                config = create_configurable_training_data_config()
+                generator = ConfigurableTrainingDataGenerator(config)
+                result = generator.generate_training_data(data, symbols=['AAPL'])
+                results.append(result)
+            
+            # Results should be consistent (same shapes, same feature/label names)
+            for i in range(1, len(results)):
+                assert results[i]['features'].shape == results[0]['features'].shape
+                assert results[i]['labels'].shape == results[0]['labels'].shape
+                assert results[i]['feature_names'] == results[0]['feature_names']
+                assert results[i]['label_names'] == results[0]['label_names']
+        finally:
+            # Restore original working directory
+            os.chdir(original_cwd)
 
 def run_comprehensive_tests():
     """Run all comprehensive configuration tests."""

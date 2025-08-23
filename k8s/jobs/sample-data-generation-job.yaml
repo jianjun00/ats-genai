@@ -1,0 +1,59 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sample-data-generation
+  namespace: ats-dev
+  labels:
+    app: sample-data
+    phase: preparation
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: sample-data
+        phase: preparation
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: data-generator
+        image: python:3.11-slim
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "🚀 Installing dependencies..."
+          pip install --no-cache-dir asyncpg &&
+          echo "📊 Starting sample data generation..." &&
+          cd /app &&
+          python scripts/data_generation/create_sample_minute_data.py
+        env:
+        - name: DB_HOST
+          value: "postgres-simple"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials-dev
+              key: password
+        - name: DB_NAME
+          value: "dev_db"
+        - name: DB_USER
+          value: "postgres"
+        - name: PYTHONPATH
+          value: "/app/src"
+        volumeMounts:
+        - name: app-source
+          mountPath: /app
+          readOnly: true
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      volumes:
+      - name: app-source
+        hostPath:
+          path: /home/jianjun/ats-genai-model
+          type: Directory

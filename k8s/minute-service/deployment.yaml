@@ -1,0 +1,162 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ats-minute-service
+  namespace: ats-dev
+  labels:
+    app: ats-minute-service
+    component: data-collection
+    tier: backend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0  # Ensure zero-downtime deployment
+  selector:
+    matchLabels:
+      app: ats-minute-service
+  template:
+    metadata:
+      labels:
+        app: ats-minute-service
+        component: data-collection
+        tier: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: ats-service-account
+      containers:
+      - name: minute-service
+        image: ats/minute-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8081
+          name: http
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: "dev"
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: ats-db-secret
+              key: host
+        - name: DB_PORT
+          valueFrom:
+            secretKeyRef:
+              name: ats-db-secret
+              key: port
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: ats-db-secret
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ats-db-secret
+              key: password
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: ats-db-secret
+              key: database
+        - name: POLYGON_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ats-api-keys
+              key: polygon-api-key
+        - name: TIINGO_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ats-api-keys
+              key: tiingo-api-key
+        - name: FMP_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ats-api-keys
+              key: fmp-api-key
+        - name: PYTHONPATH
+          value: "/app/src"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+          readOnly: true
+        - name: gin-config
+          mountPath: /app/config/app_dev.gin
+          subPath: app_dev.gin
+          readOnly: true
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8081
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 6
+      volumes:
+      - name: config-volume
+        configMap:
+          name: ats-config
+      - name: gin-config
+        configMap:
+          name: ats-gin-config
+          items:
+          - key: app_dev.gin
+            path: app_dev.gin
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "2"
+        - name: edns0
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ats-minute-service
+  namespace: ats-dev
+  labels:
+    app: ats-minute-service
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8081
+    targetPort: 8081
+    protocol: TCP
+    name: http
+  selector:
+    app: ats-minute-service
+

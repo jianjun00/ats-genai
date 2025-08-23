@@ -103,7 +103,7 @@ jobs:
         eval $PYTEST_CMD
     
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: manual-test-results-${{ github.event.inputs.test_category }}

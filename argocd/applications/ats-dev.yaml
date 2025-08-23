@@ -1,0 +1,63 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ats-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # Notifications for deployment status
+    notifications.argoproj.io/subscribe.on-deployed.slack: ats-deployments
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: ats-alerts
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: ats-alerts
+spec:
+  project: default
+  
+  # Source repository
+  source:
+    repoURL: https://github.com/AkoloTechnologies/ats-genai.git
+    targetRevision: main
+    path: k8s
+    directory:
+      exclude: |
+        **/.venv/**
+        **/flyte-venv/**
+        **/__pycache__/**
+        **/*.pyc
+        **/node_modules/**
+        **/templates/**
+    
+  # Destination cluster and namespace  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ats-dev
+    
+  # Sync policy
+  syncPolicy:
+    automated:
+      prune: true        # Remove resources not in Git
+      selfHeal: true     # Revert manual changes
+      allowEmpty: false  # Don't sync empty directories
+    
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+      
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+        
+  # Health checks
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/replicas
+    # Ignore replica differences for HPA
+    
+  # Revision history
+  revisionHistoryLimit: 5

@@ -1,9 +1,9 @@
 # Product Requirements Document (PRD)
 ## ATS Analytics Platform
 
-**Document Version:** 3.0  
+**Document Version:** 5.0  
 **Created:** August 2025  
-**Last Updated:** August 22, 2025  
+**Last Updated:** August 23, 2025  
 **Product Manager:** AI Trading System Team  
 
 ---
@@ -20,7 +20,23 @@ Build a **unified analytics platform** that consolidates all ML workflow managem
 - **Reduced Complexity**: Eliminated need to switch between multiple applications
 - **Enhanced Usability**: All features accessible from one unified dashboard
 
-### 1.3 Problem Statement
+### 1.3 Comprehensive Coverage Analytics (v4.0 Update)
+**Critical Enhancement**: Resolved data coverage visibility issues and added historical analysis:
+- **Coverage Issue Resolution**: Fixed "4 symbols vs 10K" discrepancy through comprehensive analytics
+- **30-Year Historical Analysis**: Interactive timeline showing coverage evolution from ~50 symbols (2020-2022) to 10,000 symbols (2024-2025)
+- **Gap Analysis Tools**: Real-time identification of missing data across symbols and dates
+- **Root Cause Explanation**: Clear explanation of why legacy filters show limited symbols despite excellent modern coverage
+
+### 1.4 Ultimate Analytics Platform Consolidation (v5.0 Update)
+**Major Consolidation Achievement**: Successfully unified all analytics capabilities into a single, comprehensive platform:
+- **Complete Consolidation**: Eliminated 17+ separate webapp deployments and consolidated into 1 ultimate platform
+- **Real OHLC Charts**: Replaced placeholder alerts with fully functional interactive OHLC candlestick charts
+- **Technical Indicators**: Integrated SMA, EMA, RSI calculations with real-time chart overlays
+- **File-Based Integration**: Connected 100TB time-series storage system with chart visualization
+- **Database Schema Alignment**: Resolved all schema mismatches for seamless data access
+- **Single Access Point**: All analytics features accessible through port 30001 (NodePort)
+
+### 1.5 Problem Statement
 Currently, our ML workflow management and analysis capabilities are fragmented:
 - **Job Execution**: No centralized dashboard for Flyte job runs, logs, and metadata
 - **Training Data Management**: Generated datasets are not tracked or easily discoverable
@@ -28,7 +44,7 @@ Currently, our ML workflow management and analysis capabilities are fragmented:
 - **Backtest Analysis**: Limited visualization and comparison of model performance
 - **Workflow Visibility**: Difficulty tracking end-to-end ML pipeline from data generation to backtesting
 
-### 1.4 Success Metrics
+### 1.6 Success Metrics
 - **Job Management**: 100% of ML jobs tracked with metadata and accessible logs
 - **Training Data Discovery**: <30 seconds to find and visualize any generated dataset
 - **Dataset Comparison**: Enable side-by-side distribution analysis between any two datasets
@@ -93,6 +109,40 @@ Currently, our ML workflow management and analysis capabilities are fragmented:
 - **As an** ML Engineer
 - **I want to** access all analytics features (jobs, datasets, visualizations) from a single URL
 - **So that** I don't need to switch between multiple applications or remember different ports
+
+### 2.4 Coverage Analytics User Stories (v4.0)
+
+#### US9: Data Coverage Visibility
+- **As a** Data Engineer
+- **I want to** understand why the coverage dashboard shows only 4 active symbols when we have 10,000 instruments
+- **So that** I can properly assess our actual data coverage and quality
+
+#### US10: Historical Coverage Analysis
+- **As a** Quantitative Researcher
+- **I want to** see a 30-year timeline of data coverage evolution
+- **So that** I can understand how our data collection capabilities have grown over time
+
+#### US11: Gap Identification and Analysis
+- **As a** Data Engineer
+- **I want to** identify specific dates and symbols with missing data through interactive tools
+- **So that** I can prioritize data collection efforts and fix coverage gaps
+
+### 2.5 Ultimate Platform User Stories (v5.0)
+
+#### US12: Real OHLC Chart Visualization
+- **As a** Quantitative Researcher
+- **I want to** view actual interactive OHLC candlestick charts with technical indicators instead of placeholder alerts
+- **So that** I can analyze price movements, trends, and technical signals in real-time
+
+#### US13: Consolidated Analytics Access
+- **As an** ML Engineer
+- **I want to** access all analytics features (jobs, datasets, charts, technical indicators) through a single consolidated platform
+- **So that** I don't need to navigate between multiple duplicate applications or remember different endpoints
+
+#### US14: File-Based Chart Integration
+- **As a** Data Scientist
+- **I want to** generate OHLC charts directly from the 100TB file-based time-series storage system
+- **So that** I can visualize massive-scale datasets with optimal performance
 
 ---
 
@@ -233,6 +283,50 @@ Currently, our ML workflow management and analysis capabilities are fragmented:
 - **Modern Web Components**: Chart.js integration for professional data visualizations
 - **Responsive Layout**: Grid-based layout that adapts to different screen sizes
 - **Enhanced Badges**: Visual indicators for Enhanced Analysis, Filterable Tables, and OHLC Charts
+
+### 3.7 Comprehensive Coverage Analytics (v4.0)
+
+#### F19: Coverage Issue Resolution
+- **Root Cause Analysis**: Comprehensive explanation of why legacy coverage filters show 4 symbols vs 10K reality
+- **Historical Context**: Clear documentation of system evolution from ~50 symbols (2020-2022) to 10,000 symbols (2024-2025)
+- **Filter Explanation**: Interactive demonstration showing difference between historical continuity filters and modern coverage
+- **Data Quality Metrics**: Real-time assessment of coverage quality for both legacy and modern periods
+
+#### F20: 30-Year Historical Coverage Timeline
+- **Interactive Timeline Chart**: Plotly.js-powered visualization showing coverage evolution from 1995-2025
+- **Dual-Axis Display**: Symbol counts and record counts on separate scales for clarity
+- **Key Milestone Annotations**: Highlighting major system changes and scale-ups
+- **Drill-Down Capabilities**: Click any year to see detailed breakdown of symbols and data quality
+
+#### F21: Advanced Gap Analysis Tools
+- **Multi-Dimensional Gap Analysis**: By symbol, date range, data type, and vendor source
+- **Gap Severity Classification**: Categorize gaps as Low, Medium, or High based on impact
+- **Interactive Heatmaps**: Visual representation of coverage density across symbols and time periods
+- **Missing Data Identification**: Specific tools for users to identify which dates/symbols need attention
+- **Actionable Recommendations**: Data-driven suggestions for improving coverage based on gap analysis
+
+### 3.8 Ultimate Analytics Platform Features (v5.0)
+
+#### F22: Real OHLC Chart Engine
+- **Interactive Candlestick Charts**: Full-featured OHLC visualization using Plotly.js with zoom, pan, and export
+- **Technical Indicator Overlays**: Real-time calculation and display of SMA (20, 50), EMA (12), and RSI (14-period)
+- **Training Period Highlighting**: Visual highlighting of training data periods on charts with annotations
+- **Market Hours Formatting**: Proper timestamp handling with 9:30 AM market open times
+- **Multi-Axis Support**: Price data on primary axis, volume on secondary axis, RSI on tertiary axis
+
+#### F23: File-Based Data Integration
+- **100TB Storage Access**: Direct reading from compressed monthly time-series files (.record.gz format)
+- **Efficient File Processing**: Binary data parsing with 32-byte records and 48-byte metadata headers
+- **Date Range Optimization**: Smart file selection based on requested date ranges and instrument sharding
+- **Fallback Data Generation**: Realistic sample OHLC data when file data is unavailable
+- **Performance Optimization**: Asynchronous file reading with proper error handling
+
+#### F24: Consolidated Platform Architecture
+- **Single Deployment**: All functionality delivered through one Kubernetes deployment
+- **Unified API Namespace**: All endpoints under `/api/` with consistent versioning
+- **Resource Optimization**: 2-4Gi memory allocation with 500m-2000m CPU for optimal performance
+- **Database Schema Compatibility**: Proper handling of `symbols` (array), `date_range_start/end` columns
+- **Port Standardization**: External access via NodePort 30001 for consistent user experience
 
 ---
 

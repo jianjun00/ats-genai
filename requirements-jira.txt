@@ -1,0 +1,5 @@
+# JIRA Integration Dependencies
+# Install with: pip install -r requirements-jira.txt
+
+jira==3.8.0
+python-dotenv==1.0.1

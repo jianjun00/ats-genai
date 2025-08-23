@@ -1,0 +1,605 @@
+#!/usr/bin/env python3
+"""
+Enhanced FMP Backfill with Exponential Backoff and Comprehensive Retry Logic
+
+This script addresses the critical FMP data gap (currently only 0.23% coverage) with:
+- Exponential backoff for HTTP 403, 429, 500+ errors
+- Comprehensive retry logic with configurable attempts
+- Circuit breaker pattern for persistent failures
+- Smart rate limiting and jitter
+- Progress tracking and checkpoint recovery
+- Focused FMP data collection for 10k instruments over 20 years
+"""
+
+import asyncio
+import asyncpg
+import aiohttp
+import logging
+import os
+import json
+import argparse
+import random
+from datetime import date, datetime, timedelta
+from typing import List, Dict, Optional, Tuple, Any
+from dataclasses import dataclass, asdict
+import sys
+from pathlib import Path
+
+# Add src to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+
+from config.environment import Environment
+
+@dataclass
+class RetryConfig:
+    """Configuration for retry logic with exponential backoff"""
+    max_retries: int = 5
+    base_delay: float = 1.0          # Base delay in seconds
+    max_delay: float = 300.0         # Maximum delay (5 minutes)
+    exponential_base: float = 2.0    # Exponential backoff multiplier
+    jitter: bool = True              # Add random jitter to prevent thundering herd
+    backoff_statuses: List[int] = None  # HTTP status codes that trigger backoff
+    
+    def __post_init__(self):
+        if self.backoff_statuses is None:
+            self.backoff_statuses = [403, 429, 500, 502, 503, 504]
+
+@dataclass
+class CircuitBreakerConfig:
+    """Circuit breaker configuration to handle persistent failures"""
+    failure_threshold: int = 10       # Number of failures before opening circuit
+    success_threshold: int = 3        # Successes needed to close circuit
+    timeout_seconds: int = 300        # Time to wait before attempting to close circuit
+
+@dataclass
+class FMPBackfillConfig:
+    """Enhanced configuration for FMP backfill"""
+    start_date: date = date(2005, 1, 1)  # 20 years of data
+    end_date: date = date(2025, 8, 23)
+    batch_size: int = 10              # Process 10 symbols at once
+    max_concurrent_requests: int = 5   # Conservative concurrency
+    save_progress_interval: int = 100  # Save progress every 100 symbols
+    checkpoint_file: str = "/tmp/fmp_backfill_checkpoint.json"
+    
+    # Rate limiting
+    calls_per_minute: int = 250       # FMP allows 250/min
+    calls_per_day: int = 10000        # FMP allows 10k/day
+    base_delay: float = 0.25          # 250 calls/min = 0.24s between calls
+    
+    # Retry configuration
+    retry_config: RetryConfig = None
+    circuit_breaker_config: CircuitBreakerConfig = None
+    
+    def __post_init__(self):
+        if self.retry_config is None:
+            self.retry_config = RetryConfig()
+        if self.circuit_breaker_config is None:
+            self.circuit_breaker_config = CircuitBreakerConfig()
+
+@dataclass
+class BackfillProgress:
+    """Enhanced progress tracking"""
+    total_symbols: int = 0
+    completed_symbols: int = 0
+    failed_symbols: List[str] = None
+    skipped_symbols: List[str] = None  # Symbols skipped due to circuit breaker
+    total_records_inserted: int = 0
+    start_time: Optional[datetime] = None
+    last_checkpoint: Optional[datetime] = None
+    retry_stats: Dict[str, int] = None
+    circuit_breaker_trips: int = 0
+    
+    def __post_init__(self):
+        if self.failed_symbols is None:
+            self.failed_symbols = []
+        if self.skipped_symbols is None:
+            self.skipped_symbols = []
+        if self.retry_stats is None:
+            self.retry_stats = {
+                'total_retries': 0,
+                'http_403_retries': 0,
+                'http_429_retries': 0,
+                'http_5xx_retries': 0,
+                'successful_retries': 0
+            }
+
+class CircuitBreaker:
+    """Circuit breaker pattern implementation"""
+    
+    def __init__(self, config: CircuitBreakerConfig):
+        self.config = config
+        self.failure_count = 0
+        self.success_count = 0
+        self.state = 'CLOSED'  # CLOSED, OPEN, HALF_OPEN
+        self.last_failure_time = None
+        
+    def can_execute(self) -> bool:
+        """Check if requests can be executed"""
+        if self.state == 'CLOSED':
+            return True
+        elif self.state == 'OPEN':
+            if (datetime.now() - self.last_failure_time).seconds >= self.config.timeout_seconds:
+                self.state = 'HALF_OPEN'
+                self.success_count = 0
+                return True
+            return False
+        elif self.state == 'HALF_OPEN':
+            return True
+        return False
+    
+    def record_success(self):
+        """Record successful request"""
+        if self.state == 'HALF_OPEN':
+            self.success_count += 1
+            if self.success_count >= self.config.success_threshold:
+                self.state = 'CLOSED'
+                self.failure_count = 0
+        elif self.state == 'CLOSED':
+            self.failure_count = max(0, self.failure_count - 1)
+    
+    def record_failure(self):
+        """Record failed request"""
+        self.failure_count += 1
+        self.last_failure_time = datetime.now()
+        
+        if self.state == 'HALF_OPEN':
+            self.state = 'OPEN'
+        elif self.state == 'CLOSED' and self.failure_count >= self.config.failure_threshold:
+            self.state = 'OPEN'
+
+class EnhancedFMPBackfiller:
+    """Enhanced FMP backfill with exponential backoff and circuit breaker"""
+    
+    def __init__(self, env: Environment, config: FMPBackfillConfig):
+        self.env = env
+        self.config = config
+        self.db_url = env.get_database_url()
+        self.logger = logging.getLogger(__name__)
+        
+        # FMP API configuration
+        self.api_key = os.getenv('FMP_API_KEY')
+        if not self.api_key:
+            raise ValueError("FMP_API_KEY environment variable not set")
+        
+        self.base_url = 'https://financialmodelingprep.com'
+        self.table_name = env.get_table_name('daily_prices_fmp')
+        
+        # Initialize circuit breaker and progress tracking
+        self.circuit_breaker = CircuitBreaker(config.circuit_breaker_config)
+        self.progress = BackfillProgress()
+        
+        # Daily API call counter
+        self.daily_calls_made = 0
+        self.last_call_reset = datetime.now().date()
+    
+    async def exponential_backoff_delay(self, attempt: int, status_code: int) -> float:
+        """Calculate delay with exponential backoff and jitter"""
+        retry_config = self.config.retry_config
+        
+        # Base exponential backoff
+        delay = retry_config.base_delay * (retry_config.exponential_base ** attempt)
+        
+        # Cap at maximum delay
+        delay = min(delay, retry_config.max_delay)
+        
+        # Add jitter to prevent thundering herd
+        if retry_config.jitter:
+            jitter_range = delay * 0.1  # 10% jitter
+            delay += random.uniform(-jitter_range, jitter_range)
+        
+        # Special handling for specific status codes
+        if status_code == 429:  # Rate limited
+            delay = max(delay, 60.0)  # Minimum 1 minute for rate limits
+        elif status_code == 403:  # Forbidden - might be quota exceeded
+            delay = max(delay, 30.0)  # Minimum 30 seconds for forbidden
+        elif status_code >= 500:  # Server errors
+            delay = max(delay, 5.0)   # Minimum 5 seconds for server errors
+        
+        return max(0.1, delay)  # Ensure minimum delay
+    
+    async def fetch_with_retry(self, session: aiohttp.ClientSession, symbol: str, 
+                             start_date: date, end_date: date) -> Optional[List[Dict]]:
+        """Fetch data with comprehensive retry logic and exponential backoff"""
+        
+        if not self.circuit_breaker.can_execute():
+            self.logger.warning(f"Circuit breaker OPEN for FMP - skipping {symbol}")
+            self.progress.skipped_symbols.append(symbol)
+            return None
+        
+        # Check daily API limits
+        if self.last_call_reset < datetime.now().date():
+            self.daily_calls_made = 0
+            self.last_call_reset = datetime.now().date()
+        
+        if self.daily_calls_made >= self.config.calls_per_day:
+            self.logger.error(f"Daily API limit reached ({self.config.calls_per_day}), stopping")
+            return None
+        
+        # Build URL
+        url = f"{self.base_url}/api/v3/historical-price-full/{symbol}"
+        params = {
+            'from': start_date.strftime('%Y-%m-%d'),
+            'to': end_date.strftime('%Y-%m-%d'),
+            'apikey': self.api_key
+        }
+        
+        retry_config = self.config.retry_config
+        last_exception = None
+        
+        for attempt in range(retry_config.max_retries + 1):
+            try:
+                # Rate limiting delay
+                await asyncio.sleep(self.config.base_delay)
+                
+                # Make request
+                async with session.get(url, params=params) as response:
+                    self.daily_calls_made += 1
+                    
+                    # Success case
+                    if response.status == 200:
+                        data = await response.json()
+                        self.circuit_breaker.record_success()
+                        
+                        if attempt > 0:
+                            self.progress.retry_stats['successful_retries'] += 1
+                            self.logger.info(f"✅ Retry successful for {symbol} after {attempt} attempts")
+                        
+                        return self.parse_fmp_response(data)
+                    
+                    # Handle different error types
+                    elif response.status in retry_config.backoff_statuses:
+                        if attempt < retry_config.max_retries:
+                            delay = await self.exponential_backoff_delay(attempt, response.status)
+                            
+                            # Update retry statistics
+                            self.progress.retry_stats['total_retries'] += 1
+                            if response.status == 403:
+                                self.progress.retry_stats['http_403_retries'] += 1
+                            elif response.status == 429:
+                                self.progress.retry_stats['http_429_retries'] += 1
+                            elif response.status >= 500:
+                                self.progress.retry_stats['http_5xx_retries'] += 1
+                            
+                            self.logger.warning(
+                                f"🔄 HTTP {response.status} for {symbol} - retry {attempt + 1}/{retry_config.max_retries} "
+                                f"in {delay:.1f}s"
+                            )
+                            
+                            await asyncio.sleep(delay)
+                            continue
+                        else:
+                            self.logger.error(f"❌ Max retries exceeded for {symbol} - HTTP {response.status}")
+                            self.circuit_breaker.record_failure()
+                            return None
+                    
+                    # Non-retryable errors
+                    else:
+                        error_text = await response.text()
+                        self.logger.error(f"❌ Non-retryable error for {symbol} - HTTP {response.status}: {error_text[:200]}")
+                        return None
+            
+            except asyncio.TimeoutError:
+                if attempt < retry_config.max_retries:
+                    delay = await self.exponential_backoff_delay(attempt, 408)  # Timeout
+                    self.logger.warning(f"⏱️  Timeout for {symbol} - retry {attempt + 1} in {delay:.1f}s")
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    self.logger.error(f"❌ Max retries exceeded for {symbol} - timeout")
+                    self.circuit_breaker.record_failure()
+                    return None
+            
+            except Exception as e:
+                last_exception = e
+                if attempt < retry_config.max_retries:
+                    delay = await self.exponential_backoff_delay(attempt, 500)
+                    self.logger.warning(f"🔄 Exception for {symbol}: {e} - retry {attempt + 1} in {delay:.1f}s")
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    self.logger.error(f"❌ Max retries exceeded for {symbol} - {e}")
+                    self.circuit_breaker.record_failure()
+                    break
+        
+        if self.circuit_breaker.state == 'OPEN':
+            self.progress.circuit_breaker_trips += 1
+            
+        return None
+    
+    def parse_fmp_response(self, data: Dict) -> List[Dict]:
+        """Parse FMP API response"""
+        parsed_data = []
+        
+        try:
+            if 'historical' in data and data['historical']:
+                for item in data['historical']:
+                    parsed_data.append({
+                        'date': datetime.strptime(item['date'], '%Y-%m-%d').date(),
+                        'open_price': item.get('open'),
+                        'high_price': item.get('high'),
+                        'low_price': item.get('low'),
+                        'close': item.get('close'),
+                        'adj_close': item.get('adjClose'),
+                        'volume': item.get('volume')
+                    })
+        except Exception as e:
+            self.logger.error(f"Error parsing FMP response: {e}")
+        
+        return parsed_data
+    
+    async def save_fmp_data(self, symbol: str, data: List[Dict]) -> int:
+        """Save FMP data to database"""
+        if not data:
+            return 0
+        
+        pool = await asyncpg.create_pool(self.db_url, min_size=2, max_size=5)
+        
+        try:
+            async with pool.acquire() as conn:
+                # Get instrument ID
+                instrument_id = await conn.fetchval(
+                    "SELECT id FROM dev_instruments WHERE symbol = $1", symbol
+                )
+                
+                if not instrument_id:
+                    self.logger.warning(f"Instrument not found for {symbol}")
+                    return 0
+                
+                # Prepare insert data
+                insert_data = []
+                for record in data:
+                    insert_data.append((
+                        instrument_id,
+                        record['date'],
+                        record.get('open_price'),
+                        record.get('high_price'),
+                        record.get('low_price'),
+                        record.get('close'),
+                        record.get('adj_close', record.get('close')),
+                        record.get('volume')
+                    ))
+                
+                sql = f"""
+                    INSERT INTO {self.table_name}
+                    (instrument_id, date, open_price, high_price, low_price, close, adj_close, volume)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    ON CONFLICT (instrument_id, date) DO UPDATE SET
+                        open_price = EXCLUDED.open_price,
+                        high_price = EXCLUDED.high_price,
+                        low_price = EXCLUDED.low_price,
+                        close = EXCLUDED.close,
+                        adj_close = EXCLUDED.adj_close,
+                        volume = EXCLUDED.volume,
+                        updated_at = NOW()
+                """
+                
+                await conn.executemany(sql, insert_data)
+                return len(insert_data)
+        
+        except Exception as e:
+            self.logger.error(f"Database error saving {symbol}: {e}")
+            return 0
+        
+        finally:
+            await pool.close()
+    
+    async def get_target_symbols(self) -> List[str]:
+        """Get all 10k instruments for FMP backfill"""
+        pool = await asyncpg.create_pool(self.db_url, min_size=1, max_size=2)
+        
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch("""
+                    SELECT DISTINCT symbol
+                    FROM dev_instruments
+                    WHERE symbol IS NOT NULL
+                    ORDER BY symbol
+                """)
+                
+                symbols = [row['symbol'] for row in rows]
+                self.logger.info(f"Found {len(symbols)} instruments for FMP backfill")
+                
+                return symbols
+        
+        finally:
+            await pool.close()
+    
+    def save_checkpoint(self):
+        """Save progress checkpoint"""
+        checkpoint_data = {
+            'config': asdict(self.config),
+            'progress': asdict(self.progress),
+            'circuit_breaker_state': {
+                'state': self.circuit_breaker.state,
+                'failure_count': self.circuit_breaker.failure_count,
+                'success_count': self.circuit_breaker.success_count
+            },
+            'daily_calls_made': self.daily_calls_made,
+            'last_call_reset': self.last_call_reset.isoformat(),
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        with open(self.config.checkpoint_file, 'w') as f:
+            json.dump(checkpoint_data, f, indent=2, default=str)
+        
+        self.progress.last_checkpoint = datetime.now()
+        self.logger.info(f"💾 Checkpoint saved: {self.progress.completed_symbols}/{self.progress.total_symbols} symbols")
+    
+    def load_checkpoint(self) -> bool:
+        """Load progress from checkpoint"""
+        try:
+            if os.path.exists(self.config.checkpoint_file):
+                with open(self.config.checkpoint_file, 'r') as f:
+                    data = json.load(f)
+                
+                # Restore progress
+                progress_data = data.get('progress', {})
+                for key, value in progress_data.items():
+                    if hasattr(self.progress, key):
+                        setattr(self.progress, key, value)
+                
+                # Restore circuit breaker state
+                cb_data = data.get('circuit_breaker_state', {})
+                self.circuit_breaker.state = cb_data.get('state', 'CLOSED')
+                self.circuit_breaker.failure_count = cb_data.get('failure_count', 0)
+                self.circuit_breaker.success_count = cb_data.get('success_count', 0)
+                
+                # Restore daily call tracking
+                self.daily_calls_made = data.get('daily_calls_made', 0)
+                last_reset_str = data.get('last_call_reset')
+                if last_reset_str:
+                    self.last_call_reset = datetime.fromisoformat(last_reset_str).date()
+                
+                self.logger.info(f"📂 Checkpoint loaded: {self.progress.completed_symbols} symbols completed")
+                return True
+        
+        except Exception as e:
+            self.logger.error(f"Error loading checkpoint: {e}")
+        
+        return False
+    
+    async def run_fmp_backfill(self) -> BackfillProgress:
+        """Run comprehensive FMP backfill with enhanced error handling"""
+        
+        self.progress.start_time = datetime.now()
+        
+        # Load checkpoint if exists
+        checkpoint_loaded = self.load_checkpoint()
+        
+        # Get target symbols
+        all_symbols = await self.get_target_symbols()
+        self.progress.total_symbols = len(all_symbols)
+        
+        if checkpoint_loaded:
+            # Skip already completed symbols
+            remaining_symbols = all_symbols[self.progress.completed_symbols:]
+        else:
+            remaining_symbols = all_symbols
+        
+        self.logger.info(f"🚀 Starting Enhanced FMP Backfill")
+        self.logger.info(f"📅 Period: {self.config.start_date} to {self.config.end_date}")
+        self.logger.info(f"🎯 Total symbols: {len(all_symbols)}")
+        self.logger.info(f"🔄 Remaining symbols: {len(remaining_symbols)}")
+        self.logger.info(f"⚙️  Circuit breaker threshold: {self.config.circuit_breaker_config.failure_threshold}")
+        self.logger.info(f"🔁 Max retries per symbol: {self.config.retry_config.max_retries}")
+        
+        # Create session with timeout
+        timeout = aiohttp.ClientTimeout(total=60)
+        
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            # Process symbols in batches
+            for i in range(0, len(remaining_symbols), self.config.batch_size):
+                batch_symbols = remaining_symbols[i:i + self.config.batch_size]
+                
+                batch_num = (self.progress.completed_symbols // self.config.batch_size) + 1
+                total_batches = (len(all_symbols) + self.config.batch_size - 1) // self.config.batch_size
+                
+                self.logger.info(f"📦 Processing batch {batch_num}/{total_batches}: {batch_symbols}")
+                
+                # Process batch concurrently
+                semaphore = asyncio.Semaphore(self.config.max_concurrent_requests)
+                
+                async def process_symbol(symbol: str):
+                    async with semaphore:
+                        try:
+                            data = await self.fetch_with_retry(session, symbol, 
+                                                             self.config.start_date, self.config.end_date)
+                            
+                            if data:
+                                records_saved = await self.save_fmp_data(symbol, data)
+                                self.progress.total_records_inserted += records_saved
+                                self.logger.info(f"✅ {symbol}: {records_saved} records saved")
+                            else:
+                                self.progress.failed_symbols.append(symbol)
+                                self.logger.warning(f"❌ {symbol}: No data saved")
+                        
+                        except Exception as e:
+                            self.logger.error(f"❌ {symbol}: Unexpected error - {e}")
+                            self.progress.failed_symbols.append(symbol)
+                        
+                        finally:
+                            self.progress.completed_symbols += 1
+                
+                # Execute batch
+                tasks = [process_symbol(symbol) for symbol in batch_symbols]
+                await asyncio.gather(*tasks, return_exceptions=True)
+                
+                # Save checkpoint periodically
+                if self.progress.completed_symbols % self.config.save_progress_interval == 0:
+                    self.save_checkpoint()
+                
+                # Progress report
+                completion_pct = (self.progress.completed_symbols / self.progress.total_symbols) * 100
+                elapsed = datetime.now() - self.progress.start_time
+                rate = self.progress.completed_symbols / elapsed.total_seconds() * 60  # symbols/min
+                
+                self.logger.info(f"📊 Progress: {completion_pct:.1f}% complete, {self.progress.total_records_inserted:,} records inserted")
+                self.logger.info(f"📈 Rate: {rate:.1f} symbols/min, Circuit breaker: {self.circuit_breaker.state}")
+                self.logger.info(f"🔁 Retry stats: {self.progress.retry_stats['total_retries']} total, "
+                               f"{self.progress.retry_stats['successful_retries']} successful")
+        
+        # Final checkpoint
+        self.save_checkpoint()
+        
+        self.logger.info(f"🎉 FMP Backfill Complete!")
+        self.logger.info(f"✅ Total records: {self.progress.total_records_inserted:,}")
+        self.logger.info(f"❌ Failed symbols: {len(self.progress.failed_symbols)}")
+        self.logger.info(f"⏭️  Skipped symbols: {len(self.progress.skipped_symbols)}")
+        self.logger.info(f"🔄 Circuit breaker trips: {self.progress.circuit_breaker_trips}")
+        
+        return self.progress
+
+def main():
+    """Main execution"""
+    parser = argparse.ArgumentParser(description='Enhanced FMP Backfill with Exponential Backoff')
+    parser.add_argument('--start-date', type=str, default='2005-01-01', 
+                       help='Start date (YYYY-MM-DD)')
+    parser.add_argument('--end-date', type=str, default='2025-08-23', 
+                       help='End date (YYYY-MM-DD)')
+    parser.add_argument('--batch-size', type=int, default=10,
+                       help='Number of symbols per batch')
+    parser.add_argument('--max-retries', type=int, default=5,
+                       help='Maximum retry attempts per symbol')
+    parser.add_argument('--resume', action='store_true',
+                       help='Resume from checkpoint')
+    
+    args = parser.parse_args()
+    
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler('/tmp/fmp_backfill.log')
+        ]
+    )
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Initialize environment and configuration
+        env = Environment()
+        
+        config = FMPBackfillConfig(
+            start_date=datetime.strptime(args.start_date, '%Y-%m-%d').date(),
+            end_date=datetime.strptime(args.end_date, '%Y-%m-%d').date(),
+            batch_size=args.batch_size
+        )
+        
+        config.retry_config.max_retries = args.max_retries
+        
+        # Create backfiller
+        backfiller = EnhancedFMPBackfiller(env, config)
+        
+        # Run backfill
+        asyncio.run(backfiller.run_fmp_backfill())
+        
+    except KeyboardInterrupt:
+        logger.info("🛑 Backfill interrupted by user")
+    except Exception as e:
+        logger.error(f"💥 Backfill failed: {e}")
+        raise
+
+if __name__ == "__main__":
+    main()

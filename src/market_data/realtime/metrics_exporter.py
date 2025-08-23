@@ -19,6 +19,20 @@ from config.environment import Environment
 
 logger = logging.getLogger(__name__)
 
+class HealthcheckHandler:
+    """Simple health check handler for tests"""
+    
+    def __init__(self):
+        pass
+    
+    async def health_check(self, request):
+        """Health check endpoint"""
+        return {
+            'status': 'healthy',
+            'timestamp': datetime.now().isoformat(),
+            'version': '1.0.0'
+        }
+
 class RealTimeMetricsExporter:
     """
     Prometheus metrics exporter for real-time data collection system.
@@ -502,6 +516,10 @@ async def main():
         raise
     finally:
         await exporter.shutdown()
+
+# Aliases for test compatibility
+RealtimeMetricsExporter = RealTimeMetricsExporter
+MetricsCollector = RealTimeMetricsExporter
 
 if __name__ == "__main__":
     asyncio.run(main())

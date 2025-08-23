@@ -80,7 +80,7 @@ class DailyValidationEngine:
         validation_date_str = os.getenv('VALIDATION_DATE', 'yesterday')
         
         if validation_date_str == 'yesterday':
-            return get_previous_trading_day()
+            return get_previous_trading_day(date.today())
         else:
             return datetime.strptime(validation_date_str, '%Y-%m-%d').date()
             

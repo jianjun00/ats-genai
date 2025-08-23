@@ -186,18 +186,3 @@ spec:
   successfulJobsHistoryLimit: 7
   failedJobsHistoryLimit: 3
 
----
-# ServiceMonitor for monitoring (optional)
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: dynamic-universe-monitor
-  namespace: ats-dev
-  labels:
-    app: dynamic-modeling-universe
-spec:
-  selector:
-    matchLabels:
-      app: dynamic-modeling-universe
-  endpoints:
-  - port: metrics

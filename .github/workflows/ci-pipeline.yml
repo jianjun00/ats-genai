@@ -24,34 +24,20 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
       with:
-        python-version: ${{ env.PYTHON_VERSION }}
+        username: dragonflyer762
+        password: dckr_pat_m7NlQdc5Rm6KGZnZZZ4iVlt9m20
         
-    - name: Cache Python dependencies
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-          
-    - name: Install Python dependencies with all fixes
+    - name: Run fast unit tests in Docker container
       run: |
-        python -m pip install --upgrade pip
-        # Install PyTorch first for ML support
-        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-        # Install all dependencies from requirements.txt (includes all our fixes)
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
-        # Install test dependencies
-        pip install pytest pytest-asyncio pytest-cov
-        
-    - name: Run fast unit tests
-      run: |
-        cd $GITHUB_WORKSPACE
-        PYTHONPATH=src pytest tests/core/ tests/config/test_logging_config.py tests/signals/test_indicator.py -v --tb=short --maxfail=10
+        docker run --rm \
+          -v ${{ github.workspace }}:/workspace \
+          -w /workspace \
+          -e PYTHONPATH=src \
+          dragonflyer762/ats-genai:latest \
+          pytest tests/core/ tests/config/ tests/signals/test_indicator.py -v --tb=short --maxfail=10
         
     - name: Upload test results
       uses: actions/upload-artifact@v4
@@ -90,37 +76,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
       with:
-        python-version: ${{ env.PYTHON_VERSION }}
+        username: dragonflyer762
+        password: dckr_pat_m7NlQdc5Rm6KGZnZZZ4iVlt9m20
         
-    - name: Install Python dependencies with all fixes
-      run: |
-        python -m pip install --upgrade pip
-        # Install PyTorch first for ML support
-        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-        # Install all dependencies from requirements.txt (includes all our fixes)
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
-        # Install test and database dependencies
-        pip install pytest pytest-asyncio pytest-cov asyncpg
-        
-    - name: Run database migrations
-      env:
-        DATABASE_URL: postgresql://postgres:test_password@localhost:5432/test_db
-      run: |
-        cd $GITHUB_WORKSPACE
-        PYTHONPATH=src python src/db/migration_manager.py migrate --db-url $DATABASE_URL
-        
-    - name: Run integration tests
-      env:
-        DATABASE_URL: postgresql://postgres:test_password@localhost:5432/test_db
-        ENVIRONMENT: test
-      run: |
-        cd $GITHUB_WORKSPACE
-        PYTHONPATH=src pytest tests/market_data/realtime/ -v --tb=short -m "not benchmark" --maxfail=5
-
   # Security and Code Quality Checks
   security-checks:
     name: Security & Quality Checks

@@ -1,0 +1,52 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: storage-inspection
+  namespace: ats-dev
+  labels:
+    app: storage-inspection
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: inspector
+        image: python:3.11-slim
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "📁 STORAGE DIRECTORY INSPECTION" &&
+          echo "=================================" &&
+          echo "💾 Storage root structure:" &&
+          ls -la /data/monthly/interval/ &&
+          echo "" &&
+          echo "📊 Directory sizes:" &&
+          du -sh /data/monthly/interval/* 2>/dev/null || echo "No data yet" &&
+          echo "" &&
+          echo "📈 File count by year:" &&
+          find /data/monthly/interval -name "*.record.gz" | cut -d'/' -f5 | sort | uniq -c 2>/dev/null || echo "No files yet" &&
+          echo "" &&
+          echo "🎯 Sample files:" &&
+          find /data/monthly/interval -name "*.record.gz" | head -10 &&
+          echo "" &&
+          echo "💿 Total storage usage:" &&
+          df -h /data &&
+          echo "" &&
+          echo "📊 File statistics:" &&
+          total_files=$(find /data/monthly/interval -name "*.record.gz" | wc -l) &&
+          echo "Total files: $total_files" &&
+          total_size=$(du -sb /data/monthly/interval 2>/dev/null | cut -f1) &&
+          echo "Total size: $(echo $total_size | numfmt --to=iec)B" || echo "Size calculation failed"
+        volumeMounts:
+        - name: timeseries-data
+          mountPath: /data
+          readOnly: true
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+      volumes:
+      - name: timeseries-data
+        persistentVolumeClaim:
+          claimName: timeseries-storage-100tb-pvc
