@@ -18,6 +18,14 @@ spec:
     repoURL: https://github.com/AkoloTechnologies/ats-genai.git
     targetRevision: main
     path: k8s
+    directory:
+      exclude: |
+        **/.venv/**
+        **/flyte-venv/**
+        **/__pycache__/**
+        **/*.pyc
+        **/node_modules/**
+        **/templates/**
     
   # Destination cluster and namespace  
   destination:

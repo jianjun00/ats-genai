@@ -17,6 +17,14 @@ spec:
     repoURL: https://github.com/AkoloTechnologies/ats-genai.git
     targetRevision: develop
     path: k8s
+    directory:
+      exclude: |
+        **/.venv/**
+        **/flyte-venv/**
+        **/__pycache__/**
+        **/*.pyc
+        **/node_modules/**
+        **/templates/**
   destination:
     server: https://kubernetes.default.svc
     namespace: ats-intg
@@ -44,20 +52,3 @@ spec:
     jsonPointers:
     - /spec/replicas
     # Allow replica scaling for load testing
-  
-  # Health check configuration
-  health:
-    - group: argoproj.io
-      kind: Rollout
-      check: |
-        hs = {}
-        if obj.status ~= nil then
-          if obj.status.phase == "Healthy" then
-            hs.status = "Healthy"
-            hs.message = obj.status.message
-            return hs
-          end
-        end
-        hs.status = "Progressing"
-        hs.message = "Waiting for rollout to complete"
-        return hs
