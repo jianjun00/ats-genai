@@ -29,6 +29,45 @@ from market_data.realtime.daily_validation import (
     ValidationResult
 )
 
+class AsyncContextManagerMock:
+    """Mock for async context managers like aiohttp.ClientSession"""
+    def __init__(self, response_mock):
+        self.response_mock = response_mock
+        
+    async def __aenter__(self):
+        return self.response_mock
+        
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
+        
+class AsyncClientSessionMock:
+    """Mock for aiohttp.ClientSession that supports async context manager"""
+    def __init__(self, response_mock=None, get_side_effect=None):
+        self.response_mock = response_mock
+        self.get_side_effect = get_side_effect
+        
+    def get(self, *args, **kwargs):
+        if self.get_side_effect:
+            raise self.get_side_effect
+        return AsyncContextManagerMock(self.response_mock)
+        
+    async def __aenter__(self):
+        return self
+        
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+class AsyncPoolMock:
+    """Mock for asyncpg.Pool that supports async context manager"""
+    def __init__(self, conn_mock):
+        self.conn_mock = conn_mock
+        
+    def acquire(self):
+        return AsyncContextManagerMock(self.conn_mock)
+        
+    async def close(self):
+        pass
+
 class TestValidationResult:
     """Test the ValidationResult data structure"""
     
@@ -140,7 +179,10 @@ class TestDailyValidationEngine:
         """Test database initialization"""
         mock_pool = AsyncMock()
         
-        with patch('market_data.realtime.daily_validation.asyncpg.create_pool', return_value=mock_pool):
+        # Use AsyncMock for create_pool to make it awaitable
+        mock_create_pool = AsyncMock(return_value=mock_pool)
+        
+        with patch('market_data.realtime.daily_validation.asyncpg.create_pool', mock_create_pool):
             await validation_engine.initialize()
             assert validation_engine.pool == mock_pool
             mock_env.get_database_url.assert_called_once()
@@ -149,8 +191,7 @@ class TestDailyValidationEngine:
     async def test_get_active_symbols(self, validation_engine):
         """Test getting active symbols for validation"""
         mock_conn = AsyncMock()
-        mock_pool = AsyncMock()
-        mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
+        mock_pool = AsyncPoolMock(mock_conn)
         validation_engine.pool = mock_pool
         
         # Mock database response
@@ -169,8 +210,7 @@ class TestDailyValidationEngine:
     async def test_get_realtime_data(self, validation_engine):
         """Test getting real-time data from database"""
         mock_conn = AsyncMock()
-        mock_pool = AsyncMock()
-        mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
+        mock_pool = AsyncPoolMock(mock_conn)
         validation_engine.pool = mock_pool
         
         # Mock database response
@@ -237,8 +277,7 @@ class TestDailyValidationEngine:
         mock_response.status = 200
         mock_response.json.return_value = mock_response_data
         
-        mock_session = AsyncMock()
-        mock_session.get.return_value.__aenter__.return_value = mock_response
+        mock_session = AsyncClientSessionMock(mock_response)
         
         with patch('aiohttp.ClientSession', return_value=mock_session):
             data = await validation_engine._get_polygon_batch_data('AAPL')
@@ -278,8 +317,7 @@ class TestDailyValidationEngine:
         mock_response.status = 200
         mock_response.json.return_value = mock_response_data
         
-        mock_session = AsyncMock()
-        mock_session.get.return_value.__aenter__.return_value = mock_response
+        mock_session = AsyncClientSessionMock(mock_response)
         
         with patch('aiohttp.ClientSession', return_value=mock_session):
             data = await validation_engine._get_tiingo_batch_data('AAPL')
@@ -319,8 +357,7 @@ class TestDailyValidationEngine:
         mock_response.status = 200
         mock_response.json.return_value = mock_response_data
         
-        mock_session = AsyncMock()
-        mock_session.get.return_value.__aenter__.return_value = mock_response
+        mock_session = AsyncClientSessionMock(mock_response)
         
         with patch('aiohttp.ClientSession', return_value=mock_session):
             data = await validation_engine._get_fmp_batch_data('AAPL')
@@ -401,8 +438,8 @@ class TestDailyValidationEngine:
             }
         ]
         
-        # Set price tolerance to 1%
-        validation_engine.price_tolerance = 0.01
+        # Set price tolerance to 0.1% to make the 0.33% difference discrepant
+        validation_engine.price_tolerance = 0.001
         
         result = validation_engine._compare_data('polygon', 'AAPL', realtime_data, batch_data)
         
@@ -410,7 +447,7 @@ class TestDailyValidationEngine:
         assert result.avg_price_difference > 0
         assert result.max_price_difference > 0
         assert result.overall_accuracy_score == 0.5  # 1 out of 2 bars discrepant
-        assert result.validation_status == 'warning'  # Below 99% but above 95%
+        assert result.validation_status == 'failed'  # 50% accuracy is below 95% threshold
     
     def test_compare_data_high_latency(self, validation_engine):
         """Test data comparison with high latency bars"""
@@ -444,7 +481,7 @@ class TestDailyValidationEngine:
         
         result = validation_engine._compare_data('polygon', 'AAPL', realtime_data, batch_data)
         
-        assert result.late_bars_count == 2  # Both bars are late (>5 minutes)
+        assert result.late_bars_count == 1  # Only 10-minute bar is late (>5 minutes, 5 minutes exactly is not late)
         assert result.avg_data_latency_minutes == 7.5  # Average of 5 and 10 minutes
         assert result.max_data_latency_minutes == 10.0
     
@@ -544,8 +581,7 @@ class TestDailyValidationEngine:
     async def test_store_validation_results(self, validation_engine):
         """Test storing validation results in database"""
         mock_conn = AsyncMock()
-        mock_pool = AsyncMock()
-        mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
+        mock_pool = AsyncPoolMock(mock_conn)
         validation_engine.pool = mock_pool
         
         # Add some validation results
@@ -699,8 +735,7 @@ class TestAPIErrorHandling:
         mock_response = AsyncMock()
         mock_response.status = 429  # Rate limit
         
-        mock_session = AsyncMock()
-        mock_session.get.return_value.__aenter__.return_value = mock_response
+        mock_session = AsyncClientSessionMock(mock_response)
         
         with patch('aiohttp.ClientSession', return_value=mock_session):
             data = await validation_engine._get_polygon_batch_data('AAPL')
@@ -712,8 +747,7 @@ class TestAPIErrorHandling:
         mock_response = AsyncMock()
         mock_response.status = 500  # Server error
         
-        mock_session = AsyncMock()
-        mock_session.get.return_value.__aenter__.return_value = mock_response
+        mock_session = AsyncClientSessionMock(mock_response)
         
         with patch('aiohttp.ClientSession', return_value=mock_session):
             data = await validation_engine._get_tiingo_batch_data('AAPL')
@@ -725,8 +759,7 @@ class TestAPIErrorHandling:
         mock_response = AsyncMock()
         mock_response.status = 403  # Forbidden
         
-        mock_session = AsyncMock()
-        mock_session.get.return_value.__aenter__.return_value = mock_response
+        mock_session = AsyncClientSessionMock(mock_response)
         
         with patch('aiohttp.ClientSession', return_value=mock_session):
             data = await validation_engine._get_fmp_batch_data('AAPL')
@@ -735,8 +768,7 @@ class TestAPIErrorHandling:
     @pytest.mark.asyncio
     async def test_network_timeout(self, validation_engine):
         """Test handling network timeouts"""
-        mock_session = AsyncMock()
-        mock_session.get.side_effect = asyncio.TimeoutError("Request timeout")
+        mock_session = AsyncClientSessionMock(get_side_effect=asyncio.TimeoutError("Request timeout"))
         
         with patch('aiohttp.ClientSession', return_value=mock_session):
             data = await validation_engine._get_polygon_batch_data('AAPL')

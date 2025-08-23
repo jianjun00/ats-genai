@@ -1,0 +1,111 @@
+{
+  "creation_time": "2025-08-22T18:40:09.944873",
+  "symbols": [
+    "AAPL",
+    "TSLA"
+  ],
+  "feature_types": {
+    "aapl_ohlc_daily_16": "ohlc_intervals",
+    "aapl_etop_daily_16": "price_indicator_intervals",
+    "aapl_ebot_daily_16": "price_indicator_intervals",
+    "aapl_pldot_daily_16": "price_indicator_intervals",
+    "aapl_ema_daily_16": "price_indicator_intervals",
+    "aapl_rsi_daily_16": "price_indicator_intervals",
+    "aapl_vwap_daily_16": "price_indicator_intervals",
+    "aapl_etop_daily_on_5min": "cross_timeframe_indicators",
+    "tsla_ohlc_daily_16": "ohlc_intervals",
+    "tsla_etop_daily_16": "price_indicator_intervals",
+    "tsla_ebot_daily_16": "price_indicator_intervals",
+    "tsla_pldot_daily_16": "price_indicator_intervals",
+    "tsla_ema_daily_16": "price_indicator_intervals",
+    "tsla_rsi_daily_16": "price_indicator_intervals",
+    "tsla_vwap_daily_16": "price_indicator_intervals",
+    "tsla_etop_daily_on_5min": "cross_timeframe_indicators"
+  },
+  "feature_shapes": {
+    "aapl_ohlc_daily_16": [
+      65,
+      16,
+      4
+    ],
+    "aapl_etop_daily_16": [
+      65,
+      16,
+      1
+    ],
+    "aapl_ebot_daily_16": [
+      65,
+      16,
+      1
+    ],
+    "aapl_pldot_daily_16": [
+      65,
+      16,
+      1
+    ],
+    "aapl_ema_daily_16": [
+      65,
+      16,
+      1
+    ],
+    "aapl_rsi_daily_16": [
+      65,
+      16,
+      1
+    ],
+    "aapl_vwap_daily_16": [
+      65,
+      16,
+      1
+    ],
+    "aapl_etop_daily_on_5min": [
+      65,
+      32,
+      1
+    ],
+    "tsla_ohlc_daily_16": [
+      65,
+      16,
+      4
+    ],
+    "tsla_etop_daily_16": [
+      65,
+      16,
+      1
+    ],
+    "tsla_ebot_daily_16": [
+      65,
+      16,
+      1
+    ],
+    "tsla_pldot_daily_16": [
+      65,
+      16,
+      1
+    ],
+    "tsla_ema_daily_16": [
+      65,
+      16,
+      1
+    ],
+    "tsla_rsi_daily_16": [
+      65,
+      16,
+      1
+    ],
+    "tsla_vwap_daily_16": [
+      65,
+      16,
+      1
+    ],
+    "tsla_etop_daily_on_5min": [
+      65,
+      32,
+      1
+    ]
+  },
+  "sample_counts": {
+    "aapl": 79,
+    "tsla": 79
+  }
+}
