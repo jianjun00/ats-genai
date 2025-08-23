@@ -21,8 +21,15 @@ from typing import List, Dict, Optional, Any, Union, Tuple
 from pathlib import Path
 import logging
 from dataclasses import dataclass
-import pyarrow as pa
-import pyarrow.parquet as pq
+# Optional pyarrow import for Parquet support
+try:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    PYARROW_AVAILABLE = True
+except ImportError:
+    pa = None
+    pq = None
+    PYARROW_AVAILABLE = False
 from concurrent.futures import ThreadPoolExecutor
 import gc
 

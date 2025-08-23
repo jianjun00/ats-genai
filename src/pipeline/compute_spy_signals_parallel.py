@@ -5,8 +5,15 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from spy_universe import SPYUniverse
 from market_data_simulator import simulate_market_data
 from signals import extract_all_signals
-import pyarrow.parquet as pq
-import pyarrow as pa
+# Optional pyarrow import for Parquet support
+try:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    PYARROW_AVAILABLE = True
+except ImportError:
+    pa = None
+    pq = None
+    PYARROW_AVAILABLE = False
 import os
 
 # Parameters
