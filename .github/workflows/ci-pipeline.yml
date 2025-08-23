@@ -50,7 +50,8 @@ jobs:
         
     - name: Run fast unit tests
       run: |
-        PYTHONPATH=src pytest tests/core/ tests/config/ tests/signals/test_indicator.py -v --tb=short --maxfail=10
+        cd $GITHUB_WORKSPACE
+        PYTHONPATH=src pytest tests/core/ tests/config/test_logging_config.py tests/signals/test_indicator.py -v --tb=short --maxfail=10
         
     - name: Upload test results
       uses: actions/upload-artifact@v4
@@ -109,6 +110,7 @@ jobs:
       env:
         DATABASE_URL: postgresql://postgres:test_password@localhost:5432/test_db
       run: |
+        cd $GITHUB_WORKSPACE
         PYTHONPATH=src python src/db/migration_manager.py migrate --db-url $DATABASE_URL
         
     - name: Run integration tests
@@ -116,6 +118,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:test_password@localhost:5432/test_db
         ENVIRONMENT: test
       run: |
+        cd $GITHUB_WORKSPACE
         PYTHONPATH=src pytest tests/market_data/realtime/ -v --tb=short -m "not benchmark" --maxfail=5
 
   # Security and Code Quality Checks
