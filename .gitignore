@@ -148,3 +148,4 @@ k8s/dev/
 # Training data outputs
 training_data_output/
 *.npy
+volumes/
