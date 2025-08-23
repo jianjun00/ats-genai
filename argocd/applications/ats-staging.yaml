@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ats-staging
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    notifications.argoproj.io/subscribe.on-deployed.slack: ats-deployments
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: ats-alerts
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/AkoloTechnologies/ats-genai.git
+    targetRevision: develop
+    path: k8s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ats-staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 5m
