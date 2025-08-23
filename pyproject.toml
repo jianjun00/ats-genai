@@ -17,6 +17,7 @@ dependencies = [
   "pandas",
   "pandas_ta",
   "pandas-market-calendars>=4.4.1",
+  "h5py>=3.14.0",
   "torch",
   "typing-extensions",
   "httpx[http2]",
