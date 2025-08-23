@@ -12,6 +12,9 @@ pyarrow==18.1.0
 # Protocol Buffers
 protobuf==5.29.2
 
+# Interactive Brokers integration
+ib_insync==0.9.86
+
 # Monitoring and metrics
 prometheus-client==0.21.1
 psutil==6.0.0

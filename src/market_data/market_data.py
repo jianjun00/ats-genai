@@ -1,8 +1,18 @@
 import os
 import asyncio
 import logging
-from ib_insync import IB, util, Contract, MarketOrder
 from typing import List, AsyncGenerator, Callable, Any
+
+# Optional ib_insync import for Interactive Brokers integration
+try:
+    from ib_insync import IB, util, Contract, MarketOrder
+    IB_INSYNC_AVAILABLE = True
+except ImportError:
+    IB = None
+    util = None
+    Contract = None
+    MarketOrder = None
+    IB_INSYNC_AVAILABLE = False
 import asyncpg
 from datetime import datetime
 
@@ -16,10 +26,13 @@ from datetime import timedelta
 import pandas as pd
 
 class MarketDataStreamer:
-    def __init__(self, ib: IB, symbols: List[str], vwap_window: int = 100):
+    def __init__(self, ib=None, symbols: List[str] = None, vwap_window: int = 100):
+        if not IB_INSYNC_AVAILABLE:
+            raise ImportError("ib_insync is required for MarketDataStreamer but is not installed. Install with: pip install ib_insync")
+        
         self.ib = ib
-        self.symbols = symbols
-        self.contracts = [Contract(symbol=s, secType='STK', exchange='SMART', currency='USD') for s in symbols]
+        self.symbols = symbols or []
+        self.contracts = [Contract(symbol=s, secType='STK', exchange='SMART', currency='USD') for s in self.symbols] if Contract else []
         self._queue = asyncio.Queue()
         # Multi-interval support
         self.intervals = {
