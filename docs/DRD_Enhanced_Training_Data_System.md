@@ -630,6 +630,114 @@ CREATE INDEX IF NOT EXISTS idx_training_dataset_timeframes
 ON dev_training_dataset USING GIN (timeframe_specifications);
 ```
 
+## Analytics Service Frontend Implementation
+
+### 2.9 ATS Analytics Service Integration
+
+The existing analytics service (ats-analytics-service) requires integration of multi-timeframe visualization within its current 3-tab interface:
+
+#### 2.9.1 Current Service Architecture
+```
+ATS Analytics Service
+├── Jobs Tab (existing - preserved)
+├── Datasets Tab (enhanced with visualization)
+├── Coverage Tab (existing - preserved)
+└── Dataset Detail View (NEW - multi-timeframe charts)
+```
+
+#### 2.9.2 Dataset Detail Implementation Requirements
+
+**HTML Structure Enhancement:**
+```html
+<div id="datasets" class="tab-content">
+  <div class="list-container">
+    <h3>Training Datasets</h3>
+    <div id="datasets-list">
+      <!-- Clickable dataset items -->
+    </div>
+  </div>
+  <div id="dataset-detail" style="display:none">
+    <div class="list-container">
+      <button onclick="showDatasetsList()">← Back to Datasets</button>
+      <div id="dataset-detail-content">
+        <!-- Multi-timeframe chart container -->
+        <div id="multi-timeframe-charts">
+          <div class="timeframe-chart" data-timeframe="monthly"></div>
+          <div class="timeframe-chart" data-timeframe="weekly"></div>
+          <div class="timeframe-chart" data-timeframe="daily"></div>
+          <div class="timeframe-chart" data-timeframe="1hour"></div>
+          <div class="timeframe-chart" data-timeframe="15min"></div>
+          <div class="timeframe-chart" data-timeframe="5min"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+**Required JavaScript Functions:**
+```javascript
+// Enhanced dataset loading with clickable items
+async function loadDatasets() {
+  // Load datasets with onclick handlers for detail navigation
+}
+
+// Multi-timeframe chart rendering
+async function showDatasetDetail(datasetId) {
+  // 1. Load dataset metadata
+  // 2. Initialize 6 timeframe charts
+  // 3. Load OHLC + indicator data
+  // 4. Render synchronized charts
+  // 5. Setup cross-timeframe overlays
+}
+
+// Chart synchronization
+function setupChartSynchronization() {
+  // Synchronized crosshairs, zoom, pan across all 6 charts
+}
+
+// Navigation functions
+function showDatasetsList() {
+  // Return to dataset list view
+}
+```
+
+**Chart.js Configuration:**
+```javascript
+const chartConfig = {
+  type: 'candlestick',
+  data: {
+    datasets: [{
+      label: 'OHLC',
+      data: ohlcData, // From /api/v1/datasets/{id}/sequences/{seq}/ohlc
+    }, {
+      label: 'ETOP',
+      type: 'line',
+      data: etopData,
+      yAxisID: 'indicators'
+    }, {
+      label: 'Volume',
+      type: 'bar',
+      data: volumeData,
+      yAxisID: 'volume'
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      x: { type: 'time' },
+      y: { position: 'left' },
+      indicators: { type: 'linear', position: 'right' },
+      volume: { type: 'linear', position: 'right', max: maxVolume }
+    },
+    plugins: {
+      zoom: { enabled: true },
+      crosshair: { sync: { enabled: true, group: 'dataset-charts' } }
+    }
+  }
+};
+```
+
 ## Frontend Implementation
 
 ### 3.1 Multi-Timeframe Chart Architecture

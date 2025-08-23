@@ -90,7 +90,7 @@ def query_command(sql: str):
         logging.basicConfig(level=logging.INFO)
         logger = logging.getLogger(__name__)
         
-        db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+        db_url = "postgresql://postgres:dev_password@postgres:5432/dev_db"
         
         try:
             conn = await asyncpg.connect(db_url)
@@ -134,7 +134,7 @@ def migrate_command(migration_name: str):
         logging.basicConfig(level=logging.INFO)
         logger = logging.getLogger(__name__)
         
-        db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+        db_url = "postgresql://postgres:dev_password@postgres:5432/dev_db"
         
         try:
             conn = await asyncpg.connect(db_url)
@@ -417,7 +417,7 @@ def job_command(job_type: str, **kwargs):
         logger.info("🚀 Starting 2022-2025 Backtest via Dev CLI")
         
         # Database connection for Kubernetes
-        db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+        db_url = "postgresql://postgres:dev_password@postgres:5432/dev_db"
         
         try:
             conn = await asyncpg.connect(db_url)
@@ -555,7 +555,7 @@ def job_command(job_type: str, **kwargs):
         
         try:
             # Database connection for runs tracking
-            db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+            db_url = "postgresql://postgres:dev_password@postgres:5432/dev_db"
             conn = await asyncpg.connect(db_url)
             
             # Create run record
@@ -764,7 +764,7 @@ def job_command(job_type: str, **kwargs):
             
             # Save metadata to database
             import asyncpg
-            db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+            db_url = "postgresql://postgres:dev_password@postgres:5432/dev_db"
             conn = await asyncpg.connect(db_url)
             
             try:
@@ -967,7 +967,7 @@ def enhanced_training_command(symbol: str = "AAPL", days_back: int = 90):
         logging.basicConfig(level=logging.INFO)
         logger = logging.getLogger(__name__)
         
-        db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+        db_url = "postgresql://postgres:dev_password@postgres:5432/dev_db"
         
         try:
             conn = await asyncpg.connect(db_url)
@@ -1053,11 +1053,63 @@ def enhanced_training_command(symbol: str = "AAPL", days_back: int = 90):
                 oneonedot.reshape(-1, 1)
             ])
             
-            # Create sequences
-            start_idx = max(50, sequence_length)  # Allow indicators to stabilize
+            # Create sequences - adjust for available data
+            min_data_needed = sequence_length + prediction_horizon
+            if len(all_features) < min_data_needed:
+                logger.warning(f"Not enough data points: {len(all_features)}, need at least {min_data_needed}")
+                # Generate more synthetic data if needed
+                additional_points = min_data_needed - len(all_features) + 10
+                logger.info(f"Generating {additional_points} additional synthetic data points...")
+                
+                for _ in range(additional_points):
+                    # Continue price movement
+                    base_price *= (1 + np.random.normal(0, 0.02))
+                    daily_range = base_price * np.random.uniform(0.01, 0.05)
+                    
+                    open_price = base_price * (1 + np.random.normal(0, 0.005))
+                    high = max(open_price, base_price) + daily_range / 2
+                    low = min(open_price, base_price) - daily_range / 2
+                    close_price = np.random.uniform(low, high)
+                    volume = int(np.random.lognormal(15, 1))
+                    
+                    data_rows.append({
+                        'date': current_date,
+                        'symbol': symbol,
+                        'open': round(open_price, 2),
+                        'high': round(high, 2),
+                        'low': round(low, 2),
+                        'close': round(close_price, 2),
+                        'volume': volume
+                    })
+                    current_date += timedelta(days=1)
+                
+                # Recalculate with more data
+                df = pd.DataFrame(data_rows)
+                open_ = df['open'].values
+                high = df['high'].values
+                low = df['low'].values
+                close = df['close'].values
+                volume = df['volume'].values
+                
+                etop = indicators.calculate_elliott_top(high, low, close, 21)
+                ebot = indicators.calculate_elliott_bottom(high, low, close, 21)
+                pldot = indicators.calculate_pivot_line_dot(high, low, close, 21)
+                oneonedot = indicators.calculate_oneonedot(open_, high, low, close, 21)
+                
+                ohlcv = np.column_stack([open_, high, low, close, volume])
+                all_features = np.column_stack([
+                    ohlcv,
+                    etop.reshape(-1, 1),
+                    ebot.reshape(-1, 1),
+                    pldot.reshape(-1, 1),
+                    oneonedot.reshape(-1, 1)
+                ])
+            
+            # Allow indicators to stabilize, but adjust based on available data
+            start_idx = min(max(25, sequence_length), len(all_features) - min_data_needed)
             
             for i in range(start_idx, len(all_features) - prediction_horizon + 1):
-                # Feature sequence (past 21 bars)
+                # Feature sequence (past sequence_length bars)
                 feature_seq = all_features[i-sequence_length:i]
                 features_list.append(feature_seq)
                 
@@ -1067,8 +1119,13 @@ def enhanced_training_command(symbol: str = "AAPL", days_back: int = 90):
                 future_returns = (future_prices - current_price) / current_price
                 labels_list.append(future_returns)
             
-            features = np.array(features_list, dtype=np.float32)
-            labels = np.array(labels_list, dtype=np.float32)
+            # Handle empty arrays properly
+            if len(features_list) == 0:
+                features = np.zeros((0, sequence_length, 9), dtype=np.float32)
+                labels = np.zeros((0, prediction_horizon), dtype=np.float32)
+            else:
+                features = np.array(features_list, dtype=np.float32)
+                labels = np.array(labels_list, dtype=np.float32)
             
             logger.info(f"Created enhanced training data: {{features.shape}} features, {{labels.shape}} labels")
             
@@ -1136,10 +1193,10 @@ def enhanced_training_command(symbol: str = "AAPL", days_back: int = 90):
             """,
                 dataset_id,
                 run_id,
-                features.shape[0],
-                features.shape[1],
-                features.shape[2],
-                labels.shape[1],
+                features.shape[0],  # number of sequences
+                features.shape[1] if len(features.shape) > 1 else 0,  # sequence length
+                features.shape[2] if len(features.shape) > 2 else 0,  # feature count
+                labels.shape[1] if len(labels.shape) > 1 else 0,  # prediction horizon
                 [symbol],
                 start_date,
                 end_date,
