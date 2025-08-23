@@ -683,16 +683,57 @@ data:
         """
         Universal exception handler that ensures ALL errors return JSON
         This prevents the 'Unexpected token I, "Internal S"... is not valid JSON' error
+        Returns appropriate data structures for specific endpoints to prevent frontend crashes
         """
-        return JSONResponse(
-            status_code=500,
-            content={
-                "error": "internal_server_error",
-                "message": "Database connection failed or internal error occurred",
-                "detail": str(exc) if app.debug else "Internal server error"
-            },
-            headers={"Content-Type": "application/json"}
-        )
+        error_message = f"Database connection failed: {str(exc)}"
+        
+        # Return appropriate structure based on endpoint to prevent frontend .map() errors
+        if request.url.path == "/api/v1/jobs":
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "jobs": [],
+                    "total": 0,
+                    "error": "database_error",
+                    "message": error_message
+                },
+                headers={"Content-Type": "application/json"}
+            )
+        elif request.url.path == "/api/v1/jobs/stats":
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "total_jobs": 0,
+                    "running_jobs": 0,
+                    "completed_jobs": 0,
+                    "failed_jobs": 0,
+                    "error": "database_error", 
+                    "message": error_message
+                },
+                headers={"Content-Type": "application/json"}
+            )
+        elif request.url.path == "/api/v1/datasets":
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "datasets": [],
+                    "total": 0,
+                    "error": "database_error",
+                    "message": error_message
+                },
+                headers={"Content-Type": "application/json"}
+            )
+        else:
+            # Generic error response for other endpoints
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "error": "internal_server_error",
+                    "message": "Database connection failed or internal error occurred",
+                    "detail": str(exc) if app.debug else "Internal server error"
+                },
+                headers={"Content-Type": "application/json"}
+            )
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
