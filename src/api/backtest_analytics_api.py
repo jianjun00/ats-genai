@@ -5,26 +5,23 @@ FastAPI application providing REST endpoints for portfolio analytics,
 model performance analysis, and drill-down capabilities.
 """
 
-import asyncio
 import logging
 from datetime import date, datetime
 from typing import Dict, List, Optional, Any
-from uuid import UUID
 
 from fastapi import FastAPI, Depends, Query, Path, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+import pandas as pd
 import uvicorn
 
 from analytics.portfolio_analytics import (
     PortfolioAnalyticsEngine,
     PortfolioMetrics,
     AttributionMetrics,
-    ModelPerformanceMetrics,
-    DrillDownAnalysis
+    ModelPerformanceMetrics
 )
-from config.environment import Environment
 
 # Pydantic models for API requests/responses
 class BacktestSummary(BaseModel):
@@ -571,8 +568,8 @@ async def model_websocket(websocket: WebSocket, backtest_run_id: str):
         
         # Keep connection alive
         while True:
-            data = await websocket.receive_text()
-            # Handle model-specific requests
+            _data = await websocket.receive_text()
+            # Handle model-specific requests - data processing not yet implemented
             
     except WebSocketDisconnect:
         pass
