@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: ats-production
+  name: ats-prod
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -16,7 +16,7 @@ spec:
     path: k8s
   destination:
     server: https://kubernetes.default.svc
-    namespace: ats-production
+    namespace: ats-prod
   syncPolicy:
     # Manual sync for production - no automated deployment
     syncOptions:

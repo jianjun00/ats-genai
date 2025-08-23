@@ -23,8 +23,8 @@ kubectl apply -f argocd/applications/
 
 # Or apply individually
 kubectl apply -f argocd/applications/ats-dev.yaml
-kubectl apply -f argocd/applications/ats-staging.yaml  
-kubectl apply -f argocd/applications/ats-production.yaml
+kubectl apply -f argocd/applications/ats-intg.yaml  
+kubectl apply -f argocd/applications/ats-prod.yaml
 ```
 
 ### Step 2: Configure GitHub Secrets
@@ -70,11 +70,11 @@ Use the provided monitoring script:
 # Check dev deployment
 ./scripts/monitoring/check-argocd-sync.sh ats-dev
 
-# Check staging deployment  
-./scripts/monitoring/check-argocd-sync.sh ats-staging
+# Check integration deployment  
+./scripts/monitoring/check-argocd-sync.sh ats-intg
 
 # Check production deployment
-./scripts/monitoring/check-argocd-sync.sh ats-production
+./scripts/monitoring/check-argocd-sync.sh ats-prod
 ```
 
 ### ArgoCD UI
@@ -108,16 +108,19 @@ kubectl get application ats-dev -n argocd -o yaml | grep -A 10 "history:"
 - **Self-healing**: ✅ Enabled
 - **Pruning**: ✅ Enabled
 - **Source**: `main` branch
+- **Deployment Frequency**: Continuous (every push to main)
 
-### Staging Environment  
+### Integration Environment  
 - **Auto-sync**: ✅ Enabled
 - **Self-healing**: ✅ Enabled
 - **Source**: `develop` branch
+- **Deployment Frequency**: Weekly (Mondays at 9 AM UTC)
 
 ### Production Environment
 - **Auto-sync**: ❌ Disabled (manual approval)
 - **Self-healing**: ❌ Disabled  
 - **Source**: `main` branch (manual sync required)
+- **Deployment Frequency**: Monthly (First Monday at 10 AM UTC)
 
 ## ✅ **Benefits of This Approach**
 
@@ -175,6 +178,7 @@ argocd app rollback ats-dev
 - **Reliability**: 99%+ (no network dependencies)
 - **Security**: Maximum (no external API exposure)
 - **Monitoring**: Real-time via ArgoCD UI
+- **Environment Isolation**: Complete separation between dev/intg/prod
 
 ## 🔔 **Notifications**
 
@@ -194,9 +198,10 @@ Configure ArgoCD to send Slack notifications:
 Your private ArgoCD integration is now configured for:
 
 1. **✅ Secure GitOps workflow** (no API exposure)
-2. **✅ Multi-environment support** (dev/staging/production)
-3. **✅ Automatic deployments** (where configured)
+2. **✅ Three-tier environment support** (dev/integration/production)
+3. **✅ Scheduled deployments** (weekly integration, monthly production)
 4. **✅ Comprehensive monitoring** (health checks + notifications)
 5. **✅ Easy rollbacks** (Git-based or ArgoCD-based)
+6. **✅ Environment-specific deployment frequencies**
 
 The GitHub Actions workflow will update your manifests, and ArgoCD will handle the rest automatically!

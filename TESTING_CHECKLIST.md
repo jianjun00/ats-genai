@@ -24,7 +24,7 @@ kubectl apply -f argocd/applications/
 kubectl get applications -n argocd
 ```
 
-**Expected Result:** 3 applications created (ats-dev, ats-staging, ats-production)
+**Expected Result:** 3 applications created (ats-dev, ats-intg, ats-prod)
 
 ---
 

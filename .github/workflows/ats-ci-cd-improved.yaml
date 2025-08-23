@@ -23,6 +23,11 @@ on:
       - 'pyproject.toml'
       - 'pytest.ini'
       - '.github/workflows/**'
+  schedule:
+    # Weekly deployment to integration environment (Mondays at 9 AM UTC)
+    - cron: '0 9 * * 1'
+    # Monthly deployment to production environment (First Monday of month at 10 AM UTC)
+    - cron: '0 10 1-7 * 1'
   workflow_dispatch:
     inputs:
       environment:
@@ -32,10 +37,15 @@ on:
         type: choice
         options:
         - dev
-        - staging
-        - production
+        - intg
+        - prod
       skip_tests:
         description: 'Skip tests (emergency deployment)'
+        required: false
+        default: false
+        type: boolean
+      force_deploy:
+        description: 'Force deployment regardless of schedule'
         required: false
         default: false
         type: boolean
@@ -47,12 +57,84 @@ env:
   NODE_VERSION: "20"
 
 jobs:
-  # Job 1: Pre-flight Checks and Environment Setup
-  preflight:
+  # Job 1: Determine Deployment Strategy and Environment
+  deployment-strategy:
     runs-on: ubuntu-latest
     outputs:
-      should-deploy: ${{ steps.check.outputs.should-deploy }}
-      target-env: ${{ steps.check.outputs.target-env }}
+      should-deploy: ${{ steps.strategy.outputs.should-deploy }}
+      target-env: ${{ steps.strategy.outputs.target-env }}
+      deployment-type: ${{ steps.strategy.outputs.deployment-type }}
+    
+    steps:
+    - name: Determine deployment strategy
+      id: strategy
+      run: |
+        echo "🎯 Determining deployment strategy..."
+        
+        # Default values
+        SHOULD_DEPLOY="true"
+        TARGET_ENV="dev"
+        DEPLOYMENT_TYPE="push"
+        
+        # Handle scheduled deployments
+        if [ "${{ github.event_name }}" = "schedule" ]; then
+          # Check which scheduled job triggered this
+          case "${{ github.event.schedule }}" in
+            "0 9 * * 1")  # Weekly integration deployment
+              TARGET_ENV="intg"
+              DEPLOYMENT_TYPE="scheduled-weekly"
+              echo "📅 Weekly integration deployment triggered"
+              ;;
+            "0 10 1-7 * 1")  # Monthly production deployment
+              TARGET_ENV="prod"
+              DEPLOYMENT_TYPE="scheduled-monthly"
+              echo "📅 Monthly production deployment triggered"
+              ;;
+          esac
+        fi
+        
+        # Handle manual workflow dispatch
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          TARGET_ENV="${{ github.event.inputs.environment }}"
+          DEPLOYMENT_TYPE="manual"
+          echo "🎮 Manual deployment to $TARGET_ENV requested"
+        fi
+        
+        # Handle branch-based automatic deployments
+        if [ "${{ github.event_name }}" = "push" ]; then
+          case "${{ github.ref_name }}" in
+            "main")
+              TARGET_ENV="dev"
+              DEPLOYMENT_TYPE="push-main"
+              ;;
+            "develop")
+              TARGET_ENV="intg"
+              DEPLOYMENT_TYPE="push-develop"
+              ;;
+            feature/*)
+              SHOULD_DEPLOY="false"
+              echo "🚫 Skipping deployment for feature branch"
+              ;;
+          esac
+        fi
+        
+        # Handle pull requests (no deployment)
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          SHOULD_DEPLOY="false"
+          echo "🔍 Pull request - running tests only"
+        fi
+        
+        echo "should-deploy=$SHOULD_DEPLOY" >> $GITHUB_OUTPUT
+        echo "target-env=$TARGET_ENV" >> $GITHUB_OUTPUT
+        echo "deployment-type=$DEPLOYMENT_TYPE" >> $GITHUB_OUTPUT
+        echo "📋 Strategy: deploy=$SHOULD_DEPLOY, env=$TARGET_ENV, type=$DEPLOYMENT_TYPE"
+
+  # Job 2: Pre-flight Checks and Environment Setup
+  preflight:
+    runs-on: ubuntu-latest
+    needs: deployment-strategy
+    if: needs.deployment-strategy.outputs.should-deploy == 'true'
+    outputs:
       services: ${{ steps.discover.outputs.services }}
       version: ${{ steps.version.outputs.version }}
     
@@ -65,7 +147,7 @@ jobs:
     - name: Environment preflight checks
       id: check
       run: |
-        echo "🔍 Running preflight checks..."
+        echo "🔍 Running preflight checks for ${{ needs.deployment-strategy.outputs.target-env }}..."
         
         # Determine target environment
         if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
@@ -116,8 +198,8 @@ jobs:
   # Job 2: Unified Testing (Much More Reliable)
   test:
     runs-on: ubuntu-latest
-    needs: preflight
-    if: ${{ github.event.inputs.skip_tests != 'true' }}
+    needs: [deployment-strategy, preflight]
+    if: ${{ github.event.inputs.skip_tests != 'true' && needs.deployment-strategy.outputs.should-deploy == 'true' }}
     
     services:
       postgres:
@@ -282,8 +364,8 @@ jobs:
   # Job 3: Build and Push (Simplified and More Reliable)
   build:
     runs-on: ubuntu-latest
-    needs: [preflight, test]
-    if: always() && (success() || github.event.inputs.skip_tests == 'true') && needs.preflight.outputs.should-deploy == 'true'
+    needs: [deployment-strategy, preflight, test]
+    if: always() && (success() || github.event.inputs.skip_tests == 'true') && needs.deployment-strategy.outputs.should-deploy == 'true'
     
     strategy:
       fail-fast: false
@@ -358,8 +440,8 @@ jobs:
   # Job 4: Deploy to Kubernetes (Improved Argo CD Integration)
   deploy:
     runs-on: ubuntu-latest
-    needs: [preflight, test, build]
-    if: always() && (success() || github.event.inputs.skip_tests == 'true') && needs.preflight.outputs.should-deploy == 'true'
+    needs: [deployment-strategy, preflight, test, build]
+    if: always() && (success() || github.event.inputs.skip_tests == 'true') && needs.deployment-strategy.outputs.should-deploy == 'true'
     
     steps:
     - name: Checkout code
@@ -459,12 +541,14 @@ jobs:
       run: |
         echo "🔄 Updating manifests for GitOps deployment..."
         
-        TARGET_ENV="${{ needs.preflight.outputs.target-env }}"
+        TARGET_ENV="${{ needs.deployment-strategy.outputs.target-env }}"
         VERSION="${{ needs.preflight.outputs.version }}"
+        DEPLOYMENT_TYPE="${{ needs.deployment-strategy.outputs.deployment-type }}"
         TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
         
         echo "Environment: ${TARGET_ENV}"
         echo "Version: ${VERSION}"
+        echo "Deployment Type: ${DEPLOYMENT_TYPE}"
         
         # Update image tags for each service
         for service_dir in k8s/*/; do
@@ -567,11 +651,14 @@ jobs:
         EMOJI="${{ steps.status.outputs.emoji }}"
         COLOR="${{ steps.status.outputs.color }}"
         
+        TARGET_ENV="${{ needs.deployment-strategy.outputs.target-env }}"
+        DEPLOYMENT_TYPE="${{ needs.deployment-strategy.outputs.deployment-type }}"
+        
         if [[ "$STATUS" == "success" ]]; then
           TITLE="ATS Deployment Successful"
-          MESSAGE="All services deployed successfully to ${{ needs.preflight.outputs.target-env }}"
+          MESSAGE="All services deployed successfully to ${TARGET_ENV}"
         else
-          TITLE="ATS Deployment Failed"
+          TITLE="ATS Deployment Failed"  
           MESSAGE="Deployment failed at stage: $STATUS"
         fi
         
@@ -596,12 +683,12 @@ jobs:
         
         # Enhanced message with more context
         if [[ "$STATUS" == "success" ]]; then
-          MESSAGE="🎉 Successfully deployed ${SERVICES_LIST} to ${{ needs.preflight.outputs.target-env }} environment"
+          MESSAGE="🎉 Successfully deployed ${SERVICES_LIST} to ${TARGET_ENV} environment (${DEPLOYMENT_TYPE})"
           if [[ -n "$ARGOCD_HEALTH" && "$ARGOCD_HEALTH" == "Healthy" ]]; then
             MESSAGE="${MESSAGE}\n✅ Argo CD sync completed with healthy status"
           fi
         else
-          MESSAGE="❌ Deployment failed at ${STATUS} stage for ${{ needs.preflight.outputs.target-env }} environment"
+          MESSAGE="❌ Deployment failed at ${STATUS} stage for ${TARGET_ENV} environment (${DEPLOYMENT_TYPE})"
         fi
         
         curl -X POST -H 'Content-type: application/json' \
