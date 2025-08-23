@@ -19,30 +19,15 @@ jobs:
     name: Unit Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    container:
+      image: dragonflyer762/ats-genai:latest
+      credentials:
+        username: dragonflyer762
+        password: dckr_pat_m7NlQdc5Rm6KGZnZZZ4iVlt9m20
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-        
-    - name: Cache Python dependencies
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-          
-    - name: Install Python dependencies
-      run: |
-        python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
-        pip install pytest pytest-asyncio pytest-cov
         
     - name: Run fast unit tests
       run: |
@@ -65,6 +50,11 @@ jobs:
     needs: unit-tests
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/chore/dev-db-migration-job'
     timeout-minutes: 20
+    container:
+      image: dragonflyer762/ats-genai:latest
+      credentials:
+        username: dragonflyer762
+        password: dckr_pat_m7NlQdc5Rm6KGZnZZZ4iVlt9m20
     
     services:
       postgres:
@@ -84,18 +74,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
-        pip install pytest pytest-asyncio pytest-cov asyncpg
         
     - name: Run database migrations
       env:
