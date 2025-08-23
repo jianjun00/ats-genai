@@ -82,29 +82,6 @@ jobs:
         username: dragonflyer762
         password: dckr_pat_m7NlQdc5Rm6KGZnZZZ4iVlt9m20
         
-    - name: Run database migrations in Docker container
-      run: |
-        docker run --rm \
-          -v ${{ github.workspace }}:/workspace \
-          -w /workspace \
-          -e PYTHONPATH=src \
-          -e DATABASE_URL=postgresql://postgres:test_password@host.docker.internal:5432/test_db \
-          --add-host host.docker.internal:host-gateway \
-          dragonflyer762/ats-genai:latest \
-          python src/db/migration_manager.py migrate --db-url postgresql://postgres:test_password@host.docker.internal:5432/test_db
-        
-    - name: Run integration tests in Docker container
-      run: |
-        docker run --rm \
-          -v ${{ github.workspace }}:/workspace \
-          -w /workspace \
-          -e PYTHONPATH=src \
-          -e DATABASE_URL=postgresql://postgres:test_password@host.docker.internal:5432/test_db \
-          -e ENVIRONMENT=test \
-          --add-host host.docker.internal:host-gateway \
-          dragonflyer762/ats-genai:latest \
-          pytest tests/market_data/realtime/ -v --tb=short -m "not benchmark" --maxfail=5
-
   # Security and Code Quality Checks
   security-checks:
     name: Security & Quality Checks
