@@ -1,0 +1,17 @@
+#!/bin/bash
+#
+# ATS Integration Environment CLI Wrapper
+#
+# This script can be symlinked to /usr/local/bin/intg_cli for global access
+# Usage: intg_cli <command> [args...]
+#
+
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Set environment variables
+export PYTHONPATH="$PROJECT_ROOT/src:$PYTHONPATH"
+
+# Execute the Python CLI
+exec python3 "$SCRIPT_DIR/intg_cli.py" "$@"
