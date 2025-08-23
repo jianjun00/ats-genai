@@ -1,4 +1,18 @@
 apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: postgres-dev-pv
+spec:
+  capacity:
+    storage: 2Ti
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /home/jianjun/ats-data/postgres-dev
+    type: DirectoryOrCreate
+---
+apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: postgres-pvc
@@ -8,8 +22,8 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 20Gi
-  volumeName: postgres-pv
+      storage: 2Ti
+  volumeName: postgres-dev-pv
   storageClassName: ""
 ---
 apiVersion: v1

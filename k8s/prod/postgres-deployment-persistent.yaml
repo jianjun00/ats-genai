@@ -4,7 +4,7 @@ metadata:
   name: postgres-prod-pv
 spec:
   capacity:
-    storage: 50Gi
+    storage: 2Ti
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
@@ -22,7 +22,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 50Gi
+      storage: 2Ti
   volumeName: postgres-prod-pv
   storageClassName: ""
 ---
