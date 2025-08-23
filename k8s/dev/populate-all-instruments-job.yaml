@@ -1,0 +1,224 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: populate-all-instruments
+  namespace: ats-dev
+spec:
+  ttlSecondsAfterFinished: 86400  # Keep job for 24 hours after completion
+  template:
+    spec:
+      containers:
+      - name: populate-instruments
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "Installing required packages..."
+          pip install asyncpg requests python-dotenv
+          
+          echo "Creating working directory..."
+          mkdir -p /app
+          
+          echo "Creating instrument population script..."
+          cat > /app/populate_all_instruments.py << 'EOF'
+          import os
+          import requests
+          import asyncpg
+          import asyncio
+          import json
+          import logging
+          from datetime import datetime
+          from urllib.parse import urlencode, urlparse, parse_qs
+          
+          # Configure logging
+          logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+          logger = logging.getLogger("populate_all_instruments")
+          
+          # Polygon API key
+          POLYGON_API_KEY = "wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"
+          
+          def parse_date(val):
+              if not val:
+                  return None
+              try:
+                  return datetime.strptime(val[:10], "%Y-%m-%d").date()
+              except Exception:
+                  return None
+          
+          def add_api_key_to_url(url, api_key):
+              """Add API key to URL if not present"""
+              if 'apikey=' in url:
+                  return url
+              separator = '&' if '?' in url else '?'
+              return f"{url}{separator}apikey={api_key}"
+          
+          async def populate_all_instruments():
+              # Database connection
+              try:
+                  conn = await asyncpg.connect(
+                      host=os.getenv('DB_HOST', 'postgres'),
+                      port=int(os.getenv('DB_PORT', 5432)),
+                      user=os.getenv('DB_USER', 'postgres'),
+                      password=os.getenv('DB_PASSWORD', 'dev_password'),
+                      database=os.getenv('DB_NAME', 'dev_db')
+                  )
+                  logger.info("Connected to database successfully")
+                  
+                  # First, check current count
+                  current_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument_polygon")
+                  logger.info(f"Current instruments in dev_instrument_polygon: {current_count}")
+                  
+                  # Fetch ALL instruments from Polygon API with pagination
+                  base_url = "https://api.polygon.io/v3/reference/tickers"
+                  params = {
+                      'apikey': POLYGON_API_KEY,
+                      'market': 'stocks',
+                      'active': 'true',
+                      'limit': 1000  # Maximum per request
+                  }
+                  
+                  total_inserted = 0
+                  next_url = None
+                  page = 1
+                  
+                  logger.info("Starting to fetch ALL available instruments from Polygon API...")
+                  
+                  while True:
+                      if next_url:
+                          # Ensure API key is in the next_url
+                          request_url = add_api_key_to_url(next_url, POLYGON_API_KEY)
+                          logger.info(f"Using next_url: {request_url[:100]}...")
+                          response = requests.get(request_url)
+                      else:
+                          response = requests.get(base_url, params=params)
+                      
+                      if response.status_code != 200:
+                          logger.error(f"API error: {response.status_code} - {response.text}")
+                          break
+                      
+                      data = response.json()
+                      results = data.get('results', [])
+                      
+                      if not results:
+                          logger.info("No more results from API - finished!")
+                          break
+                      
+                      logger.info(f"Page {page}: Processing {len(results)} instruments")
+                      
+                      # Process each instrument
+                      batch_data = []
+                      for instrument in results:
+                          batch_data.append((
+                              instrument.get('ticker'),
+                              instrument.get('name'),
+                              instrument.get('primary_exchange'),
+                              instrument.get('type'),
+                              instrument.get('currency_name'),
+                              instrument.get('share_class_figi'),
+                              instrument.get('isin'),
+                              instrument.get('cusip'),
+                              instrument.get('composite_figi'),
+                              instrument.get('active'),
+                              parse_date(instrument.get('list_date')),
+                              parse_date(instrument.get('delisted_utc')),
+                              json.dumps(instrument)
+                          ))
+                          total_inserted += 1
+                      
+                      # Batch insert
+                      if batch_data:
+                          try:
+                              await conn.executemany("""
+                                  INSERT INTO dev_instrument_polygon 
+                                  (symbol, name, exchange, type, currency, figi, isin, cusip, composite_figi, active, list_date, delist_date, raw, updated_at)
+                                  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now())
+                                  ON CONFLICT (symbol) DO UPDATE SET
+                                  name = EXCLUDED.name,
+                                  exchange = EXCLUDED.exchange,
+                                  type = EXCLUDED.type,
+                                  currency = EXCLUDED.currency,
+                                  figi = EXCLUDED.figi,
+                                  isin = EXCLUDED.isin,
+                                  cusip = EXCLUDED.cusip,
+                                  composite_figi = EXCLUDED.composite_figi,
+                                  active = EXCLUDED.active,
+                                  list_date = EXCLUDED.list_date,
+                                  delist_date = EXCLUDED.delist_date,
+                                  raw = EXCLUDED.raw,
+                                  updated_at = now()
+                              """, batch_data)
+                              
+                              logger.info(f"Inserted/updated {len(batch_data)} instruments. Total so far: {total_inserted}")
+                          except Exception as e:
+                              logger.error(f"Database insert error: {e}")
+                              break
+                      
+                      # Check for next page
+                      next_url = data.get('next_url')
+                      if not next_url:
+                          logger.info("No more pages - completed!")
+                          break
+                      
+                      page += 1
+                      
+                      # Rate limiting - be respectful to the API
+                      await asyncio.sleep(0.2)
+                      
+                      # Progress update every 10 pages
+                      if page % 10 == 0:
+                          current_total = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument_polygon")
+                          logger.info(f"Progress: Page {page}, Total instruments in DB: {current_total}")
+                  
+                  # Final count
+                  final_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument_polygon")
+                  logger.info(f"🎉 COMPLETED! Final instruments in dev_instrument_polygon: {final_count}")
+                  logger.info(f"📊 Total instruments processed this run: {total_inserted}")
+                  
+                  # Show summary by type
+                  type_summary = await conn.fetch("""
+                      SELECT type, COUNT(*) as count 
+                      FROM dev_instrument_polygon 
+                      GROUP BY type 
+                      ORDER BY count DESC
+                  """)
+                  
+                  logger.info("📋 Instrument Type Summary:")
+                  for row in type_summary:
+                      logger.info(f"  {row['type']}: {row['count']}")
+                  
+                  await conn.close()
+                  
+              except Exception as e:
+                  logger.error(f"Error: {e}")
+                  raise
+          
+          if __name__ == "__main__":
+              asyncio.run(populate_all_instruments())
+          EOF
+          
+          echo "Running instrument population..."
+          cd /app
+          python populate_all_instruments.py
+          
+          echo "All instruments population completed!"
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: DB_HOST
+          value: "postgres"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"  
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      restartPolicy: OnFailure
