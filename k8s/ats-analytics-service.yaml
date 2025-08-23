@@ -805,19 +805,9 @@ data:
 
     @app.get("/api/v1/jobs/stats")
     async def get_job_stats():
-        """Get job statistics - Returns consistent structure even on database errors"""
-        try:
-            return await manager.get_job_stats()
-        except Exception as e:
-            # Return consistent structure with default values
-            return {
-                "total_jobs": 0,
-                "running_jobs": 0, 
-                "completed_jobs": 0,
-                "failed_jobs": 0,
-                "error": "database_error",
-                "message": f"Database connection failed: {str(e)}"
-            }
+        """Get job statistics - Universal exception handler provides error structure"""
+        # Let exceptions bubble up to universal_exception_handler for consistent structure
+        return await manager.get_job_stats()
 
     @app.get("/api/v1/jobs")
     async def list_jobs(
@@ -827,17 +817,9 @@ data:
         sort_by: str = Query("created_at"),
         sort_dir: str = Query("desc")
     ):
-        """List jobs with filtering/sorting - Returns consistent structure even on database errors"""
-        try:
-            return await manager.list_jobs(limit, offset, status, sort_by, sort_dir)
-        except Exception as e:
-            # Return consistent structure so frontend .map() doesn't fail
-            return {
-                "jobs": [],
-                "total": 0,
-                "error": "database_error",
-                "message": f"Database connection failed: {str(e)}"
-            }
+        """List jobs with filtering/sorting - Universal exception handler provides error structure"""
+        # Let exceptions bubble up to universal_exception_handler for consistent structure
+        return await manager.list_jobs(limit, offset, status, sort_by, sort_dir)
 
     @app.get("/api/v1/datasets")
     async def list_datasets(
