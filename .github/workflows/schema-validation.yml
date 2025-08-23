@@ -30,7 +30,7 @@ jobs:
           - 5432:5432
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -50,8 +50,30 @@ jobs:
         DB_PASSWORD: postgres
         DB_NAME: test_db
       run: |
-        # Run migrations to set up current schema
-        PYTHONPATH=src python src/db/migration_manager.py
+        # Set up basic database schema
+        psql postgresql://postgres:postgres@localhost:5432/test_db -c "
+          CREATE TABLE IF NOT EXISTS dev_training_dataset (
+            dataset_name VARCHAR(255) PRIMARY KEY,
+            symbols TEXT[],
+            total_sequences INTEGER,
+            feature_count INTEGER,
+            technical_indicators TEXT[],
+            creation_timestamp TIMESTAMPTZ DEFAULT NOW(),
+            file_size_mb FLOAT
+          );
+          CREATE TABLE IF NOT EXISTS dev_minute_prices_unified (
+            id SERIAL PRIMARY KEY,
+            symbol VARCHAR(20),
+            timestamp TIMESTAMPTZ,
+            price DECIMAL(10,4)
+          );
+          CREATE TABLE IF NOT EXISTS dev_price_data_coverage (
+            symbol VARCHAR(20),
+            vendor VARCHAR(50),
+            date DATE,
+            coverage_pct DECIMAL(5,2)
+          );
+        "
     
     - name: Run schema validation tests
       env:

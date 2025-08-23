@@ -138,7 +138,7 @@ jobs:
 
       - name: Upload Test Reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: unified-analytics-test-reports-${{ matrix.test-type }}
           path: |

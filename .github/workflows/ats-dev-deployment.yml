@@ -30,7 +30,7 @@ jobs:
         python-version: ${{ env.PYTHON_VERSION }}
         
     - name: Cache Python dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml') }}
@@ -49,7 +49,7 @@ jobs:
         PYTHONPATH=src pytest tests/core/ tests/config/ tests/signals/test_indicator.py -v --tb=short --maxfail=10
         
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: unit-test-results
@@ -91,7 +91,7 @@ jobs:
         python-version: ${{ env.PYTHON_VERSION }}
         
     - name: Cache Python dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml') }}
@@ -119,7 +119,7 @@ jobs:
         PYTHONPATH=src pytest tests/market_data/realtime/ -v --tb=short -m "not benchmark" --maxfail=5
         
     - name: Upload integration test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: integration-test-results
@@ -164,7 +164,7 @@ jobs:
         ruff check src/
         
     - name: Upload security reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: security-reports
@@ -220,7 +220,7 @@ jobs:
         outputs: type=docker,dest=/tmp/realtime-collector.tar
         
     - name: Upload Docker image artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: docker-images
         path: /tmp/realtime-collector.tar
@@ -263,7 +263,7 @@ jobs:
         kubectl get namespaces | grep ats-dev || kubectl create namespace ats-dev
         
     - name: Download Docker images
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: docker-images
         path: /tmp/
@@ -359,7 +359,7 @@ jobs:
         PYTHONPATH=src pytest tests/market_data/realtime/test_performance_benchmarks.py -v -m benchmark --tb=short
         
     - name: Upload performance results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: performance-test-results
