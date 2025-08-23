@@ -6,8 +6,16 @@ better artifact organization and state isolation between runs.
 """
 
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
+
+# Optional pyarrow import for Parquet support
+try:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    PYARROW_AVAILABLE = True
+except ImportError:
+    pa = None
+    pq = None
+    PYARROW_AVAILABLE = False
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Union
 import logging
