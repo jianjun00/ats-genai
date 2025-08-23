@@ -4,12 +4,14 @@
 
 **EVERY code change must follow this exact workflow:**
 
-1. **Feature Branch Development** - NEVER commit directly to main
-2. **Test-Driven Development (TDD)** - Write failing test first
-3. **Kubernetes-First Development** - Use K8s for all operations  
-4. **End-to-End Validation** - Verify complete pipelines work
-5. **Integration Testing** - Test actual service startup
-6. **Pull Request Review** - Always merge through PR after review
+1. **JIRA Issue Management** - Create JIRA ticket before any work
+2. **Feature Branch Development** - NEVER commit directly to main
+3. **Test-Driven Development (TDD)** - Write failing test first
+4. **Kubernetes-First Development** - Use K8s for all operations  
+5. **End-to-End Validation** - Verify complete pipelines work
+6. **Integration Testing** - Test actual service startup
+7. **Pull Request Review** - Always merge through PR after review
+8. **Issue Verification** - Verify resolution before closing JIRA ticket
 
 ## 🌿 Git Branching Workflow - MANDATORY
 
@@ -148,6 +150,170 @@ test/improve-integration-coverage
 - ✅ Require branches to be up to date before merging
 - ✅ Require linear history (squash and merge)
 - ✅ Do not allow bypassing the above settings
+
+## 🎫 JIRA Issue Management - MANDATORY
+
+### 🚫 NEVER Start Work Without JIRA Ticket
+
+**All development work must be tracked through JIRA tickets:**
+
+```bash
+# ❌ WRONG - Never do this:
+git checkout -b feature/fix-some-bug
+# No JIRA ticket = No traceability = No accountability
+
+# ✅ CORRECT - Always create JIRA ticket first:
+# 1. Go to JIRA: https://your-company.atlassian.net/browse/PGPT
+# 2. Create ticket: PGPT-1234
+# 3. THEN create branch with ticket number
+```
+
+### Step 1: Create JIRA Ticket First
+
+**Before any code changes:**
+
+```bash
+# 1. Identify the issue (bug, feature, technical debt)
+# 2. Go to JIRA project dashboard
+# 3. Click "Create Issue"
+# 4. Use appropriate template from docs/templates/JIRA_TICKET_TEMPLATE.md
+```
+
+**Required JIRA Ticket Information:**
+- **Summary:** Clear, actionable title
+- **Description:** Detailed problem/requirement description  
+- **Acceptance Criteria:** Specific, testable conditions for completion
+- **Priority:** Critical/High/Medium/Low based on impact
+- **Components:** Affected system areas
+- **Labels:** Categorization (bug, feature, technical-debt, etc.)
+
+### Step 2: Branch Naming with JIRA Integration
+
+```bash
+# ALWAYS include JIRA ticket number in branch name
+git checkout -b PGPT-1234/fix-workflow-dependencies
+git checkout -b PGPT-1235/feature-dataset-filtering  
+git checkout -b PGPT-1236/docs-api-documentation
+git checkout -b PGPT-1237/refactor-analytics-service
+```
+
+**Branch Naming Convention:**
+```
+PGPT-[ticket-number]/[type]-[brief-description]
+
+Examples:
+PGPT-1234/fix-gin-import-errors
+PGPT-1235/feature-user-dashboard
+PGPT-1236/docs-deployment-guide
+PGPT-1237/refactor-database-layer
+```
+
+### Step 3: Commit Messages with JIRA Integration
+
+```bash
+# Include JIRA ticket number in every commit message
+git commit -m "PGPT-1234: fix missing Python dependencies in workflow tests
+
+- Add gin-config==0.5.0 to resolve import errors
+- Add fastapi==0.115.6 for web framework support  
+- Fix gin configuration path issues in tests
+- All workflow tests now pass successfully
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+Co-Authored-By: Claude <noreply@anthropic.com>"
+```
+
+### Step 4: Pull Request Integration
+
+**PR Title Format:**
+```
+PGPT-1234: Fix workflow dependency import errors
+```
+
+**PR Description Must Include:**
+```markdown
+## JIRA Ticket
+**Link:** [PGPT-1234](https://your-company.atlassian.net/browse/PGPT-1234)
+
+## Summary
+[Brief description of changes made to address the JIRA ticket]
+
+## JIRA Acceptance Criteria Met
+- [ ] Acceptance criteria #1 - [specific requirement met]
+- [ ] Acceptance criteria #2 - [specific requirement met]
+- [ ] All acceptance criteria verified and ready for ticket closure
+
+## Testing Completed  
+- [ ] Unit tests pass
+- [ ] Integration tests pass
+- [ ] End-to-end functionality verified
+- [ ] Manual testing completed in dev environment
+
+## Verification Instructions
+[Step-by-step instructions for reviewers to verify the fix addresses the JIRA issue]
+```
+
+### Step 5: JIRA Status Automation
+
+**Your GitHub Actions automatically update JIRA:**
+
+```yaml
+# .github/workflows/jira-integration.yml handles:
+- PR opened → JIRA status: "In Review"  
+- PR merged → JIRA status: "Done"
+- Adds PR links and commit details to JIRA comments
+```
+
+**Manual JIRA Updates Required:**
+- **"To Do" → "In Progress"** when starting work on ticket
+- **"Code Review" → "Testing"** when PR merged (before verification)
+- **"Testing" → "Done"** after production verification completed
+
+### Step 6: Issue Verification & Closure
+
+**🚨 NEVER close JIRA tickets without verification:**
+
+```bash
+# For Bug Fixes:
+1. Reproduce original issue in dev environment  
+2. Confirm fix resolves the specific problem
+3. Run regression tests to prevent new issues
+4. Deploy to staging/production environment
+5. Verify fix works in production
+6. Add verification comment to JIRA ticket
+7. Confirm JIRA ticket closure
+
+# For Features:
+1. Test all acceptance criteria in dev environment
+2. Verify end-to-end functionality works
+3. Deploy to staging/production
+4. Test feature with real user scenarios  
+5. Confirm feature works for end users
+6. Add verification comment to JIRA ticket
+7. Confirm JIRA ticket closure
+```
+
+### JIRA Integration Examples
+
+**Bug Report Creation:**
+```bash
+# Discovered: Workflow failing with import errors
+# Action: Create PGPT-1234 with error details, reproduction steps
+# Branch: PGPT-1234/fix-workflow-dependencies
+# Commits: "PGPT-1234: fix missing gin-config dependency"
+# PR: "PGPT-1234: Fix workflow dependency import errors"
+# Verify: Run workflows, confirm they pass, close ticket
+```
+
+**Feature Development:**
+```bash
+# Request: Add dataset filtering functionality
+# Action: Create PGPT-1235 with requirements, acceptance criteria
+# Branch: PGPT-1235/feature-dataset-filtering
+# Commits: "PGPT-1235: implement dataset filtering with search UI"
+# PR: "PGPT-1235: Add comprehensive dataset filtering functionality"
+# Verify: Test filtering in production, confirm works, close ticket
+```
 
 ## Test-Driven Development (TDD) - MANDATORY
 
@@ -386,10 +552,15 @@ curl -s "http://EXTERNAL_IP:NODEPORT/" | grep -i localhost
 ### Implementing New API Endpoint
 
 ```bash
-# 0. ALWAYS start with feature branch (Git Workflow)
+# 0. ALWAYS start with JIRA ticket (Issue Management)
+# Go to JIRA: https://your-company.atlassian.net/browse/PGPT
+# Create ticket: PGPT-1238 "Add recommendations API endpoint"
+# Include: Summary, Description, Acceptance Criteria, Priority
+
+# 1. THEN create feature branch with JIRA ticket (Git Workflow)  
 git checkout main
 git pull origin main
-git checkout -b feature/add-recommendations-endpoint
+git checkout -b PGPT-1238/feature-recommendations-endpoint
 
 # 1. Write failing test first (TDD Red Phase)
 touch tests/api/test_recommendations_endpoint.py
@@ -423,57 +594,96 @@ curl -s "http://EXTERNAL_IP:NODEPORT/api/recommendations" | jq
 # Open http://EXTERNAL_IP:NODEPORT/api/recommendations
 # ✅ Browser shows expected response
 
-# 9. Commit and push feature branch (NEVER push to main)
-git add .
-git commit -m "feat: add recommendations API endpoint
+# 9. Update JIRA ticket status to "In Progress"
+# Go to JIRA ticket PGPT-1238, change status: "To Do" → "In Progress"
 
-- Add new /api/recommendations endpoint 
-- Include comprehensive test coverage
-- Deploy with K8s configuration
-- Verify external access works
+# 10. Commit and push feature branch with JIRA reference (NEVER push to main)
+git add .
+git commit -m "PGPT-1238: add recommendations API endpoint
+
+- Add new /api/recommendations endpoint with CRUD operations
+- Include comprehensive test coverage for all endpoints  
+- Deploy with K8s configuration using existing patterns
+- Verify external access works with real data
+- All JIRA acceptance criteria met
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 Co-Authored-By: Claude <noreply@anthropic.com>"
 
-git push origin feature/add-recommendations-endpoint
+git push origin PGPT-1238/feature-recommendations-endpoint
 
-# 10. Create Pull Request for review
-gh pr create --title "feat: add recommendations API endpoint" --body "
+# 11. Create Pull Request with JIRA integration
+gh pr create --title "PGPT-1238: Add recommendations API endpoint" --body "
+## JIRA Ticket
+**Link:** [PGPT-1238](https://your-company.atlassian.net/browse/PGPT-1238)
+
 ## Summary
-New API endpoint for getting stock recommendations based on analysis.
+New API endpoint for getting stock recommendations based on technical analysis.
+Addresses JIRA ticket requirements for recommendation system functionality.
+
+## JIRA Acceptance Criteria Met
+- [x] Acceptance criteria #1 - API endpoint returns JSON recommendations
+- [x] Acceptance criteria #2 - Endpoint supports filtering by symbol
+- [x] Acceptance criteria #3 - Response includes confidence scores
+- [x] Acceptance criteria #4 - Performance meets <200ms response time
+- [x] All acceptance criteria verified and ready for ticket closure
 
 ## Changes Made
 - Added /api/recommendations endpoint with full CRUD operations
 - Comprehensive test coverage including integration tests
-- Kubernetes deployment configuration
-- External access verified
+- Kubernetes deployment configuration using existing patterns
+- External access verified with real data
 
-## Testing
-- [x] Unit tests pass
+## Testing Completed
+- [x] Unit tests pass (TDD workflow followed)
 - [x] Integration tests pass
-- [x] K8s deployment successful
-- [x] External endpoint accessible
-- [x] End-to-end workflow verified
+- [x] K8s deployment successful in dev environment
+- [x] External endpoint accessible (not just port-forward)
+- [x] End-to-end workflow verified with real data
+- [x] Performance benchmarks met
+- [x] No regression issues introduced
 
-## Verification Checklist
-- [x] TDD workflow followed (tests written first)
-- [x] All existing tests still pass
-- [x] Feature works end-to-end in K8s environment
-- [x] External access tested (not just port-forward)
-- [x] No breaking changes introduced
+## Verification Instructions
+1. Deploy to dev environment: \`kubectl apply -f k8s/dev/\`
+2. Test endpoint: \`curl http://EXTERNAL_IP:PORT/api/recommendations?symbol=AAPL\`
+3. Verify response format matches JIRA acceptance criteria
+4. Confirm response time <200ms as specified in JIRA ticket
+5. Test error handling and edge cases
 "
 
-# 11. Wait for PR review and approval
-# 12. Merge through GitHub interface (never merge locally to main)
-# 13. Clean up after merge
+# 12. Wait for PR review and approval (JIRA auto-updates to "In Review")
+# 13. Merge through GitHub interface (never merge locally to main)
+# 14. JIRA automatically transitions to "Done" after merge
+
+# 15. CRITICAL: Verify JIRA issue resolution in production
+# Deploy to production and test the actual endpoint
+curl -s "http://PRODUCTION_IP:PORT/api/recommendations?symbol=AAPL" | jq
+# Verify response meets all JIRA acceptance criteria
+
+# 16. Add verification comment to JIRA ticket
+# Go to JIRA ticket PGPT-1238, add comment:
+# "✅ Verified in production - all acceptance criteria met
+# - Endpoint returns JSON recommendations ✓
+# - Supports symbol filtering ✓  
+# - Includes confidence scores ✓
+# - Response time <200ms ✓
+# Ready for ticket closure."
+
+# 17. Confirm JIRA ticket is properly closed
+# Ensure JIRA status: "Testing" → "Done" 
+
+# 18. Clean up local branches
 git checkout main
 git pull origin main
-git branch -d feature/add-recommendations-endpoint
+git branch -d PGPT-1238/feature-recommendations-endpoint
 ```
 
 ## Development Rules Summary
 
-**🚫 MOST CRITICAL Git Workflow Rules:**
+**🚫 MOST CRITICAL JIRA & Git Rules:**
+- 🚫 **NEVER** start work without creating JIRA ticket first
+- 🚫 **NEVER** commit without JIRA ticket reference in branch/commit
+- 🚫 **NEVER** close JIRA ticket without production verification
 - 🚫 **NEVER** commit directly to main branch
 - 🚫 **NEVER** push to main without pull request review
 - 🚫 **NEVER** merge without CI/CD checks passing
@@ -486,12 +696,15 @@ git branch -d feature/add-recommendations-endpoint
 - 🚫 **NEVER** use kubectl directly - use dev CLI
 - 🚫 **NEVER** create new infrastructure - reuse existing patterns
 
-**✅ ALWAYS Do - Git Workflow:**
-- ✅ **ALWAYS** create feature branch for any change
-- ✅ **ALWAYS** use descriptive branch names with prefixes
+**✅ ALWAYS Do - JIRA & Git Workflow:**
+- ✅ **ALWAYS** create JIRA ticket before starting any work
+- ✅ **ALWAYS** include JIRA ticket number in branch names and commits
+- ✅ **ALWAYS** create feature branch for any change  
+- ✅ **ALWAYS** use JIRA ticket references in PR titles and descriptions
 - ✅ **ALWAYS** create pull request for review
 - ✅ **ALWAYS** wait for CI/CD checks and peer review
 - ✅ **ALWAYS** merge through GitHub interface, never locally
+- ✅ **ALWAYS** verify JIRA issue resolution in production before closing
 
 **✅ ALWAYS Do - Development:**
 - ✅ **ALWAYS** write test first (TDD)
