@@ -4,10 +4,150 @@
 
 **EVERY code change must follow this exact workflow:**
 
-1. **Test-Driven Development (TDD)** - Write failing test first
-2. **Kubernetes-First Development** - Use K8s for all operations  
-3. **End-to-End Validation** - Verify complete pipelines work
-4. **Integration Testing** - Test actual service startup
+1. **Feature Branch Development** - NEVER commit directly to main
+2. **Test-Driven Development (TDD)** - Write failing test first
+3. **Kubernetes-First Development** - Use K8s for all operations  
+4. **End-to-End Validation** - Verify complete pipelines work
+5. **Integration Testing** - Test actual service startup
+6. **Pull Request Review** - Always merge through PR after review
+
+## 🌿 Git Branching Workflow - MANDATORY
+
+### 🚫 NEVER Commit Directly to Main Branch
+
+**All changes must go through feature branches and pull requests:**
+
+```bash
+# ❌ WRONG - Never do this:
+git checkout main
+git add .
+git commit -m "fix something"
+git push origin main
+
+# ✅ CORRECT - Always use feature branches:
+```
+
+### Step 1: Create Feature Branch
+
+```bash
+# Always start from latest main
+git checkout main
+git pull origin main
+
+# Create descriptive feature branch
+git checkout -b feature/fix-workflow-dependencies
+# or
+git checkout -b bugfix/resolve-gin-import-errors
+# or  
+git checkout -b docs/update-development-workflow
+```
+
+### Step 2: Make Changes on Feature Branch
+
+```bash
+# Make your changes (following TDD workflow below)
+# Edit files, write tests, implement features
+
+# Stage changes
+git add .
+
+# Commit with descriptive message
+git commit -m "fix: add missing Python dependencies for workflow tests
+
+- Add gin-config==0.5.0 to resolve import errors
+- Add fastapi==0.115.6 for web framework support  
+- Add uvicorn[standard]==0.35.0 for ASGI server
+- Fix gin configuration path issues in tests
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+Co-Authored-By: Claude <noreply@anthropic.com>"
+```
+
+### Step 3: Push Feature Branch
+
+```bash
+# Push feature branch to remote
+git push origin feature/fix-workflow-dependencies
+```
+
+### Step 4: Create Pull Request
+
+```bash
+# Create PR via GitHub CLI (recommended)
+gh pr create --title "fix: resolve workflow dependency and configuration issues" --body "
+## Summary
+- Fix missing Python dependencies causing workflow failures
+- Resolve gin configuration path issues in tests
+- All workflow tests now pass successfully
+
+## Changes Made
+- Added gin-config, fastapi, uvicorn to requirements.txt
+- Fixed test file path resolution for gin config files
+- Enhanced error handling for working directory issues
+
+## Testing
+- ✅ All unit tests pass
+- ✅ All integration tests pass  
+- ✅ Workflow command passes: \`PYTHONPATH=src pytest tests/core/ tests/config/ tests/signals/test_indicator.py -v --tb=short --maxfail=10\`
+
+## Verification
+- [x] Tests written first (TDD followed)
+- [x] Integration tests pass
+- [x] End-to-end functionality verified
+- [x] No breaking changes
+"
+
+# Or create PR through GitHub web interface:
+# 1. Go to repository on GitHub
+# 2. Click "Compare & pull request" 
+# 3. Fill in title and description
+# 4. Request review from team members
+```
+
+### Step 5: Review and Merge
+
+```bash
+# After PR approval, merge via GitHub interface
+# GitHub will handle the merge and cleanup
+
+# Then update your local main
+git checkout main
+git pull origin main
+
+# Clean up feature branch (optional)
+git branch -d feature/fix-workflow-dependencies
+git push origin --delete feature/fix-workflow-dependencies
+```
+
+### Branch Naming Conventions
+
+**Use descriptive branch names with prefixes:**
+
+- `feature/` - New functionality
+- `bugfix/` - Bug fixes  
+- `docs/` - Documentation updates
+- `chore/` - Maintenance tasks
+- `refactor/` - Code refactoring
+- `test/` - Test improvements
+
+**Examples:**
+```bash
+feature/add-dataset-filtering
+bugfix/fix-gin-import-errors  
+docs/update-api-documentation
+chore/upgrade-dependencies
+refactor/simplify-analytics-service
+test/improve-integration-coverage
+```
+
+### 🚨 Branch Protection Rules
+
+**Main branch should have these protections enabled:**
+- ✅ Require pull request reviews before merging
+- ✅ Require status checks to pass before merging
+- ✅ Require branches to be up to date before merging
+- ✅ Require linear history (squash and merge)
+- ✅ Do not allow bypassing the above settings
 
 ## Test-Driven Development (TDD) - MANDATORY
 
@@ -212,6 +352,15 @@ curl -s "http://EXTERNAL_IP:NODEPORT/" | grep -i localhost
 
 ## Critical Anti-Patterns to Avoid
 
+### 🚫 Git Workflow Violations (MOST CRITICAL)
+- ❌ **Committing directly to main branch** → Always use feature branches
+- ❌ **Pushing to main without PR review** → Always create pull requests
+- ❌ **Merging without CI/CD checks passing** → Wait for all status checks
+- ❌ **Creating PRs without proper testing** → Follow TDD workflow first
+- ❌ **Bypassing branch protection rules** → Never override protections
+- ❌ **Poor commit messages** → Use conventional commit format
+- ❌ **Not updating branch before merge** → Always rebase/merge latest main
+
 ### Half-Baked Development
 - ❌ **Unit tests pass but service doesn't start** → Not end-to-end
 - ❌ **API returns mock data but real data fails** → Not end-to-end
@@ -237,6 +386,11 @@ curl -s "http://EXTERNAL_IP:NODEPORT/" | grep -i localhost
 ### Implementing New API Endpoint
 
 ```bash
+# 0. ALWAYS start with feature branch (Git Workflow)
+git checkout main
+git pull origin main
+git checkout -b feature/add-recommendations-endpoint
+
 # 1. Write failing test first (TDD Red Phase)
 touch tests/api/test_recommendations_endpoint.py
 # Write test that calls new endpoint - should fail
@@ -268,18 +422,78 @@ curl -s "http://EXTERNAL_IP:NODEPORT/api/recommendations" | jq
 # 8. Verify in browser (if applicable)
 # Open http://EXTERNAL_IP:NODEPORT/api/recommendations
 # ✅ Browser shows expected response
+
+# 9. Commit and push feature branch (NEVER push to main)
+git add .
+git commit -m "feat: add recommendations API endpoint
+
+- Add new /api/recommendations endpoint 
+- Include comprehensive test coverage
+- Deploy with K8s configuration
+- Verify external access works
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+git push origin feature/add-recommendations-endpoint
+
+# 10. Create Pull Request for review
+gh pr create --title "feat: add recommendations API endpoint" --body "
+## Summary
+New API endpoint for getting stock recommendations based on analysis.
+
+## Changes Made
+- Added /api/recommendations endpoint with full CRUD operations
+- Comprehensive test coverage including integration tests
+- Kubernetes deployment configuration
+- External access verified
+
+## Testing
+- [x] Unit tests pass
+- [x] Integration tests pass
+- [x] K8s deployment successful
+- [x] External endpoint accessible
+- [x] End-to-end workflow verified
+
+## Verification Checklist
+- [x] TDD workflow followed (tests written first)
+- [x] All existing tests still pass
+- [x] Feature works end-to-end in K8s environment
+- [x] External access tested (not just port-forward)
+- [x] No breaking changes introduced
+"
+
+# 11. Wait for PR review and approval
+# 12. Merge through GitHub interface (never merge locally to main)
+# 13. Clean up after merge
+git checkout main
+git pull origin main
+git branch -d feature/add-recommendations-endpoint
 ```
 
 ## Development Rules Summary
 
-**Critical Rules:**
+**🚫 MOST CRITICAL Git Workflow Rules:**
+- 🚫 **NEVER** commit directly to main branch
+- 🚫 **NEVER** push to main without pull request review
+- 🚫 **NEVER** merge without CI/CD checks passing
+- 🚫 **NEVER** bypass branch protection rules
+
+**🚫 Development Rules:**
 - 🚫 **NEVER** move to next step without verifying current step works
 - 🚫 **NEVER** assume tests pass without running them
 - 🚫 **NEVER** skip manual verification for user-facing changes
 - 🚫 **NEVER** use kubectl directly - use dev CLI
 - 🚫 **NEVER** create new infrastructure - reuse existing patterns
 
-**Always Do:**
+**✅ ALWAYS Do - Git Workflow:**
+- ✅ **ALWAYS** create feature branch for any change
+- ✅ **ALWAYS** use descriptive branch names with prefixes
+- ✅ **ALWAYS** create pull request for review
+- ✅ **ALWAYS** wait for CI/CD checks and peer review
+- ✅ **ALWAYS** merge through GitHub interface, never locally
+
+**✅ ALWAYS Do - Development:**
 - ✅ **ALWAYS** write test first (TDD)
 - ✅ **ALWAYS** test actual functionality, not just unit tests
 - ✅ **ALWAYS** verify database changes with actual queries
