@@ -90,7 +90,7 @@ def query_command(sql: str):
         logging.basicConfig(level=logging.INFO)
         logger = logging.getLogger(__name__)
         
-        db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+        db_url = "postgresql://postgres:dev_password@postgres:5432/dev_db"
         
         try:
             conn = await asyncpg.connect(db_url)
@@ -134,7 +134,7 @@ def migrate_command(migration_name: str):
         logging.basicConfig(level=logging.INFO)
         logger = logging.getLogger(__name__)
         
-        db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+        db_url = "postgresql://postgres:dev_password@postgres:5432/dev_db"
         
         try:
             conn = await asyncpg.connect(db_url)
@@ -417,7 +417,7 @@ def job_command(job_type: str, **kwargs):
         logger.info("🚀 Starting 2022-2025 Backtest via Dev CLI")
         
         # Database connection for Kubernetes
-        db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+        db_url = "postgresql://postgres:dev_password@postgres:5432/dev_db"
         
         try:
             conn = await asyncpg.connect(db_url)
@@ -555,7 +555,7 @@ def job_command(job_type: str, **kwargs):
         
         try:
             # Database connection for runs tracking
-            db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+            db_url = "postgresql://postgres:dev_password@postgres:5432/dev_db"
             conn = await asyncpg.connect(db_url)
             
             # Create run record
@@ -764,7 +764,7 @@ def job_command(job_type: str, **kwargs):
             
             # Save metadata to database
             import asyncpg
-            db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+            db_url = "postgresql://postgres:dev_password@postgres:5432/dev_db"
             conn = await asyncpg.connect(db_url)
             
             try:
@@ -967,7 +967,7 @@ def enhanced_training_command(symbol: str = "AAPL", days_back: int = 90):
         logging.basicConfig(level=logging.INFO)
         logger = logging.getLogger(__name__)
         
-        db_url = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+        db_url = "postgresql://postgres:dev_password@postgres:5432/dev_db"
         
         try:
             conn = await asyncpg.connect(db_url)
