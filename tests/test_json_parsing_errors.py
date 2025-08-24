@@ -20,12 +20,15 @@ import json
 from typing import Dict, Any, Optional
 
 # Test configuration  
-TEST_BASE_URL = "http://localhost:9999"  # Port forward URL
+TEST_BASE_URL = "http://localhost:9996"  # Port forward URL
 ENDPOINTS_TO_TEST = [
     "/api/v1/jobs",
     "/api/v1/jobs/stats", 
     "/api/v1/datasets",
-    "/api/v1/datasets/1/sequences"
+    "/api/v1/datasets/1/sequences",
+    "/api/v1/coverage/summary",
+    "/api/v1/coverage/gaps",
+    "/api/v1/coverage/comparison/AAPL"
 ]
 
 class TestJSONParsingErrors:

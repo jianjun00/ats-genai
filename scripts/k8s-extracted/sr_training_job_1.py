@@ -1,0 +1,351 @@
+#!/usr/bin/env python3
+import asyncio
+
+set -e
+      echo "🔧 Installing dependencies..."
+      pip install --no-cache-dir asyncpg pandas numpy python-dateutil gin-config
+      
+      echo "📦 Setting up source code..."
+      # Create the src directory structure
+      mkdir -p /src/config
+      mkdir -p /src/ml/training_data
+      
+      # Create minimal config files
+      cat > /src/config/__init__.py << 'EOF'
+      # Config module
+      EOF
+      
+      cat > /src/config/environment.py << 'EOF'
+      import os
+      from typing import Optional
+      
+      class Environment:
+          def __init__(self):
+              self.db_host = os.environ.get('DB_HOST', 'postgres')
+              self.db_port = int(os.environ.get('DB_PORT', '5432'))
+              self.db_user = os.environ.get('DB_USER', 'postgres')
+              self.db_password = os.environ.get('DB_PASSWORD', 'dev_password')
+              self.db_name = os.environ.get('DB_NAME', 'dev_db')
+              self.environment = os.environ.get('ENVIRONMENT', 'dev')
+          
+          def get_database_url(self) -> str:
+              return f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+          
+          def get_table_name(self, base_name: str) -> str:
+              if self.environment == 'dev':
+                  return f"dev_{base_name}"
+              elif self.environment == 'test':
+                  return f"test_{base_name}"
+              elif self.environment == 'prod':
+                  return base_name
+              else:
+                  return f"{self.environment}_{base_name}"
+      EOF
+      
+      cat > /src/ml/__init__.py << 'EOF'
+      # ML module
+      EOF
+      
+      cat > /src/ml/training_data/__init__.py << 'EOF'
+      # Training data module
+      EOF
+      
+      # Create the simplified S/R training script
+      cat > /sr_training_script.py << 'EOF'
+      #!/usr/bin/env python3
+      """
+      Simplified Support/Resistance Training Data Generation for AAPL and TSLA
+      """
+      
+      import asyncio
+      import asyncpg
+      import pandas as pd
+      import numpy as np
+      import logging
+      import json
+      import pickle
+      from datetime import date, datetime, timedelta
+      from typing import List, Dict, Optional, NamedTuple
+      from dataclasses import dataclass
+      import sys
+      sys.path.append('/src')
+      from config.environment import Environment
+      
+      # Configure logging
+      logging.basicConfig(
+          level=logging.INFO,
+          format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+      )
+      logger = logging.getLogger(__name__)
+      
+      @dataclass
+      class SimpleTrainingExample:
+          symbol: str
+          date: date
+          features: Dict[str, float]
+          next_day_high: float
+          next_day_low: float
+          next_day_close: float
+          next_day_volume: float
+      
+      async def get_daily_price_data(conn, symbol: str, start_date: date, end_date: date) -> pd.DataFrame:
+          """Get daily OHLCV data for a symbol using instrument_id mapping"""
+          
+          # First get the instrument_id for the symbol
+          instrument_query = """
+              SELECT id FROM dev_instruments WHERE symbol = $1
+          """
+          instrument_row = await conn.fetchrow(instrument_query, symbol)
+          if not instrument_row:
+              logger.warning(f"No instrument found for symbol {symbol}")
+              return pd.DataFrame()
+          
+          instrument_id = instrument_row['id']
+          logger.info(f"Found instrument_id {instrument_id} for symbol {symbol}")
+          
+          # Get price data using instrument_id
+          price_query = """
+              SELECT date, open_price as open, high_price as high, low_price as low, close, volume
+              FROM dev_daily_prices_polygon
+              WHERE instrument_id = $1 AND date >= $2 AND date <= $3
+              ORDER BY date
+          """
+          
+          rows = await conn.fetch(price_query, instrument_id, start_date, end_date)
+          if rows:
+              # Convert to DataFrame with proper column names
+              data = []
+              for row in rows:
+                  data.append({
+                      'date': row[0],
+                      'open': float(row[1]),
+                      'high': float(row[2]),
+                      'low': float(row[3]),
+                      'close': float(row[4]),
+                      'volume': int(row[5])
+                  })
+              df = pd.DataFrame(data)
+              logger.info(f"Found {len(df)} price records for {symbol}")
+              return df
+          else:
+              logger.warning(f"No price data found for {symbol}")
+              return pd.DataFrame()
+      
+      def generate_basic_features(data: pd.DataFrame, current_idx: int) -> Dict[str, float]:
+          """Generate basic technical features from price data"""
+          current_data = data.iloc[:current_idx + 1].copy()
+          
+          if len(current_data) < 5:
+              return {}
+          
+          features = {}
+          current_price = current_data.iloc[-1]
+          
+          # Basic price features
+          features['close'] = current_price['close']
+          features['high'] = current_price['high']
+          features['low'] = current_price['low']
+          features['open'] = current_price['open']
+          features['volume'] = current_price['volume']
+          
+          # Price ratios and ranges
+          features['daily_range'] = (current_price['high'] - current_price['low']) / current_price['close']
+          features['body_ratio'] = abs(current_price['close'] - current_price['open']) / (current_price['high'] - current_price['low'] + 1e-8)
+          
+          # Returns
+          if len(current_data) >= 2:
+              features['return_1d'] = (current_data.iloc[-1]['close'] - current_data.iloc[-2]['close']) / current_data.iloc[-2]['close']
+          if len(current_data) >= 6:
+              features['return_5d'] = (current_data.iloc[-1]['close'] - current_data.iloc[-6]['close']) / current_data.iloc[-6]['close']
+          
+          # Moving averages
+          closes = current_data['close'].values
+          for period in [5, 10, 20]:
+              if len(closes) >= period:
+                  ma = np.mean(closes[-period:])
+                  features[f'ma_{period}_ratio'] = closes[-1] / ma
+          
+          # Volume ratios
+          volumes = current_data['volume'].values
+          if len(volumes) >= 20:
+              avg_volume = np.mean(volumes[-20:])
+              features['volume_ratio'] = volumes[-1] / avg_volume
+          
+          # Simple RSI
+          if len(closes) >= 14:
+              deltas = np.diff(closes[-15:])  # 14 periods + 1
+              gains = np.where(deltas > 0, deltas, 0)
+              losses = np.where(deltas < 0, -deltas, 0)
+              
+              avg_gain = np.mean(gains) if len(gains) > 0 else 0
+              avg_loss = np.mean(losses) if len(losses) > 0 else 0
+              
+              if avg_loss > 0:
+                  rs = avg_gain / avg_loss
+                  features['rsi'] = 100 - (100 / (1 + rs))
+              else:
+                  features['rsi'] = 100.0
+          
+          return features
+      
+      async def generate_training_data_for_symbol(conn, symbol: str, start_date: date, end_date: date) -> List[SimpleTrainingExample]:
+          """Generate training data for a single symbol"""
+          logger.info(f"Processing {symbol}...")
+          
+          # Get daily price data
+          daily_data = await get_daily_price_data(conn, symbol, start_date, end_date)
+          if len(daily_data) < 50:
+              logger.warning(f"Insufficient data for {symbol}: {len(daily_data)} records")
+              return []
+          
+          training_examples = []
+          
+          # Process each trading day (need at least 20 days history + next day)
+          for i in range(20, len(daily_data) - 1):
+              current_row = daily_data.iloc[i]
+              current_date = current_row['date']
+              next_day_data = daily_data.iloc[i + 1]
+              
+              # Generate features from current and historical data
+              features = generate_basic_features(daily_data, i)
+              
+              if not features:
+                  continue
+              
+              # Create training example
+              example = SimpleTrainingExample(
+                  symbol=symbol,
+                  date=current_date,
+                  features=features,
+                  next_day_high=next_day_data['high'],
+                  next_day_low=next_day_data['low'],
+                  next_day_close=next_day_data['close'],
+                  next_day_volume=next_day_data['volume']
+              )
+              
+              training_examples.append(example)
+          
+          logger.info(f"Generated {len(training_examples)} examples for {symbol}")
+          return training_examples
+      
+      async def main():
+          """Main function to generate training data"""
+          logger.info("="*60)
+          logger.info("SUPPORT/RESISTANCE TRAINING DATA GENERATION")
+          logger.info("Symbols: AAPL, TSLA")
+          logger.info("Period: 2020-01-01 to 2024-12-31")
+          logger.info("="*60)
+          
+          env = Environment()
+          logger.info(f"Database URL: {env.get_database_url()}")
+          
+          symbols = ['AAPL', 'TSLA']
+          start_date = date(2020, 1, 1)
+          end_date = date(2024, 12, 31)
+          
+          all_training_examples = []
+          
+          # Connect to database
+          pool = await asyncpg.create_pool(env.get_database_url())
+          try:
+              async with pool.acquire() as conn:
+                  for symbol in symbols:
+                      symbol_examples = await generate_training_data_for_symbol(
+                          conn, symbol, start_date, end_date
+                      )
+                      all_training_examples.extend(symbol_examples)
+          finally:
+              await pool.close()
+          
+          logger.info(f"✅ Generated {len(all_training_examples)} total training examples")
+          
+          if all_training_examples:
+              # Save to pickle file
+              output_file = "sr_training_aapl_tsla.pkl"
+              with open(output_file, 'wb') as f:
+                  pickle.dump(all_training_examples, f)
+              
+              logger.info(f"💾 Saved training data to: {output_file}")
+              
+              # Generate summary
+              symbol_counts = {}
+              feature_count = 0
+              
+              for example in all_training_examples:
+                  symbol_counts[example.symbol] = symbol_counts.get(example.symbol, 0) + 1
+                  if feature_count == 0:
+                      feature_count = len(example.features)
+              
+              summary = {
+                  'generation_timestamp': datetime.now().isoformat(),
+                  'symbols': symbols,
+                  'date_range': {
+                      'start': start_date.isoformat(),
+                      'end': end_date.isoformat()
+                  },
+                  'total_examples': len(all_training_examples),
+                  'examples_per_symbol': symbol_counts,
+                  'feature_count': feature_count,
+                  'output_file': output_file
+              }
+              
+              summary_file = "sr_training_summary.json"
+              with open(summary_file, 'w') as f:
+                  json.dump(summary, f, indent=2)
+              
+              logger.info(f"📊 Summary saved to: {summary_file}")
+              
+              # Print summary
+              logger.info("\n" + "="*40)
+              logger.info("TRAINING DATA SUMMARY")
+              logger.info("="*40)
+              logger.info(f"Total Examples: {len(all_training_examples):,}")
+              logger.info(f"Feature Count: {feature_count}")
+              logger.info("Examples per Symbol:")
+              for symbol, count in symbol_counts.items():
+                  logger.info(f"  {symbol}: {count:,} examples")
+              
+              # Show sample features
+              if all_training_examples:
+                  first_example = all_training_examples[0]
+                  logger.info(f"\nSample Features (from {first_example.symbol} on {first_example.date}):")
+                  for feature, value in list(first_example.features.items())[:10]:
+                      logger.info(f"  {feature}: {value:.4f}")
+                  
+                  logger.info(f"\nSample Labels:")
+                  logger.info(f"  Next Day High: {first_example.next_day_high}")
+                  logger.info(f"  Next Day Low: {first_example.next_day_low}")
+                  logger.info(f"  Next Day Close: {first_example.next_day_close}")
+              
+              logger.info("="*40)
+              logger.info("✅ TRAINING DATA GENERATION COMPLETED!")
+              logger.info("="*40)
+              
+              # Display file contents for verification
+              logger.info("\n📁 Generated files:")
+              import os
+              for file in [output_file, summary_file]:
+                  if os.path.exists(file):
+                      size_bytes = os.path.getsize(file)
+                      logger.info(f"  {file}: {size_bytes:,} bytes")
+              
+          else:
+              logger.warning("❌ No training examples generated")
+      
+      if __name__ == "__main__":
+          asyncio.run(main())
+      EOF
+      
+      echo "🚀 Running S/R training data generation..."
+      python /sr_training_script.py
+      
+      echo "✅ Training data generation completed!"
+    resources:
+      requests:
+        memory: "2Gi"
+        cpu: "1000m"
+      limits:
+        memory: "4Gi"
+        cpu: "2000m"
+  restartPolicy: Never
+backoffLimit: 3

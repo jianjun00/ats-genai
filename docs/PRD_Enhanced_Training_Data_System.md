@@ -126,6 +126,46 @@ Chart Elements:
 └── Cross-timeframe indicator overlays
 ```
 
+## Analytics Service Integration Requirements
+
+### 5.1 Current Analytics Service Dataset Detail Page
+
+The existing **ATS Analytics Service** (ats-analytics-service) must integrate the multi-timeframe visualization capabilities into its dataset detail functionality:
+
+#### 5.1.1 Required Integration Components
+- **Dataset Detail Page**: Clickable dataset items lead to comprehensive visualization 
+- **Multi-Timeframe Chart View**: 6 synchronized charts as specified in Section 4.1
+- **Chart.js Integration**: Financial plugins for candlestick, OHLC, and technical indicators
+- **Cross-Timeframe Overlays**: As specified in Section 4.2
+- **Interactive Navigation**: Synchronized crosshairs, zoom, pan across all timeframes
+
+#### 5.1.2 User Experience Requirements
+1. **Navigation Flow**: 
+   - Analytics Service → Datasets Tab → Click Dataset Item → Multi-Timeframe Detail Page
+2. **Layout Integration**:
+   - Preserve existing 3-tab structure (Jobs, Datasets, Coverage)
+   - Dataset detail opens within the same interface (not separate window)
+   - Back button to return to dataset list
+3. **Performance Requirements**:
+   - Chart rendering < 2 seconds for 6 simultaneous timeframes
+   - Smooth chart synchronization without lag
+   - Responsive design for different screen sizes
+
+#### 5.1.3 Technical Implementation Requirements
+- **Chart.js Libraries Required**:
+  ```html
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+  ```
+- **API Endpoints Required**:
+  - `/api/v1/datasets/{dataset_id}` - Dataset metadata and statistics
+  - `/api/v1/datasets/{dataset_id}/sequences` - Sequence list with pagination
+  - `/api/v1/datasets/{dataset_id}/sequences/{sequence_id}` - Individual sequence details
+  - `/api/v1/datasets/{dataset_id}/sequences/{sequence_id}/ohlc` - Multi-timeframe OHLC + indicators
+- **Data Coverage Integration**: Dataset detail functionality must coexist with existing coverage monitoring without affecting layout or functionality
+
 ## User Stories
 
 ### Data Scientist User Stories

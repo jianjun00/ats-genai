@@ -1,0 +1,293 @@
+#!/usr/bin/env python3
+
+#!/usr/bin/env python3
+"""
+Compute market cap from outstanding shares and daily prices.
+This script populates the daily_market_cap table using shares_outstanding * close_price.
+"""
+
+import os
+import asyncio
+import argparse
+import logging
+from datetime import datetime, date, timedelta
+from typing import Optional, List, Dict, Any
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("compute_market_cap_from_shares")
+
+
+async def compute_and_populate_market_cap(
+limit: Optional[int] = None,
+symbols: Optional[List[str]] = None,
+days_back: int = 30,
+batch_size: int = 100,
+db_config: Dict[str, Any] = None
+) -> bool:
+"""
+Compute market cap from shares outstanding and daily prices.
+
+Args:
+limit: Optional limit on number of instruments to process
+symbols: Optional list of specific symbols to process
+days_back: Number of days back to compute market cap for
+batch_size: Batch size for database operations
+db_config: Database configuration dictionary
+"""
+import asyncpg
+
+# Calculate date range
+end_date = date.today()
+start_date = end_date - timedelta(days=days_back)
+
+logger.info(f"Computing market cap from {start_date} to {end_date}")
+
+# Get database connection
+try:
+pool = await asyncpg.create_pool(
+host=db_config['host'],
+port=db_config['port'], 
+user=db_config['user'],
+password=db_config['password'],
+database=db_config['database'],
+min_size=1,
+max_size=5
+)
+logger.info(f"Connected to database {db_config['host']}:{db_config['port']}/{db_config['database']}")
+except Exception as e:
+logger.error(f"Failed to connect to database: {e}")
+return False
+
+try:
+async with pool.acquire() as conn:
+# Get instruments that have daily prices data
+if symbols:
+# Process specific symbols
+symbol_list = "', '".join(symbols)
+instruments_query = f"""
+SELECT DISTINCT p.instrument_id, x.vendor_symbol as symbol, i.symbol as base_symbol
+FROM dev_daily_prices_polygon p
+JOIN dev_instruments i ON p.instrument_id = i.id
+JOIN dev_instrument_xrefs x ON i.id = x.instrument_id
+JOIN dev_vendors v ON x.vendor_id = v.id
+WHERE v.name = 'ticker' 
+AND x.vendor_symbol IN ('{symbol_list}')
+AND p.date >= $1
+ORDER BY i.symbol
+"""
+params = [start_date]
+else:
+# Get all instruments with price data
+limit_clause = f"LIMIT {limit}" if limit else ""
+instruments_query = f"""
+SELECT DISTINCT p.instrument_id, x.vendor_symbol as symbol, i.symbol as base_symbol
+FROM dev_daily_prices_polygon p
+JOIN dev_instruments i ON p.instrument_id = i.id
+JOIN dev_instrument_xrefs x ON i.id = x.instrument_id
+JOIN dev_vendors v ON x.vendor_id = v.id
+WHERE v.name = 'ticker' 
+AND p.date >= $1
+ORDER BY i.symbol
+{limit_clause}
+"""
+params = [start_date]
+
+instruments = await conn.fetch(instruments_query, *params)
+logger.info(f"Found {len(instruments)} instruments with price data to process")
+
+if not instruments:
+logger.warning("No instruments found with price data")
+return False
+
+# Process in batches
+total_success = 0
+total_skipped = 0
+
+for batch_start in range(0, len(instruments), batch_size):
+batch_end = min(batch_start + batch_size, len(instruments))
+batch = instruments[batch_start:batch_end]
+
+logger.info(f"Processing batch {batch_start//batch_size + 1}: items {batch_start+1}-{batch_end} of {len(instruments)}")
+
+batch_records = []
+
+for inst in batch:
+instrument_id = inst['instrument_id']
+symbol = inst['symbol']
+
+try:
+# Get shares outstanding from Polygon API
+shares_outstanding = await get_shares_outstanding_polygon(symbol)
+
+if shares_outstanding is None:
+logger.debug(f"No shares outstanding data for {symbol}, skipping")
+total_skipped += 1
+continue
+
+# Get daily prices for this instrument in our date range
+prices_query = f"""
+SELECT date, close
+FROM dev_daily_prices_polygon
+WHERE instrument_id = $1 
+AND date >= $2 
+AND date <= $3
+AND close IS NOT NULL
+ORDER BY date
+"""
+
+price_rows = await conn.fetch(prices_query, instrument_id, start_date, end_date)
+
+# Compute market cap for each day
+for price_row in price_rows:
+market_cap = float(price_row['close']) * shares_outstanding
+
+batch_records.append({
+'date': price_row['date'],
+'instrument_id': instrument_id,
+'market_cap': market_cap,
+'shares_outstanding': shares_outstanding
+})
+
+logger.debug(f"Prepared {len(price_rows)} market cap records for {symbol}")
+
+except Exception as e:
+logger.error(f"Failed to process {symbol}: {e}")
+total_skipped += 1
+
+# Batch insert all records
+if batch_records:
+try:
+insert_query = f"""
+INSERT INTO dev_daily_market_cap
+(date, instrument_id, market_cap, shares_outstanding)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (instrument_id, date) DO UPDATE SET
+market_cap = EXCLUDED.market_cap,
+shares_outstanding = EXCLUDED.shares_outstanding
+"""
+
+for record in batch_records:
+await conn.execute(
+insert_query,
+record['date'],
+record['instrument_id'],
+record['market_cap'],
+record['shares_outstanding']
+)
+
+total_success += len(batch_records)
+logger.info(f"Batch inserted {len(batch_records)} market cap records")
+
+except Exception as e:
+logger.error(f"Failed to batch insert market cap records: {e}")
+total_skipped += len(batch_records)
+
+# Small delay between batches
+await asyncio.sleep(0.1)
+
+finally:
+await pool.close()
+
+logger.info(f"Market cap computation complete. Success: {total_success}, Skipped: {total_skipped}")
+return total_success > 0
+
+
+async def get_shares_outstanding_polygon(symbol: str) -> Optional[int]:
+"""
+Get shares outstanding from Polygon API.
+"""
+import aiohttp
+
+polygon_api_key = os.environ.get("POLYGON_API_KEY")
+if not polygon_api_key:
+logger.warning("POLYGON_API_KEY not set, cannot fetch shares outstanding")
+return None
+
+url = f"https://api.polygon.io/v3/reference/tickers/{symbol}"
+params = {"apikey": polygon_api_key}
+
+try:
+async with aiohttp.ClientSession() as session:
+async with session.get(url, params=params) as response:
+if response.status == 200:
+data = await response.json()
+results = data.get('results', {})
+shares_outstanding = results.get('share_class_shares_outstanding')
+
+if shares_outstanding:
+logger.debug(f"Found shares outstanding for {symbol}: {shares_outstanding:,}")
+return shares_outstanding
+else:
+logger.debug(f"No shares outstanding in API response for {symbol}")
+return None
+else:
+logger.debug(f"API request failed for {symbol}: HTTP {response.status}")
+return None
+
+except Exception as e:
+logger.error(f"Error fetching shares outstanding for {symbol}: {e}")
+return None
+
+
+async def main():
+parser = argparse.ArgumentParser(description="Compute market cap from shares outstanding and daily prices")
+parser.add_argument('--environment', type=str, default='dev', choices=['test', 'intg', 'prod', 'dev'], 
+help='Environment to use (default: dev)')
+parser.add_argument('--debug', action='store_true', help='Enable debug logging')
+parser.add_argument('--limit', type=int, default=None, help='Limit number of instruments to process')
+parser.add_argument('--symbols', type=str, default=None, help='Comma-separated list of specific symbols to process')
+parser.add_argument('--days_back', type=int, default=30, help='Number of days back to compute (default: 30)')
+parser.add_argument('--batch_size', type=int, default=100, help='Batch size for processing (default: 100)')
+parser.add_argument('--db_host', type=str, required=True, help='Database host')
+parser.add_argument('--db_port', type=str, default='5432', help='Database port')
+parser.add_argument('--db_user', type=str, required=True, help='Database user')
+parser.add_argument('--db_password', type=str, required=True, help='Database password')
+parser.add_argument('--db_name', type=str, required=True, help='Database name')
+
+args = parser.parse_args()
+
+# Set up logging
+if args.debug:
+logging.getLogger().setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
+
+db_config = {
+'host': args.db_host,
+'port': int(args.db_port),
+'user': args.db_user,
+'password': args.db_password,
+'database': args.db_name
+}
+
+try:
+# Parse symbols if provided
+symbol_list = None
+if args.symbols:
+symbol_list = [s.strip().upper() for s in args.symbols.split(',') if s.strip()]
+
+# Run market cap computation
+success = await compute_and_populate_market_cap(
+limit=args.limit, 
+symbols=symbol_list,
+days_back=args.days_back,
+batch_size=args.batch_size,
+db_config=db_config
+)
+
+if success:
+logger.info("Market cap computation completed successfully")
+return 0
+else:
+logger.error("Market cap computation failed")
+return 1
+
+except Exception as e:
+logger.error(f"Failed to run market cap computation: {e}")
+import traceback
+logger.error(traceback.format_exc())
+return 1
+
+
+if __name__ == "__main__":
+exit_code = asyncio.run(main())
+exit(exit_code)
