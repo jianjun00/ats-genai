@@ -192,51 +192,29 @@ async def get_coverage_summary():
             """)
             
             summary_data = list(polygon_data) + list(tiingo_data)
-            SELECT 
-                'polygon' as vendor,
-                symbol,
-                COUNT(*) as data_points
-            FROM dev_polygon_prices 
-            WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'
-            GROUP BY symbol
-            ORDER BY data_points DESC
-            LIMIT 5
             
-            UNION ALL
+            summary = []
+            for row in summary_data:
+                # Simulate coverage percentage based on data points
+                coverage_24h = min(95, max(60, (row['data_points'] or 0) * 2))
+                quality_24h = 0.85 + (coverage_24h - 60) / 100 * 0.15
+                
+                summary.append({
+                    "symbol": row['symbol'],
+                    "vendor": row['vendor'],
+                    "coverage_24h": coverage_24h,
+                    "coverage_7d": coverage_24h - 2,
+                    "quality_24h": quality_24h,
+                    "current_status": "active" if coverage_24h > 80 else "warning"
+                })
             
-            SELECT 
-                'tiingo' as vendor,
-                symbol,
-                COUNT(*) as data_points
-            FROM dev_tiingo_prices 
-            WHERE collected_at >= CURRENT_DATE - INTERVAL '1 day'
-            GROUP BY symbol
-            ORDER BY data_points DESC
-            LIMIT 5
-        """)
-        
-        summary = []
-        for row in summary_data:
-            # Simulate coverage percentage based on data points
-            coverage_24h = min(95, max(60, (row['data_points'] or 0) * 2))
-            quality_24h = 0.85 + (coverage_24h - 60) / 100 * 0.15
-            
-            summary.append({
-                "symbol": row['symbol'],
-                "vendor": row['vendor'],
-                "coverage_24h": coverage_24h,
-                "coverage_7d": coverage_24h - 2,
-                "quality_24h": quality_24h,
-                "current_status": "active" if coverage_24h > 80 else "warning"
-            })
-        
-        return {
-            "total_combinations": total_combinations,
-            "active_combinations": total_combinations,
-            "average_coverage_24h": 87,
-            "average_quality_24h": 0.92,
-            "summary": summary[:10]
-        }
+            return {
+                "total_combinations": total_combinations,
+                "active_combinations": total_combinations,
+                "average_coverage_24h": 87,
+                "average_quality_24h": 0.92,
+                "summary": summary[:10]
+            }
     except Exception as e:
         print(f"Error getting coverage summary: {e}")
         return {
