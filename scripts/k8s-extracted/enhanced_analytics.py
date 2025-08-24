@@ -12,7 +12,7 @@ import random
 app = FastAPI(title="ATS Analytics Service")
 
 # Database configuration - use environment variables or defaults
-DB_HOST = os.getenv('DB_HOST', 'postgres-simple')
+DB_HOST = os.getenv('DB_HOST', 'postgres')
 DB_PORT = int(os.getenv('DB_PORT', '5432'))
 DB_USER = os.getenv('DB_USER', 'postgres')
 DB_PASSWORD = os.getenv('DB_PASSWORD', 'dev_password')
@@ -24,7 +24,7 @@ class AnalyticsManager:
 
     async def initialize(self):
         try:
-            # Try to connect to database
+            # Connect to database - REQUIRED, no fallback
             self.db_pool = await asyncpg.create_pool(
                 host=DB_HOST,
                 port=DB_PORT,
@@ -36,114 +36,58 @@ class AnalyticsManager:
             )
             print("✅ Analytics Manager connected to database successfully")
         except Exception as e:
-            print(f"⚠️  Database connection failed: {e}")
-            print("📊 Running in demo mode with mock data")
-            self.db_pool = None
+            print(f"❌ Database connection failed: {e}")
+            raise Exception(f"CRITICAL: Cannot connect to database - {e}. Real data required, no fallback allowed.")
 
     async def get_datasets(self, limit: int = 5, offset: int = 0):
-        if self.db_pool:
-            try:
-                async with self.db_pool.acquire() as conn:
-                    # Try to get real datasets
-                    datasets = await conn.fetch("""
-                        SELECT 
-                            id as dataset_id,
-                            dataset_name,
-                            symbols,
-                            total_sequences,
-                            feature_count,
-                            sequence_length,
-                            file_size_mb,
-                            status,
-                            creation_timestamp as created_at
-                        FROM dev_training_dataset 
-                        ORDER BY creation_timestamp DESC
-                        LIMIT $1 OFFSET $2
-                    """, limit, offset)
-                    
-                    result = []
-                    for row in datasets:
-                        result.append({
-                            "dataset_id": row['dataset_id'],
-                            "dataset_name": row['dataset_name'],
-                            "symbols": row['symbols'] or [],
-                            "total_sequences": row['total_sequences'],
-                            "feature_count": row['feature_count'],
-                            "sequence_length": row['sequence_length'],
-                            "file_size_mb": row['file_size_mb'],
-                            "status": row['status'],
-                            "created_at": row['created_at'].isoformat() if row['created_at'] else None
-                        })
-                    
-                    total = await conn.fetchval("SELECT COUNT(*) FROM dev_training_dataset")
-                    return {"datasets": result, "total": total}
-            except Exception as e:
-                print(f"Database query failed: {e}")
-        
-        # Fallback to demo data
-        demo_datasets = [
-            {
-                "dataset_id": 1,
-                "dataset_name": "S&P 500 Training Set",
-                "symbols": ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"],
-                "total_sequences": 15420,
-                "feature_count": 127,
-                "sequence_length": 60,
-                "file_size_mb": 245.7,
-                "status": "completed",
-                "created_at": datetime.now().isoformat()
-            },
-            {
-                "dataset_id": 2,
-                "dataset_name": "NASDAQ Tech Stocks",
-                "symbols": ["NVDA", "META", "NFLX", "ADBE"],
-                "total_sequences": 9876,
-                "feature_count": 98,
-                "sequence_length": 45,
-                "file_size_mb": 156.3,
-                "status": "processing",
-                "created_at": (datetime.now() - timedelta(days=1)).isoformat()
-            },
-            {
-                "dataset_id": 3,
-                "dataset_name": "Financial Sector Analysis",
-                "symbols": ["JPM", "BAC", "WFC", "GS"],
-                "total_sequences": 7654,
-                "feature_count": 85,
-                "sequence_length": 30,
-                "file_size_mb": 98.2,
-                "status": "completed",
-                "created_at": (datetime.now() - timedelta(days=3)).isoformat()
-            }
-        ]
-        
-        return {"datasets": demo_datasets[:limit], "total": len(demo_datasets)}
+        async with self.db_pool.acquire() as conn:
+            # Get real datasets from database
+            datasets = await conn.fetch("""
+                SELECT 
+                    id as dataset_id,
+                    dataset_name,
+                    symbols,
+                    total_sequences,
+                    feature_count,
+                    sequence_length,
+                    file_size_mb,
+                    status,
+                    creation_timestamp as created_at
+                FROM dev_training_dataset 
+                ORDER BY creation_timestamp DESC
+                LIMIT $1 OFFSET $2
+            """, limit, offset)
+            
+            result = []
+            for row in datasets:
+                result.append({
+                    "dataset_id": row['dataset_id'],
+                    "dataset_name": row['dataset_name'],
+                    "symbols": row['symbols'] or [],
+                    "total_sequences": row['total_sequences'],
+                    "feature_count": row['feature_count'],
+                    "sequence_length": row['sequence_length'],
+                    "file_size_mb": row['file_size_mb'],
+                    "status": row['status'],
+                    "created_at": row['created_at'].isoformat() if row['created_at'] else None
+                })
+            
+            total = await conn.fetchval("SELECT COUNT(*) FROM dev_training_dataset")
+            return {"datasets": result, "total": total}
 
     async def get_job_stats(self):
-        if self.db_pool:
-            try:
-                async with self.db_pool.acquire() as conn:
-                    # Try to get real job stats from database
-                    total = await conn.fetchval("SELECT COUNT(*) FROM job_runs")
-                    running = await conn.fetchval("SELECT COUNT(*) FROM job_runs WHERE status = 'running'")
-                    completed = await conn.fetchval("SELECT COUNT(*) FROM job_runs WHERE status = 'completed'")
-                    failed = await conn.fetchval("SELECT COUNT(*) FROM job_runs WHERE status = 'failed'")
-                    return {
-                        "total_jobs": total or 0,
-                        "running_jobs": running or 0,
-                        "completed_jobs": completed or 0,
-                        "failed_jobs": failed or 0
-                    }
-            except Exception as e:
-                print(f"Job stats query failed: {e}")
-        
-        # Fallback to demo data
-        return {
-            "total_jobs": 47,
-            "running_jobs": 3,
-            "completed_jobs": 41,
-            "failed_jobs": 3
-        }
+        async with self.db_pool.acquire() as conn:
+            # Get real job stats from database
+            total = await conn.fetchval("SELECT COUNT(*) FROM job_runs")
+            running = await conn.fetchval("SELECT COUNT(*) FROM job_runs WHERE status = 'running'")
+            completed = await conn.fetchval("SELECT COUNT(*) FROM job_runs WHERE status = 'completed'")
+            failed = await conn.fetchval("SELECT COUNT(*) FROM job_runs WHERE status = 'failed'")
+            return {
+                "total_jobs": total or 0,
+                "running_jobs": running or 0,
+                "completed_jobs": completed or 0,
+                "failed_jobs": failed or 0
+            }
 
 # Initialize manager
 manager = AnalyticsManager()
@@ -162,40 +106,107 @@ async def get_jobs_stats():
 
 @app.get("/api/v1/jobs")
 async def get_jobs():
-    # Demo job data with realistic examples
-    demo_jobs = [
-        {"id": 1, "job_type": "data_collection", "status": "running", "started_at": "2025-08-24T03:30:00Z", "symbol": "AAPL"},
-        {"id": 2, "job_type": "model_training", "status": "completed", "started_at": "2025-08-24T02:15:00Z", "symbol": "TSLA"},
-        {"id": 3, "job_type": "backfill", "status": "running", "started_at": "2025-08-24T03:45:00Z", "symbol": "MSFT"},
-        {"id": 4, "job_type": "analytics", "status": "failed", "started_at": "2025-08-24T01:20:00Z", "symbol": "GOOGL"},
-        {"id": 5, "job_type": "validation", "status": "completed", "started_at": "2025-08-24T00:30:00Z", "symbol": "AMZN"},
-    ]
-    return {"jobs": demo_jobs, "total": len(demo_jobs)}
+    async with manager.db_pool.acquire() as conn:
+        # Get real jobs from database
+        jobs = await conn.fetch("""
+            SELECT 
+                id,
+                job_type,
+                status,
+                started_at,
+                symbol,
+                created_at
+            FROM job_runs 
+            ORDER BY started_at DESC
+            LIMIT 20
+        """)
+        
+        result = []
+        for job in jobs:
+            result.append({
+                "id": job['id'],
+                "job_type": job['job_type'],
+                "status": job['status'],
+                "started_at": job['started_at'].isoformat() if job['started_at'] else job['created_at'].isoformat() if job['created_at'] else None,
+                "symbol": job['symbol']
+            })
+        
+        total = await conn.fetchval("SELECT COUNT(*) FROM job_runs")
+        return {"jobs": result, "total": total}
 
 @app.get("/api/v1/coverage/summary")
 async def get_coverage_summary():
-    return {
-        "total_combinations": 125,
-        "active_combinations": 108,
-        "average_coverage_24h": 94,
-        "average_quality_24h": 0.96,
-        "summary": [
-            {"symbol": "AAPL", "vendor": "polygon", "coverage_24h": 98, "coverage_7d": 97, "quality_24h": 0.99, "current_status": "active"},
-            {"symbol": "TSLA", "vendor": "tiingo", "coverage_24h": 92, "coverage_7d": 94, "quality_24h": 0.95, "current_status": "active"},
-            {"symbol": "MSFT", "vendor": "polygon", "coverage_24h": 96, "coverage_7d": 96, "quality_24h": 0.98, "current_status": "active"},
-            {"symbol": "GOOGL", "vendor": "finnhub", "coverage_24h": 89, "coverage_7d": 91, "quality_24h": 0.93, "current_status": "warning"},
-        ]
-    }
+    async with manager.db_pool.acquire() as conn:
+        # Get real coverage data from database
+        total_combinations = await conn.fetchval("SELECT COUNT(*) FROM data_coverage")
+        active_combinations = await conn.fetchval("SELECT COUNT(*) FROM data_coverage WHERE status = 'active'")
+        
+        # Get average coverage and quality
+        avg_coverage = await conn.fetchval("SELECT AVG(coverage_24h) FROM data_coverage WHERE coverage_24h IS NOT NULL")
+        avg_quality = await conn.fetchval("SELECT AVG(quality_24h) FROM data_coverage WHERE quality_24h IS NOT NULL")
+        
+        # Get summary data
+        summary_data = await conn.fetch("""
+            SELECT 
+                symbol,
+                vendor,
+                coverage_24h,
+                coverage_7d,
+                quality_24h,
+                status as current_status
+            FROM data_coverage
+            ORDER BY coverage_24h DESC
+            LIMIT 10
+        """)
+        
+        summary = []
+        for row in summary_data:
+            summary.append({
+                "symbol": row['symbol'],
+                "vendor": row['vendor'],
+                "coverage_24h": row['coverage_24h'] or 0,
+                "coverage_7d": row['coverage_7d'] or 0,
+                "quality_24h": row['quality_24h'] or 0.0,
+                "current_status": row['current_status'] or 'unknown'
+            })
+        
+        return {
+            "total_combinations": total_combinations or 0,
+            "active_combinations": active_combinations or 0,
+            "average_coverage_24h": int(avg_coverage or 0),
+            "average_quality_24h": float(avg_quality or 0.0),
+            "summary": summary
+        }
 
 @app.get("/api/v1/coverage/gaps")
 async def get_coverage_gaps():
-    return {
-        "gaps": [
-            {"symbol": "NVDA", "vendor": "polygon", "gap_duration_minutes": 12, "severity": "minor", "gap_start": "2025-08-24T03:15:00Z"},
-            {"symbol": "META", "vendor": "tiingo", "gap_duration_minutes": 45, "severity": "major", "gap_start": "2025-08-24T02:30:00Z"},
-            {"symbol": "NFLX", "vendor": "finnhub", "gap_duration_minutes": 6, "severity": "minor", "gap_start": "2025-08-24T03:42:00Z"}
-        ]
-    }
+    async with manager.db_pool.acquire() as conn:
+        # Get real gap data from database
+        gaps_data = await conn.fetch("""
+            SELECT 
+                symbol,
+                vendor,
+                gap_duration_minutes,
+                severity,
+                gap_start,
+                detected_at
+            FROM data_gaps
+            WHERE gap_start >= NOW() - INTERVAL '7 days'
+            ORDER BY gap_start DESC
+            LIMIT 50
+        """)
+        
+        gaps = []
+        for row in gaps_data:
+            gaps.append({
+                "symbol": row['symbol'],
+                "vendor": row['vendor'],
+                "gap_duration_minutes": row['gap_duration_minutes'],
+                "severity": row['severity'],
+                "gap_start": row['gap_start'].isoformat() if row['gap_start'] else None
+            })
+        
+        return {"gaps": gaps}
 
 @app.get("/api/v1/datasets")
 async def get_datasets(limit: int = Query(5, ge=1, le=100), offset: int = Query(0, ge=0)):
