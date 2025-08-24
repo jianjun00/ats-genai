@@ -6,58 +6,72 @@ from fastapi.responses import HTMLResponse
 from datetime import datetime, timedelta
 import asyncpg
 import os
-import sys
 import json
-
-# Add the source directory to Python path for imports
-sys.path.insert(0, '/app/src-repo/src')
-
-from dao.training_dataset_dao import TrainingDatasetDAO
-from dao.base.base_dao import BaseDAO
-from config.environment import Environment
 
 app = FastAPI(title="ATS Analytics Service")
 
+# Database configuration - use environment variables or defaults for K8s
+DB_HOST = os.getenv('DB_HOST', 'postgres')
+DB_PORT = int(os.getenv('DB_PORT', '5432'))
+DB_USER = os.getenv('DB_USER', 'postgres')
+DB_PASSWORD = os.getenv('DB_PASSWORD', 'dev_password')
+DB_NAME = os.getenv('DB_NAME', 'dev_db')
+
 class AnalyticsManager:
     def __init__(self):
-        self.env = Environment()
-        self.training_dao = None
         self.db_connection = None
 
     async def initialize(self):
         try:
-            # Initialize environment and DAO
-            self.training_dao = TrainingDatasetDAO(self.env)
-            
-            # Test database connection via DAO
-            self.db_connection = await asyncpg.connect(self.env.get_database_url())
+            # Connect directly to Kubernetes database - no complex configuration needed
+            self.db_connection = await asyncpg.connect(
+                host=DB_HOST,
+                port=DB_PORT,
+                user=DB_USER,
+                password=DB_PASSWORD,
+                database=DB_NAME
+            )
             print("✅ Analytics Manager connected to database successfully")
+            print(f"   Database: {DB_HOST}:{DB_PORT}/{DB_NAME}")
         except Exception as e:
             print(f"❌ Database connection failed: {e}")
             raise Exception(f"CRITICAL: Cannot connect to database - {e}. Real data required, no fallback allowed.")
 
     async def get_datasets(self, limit: int = 5, offset: int = 0):
         try:
-            # Use DAO to get datasets
-            datasets = await self.training_dao.list_training_datasets(limit=limit, offset=offset, conn=self.db_connection)
-            stats = await self.training_dao.get_dataset_statistics(conn=self.db_connection)
+            # Get datasets directly from database without DAO complexity
+            datasets = await self.db_connection.fetch("""
+                SELECT 
+                    id as dataset_id,
+                    dataset_name,
+                    symbols,
+                    total_sequences,
+                    feature_count,
+                    sequence_length,
+                    file_size_mb,
+                    status,
+                    creation_timestamp as created_at
+                FROM dev_training_dataset 
+                ORDER BY creation_timestamp DESC
+                LIMIT $1 OFFSET $2
+            """, limit, offset)
             
             result = []
-            for dataset in datasets:
+            for row in datasets:
                 result.append({
-                    "dataset_id": dataset.id,
-                    "dataset_name": dataset.dataset_name,
-                    "symbols": dataset.symbols or [],
-                    "total_sequences": dataset.total_sequences,
-                    "feature_count": dataset.feature_count,
-                    "sequence_length": dataset.sequence_length,
-                    "file_size_mb": dataset.file_size_mb,
-                    "status": dataset.status,
-                    "created_at": dataset.creation_timestamp.isoformat() if dataset.creation_timestamp else None
+                    "dataset_id": row['dataset_id'],
+                    "dataset_name": row['dataset_name'],
+                    "symbols": row['symbols'] or [],
+                    "total_sequences": row['total_sequences'],
+                    "feature_count": row['feature_count'],
+                    "sequence_length": row['sequence_length'],
+                    "file_size_mb": row['file_size_mb'],
+                    "status": row['status'],
+                    "created_at": row['created_at'].isoformat() if row['created_at'] else None
                 })
             
-            total = stats.get('total_datasets', 0) if stats else 0
-            return {"datasets": result, "total": total}
+            total = await self.db_connection.fetchval("SELECT COUNT(*) FROM dev_training_dataset")
+            return {"datasets": result, "total": total or 0}
         except Exception as e:
             print(f"Error getting datasets: {e}")
             return {"datasets": [], "total": 0}

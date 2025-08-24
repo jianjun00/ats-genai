@@ -28,10 +28,10 @@ logger = logging.getLogger(__name__)
 DATABASE_URL = "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
 
 def create_app() -> FastAPI:
-app = FastAPI(
-title="Large Scale Data Catalog Dashboard",
-description="High-performance analytics for 10,000+ stocks with advanced visualization",
-version="10K.1.0"
+    app = FastAPI(
+        title="Large Scale Data Catalog Dashboard",
+        description="High-performance analytics for 10,000+ stocks with advanced visualization",
+        version="10K.1.0"
 )
 
 app.add_middleware(
