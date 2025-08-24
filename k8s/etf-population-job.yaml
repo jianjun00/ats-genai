@@ -158,6 +158,97 @@ spec:
                   "aum_billions": 350.0,
                   "inception_date": "2001-05-24", 
                   "priority": 1
+              },
+              {
+                  "symbol": "IWM",
+                  "name": "iShares Russell 2000 ETF", 
+                  "exchange": "NYSE",
+                  "instrument_type": "ETF",
+                  "category": "Small Cap",
+                  "sector": "Equity",
+                  "description": "Russell 2000 small-cap stocks - completes size spectrum",
+                  "expense_ratio": 0.19,
+                  "aum_billions": 65.0,
+                  "inception_date": "2000-05-22",
+                  "priority": 1
+              },
+              {
+                  "symbol": "MTUM", 
+                  "name": "iShares MSCI USA Momentum Factor ETF",
+                  "exchange": "NYSE",
+                  "instrument_type": "ETF",
+                  "category": "Factor",
+                  "sector": "Momentum",
+                  "description": "Pure momentum factor exposure - systematic momentum strategy",
+                  "expense_ratio": 0.15,
+                  "aum_billions": 18.0,
+                  "inception_date": "2013-04-16",
+                  "priority": 1
+              },
+              {
+                  "symbol": "IWD",
+                  "name": "iShares Russell 1000 Value ETF", 
+                  "exchange": "NYSE",
+                  "instrument_type": "ETF",
+                  "category": "Large Cap Value",
+                  "sector": "Value Factor",
+                  "description": "Russell 1000 large-cap value stocks - core value exposure",
+                  "expense_ratio": 0.19,
+                  "aum_billions": 65.0,
+                  "inception_date": "2000-05-15",
+                  "priority": 1
+              },
+              {
+                  "symbol": "VTV",
+                  "name": "Vanguard Value ETF",
+                  "exchange": "NYSE",
+                  "instrument_type": "ETF",
+                  "category": "Large Cap Value", 
+                  "sector": "Value Factor",
+                  "description": "Vanguard large-cap value offering - ultra-low cost",
+                  "expense_ratio": 0.04,
+                  "aum_billions": 95.0,
+                  "inception_date": "2004-01-26",
+                  "priority": 1
+              },
+              {
+                  "symbol": "IWN",
+                  "name": "iShares Russell 2000 Value ETF",
+                  "exchange": "NYSE",
+                  "instrument_type": "ETF",
+                  "category": "Small Cap Value",
+                  "sector": "Value Factor",
+                  "description": "Russell 2000 small-cap value stocks - completes value spectrum",
+                  "expense_ratio": 0.24,
+                  "aum_billions": 15.0,
+                  "inception_date": "2000-07-24",
+                  "priority": 1
+              },
+              {
+                  "symbol": "VBR", 
+                  "name": "Vanguard Small-Cap Value ETF",
+                  "exchange": "NYSE",
+                  "instrument_type": "ETF",
+                  "category": "Small Cap Value",
+                  "sector": "Value Factor", 
+                  "description": "Vanguard small-cap value approach - low cost alternative",
+                  "expense_ratio": 0.07,
+                  "aum_billions": 25.0,
+                  "inception_date": "2004-01-26",
+                  "priority": 1
+              },
+              {
+                  "symbol": "SCHD",
+                  "name": "Schwab US Dividend Equity ETF", 
+                  "exchange": "NYSE",
+                  "instrument_type": "ETF",
+                  "category": "Dividend Value",
+                  "sector": "Dividend Growth",
+                  "description": "High-quality dividend stocks with value tilt",
+                  "expense_ratio": 0.06,
+                  "aum_billions": 55.0,
+                  "inception_date": "2011-10-20",
+                  "priority": 1
               }
           ]
           
