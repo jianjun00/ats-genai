@@ -1,0 +1,157 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: enhanced-multi-vendor-minute-collection
+  namespace: ats-dev
+  labels:
+    app: ats-genai
+    component: minute-data-collection
+    type: multi-vendor-enhanced
+    framework: vendor-separated
+spec:
+  ttlSecondsAfterFinished: 86400  # 24 hours cleanup
+  template:
+    metadata:
+      labels:
+        app: ats-genai
+        component: minute-data-collection
+        type: multi-vendor-enhanced
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: multi-vendor-collector
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "🚀 Enhanced Multi-Vendor 1-Minute Data Collection Job"
+          echo "=" * 60
+          echo "📊 Collection: Vendor-separated 1-minute bars"
+          echo "🏪 Vendors: Polygon, Tiingo, EODHD"
+          echo "📁 Storage: Vendor-specific directories"
+          echo "🔧 Features: Timezone normalization, overlap handling"
+          echo "⏰ Started at: $(date)"
+          echo ""
+          
+          # Install dependencies
+          echo "📦 Installing Python dependencies..."
+          pip install --no-cache-dir \
+            asyncio \
+            asyncpg \
+            aiohttp \
+            requests \
+            pandas \
+            numpy \
+            pyarrow \
+            pytz \
+            gin-config \
+            alpaca-trade-api
+          
+          echo "✅ Dependencies installed"
+          
+          # Setup workspace
+          echo "📁 Setting up workspace..."
+          mkdir -p /app/workspace
+          cd /app/workspace
+          
+          # Copy application files
+          echo "📋 Copying application files..."
+          cp -r /app/src . || true
+          cp -r /app/scripts . || true
+          cp -r /app/config . || true
+          
+          # Create vendor-separated data directory
+          mkdir -p /home/jianjun/ats-data/minute-files/polygon
+          mkdir -p /home/jianjun/ats-data/minute-files/tiingo
+          mkdir -p /home/jianjun/ats-data/minute-files/eodhd
+          
+          echo "🎯 Running enhanced multi-vendor minute data collection..."
+          echo "🔄 Running enhanced data collection script..."
+          
+          # Set environment variables
+          export PYTHONPATH=/app/workspace/src
+          export ENVIRONMENT=dev
+          
+          # Run the enhanced collection script
+          python scripts/enhanced_minute_bars_collection.py \
+            --symbols AAPL,MSFT,GOOGL,AMZN,TSLA,META,NVDA,NFLX,CRM,ADBE \
+            --vendors polygon,tiingo,eodhd \
+            --days 7 \
+            --debug
+          
+          echo ""
+          echo "📊 Collection Summary:"
+          echo "  • Enhanced multi-vendor data collection completed"
+          echo "  • Vendor-separated file storage implemented"
+          echo "  • Timezone normalization applied"
+          echo "  • Overlap detection and resolution enabled"
+          echo "  • Support for Polygon, Tiingo, EODHD APIs"
+          echo "✅ Enhanced multi-vendor minute data collection job completed"
+
+        env:
+        - name: PYTHONPATH
+          value: "/app/workspace/src"
+        - name: ENVIRONMENT
+          value: "dev"
+        - name: DB_HOST
+          value: "postgres-simple"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+        # API keys from secrets
+        - name: POLYGON_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-keys-secret
+              key: POLYGON_API_KEY
+              optional: true
+        - name: TIINGO_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-keys-secret
+              key: TIINGO_API_KEY
+              optional: true
+        - name: EODHD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-keys-secret
+              key: EODHD_API_KEY
+              optional: true
+
+        volumeMounts:
+        - name: app-source
+          mountPath: /app
+        - name: data-storage
+          mountPath: /home/jianjun/ats-data
+          
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+
+      volumes:
+      - name: app-source
+        configMap:
+          name: ats-genai-source
+      - name: data-storage
+        hostPath:
+          path: /home/jianjun/ats-data
+          type: DirectoryOrCreate
+
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: ""
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+
+  backoffLimit: 2

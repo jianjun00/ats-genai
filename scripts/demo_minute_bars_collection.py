@@ -1,17 +1,44 @@
 #!/usr/bin/env python3
 """
-Demo Multi-Vendor 1-Minute Bars Collection
+Enhanced Multi-Vendor 1-Minute Bars Collection Demo
 
-Demonstrates the multi-vendor data collection system with simulated data
-when API keys are not available. Shows the full workflow and output format.
+Demonstrates vendor-separated file storage and timezone normalization.
+Each vendor gets its own directory structure: vendor/symbol/year/month/
+
+Usage:
+    python scripts/demo_minute_bars_collection.py --symbols AAPL --vendors polygon,tiingo,eodhd --days 1
 """
 
+import os
+import sys
 import asyncio
+import argparse
 import logging
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from pathlib import Path
 import json
-import random
+import pandas as pd
+import pytz
+
+# Add src to Python path
+sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+
+try:
+    # Import market data adapters
+    from market_data.agent.polygon_minute_adapter import PolygonMinuteAdapter, MinuteBar as PolygonBar
+    from market_data.agent.tiingo_intraday_adapter import TiingoIntradayAdapter, TiingoMinuteBar
+    from market_data.agent.fmp_minute_adapter import FMPMinuteAdapter, FMPMinuteBar
+    from market_data.agent.eodhd_minute_adapter import EODHDMinuteAdapter, EODHDMinuteBar
+    
+    # Import storage systems
+    from storage.file_based_minute_manager import MinuteBar
+    from config.environment import Environment
+    
+except ImportError as e:
+    print(f"❌ Failed to import required modules: {e}")
+    print("Make sure you're running from the project root and src/ is in PYTHONPATH")
+    sys.exit(1)
 
 # Configure logging
 logging.basicConfig(
@@ -21,7 +48,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class DemoMinuteBar:
+class VendorSeparatedFileManager:
     """Demo minute bar for simulation."""
     def __init__(self, symbol: str, timestamp: datetime, vendor: str):
         self.symbol = symbol
