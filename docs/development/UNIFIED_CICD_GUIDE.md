@@ -28,11 +28,15 @@ This guide consolidates all CI/CD and GitOps deployment processes for the ATS pl
 # Run unit tests only
 PYTHONPATH=src pytest tests/unit/ -v --tb=short
 
+# K8s extracted script tests
+python -m pytest scripts/k8s-extracted/ -v
+
 # Tests in this category:
 # - Pure function tests
 # - Mock-based tests
 # - Schema validation tests
 # - Business logic tests
+# - K8s extracted script tests
 ```
 
 #### Integration Tests (Real Dependencies)
@@ -278,6 +282,9 @@ jobs:
       - name: Unit Tests
         run: PYTHONPATH=src pytest tests/unit/ -v --tb=short --cov
       
+      - name: K8s Script Tests
+        run: python -m pytest scripts/k8s-extracted/ -v
+      
       - name: Integration Tests
         run: PYTHONPATH=src pytest tests/integration/ -v --tb=short
       
@@ -285,12 +292,13 @@ jobs:
         run: |
           safety check
           bandit -r src/ -f json
+          bandit -r scripts/k8s-extracted/ -f json
       
       - name: Code Quality
         run: |
-          flake8 src/ tests/
-          black --check src/ tests/
-          mypy src/
+          flake8 src/ tests/ scripts/k8s-extracted/
+          black --check src/ tests/ scripts/k8s-extracted/
+          mypy src/ scripts/k8s-extracted/
 
   build-and-deploy:
     needs: test

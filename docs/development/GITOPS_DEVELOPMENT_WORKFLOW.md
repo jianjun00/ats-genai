@@ -40,12 +40,14 @@ git push -u origin feature/my-new-feature
 ### Phase 2: Development and Testing
 
 ```bash
-# 4. Make your changes to deployment files
-vim k8s/analytics-service/deployment.yaml
-# Update: image tags, env vars, resource limits, etc.
+# 4. Make your changes to deployment files or scripts
+vim k8s/analytics-service/deployment.yaml  # K8s configuration changes
+vim scripts/k8s-extracted/app.py          # Application logic changes
+# Update: image tags, env vars, resource limits, scripts, etc.
 
 # 5. Validate changes locally
 ./scripts/validate_deployment.sh k8s/analytics-service/deployment.yaml
+python -m pytest scripts/k8s-extracted/ -v  # Test extracted scripts
 
 # 6. Deploy to ats-dev for testing
 ./scripts/dev_deploy.sh
@@ -62,10 +64,11 @@ curl http://$(./scripts/get_external_access.sh analytics-service)/your-endpoint
 ```bash
 # If changes needed:
 # 9. Make additional changes
-vim k8s/analytics-service/deployment.yaml
+vim k8s/analytics-service/deployment.yaml      # K8s config changes
+vim scripts/k8s-extracted/analytics_app.py    # Application logic changes
 
 # 10. Quick deploy iteration
-git add k8s/analytics-service/deployment.yaml
+git add k8s/analytics-service/deployment.yaml scripts/k8s-extracted/
 git commit -m "feat: refine analytics endpoint response format"
 ./scripts/dev_deploy.sh
 
@@ -237,10 +240,11 @@ export SLACK_WEBHOOK_URL=your_slack_webhook
 
 ### Development Guidelines
 1. **Keep changes small** - Single feature per branch
-2. **Test locally first** - Use dry-run and validation
-3. **Monitor deployments** - Don't deploy and walk away
-4. **Communicate actively** - Keep team informed
-5. **Learn from issues** - Document problems and solutions
+2. **Test scripts independently** - Use unit tests for K8s extracted scripts
+3. **Test locally first** - Use dry-run and validation
+4. **Monitor deployments** - Don't deploy and walk away
+5. **Communicate actively** - Keep team informed
+6. **Learn from issues** - Document problems and solutions
 
 ### Git Workflow
 1. **Descriptive commit messages** - Clear change description

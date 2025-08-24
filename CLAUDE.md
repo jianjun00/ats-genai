@@ -102,13 +102,16 @@ PYTHONPATH=src pytest tests/integration/test_new_feature.py -v
 # ✅ Should FAIL (proves test works)
 
 # 2. Implement minimal code to pass test
-# (write your code)
+# (write your code in src/ or scripts/k8s-extracted/)
 
 # 3. Verify test passes  
 PYTHONPATH=src pytest tests/integration/test_new_feature.py -v
 # ✅ Should PASS
 
-# 4. Integration testing
+# 4. Test K8s extracted scripts (if applicable)
+python -m pytest scripts/k8s-extracted/ -v
+
+# 5. Integration testing
 PYTHONPATH=src pytest tests/integration/ -v
 ```
 
@@ -123,6 +126,8 @@ PYTHONPATH=src pytest tests/integration/ -v
 ### Infrastructure Best Practices
 - **Reuse existing patterns** - Check `kubectl get all -n ats-dev` first
 - **Use base Docker images** - Don't install packages in jobs
+- **External script references** - K8s YAML files reference scripts in `scripts/k8s-extracted/`
+- **No embedded code** - Keep application logic separate from K8s configuration
 - **Test external access** - Not just port-forwarding
 - **Environment is pre-configured** - Don't set variables manually
 
@@ -133,6 +138,7 @@ PYTHONPATH=src pytest tests/integration/ -v
 # Testing
 PYTHONPATH=src pytest tests/integration/ -v --tb=short
 PYTHONPATH=src pytest tests/ -m database -v
+python -m pytest scripts/k8s-extracted/ -v
 
 # Database operations via dev CLI
 python scripts/dev_cli.py query "SELECT version()"
@@ -168,6 +174,7 @@ curl -s "http://NODE_IP:NODE_PORT/health" | jq
 - ❌ Setting environment variables manually  
 - ❌ Creating new deployment patterns when existing ones work
 - ❌ Installing packages in Kubernetes job containers
+- ❌ Embedding code in K8s YAML files (use scripts/k8s-extracted/)
 - ❌ Testing only via port-forwarding (test external access)
 
 **Development:**
@@ -182,10 +189,12 @@ curl -s "http://NODE_IP:NODE_PORT/health" | jq
 **You're following best practices when:**
 - [ ] Using dev CLI for all K8s operations
 - [ ] Writing failing tests before code changes
+- [ ] Testing K8s extracted scripts independently
 - [ ] Running integration tests and seeing them pass
 - [ ] Testing external access (not just port-forwarding)
 - [ ] Completing full end-to-end validation
 - [ ] Reusing existing infrastructure patterns
+- [ ] Keeping K8s YAML free of embedded application code
 
 ## 🆘 Getting Help
 

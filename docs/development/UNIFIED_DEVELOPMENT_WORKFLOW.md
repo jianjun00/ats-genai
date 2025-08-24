@@ -258,12 +258,48 @@ python scripts/dev_cli.py logs job-name
 kubectl exec -it pod-name -- bash
 ```
 
+### K8s Script Organization and Best Practices
+
+**Script Extraction and Management:**
+- All K8s YAML files use **external scripts** only (no embedded code)
+- Extracted scripts located in `scripts/k8s-extracted/`
+- Each script is independently testable and maintainable
+- YAML files focus purely on Kubernetes configuration
+
+```bash
+# Directory structure for K8s scripts
+scripts/k8s-extracted/
+├── app.py                    # Web application logic
+├── environment.py            # Environment configuration
+├── migration.sql            # Database migrations
+├── training_*.py            # ML training scripts
+├── backfill_*.py            # Data backfill operations
+└── monitoring_*.py          # Monitoring and alerting
+```
+
+**Development Workflow for K8s Scripts:**
+1. **Edit scripts** in `scripts/k8s-extracted/` directory
+2. **Unit test scripts** independently before K8s deployment
+3. **Validate YAML** references correct script paths
+4. **Deploy and test** in K8s environment
+
+```bash
+# Testing extracted K8s scripts
+PYTHONPATH=src python scripts/k8s-extracted/environment.py
+python -m pytest scripts/k8s-extracted/ -v
+
+# Validating YAML references
+./scripts/validate_deployment.sh k8s/your-service.yaml
+```
+
 ### Development Environment Rules
 
 1. **Real Database Required**: Always connect to K8s database
 2. **No Local Scripts**: Use K8s jobs for data processing  
-3. **External Access Testing**: Test actual NodePort/LoadBalancer URLs
-4. **Service Integration**: Verify services can communicate
+3. **External Script References**: K8s YAML must reference external scripts only
+4. **Script Testing**: Test extracted scripts independently before K8s deployment
+5. **External Access Testing**: Test actual NodePort/LoadBalancer URLs
+6. **Service Integration**: Verify services can communicate
 
 ## 🚨 No Demo Data in Development
 
@@ -345,6 +381,8 @@ PYTHONPATH=src pytest tests/integration/test_live_service.py -v
 - ❌ Running scripts locally instead of in K8s
 - ❌ Setting environment variables manually
 - ❌ Creating new deployment patterns unnecessarily
+- ❌ Embedding code directly in K8s YAML files
+- ❌ Creating inline scripts in ConfigMaps or args sections
 
 ## 📋 Workflow Commands Reference
 
@@ -378,6 +416,10 @@ PYTHONPATH=src pytest tests/unit/ -v
 
 # Integration tests  
 PYTHONPATH=src pytest tests/integration/ -v --tb=short
+
+# K8s extracted script tests
+python -m pytest scripts/k8s-extracted/ -v
+PYTHONPATH=src python scripts/k8s-extracted/environment.py
 
 # Full test suite
 PYTHONPATH=src pytest tests/ -v
