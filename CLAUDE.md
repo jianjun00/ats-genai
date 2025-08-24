@@ -125,7 +125,8 @@ PYTHONPATH=src pytest tests/integration/ -v
 
 ### Infrastructure Best Practices
 - **Reuse existing patterns** - Check `kubectl get all -n ats-dev` first
-- **Use base Docker images** - Don't install packages in jobs
+- **Use official Docker image** - Always use `dragonflyer762/ats-genai:latest` from Docker Hub
+- **Don't install packages in jobs** - Dependencies are pre-installed in Docker image
 - **External script references** - K8s YAML files reference scripts in `scripts/k8s-extracted/`
 - **No embedded code** - Keep application logic separate from K8s configuration
 - **Test external access** - Not just port-forwarding

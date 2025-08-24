@@ -300,6 +300,7 @@ python -m pytest scripts/k8s-extracted/ -v
 4. **Script Testing**: Test extracted scripts independently before K8s deployment
 5. **External Access Testing**: Test actual NodePort/LoadBalancer URLs
 6. **Service Integration**: Verify services can communicate
+7. **Docker Image**: All K8s deployments must use `dragonflyer762/ats-genai:latest` from Docker Hub
 
 ## 🚨 No Demo Data in Development
 

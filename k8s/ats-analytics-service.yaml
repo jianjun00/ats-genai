@@ -23,7 +23,8 @@ spec:
     spec:
       containers:
       - name: analytics
-        image: ats-genai:latest
+        image: dragonflyer762/ats-genai:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 3000
         env:
@@ -38,9 +39,8 @@ spec:
         args:
         - "-c"
         - |
-          echo "📦 Installing git and dependencies..."
+          echo "📦 Installing git (dependencies already in Docker image)..."
           apt-get update && apt-get install -y git
-          pip install fastapi uvicorn asyncpg
           
           echo "📦 Cloning source code from Git with credentials..."
           git clone -b feature/k8s-yaml-simplification https://${GITHUB_TOKEN}:x-oauth-basic@github.com/AkoloTechnologies/ats-genai.git /app/src-repo
