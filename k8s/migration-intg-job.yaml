@@ -1,0 +1,188 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migration-intg
+  namespace: ats-intg
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      containers:
+      - name: migration-intg
+        image: python:3.12-slim
+        command: ["/bin/bash"]
+        args:
+        - -c
+        - |
+          echo "🚀 Installing dependencies..."
+          pip install --no-cache-dir asyncpg
+          
+          echo "🔄 Starting ATS-INTG database migration..."
+          cat > /app/migrate_intg.py << 'EOF'
+          import asyncio
+          import asyncpg
+          import logging
+          from datetime import datetime
+          
+          logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+          logger = logging.getLogger(__name__)
+          
+          async def run_intg_migration():
+              """Run database migration for ATS-INTG environment"""
+              try:
+                  # Connect to ats-intg database
+                  conn = await asyncpg.connect(
+                      host='postgres',
+                      port=5432,
+                      user='postgres',
+                      password='intg_password',
+                      database='intg_db'
+                  )
+                  logger.info("✅ Connected to ATS-INTG database")
+                  
+                  # Run migration SQL commands
+                  migration_commands = [
+                      # Ensure all required tables exist with intg_ prefix
+                      """
+                      CREATE TABLE IF NOT EXISTS intg_migration_log (
+                          id SERIAL PRIMARY KEY,
+                          migration_name VARCHAR(255) NOT NULL,
+                          executed_at TIMESTAMP DEFAULT NOW(),
+                          status VARCHAR(50) DEFAULT 'completed',
+                          details TEXT
+                      );
+                      """,
+                      
+                      # Create intg_instruments table
+                      """
+                      CREATE TABLE IF NOT EXISTS intg_instruments (
+                          id SERIAL PRIMARY KEY,
+                          symbol VARCHAR(50) UNIQUE NOT NULL,
+                          name TEXT NOT NULL,
+                          exchange VARCHAR(20),
+                          instrument_type VARCHAR(50),
+                          currency VARCHAR(10) DEFAULT 'USD',
+                          cusip VARCHAR(20),
+                          isin VARCHAR(20),
+                          figi VARCHAR(50),
+                          listing_date DATE,
+                          delisting_date DATE,
+                          is_active BOOLEAN DEFAULT true,
+                          lifecycle_stage VARCHAR(20),
+                          quality_score INTEGER,
+                          data_sources TEXT[],
+                          reconciliation_notes TEXT[],
+                          last_validated_at TIMESTAMP,
+                          eodhd_raw JSONB,
+                          polygon_raw JSONB,
+                          tiingo_raw JSONB,
+                          created_at TIMESTAMP DEFAULT now(),
+                          updated_at TIMESTAMP DEFAULT now()
+                      );
+                      """,
+                      
+                      # Create intg_daily_prices table
+                      """
+                      CREATE TABLE IF NOT EXISTS intg_daily_prices (
+                          id SERIAL PRIMARY KEY,
+                          symbol VARCHAR(10) NOT NULL,
+                          price_date DATE NOT NULL,
+                          open_price DECIMAL(12,4),
+                          high_price DECIMAL(12,4),
+                          low_price DECIMAL(12,4),
+                          close_price DECIMAL(12,4),
+                          volume BIGINT,
+                          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                          UNIQUE(symbol, price_date)
+                      );
+                      """,
+                      
+                      # Create intg_training_dataset table
+                      """
+                      CREATE TABLE IF NOT EXISTS intg_training_dataset (
+                          id SERIAL PRIMARY KEY,
+                          dataset_name VARCHAR(100) NOT NULL,
+                          symbol VARCHAR(10),
+                          file_size_mb DECIMAL(10,2),
+                          record_count INTEGER,
+                          creation_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                          status VARCHAR(20) DEFAULT 'active'
+                      );
+                      """,
+                      
+                      # Ensure vendor tables exist
+                      """
+                      CREATE TABLE IF NOT EXISTS vendors (
+                          vendor_id SERIAL PRIMARY KEY,
+                          vendor_name VARCHAR(50) UNIQUE NOT NULL,
+                          vendor_description TEXT,
+                          is_active BOOLEAN DEFAULT true,
+                          created_at TIMESTAMP DEFAULT now(),
+                          updated_at TIMESTAMP DEFAULT now()
+                      );
+                      """,
+                      
+                      # Create indexes
+                      """
+                      CREATE INDEX IF NOT EXISTS idx_intg_instruments_symbol ON intg_instruments(symbol);
+                      CREATE INDEX IF NOT EXISTS idx_intg_instruments_exchange ON intg_instruments(exchange);
+                      CREATE INDEX IF NOT EXISTS idx_intg_instruments_active ON intg_instruments(is_active);
+                      CREATE INDEX IF NOT EXISTS idx_intg_daily_prices_symbol_date ON intg_daily_prices(symbol, price_date);
+                      CREATE INDEX IF NOT EXISTS idx_intg_daily_prices_date ON intg_daily_prices(price_date);
+                      """
+                  ]
+                  
+                  # Execute migration commands
+                  for i, command in enumerate(migration_commands, 1):
+                      try:
+                          await conn.execute(command)
+                          logger.info(f"✅ Migration step {i} completed")
+                      except Exception as e:
+                          logger.warning(f"⚠️ Migration step {i} failed (might be expected): {e}")
+                  
+                  # Log migration completion
+                  await conn.execute(
+                      "INSERT INTO intg_migration_log (migration_name, details) VALUES ($1, $2)",
+                      'intg_database_migration_2025', 
+                      f'Migration completed at {datetime.now()}'
+                  )
+                  
+                  # Get database statistics
+                  tables = await conn.fetch("""
+                      SELECT schemaname, tablename, 
+                             (SELECT COUNT(*) FROM information_schema.columns 
+                              WHERE table_name = tablename AND table_schema = schemaname) as columns
+                      FROM pg_tables 
+                      WHERE schemaname = 'public' 
+                      AND (tablename LIKE 'intg_%' OR tablename = 'vendors')
+                      ORDER BY tablename
+                  """)
+                  
+                  logger.info("📊 ATS-INTG Database Status:")
+                  for table in tables:
+                      count = await conn.fetchval(f"SELECT COUNT(*) FROM {table['tablename']}")
+                      logger.info(f"  📋 {table['tablename']}: {count:,} rows, {table['columns']} columns")
+                  
+                  await conn.close()
+                  logger.info("🎉 ATS-INTG migration completed successfully!")
+                  return True
+                  
+              except Exception as e:
+                  logger.error(f"❌ ATS-INTG migration failed: {e}")
+                  return False
+          
+          if __name__ == "__main__":
+              import sys
+              success = asyncio.run(run_intg_migration())
+              sys.exit(0 if success else 1)
+          EOF
+          
+          mkdir -p /app && cd /app && python migrate_intg.py
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      restartPolicy: Never

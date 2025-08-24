@@ -1,0 +1,388 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: eodhd-30year-price-population
+  namespace: ats-dev
+spec:
+  ttlSecondsAfterFinished: 86400  # Keep for 24 hours
+  template:
+    spec:
+      containers:
+      - name: eodhd-collector
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "🚀 Installing dependencies..."
+          pip install asyncio asyncpg aiohttp python-dateutil tabulate
+          
+          echo "📊 Creating EODHD 30-year price collection with checkpoints..."
+          mkdir -p /app
+          cat > /app/eodhd_collector.py << 'EOF'
+          import asyncio
+          import asyncpg
+          import aiohttp
+          import json
+          import logging
+          from datetime import datetime, date, timedelta
+          from typing import Dict, List, Optional, Tuple
+          import time
+          from decimal import Decimal
+          
+          logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+          logger = logging.getLogger("eodhd_collector")
+          
+          class EODHDCheckpointCollector:
+              def __init__(self, db_connection: asyncpg.Connection):
+                  self.conn = db_connection
+                  self.api_key = "68aa0c7d2fe831.67386369"  # EODHD API key
+                  self.job_id = f"eodhd-30year-{datetime.now().strftime('%Y%m%d-%H%M')}"
+                  self.base_url = "https://eodhistoricaldata.com/api/eod"
+                  self.session = None
+                  
+                  # Date range for 30-year historical collection
+                  self.end_date = date(2025, 8, 23)
+                  self.start_date = date(1995, 1, 1)  # 30 years back
+                  
+              async def setup_session(self):
+                  """Initialize HTTP session"""
+                  connector = aiohttp.TCPConnector(limit=10, limit_per_host=5)
+                  timeout = aiohttp.ClientTimeout(total=60)
+                  self.session = aiohttp.ClientSession(
+                      connector=connector,
+                      timeout=timeout
+                  )
+                  
+              async def cleanup_session(self):
+                  """Clean up HTTP session"""
+                  if self.session:
+                      await self.session.close()
+                      
+              async def initialize_job_tracking(self) -> List[str]:
+                  """Initialize job progress tracking and get symbol list"""
+                  
+                  # Get all instruments for processing
+                  symbols = await self.conn.fetch("""
+                      SELECT DISTINCT symbol 
+                      FROM dev_instruments 
+                      WHERE symbol IS NOT NULL 
+                      AND LENGTH(symbol) <= 6
+                      AND symbol NOT LIKE '%.%'
+                      ORDER BY symbol
+                  """)
+                  
+                  symbol_list = [row['symbol'] for row in symbols]
+                  logger.info(f"📊 Retrieved {len(symbol_list)} instruments for 30-year EODHD collection")
+                  
+                  # Initialize progress tracking for each symbol
+                  for symbol in symbol_list:
+                      await self.conn.execute("""
+                          INSERT INTO vendor_job_progress (
+                              job_id, vendor, symbol, status, created_at
+                          ) VALUES ($1, 'eodhd', $2, 'pending', NOW())
+                          ON CONFLICT (job_id, vendor, symbol) DO NOTHING
+                      """, self.job_id, symbol)
+                  
+                  logger.info(f"✅ Initialized checkpoint tracking for {len(symbol_list)} EODHD symbols")
+                  return symbol_list
+                  
+              async def mark_symbol_processing(self, symbol: str):
+                  """Mark symbol as currently being processed"""
+                  await self.conn.execute("""
+                      UPDATE vendor_job_progress 
+                      SET status = 'processing', started_at = NOW()
+                      WHERE job_id = $1 AND vendor = 'eodhd' AND symbol = $2
+                  """, self.job_id, symbol)
+                  
+              async def mark_symbol_completed(self, symbol: str, records_count: int):
+                  """Mark symbol as successfully completed"""
+                  await self.conn.execute("""
+                      UPDATE vendor_job_progress 
+                      SET status = 'completed', completed_at = NOW(), records_collected = $3
+                      WHERE job_id = $1 AND vendor = 'eodhd' AND symbol = $2
+                  """, self.job_id, symbol, records_count)
+                  
+              async def mark_symbol_failed(self, symbol: str, error_message: str):
+                  """Mark symbol as failed with error message"""
+                  await self.conn.execute("""
+                      UPDATE vendor_job_progress 
+                      SET status = 'failed', completed_at = NOW(), error_message = $3
+                      WHERE job_id = $1 AND vendor = 'eodhd' AND symbol = $2
+                  """, self.job_id, symbol, error_message[:500])
+                  
+              async def fetch_eodhd_data(self, symbol: str) -> List[Dict]:
+                  """Fetch 30-year historical data from EODHD API"""
+                  try:
+                      # EODHD EOD endpoint for end-of-day data
+                      url = f"{self.base_url}/{symbol}.US"
+                      params = {
+                          'from': self.start_date.strftime('%Y-%m-%d'),
+                          'to': self.end_date.strftime('%Y-%m-%d'),
+                          'period': 'd',  # Daily data
+                          'fmt': 'json',
+                          'api_token': self.api_key
+                      }
+                      
+                      async with self.session.get(url, params=params) as response:
+                          if response.status == 429:
+                              # Rate limit - wait and retry
+                              logger.warning(f"⏳ Rate limited for {symbol}, waiting 60 seconds...")
+                              await asyncio.sleep(60)
+                              return await self.fetch_eodhd_data(symbol)
+                              
+                          elif response.status == 404:
+                              logger.info(f"📭 {symbol}: Not found in EODHD database")
+                              return []
+                              
+                          elif response.status != 200:
+                              error_text = await response.text()
+                              logger.warning(f"❌ {symbol}: HTTP {response.status}: {error_text}")
+                              return []
+                              
+                          data = await response.json()
+                          
+                          if not data or not isinstance(data, list):
+                              logger.info(f"📭 {symbol}: No data available or invalid format")
+                              return []
+                              
+                          # Transform EODHD format to our schema
+                          records = []
+                          for bar in data:
+                              try:
+                                  # EODHD date format: "YYYY-MM-DD"
+                                  price_date = datetime.strptime(bar['date'], '%Y-%m-%d').date()
+                                  
+                                  record = {
+                                      'symbol': symbol,
+                                      'price_date': price_date,
+                                      'open_price': Decimal(str(bar.get('open', 0))),
+                                      'high_price': Decimal(str(bar.get('high', 0))),
+                                      'low_price': Decimal(str(bar.get('low', 0))),
+                                      'close_price': Decimal(str(bar.get('close', 0))),
+                                      'adjusted_close': Decimal(str(bar.get('adjusted_close', 0))),
+                                      'volume': int(bar.get('volume', 0)),
+                                      'data_source': 'eodhd'
+                                  }
+                                  records.append(record)
+                              except (ValueError, KeyError, TypeError) as e:
+                                  logger.warning(f"⚠️ {symbol}: Skipping invalid record: {e}")
+                                  continue
+                              
+                          logger.info(f"📥 {symbol}: Retrieved {len(records)} daily bars")
+                          return records
+                          
+                  except asyncio.TimeoutError:
+                      logger.warning(f"⏰ {symbol}: Request timeout")
+                      return []
+                  except Exception as e:
+                      logger.error(f"💥 {symbol}: Fetch error: {e}")
+                      return []
+                      
+              async def store_eodhd_data(self, records: List[Dict]) -> int:
+                  """Store EODHD data in database"""
+                  if not records:
+                      return 0
+                      
+                  try:
+                      # Create table if not exists
+                      await self.conn.execute("""
+                          CREATE TABLE IF NOT EXISTS dev_eodhd_prices (
+                              id BIGSERIAL PRIMARY KEY,
+                              symbol VARCHAR(10) NOT NULL,
+                              price_date DATE NOT NULL,
+                              open_price NUMERIC(12,4),
+                              high_price NUMERIC(12,4),
+                              low_price NUMERIC(12,4),
+                              close_price NUMERIC(12,4) NOT NULL,
+                              adjusted_close NUMERIC(12,4),
+                              volume BIGINT,
+                              data_source VARCHAR(20) DEFAULT 'eodhd',
+                              created_at TIMESTAMPTZ DEFAULT NOW(),
+                              UNIQUE(symbol, price_date)
+                          )
+                      """)
+                      
+                      # Batch insert with conflict resolution
+                      insert_query = """
+                          INSERT INTO dev_eodhd_prices (
+                              symbol, price_date, open_price, high_price, low_price, 
+                              close_price, adjusted_close, volume, data_source
+                          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                          ON CONFLICT (symbol, price_date) DO UPDATE SET
+                              open_price = EXCLUDED.open_price,
+                              high_price = EXCLUDED.high_price,
+                              low_price = EXCLUDED.low_price,
+                              close_price = EXCLUDED.close_price,
+                              adjusted_close = EXCLUDED.adjusted_close,
+                              volume = EXCLUDED.volume
+                      """
+                      
+                      # Insert records in batches
+                      batch_size = 1000
+                      total_inserted = 0
+                      
+                      for i in range(0, len(records), batch_size):
+                          batch = records[i:i + batch_size]
+                          
+                          # Prepare batch data
+                          batch_data = [
+                              (r['symbol'], r['price_date'], r['open_price'], r['high_price'],
+                               r['low_price'], r['close_price'], r['adjusted_close'], r['volume'], 
+                               r['data_source'])
+                              for r in batch
+                          ]
+                          
+                          await self.conn.executemany(insert_query, batch_data)
+                          total_inserted += len(batch_data)
+                          
+                      return total_inserted
+                      
+                  except Exception as e:
+                      logger.error(f"💥 Database error storing records: {e}")
+                      return 0
+                      
+              async def get_progress_stats(self) -> Dict:
+                  """Get current job progress statistics"""
+                  stats = await self.conn.fetchrow("""
+                      SELECT 
+                          COUNT(*) as total,
+                          COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+                          COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed,
+                          COUNT(CASE WHEN status = 'processing' THEN 1 END) as processing,
+                          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending
+                      FROM vendor_job_progress 
+                      WHERE job_id = $1 AND vendor = 'eodhd'
+                  """, self.job_id)
+                  
+                  return dict(stats) if stats else {}
+                  
+              async def process_symbol(self, symbol: str) -> bool:
+                  """Process a single symbol with checkpoint tracking"""
+                  try:
+                      await self.mark_symbol_processing(symbol)
+                      
+                      # Fetch data from EODHD
+                      records = await self.fetch_eodhd_data(symbol)
+                      
+                      if records:
+                          # Store in database
+                          stored_count = await self.store_eodhd_data(records)
+                          await self.mark_symbol_completed(symbol, stored_count)
+                          logger.info(f"✅ {symbol}: {stored_count} records stored")
+                          return True
+                      else:
+                          await self.mark_symbol_completed(symbol, 0)
+                          logger.info(f"📭 {symbol}: No data to store")
+                          return True
+                          
+                  except Exception as e:
+                      error_msg = f"Processing error: {str(e)}"
+                      await self.mark_symbol_failed(symbol, error_msg)
+                      logger.error(f"💥 {symbol}: {error_msg}")
+                      return False
+                      
+              async def run_collection(self):
+                  """Main collection process with checkpoint support"""
+                  logger.info("🎯 Starting EODHD 30-year historical price collection")
+                  logger.info(f"📅 Date range: {self.start_date} to {self.end_date}")
+                  
+                  try:
+                      # Setup
+                      await self.setup_session()
+                      symbols = await self.initialize_job_tracking()
+                      
+                      if not symbols:
+                          logger.warning("⚠️ No symbols found for processing")
+                          return
+                          
+                      # Process symbols in batches with rate limiting
+                      batch_size = 3  # Conservative batch size for EODHD API
+                      successful = 0
+                      failed = 0
+                      
+                      for i in range(0, len(symbols), batch_size):
+                          batch = symbols[i:i + batch_size]
+                          logger.info(f"🔄 Processing batch: {batch}")
+                          
+                          # Process batch with controlled concurrency
+                          tasks = [self.process_symbol(symbol) for symbol in batch]
+                          results = await asyncio.gather(*tasks, return_exceptions=True)
+                          
+                          # Count results
+                          for result in results:
+                              if isinstance(result, Exception):
+                                  failed += 1
+                              elif result:
+                                  successful += 1
+                              else:
+                                  failed += 1
+                                  
+                          # Progress update
+                          progress_stats = await self.get_progress_stats()
+                          completed = progress_stats.get('completed', 0)
+                          total = progress_stats.get('total', len(symbols))
+                          progress_pct = (completed / total * 100) if total > 0 else 0
+                          
+                          logger.info(f"📊 Progress: {completed}/{total} ({progress_pct:.1f}%)")
+                          
+                          # Rate limiting between batches
+                          if i + batch_size < len(symbols):
+                              logger.info("⏳ Rate limiting pause (15 seconds)...")
+                              await asyncio.sleep(15)  # EODHD API rate limits
+                              
+                      # Final statistics
+                      final_stats = await self.get_progress_stats()
+                      logger.info("=" * 60)
+                      logger.info("🎉 EODHD 30-YEAR COLLECTION COMPLETED")
+                      logger.info(f"✅ Successful: {final_stats.get('completed', 0)}")
+                      logger.info(f"❌ Failed: {final_stats.get('failed', 0)}")
+                      logger.info(f"⏳ Processing: {final_stats.get('processing', 0)}")
+                      logger.info(f"📋 Pending: {final_stats.get('pending', 0)}")
+                      logger.info("=" * 60)
+                      
+                  except Exception as e:
+                      logger.error(f"💥 Collection failed: {e}")
+                      raise
+                  finally:
+                      await self.cleanup_session()
+          
+          async def main():
+              """Main execution function"""
+              try:
+                  # Database connection
+                  conn = await asyncpg.connect(
+                      host='postgres',
+                      port=5432,
+                      user='postgres',
+                      password='dev_password',
+                      database='dev_db'
+                  )
+                  logger.info("✅ Connected to database")
+                  
+                  # Create collector and run
+                  collector = EODHDCheckpointCollector(conn)
+                  await collector.run_collection()
+                  
+                  await conn.close()
+                  logger.info("🎉 EODHD collection job completed!")
+                  
+              except Exception as e:
+                  logger.error(f"💥 Main execution failed: {e}")
+                  raise
+          
+          if __name__ == "__main__":
+              asyncio.run(main())
+          EOF
+          
+          cd /app && python eodhd_collector.py
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+      restartPolicy: OnFailure

@@ -1,12 +1,20 @@
+# Models Package for ATS Platform
 """
-Advanced Machine Learning Models for Financial Time Series
+Domain models for the ATS platform.
 
-This module contains state-of-the-art ML models adapted from the MathTypes ATS
-research system for high-frequency trading and multi-horizon forecasting.
+Contains data classes and domain objects used throughout the application,
+following Domain-Driven Design principles.
 """
 
-from .temporal_fusion_transformer import TemporalFusionTransformer
+from .exchange_models import Exchange, ExchangeEntry, ExchangeMigration
+from .instrument_models import Instrument, InstrumentXref
+from .vendor_models import Vendor
 
 __all__ = [
-    "TemporalFusionTransformer",
+    'Exchange',
+    'ExchangeEntry', 
+    'ExchangeMigration',
+    'Instrument',
+    'InstrumentXref',
+    'Vendor',
 ]

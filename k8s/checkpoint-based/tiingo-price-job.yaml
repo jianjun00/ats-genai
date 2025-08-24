@@ -1,0 +1,377 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tiingo-30year-price-population
+  namespace: ats-dev
+spec:
+  ttlSecondsAfterFinished: 172800  # Keep job for 48 hours
+  template:
+    spec:
+      containers:
+      - name: tiingo-price-collector
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "🚀 Installing dependencies..."
+          pip install asyncpg aiohttp pandas requests
+          
+          echo "📂 Creating checkpoint-based Tiingo price collection system..."
+          mkdir -p /app
+          cat > /app/tiingo_checkpoint_collector.py << 'EOF'
+          import asyncio
+          import asyncpg
+          import aiohttp
+          import json
+          import logging
+          from datetime import datetime, date, timedelta
+          from typing import Dict, List, Optional, Tuple
+          import pandas as pd
+          
+          logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+          logger = logging.getLogger("tiingo_collector")
+          
+          # Tiingo API Configuration
+          TIINGO_API_KEY = "5f40b4f36e171405746304ec0e5a6f3aa9ca77e5"
+          TIINGO_BASE_URL = "https://api.tiingo.com/tiingo/daily"
+          
+          # 30-year date range
+          END_DATE = date.today()
+          START_DATE = END_DATE - timedelta(days=30*365)  # 30 years
+          
+          class TiingoCheckpointCollector:
+              def __init__(self, db_connection: asyncpg.Connection):
+                  self.conn = db_connection
+                  self.job_id = f"tiingo_30year_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                  self.processed_count = 0
+                  self.error_count = 0
+                  
+              async def setup_checkpoint_tables(self):
+                  """Create checkpoint tracking tables"""
+                  logger.info("Setting up checkpoint system...")
+                  
+                  # Job progress tracking
+                  await self.conn.execute("""
+                      CREATE TABLE IF NOT EXISTS vendor_job_progress (
+                          id SERIAL PRIMARY KEY,
+                          job_id VARCHAR(100) NOT NULL,
+                          vendor VARCHAR(20) NOT NULL,
+                          symbol VARCHAR(10) NOT NULL,
+                          status VARCHAR(20) NOT NULL, -- pending, processing, completed, failed
+                          records_collected INTEGER DEFAULT 0,
+                          error_message TEXT,
+                          started_at TIMESTAMP,
+                          completed_at TIMESTAMP,
+                          created_at TIMESTAMP DEFAULT now(),
+                          UNIQUE(job_id, vendor, symbol)
+                      );
+                  """)
+                  
+                  # Vendor-specific price storage
+                  await self.conn.execute("""
+                      CREATE TABLE IF NOT EXISTS dev_tiingo_prices (
+                          id BIGSERIAL PRIMARY KEY,
+                          symbol VARCHAR(10) NOT NULL,
+                          price_date DATE NOT NULL,
+                          open_price DECIMAL(12,4),
+                          high_price DECIMAL(12,4),
+                          low_price DECIMAL(12,4),
+                          close_price DECIMAL(12,4),
+                          adj_close_price DECIMAL(12,4),
+                          volume BIGINT,
+                          raw_data JSONB,
+                          job_id VARCHAR(100),
+                          collected_at TIMESTAMP DEFAULT now(),
+                          UNIQUE(symbol, price_date)
+                      );
+                  """)
+                  
+                  # Create indexes
+                  await self.conn.execute("""
+                      CREATE INDEX IF NOT EXISTS idx_vendor_job_progress_status 
+                      ON vendor_job_progress(job_id, vendor, status);
+                      
+                      CREATE INDEX IF NOT EXISTS idx_dev_tiingo_prices_symbol_date 
+                      ON dev_tiingo_prices(symbol, price_date);
+                      
+                      CREATE INDEX IF NOT EXISTS idx_dev_tiingo_prices_job 
+                      ON dev_tiingo_prices(job_id);
+                  """)
+                  
+                  logger.info("✅ Checkpoint system ready")
+          
+              async def get_instruments_to_process(self) -> List[str]:
+                  """Get list of instruments from dev_instruments table"""
+                  symbols = await self.conn.fetch("""
+                      SELECT DISTINCT symbol FROM dev_instruments 
+                      WHERE symbol IS NOT NULL AND symbol != ''
+                      ORDER BY symbol
+                  """)
+                  return [row['symbol'] for row in symbols]
+          
+              async def initialize_job_progress(self, symbols: List[str]):
+                  """Initialize progress tracking for all symbols"""
+                  logger.info(f"Initializing progress tracking for {len(symbols)} symbols...")
+                  
+                  for symbol in symbols:
+                      await self.conn.execute("""
+                          INSERT INTO vendor_job_progress 
+                          (job_id, vendor, symbol, status, created_at)
+                          VALUES ($1, 'tiingo', $2, 'pending', now())
+                          ON CONFLICT (job_id, vendor, symbol) DO NOTHING
+                      """, self.job_id, symbol)
+                  
+                  logger.info("✅ Progress tracking initialized")
+          
+              async def get_next_pending_symbols(self, batch_size: int = 10) -> List[str]:
+                  """Get next batch of symbols to process"""
+                  symbols = await self.conn.fetch("""
+                      SELECT symbol FROM vendor_job_progress 
+                      WHERE job_id = $1 AND vendor = 'tiingo' AND status = 'pending'
+                      ORDER BY symbol
+                      LIMIT $2
+                  """, self.job_id, batch_size)
+                  return [row['symbol'] for row in symbols]
+          
+              async def mark_symbol_processing(self, symbol: str):
+                  """Mark symbol as currently being processed"""
+                  await self.conn.execute("""
+                      UPDATE vendor_job_progress 
+                      SET status = 'processing', started_at = now()
+                      WHERE job_id = $1 AND vendor = 'tiingo' AND symbol = $2
+                  """, self.job_id, symbol)
+          
+              async def mark_symbol_completed(self, symbol: str, records_count: int):
+                  """Mark symbol as successfully completed"""
+                  await self.conn.execute("""
+                      UPDATE vendor_job_progress 
+                      SET status = 'completed', completed_at = now(), records_collected = $3
+                      WHERE job_id = $1 AND vendor = 'tiingo' AND symbol = $2
+                  """, self.job_id, symbol, records_count)
+          
+              async def mark_symbol_failed(self, symbol: str, error_message: str):
+                  """Mark symbol as failed with error message"""
+                  await self.conn.execute("""
+                      UPDATE vendor_job_progress 
+                      SET status = 'failed', completed_at = now(), error_message = $3
+                      WHERE job_id = $1 AND vendor = 'tiingo' AND symbol = $2
+                  """, self.job_id, symbol, error_message)
+          
+              async def fetch_tiingo_prices(self, session: aiohttp.ClientSession, 
+                                          symbol: str) -> Tuple[List[Dict], str]:
+                  """Fetch 30-year price history from Tiingo"""
+                  url = f"{TIINGO_BASE_URL}/{symbol}/prices"
+                  headers = {
+                      'Content-Type': 'application/json',
+                      'Authorization': f'Token {TIINGO_API_KEY}'
+                  }
+                  params = {
+                      'startDate': START_DATE.isoformat(),
+                      'endDate': END_DATE.isoformat(),
+                      'format': 'json'
+                  }
+                  
+                  try:
+                      async with session.get(url, headers=headers, params=params) as response:
+                          if response.status == 200:
+                              data = await response.json()
+                              prices = []
+                              
+                              for record in data:
+                                  price_date = datetime.fromisoformat(record['date']).date()
+                                  prices.append({
+                                      'date': price_date,
+                                      'open': float(record.get('open', 0)),
+                                      'high': float(record.get('high', 0)),
+                                      'low': float(record.get('low', 0)),
+                                      'close': float(record.get('close', 0)),
+                                      'adj_close': float(record.get('adjClose', record.get('close', 0))),
+                                      'volume': int(record.get('volume', 0)),
+                                      'raw_data': record
+                                  })
+                              
+                              return prices, None
+                          else:
+                              error_text = await response.text()
+                              return [], f"HTTP {response.status}: {error_text}"
+                              
+                  except Exception as e:
+                      return [], f"Exception: {str(e)}"
+          
+              async def store_prices(self, symbol: str, prices: List[Dict]):
+                  """Store prices in database"""
+                  if not prices:
+                      return 0
+                      
+                  # Batch insert prices
+                  insert_query = """
+                      INSERT INTO dev_tiingo_prices 
+                      (symbol, price_date, open_price, high_price, low_price, close_price, 
+                       adj_close_price, volume, raw_data, job_id, collected_at)
+                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
+                      ON CONFLICT (symbol, price_date) DO UPDATE SET
+                          open_price = EXCLUDED.open_price,
+                          high_price = EXCLUDED.high_price,
+                          low_price = EXCLUDED.low_price,
+                          close_price = EXCLUDED.close_price,
+                          adj_close_price = EXCLUDED.adj_close_price,
+                          volume = EXCLUDED.volume,
+                          raw_data = EXCLUDED.raw_data,
+                          job_id = EXCLUDED.job_id,
+                          collected_at = EXCLUDED.collected_at
+                  """
+                  
+                  stored_count = 0
+                  for price in prices:
+                      try:
+                          await self.conn.execute(
+                              insert_query,
+                              symbol,
+                              price['date'],
+                              price['open'],
+                              price['high'],
+                              price['low'],
+                              price['close'],
+                              price['adj_close'],
+                              price['volume'],
+                              json.dumps(price['raw_data']),
+                              self.job_id
+                          )
+                          stored_count += 1
+                      except Exception as e:
+                          logger.warning(f"Error storing price for {symbol} on {price['date']}: {e}")
+                  
+                  return stored_count
+          
+              async def get_progress_stats(self) -> Dict:
+                  """Get current job progress statistics"""
+                  stats = await self.conn.fetchrow("""
+                      SELECT 
+                          COUNT(*) as total_symbols,
+                          COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+                          COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed,
+                          COUNT(CASE WHEN status = 'processing' THEN 1 END) as processing,
+                          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+                          SUM(records_collected) as total_records
+                      FROM vendor_job_progress 
+                      WHERE job_id = $1 AND vendor = 'tiingo'
+                  """, self.job_id)
+                  
+                  return dict(stats) if stats else {}
+          
+              async def run_collection(self):
+                  """Main collection process with checkpoint support"""
+                  logger.info("🚀 Starting Tiingo 30-year price collection with checkpoints")
+                  
+                  # Setup checkpoint system
+                  await self.setup_checkpoint_tables()
+                  
+                  # Get symbols to process
+                  all_symbols = await self.get_instruments_to_process()
+                  logger.info(f"📊 Found {len(all_symbols)} symbols to process")
+                  
+                  # Initialize progress tracking
+                  await self.initialize_job_progress(all_symbols)
+                  
+                  # Check for resuming from checkpoint
+                  stats = await self.get_progress_stats()
+                  if stats.get('completed', 0) > 0:
+                      logger.info(f"🔄 Resuming from checkpoint: {stats['completed']} already completed")
+                  
+                  # Process symbols in batches
+                  async with aiohttp.ClientSession() as session:
+                      while True:
+                          # Get next batch
+                          pending_symbols = await self.get_next_pending_symbols(batch_size=5)
+                          if not pending_symbols:
+                              logger.info("✅ All symbols processed")
+                              break
+                          
+                          logger.info(f"🔄 Processing batch: {pending_symbols}")
+                          
+                          for symbol in pending_symbols:
+                              try:
+                                  # Mark as processing
+                                  await self.mark_symbol_processing(symbol)
+                                  
+                                  # Fetch prices
+                                  prices, error = await self.fetch_tiingo_prices(session, symbol)
+                                  
+                                  if error:
+                                      await self.mark_symbol_failed(symbol, error)
+                                      logger.warning(f"❌ {symbol}: {error}")
+                                      self.error_count += 1
+                                      continue
+                                  
+                                  # Store prices
+                                  stored_count = await self.store_prices(symbol, prices)
+                                  
+                                  # Mark as completed
+                                  await self.mark_symbol_completed(symbol, stored_count)
+                                  self.processed_count += 1
+                                  
+                                  logger.info(f"✅ {symbol}: {stored_count} records stored")
+                                  
+                                  # Rate limiting
+                                  await asyncio.sleep(1.5)  # Tiingo: 50 calls/hour = 1.2 per min
+                                  
+                              except Exception as e:
+                                  await self.mark_symbol_failed(symbol, str(e))
+                                  logger.error(f"💥 {symbol}: {str(e)}")
+                                  self.error_count += 1
+                          
+                          # Progress update
+                          current_stats = await self.get_progress_stats()
+                          logger.info(f"📊 Progress: {current_stats['completed']}/{current_stats['total_symbols']} "
+                                    f"({current_stats['completed']/current_stats['total_symbols']*100:.1f}%)")
+                  
+                  # Final statistics
+                  final_stats = await self.get_progress_stats()
+                  logger.info("="*80)
+                  logger.info("🎉 TIINGO 30-YEAR COLLECTION COMPLETED")
+                  logger.info(f"📊 Total symbols: {final_stats['total_symbols']}")
+                  logger.info(f"✅ Completed: {final_stats['completed']}")
+                  logger.info(f"❌ Failed: {final_stats['failed']}")
+                  logger.info(f"📊 Total records: {final_stats['total_records']:,}")
+                  logger.info(f"🎯 Success rate: {final_stats['completed']/final_stats['total_symbols']*100:.1f}%")
+          
+          async def main():
+              """Main function"""
+              try:
+                  # Database connection
+                  conn = await asyncpg.connect(
+                      host='postgres',
+                      port=5432,
+                      user='postgres',
+                      password='dev_password',
+                      database='dev_db'
+                  )
+                  logger.info("✅ Connected to database")
+                  
+                  # Run collection
+                  collector = TiingoCheckpointCollector(conn)
+                  await collector.run_collection()
+                  
+                  await conn.close()
+                  logger.info("🎉 Tiingo collection job completed successfully!")
+                  
+              except Exception as e:
+                  logger.error(f"💥 Job failed: {e}")
+                  raise
+          
+          if __name__ == "__main__":
+              asyncio.run(main())
+          EOF
+          
+          cd /app && python tiingo_checkpoint_collector.py
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+      restartPolicy: OnFailure

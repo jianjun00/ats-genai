@@ -39,22 +39,40 @@ PYTHONPATH=src ENVIRONMENT=dev DB_HOST=localhost DB_PORT=5432 DB_USER=postgres D
 
 ## Vendor API Keys
 
-### Polygon.io
+### EODHD (Primary Historical Data)
+- **Environment Variable**: `EODHD_API_KEY`
+- **Current Key**: `68aa0c7d2fe831.67386369`
+- **Usage**: Primary source for 30-year historical daily prices
+- **Rate Limits**: 100,000 API calls per month
+- **Coverage**: US stocks, comprehensive historical data back to 1995
+
+### Polygon.io (Validation & Real-time)
 - **Environment Variable**: `POLYGON_API_KEY`
-- **Usage**: Market data, instrument metadata, historical prices
-- **Rate Limits**: Check Polygon.io documentation
-- **Configuration**: Set in `.env.dev`, `.env.prod` files
+- **Current Key**: `wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD`
+- **Usage**: Real-time data validation, instrument metadata
+- **Rate Limits**: 5 calls per minute (free tier)
+- **Coverage**: US stocks, excellent for validation
 
-### Tiingo
-- **Environment Variable**: `TIINGO_API_KEY`  
-- **Usage**: Alternative market data source, EOD prices
-- **Rate Limits**: Check Tiingo documentation
-- **Configuration**: Set in environment files
+### Tiingo (Alternative Historical)
+- **Environment Variable**: `TIINGO_API_KEY`
+- **Current Key**: `5f40b4f36e171405746304ec0e5a6f3aa9ca77e5`
+- **Usage**: Alternative historical data source, dividends
+- **Rate Limits**: 50 calls per hour (free tier)
+- **Coverage**: US stocks, good historical coverage
 
-### Other Potential APIs
-- **Alpha Vantage**: `ALPHA_VANTAGE_API_KEY`
-- **Financial Modeling Prep**: `FMP_API_KEY`
-- **IEX Cloud**: `IEX_API_KEY`
+### Financial Modeling Prep (FMP)
+- **Environment Variable**: `FMP_API_KEY`
+- **Current Key**: `Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr`
+- **Usage**: Financial statements, alternative price data
+- **Rate Limits**: 250 calls per day (free tier)
+- **Coverage**: US stocks, financial fundamentals
+
+### Other APIs (Available)
+- **Finnhub**: `FINNHUB_API_KEY` = `d1tmh5hr01qth6pm1ehgd1tmh5hr01qth6pm1ei0`
+- **IEX Cloud**: `IEX_API_KEY` = `db-7XAkHUfJQkMH48GRLMnwrQDNu3RKb`
+- **Quandl**: `QUANDL_API_KEY` = `1cPuQtoTJquouUgG-1cZ`
+- **OpenAI**: `OPENAI_API_KEY` = `sk-svcacct-C6MvJEL...` (for ML features)
+- **Weights & Biases**: `WEIGHTS_AND_BIASES_API_KEY` = `f907f51629a8b9b...` (for ML tracking)
 
 ## Database Schema
 

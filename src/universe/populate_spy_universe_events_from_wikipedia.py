@@ -136,7 +136,7 @@ async def fetch_spy_events(tickers=None):
     return events
 
 async def get_or_create_universe(pool, name, description):
-        env = Environment()
+    env = Environment()
     universe_table = env.get_table_name('universe')
     async with pool.acquire() as conn:
         row = await conn.fetchrow(f"SELECT id FROM {universe_table} WHERE name = $1", name)
@@ -154,7 +154,7 @@ async def apply_events_to_membership(pool, universe_id, events, env=None):
     Apply add/remove events to universe_membership and also log to universe_membership_changes.
     If env is provided, use it to prefix the membership_changes table.
     """
-        if env is None:
+    if env is None:
         env = Environment()
     universe_membership_table = env.get_table_name('universe_membership')
     membership_changes_table = env.get_table_name('universe_membership_changes')
@@ -201,7 +201,7 @@ async def apply_events_to_membership(pool, universe_id, events, env=None):
 
 
 async def remove_all_universe_membership(pool, universe_id):
-        env = Environment()
+    env = Environment()
     universe_membership_table = env.get_table_name('universe_membership')
     async with pool.acquire() as conn:
         result = await conn.execute(f"DELETE FROM {universe_membership_table} WHERE universe_id = $1", universe_id)
@@ -225,7 +225,7 @@ async def populate_spy_universe_events(universe_name, tickers=None):
     """
     Populate both universe_membership and universe_membership_changes with SPY events.
     """
-        db_url = Environment().get_database_url()
+    db_url = Environment().get_database_url()
     pool = await asyncpg.create_pool(db_url, min_size=1, max_size=4)
     events = await fetch_spy_events(tickers)
     print(f"[DEBUG] Fetched {len(events)} SPY membership events from Wikipedia.")

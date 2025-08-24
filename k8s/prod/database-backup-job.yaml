@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: ats-dev-database-backup
-  namespace: ats-dev
+  name: ats-prod-database-backup
+  namespace: ats-prod
 spec:
-  schedule: "0 2 * * *"  # Daily at 2 AM
+  schedule: "0 1 * * *"  # Daily at 1 AM (before dev and intg)
   jobTemplate:
     spec:
       template:
@@ -30,9 +30,9 @@ spec:
               }
               
               # Trap errors and send failure notification
-              trap 'send_slack_notification "❌ **ATS Dev Database Backup Failed** \n🚨 **Error Details:**\n• Database: \`dev_db\`\n• Timestamp: $(date)\n• Status: Failed\n• Error: Backup job terminated unexpectedly\n\n⚠️ Please check Kubernetes logs for details."' ERR
+              trap 'send_slack_notification "🚨 **CRITICAL: ATS Production Database Backup Failed** \n💥 **URGENT ACTION REQUIRED:**\n• Database: \`prod_db\`\n• Environment: PRODUCTION 🔴\n• Timestamp: $(date)\n• Status: FAILED\n• Error: Backup job terminated unexpectedly\n\n⚠️ <!channel> Production backup failure - immediate attention required!"' ERR
               
-              echo "Starting database backup at $(date)"
+              echo "Starting PRODUCTION database backup at $(date)"
               
               # Install curl for Slack notifications
               echo "Installing curl..."
@@ -42,49 +42,49 @@ spec:
               mkdir -p /backup
               
               # Generate backup filename with timestamp
-              BACKUP_FILE="/backup/ats-dev-backup-$(date +%Y%m%d-%H%M%S).sql"
+              BACKUP_FILE="/backup/ats-prod-backup-$(date +%Y%m%d-%H%M%S).sql"
               
               # Test database connection first
               echo "Testing database connection..."
-              PGPASSWORD=dev_password psql \
+              PGPASSWORD=prod_password psql \
                 -h postgres \
                 -p 5432 \
                 -U postgres \
-                -d dev_db \
+                -d prod_db \
                 -c "SELECT 'Database connection successful', version();" || {
-                  send_slack_notification "❌ **ATS Dev Database Backup Failed** \n🚨 **Error Details:**\n• Database: \`dev_db\`\n• Timestamp: $(date)\n• Status: Failed\n• Error: Cannot connect to database\n\n⚠️ Please check database status."
+                  send_slack_notification "🚨 **CRITICAL: ATS Production Database Backup Failed** \n💥 **URGENT ACTION REQUIRED:**\n• Database: \`prod_db\`\n• Environment: PRODUCTION 🔴\n• Timestamp: $(date)\n• Status: FAILED\n• Error: Cannot connect to database\n\n⚠️ <!channel> Production database connectivity issue!"
                   exit 1
                 }
               
               # Create database backup
               echo "Creating custom format backup..."
-              PGPASSWORD=dev_password pg_dump \
+              PGPASSWORD=prod_password pg_dump \
                 -h postgres \
                 -p 5432 \
                 -U postgres \
-                -d dev_db \
+                -d prod_db \
                 --verbose \
                 --clean \
                 --create \
                 --format=custom \
                 --file="${BACKUP_FILE}.custom" || {
-                  send_slack_notification "❌ **ATS Dev Database Backup Failed** \n🚨 **Error Details:**\n• Database: \`dev_db\`\n• Timestamp: $(date)\n• Status: Failed\n• Error: pg_dump failed (custom format)\n\n⚠️ Please check database integrity."
+                  send_slack_notification "🚨 **CRITICAL: ATS Production Database Backup Failed** \n💥 **URGENT ACTION REQUIRED:**\n• Database: \`prod_db\`\n• Environment: PRODUCTION 🔴\n• Timestamp: $(date)\n• Status: FAILED\n• Error: pg_dump failed (custom format)\n\n⚠️ <!channel> Production backup creation failed!"
                   exit 1
                 }
               
               # Also create a plain SQL backup for readability
               echo "Creating plain SQL backup..."
-              PGPASSWORD=dev_password pg_dump \
+              PGPASSWORD=prod_password pg_dump \
                 -h postgres \
                 -p 5432 \
                 -U postgres \
-                -d dev_db \
+                -d prod_db \
                 --verbose \
                 --clean \
                 --create \
                 --format=plain \
                 --file="${BACKUP_FILE}" || {
-                  send_slack_notification "❌ **ATS Dev Database Backup Failed** \n🚨 **Error Details:**\n• Database: \`dev_db\`\n• Timestamp: $(date)\n• Status: Failed\n• Error: pg_dump failed (plain format)\n\n⚠️ Please check database integrity."
+                  send_slack_notification "🚨 **CRITICAL: ATS Production Database Backup Failed** \n💥 **URGENT ACTION REQUIRED:**\n• Database: \`prod_db\`\n• Environment: PRODUCTION 🔴\n• Timestamp: $(date)\n• Status: FAILED\n• Error: pg_dump failed (plain format)\n\n⚠️ <!channel> Production backup creation failed!"
                   exit 1
                 }
               
@@ -104,20 +104,20 @@ spec:
               
               # Verify backup integrity
               echo "Verifying backup integrity..."
-              PGPASSWORD=dev_password pg_restore --list "${BACKUP_FILE}.custom" > /tmp/backup_verify.txt
+              PGPASSWORD=prod_password pg_restore --list "${BACKUP_FILE}.custom" > /tmp/backup_verify.txt
               OBJECT_COUNT=$(grep -c ';' /tmp/backup_verify.txt)
               echo "Backup contains $OBJECT_COUNT objects"
               
-              echo "Database backup completed at $(date)"
+              echo "PRODUCTION database backup completed at $(date)"
               
               # Send Slack notification on backup completion
               BACKUP_SIZE=$(du -h "${BACKUP_FILE}.custom" | cut -f1)
               COMPRESSED_SIZE=$(du -h "${BACKUP_FILE}.gz" | cut -f1)
               
-              send_slack_notification "✅ **ATS Dev Database Backup Completed** \n📊 **Backup Details:**\n• Database: \`dev_db\`\n• Custom Format: ${BACKUP_SIZE} (${OBJECT_COUNT} objects)\n• Compressed SQL: ${COMPRESSED_SIZE}\n• Timestamp: $(date)\n• Status: Success ✅\n\n📁 Backup files stored in persistent volume.\n🔍 Backup integrity verified."
+              send_slack_notification "✅ **ATS Production Database Backup Completed** \n🏭 **PRODUCTION BACKUP SUCCESS**\n• Database: \`prod_db\`\n• Environment: PRODUCTION 🔴\n• Custom Format: ${BACKUP_SIZE} (${OBJECT_COUNT} objects)\n• Compressed SQL: ${COMPRESSED_SIZE}\n• Timestamp: $(date)\n• Status: SUCCESS ✅\n\n📁 Production backup stored securely.\n🔒 Data integrity verified and protected."
             env:
             - name: PGPASSWORD
-              value: "dev_password"
+              value: "prod_password"
             - name: SLACK_WEBHOOK_URL
               valueFrom:
                 secretKeyRef:
@@ -130,14 +130,14 @@ spec:
           volumes:
           - name: backup-storage
             persistentVolumeClaim:
-              claimName: ats-dev-backup-pvc
+              claimName: ats-prod-backup-pvc
           restartPolicy: OnFailure
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: ats-dev-backup-pvc
-  namespace: ats-dev
+  name: ats-prod-backup-pvc
+  namespace: ats-prod
 spec:
   accessModes:
     - ReadWriteOnce
