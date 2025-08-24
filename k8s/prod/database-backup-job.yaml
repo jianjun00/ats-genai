@@ -129,19 +129,7 @@ spec:
               mountPath: /backup
           volumes:
           - name: backup-storage
-            persistentVolumeClaim:
-              claimName: ats-prod-backup-pvc
+            hostPath:
+              path: /host-data/backups/ats-prod
+              type: DirectoryOrCreate
           restartPolicy: OnFailure
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: ats-prod-backup-pvc
-  namespace: ats-prod
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 20Ti  # Large storage for comprehensive backup retention
-  storageClassName: standard
