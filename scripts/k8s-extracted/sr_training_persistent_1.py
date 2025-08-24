@@ -1,0 +1,346 @@
+#!/usr/bin/env python3
+import asyncio
+
+set -e
+      echo "🔧 Installing dependencies..."
+      pip install --no-cache-dir asyncpg pandas numpy python-dateutil gin-config
+      
+      echo "📦 Setting up source code..."
+      mkdir -p /src/config /src/ml/training_data
+      
+      # Create minimal config files
+      cat > /src/config/__init__.py << 'EOF'
+      # Config module
+      EOF
+      
+      cat > /src/config/environment.py << 'EOF'
+      import os
+      
+      class Environment:
+          def __init__(self):
+              self.db_host = os.environ.get('DB_HOST', 'postgres-simple')
+              self.db_port = int(os.environ.get('DB_PORT', '5432'))
+              self.db_user = os.environ.get('DB_USER', 'postgres')
+              self.db_password = os.environ.get('DB_PASSWORD', 'dev_password')
+              self.db_name = os.environ.get('DB_NAME', 'dev_db')
+              self.environment = os.environ.get('ENVIRONMENT', 'dev')
+          
+          def get_database_url(self) -> str:
+              return f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+          
+          def get_table_name(self, base_name: str) -> str:
+              if self.environment == 'dev':
+                  return f"dev_{base_name}"
+              else:
+                  return f"{self.environment}_{base_name}"
+      EOF
+      
+      cat > /training_script.py << 'EOF'
+      import asyncio
+      import asyncpg
+      import pandas as pd
+      import numpy as np
+      import logging
+      import json
+      import pickle
+      import csv
+      from datetime import date, datetime
+      import sys
+      import os
+      sys.path.append('/src')
+      from config.environment import Environment
+      
+      logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+      logger = logging.getLogger(__name__)
+      
+      class TrainingExample:
+          def __init__(self, symbol, date, features, next_day_high, next_day_low, next_day_close, next_day_volume):
+              self.symbol = symbol
+              self.date = date
+              self.features = features
+              self.next_day_high = next_day_high
+              self.next_day_low = next_day_low
+              self.next_day_close = next_day_close
+              self.next_day_volume = next_day_volume
+      
+      async def get_data_and_generate(symbol, conn, start_date, end_date):
+          # Get instrument_id
+          instrument_row = await conn.fetchrow("SELECT id FROM dev_instruments WHERE symbol = $1", symbol)
+          if not instrument_row:
+              return []
+          
+          instrument_id = instrument_row['id']
+          logger.info(f"Processing {symbol} (ID: {instrument_id})")
+          
+          # Get price data
+          query = """
+              SELECT date, open_price, high_price, low_price, close, volume
+              FROM dev_daily_prices_polygon
+              WHERE instrument_id = $1 AND date >= $2 AND date <= $3
+              ORDER BY date
+          """
+          
+          rows = await conn.fetch(query, instrument_id, start_date, end_date)
+          if not rows or len(rows) < 50:
+              logger.warning(f"Insufficient data for {symbol}")
+              return []
+          
+          # Convert to proper format
+          data = []
+          for row in rows:
+              data.append({
+                  'date': row[0],
+                  'open': float(row[1]),
+                  'high': float(row[2]),
+                  'low': float(row[3]),
+                  'close': float(row[4]),
+                  'volume': int(row[5])
+              })
+          
+          df = pd.DataFrame(data)
+          logger.info(f"Loaded {len(df)} price records for {symbol}")
+          
+          # Generate training examples
+          examples = []
+          for i in range(20, len(df) - 1):
+              current_data = df.iloc[:i + 1]
+              current_row = df.iloc[i]
+              next_row = df.iloc[i + 1]
+              
+              # Generate basic features
+              if len(current_data) < 5:
+                  continue
+                  
+              features = {}
+              current_price = current_data.iloc[-1]
+              
+              # Basic features
+              features['close'] = current_price['close']
+              features['volume'] = current_price['volume']
+              features['daily_range'] = (current_price['high'] - current_price['low']) / current_price['close']
+              features['body_ratio'] = abs(current_price['close'] - current_price['open']) / (current_price['high'] - current_price['low'] + 1e-8)
+              
+              # Returns
+              if len(current_data) >= 2:
+                  features['return_1d'] = (current_data.iloc[-1]['close'] - current_data.iloc[-2]['close']) / current_data.iloc[-2]['close']
+              if len(current_data) >= 6:
+                  features['return_5d'] = (current_data.iloc[-1]['close'] - current_data.iloc[-6]['close']) / current_data.iloc[-6]['close']
+              
+              # Moving averages
+              closes = current_data['close'].values
+              for period in [5, 10, 20]:
+                  if len(closes) >= period:
+                      ma = np.mean(closes[-period:])
+                      features[f'ma_{period}_ratio'] = closes[-1] / ma
+              
+              # Volume ratio
+              volumes = current_data['volume'].values
+              if len(volumes) >= 20:
+                  features['volume_ratio'] = volumes[-1] / np.mean(volumes[-20:])
+              
+              # RSI
+              if len(closes) >= 14:
+                  deltas = np.diff(closes[-15:])
+                  gains = np.where(deltas > 0, deltas, 0)
+                  losses = np.where(deltas < 0, -deltas, 0)
+                  avg_gain = np.mean(gains) if len(gains) > 0 else 0
+                  avg_loss = np.mean(losses) if len(losses) > 0 else 0
+                  if avg_loss > 0:
+                      rs = avg_gain / avg_loss
+                      features['rsi'] = 100 - (100 / (1 + rs))
+                  else:
+                      features['rsi'] = 100.0
+              
+              # Create training example
+              example = TrainingExample(
+                  symbol=symbol,
+                  date=current_row['date'],
+                  features=features,
+                  next_day_high=next_row['high'],
+                  next_day_low=next_row['low'],
+                  next_day_close=next_row['close'],
+                  next_day_volume=next_row['volume']
+              )
+              examples.append(example)
+          
+          logger.info(f"Generated {len(examples)} examples for {symbol}")
+          return examples
+      
+      async def main():
+          logger.info("🚀 Starting S/R training data generation...")
+          
+          env = Environment()
+          symbols = ['AAPL', 'TSLA']
+          start_date = date(2020, 1, 1)
+          end_date = date(2024, 12, 31)
+          
+          all_examples = []
+          
+          pool = await asyncpg.create_pool(env.get_database_url())
+          try:
+              async with pool.acquire() as conn:
+                  for symbol in symbols:
+                      examples = await get_data_and_generate(symbol, conn, start_date, end_date)
+                      all_examples.extend(examples)
+          finally:
+              await pool.close()
+          
+          logger.info(f"✅ Total examples generated: {len(all_examples)}")
+          
+          # Create training data directory structure
+          timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+          output_dir = f'/data/training/support_resistance_{timestamp}'
+          os.makedirs(output_dir, exist_ok=True)
+          
+          # Save as pickle
+          pickle_file = f'{output_dir}/sr_training_aapl_tsla.pkl'
+          with open(pickle_file, 'wb') as f:
+              pickle.dump(all_examples, f)
+          
+          # Save as CSV for easy viewing
+          csv_data = []
+          for example in all_examples:
+              row = {
+                  'symbol': example.symbol,
+                  'date': example.date.isoformat(),
+                  'next_day_high': example.next_day_high,
+                  'next_day_low': example.next_day_low,
+                  'next_day_close': example.next_day_close,
+                  'next_day_volume': example.next_day_volume,
+              }
+              # Add features
+              for k, v in example.features.items():
+                  row[f'feature_{k}'] = v
+              csv_data.append(row)
+          
+          df_csv = pd.DataFrame(csv_data)
+          csv_file = f'{output_dir}/sr_training_aapl_tsla.csv'
+          df_csv.to_csv(csv_file, index=False)
+          
+          # Create summary
+          summary = {
+              'timestamp': datetime.now().isoformat(),
+              'symbols': symbols,
+              'total_examples': len(all_examples),
+              'examples_per_symbol': {
+                  symbol: len([e for e in all_examples if e.symbol == symbol])
+                  for symbol in symbols
+              },
+              'feature_count': len(all_examples[0].features) if all_examples else 0,
+              'date_range': {'start': start_date.isoformat(), 'end': end_date.isoformat()},
+              'files': {
+                  'pickle': pickle_file,
+                  'csv': csv_file
+              }
+          }
+          
+          summary_file = f'{output_dir}/summary.json'
+          with open(summary_file, 'w') as f:
+              json.dump(summary, f, indent=2)
+          
+          # Create readable summary
+          readme_file = f'{output_dir}/README.md'
+          with open(readme_file, 'w') as f:
+              f.write("# Support/Resistance Training Data for AAPL and TSLA\n\n")
+              f.write(f"Generated: {datetime.now().isoformat()}\n\n")
+              f.write(f"## Dataset Summary\n")
+              f.write(f"- **Total Examples**: {len(all_examples):,}\n")
+              f.write(f"- **Symbols**: {', '.join(symbols)}\n")
+              f.write(f"- **Date Range**: {start_date} to {end_date}\n")
+              f.write(f"- **Features per Example**: {len(all_examples[0].features) if all_examples else 0}\n\n")
+              
+              for symbol in symbols:
+                  count = len([e for e in all_examples if e.symbol == symbol])
+                  f.write(f"- **{symbol}**: {count:,} examples\n")
+              
+              f.write(f"\n## Files Generated\n")
+              f.write(f"- `sr_training_aapl_tsla.pkl` - Python pickle file with full TrainingExample objects\n")
+              f.write(f"- `sr_training_aapl_tsla.csv` - CSV format for analysis in Excel/other tools\n")
+              f.write(f"- `summary.json` - Machine-readable summary\n")
+              f.write(f"- `README.md` - This file\n\n")
+              
+              if all_examples:
+                  f.write(f"## Sample Features (from {all_examples[0].symbol} on {all_examples[0].date})\n")
+                  for feature, value in list(all_examples[0].features.items())[:10]:
+                      f.write(f"- `{feature}`: {value:.4f}\n")
+                  
+                  f.write(f"\n## Feature List\n")
+                  f.write("All features available in the dataset:\n")
+                  for feature in sorted(all_examples[0].features.keys()):
+                      f.write(f"- `{feature}`\n")
+          
+          # Create a symlink to latest
+          latest_link = '/data/training/latest_support_resistance'
+          if os.path.exists(latest_link):
+              os.unlink(latest_link)
+          os.symlink(output_dir, latest_link)
+          
+          logger.info(f"📁 Files generated in {output_dir}:")
+          logger.info(f"  - sr_training_aapl_tsla.pkl ({len(all_examples):,} examples)")
+          logger.info(f"  - sr_training_aapl_tsla.csv ({len(csv_data):,} rows)")
+          logger.info(f"  - summary.json")
+          logger.info(f"  - README.md")
+          logger.info(f"📍 Latest data available at: /data/training/latest_support_resistance")
+          
+          # Show file sizes
+          for filename in ['sr_training_aapl_tsla.pkl', 'sr_training_aapl_tsla.csv', 'summary.json', 'README.md']:
+              filepath = f'{output_dir}/{filename}'
+              if os.path.exists(filepath):
+                  size = os.path.getsize(filepath)
+                  logger.info(f"  {filename}: {size:,} bytes")
+          
+          print("✅ Training data generation completed!")
+          print(f"📂 Data saved to: {output_dir}")
+          print(f"🔗 Latest symlink: /data/training/latest_support_resistance")
+      
+      if __name__ == "__main__":
+          asyncio.run(main())
+      EOF
+      
+      echo "📁 Setting up data directory structure..."
+      mkdir -p /data/training
+      mkdir -p /data/minute_data
+      mkdir -p /data/instruments
+      mkdir -p /backtest/runs
+      mkdir -p /backtest/models
+      
+      echo "🚀 Running training data generation..."
+      python /training_script.py
+      
+      echo "📋 Final directory structure:"
+      echo "=== /data structure ==="
+      ls -la /data/
+      ls -la /data/training/
+      
+      echo "=== /backtest structure ==="
+      ls -la /backtest/
+      
+      if [ -L "/data/training/latest_support_resistance" ]; then
+        echo "=== Latest training data ==="
+        ls -la /data/training/latest_support_resistance/
+        
+        echo "=== README content ==="
+        head -30 /data/training/latest_support_resistance/README.md
+      fi
+      
+    volumeMounts:
+    - name: data-volume
+      mountPath: /data
+    - name: backtest-volume
+      mountPath: /backtest
+    resources:
+      requests:
+        memory: "2Gi"
+        cpu: "1000m"
+      limits:
+        memory: "4Gi"
+        cpu: "2000m"
+  volumes:
+  - name: data-volume
+    persistentVolumeClaim:
+      claimName: data-pvc
+  - name: backtest-volume
+    persistentVolumeClaim:
+      claimName: backtest-pvc
+  restartPolicy: Never
+backoffLimit: 2
