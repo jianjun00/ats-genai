@@ -1,0 +1,537 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: generic-checkpoint-framework
+  namespace: ats-dev
+spec:
+  ttlSecondsAfterFinished: 172800  # Keep job for 48 hours
+  template:
+    spec:
+      containers:
+      - name: checkpoint-framework
+        image: python:3.12-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "🚀 Installing dependencies..."
+          pip install asyncpg aiohttp pandas requests
+          
+          echo "📂 Creating generic checkpoint framework..."
+          mkdir -p /app
+          cat > /app/generic_checkpoint_framework.py << 'EOF'
+          import asyncio
+          import asyncpg
+          import aiohttp
+          import json
+          import logging
+          from datetime import datetime, date, timedelta
+          from typing import Dict, List, Optional, Tuple, Any, Protocol
+          from enum import Enum
+          from dataclasses import dataclass, asdict
+          import abc
+          
+          logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+          logger = logging.getLogger("checkpoint_framework")
+          
+          class IterationType(Enum):
+              INSTRUMENT = "instrument"
+              DATE = "date"
+              INSTRUMENT_DATE = "instrument_date"
+              CUSTOM = "custom"
+          
+          class JobStatus(Enum):
+              PENDING = "pending"
+              IN_PROGRESS = "in_progress"
+              COMPLETED = "completed"
+              FAILED = "failed"
+              PAUSED = "paused"
+          
+          @dataclass
+          class CheckpointState:
+              job_id: str
+              iteration_type: str
+              current_position: str  # JSON serialized position info
+              processed_count: int
+              error_count: int
+              last_successful_item: Optional[str]
+              metadata: Dict[str, Any]
+              created_at: datetime
+              updated_at: datetime
+              
+          @dataclass 
+          class JobConfiguration:
+              job_name: str
+              vendor: str
+              iteration_type: IterationType
+              batch_size: int
+              rate_limit_delay: float
+              max_retries: int
+              timeout_seconds: int
+              custom_config: Dict[str, Any]
+          
+          class CheckpointableJob(abc.ABC):
+              """Abstract base class for checkpointable jobs"""
+              
+              def __init__(self, config: JobConfiguration, db_connection: asyncpg.Connection):
+                  self.config = config
+                  self.conn = db_connection
+                  self.job_id = f"{config.job_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                  
+              @abc.abstractmethod
+              async def get_iteration_items(self) -> List[Any]:
+                  """Get all items to iterate over"""
+                  pass
+                  
+              @abc.abstractmethod
+              async def process_item(self, item: Any, session: aiohttp.ClientSession) -> Tuple[Any, Optional[str]]:
+                  """Process a single item. Returns (result, error_message)"""
+                  pass
+                  
+              @abc.abstractmethod
+              async def store_result(self, item: Any, result: Any) -> int:
+                  """Store the result. Returns count of records stored"""
+                  pass
+              
+              def serialize_position(self, position: Any) -> str:
+                  """Serialize current position for checkpointing"""
+                  return json.dumps(position)
+                  
+              def deserialize_position(self, position_str: str) -> Any:
+                  """Deserialize position from checkpoint"""
+                  return json.loads(position_str)
+          
+          class CheckpointManager:
+              """Generic checkpoint manager for job state persistence"""
+              
+              def __init__(self, db_connection: asyncpg.Connection):
+                  self.conn = db_connection
+                  
+              async def setup_checkpoint_tables(self):
+                  """Create generic checkpoint tables"""
+                  logger.info("Setting up generic checkpoint system...")
+                  
+                  # Generic job runs table for checkpoint management
+                  await self.conn.execute("""
+                      CREATE TABLE IF NOT EXISTS dev_job_runs (
+                          id SERIAL PRIMARY KEY,
+                          job_id VARCHAR(100) UNIQUE NOT NULL,
+                          job_name VARCHAR(100) NOT NULL,
+                          vendor VARCHAR(50),
+                          iteration_type VARCHAR(20) NOT NULL,
+                          status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                          current_position TEXT,  -- JSON serialized current position
+                          processed_count INTEGER DEFAULT 0,
+                          error_count INTEGER DEFAULT 0,
+                          total_items INTEGER,
+                          last_successful_item TEXT,
+                          last_error_message TEXT,
+                          configuration JSONB,  -- Job configuration
+                          metadata JSONB DEFAULT '{}',  -- Custom metadata
+                          started_at TIMESTAMP,
+                          completed_at TIMESTAMP,
+                          created_at TIMESTAMP DEFAULT now(),
+                          updated_at TIMESTAMP DEFAULT now()
+                      );
+                  """)
+                  
+                  # Job progress tracking for individual items
+                  await self.conn.execute("""
+                      CREATE TABLE IF NOT EXISTS dev_job_progress (
+                          id SERIAL PRIMARY KEY,
+                          job_id VARCHAR(100) NOT NULL,
+                          item_key VARCHAR(200) NOT NULL,  -- instrument, date, or custom key
+                          item_type VARCHAR(50) NOT NULL,  -- instrument, date, custom
+                          status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                          records_processed INTEGER DEFAULT 0,
+                          error_message TEXT,
+                          retry_count INTEGER DEFAULT 0,
+                          started_at TIMESTAMP,
+                          completed_at TIMESTAMP,
+                          created_at TIMESTAMP DEFAULT now(),
+                          UNIQUE(job_id, item_key, item_type)
+                      );
+                  """)
+                  
+                  # Create indexes for performance
+                  await self.conn.execute("""
+                      CREATE INDEX IF NOT EXISTS idx_dev_job_runs_status 
+                      ON dev_job_runs(job_name, status, created_at);
+                      
+                      CREATE INDEX IF NOT EXISTS idx_dev_job_progress_status 
+                      ON dev_job_progress(job_id, status);
+                      
+                      CREATE INDEX IF NOT EXISTS idx_dev_job_progress_item 
+                      ON dev_job_progress(job_id, item_key, item_type);
+                  """)
+                  
+                  logger.info("✅ Generic checkpoint system ready")
+                  
+              async def create_job_run(self, config: JobConfiguration, total_items: int) -> str:
+                  """Create a new job run entry"""
+                  job_id = f"{config.job_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                  
+                  await self.conn.execute("""
+                      INSERT INTO dev_job_runs 
+                      (job_id, job_name, vendor, iteration_type, total_items, configuration, started_at)
+                      VALUES ($1, $2, $3, $4, $5, $6, now())
+                  """, job_id, config.job_name, config.vendor, config.iteration_type.value, 
+                      total_items, json.dumps(asdict(config)))
+                  
+                  logger.info(f"✅ Created job run: {job_id}")
+                  return job_id
+                  
+              async def get_or_create_job_run(self, config: JobConfiguration, total_items: int) -> Tuple[str, CheckpointState]:
+                  """Get existing incomplete job run or create new one"""
+                  # Look for incomplete job runs with same configuration
+                  existing = await self.conn.fetchrow("""
+                      SELECT job_id, current_position, processed_count, error_count, 
+                             last_successful_item, metadata, created_at, updated_at
+                      FROM dev_job_runs 
+                      WHERE job_name = $1 AND vendor = $2 AND iteration_type = $3 
+                      AND status IN ('pending', 'in_progress', 'paused')
+                      ORDER BY created_at DESC LIMIT 1
+                  """, config.job_name, config.vendor, config.iteration_type.value)
+                  
+                  if existing:
+                      logger.info(f"🔄 Resuming existing job: {existing['job_id']}")
+                      checkpoint = CheckpointState(
+                          job_id=existing['job_id'],
+                          iteration_type=config.iteration_type.value,
+                          current_position=existing['current_position'] or "{}",
+                          processed_count=existing['processed_count'],
+                          error_count=existing['error_count'],
+                          last_successful_item=existing['last_successful_item'],
+                          metadata=existing['metadata'] or {},
+                          created_at=existing['created_at'],
+                          updated_at=existing['updated_at']
+                      )
+                      return existing['job_id'], checkpoint
+                  else:
+                      # Create new job run
+                      job_id = await self.create_job_run(config, total_items)
+                      checkpoint = CheckpointState(
+                          job_id=job_id,
+                          iteration_type=config.iteration_type.value,
+                          current_position="{}",
+                          processed_count=0,
+                          error_count=0,
+                          last_successful_item=None,
+                          metadata={},
+                          created_at=datetime.now(),
+                          updated_at=datetime.now()
+                      )
+                      return job_id, checkpoint
+                      
+              async def update_checkpoint(self, job_id: str, checkpoint: CheckpointState):
+                  """Update checkpoint state"""
+                  await self.conn.execute("""
+                      UPDATE dev_job_runs 
+                      SET current_position = $2, processed_count = $3, error_count = $4,
+                          last_successful_item = $5, metadata = $6, updated_at = now()
+                      WHERE job_id = $1
+                  """, job_id, checkpoint.current_position, checkpoint.processed_count,
+                      checkpoint.error_count, checkpoint.last_successful_item, 
+                      json.dumps(checkpoint.metadata))
+                      
+              async def mark_item_processing(self, job_id: str, item_key: str, item_type: str):
+                  """Mark individual item as being processed"""
+                  await self.conn.execute("""
+                      INSERT INTO dev_job_progress (job_id, item_key, item_type, status, started_at)
+                      VALUES ($1, $2, $3, 'in_progress', now())
+                      ON CONFLICT (job_id, item_key, item_type) 
+                      DO UPDATE SET status = 'in_progress', started_at = now(), retry_count = dev_job_progress.retry_count + 1
+                  """, job_id, item_key, item_type)
+                  
+              async def mark_item_completed(self, job_id: str, item_key: str, item_type: str, records_count: int):
+                  """Mark individual item as completed"""
+                  await self.conn.execute("""
+                      UPDATE dev_job_progress 
+                      SET status = 'completed', records_processed = $4, completed_at = now()
+                      WHERE job_id = $1 AND item_key = $2 AND item_type = $3
+                  """, job_id, item_key, item_type, records_count)
+                  
+              async def mark_item_failed(self, job_id: str, item_key: str, item_type: str, error_msg: str):
+                  """Mark individual item as failed"""
+                  await self.conn.execute("""
+                      UPDATE dev_job_progress 
+                      SET status = 'failed', error_message = $4, completed_at = now()
+                      WHERE job_id = $1 AND item_key = $2 AND item_type = $3
+                  """, job_id, item_key, item_type, error_msg)
+                  
+              async def get_next_items(self, job_id: str, item_type: str, batch_size: int) -> List[str]:
+                  """Get next batch of items to process"""
+                  items = await self.conn.fetch("""
+                      SELECT item_key FROM dev_job_progress 
+                      WHERE job_id = $1 AND item_type = $2 AND status = 'pending'
+                      ORDER BY item_key
+                      LIMIT $3
+                  """, job_id, item_type, batch_size)
+                  return [row['item_key'] for row in items]
+                  
+              async def initialize_items(self, job_id: str, items: List[Any], item_type: str):
+                  """Initialize all items in progress table"""
+                  logger.info(f"Initializing {len(items)} items for processing...")
+                  
+                  for item in items:
+                      item_key = str(item)
+                      await self.conn.execute("""
+                          INSERT INTO dev_job_progress (job_id, item_key, item_type, status)
+                          VALUES ($1, $2, $3, 'pending')
+                          ON CONFLICT (job_id, item_key, item_type) DO NOTHING
+                      """, job_id, item_key, item_type)
+                      
+              async def get_job_stats(self, job_id: str) -> Dict:
+                  """Get comprehensive job statistics"""
+                  stats = await self.conn.fetchrow("""
+                      SELECT 
+                          COUNT(*) as total_items,
+                          COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+                          COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed,
+                          COUNT(CASE WHEN status = 'in_progress' THEN 1 END) as in_progress,
+                          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+                          SUM(records_processed) as total_records,
+                          AVG(retry_count) as avg_retries
+                      FROM dev_job_progress WHERE job_id = $1
+                  """, job_id)
+                  
+                  return dict(stats) if stats else {}
+                  
+              async def mark_job_completed(self, job_id: str):
+                  """Mark entire job as completed"""
+                  await self.conn.execute("""
+                      UPDATE dev_job_runs 
+                      SET status = 'completed', completed_at = now() 
+                      WHERE job_id = $1
+                  """, job_id)
+                  
+              async def mark_job_failed(self, job_id: str, error_message: str):
+                  """Mark entire job as failed"""
+                  await self.conn.execute("""
+                      UPDATE dev_job_runs 
+                      SET status = 'failed', last_error_message = $2, completed_at = now() 
+                      WHERE job_id = $1
+                  """, job_id, error_message)
+          
+          class GenericJobRunner:
+              """Generic job runner with checkpoint support"""
+              
+              def __init__(self, job: CheckpointableJob, checkpoint_manager: CheckpointManager):
+                  self.job = job
+                  self.checkpoint_manager = checkpoint_manager
+                  self.current_checkpoint: Optional[CheckpointState] = None
+                  
+              async def run(self):
+                  """Run job with checkpoint support"""
+                  try:
+                      logger.info(f"🚀 Starting {self.job.config.job_name} with checkpoint support")
+                      
+                      # Setup checkpoint system
+                      await self.checkpoint_manager.setup_checkpoint_tables()
+                      
+                      # Get all items to process
+                      all_items = await self.job.get_iteration_items()
+                      logger.info(f"📊 Found {len(all_items)} items to process")
+                      
+                      # Get or create job run
+                      job_id, checkpoint = await self.checkpoint_manager.get_or_create_job_run(
+                          self.job.config, len(all_items))
+                      self.job.job_id = job_id
+                      self.current_checkpoint = checkpoint
+                      
+                      # Initialize items in progress table
+                      item_type = self.job.config.iteration_type.value
+                      await self.checkpoint_manager.initialize_items(job_id, all_items, item_type)
+                      
+                      # Process items in batches
+                      async with aiohttp.ClientSession() as session:
+                          while True:
+                              # Get next batch
+                              pending_items = await self.checkpoint_manager.get_next_items(
+                                  job_id, item_type, self.job.config.batch_size)
+                              
+                              if not pending_items:
+                                  logger.info("✅ All items processed")
+                                  break
+                                  
+                              logger.info(f"🔄 Processing batch: {pending_items[:3]}... ({len(pending_items)} items)")
+                              
+                              for item_key in pending_items:
+                                  try:
+                                      # Mark as processing
+                                      await self.checkpoint_manager.mark_item_processing(job_id, item_key, item_type)
+                                      
+                                      # Process item
+                                      result, error = await self.job.process_item(item_key, session)
+                                      
+                                      if error:
+                                          await self.checkpoint_manager.mark_item_failed(job_id, item_key, item_type, error)
+                                          self.current_checkpoint.error_count += 1
+                                          logger.warning(f"❌ {item_key}: {error}")
+                                          continue
+                                      
+                                      # Store result
+                                      records_count = await self.job.store_result(item_key, result)
+                                      
+                                      # Mark as completed
+                                      await self.checkpoint_manager.mark_item_completed(job_id, item_key, item_type, records_count)
+                                      self.current_checkpoint.processed_count += 1
+                                      self.current_checkpoint.last_successful_item = item_key
+                                      
+                                      logger.info(f"✅ {item_key}: {records_count} records")
+                                      
+                                      # Rate limiting
+                                      await asyncio.sleep(self.job.config.rate_limit_delay)
+                                      
+                                  except Exception as e:
+                                      await self.checkpoint_manager.mark_item_failed(job_id, item_key, item_type, str(e))
+                                      self.current_checkpoint.error_count += 1
+                                      logger.error(f"💥 {item_key}: {str(e)}")
+                              
+                              # Update checkpoint
+                              await self.checkpoint_manager.update_checkpoint(job_id, self.current_checkpoint)
+                              
+                              # Progress update
+                              stats = await self.checkpoint_manager.get_job_stats(job_id)
+                              logger.info(f"📊 Progress: {stats['completed']}/{stats['total_items']} "
+                                        f"({stats['completed']/stats['total_items']*100:.1f}%)")
+                      
+                      # Mark job as completed
+                      await self.checkpoint_manager.mark_job_completed(job_id)
+                      
+                      # Final statistics
+                      final_stats = await self.checkpoint_manager.get_job_stats(job_id)
+                      logger.info("="*80)
+                      logger.info(f"🎉 {self.job.config.job_name.upper()} COMPLETED")
+                      logger.info(f"📊 Total items: {final_stats['total_items']}")
+                      logger.info(f"✅ Completed: {final_stats['completed']}")
+                      logger.info(f"❌ Failed: {final_stats['failed']}")
+                      logger.info(f"📊 Total records: {final_stats['total_records']:,}")
+                      logger.info(f"🎯 Success rate: {final_stats['completed']/final_stats['total_items']*100:.1f}%")
+                      
+                  except Exception as e:
+                      if self.job.job_id:
+                          await self.checkpoint_manager.mark_job_failed(self.job.job_id, str(e))
+                      logger.error(f"💥 Job failed: {e}")
+                      raise
+          
+          # Example implementation for Tiingo
+          class TiingoJob(CheckpointableJob):
+              """Example Tiingo job implementation"""
+              
+              def __init__(self, db_connection: asyncpg.Connection):
+                  config = JobConfiguration(
+                      job_name="tiingo_30year_prices",
+                      vendor="tiingo",
+                      iteration_type=IterationType.INSTRUMENT,
+                      batch_size=5,
+                      rate_limit_delay=1.5,  # 50 calls/hour
+                      max_retries=3,
+                      timeout_seconds=3600,
+                      custom_config={}
+                  )
+                  super().__init__(config, db_connection)
+                  self.api_key = "5f40b4f36e171405746304ec0e5a6f3aa9ca77e5"
+                  
+              async def get_iteration_items(self) -> List[str]:
+                  """Get instruments to process"""
+                  symbols = await self.conn.fetch("""
+                      SELECT DISTINCT symbol FROM dev_instruments 
+                      WHERE symbol IS NOT NULL AND symbol != ''
+                      ORDER BY symbol
+                  """)
+                  return [row['symbol'] for row in symbols]
+                  
+              async def process_item(self, symbol: str, session: aiohttp.ClientSession) -> Tuple[List[Dict], Optional[str]]:
+                  """Process single instrument"""
+                  url = f"https://api.tiingo.com/tiingo/daily/{symbol}/prices"
+                  headers = {'Authorization': f'Token {self.api_key}'}
+                  params = {
+                      'startDate': '1994-01-01',
+                      'endDate': date.today().isoformat(),
+                      'format': 'json'
+                  }
+                  
+                  try:
+                      async with session.get(url, headers=headers, params=params) as response:
+                          if response.status == 200:
+                              data = await response.json()
+                              return data, None
+                          else:
+                              return [], f"HTTP {response.status}"
+                  except Exception as e:
+                      return [], f"Exception: {str(e)}"
+                      
+              async def store_result(self, symbol: str, prices: List[Dict]) -> int:
+                  """Store prices in database"""
+                  if not prices:
+                      return 0
+                      
+                  stored_count = 0
+                  for price_data in prices:
+                      try:
+                          await self.conn.execute("""
+                              INSERT INTO dev_tiingo_prices 
+                              (symbol, price_date, open_price, high_price, low_price, close_price, 
+                               adj_close_price, volume, raw_data, job_id, collected_at)
+                              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
+                              ON CONFLICT (symbol, price_date) DO NOTHING
+                          """, symbol, 
+                              datetime.fromisoformat(price_data['date']).date(),
+                              price_data.get('open', 0),
+                              price_data.get('high', 0),
+                              price_data.get('low', 0),
+                              price_data.get('close', 0),
+                              price_data.get('adjClose', 0),
+                              price_data.get('volume', 0),
+                              json.dumps(price_data),
+                              self.job_id)
+                          stored_count += 1
+                      except Exception as e:
+                          logger.warning(f"Error storing {symbol}: {e}")
+                  
+                  return stored_count
+          
+          async def main():
+              """Demo of generic checkpoint framework"""
+              try:
+                  # Database connection
+                  conn = await asyncpg.connect(
+                      host='postgres',
+                      port=5432,
+                      user='postgres',
+                      password='dev_password',
+                      database='dev_db'
+                  )
+                  logger.info("✅ Connected to database")
+                  
+                  # Create checkpoint manager
+                  checkpoint_manager = CheckpointManager(conn)
+                  
+                  # Create and run Tiingo job
+                  tiingo_job = TiingoJob(conn)
+                  runner = GenericJobRunner(tiingo_job, checkpoint_manager)
+                  await runner.run()
+                  
+                  await conn.close()
+                  logger.info("🎉 Framework demo completed!")
+                  
+              except Exception as e:
+                  logger.error(f"💥 Demo failed: {e}")
+                  raise
+          
+          if __name__ == "__main__":
+              asyncio.run(main())
+          EOF
+          
+          cd /app && python generic_checkpoint_framework.py
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+      restartPolicy: OnFailure
