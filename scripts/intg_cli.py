@@ -373,6 +373,121 @@ class IntgCLI:
         else:
             return {"status": "error", "message": f"Failed to create test job: {result.stderr}"}
     
+    # Coverage Service Operations
+    def coverage_summary(self, symbols: Optional[str] = None, vendors: Optional[str] = None) -> Dict[str, Any]:
+        """Get data coverage summary."""
+        print("📊 Getting data coverage summary...")
+        
+        try:
+            import requests
+            
+            # Build query parameters
+            params = {}
+            if symbols:
+                params['symbols'] = symbols
+            if vendors:
+                params['vendors'] = vendors
+            
+            # Try to connect to coverage service via NodePort
+            minikube_ip_result = self.run_command("minikube ip")
+            if minikube_ip_result.returncode == 0:
+                minikube_ip = minikube_ip_result.stdout.strip()
+                coverage_url = f"http://{minikube_ip}:30880"
+            else:
+                # Fallback to port-forward
+                coverage_url = "http://localhost:8080"
+            
+            response = requests.get(f"{coverage_url}/api/v1/coverage/summary", params=params, timeout=30)
+            
+            if response.status_code == 200:
+                return {
+                    "status": "success",
+                    "data": response.json(),
+                    "timestamp": datetime.now().isoformat()
+                }
+            else:
+                return {
+                    "status": "error", 
+                    "message": f"Coverage API returned status {response.status_code}: {response.text}",
+                    "coverage_url": coverage_url
+                }
+        except ImportError:
+            return {
+                "status": "error", 
+                "message": "requests library not available. Install with: pip install requests"
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to get coverage summary: {e}"}
+    
+    def coverage_vendor_comparison(self, symbol: str, time_period: str = "24h") -> Dict[str, Any]:
+        """Compare coverage across vendors for a symbol."""
+        print(f"📊 Getting vendor coverage comparison for {symbol}...")
+        
+        try:
+            import requests
+            
+            # Get minikube IP
+            minikube_ip_result = self.run_command("minikube ip")
+            if minikube_ip_result.returncode == 0:
+                minikube_ip = minikube_ip_result.stdout.strip()
+                coverage_url = f"http://{minikube_ip}:30880"
+            else:
+                coverage_url = "http://localhost:8080"
+            
+            response = requests.get(
+                f"{coverage_url}/api/v1/coverage/comparison/{symbol}",
+                params={'time_period': time_period},
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                return {
+                    "status": "success",
+                    "data": response.json(),
+                    "timestamp": datetime.now().isoformat()
+                }
+            else:
+                return {
+                    "status": "error",
+                    "message": f"Coverage API returned status {response.status_code}: {response.text}"
+                }
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to get vendor comparison: {e}"}
+    
+    def coverage_service_status(self) -> Dict[str, Any]:
+        """Check coverage service status."""
+        print("📊 Checking coverage service status...")
+        
+        try:
+            import requests
+            
+            # Check pod status
+            pods_result = self.run_kubectl("get pods -l app=coverage-service")
+            
+            # Check service health
+            minikube_ip_result = self.run_command("minikube ip")
+            if minikube_ip_result.returncode == 0:
+                minikube_ip = minikube_ip_result.stdout.strip()
+                coverage_url = f"http://{minikube_ip}:30880"
+            else:
+                coverage_url = "http://localhost:8080"
+            
+            try:
+                response = requests.get(f"{coverage_url}/health", timeout=10)
+                health_status = response.json() if response.status_code == 200 else {"status": "error"}
+            except:
+                health_status = {"status": "unreachable"}
+            
+            return {
+                "status": "success",
+                "pod_status": pods_result.stdout,
+                "service_health": health_status,
+                "coverage_url": coverage_url,
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to check coverage service: {e}"}
+    
     # CLI Interface
     def create_parser(self) -> argparse.ArgumentParser:
         """Create argument parser."""
@@ -430,6 +545,20 @@ Examples:
         query_parser = storage_subparsers.add_parser('query', help='Query minute data')
         query_parser.add_argument('symbol', help='Symbol to query')
         query_parser.add_argument('--days', type=int, default=1, help='Number of days')
+        
+        # Coverage commands
+        coverage_parser = subparsers.add_parser('coverage', help='Data coverage operations')
+        coverage_subparsers = coverage_parser.add_subparsers(dest='coverage_command')
+        
+        coverage_subparsers.add_parser('status', help='Check coverage service status')
+        
+        summary_parser = coverage_subparsers.add_parser('summary', help='Get coverage summary')
+        summary_parser.add_argument('--symbols', help='Comma-separated list of symbols')
+        summary_parser.add_argument('--vendors', help='Comma-separated list of vendors')
+        
+        comparison_parser = coverage_subparsers.add_parser('compare', help='Compare vendor coverage')
+        comparison_parser.add_argument('symbol', help='Symbol to compare')
+        comparison_parser.add_argument('--period', default='24h', help='Time period (24h, 7d, 30d)')
         
         # Other commands
         subparsers.add_parser('health', help='Run health check')
@@ -493,6 +622,16 @@ Examples:
             
             elif parsed_args.command == 'test-slack':
                 result = self.test_slack()
+            
+            elif parsed_args.command == 'coverage':
+                if parsed_args.coverage_command == 'status':
+                    result = self.coverage_service_status()
+                elif parsed_args.coverage_command == 'summary':
+                    result = self.coverage_summary(parsed_args.symbols, parsed_args.vendors)
+                elif parsed_args.coverage_command == 'compare':
+                    result = self.coverage_vendor_comparison(parsed_args.symbol, parsed_args.period)
+                else:
+                    parser.error("Unknown coverage command")
             
             else:
                 parser.error("Unknown command")

@@ -1,0 +1,372 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coverage-service
+  namespace: ats-intg
+  labels:
+    app: coverage-service
+    component: data-coverage
+    environment: intg
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: coverage-service
+  template:
+    metadata:
+      labels:
+        app: coverage-service
+        component: data-coverage
+    spec:
+      containers:
+      - name: coverage-service
+        image: python:3.10-slim
+        command: ["sh", "-c"]
+        args:
+          - |
+            set -e
+            echo "🚀 Installing dependencies..."
+            pip install --no-cache-dir \
+              fastapi==0.104.1 \
+              uvicorn[standard]==0.24.0 \
+              asyncpg==0.29.0 \
+              pydantic==2.5.0 \
+              numpy==1.24.3 \
+              pandas==2.0.3 \
+              requests==2.31.0
+            
+            echo "📁 Creating application structure..."
+            mkdir -p /app/coverage
+            cd /app
+            
+            # Create a simplified coverage service for ats-intg
+            cat > main.py << 'MAIN_EOF'
+            """
+            Data Coverage Service for ATS-INTG
+            
+            Simple coverage monitoring service for integration environment
+            """
+            
+            import asyncio
+            import logging
+            import os
+            from datetime import datetime, timedelta
+            from typing import Dict, List, Optional, Any
+            from fastapi import FastAPI, Query, HTTPException
+            from fastapi.middleware.cors import CORSMiddleware
+            import asyncpg
+            import uvicorn
+            
+            # Configure logging
+            logging.basicConfig(
+                level=logging.INFO,
+                format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+            logger = logging.getLogger(__name__)
+            
+            # Database configuration
+            DB_HOST = os.getenv('DB_HOST', 'postgres')
+            DB_PORT = os.getenv('DB_PORT', '5432')
+            DB_USER = os.getenv('DB_USER', 'postgres')
+            DB_PASSWORD = os.getenv('DB_PASSWORD', 'dev_password')
+            DB_NAME = os.getenv('DB_NAME', 'intg_db')
+            
+            DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+            
+            # FastAPI app initialization
+            app = FastAPI(
+                title="Data Coverage Service - Integration",
+                description="Data coverage monitoring for ATS integration environment",
+                version="1.0.0",
+                docs_url="/docs",
+                redoc_url="/redoc"
+            )
+            
+            # CORS configuration
+            app.add_middleware(
+                CORSMiddleware,
+                allow_origins=["*"],
+                allow_credentials=True,
+                allow_methods=["*"],
+                allow_headers=["*"],
+            )
+            
+            # Global state
+            db_pool = None
+            
+            @app.on_event("startup")
+            async def startup_event():
+                global db_pool
+                
+                try:
+                    # Initialize database connection pool
+                    db_pool = await asyncpg.create_pool(
+                        DATABASE_URL,
+                        min_size=2,
+                        max_size=10,
+                        command_timeout=60
+                    )
+                    logger.info("✅ Database connection pool initialized for ats-intg")
+                    
+                except Exception as e:
+                    logger.error(f"❌ Failed to start service: {e}")
+                    raise
+            
+            @app.on_event("shutdown")
+            async def shutdown_event():
+                global db_pool
+                if db_pool:
+                    await db_pool.close()
+                    logger.info("Database connection pool closed")
+            
+            # Health check endpoint
+            @app.get("/health")
+            async def health_check():
+                return {
+                    "status": "healthy",
+                    "service": "data_coverage_service",
+                    "environment": "ats-intg",
+                    "timestamp": datetime.now().isoformat(),
+                    "version": "1.0.0"
+                }
+            
+            # Coverage endpoints - simplified for ats-intg
+            @app.get("/api/v1/coverage/summary")
+            async def get_coverage_summary(
+                symbols: str = Query(None, description="Comma-separated list of symbols"),
+                vendors: str = Query(None, description="Comma-separated list of vendors"),  
+                data_types: str = Query('minute', description="Comma-separated list of data types"),
+                min_coverage: float = Query(None, description="Minimum coverage percentage")
+            ):
+                """Get coverage summary - simplified for integration environment"""
+                
+                try:
+                    # Build sample data for ats-intg environment
+                    summary_data = [
+                        {
+                            "symbol": "AAPL",
+                            "vendor": "polygon",
+                            "data_type": "minute",
+                            "current_status": "active",
+                            "coverage_24h": 98.5,
+                            "quality_24h": 95.2,
+                            "gaps_24h": 2,
+                            "records_24h": 1380,
+                            "coverage_7d": 97.8,
+                            "coverage_30d": 96.5,
+                            "latest_data_time": datetime.now() - timedelta(minutes=5),
+                            "hours_since_update": 0.08,
+                            "coverage_trend": "stable",
+                            "quality_trend": "improving"
+                        },
+                        {
+                            "symbol": "MSFT",
+                            "vendor": "polygon", 
+                            "data_type": "minute",
+                            "current_status": "active",
+                            "coverage_24h": 97.2,
+                            "quality_24h": 94.8,
+                            "gaps_24h": 3,
+                            "records_24h": 1365,
+                            "coverage_7d": 96.9,
+                            "coverage_30d": 95.8,
+                            "latest_data_time": datetime.now() - timedelta(minutes=3),
+                            "hours_since_update": 0.05,
+                            "coverage_trend": "stable",
+                            "quality_trend": "stable"
+                        }
+                    ]
+                    
+                    # Apply filters if provided
+                    if symbols:
+                        symbols_list = symbols.split(',')
+                        summary_data = [s for s in summary_data if s['symbol'] in symbols_list]
+                    
+                    if vendors:
+                        vendors_list = vendors.split(',')
+                        summary_data = [s for s in summary_data if s['vendor'] in vendors_list]
+                    
+                    if min_coverage:
+                        summary_data = [s for s in summary_data if s['coverage_24h'] >= min_coverage]
+                    
+                    return {
+                        'summary': summary_data,
+                        'total_items': len(summary_data),
+                        'filters_applied': {
+                            'symbols': symbols.split(',') if symbols else None,
+                            'vendors': vendors.split(',') if vendors else None,
+                            'data_types': data_types.split(',') if data_types else ['minute'],
+                            'min_coverage': min_coverage
+                        },
+                        'environment': 'ats-intg'
+                    }
+                except Exception as e:
+                    logger.error(f"Error getting coverage summary: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            @app.get("/api/v1/coverage/comparison/{symbol}")
+            async def get_vendor_comparison(
+                symbol: str,
+                data_type: str = Query('minute'),
+                time_period: str = Query('24h')
+            ):
+                """Compare coverage across vendors for a symbol"""
+                
+                try:
+                    # Sample vendor comparison data
+                    vendors_data = [
+                        {
+                            'vendor': 'polygon',
+                            'coverage_percentage': 98.5,
+                            'quality_score': 95.2,
+                            'status': 'active',
+                            'latest_data_time': datetime.now() - timedelta(minutes=2),
+                            'hours_since_update': 0.03
+                        },
+                        {
+                            'vendor': 'tiingo',
+                            'coverage_percentage': 95.8,
+                            'quality_score': 92.1,
+                            'status': 'active',
+                            'latest_data_time': datetime.now() - timedelta(minutes=8),
+                            'hours_since_update': 0.13
+                        }
+                    ]
+                    
+                    return {
+                        'symbol': symbol,
+                        'data_type': data_type,
+                        'time_period': time_period,
+                        'vendors': vendors_data,
+                        'best_vendor': vendors_data[0] if vendors_data else None,
+                        'worst_vendor': vendors_data[-1] if vendors_data else None,
+                        'average_coverage': sum(v['coverage_percentage'] for v in vendors_data) / len(vendors_data) if vendors_data else 0,
+                        'coverage_variance': 2.7,
+                        'vendor_count': len(vendors_data),
+                        'environment': 'ats-intg'
+                    }
+                except Exception as e:
+                    logger.error(f"Error getting vendor comparison: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            @app.get("/api/v1/coverage/sla-compliance")
+            async def get_sla_compliance(
+                symbol: str = Query(None),
+                vendor: str = Query(None)
+            ):
+                """Get SLA compliance status"""
+                
+                try:
+                    compliance_data = [
+                        {
+                            'symbol': 'AAPL',
+                            'vendor': 'polygon',
+                            'data_type': 'minute',
+                            'current_coverage': 98.5,
+                            'required_coverage': 95.0,
+                            'compliance_status': 'compliant',
+                            'coverage_gap': 3.5,
+                            'quality_score': 95.2
+                        },
+                        {
+                            'symbol': 'MSFT',
+                            'vendor': 'polygon',
+                            'data_type': 'minute',
+                            'current_coverage': 97.2,
+                            'required_coverage': 95.0,
+                            'compliance_status': 'compliant',
+                            'coverage_gap': 2.2,
+                            'quality_score': 94.8
+                        }
+                    ]
+                    
+                    # Apply filters
+                    if symbol:
+                        compliance_data = [c for c in compliance_data if c['symbol'] == symbol]
+                    
+                    if vendor:
+                        compliance_data = [c for c in compliance_data if c['vendor'] == vendor]
+                    
+                    return {
+                        'compliance': compliance_data,
+                        'total_items': len(compliance_data),
+                        'environment': 'ats-intg'
+                    }
+                except Exception as e:
+                    logger.error(f"Error getting SLA compliance: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            if __name__ == "__main__":
+                uvicorn.run(
+                    "main:app",
+                    host="0.0.0.0",
+                    port=8080,
+                    reload=False,
+                    log_level="info"
+                )
+            MAIN_EOF
+            
+            echo "🚀 Starting Data Coverage Service for ATS-INTG..."
+            python main.py
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: DB_HOST
+          value: "postgres"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "intg_db"
+        - name: ENVIRONMENT
+          value: "intg"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coverage-service
+  namespace: ats-intg
+  labels:
+    app: coverage-service
+spec:
+  type: NodePort
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30881
+    name: http
+  selector:
+    app: coverage-service
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coverage-service-config
+  namespace: ats-intg
+data:
+  LOG_LEVEL: "info"
+  CORS_ORIGINS: "http://localhost:3000,http://localhost:8080"

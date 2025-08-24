@@ -188,10 +188,10 @@ python scripts/backfill/deploy_30year_minute_backfill.py --cleanup --keep-comple
 ### Secret Creation Example
 ```bash
 kubectl create secret generic market-data-api-keys \
-  --from-literal=polygon_api_key='your_polygon_key' \
-  --from-literal=tiingo_api_key='your_tiingo_key' \
-  --from-literal=fmp_api_key='your_fmp_key' \
-  --from-literal=eodhd_api_key='your_eodhd_key' \
+  --from-literal=polygon_api_key='YOUR_POLYGON_KEY_HERE' \
+  --from-literal=tiingo_api_key='YOUR_TIINGO_KEY_HERE' \
+  --from-literal=fmp_api_key='YOUR_FMP_KEY_HERE' \
+  --from-literal=eodhd_api_key='YOUR_EODHD_KEY_HERE' \
   -n ats-dev
 ```
 
@@ -213,10 +213,10 @@ kubectl create secret generic market-data-api-keys \
 
 ### Environment Variables
 ```bash
-export POLYGON_API_KEY="your_polygon_api_key"
-export TIINGO_API_KEY="your_tiingo_api_key" 
-export FMP_API_KEY="your_fmp_api_key"
-export EODHD_API_KEY="your_eodhd_api_key"
+export POLYGON_API_KEY="YOUR_POLYGON_KEY_HERE"
+export TIINGO_API_KEY="YOUR_TIINGO_KEY_HERE"
+export FMP_API_KEY="YOUR_FMP_KEY_HERE"
+export EODHD_API_KEY="YOUR_EODHD_KEY_HERE"
 ```
 
 ### Resource Requirements

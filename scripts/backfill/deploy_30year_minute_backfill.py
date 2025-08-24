@@ -33,6 +33,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 import asyncio
+import aiohttp
 
 # Configure logging
 logging.basicConfig(
@@ -42,12 +43,190 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+class SlackNotifier:
+    """Handles Slack notifications for job status changes."""
+    
+    def __init__(self):
+        self.slack_webhook_url = os.getenv('SLACK_WEBHOOK_URL')
+        self.slack_channel = os.getenv('SLACK_CHANNEL', '#ats-dev-alerts')
+        self.enabled = bool(self.slack_webhook_url)
+        
+        if not self.enabled:
+            logger.warning("Slack notifications disabled - SLACK_WEBHOOK_URL not configured")
+        else:
+            logger.info(f"Slack notifications enabled for channel: {self.slack_channel}")
+    
+    async def send_message(self, message: str, color: str = "good", 
+                          title: str = "30-Year Minute Backfill", 
+                          fields: List[Dict] = None) -> bool:
+        """Send message to Slack"""
+        
+        if not self.enabled:
+            logger.debug(f"Slack disabled - would send: {title}: {message}")
+            return True
+        
+        if not fields:
+            fields = []
+        
+        payload = {
+            "channel": self.slack_channel,
+            "username": "ATS Backfill Manager",
+            "icon_emoji": ":chart_with_upwards_trend:",
+            "attachments": [
+                {
+                    "color": color,
+                    "title": title,
+                    "text": message,
+                    "fields": fields,
+                    "footer": "30-Year Minute Data Backfill System",
+                    "ts": int(time.time())
+                }
+            ]
+        }
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(self.slack_webhook_url, json=payload, timeout=10) as response:
+                    if response.status == 200:
+                        logger.info(f"✅ Slack notification sent: {title}")
+                        return True
+                    else:
+                        logger.error(f"❌ Slack notification failed: {response.status}")
+                        return False
+        except Exception as e:
+            logger.error(f"❌ Error sending Slack notification: {e}")
+            return False
+    
+    async def notify_deployment(self, vendor: str, success: bool, details: str = "") -> bool:
+        """Notify about job deployment"""
+        if success:
+            return await self.send_message(
+                message=f"🚀 **{vendor.upper()}** 30-year minute backfill job deployed successfully\n{details}",
+                color="good",
+                title="🚀 Backfill Job Deployed",
+                fields=[
+                    {"title": "Vendor", "value": vendor.upper(), "short": True},
+                    {"title": "Status", "value": "Deployed", "short": True},
+                    {"title": "Scope", "value": "30 years (1995-2025)", "short": True},
+                    {"title": "Data Type", "value": "1-minute OHLCV bars", "short": True}
+                ]
+            )
+        else:
+            return await self.send_message(
+                message=f"❌ **{vendor.upper()}** 30-year minute backfill job deployment failed\n{details}",
+                color="danger",
+                title="❌ Backfill Job Deployment Failed",
+                fields=[
+                    {"title": "Vendor", "value": vendor.upper(), "short": True},
+                    {"title": "Status", "value": "Failed", "short": True},
+                    {"title": "Error", "value": details[:100] + "..." if len(details) > 100 else details, "short": False}
+                ]
+            )
+    
+    async def notify_all_deployed(self, results: Dict[str, bool]) -> bool:
+        """Notify about all jobs deployment results"""
+        successful = [vendor for vendor, success in results.items() if success]
+        failed = [vendor for vendor, success in results.items() if not success]
+        
+        if not failed:
+            # All successful
+            vendors_list = ", ".join([v.upper() for v in successful])
+            return await self.send_message(
+                message=f"🎉 **All 30-year minute backfill jobs deployed successfully!**\n\nVendors: {vendors_list}\n\n📊 Expected: ~120 billion bars\n⏱️ Duration: 60-90 days\n💾 Storage: ~5.6TB",
+                color="good",
+                title="🎉 Complete Deployment Success",
+                fields=[
+                    {"title": "Total Jobs", "value": str(len(successful)), "short": True},
+                    {"title": "Success Rate", "value": "100%", "short": True},
+                    {"title": "Est. Duration", "value": "60-90 days", "short": True},
+                    {"title": "Est. Storage", "value": "~5.6TB", "short": True}
+                ]
+            )
+        else:
+            # Some failed
+            success_count = len(successful)
+            total_count = len(results)
+            success_rate = f"{success_count}/{total_count} ({success_count/total_count*100:.0f}%)"
+            
+            return await self.send_message(
+                message=f"⚠️ **Partial deployment completed**\n\n✅ Successful: {', '.join([v.upper() for v in successful])}\n❌ Failed: {', '.join([v.upper() for v in failed])}",
+                color="warning",
+                title="⚠️ Partial Deployment",
+                fields=[
+                    {"title": "Success Rate", "value": success_rate, "short": True},
+                    {"title": "Action Required", "value": "Check failed deployments", "short": True}
+                ]
+            )
+    
+    async def notify_status_summary(self, statuses: Dict[str, Dict[str, Any]]) -> bool:
+        """Notify about job status summary"""
+        running = []
+        completed = []
+        failed = []
+        not_found = []
+        
+        for vendor, status in statuses.items():
+            if status.get("status") == "not_found":
+                not_found.append(vendor)
+            elif status.get("succeeded", 0) > 0:
+                completed.append(vendor)
+            elif status.get("failed", 0) > 0:
+                failed.append(vendor)
+            elif status.get("active", 0) > 0:
+                running.append(vendor)
+            else:
+                not_found.append(vendor)
+        
+        # Determine overall status
+        if completed and not running and not failed:
+            color = "good"
+            emoji = "✅"
+            title = "All Backfill Jobs Complete"
+        elif failed and not running:
+            color = "danger"
+            emoji = "❌"
+            title = "Backfill Jobs Failed"
+        elif running:
+            color = "warning"
+            emoji = "🔄"
+            title = "Backfill Jobs In Progress"
+        else:
+            color = "#808080"
+            emoji = "⏳"
+            title = "Backfill Jobs Status"
+        
+        message_parts = []
+        if running:
+            message_parts.append(f"🔄 **Running:** {', '.join([v.upper() for v in running])}")
+        if completed:
+            message_parts.append(f"✅ **Completed:** {', '.join([v.upper() for v in completed])}")
+        if failed:
+            message_parts.append(f"❌ **Failed:** {', '.join([v.upper() for v in failed])}")
+        if not_found:
+            message_parts.append(f"⏳ **Not Deployed:** {', '.join([v.upper() for v in not_found])}")
+        
+        message = "\n".join(message_parts) if message_parts else "No backfill jobs found"
+        
+        return await self.send_message(
+            message=message,
+            color=color,
+            title=f"{emoji} {title}",
+            fields=[
+                {"title": "Total Jobs", "value": str(len(statuses)), "short": True},
+                {"title": "Running", "value": str(len(running)), "short": True},
+                {"title": "Completed", "value": str(len(completed)), "short": True},
+                {"title": "Failed", "value": str(len(failed)), "short": True}
+            ]
+        )
+
+
 class MinuteBackfillDeploymentManager:
     """Manages deployment and monitoring of 30-year minute backfill jobs."""
     
     def __init__(self):
         self.namespace = "ats-dev"
         self.k8s_dir = Path(__file__).parent.parent.parent / "k8s"
+        self.slack_notifier = SlackNotifier()
         
         # Available vendor jobs
         self.vendor_jobs = {
@@ -102,12 +281,26 @@ class MinuteBackfillDeploymentManager:
         # Apply the job
         result = self.run_kubectl(f"apply -f {job_file}")
         
-        if result.returncode == 0:
+        success = result.returncode == 0
+        
+        if success:
             logger.info(f"✅ {vendor.upper()} backfill job deployed successfully")
-            return True
+            # Send Slack notification
+            asyncio.run(self.slack_notifier.notify_deployment(
+                vendor=vendor,
+                success=True,
+                details=f"Job file: {job_file.name}"
+            ))
         else:
             logger.error(f"❌ Failed to deploy {vendor.upper()} backfill job")
-            return False
+            # Send Slack notification for failure
+            asyncio.run(self.slack_notifier.notify_deployment(
+                vendor=vendor,
+                success=False,
+                details=result.stderr
+            ))
+        
+        return success
     
     def deploy_orchestrator(self) -> bool:
         """Deploy the comprehensive orchestrator job."""
@@ -120,12 +313,26 @@ class MinuteBackfillDeploymentManager:
         
         result = self.run_kubectl(f"apply -f {job_file}")
         
-        if result.returncode == 0:
+        success = result.returncode == 0
+        
+        if success:
             logger.info("✅ Orchestrator job deployed successfully")
-            return True
+            # Send Slack notification
+            asyncio.run(self.slack_notifier.notify_deployment(
+                vendor="orchestrator",
+                success=True,
+                details="Master orchestrator coordinating all vendors"
+            ))
         else:
             logger.error("❌ Failed to deploy orchestrator job")
-            return False
+            # Send Slack notification for failure
+            asyncio.run(self.slack_notifier.notify_deployment(
+                vendor="orchestrator",
+                success=False,
+                details=result.stderr
+            ))
+        
+        return success
     
     def deploy_all(self) -> Dict[str, bool]:
         """Deploy all vendor backfill jobs."""
@@ -144,6 +351,9 @@ class MinuteBackfillDeploymentManager:
         total = len(results)
         
         logger.info(f"📊 Deployment summary: {successful}/{total} jobs deployed successfully")
+        
+        # Send summary Slack notification
+        asyncio.run(self.slack_notifier.notify_all_deployed(results))
         
         return results
     
@@ -187,7 +397,7 @@ class MinuteBackfillDeploymentManager:
         
         return statuses
     
-    def print_status_summary(self, statuses: Dict[str, Dict[str, Any]]):
+    def print_status_summary(self, statuses: Dict[str, Dict[str, Any]], send_slack: bool = False):
         """Print a formatted status summary."""
         print("\n" + "="*80)
         print("📊 30-YEAR MINUTE BACKFILL JOB STATUS SUMMARY")
@@ -218,6 +428,10 @@ class MinuteBackfillDeploymentManager:
                     print(f"{'  Completed:':<15} {status['completion_time']}")
         
         print("="*80)
+        
+        # Send Slack notification if requested
+        if send_slack:
+            asyncio.run(self.slack_notifier.notify_status_summary(statuses))
     
     def get_job_logs(self, vendor: str, tail_lines: int = 50) -> str:
         """Get logs from a specific vendor job."""
@@ -392,6 +606,11 @@ Examples:
         help='Show status of all backfill jobs'
     )
     parser.add_argument(
+        '--status-slack',
+        action='store_true',
+        help='Show status and send Slack notification'
+    )
+    parser.add_argument(
         '--monitor',
         action='store_true',
         help='Monitor job progress with live updates'
@@ -439,9 +658,9 @@ Examples:
         else:
             manager.deploy_vendor(args.deploy)
     
-    elif args.status:
+    elif args.status or args.status_slack:
         statuses = manager.get_all_job_status()
-        manager.print_status_summary(statuses)
+        manager.print_status_summary(statuses, send_slack=args.status_slack)
     
     elif args.monitor:
         manager.monitor_progress(args.refresh_interval)

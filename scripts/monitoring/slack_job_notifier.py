@@ -47,14 +47,26 @@ class SlackJobNotifier:
         self.logger = logging.getLogger(__name__)
         self.tracked_jobs = {}  # Job name -> last notification time
         
-        # Job patterns to monitor (can be configured)
+        # Monitor all jobs (no pattern filtering)
+        self.monitor_all_jobs = os.getenv('MONITOR_ALL_JOBS', 'true').lower() == 'true'
+        
+        # Job patterns to monitor (only used if MONITOR_ALL_JOBS=false)
         self.monitored_patterns = [
-            'comprehensive-30year-backfill',
+            'comprehensive-30year-minute-backfill',
+            'polygon-30year-minute-backfill',
+            'tiingo-30year-minute-backfill',
+            'fmp-30year-minute-backfill',
+            'eodhd-30year-minute-backfill',
             'minute-backfill',
             'price-unification',
             'market-data',
             'model-training'
         ]
+        
+        if self.monitor_all_jobs:
+            logger.info("🔍 Monitoring ALL Kubernetes jobs for status changes")
+        else:
+            logger.info(f"🔍 Monitoring jobs matching patterns: {self.monitored_patterns}")
     
     async def send_slack_message(self, message: str, color: str = "good", 
                                 title: str = "ATS Job Status", 
@@ -166,13 +178,15 @@ class SlackJobNotifier:
     def should_notify_about_job(self, job: JobStatus) -> bool:
         """Determine if we should send a notification about this job"""
         
-        # Check if job matches our monitoring patterns
-        matches_pattern = any(
-            pattern in job.name for pattern in self.monitored_patterns
-        )
-        
-        if not matches_pattern:
-            return False
+        # If monitoring all jobs, skip pattern check
+        if not self.monitor_all_jobs:
+            # Check if job matches our monitoring patterns
+            matches_pattern = any(
+                pattern in job.name for pattern in self.monitored_patterns
+            )
+            
+            if not matches_pattern:
+                return False
         
         # Always notify on completion or failure
         if job.status in ['Complete', 'Failed']:
