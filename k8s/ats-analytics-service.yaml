@@ -29,11 +29,24 @@ spec:
         env:
         - name: PYTHONUNBUFFERED
           value: "1"
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: github-credentials
+              key: token
         command: ["/bin/bash"]
         args:
         - "-c"
         - |
-          python /scripts/ats_analytics_service_script_1.py
+          echo "📦 Installing git..."
+          apt-get update && apt-get install -y git
+          
+          echo "📦 Cloning source code from Git with credentials..."
+          git clone https://${GITHUB_TOKEN}:x-oauth-basic@github.com/AkoloTechnologies/ats-genai.git /app/src-repo
+          cd /app/src-repo
+          
+          echo "🚀 Starting analytics service..."
+          PYTHONPATH=/app/src-repo/src python /app/src-repo/scripts/k8s-extracted/main.py
 ---
 apiVersion: v1
 kind: Service
