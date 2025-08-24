@@ -46,8 +46,8 @@ spec:
           git clone -b feature/k8s-yaml-simplification https://${GITHUB_TOKEN}:x-oauth-basic@github.com/AkoloTechnologies/ats-genai.git /app/src-repo
           cd /app/src-repo
           
-          echo "🚀 Starting full analytics service..."
-          PYTHONPATH=/app/src-repo/src python /app/src-repo/scripts/k8s-extracted/main.py
+          echo "🚀 Starting enhanced analytics service..."
+          python /app/src-repo/scripts/k8s-extracted/enhanced_analytics.py
 ---
 apiVersion: v1
 kind: Service
