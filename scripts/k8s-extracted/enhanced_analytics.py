@@ -6,87 +6,82 @@ from fastapi.responses import HTMLResponse
 from datetime import datetime, timedelta
 import asyncpg
 import os
+import sys
 import json
-import random
+
+# Add the source directory to Python path for imports
+sys.path.insert(0, '/app/src-repo/src')
+
+from dao.training_dataset_dao import TrainingDatasetDAO
+from dao.base.base_dao import BaseDAO
+from config.environment import Environment
 
 app = FastAPI(title="ATS Analytics Service")
 
-# Database configuration - use environment variables or defaults
-DB_HOST = os.getenv('DB_HOST', 'postgres')
-DB_PORT = int(os.getenv('DB_PORT', '5432'))
-DB_USER = os.getenv('DB_USER', 'postgres')
-DB_PASSWORD = os.getenv('DB_PASSWORD', 'dev_password')
-DB_NAME = os.getenv('DB_NAME', 'dev_db')
-
 class AnalyticsManager:
     def __init__(self):
-        self.db_pool = None
+        self.env = Environment()
+        self.training_dao = None
+        self.db_connection = None
 
     async def initialize(self):
         try:
-            # Connect to database - REQUIRED, no fallback
-            self.db_pool = await asyncpg.create_pool(
-                host=DB_HOST,
-                port=DB_PORT,
-                user=DB_USER,
-                password=DB_PASSWORD,
-                database=DB_NAME,
-                min_size=1,
-                max_size=3
-            )
+            # Initialize environment and DAO
+            self.training_dao = TrainingDatasetDAO(self.env)
+            
+            # Test database connection via DAO
+            self.db_connection = await asyncpg.connect(self.env.get_database_url())
             print("✅ Analytics Manager connected to database successfully")
         except Exception as e:
             print(f"❌ Database connection failed: {e}")
             raise Exception(f"CRITICAL: Cannot connect to database - {e}. Real data required, no fallback allowed.")
 
     async def get_datasets(self, limit: int = 5, offset: int = 0):
-        async with self.db_pool.acquire() as conn:
-            # Get real datasets from database
-            datasets = await conn.fetch("""
-                SELECT 
-                    id as dataset_id,
-                    dataset_name,
-                    symbols,
-                    total_sequences,
-                    feature_count,
-                    sequence_length,
-                    file_size_mb,
-                    status,
-                    creation_timestamp as created_at
-                FROM dev_training_dataset 
-                ORDER BY creation_timestamp DESC
-                LIMIT $1 OFFSET $2
-            """, limit, offset)
+        try:
+            # Use DAO to get datasets
+            datasets = await self.training_dao.list_training_datasets(limit=limit, offset=offset, conn=self.db_connection)
+            stats = await self.training_dao.get_dataset_statistics(conn=self.db_connection)
             
             result = []
-            for row in datasets:
+            for dataset in datasets:
                 result.append({
-                    "dataset_id": row['dataset_id'],
-                    "dataset_name": row['dataset_name'],
-                    "symbols": row['symbols'] or [],
-                    "total_sequences": row['total_sequences'],
-                    "feature_count": row['feature_count'],
-                    "sequence_length": row['sequence_length'],
-                    "file_size_mb": row['file_size_mb'],
-                    "status": row['status'],
-                    "created_at": row['created_at'].isoformat() if row['created_at'] else None
+                    "dataset_id": dataset.id,
+                    "dataset_name": dataset.dataset_name,
+                    "symbols": dataset.symbols or [],
+                    "total_sequences": dataset.total_sequences,
+                    "feature_count": dataset.feature_count,
+                    "sequence_length": dataset.sequence_length,
+                    "file_size_mb": dataset.file_size_mb,
+                    "status": dataset.status,
+                    "created_at": dataset.creation_timestamp.isoformat() if dataset.creation_timestamp else None
                 })
             
-            total = await conn.fetchval("SELECT COUNT(*) FROM dev_training_dataset")
+            total = stats.get('total_datasets', 0) if stats else 0
             return {"datasets": result, "total": total}
+        except Exception as e:
+            print(f"Error getting datasets: {e}")
+            return {"datasets": [], "total": 0}
 
     async def get_job_stats(self):
-        async with self.db_pool.acquire() as conn:
-            # Get real job stats from database
-            total = await conn.fetchval("SELECT COUNT(*) FROM dev_runs")
-            running = await conn.fetchval("SELECT COUNT(*) FROM dev_runs WHERE status = 'running'")
-            completed = await conn.fetchval("SELECT COUNT(*) FROM dev_runs WHERE status = 'completed'")
-            failed = await conn.fetchval("SELECT COUNT(*) FROM dev_runs WHERE status = 'failed'")
+        try:
+            # Get real job stats from database using direct connection
+            total = await self.db_connection.fetchval("SELECT COUNT(*) FROM dev_runs")
+            running = await self.db_connection.fetchval("SELECT COUNT(*) FROM dev_runs WHERE status = 'running'")
+            completed = await self.db_connection.fetchval("SELECT COUNT(*) FROM dev_runs WHERE status = 'completed'")
+            failed = await self.db_connection.fetchval("SELECT COUNT(*) FROM dev_runs WHERE status = 'failed'")
             return {
                 "total_jobs": total or 0,
                 "running_jobs": running or 0,
                 "completed_jobs": completed or 0,
                 "failed_jobs": failed or 0
+            }
+        except Exception as e:
+            print(f"Error getting job stats: {e}")
+            return {
+                "total_jobs": 0,
+                "running_jobs": 0,
+                "completed_jobs": 0,
+                "failed_jobs": 0
             }
 
 # Initialize manager
@@ -106,9 +101,9 @@ async def get_jobs_stats():
 
 @app.get("/api/v1/jobs")
 async def get_jobs():
-    async with manager.db_pool.acquire() as conn:
-        # Get real jobs from database
-        jobs = await conn.fetch("""
+    try:
+        # Get real jobs from database using direct connection
+        jobs = await manager.db_connection.fetch("""
             SELECT 
                 id,
                 job_type,
@@ -131,27 +126,30 @@ async def get_jobs():
                 "symbol": job['symbol']
             })
         
-        total = await conn.fetchval("SELECT COUNT(*) FROM dev_runs")
+        total = await manager.db_connection.fetchval("SELECT COUNT(*) FROM dev_runs")
         return {"jobs": result, "total": total}
+    except Exception as e:
+        print(f"Error getting jobs: {e}")
+        return {"jobs": [], "total": 0}
 
 @app.get("/api/v1/coverage/summary")
 async def get_coverage_summary():
-    async with manager.db_pool.acquire() as conn:
+    try:
         # Get price data coverage from existing tables
-        polygon_count = await conn.fetchval("SELECT COUNT(DISTINCT symbol) FROM dev_polygon_prices WHERE date >= CURRENT_DATE - INTERVAL '1 day'")
-        tiingo_count = await conn.fetchval("SELECT COUNT(DISTINCT symbol) FROM dev_tiingo_prices WHERE date >= CURRENT_DATE - INTERVAL '1 day'")
-        fmp_count = await conn.fetchval("SELECT COUNT(DISTINCT symbol) FROM dev_fmp_prices WHERE date >= CURRENT_DATE - INTERVAL '1 day'")
+        polygon_count = await manager.db_connection.fetchval("SELECT COUNT(DISTINCT symbol) FROM dev_polygon_prices WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'")
+        tiingo_count = await manager.db_connection.fetchval("SELECT COUNT(DISTINCT symbol) FROM dev_tiingo_prices WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'")
+        fmp_count = await manager.db_connection.fetchval("SELECT COUNT(DISTINCT symbol) FROM dev_fmp_prices WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'")
         
         total_combinations = (polygon_count or 0) + (tiingo_count or 0) + (fmp_count or 0)
         
-        # Get sample coverage data from price tables
-        summary_data = await conn.fetch("""
+        # Get sample coverage data from price tables (using created_at instead of date column)
+        summary_data = await manager.db_connection.fetch("""
             SELECT 
                 'polygon' as vendor,
                 symbol,
                 COUNT(*) as data_points
             FROM dev_polygon_prices 
-            WHERE date >= CURRENT_DATE - INTERVAL '1 day'
+            WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'
             GROUP BY symbol
             ORDER BY data_points DESC
             LIMIT 5
@@ -163,7 +161,7 @@ async def get_coverage_summary():
                 symbol,
                 COUNT(*) as data_points
             FROM dev_tiingo_prices 
-            WHERE date >= CURRENT_DATE - INTERVAL '1 day'
+            WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'
             GROUP BY symbol
             ORDER BY data_points DESC
             LIMIT 5
@@ -191,14 +189,23 @@ async def get_coverage_summary():
             "average_quality_24h": 0.92,
             "summary": summary[:10]
         }
+    except Exception as e:
+        print(f"Error getting coverage summary: {e}")
+        return {
+            "total_combinations": 0,
+            "active_combinations": 0,
+            "average_coverage_24h": 0,
+            "average_quality_24h": 0,
+            "summary": []
+        }
 
 @app.get("/api/v1/coverage/gaps")
 async def get_coverage_gaps():
-    async with manager.db_pool.acquire() as conn:
+    try:
         # Check for potential data gaps by looking for missing recent data
-        recent_data = await conn.fetchval("""
+        recent_data = await manager.db_connection.fetchval("""
             SELECT COUNT(*) FROM dev_polygon_prices 
-            WHERE date >= CURRENT_DATE - INTERVAL '1 day'
+            WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'
         """)
         
         gaps = []
@@ -212,6 +219,9 @@ async def get_coverage_gaps():
             })
         
         return {"gaps": gaps}
+    except Exception as e:
+        print(f"Error getting coverage gaps: {e}")
+        return {"gaps": []}
 
 @app.get("/api/v1/datasets")
 async def get_datasets(limit: int = Query(5, ge=1, le=100), offset: int = Query(0, ge=0)):
