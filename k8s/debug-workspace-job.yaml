@@ -1,0 +1,16 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: debug-workspace
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      containers:
+      - name: debug-worker
+        image: dragonflyer762/ats-genai:latest
+        workingDir: /workspace
+        command: ["sh"]
+        args: ["-c", "echo '=== WORKSPACE CONTENTS ==='; ls -la /workspace; echo '=== SRC CONTENTS ==='; ls -la /workspace/src 2>/dev/null || echo 'src directory not found'; echo '=== SECMASTER CONTENTS ==='; ls -la /workspace/src/secmaster 2>/dev/null || echo 'secmaster directory not found'; echo '=== ALL PYTHON FILES ==='; find /workspace -name '*.py' | head -20"]
+      restartPolicy: Never
+  backoffLimit: 1
