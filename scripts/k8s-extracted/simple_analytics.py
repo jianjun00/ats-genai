@@ -2,6 +2,7 @@
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 from datetime import datetime
 
 app = FastAPI(title="ATS Analytics Service - Simple Test")
@@ -25,7 +26,7 @@ async def get_jobs():
         "total": 3
     }
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def dashboard():
     return """
     <!DOCTYPE html>
