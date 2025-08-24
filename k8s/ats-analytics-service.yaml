@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: analytics
-        image: python:3.9-slim
+        image: ats-genai:latest
         ports:
         - containerPort: 3000
         env:
@@ -38,15 +38,16 @@ spec:
         args:
         - "-c"
         - |
-          echo "📦 Installing git..."
+          echo "📦 Installing git and dependencies..."
           apt-get update && apt-get install -y git
+          pip install fastapi uvicorn asyncpg
           
           echo "📦 Cloning source code from Git with credentials..."
-          git clone https://${GITHUB_TOKEN}:x-oauth-basic@github.com/AkoloTechnologies/ats-genai.git /app/src-repo
+          git clone -b feature/k8s-yaml-simplification https://${GITHUB_TOKEN}:x-oauth-basic@github.com/AkoloTechnologies/ats-genai.git /app/src-repo
           cd /app/src-repo
           
-          echo "🚀 Starting analytics service..."
-          PYTHONPATH=/app/src-repo/src python /app/src-repo/scripts/k8s-extracted/main.py
+          echo "🚀 Starting simple analytics service..."
+          python /app/src-repo/scripts/k8s-extracted/simple_analytics.py
 ---
 apiVersion: v1
 kind: Service
