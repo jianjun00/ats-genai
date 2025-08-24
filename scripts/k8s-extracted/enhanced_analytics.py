@@ -116,28 +116,30 @@ async def get_jobs_stats():
 @app.get("/api/v1/jobs")
 async def get_jobs():
     try:
-        # Get real jobs from database using direct connection
+        # Get real jobs from database using correct column names
         jobs = await manager.db_connection.fetch("""
             SELECT 
                 id,
-                job_type,
+                run_type,
                 status,
-                started_at,
-                symbol,
-                created_at
+                start_time,
+                symbols
             FROM dev_runs 
-            ORDER BY started_at DESC NULLS LAST, created_at DESC
+            ORDER BY start_time DESC NULLS LAST, id DESC
             LIMIT 20
         """)
         
         result = []
         for job in jobs:
+            # Get the first symbol from symbols array if available
+            symbol = job['symbols'][0] if job['symbols'] and len(job['symbols']) > 0 else 'N/A'
+            
             result.append({
                 "id": job['id'],
-                "job_type": job['job_type'],
+                "job_type": job['run_type'],
                 "status": job['status'],
-                "started_at": job['started_at'].isoformat() if job['started_at'] else job['created_at'].isoformat() if job['created_at'] else None,
-                "symbol": job['symbol']
+                "started_at": job['start_time'].isoformat() if job['start_time'] else None,
+                "symbol": symbol
             })
         
         total = await manager.db_connection.fetchval("SELECT COUNT(*) FROM dev_runs")
