@@ -5,7 +5,7 @@
 **ALL development operations use Kubernetes in the `ats-dev` namespace:**
 
 - ✅ **DEV Environment = Kubernetes (ats-dev namespace)**
-- ✅ **Database = postgres-simple service in K8s cluster**
+- ✅ **Database = postgres service in K8s cluster**
 - ✅ **All data operations = Use Kubernetes jobs**
 - ❌ **NEVER try to run data scripts locally for dev environment**
 - ❌ **NEVER use localhost database connections for dev work**
@@ -15,27 +15,27 @@
 ### Always Use Dev CLI (Never kubectl directly)
 
 **❌ NEVER use kubectl directly for dev operations**  
-**✅ ALWAYS use `python scripts/dev_cli.py` for dev work**
+**✅ ALWAYS use `run_dev` for dev work**
 
 ```bash
 # Database queries (most common)
-python scripts/dev_cli.py query "SELECT COUNT(*) FROM dev_daily_prices"
-python scripts/dev_cli.py query "SELECT * FROM dev_instruments WHERE symbol = 'AAPL'"
+run_dev query "SELECT COUNT(*) FROM dev_daily_prices"
+run_dev query "SELECT * FROM dev_instruments WHERE symbol = 'AAPL'"
 
 # Run database migrations
-python scripts/dev_cli.py migrate price-unification
+run_dev migrate price-unification
 
 # Run data processing jobs
-python scripts/dev_cli.py job price-unification --symbols AAPL,MSFT --date 2024-01-15
+run_dev job price-unification --symbols AAPL,MSFT --date 2024-01-15
 
 # List current jobs
-python scripts/dev_cli.py list
+run_dev list
 
 # Get job logs
-python scripts/dev_cli.py logs job-name
+run_dev logs job-name
 
 # Check job status
-python scripts/dev_cli.py status job-name
+run_dev status job-name
 ```
 
 ### Why Dev CLI Instead of kubectl?
@@ -73,7 +73,7 @@ PYTHONPATH=src ENVIRONMENT=dev DB_HOST=localhost DB_PORT=5432 DB_USER=postgres D
 
 **Kubernetes (primary):**
 ```bash
-DB_HOST=postgres-simple  # K8s service name
+DB_HOST=postgres  # K8s service name
 DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=dev_password  # From K8s secret
@@ -83,7 +83,7 @@ DB_NAME=dev_db
 **Port-forwarding (local testing only):**
 ```bash
 # Only for local testing - not for dev work
-kubectl port-forward -n ats-dev service/postgres-simple 5433:5432
+kubectl port-forward -n ats-dev service/postgres 5433:5432
 # Then: localhost:5433
 ```
 
@@ -185,18 +185,18 @@ python scripts/flyte/flyte_instrument_polygon_workflow.py \
 
 ```bash
 # Run price unification job
-python scripts/dev_cli.py job price-unification \
+run_dev job price-unification \
   --symbols AAPL,MSFT,GOOGL \
   --start-date 2024-01-01 \
   --end-date 2024-01-31
 
 # Run market cap computation
-python scripts/dev_cli.py job market-cap \
+run_dev job market-cap \
   --symbols AAPL,MSFT \
   --debug
 
 # Run training data generation
-python scripts/dev_cli.py job enhanced-training \
+run_dev job enhanced-training \
   --symbol TSLA \
   --days-back 120
 ```
@@ -205,23 +205,23 @@ python scripts/dev_cli.py job enhanced-training \
 
 ```bash
 # List all running jobs
-python scripts/dev_cli.py list
+run_dev list
 
 # Get job logs
-python scripts/dev_cli.py logs price-unification-job-abc123
+run_dev logs price-unification-job-abc123
 
 # Check job status
-python scripts/dev_cli.py status market-cap-job-def456
+run_dev status market-cap-job-def456
 
 # Follow job logs in real-time
-python scripts/dev_cli.py logs enhanced-training-job-ghi789 --follow
+run_dev logs enhanced-training-job-ghi789 --follow
 ```
 
 ### Job Troubleshooting
 
 ```bash
 # Check job pod status
-python scripts/dev_cli.py describe job-name
+run_dev describe job-name
 
 # Get detailed pod information
 kubectl describe pod job-pod-name -n ats-dev
@@ -230,7 +230,7 @@ kubectl describe pod job-pod-name -n ats-dev
 kubectl get events -n ats-dev --sort-by=.metadata.creationTimestamp
 
 # Debug failed job
-python scripts/dev_cli.py debug job-name
+run_dev debug job-name
 ```
 
 ## Service Management
@@ -295,13 +295,13 @@ PYTHONPATH=src pytest tests/integration/test_k8s_deployment.py -v
 
 ```bash
 # 1. Deploy complete system
-python scripts/dev_cli.py deploy complete-system
+run_dev deploy complete-system
 
 # 2. Generate real data
-python scripts/dev_cli.py job data-generation --symbol AAPL
+run_dev job data-generation --symbol AAPL
 
 # 3. Verify data in database  
-python scripts/dev_cli.py query "SELECT COUNT(*) FROM dev_daily_prices WHERE symbol = 'AAPL'"
+run_dev query "SELECT COUNT(*) FROM dev_daily_prices WHERE symbol = 'AAPL'"
 
 # 4. Test API endpoints
 curl -s "http://external-ip:port/api/data/AAPL" | jq
@@ -331,7 +331,7 @@ spec:
         - name: PYTHONPATH
           value: "src"
         - name: DB_HOST
-          value: "postgres-simple"
+          value: "postgres"
         volumeMounts:
         - name: code
           mountPath: /app
@@ -409,10 +409,10 @@ kubectl logs pod-name -n ats-dev
 **2. Database Connection Issues:**
 ```bash
 # Test database connectivity from pod
-kubectl exec -it pod-name -n ats-dev -- psql -h postgres-simple -U postgres -d dev_db -c "SELECT 1"
+kubectl exec -it pod-name -n ats-dev -- psql -h postgres -U postgres -d dev_db -c "SELECT 1"
 
 # Check database service
-kubectl get service postgres-simple -n ats-dev
+kubectl get service postgres -n ats-dev
 
 # Verify database password secret
 kubectl get secret postgres-secret -n ats-dev -o yaml

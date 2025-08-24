@@ -303,13 +303,13 @@ git revert HEAD && git push
 #### Database Recovery
 ```bash
 # Check database connectivity
-python scripts/dev_cli.py query "SELECT version()"
+run_dev query "SELECT version()"
 
 # Restore from backup (if available)
-kubectl exec -n ats-dev postgres-simple-pod -- pg_restore backup.sql
+kubectl exec -n ats-dev postgres -- pg_restore backup.sql
 
 # Reset to known good state
-kubectl delete pod postgres-simple-pod -n ats-dev  # Pod will restart
+kubectl delete pod postgres -n ats-dev  # Pod will restart
 ```
 
 ## 📚 Best Practices

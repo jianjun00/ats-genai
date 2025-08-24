@@ -107,13 +107,13 @@ gh pr create --title "fix: resolve workflow dependency issues [PGPT-1234]" --bod
 
 ```bash
 # 1. Get current database schema
-kubectl exec -n ats-dev deployment/postgres-simple -- psql -U postgres -d dev_db -c "\d+ table_name"
+kubectl exec -n ats-dev deployment/postgres -- psql -U postgres -d dev_db -c "\d+ table_name"
 
 # 2. Verify table exists
-kubectl exec -n ats-dev deployment/postgres-simple -- psql -U postgres -d dev_db -c "\dt" | grep your_table
+kubectl exec -n ats-dev deployment/postgres -- psql -U postgres -d dev_db -c "\dt" | grep your_table
 
 # 3. Check column names and types
-kubectl exec -n ats-dev deployment/postgres-simple -- psql -U postgres -d dev_db -c "\d+ your_table"
+kubectl exec -n ats-dev deployment/postgres -- psql -U postgres -d dev_db -c "\d+ your_table"
 ```
 
 ### Schema Validation Unit Tests (MANDATORY)
@@ -249,10 +249,10 @@ PYTHONPATH=src pytest tests/integration/test_database_integration.py -v
 ### Use Dev CLI for All Operations
 
 ```bash
-# ✅ CORRECT - Use dev CLI
-python scripts/dev_cli.py query "SELECT COUNT(*) FROM dev_daily_prices"
-python scripts/dev_cli.py job price-unification --symbols AAPL,MSFT
-python scripts/dev_cli.py logs job-name
+# ✅ CORRECT - Use run_dev
+run_dev query "SELECT COUNT(*) FROM dev_daily_prices"
+run_dev job price-unification --symbols AAPL,MSFT
+run_dev logs job-name
 
 # ❌ WRONG - Never use kubectl directly for dev work
 kubectl exec -it pod-name -- bash
@@ -376,6 +376,10 @@ PYTHONPATH=src pytest tests/integration/test_live_service.py -v
 - ❌ Using demo data in dev/staging/production
 - ❌ Testing only via port-forwarding
 - ❌ Skipping integration tests
+- ❌ **Moving to different approach when facing issues instead of debugging**
+- ❌ **Creating duplicate code instead of reusing existing functionality**
+- ❌ **Bypassing errors with hacky workarounds instead of fixing root causes**
+- ❌ **Not following explicit instructions and directions strictly**
 
 ### Infrastructure Anti-Patterns  
 - ❌ Using kubectl directly for dev operations
@@ -426,14 +430,47 @@ PYTHONPATH=src python scripts/k8s-extracted/environment.py
 PYTHONPATH=src pytest tests/ -v
 ```
 
+### Debugging Commands
+```bash
+# Check job logs when things fail
+kubectl logs job/job-name -n ats-dev
+
+# Check pod status and events
+kubectl get pods -n ats-dev
+kubectl describe pod pod-name -n ats-dev
+
+# Check what migration names are implemented
+grep -n 'elif.*migration_name' scripts/run_dev.py
+
+# Debug database connections
+kubectl exec -n ats-dev deployment/postgres -- psql -U postgres -d dev_db -c "SELECT version();"
+kubectl exec -n ats-dev deployment/postgres -- psql -U postgres -d dev_db -c "\dt"
+
+# Database setup and migration debugging
+# 1. run_dev migrate only works with specific implemented migration names
+# 2. Available migrations: "training-dataset", "enhanced-training-dataset"  
+# 3. migration_manager.py requires: migrate --environment dev --db-url "postgresql://postgres:dev_password@postgres:5432/dev_db"
+# 4. Docker image structure: working directory is /workspace, not /scripts
+# 5. Migration dependencies: dev_runs table must exist before training-dataset migration
+# 6. Always check logs for actual errors instead of assuming what went wrong
+
+# 🚨 CRITICAL DEBUGGING PRINCIPLES
+# 1. Always debug the current approach before switching to a different one
+# 2. Read error messages carefully and address the root cause
+# 3. Follow explicit instructions and directions strictly
+# 4. Avoid creating duplicate code - reuse existing functionality
+# 5. Fix actual problems instead of creating workarounds
+# 6. When told to "fix X", focus on fixing X, not replacing it with Y
+```
+
 ### Kubernetes Operations
 ```bash
 # Database operations
-python scripts/dev_cli.py query "SELECT version()"
+run_dev query "SELECT version()"
 
 # Job management
-python scripts/dev_cli.py job price-unification --symbols AAPL
-python scripts/dev_cli.py logs job-name
+run_dev job price-unification --symbols AAPL
+run_dev logs job-name
 
 # Service verification
 kubectl get services -n ats-dev

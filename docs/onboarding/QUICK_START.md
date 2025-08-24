@@ -27,7 +27,7 @@ uv sync
 
 ```bash
 # Test dev CLI - this is your primary interface
-python scripts/dev_cli.py query "SELECT 1"
+run_dev query "SELECT 1"
 
 # If successful, you're connected to K8s cluster
 # If fails, ask team for cluster access setup
@@ -50,9 +50,9 @@ PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py::
 **✅ ALWAYS do this:**
 ```bash
 # Use dev CLI for all operations
-python scripts/dev_cli.py query "SELECT COUNT(*) FROM dev_daily_prices"
-python scripts/dev_cli.py job price-unification --symbols AAPL,MSFT
-python scripts/dev_cli.py logs job-name
+run_dev query "SELECT COUNT(*) FROM dev_daily_prices"
+run_dev job price-unification --symbols AAPL,MSFT
+run_dev logs job-name
 ```
 
 **❌ NEVER do this:**
@@ -101,7 +101,7 @@ PYTHONPATH=src pytest tests/ -v
 ### Backend Engineer
 ```bash
 # Deploy new API endpoint
-python scripts/dev_cli.py deploy api-endpoint --config new-endpoint.yaml
+run_dev deploy api-endpoint --config new-endpoint.yaml
 
 # Test endpoint works externally
 curl -s "http://external-ip:port/api/new-endpoint" | jq
@@ -110,10 +110,10 @@ curl -s "http://external-ip:port/api/new-endpoint" | jq
 ### Data Engineer  
 ```bash
 # Run data pipeline
-python scripts/dev_cli.py job data-pipeline --symbols AAPL,MSFT --date 2024-01-15
+run_dev job data-pipeline --symbols AAPL,MSFT --date 2024-01-15
 
 # Verify data quality
-python scripts/dev_cli.py query "SELECT COUNT(*) FROM dev_daily_prices WHERE symbol IN ('AAPL', 'MSFT')"
+run_dev query "SELECT COUNT(*) FROM dev_daily_prices WHERE symbol IN ('AAPL', 'MSFT')"
 ```
 
 ### Frontend Engineer
@@ -128,10 +128,10 @@ curl -s "http://external-ip:port/" | grep "Welcome to ATS"
 ### Model Developer
 ```bash
 # Generate training data
-python scripts/dev_cli.py job enhanced-training --symbol TSLA --days-back 120
+run_dev job enhanced-training --symbol TSLA --days-back 120
 
 # Verify training dataset
-python scripts/dev_cli.py query "SELECT dataset_name, total_sequences FROM dev_training_datasets ORDER BY id DESC LIMIT 5"
+run_dev query "SELECT dataset_name, total_sequences FROM dev_training_datasets ORDER BY id DESC LIMIT 5"
 ```
 
 ## 🔍 Verification Commands
@@ -140,10 +140,10 @@ python scripts/dev_cli.py query "SELECT dataset_name, total_sequences FROM dev_t
 
 ```bash
 # 1. Database connectivity
-python scripts/dev_cli.py query "SELECT version()"
+run_dev query "SELECT version()"
 
 # 2. Job execution
-python scripts/dev_cli.py list
+run_dev list
 
 # 3. External service access
 curl -s "http://$(kubectl get nodes -o wide | awk 'NR==2{print $6}'):32090/health" | jq
@@ -167,7 +167,7 @@ ls -la scripts/dev_cli.py
 ### "Database connection failed"
 ```bash
 # Check database service
-python scripts/dev_cli.py query "SELECT 1"
+run_dev query "SELECT 1"
 
 # Check port forwarding is running
 ps aux | grep port-forward
@@ -205,7 +205,7 @@ curl -v "http://NODE_IP:NODE_PORT/health"
 
 **You're ready to contribute when you can:**
 
-- [ ] Run `python scripts/dev_cli.py query "SELECT 1"` successfully
+- [ ] Run `run_dev query "SELECT 1"` successfully
 - [ ] Execute a data processing job and see results
 - [ ] Deploy a webapp and access it externally  
 - [ ] Write a failing test, fix code, see test pass

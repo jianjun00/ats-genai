@@ -2,6 +2,14 @@
 
 This file provides focused guidance to Claude Code when working with the ATS fintech platform.
 
+## 🚨 CRITICAL: Be concise about code
+
+**ALWAYS read docs and code about current infra to find best way to reuse existing code:**
+
+**ALWAYS have a document on a new script as to why it is needed and what it does:**
+
+**ALWAYS find opportunities to refactor code to remove duplicate functionality and delete unused code:**
+
 ## 🚨 CRITICAL: Kubernetes-First Development
 
 **Never use mock or fake data other than unit test:**
@@ -21,23 +29,23 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 **ALWAYS USE KUBERNETES FOR DEV OPERATIONS:**
 
 - ✅ **DEV Environment = Kubernetes (ats-dev namespace)**
-- ✅ **Database = postgres-simple service in K8s cluster**  
-- ✅ **All operations = Use dev CLI (NEVER kubectl directly)**
+- ✅ **Database = postgres service in K8s cluster**  
+- ✅ **All operations = Use run_dev (NEVER kubectl directly)**
 - ❌ **NEVER run scripts locally for dev environment**
 - ❌ **NEVER manually set environment variables**
 
 
 
-### Primary Interface: Dev CLI
+### Primary Interface: run_dev
 
 ```bash
 # Your primary interface - use for ALL operations
-python scripts/dev_cli.py query "SELECT COUNT(*) FROM dev_daily_prices"
-python scripts/dev_cli.py job price-unification --symbols AAPL,MSFT
-python scripts/dev_cli.py logs job-name
+run_dev query "SELECT COUNT(*) FROM dev_daily_prices"
+run_dev job price-unification --symbols AAPL,MSFT
+run_dev logs job-name
 
 # ❌ NEVER use kubectl directly for dev work
-# ✅ ALWAYS use dev CLI
+# ✅ ALWAYS use run_dev
 ```
 
 ## 📚 Consolidated Documentation Structure
@@ -141,21 +149,21 @@ PYTHONPATH=src pytest tests/integration/ -v --tb=short
 PYTHONPATH=src pytest tests/ -m database -v
 python -m pytest scripts/k8s-extracted/ -v
 
-# Database operations via dev CLI
-python scripts/dev_cli.py query "SELECT version()"
-python scripts/dev_cli.py migrate price-unification
+# Database operations via run_dev
+run_dev query "SELECT version()"
+run_dev migrate price-unification
 ```
 
 ### Job Management
 ```bash
 # Run jobs
-python scripts/dev_cli.py job price-unification --symbols AAPL,MSFT
-python scripts/dev_cli.py job enhanced-training --symbol TSLA --days-back 120
+run_dev job price-unification --symbols AAPL,MSFT
+run_dev job enhanced-training --symbol TSLA --days-back 120
 
 # Monitor jobs
-python scripts/dev_cli.py list
-python scripts/dev_cli.py logs job-name
-python scripts/dev_cli.py status job-name
+run_dev list
+run_dev logs job-name
+run_dev status job-name
 ```
 
 ### External Access Testing
@@ -188,7 +196,7 @@ curl -s "http://NODE_IP:NODE_PORT/health" | jq
 ## 🎯 Success Criteria
 
 **You're following best practices when:**
-- [ ] Using dev CLI for all K8s operations
+- [ ] Using run_dev for all K8s operations
 - [ ] Writing failing tests before code changes
 - [ ] Testing K8s extracted scripts independently
 - [ ] Running integration tests and seeing them pass
@@ -209,7 +217,7 @@ curl -s "http://NODE_IP:NODE_PORT/health" | jq
 ## Database Connection Info (Reference)
 
 **Kubernetes (primary):**
-- Host: `postgres-simple`, Port: `5432`
+- Host: `postgres`, Port: `5432`
 - User: `postgres`, Password: `dev_password`, Database: `dev_db`
 
 **Port-forwarding (local testing only):**

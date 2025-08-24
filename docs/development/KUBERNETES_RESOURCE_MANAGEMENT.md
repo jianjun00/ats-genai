@@ -276,7 +276,7 @@ rm -f k8s/working-*-webapp.yaml                 # 3 files removed
 ```bash
 k8s/
 ├── core/                          # Essential services
-│   ├── postgres-simple.yaml
+│   ├── postgres.yaml
 │   ├── redis-cache.yaml
 │   └── monitoring/
 ├── analytics/                     # Analytics services
