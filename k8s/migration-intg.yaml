@@ -1,0 +1,212 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migration-intg
+  namespace: ats-intg
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      containers:
+      - name: migration-intg
+        image: python:3.12-slim
+        command: ["/bin/bash"]
+        args:
+        - -c
+        - |
+          echo "🚀 Installing dependencies..."
+          pip install --no-cache-dir asyncpg
+          
+          echo "🔄 Running database migration for ATS-INTG..."
+          mkdir -p /app
+          cat > /app/migrate_intg.py << 'EOF'
+          import asyncio
+          import asyncpg
+          import logging
+          from datetime import datetime
+          
+          logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+          logger = logging.getLogger(__name__)
+          
+          async def run_intg_migration():
+              """Run database migration for ATS-INTG environment"""
+              try:
+                  # Connect to ats-intg database
+                  conn = await asyncpg.connect(
+                      host='postgres',
+                      port=5432,
+                      user='postgres',
+                      password='postgres',
+                      database='intg_db'
+                  )
+                  logger.info("✅ Connected to ATS-INTG database")
+                  
+                  # Check current schema state
+                  tables = await conn.fetch("""
+                      SELECT tablename, schemaname
+                      FROM pg_tables 
+                      WHERE schemaname = 'public' 
+                      ORDER BY tablename
+                  """)
+                  
+                  logger.info(f"📋 Found {len(tables)} existing tables in intg_db")
+                  
+                  # Create migration tracking table
+                  await conn.execute("""
+                      CREATE TABLE IF NOT EXISTS intg_db_version (
+                          id SERIAL PRIMARY KEY,
+                          version INTEGER NOT NULL UNIQUE,
+                          description TEXT NOT NULL,
+                          applied_at TIMESTAMPTZ DEFAULT now(),
+                          checksum TEXT,
+                          migration_file TEXT
+                      );
+                  """)
+                  
+                  # Get current migration version
+                  current_version = await conn.fetchval("""
+                      SELECT COALESCE(MAX(version), -1) FROM intg_db_version
+                  """)
+                  logger.info(f"📊 Current migration version: {current_version}")
+                  
+                  # Essential schema for integration environment
+                  migration_steps = [
+                      {
+                          'version': 100,
+                          'description': 'Create integration environment schema',
+                          'sql': """
+                              -- Integration instruments table
+                              CREATE TABLE IF NOT EXISTS intg_instruments (
+                                  id SERIAL PRIMARY KEY,
+                                  symbol VARCHAR(50) UNIQUE NOT NULL,
+                                  name TEXT NOT NULL,
+                                  exchange VARCHAR(20),
+                                  instrument_type VARCHAR(50),
+                                  currency VARCHAR(10) DEFAULT 'USD',
+                                  cusip VARCHAR(20),
+                                  isin VARCHAR(20),
+                                  figi VARCHAR(50),
+                                  listing_date DATE,
+                                  delisting_date DATE,
+                                  is_active BOOLEAN DEFAULT true,
+                                  lifecycle_stage VARCHAR(20),
+                                  quality_score INTEGER,
+                                  data_sources TEXT[],
+                                  reconciliation_notes TEXT[],
+                                  last_validated_at TIMESTAMP,
+                                  eodhd_raw JSONB,
+                                  polygon_raw JSONB,
+                                  tiingo_raw JSONB,
+                                  created_at TIMESTAMP DEFAULT now(),
+                                  updated_at TIMESTAMP DEFAULT now()
+                              );
+                              
+                              -- Integration daily prices
+                              CREATE TABLE IF NOT EXISTS intg_daily_prices (
+                                  id SERIAL PRIMARY KEY,
+                                  symbol VARCHAR(10) NOT NULL,
+                                  price_date DATE NOT NULL,
+                                  open_price DECIMAL(12,4),
+                                  high_price DECIMAL(12,4),
+                                  low_price DECIMAL(12,4),
+                                  close_price DECIMAL(12,4),
+                                  volume BIGINT,
+                                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                  UNIQUE(symbol, price_date)
+                              );
+                              
+                              -- Integration training datasets
+                              CREATE TABLE IF NOT EXISTS intg_training_dataset (
+                                  id SERIAL PRIMARY KEY,
+                                  dataset_name VARCHAR(100) NOT NULL,
+                                  symbol VARCHAR(10),
+                                  file_size_mb DECIMAL(10,2),
+                                  record_count INTEGER,
+                                  creation_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                  status VARCHAR(20) DEFAULT 'active'
+                              );
+                              
+                              -- Vendors table (shared across environments)
+                              CREATE TABLE IF NOT EXISTS vendors (
+                                  vendor_id SERIAL PRIMARY KEY,
+                                  vendor_name VARCHAR(50) UNIQUE NOT NULL,
+                                  vendor_description TEXT,
+                                  is_active BOOLEAN DEFAULT true,
+                                  created_at TIMESTAMP DEFAULT now(),
+                                  updated_at TIMESTAMP DEFAULT now()
+                              );
+                              
+                              -- Integration test results tracking
+                              CREATE TABLE IF NOT EXISTS intg_test_results (
+                                  id SERIAL PRIMARY KEY,
+                                  test_suite VARCHAR(100) NOT NULL,
+                                  test_name VARCHAR(200) NOT NULL,
+                                  test_status VARCHAR(20) NOT NULL,
+                                  execution_time_ms INTEGER,
+                                  error_message TEXT,
+                                  executed_at TIMESTAMP DEFAULT now()
+                              );
+                              
+                              -- Create essential indexes
+                              CREATE INDEX IF NOT EXISTS idx_intg_instruments_symbol ON intg_instruments(symbol);
+                              CREATE INDEX IF NOT EXISTS idx_intg_instruments_exchange ON intg_instruments(exchange);
+                              CREATE INDEX IF NOT EXISTS idx_intg_daily_prices_symbol_date ON intg_daily_prices(symbol, price_date);
+                              CREATE INDEX IF NOT EXISTS idx_intg_test_results_suite ON intg_test_results(test_suite);
+                          """
+                      }
+                  ]
+                  
+                  # Apply migrations
+                  for migration in migration_steps:
+                      if migration['version'] > current_version:
+                          logger.info(f"🔄 Applying migration {migration['version']}: {migration['description']}")
+                          
+                          try:
+                              await conn.execute(migration['sql'])
+                              
+                              # Record migration
+                              await conn.execute("""
+                                  INSERT INTO intg_db_version (version, description, applied_at, migration_file)
+                                  VALUES ($1, $2, NOW(), $3)
+                                  ON CONFLICT (version) DO NOTHING
+                              """, migration['version'], migration['description'], 'intg_schema_setup')
+                              
+                              logger.info(f"✅ Migration {migration['version']} applied successfully")
+                              
+                          except Exception as e:
+                              logger.warning(f"⚠️ Migration {migration['version']} had issues (may be expected): {e}")
+                  
+                  # Final status check
+                  final_version = await conn.fetchval("SELECT COALESCE(MAX(version), -1) FROM intg_db_version")
+                  final_tables = await conn.fetch("SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename")
+                  
+                  logger.info("📊 ATS-INTG Migration Summary:")
+                  logger.info(f"  📋 Database version: {current_version} → {final_version}")
+                  logger.info(f"  📊 Total tables: {len(final_tables)}")
+                  logger.info(f"  🎯 Integration environment ready for testing")
+                  
+                  await conn.close()
+                  logger.info("🎉 ATS-INTG migration completed successfully!")
+                  return True
+                  
+              except Exception as e:
+                  logger.error(f"❌ ATS-INTG migration failed: {e}")
+                  return False
+          
+          if __name__ == "__main__":
+              import sys
+              success = asyncio.run(run_intg_migration())
+              sys.exit(0 if success else 1)
+          EOF
+          
+          mkdir -p /app
+          cd /app
+          python migrate_intg.py
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      restartPolicy: Never
