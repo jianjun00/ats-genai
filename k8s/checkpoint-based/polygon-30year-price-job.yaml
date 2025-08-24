@@ -136,7 +136,9 @@ spec:
                               
                           data = await response.json()
                           
-                          if data.get('status') != 'OK':
+                          # Accept both OK and DELAYED status for historical data
+                          api_status = data.get('status', '')
+                          if api_status not in ['OK', 'DELAYED']:
                               logger.warning(f"❌ {symbol}: API Error: {data.get('error', 'Unknown error')}")
                               return []
                               
