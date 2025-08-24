@@ -151,14 +151,18 @@ async def get_jobs():
 @app.get("/api/v1/coverage/summary")
 async def get_coverage_summary():
     try:
-        # Get price data coverage from existing tables
+        # Get price data coverage from existing tables (using correct timestamp columns)
         polygon_count = await manager.db_connection.fetchval("SELECT COUNT(DISTINCT symbol) FROM dev_polygon_prices WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'")
-        tiingo_count = await manager.db_connection.fetchval("SELECT COUNT(DISTINCT symbol) FROM dev_tiingo_prices WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'")
-        fmp_count = await manager.db_connection.fetchval("SELECT COUNT(DISTINCT symbol) FROM dev_fmp_prices WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'")
+        tiingo_count = await manager.db_connection.fetchval("SELECT COUNT(DISTINCT symbol) FROM dev_tiingo_prices WHERE collected_at >= CURRENT_DATE - INTERVAL '1 day'")
+        # Check if FMP table has created_at column first
+        try:
+            fmp_count = await manager.db_connection.fetchval("SELECT COUNT(DISTINCT symbol) FROM dev_fmp_prices WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'")
+        except:
+            fmp_count = 0  # FMP table might have different structure or be empty
         
         total_combinations = (polygon_count or 0) + (tiingo_count or 0) + (fmp_count or 0)
         
-        # Get sample coverage data from price tables (using created_at instead of date column)
+        # Get sample coverage data from price tables (using correct timestamp columns)
         summary_data = await manager.db_connection.fetch("""
             SELECT 
                 'polygon' as vendor,
@@ -177,7 +181,7 @@ async def get_coverage_summary():
                 symbol,
                 COUNT(*) as data_points
             FROM dev_tiingo_prices 
-            WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'
+            WHERE collected_at >= CURRENT_DATE - INTERVAL '1 day'
             GROUP BY symbol
             ORDER BY data_points DESC
             LIMIT 5
@@ -219,10 +223,15 @@ async def get_coverage_summary():
 async def get_coverage_gaps():
     try:
         # Check for potential data gaps by looking for missing recent data
-        recent_data = await manager.db_connection.fetchval("""
+        recent_polygon = await manager.db_connection.fetchval("""
             SELECT COUNT(*) FROM dev_polygon_prices 
             WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'
         """)
+        recent_tiingo = await manager.db_connection.fetchval("""
+            SELECT COUNT(*) FROM dev_tiingo_prices 
+            WHERE collected_at >= CURRENT_DATE - INTERVAL '1 day'
+        """)
+        recent_data = (recent_polygon or 0) + (recent_tiingo or 0)
         
         gaps = []
         if (recent_data or 0) < 10:
