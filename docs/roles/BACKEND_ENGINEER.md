@@ -16,9 +16,9 @@ Design and implement scalable backend services for the portfolio GPT platform:
 
 ```bash
 # Use dev CLI for all operations
-python scripts/dev_cli.py query "SELECT COUNT(*) FROM dev_daily_prices"
-python scripts/dev_cli.py job price-unification --symbols AAPL,MSFT
-python scripts/dev_cli.py logs job-name
+run_dev query "SELECT COUNT(*) FROM dev_daily_prices"
+run_dev job price-unification --symbols AAPL,MSFT
+run_dev logs job-name
 ```
 
 **❌ NEVER use kubectl directly**  
@@ -97,7 +97,7 @@ curl -s "http://localhost:8000/health" | jq
 ab -n 1000 -c 10 http://localhost:8000/api/recommendations
 
 # Monitor database performance
-python scripts/dev_cli.py query "SELECT * FROM pg_stat_activity WHERE state = 'active'"
+run_dev query "SELECT * FROM pg_stat_activity WHERE state = 'active'"
 
 # Check cache hit rates
 redis-cli info stats | grep keyspace
@@ -176,7 +176,7 @@ async def get_user_recommendations(db: AsyncSession, user_id: int):
 uv run python src/db/migration_manager.py
 
 # Check migration status
-python scripts/dev_cli.py query "SELECT * FROM db_version ORDER BY id DESC LIMIT 1"
+run_dev query "SELECT * FROM db_version ORDER BY id DESC LIMIT 1"
 ```
 
 ## Caching Strategy
@@ -359,7 +359,7 @@ curl -s "http://external-ip:port/api/new-endpoint" | jq
 curl -s "http://localhost:8000/metrics" | grep api_request_duration
 
 # Monitor database queries
-python scripts/dev_cli.py query "SELECT query, calls, total_time FROM pg_stat_statements ORDER BY total_time DESC LIMIT 10"
+run_dev query "SELECT query, calls, total_time FROM pg_stat_statements ORDER BY total_time DESC LIMIT 10"
 
 # Check Redis performance
 redis-cli info stats | grep ops_per_sec
@@ -368,7 +368,7 @@ redis-cli info stats | grep ops_per_sec
 ### Scale Model Serving
 ```bash
 # Check current model performance
-python scripts/dev_cli.py query "SELECT AVG(inference_time_ms) FROM model_metrics WHERE timestamp > NOW() - INTERVAL '1 hour'"
+run_dev query "SELECT AVG(inference_time_ms) FROM model_metrics WHERE timestamp > NOW() - INTERVAL '1 hour'"
 
 # Scale Ray cluster
 kubectl scale deployment ray-workers --replicas=5
