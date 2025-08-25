@@ -7,8 +7,8 @@
 **New to ATS Platform? Start here:**
 
 - **[15-Minute Setup](onboarding/QUICK_START.md)** - Get running immediately
-- **[Development Setup](onboarding/DEVELOPMENT_SETUP.md)** - Complete environment setup
-- **[Architecture Overview](onboarding/ARCHITECTURE_OVERVIEW.md)** - Understand the system
+- **[Development Setup](development/UNIFIED_DEVELOPMENT_WORKFLOW.md)** - Complete environment setup
+- **[Architecture Overview](architecture/SYSTEM_ARCHITECTURE.md)** - Understand the system
 
 ## 📚 Core Documentation
 

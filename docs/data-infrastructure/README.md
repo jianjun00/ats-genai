@@ -53,13 +53,13 @@ The Data Infrastructure component provides comprehensive data ingestion, process
 ### Data Pipeline Execution
 ```bash
 # Run real-time data collection
-run_dev job realtime-data-collection --symbols SPY,QQQ,AAPL
+python scripts/run_dev.py deploy --file k8s/realtime-data-collection-system.yaml
 
 # Execute historical backfill
-run_dev job 30year-backfill --vendor polygon --symbols AAPL,MSFT
+python scripts/run_dev.py deploy --file k8s/polygon-10year-backfill-job.yaml
 
 # Data quality validation
-run_dev job data-quality-check --date 2024-01-15
+python scripts/run_dev.py deploy --file k8s/data-quality-validation-job.yaml
 ```
 
 ### Data Access Patterns

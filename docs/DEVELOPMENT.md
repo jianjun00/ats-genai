@@ -50,11 +50,11 @@ PYTHONPATH=src pytest tests/ -v
 
 ### 5. ☸️ Kubernetes-First Development
 ```bash
-# Use run_dev for ALL operations
-run_dev query "SELECT COUNT(*) FROM dev_daily_prices"
-run_dev job price-unification --symbols AAPL,MSFT
-run_dev logs job-name
-run_dev list
+# Use python scripts/run_dev.py for ALL operations
+python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_prices"
+python scripts/run_dev.py deploy --file k8s/price-unification-job.yaml
+python scripts/run_dev.py logs --job job-name
+python scripts/run_dev.py status
 
 # NEVER use kubectl directly for dev work
 # NEVER run scripts locally for dev environment

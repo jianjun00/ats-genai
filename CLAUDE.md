@@ -40,12 +40,12 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 
 ```bash
 # Your primary interface - use for ALL operations
-run_dev query "SELECT COUNT(*) FROM dev_daily_prices"
-run_dev job price-unification --symbols AAPL,MSFT
-run_dev logs job-name
+python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_prices"
+python scripts/run_dev.py deploy --file k8s/price-unification-job.yaml
+python scripts/run_dev.py logs --job job-name
 
 # ❌ NEVER use kubectl directly for dev work
-# ✅ ALWAYS use run_dev
+# ✅ ALWAYS use python scripts/run_dev.py
 ```
 
 ## 📚 Consolidated Documentation Structure
@@ -147,21 +147,20 @@ PYTHONPATH=src pytest tests/integration/ -v --tb=short
 PYTHONPATH=src pytest tests/ -m database -v
 python -m pytest scripts/k8s-extracted/ -v
 
-# Database operations via run_dev
-run_dev query "SELECT version()"
-run_dev migrate price-unification
+# Database operations via python scripts/run_dev.py
+python scripts/run_dev.py query --query "SELECT version()"
+python scripts/run_dev.py deploy --file k8s/migration-job.yaml
 ```
 
 ### Job Management
 ```bash
 # Run jobs
-run_dev job price-unification --symbols AAPL,MSFT
-run_dev job enhanced-training --symbol TSLA --days-back 120
+python scripts/run_dev.py deploy --file k8s/price-unification-job.yaml
+python scripts/run_dev.py deploy --file k8s/enhanced-training-job.yaml
 
 # Monitor jobs
-run_dev list
-run_dev logs job-name
-run_dev status job-name
+python scripts/run_dev.py status
+python scripts/run_dev.py logs --job job-name
 ```
 
 ### External Access Testing
