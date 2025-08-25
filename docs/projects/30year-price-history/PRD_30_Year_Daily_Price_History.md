@@ -41,7 +41,9 @@ Build a comprehensive 30-year daily price database covering all US stocks and cr
 - **Sector ETFs**: XLK, XLF, XLE, XLV, XLI, etc. (SPDR sector suite)
 - **Factor ETFs**: IVV, VTV, VUG, VEA, VWO (style/international)
 - **Commodity ETFs**: GLD, SLV, USO, DBA (alternative assets)
-- **Fixed Income ETFs**: TLT, IEF, HYG, LQD (interest rate factors)
+- **Fixed Income ETFs**: TLT, IEF, HYG, LQD, JNK (treasury and corporate bonds)
+- **Currency ETFs**: UUP, DXY, FXE, FXY (USD strength and major currencies)
+- **High Yield Bond ETFs**: HYG, JNK, SJNK, BKLN (credit and leveraged loans)
 
 ## 🛠️ **Technical Requirements**
 
@@ -67,9 +69,10 @@ CREATE TABLE dev_daily_prices (
 
 ### **Data Sources & Prioritization**
 1. **Polygon.io** (Primary): 2000-present, high accuracy, corporate actions
-2. **Alpha Vantage** (Secondary): 1995-present, good historical depth
-3. **Tiingo** (Validation): Cross-validation and gap-filling
-4. **Yahoo Finance** (Fallback): Public data for validation only
+2. **EODHD** (Secondary): 1970-present, excellent historical depth, competitive pricing
+3. **Alpha Vantage** (Tertiary): 1995-present, reliable but limited free tier
+4. **Tiingo** (Validation): Cross-validation and gap-filling
+5. **Yahoo Finance** (Fallback): Public data for validation only
 
 ### **Performance Requirements**
 - **Query Latency**: 95th percentile <100ms for 5-year backtests

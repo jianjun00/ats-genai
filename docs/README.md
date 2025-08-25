@@ -107,8 +107,8 @@ Complete historical daily price database covering all US stocks and critical mar
 
 **Key Deliverables:**
 - ✅ **30-year coverage**: 1995-2025 daily OHLCV data
-- ✅ **Complete universe**: 4,000+ stocks, 200+ critical ETFs
-- ✅ **99.95% accuracy**: Multi-vendor validation and quality scoring
+- ✅ **Complete universe**: 4,000+ stocks, 250+ critical ETFs (including TLT, HYG, UUP)
+- ✅ **99.95% accuracy**: Multi-vendor validation (Polygon, EODHD, Alpha Vantage)
 - ✅ **<100ms queries**: Optimized for backtesting workloads
 
 ---

@@ -7,13 +7,18 @@
 ### **Requirements & Design**
 - **[PRD - Product Requirements Document](PRD_30_Year_Daily_Price_History.md)** ⭐
   - Business objectives, success metrics, user stories
-  - Market scope: 4,000+ stocks, 200+ critical ETFs  
+  - Market scope: 4,000+ stocks, 250+ critical ETFs  
   - 30-year historical coverage with 99.95% accuracy target
 
 - **[DRD - Design Requirements Document](DRD_30_Year_Daily_Price_History.md)** ⭐  
   - Technical architecture and implementation details
-  - Multi-vendor data orchestration (Polygon, Alpha Vantage, Tiingo)
+  - Multi-vendor data orchestration (Polygon, EODHD, Alpha Vantage, Tiingo)
   - Backfill, data cleaning, and forward-fill system design
+
+- **[Vendor Comparison & Strategy](VENDOR_COMPARISON.md)** 
+  - Data source analysis and cost optimization
+  - Alpha Vantage assessment and migration recommendations
+  - Multi-vendor redundancy strategy
 
 ## 🎯 **Quick Overview**
 
@@ -29,7 +34,8 @@
 3. **Forward-Fill & Maintenance** (2 weeks) - Daily automation
 
 ### **Key Features**
-- ✅ **Multi-vendor redundancy** - Polygon, Alpha Vantage, Tiingo
+- ✅ **Multi-vendor redundancy** - Polygon, EODHD, Alpha Vantage, Tiingo
+- ✅ **Enhanced ETF coverage** - TLT, HYG, UUP, currency/high-yield bond ETFs
 - ✅ **Corporate actions handling** - Splits, dividends, spin-offs
 - ✅ **Intelligent gap filling** - Statistical and market proxy methods
 - ✅ **TimescaleDB optimization** - Compressed time-series storage

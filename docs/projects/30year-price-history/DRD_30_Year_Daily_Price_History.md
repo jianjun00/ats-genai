@@ -31,8 +31,8 @@ graph TB
 # Core backfill coordination
 class HistoricalBackfillOrchestrator:
     def __init__(self):
-        self.vendors = [PolygonAdapter(), AlphaVantageAdapter(), TiingoAdapter()]
-        self.priority_order = ["polygon", "alphavantage", "tiingo"]
+        self.vendors = [PolygonAdapter(), EODHDAdapter(), AlphaVantageAdapter(), TiingoAdapter()]
+        self.priority_order = ["polygon", "eodhd", "alphavantage", "tiingo"]
         
     async def backfill_symbol_range(self, symbols: List[str], 
                                    start_date: date, end_date: date):
@@ -53,16 +53,35 @@ class PolygonBackfillAdapter:
         # Implement exponential backoff, rate limiting, error handling
 ```
 
-#### **Alpha Vantage Adapter** (Historical Depth)
+#### **EODHD Adapter** (Historical Depth)
+```python
+class EODHDBackfillAdapter:
+    BASE_URL = "https://eodhd.com/api"
+    RATE_LIMIT = 20  # requests per second (paid tier)
+    
+    async def fetch_historical_data(self, symbol: str, start: date, end: date):
+        """Fetch historical daily data with excellent depth back to 1970"""
+        url = f"{self.BASE_URL}/eod/{symbol}.US"
+        params = {"from": start, "to": end, "period": "d", "fmt": "json"}
+        # EODHD: Excellent historical depth, competitive pricing
+        # Strong for ETFs and bonds, good corporate actions handling
+```
+
+#### **Alpha Vantage Adapter** (Validation Source)
 ```python
 class AlphaVantageBackfillAdapter:
     BASE_URL = "https://www.alphavantage.co/query"
-    RATE_LIMIT = 5  # requests per minute (free tier)
+    RATE_LIMIT = 5  # requests per minute (free tier), 75/minute (premium)
     
     async def fetch_daily_adjusted(self, symbol: str):
         """Fetch full historical data with dividend/split adjustments"""
-        # Handle 100MB+ responses for 30-year data
-        # Implement chunked processing for memory efficiency
+        # Alpha Vantage Assessment:
+        # ✅ Pros: Reliable data quality, good free tier for testing
+        # ✅ Good corporate actions handling, clean API responses
+        # ❌ Cons: Strict rate limits on free tier (5/min vs 75/min premium)
+        # ❌ Limited batch operations, requires individual symbol calls
+        # ❌ Can be expensive for high-volume usage ($600+/month)
+        # 💰 Best for: Validation/cross-checking, not primary source
 ```
 
 ### **Backfill Execution Strategy**
@@ -96,7 +115,8 @@ backfill_config:
   
 vendor_rate_limits:
   polygon: 5/second
-  alphavantage: 5/minute  
+  eodhd: 20/second
+  alphavantage: 5/minute (free), 75/minute (premium)
   tiingo: 500/hour
 ```
 
