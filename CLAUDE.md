@@ -36,16 +36,21 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 
 
 
-### Primary Interface: run_dev
+### Primary Interface: scripts/run_dev.py + kubectl
 
 ```bash
-# Your primary interface - use for ALL operations
-run_dev query "SELECT COUNT(*) FROM dev_daily_prices"
-run_dev job price-unification --symbols AAPL,MSFT
-run_dev logs job-name
+# Database operations via run_dev
+python3 scripts/run_dev.py psql --query "SELECT COUNT(*) FROM dev_daily_prices"
+python3 scripts/run_dev.py status
+python3 scripts/run_dev.py logs --job job-name
 
-# ❌ NEVER use kubectl directly for dev work
-# ✅ ALWAYS use run_dev
+# Kubernetes operations via kubectl in ats-dev namespace
+kubectl apply -f k8s/your-job.yaml -n ats-dev
+kubectl get all -n ats-dev
+kubectl logs job/job-name -n ats-dev
+
+# ✅ ALWAYS use ats-dev namespace
+# ✅ Database: postgres service (host=postgres, port=5432)
 ```
 
 ## 📚 Consolidated Documentation Structure
@@ -215,12 +220,14 @@ curl -s "http://NODE_IP:NODE_PORT/health" | jq
 ## Database Connection Info (Reference)
 
 **Kubernetes (primary):**
-- Host: `postgres`, Port: `5432`
+- Host: `postgres` (service in ats-dev), Port: `5432`
 - User: `postgres`, Password: `dev_password`, Database: `dev_db`
+- Tables: `dev_*` prefixed (e.g., dev_daily_prices, dev_instruments)
 
 **Port-forwarding (local testing only):**
 - Host: `localhost`, Port: `5433`  
-- User: `postgres`, Password: `postgres`, Database: `dev_db`
+- User: `postgres`, Password: `dev_password`, Database: `dev_db`
+- Command: `kubectl port-forward service/postgres 5433:5432 -n ats-dev`
 
 ---
 

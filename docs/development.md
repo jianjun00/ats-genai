@@ -28,8 +28,9 @@ git checkout -b PGPT-1234/feature-description
 python scripts/validate_schema.py --check-all
 PYTHONPATH=src pytest tests/unit/test_database_schema_validation.py -v
 
-# Get current schema
-kubectl exec -n ats-dev deployment/postgres -- psql -U postgres -d dev_db -c "\d+ table_name"
+# Get current schema via port forwarding
+kubectl port-forward service/postgres 5433:5432 -n ats-dev &
+PGPASSWORD=dev_password psql -h localhost -p 5433 -U postgres -d dev_db -c "\d+ table_name"
 ```
 
 ### 4. 🧪 Test-Driven Development (TDD)
@@ -50,15 +51,17 @@ PYTHONPATH=src pytest tests/ -v
 
 ### 5. ☸️ Kubernetes-First Development
 ```bash
-# Use run_dev for ALL operations
-run_dev query "SELECT COUNT(*) FROM dev_daily_prices"
-run_dev job price-unification --symbols AAPL,MSFT
-run_dev logs job-name
-run_dev list
+# Use scripts/run_dev.py for database operations
+python3 scripts/run_dev.py psql --query "SELECT COUNT(*) FROM dev_daily_prices"
 
-# NEVER use kubectl directly for dev work
+# Use kubectl for job management in ats-dev namespace
+kubectl apply -f k8s/your-job.yaml -n ats-dev
+kubectl logs job/job-name -n ats-dev
+kubectl get jobs -n ats-dev
+
 # NEVER run scripts locally for dev environment
 # NEVER manually set environment variables
+# ALWAYS use ats-dev namespace
 ```
 
 ### 6. 🔄 End-to-End Validation

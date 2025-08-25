@@ -29,6 +29,8 @@ venv/
 *.log
 *.sqlite3
 *.db
+data/
+volumes/
 
 # Build and distribution
 dist/

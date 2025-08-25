@@ -26,7 +26,7 @@ uv sync
 ### 2. Verify Dev CLI Access (2 min)
 ```bash
 # Test dev CLI - this is your PRIMARY interface
-run_dev query "SELECT 1"
+python3 scripts/run_dev.py psql --query "SELECT 1"
 # ✅ Success = you're connected to K8s cluster
 # ❌ Fails = ask team for cluster access
 ```
@@ -46,10 +46,10 @@ PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py::
 
 **✅ ALWAYS Use:**
 ```bash
-run_dev query "SELECT COUNT(*) FROM dev_daily_prices"
-run_dev job price-unification --symbols AAPL,MSFT  
-run_dev logs job-name
-run_dev list
+python3 scripts/run_dev.py psql --query "SELECT COUNT(*) FROM dev_daily_prices"
+python3 scripts/run_dev.py deploy --file k8s/your-job.yaml
+python3 scripts/run_dev.py logs --job job-name
+python3 scripts/run_dev.py status
 ```
 
 **❌ NEVER Use:**
@@ -101,10 +101,10 @@ curl -s "http://external-ip:port/api/endpoint" | jq
 
 ### 📊 Data Engineer
 ```bash
-# Run data pipeline
-run_dev job data-pipeline --symbols AAPL,MSFT --date 2024-01-15
+# Deploy data pipeline job
+kubectl apply -f k8s/your-data-job.yaml -n ats-dev
 # Verify data quality
-run_dev query "SELECT COUNT(*) FROM dev_daily_prices WHERE symbol IN ('AAPL', 'MSFT')"
+python3 scripts/run_dev.py psql --query "SELECT COUNT(*) FROM dev_daily_prices WHERE symbol IN ('AAPL', 'MSFT')"
 ```
 
 ### 🎨 Frontend Engineer  
@@ -117,10 +117,10 @@ curl -s "http://external-ip:port/" | grep "Welcome to ATS"
 
 ### 🤖 Model Developer
 ```bash
-# Generate training data
-run_dev job enhanced-training --symbol TSLA --days-back 120
+# Deploy training data job
+kubectl apply -f k8s/enhanced-training-job.yaml -n ats-dev
 # Verify dataset
-run_dev query "SELECT dataset_name, total_sequences FROM dev_training_datasets ORDER BY id DESC LIMIT 5"
+python3 scripts/run_dev.py psql --query "SELECT COUNT(*) FROM dev_daily_prices ORDER BY date DESC LIMIT 5"
 ```
 
 ---
@@ -130,13 +130,14 @@ run_dev query "SELECT dataset_name, total_sequences FROM dev_training_datasets O
 **Run these to verify your setup works:**
 ```bash
 # 1. Database connectivity
-run_dev query "SELECT version()"
+python3 scripts/run_dev.py psql --query "SELECT version()"
 
 # 2. Job execution capability  
-run_dev list
+python3 scripts/run_dev.py status
 
 # 3. External service access
-curl -s "http://$(kubectl get nodes -o wide | awk 'NR==2{print $6}'):32090/health" | jq
+kubectl get nodes -o wide
+kubectl get service postgres -n ats-dev
 
 # 4. Integration tests
 PYTHONPATH=src pytest tests/integration/ -v --tb=short
@@ -151,14 +152,16 @@ PYTHONPATH=src pytest tests/integration/ -v --tb=short
 # Check cluster access
 kubectl get pods -n ats-dev
 # If fails: ask team for cluster access
-# If works: check dev CLI exists at scripts/dev_cli.py
+# If works: check dev CLI exists at scripts/run_dev.py
 ```
 
 ### "Database connection failed"  
 ```bash
-run_dev query "SELECT 1"
+python3 scripts/run_dev.py psql --query "SELECT 1"
 # If fails: check port forwarding is running
 ps aux | grep port-forward
+# Or set up port forwarding:
+kubectl port-forward service/postgres 5433:5432 -n ats-dev &
 ```
 
 ### "Tests failing"
@@ -196,12 +199,12 @@ curl -v "http://NODE_IP:NODE_PORT/health"
 ## 🎯 Success Criteria
 
 **You're ready to contribute when you can:**
-- [ ] Run `run_dev query "SELECT 1"` successfully
-- [ ] Execute a data job and see results in database
-- [ ] Deploy a webapp and access it via external IP
+- [ ] Run `python3 scripts/run_dev.py psql --query "SELECT 1"` successfully
+- [ ] Deploy a Kubernetes job and see results in database
+- [ ] Deploy a service and access it within cluster
 - [ ] Write failing test → implement code → see test pass
 - [ ] Run integration tests and have them pass  
-- [ ] Access services externally (not just port-forwarding)
+- [ ] Use kubectl to manage ats-dev namespace resources
 
 ---
 
