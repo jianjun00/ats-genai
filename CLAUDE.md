@@ -62,6 +62,12 @@ run_dev logs job-name
 - **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** ⭐
   - All deployment strategies, environments, monitoring, troubleshooting, rollback
 
+#### **Component-Specific Documentation**
+- **[Backend Platform](docs/backend-platform/)** - APIs, services, business logic
+- **[Data Infrastructure](docs/data-infrastructure/)** - Data pipelines, storage, ETL
+- **[ML Platform](docs/ml-platform/)** - Training, models, AI optimization
+- **[Online Infrastructure](docs/online-infrastructure/)** - K8s, CI/CD, monitoring
+
 ### 📖 **COMPLETE NAVIGATION HUB**
 - **[Documentation Hub](docs/README.md)** - Complete navigation with learning paths
 

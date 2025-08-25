@@ -181,9 +181,15 @@ curl -v "http://NODE_IP:NODE_PORT/health"
 
 **After completing this setup, learn more:**
 
-- **📖 Development**: Deep dive into development workflow, TDD, CI/CD, and Git processes
-- **🚢 Deployment**: Learn deployment strategies, environments, monitoring, and troubleshooting
-- **🏗️ Architecture**: Understand system design, database schema, and infrastructure
+### **🏗️ Explore Platform Components**
+- **[🔧 Backend Platform](backend-platform/)** - APIs, services, business logic
+- **[📊 Data Infrastructure](data-infrastructure/)** - Data pipelines, storage, ETL
+- **[🤖 ML Platform](ml-platform/)** - Training, models, AI optimization
+- **[☁️ Online Infrastructure](online-infrastructure/)** - K8s, CI/CD, monitoring
+
+### **📖 Deep Dive Guides**
+- **[💻 DEVELOPMENT.md](DEVELOPMENT.md)** - Complete development workflow, testing, CI/CD
+- **[🚢 DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment strategies, environments, monitoring
 
 ---
 
