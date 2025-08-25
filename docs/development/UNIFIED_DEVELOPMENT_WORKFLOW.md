@@ -362,8 +362,113 @@ PYTHONPATH=src pytest tests/integration/test_live_service.py -v
 - ❌ Running scripts locally instead of in K8s
 - ❌ Setting environment variables manually
 - ❌ Creating new deployment patterns unnecessarily
-- ❌ Embedding code directly in K8s YAML files
-- ❌ Creating inline scripts in ConfigMaps or args sections
+- ❌ **Embedding code directly in K8s YAML files**
+- ❌ **Creating inline scripts in ConfigMaps or args sections**
+- ❌ **Using ConfigMaps to store Python code instead of git source**
+- ❌ **Embedding Python logic inline in YAML args sections**
+
+### ✅ **CORRECT: Base Image + Git Source Pattern**
+
+**The proper K8s job pattern uses the ats-genai base image and pulls source from git:**
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: populate-polygon-instruments
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      containers:
+      - name: worker
+        image: dragonflyer762/ats-genai:latest
+        env:
+        - name: PYTHONPATH
+          value: "/workspace/src"
+        - name: POLYGON_API_KEY
+          value: "your-api-key"
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          # Pull latest source from git (public or with proper auth)
+          cd /workspace
+          git clone https://github.com/your-org/ats-genai-data.git temp
+          cp -r temp/* .
+          rm -rf temp
+          
+          # Run the actual script from source
+          python3 src/secmaster/populate_instrument_polygon.py \
+            --environment dev \
+            --limit 1000
+```
+
+### ❌ **ANTI-PATTERN: Inline Code in YAML**
+
+```yaml
+# DON'T DO THIS - code belongs in src/ directory
+command: ["python3"]
+args: ["-c", "
+import asyncio
+import asyncpg
+# ... 200 lines of Python code embedded in YAML
+asyncio.run(main())
+"]
+```
+
+### ❌ **ANTI-PATTERN: ConfigMap Code Storage**
+
+```yaml
+# DON'T DO THIS - code should come from git
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: python-scripts
+data:
+  my_script.py: |
+    # ... Python code stored in ConfigMap
+---
+# Then mounting ConfigMap as volume - WRONG APPROACH
+```
+
+### ✅ **WHY Base Image + Git Source is Correct**
+
+**Benefits:**
+1. **🔄 Version Control**: Code changes are tracked in git with proper history
+2. **🔍 Code Reviews**: All changes go through PR review process
+3. **📦 Reusability**: Same scripts work locally and in K8s
+4. **🧪 Testability**: Code can be unit tested before deployment
+5. **🔒 Security**: No secrets or code embedded in YAML files
+6. **📖 Maintainability**: Code organized in proper directory structure
+7. **🎯 Single Source of Truth**: Source code lives in one place (git repo)
+
+**Development Flow:**
+```bash
+# 1. Develop locally
+PYTHONPATH=src python3 src/secmaster/populate_instrument_polygon.py --environment dev
+
+# 2. Test and commit
+git add src/secmaster/populate_instrument_polygon.py
+git commit -m "feat: add polygon instrument population"
+git push origin feature-branch
+
+# 3. Deploy K8s job (pulls from git automatically)
+kubectl apply -f k8s/populate-polygon-instruments-job.yaml
+
+# 4. Job runs same code that was tested locally
+```
+
+**Git Authentication in K8s (for private repos):**
+```yaml
+# Option 1: Public repository (preferred)
+git clone https://github.com/your-org/ats-genai-data.git
+
+# Option 2: SSH key authentication
+git clone git@github.com:your-org/ats-genai-data.git
+
+# Option 3: Token authentication
+git clone https://token:x-oauth-basic@github.com/your-org/ats-genai-data.git
+```
 
 ## 📋 Workflow Commands Reference
 
