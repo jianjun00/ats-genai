@@ -307,6 +307,18 @@ async def get_dataset(dataset_id: str):
 
 ---
 
+## 📚 Recent Implementation Lessons
+
+**Critical Findings from Instrument Population Implementation (2025-08-25):**
+- **Database Connection Issues**: Always set `DB_DISABLE_CONNECT_TIMEOUT=true` for PostgreSQL compatibility
+- **API Key Validation**: Test API endpoints directly before troubleshooting infrastructure
+- **Gin Configuration**: Use `app_dev.gin` for development (simpler than `app_docker.gin`)
+- **Docker Dependencies**: Include ALL required packages in base image, not minimal subsets
+
+**📋 Detailed Documentation**: [Instrument Population Lessons Learned](docs/development/INSTRUMENT_POPULATION_LESSONS_LEARNED.md)
+
+---
+
 **📖 For comprehensive information, see the complete documentation structure at [docs/README.md](docs/README.md)**
 
 *This is a Kubernetes-first, test-driven development platform. Every change must be validated end-to-end in the actual K8s cluster with REAL DATA ONLY.*
