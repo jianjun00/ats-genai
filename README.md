@@ -1,4 +1,4 @@
-# ATS-GenAI: Algorithmic Trading System with AI
+# ATS-GenAI: Enterprise Algorithmic Trading Platform
 
 [![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
@@ -7,7 +7,40 @@
 [![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)](https://www.docker.com/)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-ready-326CE5.svg)](https://kubernetes.io/)
 
-A comprehensive, enterprise-grade algorithmic trading system powered by artificial intelligence, featuring multi-vendor data ingestion, advanced technical analysis, Smart Money Zone detection, and market-neutral portfolio optimization.
+**Enterprise-grade algorithmic trading system** with AI-powered portfolio optimization, multi-vendor data ingestion, Smart Money Zone detection, and Kubernetes-first development.
+
+---
+
+## 🚀 Quick Start
+
+**Get running in 15 minutes:**
+
+```bash
+# Clone and install
+git clone https://github.com/your-org/ats-genai
+cd ats-genai && uv sync
+
+# Test dev CLI access
+run_dev query "SELECT 1"
+
+# Run first integration test
+PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py::TestAnalyticsPlatformIntegration::test_backend_api_can_start -v
+```
+
+**✅ Ready to contribute?** → **[📖 READ docs/START_HERE.md](docs/START_HERE.md)**
+
+---
+
+## 📚 Documentation
+
+### 🎯 **Core Guides** (3 files only)
+- **[🚀 START_HERE.md](docs/START_HERE.md)** - 15-minute setup, core concepts, role-specific quick actions
+- **[💻 DEVELOPMENT.md](docs/DEVELOPMENT.md)** - Complete development workflow, testing, CI/CD, GitOps
+- **[🚢 DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Deployment strategies, environments, monitoring, troubleshooting
+
+### 📋 Additional Resources  
+- **[docs/README.md](docs/README.md)** - Complete documentation navigation hub
+- **[CLAUDE.md](CLAUDE.md)** - AI assistant instructions for the platform
 
 ## 🚀 Key Features
 

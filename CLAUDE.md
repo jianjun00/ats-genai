@@ -54,19 +54,13 @@ run_dev logs job-name
 
 ### 🚀 **PRIMARY DOCUMENTATION** ⭐ **USE THESE FIRST**
 
-#### **Development (MANDATORY READING)**
-- **[Unified Development Workflow](docs/development/UNIFIED_DEVELOPMENT_WORKFLOW.md)** ⭐ **START HERE**
-  - JIRA integration, Git workflow, TDD, schema validation, K8s-first development
-- **[Unified CI/CD Guide](docs/development/UNIFIED_CICD_GUIDE.md)** ⭐
-  - GitHub Actions, ArgoCD GitOps, testing strategies, automated deployments
-- **[GitOps Development Workflow](docs/development/GITOPS_DEVELOPMENT_WORKFLOW.md)**
-  - Option 2 workflow with zero-downtime deployments and team coordination
-
-#### **Operations (MANDATORY READING)**
-- **[Unified Deployment Guide](docs/operations/UNIFIED_DEPLOYMENT_GUIDE.md)** ⭐ **START HERE**
-  - All deployment strategies, environments, access management, troubleshooting
-- **[ArgoCD Troubleshooting](docs/operations/ARGOCD_TROUBLESHOOTING.md)**
-  - GitOps deployment issues, sync problems, comprehensive solutions
+#### **Core 3-File Structure (MANDATORY READING)**
+- **[START_HERE.md](docs/START_HERE.md)** ⭐ **START HERE**
+  - 15-minute setup, core concepts, role-specific quick actions, troubleshooting
+- **[DEVELOPMENT.md](docs/DEVELOPMENT.md)** ⭐
+  - Complete development workflow, TDD, schema validation, CI/CD, GitOps, testing
+- **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** ⭐
+  - All deployment strategies, environments, monitoring, troubleshooting, rollback
 
 ### 📖 **COMPLETE NAVIGATION HUB**
 - **[Documentation Hub](docs/README.md)** - Complete navigation with learning paths
@@ -74,14 +68,12 @@ run_dev logs job-name
 ### 🚀 **QUICK START PATHS**
 
 #### **New Team Members**
-1. **[Documentation Hub](docs/README.md)** - Start here for complete navigation
-2. **[Unified Development Workflow](docs/development/UNIFIED_DEVELOPMENT_WORKFLOW.md)** - Essential workflow
-3. **[Quick Start (15 min)](docs/onboarding/QUICK_START.md)** - Get running immediately
+1. **[START_HERE.md](docs/START_HERE.md)** - 15-minute setup and core concepts
+2. **[Documentation Hub](docs/README.md)** - Complete navigation for deeper learning
 
 #### **DevOps Engineers**  
-1. **[Unified Deployment Guide](docs/operations/UNIFIED_DEPLOYMENT_GUIDE.md)** - All deployment methods
-2. **[GitOps Development Workflow](docs/development/GITOPS_DEVELOPMENT_WORKFLOW.md)** - Option 2 workflow
-3. **[ArgoCD Troubleshooting](docs/operations/ARGOCD_TROUBLESHOOTING.md)** - Deployment issues
+1. **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** - All deployment strategies and troubleshooting
+2. **[DEVELOPMENT.md](docs/DEVELOPMENT.md)** - CI/CD and GitOps workflows
 
 ### 🔧 **OPERATIONAL SCRIPTS** (Ready to Use)
 
