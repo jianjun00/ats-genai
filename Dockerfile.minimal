@@ -1,30 +1,93 @@
-FROM python:3.12-slim
+# Minimal ATS-GenAI image for data population jobs
+FROM python:3.12.2-slim
 
 # Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH="/app/src"
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=off \
+    PIP_DISABLE_PIP_VERSION_CHECK=on \
+    PYTHONPATH="/workspace/src" \
+    SKIP_DB_SETUP="true"
 
-WORKDIR /app
+# Set working directory to match K8s job expectations
+WORKDIR /workspace
 
-# Install system dependencies first
-RUN echo "Installing system dependencies..." && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends gcc python3-dev && \
-    rm -rf /var/lib/apt/lists/*
+# Install system dependencies required for compilation
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        gcc \
+        python3-dev \
+        curl \
+        git \
+        build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy only what's needed
-COPY pyproject.toml .
-COPY src/ src/
+# Install only essential packages for data population scripts
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir \
+        requests==2.32.3 \
+        aiohttp==3.12.15 \
+        asyncpg==0.30.0 \
+        pandas==2.2.3 \
+        python-dotenv==1.1.1 \
+        gin-config==0.5.0 \
+        ray==2.48.0 \
+        psycopg2-binary==2.9.10 \
+        fastapi==0.115.6 \
+        uvicorn[standard]==0.33.0 \
+        pydantic==2.10.4 \
+        numpy==1.26.4 \
+        sqlparse==0.5.3 \
+        sqlalchemy==2.0.25 \
+        scikit-learn==1.5.2 \
+        pytz==2025.2 \
+        structlog==25.1.0 \
+        prometheus-client==0.21.1 \
+        psutil==6.0.0 \
+        pandas-market-calendars==4.4.1 \
+        pyarrow==18.1.0 \
+        h5py==3.14.0 \
+        protobuf==5.29.2 \
+        ib_insync==0.9.86 \
+        attrs==25.3.0 \
+        websockets==15.0.1 \
+        aiohappyeyeballs==2.6.1 \
+        aiosignal==1.4.0
 
-# Install Python dependencies with verbose output
-RUN echo "Installing Python dependencies..." && \
-    pip install --no-cache-dir --verbose uvicorn fastapi && \
-    echo "Installing project in development mode..." && \
-    pip install --no-cache-dir --verbose -e .
+# Verify packages are installed
+RUN echo "Verifying packages:" && \
+    python -c "import requests; print('✅ requests')" && \
+    python -c "import aiohttp; print('✅ aiohttp')" && \
+    python -c "import asyncpg; print('✅ asyncpg')" && \
+    python -c "import pandas; print('✅ pandas')" && \
+    python -c "import ray; print('✅ ray')" && \
+    python -c "import gin; print('✅ gin-config')" && \
+    python -c "import psycopg2; print('✅ psycopg2')" && \
+    python -c "import sqlalchemy; print('✅ sqlalchemy')" && \
+    python -c "import sklearn; print('✅ scikit-learn')" && \
+    python -c "import structlog; print('✅ structlog')" && \
+    python -c "import pandas_market_calendars; print('✅ pandas_market_calendars')" && \
+    python -c "import pyarrow; print('✅ pyarrow')" && \
+    python -c "import h5py; print('✅ h5py')" && \
+    echo "All essential packages verified"
 
-# Print installed packages for debugging
-RUN pip freeze
+# Copy only essential config files
+COPY pyproject.toml requirements.txt* ./
 
-# Command to run the application
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Create non-root user
+RUN groupadd --gid 1000 ats && \
+    useradd --uid 1000 --gid ats --shell /bin/bash --create-home ats && \
+    chown -R ats:ats /workspace
+
+# Switch to non-root user
+USER ats
+
+# Expose port for health checks
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Default command - can be overridden by K8s jobs
+CMD ["bash", "-c", "echo 'ATS-GenAI minimal image ready for data population jobs'"]

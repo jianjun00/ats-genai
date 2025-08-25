@@ -1,7 +1,0 @@
-#!/bin/bash
-# Pre-commit hook template
-# This file is version controlled and shared across the team
-
-# Source the actual pre-commit logic
-REPO_ROOT=$(git rev-parse --show-toplevel)
-source "$REPO_ROOT/scripts/git_hooks/pre-commit-logic.sh"

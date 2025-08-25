@@ -1,0 +1,100 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: populate-eodhd-instruments
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: populate-eodhd
+        image: dragonflyer762/ats-genai:latest
+        env:
+        - name: PYTHONPATH
+          value: "/workspace/src"
+        - name: ENVIRONMENT
+          value: "dev"
+        # API Credentials from secrets
+        - name: EODHD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-credentials
+              key: eodhd-api-key
+        # Database credentials from secrets
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: db-host
+        - name: DB_PORT
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: db-port
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: db-user
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: db-password
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: db-name
+        # Git credentials from secrets
+        - name: GIT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: git-credentials
+              key: git-token
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "🔄 Setting up workspace with source code..."
+          cd /workspace
+          
+          # Clean workspace completely
+          rm -rf * .[!.]* 2>/dev/null || true
+          
+          # Clone with token authentication
+          echo "📥 Cloning repository..."
+          git clone https://${GIT_TOKEN}@github.com/AkoloTechnologies/ats-genai.git temp-repo
+          
+          # Copy source to workspace
+          if [ -d "temp-repo" ]; then
+            cp -r temp-repo/* . 2>/dev/null || true
+            cp -r temp-repo/.[!.]* . 2>/dev/null || true
+            rm -rf temp-repo
+            echo "✅ Source code ready"
+          else
+            echo "❌ No source directory found"
+            exit 1
+          fi
+          
+          # Verify source script exists and run it
+          if [ ! -f "src/secmaster/populate_instrument_eodhd.py" ]; then
+            echo "❌ Source file not found: src/secmaster/populate_instrument_eodhd.py"
+            echo "Available EODHD scripts:"
+            find src -name "*eodhd*" -type f 2>/dev/null || echo "No EODHD scripts found"
+            exit 1
+          fi
+          
+          echo "🚀 Running EODHD instrument population..."
+          python3 src/secmaster/populate_instrument_eodhd.py \
+            --environment dev \
+            --debug
+        workingDir: /workspace
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+  backoffLimit: 3

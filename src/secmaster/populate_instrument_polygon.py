@@ -402,7 +402,7 @@ if __name__ == "__main__":
             'test': 'config/app_test.gin',
             'intg': 'config/app_intg.gin',
             'prod': 'config/app_prod.gin',
-            'dev': 'config/app_docker.gin',
+            'dev': 'config/app_dev.gin',
         }
         gin_config_path = gin_config_map.get(args.environment)
         

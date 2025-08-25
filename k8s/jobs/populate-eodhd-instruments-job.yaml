@@ -1,0 +1,261 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: populate-eodhd-instruments
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: populate-eodhd
+        image: dragonflyer762/ats-genai:latest
+        env:
+        - name: PYTHONPATH
+          value: "/workspace/src"
+        - name: ENVIRONMENT
+          value: "dev"
+        # API Credentials from secrets
+        - name: EODHD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-credentials
+              key: eodhd-api-key
+        # Database credentials from secrets
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: db-host
+        - name: DB_PORT
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: db-port
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: db-user
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: db-password
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: db-name
+        # Git credentials from secrets
+        - name: GIT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: git-credentials
+              key: git-token
+        - name: GIT_REPO_URL
+          valueFrom:
+            secretKeyRef:
+              name: git-credentials
+              key: git-repo-url
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "🔄 Setting up workspace with source code..."
+          cd /workspace
+          
+          # Clean workspace
+          rm -rf * .[!.]* 2>/dev/null || true
+          
+          # Clone with token authentication
+          echo "📥 Cloning repository..."
+          git clone https://${GIT_TOKEN}@github.com/AkoloTechnologies/ats-genai.git temp-repo
+          
+          # Copy source to workspace
+          if [ -d "temp-repo" ]; then
+            cp -r temp-repo/* . 2>/dev/null || true
+            cp -r temp-repo/.[!.]* . 2>/dev/null || true
+            rm -rf temp-repo
+            echo "✅ Source code ready"
+          else
+            echo "❌ No source directory found"
+            exit 1
+          fi
+          
+          # Run EODHD instruments population (inline since no dedicated script exists)
+          echo "🚀 Running EODHD instruments population..."
+          python3 -c "
+import asyncio
+import requests
+import asyncpg
+import json
+from datetime import datetime
+import logging
+import time
+import os
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+async def fetch_eodhd_instruments():
+    logger.info('Starting EODHD instrument population...')
+    
+    # Get API key
+    api_key = os.getenv('EODHD_API_KEY')
+    if not api_key:
+        raise ValueError('EODHD_API_KEY required')
+    
+    # Connect to database
+    db_url = f'postgresql://{os.getenv(\"DB_USER\")}:{os.getenv(\"DB_PASSWORD\")}@{os.getenv(\"DB_HOST\")}:{os.getenv(\"DB_PORT\")}/{os.getenv(\"DB_NAME\")}'
+    logger.info('Connecting to database...')
+    
+    try:
+        conn = await asyncpg.connect(db_url)
+        logger.info('✅ Database connection successful')
+    except Exception as e:
+        logger.error(f'❌ Database connection failed: {e}')
+        return
+    
+    try:
+        # Create table
+        create_table_sql = '''
+            CREATE TABLE IF NOT EXISTS dev_instrument_eodhd (
+                id SERIAL PRIMARY KEY,
+                code TEXT UNIQUE NOT NULL,
+                name TEXT,
+                exchange TEXT,
+                currency TEXT,
+                type TEXT,
+                raw JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        '''
+        await conn.execute(create_table_sql)
+        logger.info('✅ Table dev_instrument_eodhd ready')
+        
+        # Get list of exchanges
+        exchanges_url = f'https://eodhd.com/api/exchanges-list/?api_token={api_key}&fmt=json'
+        logger.info('Fetching exchanges list...')
+        
+        exchanges_response = requests.get(exchanges_url, timeout=60)
+        exchanges_response.raise_for_status()
+        exchanges = exchanges_response.json()
+        
+        logger.info(f'Found {len(exchanges)} exchanges')
+        
+        # Focus on major exchanges
+        priority_exchanges = ['US', 'LSE', 'XETRA', 'TO', 'V', 'PA', 'AS', 'HK', 'JSE']
+        
+        all_instruments = []
+        
+        for exchange in exchanges:
+            exchange_code = exchange.get('Code', '')
+            exchange_name = exchange.get('Name', '')
+            
+            # Skip if not in priority list (to avoid rate limits)
+            if exchange_code not in priority_exchanges:
+                continue
+                
+            logger.info(f'Fetching instruments for exchange: {exchange_code} ({exchange_name})')
+            
+            try:
+                tickers_url = f'https://eodhd.com/api/exchange-symbol-list/{exchange_code}?api_token={api_key}&fmt=json'
+                tickers_response = requests.get(tickers_url, timeout=60)
+                
+                if tickers_response.status_code == 200:
+                    tickers = tickers_response.json()
+                    logger.info(f'Retrieved {len(tickers)} instruments from {exchange_code}')
+                    
+                    for ticker in tickers:
+                        ticker['exchange_code'] = exchange_code
+                        ticker['exchange_name'] = exchange_name
+                        all_instruments.append(ticker)
+                else:
+                    logger.warning(f'Failed to fetch {exchange_code}: {tickers_response.status_code}')
+                
+                # Rate limiting
+                time.sleep(1.0)
+                
+            except Exception as e:
+                logger.error(f'Error fetching {exchange_code}: {e}')
+                continue
+        
+        logger.info(f'✅ Total instruments collected from EODHD: {len(all_instruments)}')
+        
+        if not all_instruments:
+            logger.warning('No instruments to process')
+            return
+        
+        # Insert instruments in batches
+        batch_size = 1000
+        total_inserted = 0
+        
+        for i in range(0, len(all_instruments), batch_size):
+            batch = all_instruments[i:i + batch_size]
+            batch_data = []
+            
+            for item in batch:
+                try:
+                    batch_data.append((
+                        item.get('Code'),
+                        item.get('Name'),
+                        item.get('exchange_code'),
+                        item.get('Currency'),
+                        item.get('Type'),
+                        json.dumps(item)
+                    ))
+                except Exception as e:
+                    logger.warning(f'Error processing instrument {item.get(\"Code\", \"unknown\")}: {e}')
+                    continue
+            
+            if batch_data:
+                try:
+                    upsert_sql = '''
+                        INSERT INTO dev_instrument_eodhd 
+                        (code, name, exchange, currency, type, raw, updated_at)
+                        VALUES (\$1, \$2, \$3, \$4, \$5, \$6, now())
+                        ON CONFLICT (code) DO UPDATE SET
+                        name = EXCLUDED.name,
+                        exchange = EXCLUDED.exchange,
+                        currency = EXCLUDED.currency,
+                        type = EXCLUDED.type,
+                        raw = EXCLUDED.raw,
+                        updated_at = now()
+                    '''
+                    
+                    await conn.executemany(upsert_sql, batch_data)
+                    total_inserted += len(batch_data)
+                    logger.info(f'✅ Inserted batch {i//batch_size + 1}: {len(batch_data)} instruments (Total: {total_inserted})')
+                    
+                except Exception as e:
+                    logger.error(f'❌ Error inserting batch {i//batch_size + 1}: {e}')
+                    continue
+        
+        # Final statistics
+        final_count = await conn.fetchval('SELECT COUNT(*) FROM dev_instrument_eodhd')
+        logger.info(f'✅ Final count in dev_instrument_eodhd: {final_count}')
+        
+        logger.info('🎉 EODHD instrument population completed successfully!')
+        
+    except Exception as e:
+        logger.error(f'❌ Error during EODHD population: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        raise
+        
+    finally:
+        await conn.close()
+
+asyncio.run(fetch_eodhd_instruments())
+"
+        workingDir: /workspace
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+  backoffLimit: 3
