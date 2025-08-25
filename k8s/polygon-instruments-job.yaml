@@ -14,7 +14,7 @@ spec:
         - name: ENVIRONMENT
           value: "dev"
         - name: DB_HOST
-          value: "postgres-simple"
+          value: "postgres"
         - name: DB_PORT
           value: "5432"
         - name: DB_USER
@@ -34,7 +34,7 @@ spec:
           echo '✅ Repository cloned';
           cd repo;
           echo '🔧 Running Polygon instrument population...';
-          python src/secmaster/populate_instrument_polygon.py --environment dev --gin_config config/app_dev.gin --db_host postgres-simple --db_port 5432 --db_user postgres --db_password dev_password --db_name dev_db
+          python src/secmaster/populate_instrument_polygon.py --environment dev --gin_config config/app_dev.gin --db_host postgres --db_port 5432 --db_user postgres --db_password dev_password --db_name dev_db
         "]
       restartPolicy: Never
   backoffLimit: 2

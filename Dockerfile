@@ -6,28 +6,46 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=off \
     PIP_DISABLE_PIP_VERSION_CHECK=on \
-    PYTHONPATH="/app/src" \
+    PYTHONPATH="/app/src:/workspace/src" \
     SKIP_DB_SETUP="true"
 
 # Set working directory
 WORKDIR /app
 
-# Copy only requirements first to leverage Docker cache
-COPY pyproject.toml .
+# Copy requirements files first to leverage Docker cache
+COPY pyproject.toml requirements.txt ./
 
-# Install minimal dependencies in a single layer
+# Install system dependencies and Python packages in a single layer
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         gcc \
+        g++ \
         python3-dev \
         curl \
+        git \
+        build-essential \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --upgrade pip \
-    && pip install "uvicorn[standard]>=0.23.0" \
-                  "fastapi>=0.103.1" \
-                  "asyncpg>=0.28.0" \
-                  "psycopg2-binary>=2.9.9" \
-    && pip install -e .
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir \
+        requests \
+        ray \
+        yfinance \
+        beautifulsoup4 \
+        requests-html \
+        transformers \
+        torch \
+        torchvision \
+        nltk \
+        textblob \
+        plotly \
+        seaborn \
+        matplotlib \
+        streamlit \
+        jupyter \
+        ipython \
+        feedparser \
+    && pip install --no-cache-dir -e .
 
 # Copy application code after installing dependencies
 COPY . /app/

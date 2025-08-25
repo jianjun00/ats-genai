@@ -99,6 +99,37 @@ watch kubectl get pods -n ats-prod
 
 ### Database Environments
 
+#### Development Database (ats-dev)
+```bash
+# Connection Details:
+# Host: postgres (within cluster) / localhost:5433 (port-forward)
+# Port: 5432 (cluster) / 5433 (local)
+# User: postgres
+# Password: dev_password  
+# Database: dev_db
+# Tables: dev_* prefixed (e.g., dev_daily_prices, dev_instruments)
+
+# Database Operations:
+python3 scripts/run_dev.py psql --query "SELECT version()"
+kubectl port-forward service/postgres 5433:5432 -n ats-dev &
+PGPASSWORD=dev_password psql -h localhost -p 5433 -U postgres -d dev_db
+```
+
+#### Migration Management
+```bash
+# Run migrations for ats-dev
+PYTHONPATH=src ENVIRONMENT=dev DB_HOST=localhost DB_PORT=5433 \
+DB_USER=postgres DB_PASSWORD=dev_password DB_NAME=dev_db \
+uv run python src/db/migration_manager.py migrate \
+--db-url "postgresql://postgres:dev_password@localhost:5433/dev_db"
+
+# Check migration status
+PYTHONPATH=src ENVIRONMENT=dev DB_HOST=localhost DB_PORT=5433 \
+DB_USER=postgres DB_PASSWORD=dev_password DB_NAME=dev_db \
+uv run python src/db/migration_manager.py version \
+--db-url "postgresql://postgres:dev_password@localhost:5433/dev_db"
+```
+
 | Environment | Tables | Purpose | Access Method |
 |-------------|--------|---------|---------------|
 | **dev** | `dev_*` | Development | K8s TimescaleDB |

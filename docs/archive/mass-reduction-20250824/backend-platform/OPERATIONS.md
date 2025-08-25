@@ -8,24 +8,26 @@
 
 ### **Service Deployment Order**
 ```bash
-# 1. Deploy core infrastructure dependencies
-kubectl apply -f k8s/redis/
-kubectl apply -f k8s/postgres/
+# 1. Deploy core infrastructure dependencies  
+# PostgreSQL is already deployed in ats-dev as 'postgres' service
+kubectl get service postgres -n ats-dev  # Verify database is running
+# Redis deployment (if needed)
+kubectl apply -f k8s/redis/ -n ats-dev
 
 # 2. Deploy authentication service (required by all others)
-kubectl apply -f k8s/auth-service/
+kubectl apply -f k8s/auth-service/ -n ats-dev
 kubectl wait --for=condition=available deployment/auth-service -n ats-dev
 
 # 3. Deploy data access services
-kubectl apply -f k8s/market-data-service/
-kubectl apply -f k8s/portfolio-service/
+kubectl apply -f k8s/market-data-service/ -n ats-dev
+kubectl apply -f k8s/portfolio-service/ -n ats-dev
 
 # 4. Deploy business logic services  
-kubectl apply -f k8s/analytics-service/
-kubectl apply -f k8s/signal-service/
+kubectl apply -f k8s/analytics-service/ -n ats-dev
+kubectl apply -f k8s/signal-service/ -n ats-dev
 
 # 5. Deploy API Gateway (requires all services)
-kubectl apply -f k8s/api-gateway/
+kubectl apply -f k8s/api-gateway/ -n ats-dev
 ```
 
 ### **Health Check Verification**
