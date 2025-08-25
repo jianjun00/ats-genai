@@ -31,6 +31,9 @@
 9. **[OPERATIONS.md](OPERATIONS.md)** - DevOps, monitoring, infrastructure management
 10. **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues, solutions, emergency procedures
 
+### **📋 Project Documentation**
+11. **[projects/](projects/)** - Active project requirements and design documents
+
 ---
 
 ## 🎯 **Role-Based Quick Paths**
@@ -87,6 +90,26 @@ kubectl logs -f deployment/service-name -n ats-dev
 - [ ] Write failing test → implement code → see test pass
 - [ ] Navigate to the right documentation for your role
 - [ ] Resolve common issues using TROUBLESHOOTING.md
+
+---
+
+## 📋 **Active Projects**
+
+### **🏗️ 30-Year Daily Price History System**
+**Status**: Ready for implementation | **Timeline**: 12 weeks | **Owner**: Data Infrastructure Team
+
+Complete historical daily price database covering all US stocks and critical market factor ETFs from 1995-2025.
+
+**Quick Links:**
+- **[Project Overview](projects/30year-price-history/README.md)** - Executive summary and getting started
+- **[PRD](projects/30year-price-history/PRD_30_Year_Daily_Price_History.md)** - Business requirements and success metrics  
+- **[DRD](projects/30year-price-history/DRD_30_Year_Daily_Price_History.md)** - Technical architecture and implementation
+
+**Key Deliverables:**
+- ✅ **30-year coverage**: 1995-2025 daily OHLCV data
+- ✅ **Complete universe**: 4,000+ stocks, 200+ critical ETFs
+- ✅ **99.95% accuracy**: Multi-vendor validation and quality scoring
+- ✅ **<100ms queries**: Optimized for backtesting workloads
 
 ---
 
