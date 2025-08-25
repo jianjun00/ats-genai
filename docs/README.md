@@ -96,7 +96,7 @@ kubectl logs -f deployment/service-name -n ats-dev
 ## 📋 **Active Projects**
 
 ### **🏗️ 30-Year Daily Price History System**
-**Status**: Ready for implementation | **Timeline**: 12 weeks | **Owner**: Data Infrastructure Team
+**Status**: Ready for implementation | **Timeline**: 6-8 weeks | **Owner**: Data Infrastructure Team
 
 Complete historical daily price database covering all US stocks and critical market factor ETFs from 1995-2025.
 
