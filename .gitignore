@@ -1,6 +1,8 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+*.pyc
+*.pyo
 
 # C extensions
 *.so
@@ -52,13 +54,20 @@ coverage.xml
 # Keeping templates accessible
 !k8s/templates/
 
-# Local development
+# Virtual environments
 .venv/
 venv/
 .atsenv/
-# .env files are now allowed to be committed
-# .env
-.env.local
+*-venv/
+flyte-venv/
+.env*/
+!.env.example
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # IDEs and editors
 .idea/
@@ -121,6 +130,11 @@ cython_debug/
 # VS Code
 .vscode/
 
+# macOS
+.DS_Store
+.DS_Store?
+._*
+
 # Misc
 *.swp
 *~
@@ -128,6 +142,7 @@ cython_debug/
 # Ignore tmp and temp files
 tmp/
 temp/
+.tmp/
 
 # Ignore migration backups
 src/db/migrations/backups/
