@@ -53,31 +53,22 @@ The ML Platform provides end-to-end machine learning capabilities for the ATS sy
 ### Model Training Pipeline
 ```bash
 # Generate training data for enhanced model
-run_dev job enhanced-training --symbol TSLA --days-back 120
+python scripts/run_dev.py deploy --file k8s/enhanced-training-job.yaml
 
 # Train support/resistance prediction model
-run_dev job model-training \
-  --model-type support_resistance \
-  --training-window 2y \
-  --validation-split 0.2
+python scripts/run_dev.py deploy --file k8s/sr-training-job.yaml
 
 # Deploy trained model to inference
-kubectl apply -f k8s/ml-platform/model-inference-service.yaml
+kubectl apply -f k8s/ml-inference-service.yaml
 ```
 
 ### Portfolio Optimization
 ```bash
 # Run AI-powered portfolio optimization
-run_dev job portfolio-optimization \
-  --universe SP500 \
-  --target-return 0.12 \
-  --max-drawdown 0.08 \
-  --rebalance-frequency weekly
+python scripts/run_dev.py deploy --file k8s/portfolio-optimization-job.yaml
 
 # Generate Smart Money Zone signals
-run_dev job smart-money-zones \
-  --symbols AAPL,MSFT,GOOGL \
-  --lookback-days 30
+python scripts/run_dev.py deploy --file k8s/smart-money-zones-job.yaml
 ```
 
 ### Model Inference

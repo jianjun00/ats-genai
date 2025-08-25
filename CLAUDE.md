@@ -36,21 +36,16 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 
 
 
-### Primary Interface: scripts/run_dev.py + kubectl
+### Primary Interface: run_dev
 
 ```bash
-# Database operations via run_dev
-python3 scripts/run_dev.py psql --query "SELECT COUNT(*) FROM dev_daily_prices"
-python3 scripts/run_dev.py status
-python3 scripts/run_dev.py logs --job job-name
+# Your primary interface - use for ALL operations
+python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_prices"
+python scripts/run_dev.py deploy --file k8s/price-unification-job.yaml
+python scripts/run_dev.py logs --job job-name
 
-# Kubernetes operations via kubectl in ats-dev namespace
-kubectl apply -f k8s/your-job.yaml -n ats-dev
-kubectl get all -n ats-dev
-kubectl logs job/job-name -n ats-dev
-
-# ✅ ALWAYS use ats-dev namespace
-# ✅ Database: postgres service (host=postgres, port=5432)
+# ❌ NEVER use kubectl directly for dev work
+# ✅ ALWAYS use python scripts/run_dev.py
 ```
 
 ## 📚 Consolidated Documentation Structure
@@ -152,21 +147,20 @@ PYTHONPATH=src pytest tests/integration/ -v --tb=short
 PYTHONPATH=src pytest tests/ -m database -v
 python -m pytest scripts/k8s-extracted/ -v
 
-# Database operations via run_dev
-run_dev query "SELECT version()"
-run_dev migrate price-unification
+# Database operations via python scripts/run_dev.py
+python scripts/run_dev.py query --query "SELECT version()"
+python scripts/run_dev.py deploy --file k8s/migration-job.yaml
 ```
 
 ### Job Management
 ```bash
 # Run jobs
-run_dev job price-unification --symbols AAPL,MSFT
-run_dev job enhanced-training --symbol TSLA --days-back 120
+python scripts/run_dev.py deploy --file k8s/price-unification-job.yaml
+python scripts/run_dev.py deploy --file k8s/enhanced-training-job.yaml
 
 # Monitor jobs
-run_dev list
-run_dev logs job-name
-run_dev status job-name
+python scripts/run_dev.py status
+python scripts/run_dev.py logs --job job-name
 ```
 
 ### External Access Testing
@@ -220,14 +214,12 @@ curl -s "http://NODE_IP:NODE_PORT/health" | jq
 ## Database Connection Info (Reference)
 
 **Kubernetes (primary):**
-- Host: `postgres` (service in ats-dev), Port: `5432`
+- Host: `postgres`, Port: `5432`
 - User: `postgres`, Password: `dev_password`, Database: `dev_db`
-- Tables: `dev_*` prefixed (e.g., dev_daily_prices, dev_instruments)
 
 **Port-forwarding (local testing only):**
 - Host: `localhost`, Port: `5433`  
-- User: `postgres`, Password: `dev_password`, Database: `dev_db`
-- Command: `kubectl port-forward service/postgres 5433:5432 -n ats-dev`
+- User: `postgres`, Password: `postgres`, Database: `dev_db`
 
 ---
 
