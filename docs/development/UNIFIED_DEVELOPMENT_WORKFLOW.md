@@ -19,30 +19,6 @@
 ### 🚫 NEVER Start Work Without JIRA Ticket
 
 **All development work must be tracked through JIRA tickets.**
-
-#### Step 1: Create JIRA Ticket First
-
-**Before any code changes:**
-1. Identify the issue (bug, feature, technical debt)
-2. Go to JIRA project dashboard
-3. Click "Create Issue"
-4. Use appropriate template from `docs/templates/JIRA_TICKET_TEMPLATE.md`
-
-**Required JIRA Ticket Information:**
-- **Summary:** Clear, actionable title
-- **Description:** Detailed problem/requirement description  
-- **Acceptance Criteria:** Specific, testable conditions for completion
-- **Priority:** Critical/High/Medium/Low based on impact
-- **Components:** Affected system areas
-- **Labels:** Categorization (bug, feature, technical-debt, etc.)
-
-#### Step 2: Branch Naming with JIRA Integration
-
-```bash
-# ALWAYS include JIRA ticket number in branch name
-git checkout -b PGPT-1234/fix-workflow-dependencies
-git checkout -b PGPT-1235/feature-dataset-filtering  
-git checkout -b PGPT-1236/docs-api-documentation
 ```
 
 ## 🌿 Git Branching Workflow - MANDATORY

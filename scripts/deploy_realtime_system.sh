@@ -68,13 +68,13 @@ deploy_database_schema() {
     log_info "Deploying database schema (Migration 042)..."
     
     # Check if tables already exist
-    if python scripts/dev_cli.py query "SELECT COUNT(*) FROM information_schema.tables WHERE table_name LIKE '%realtime%'" | grep -q "6"; then
+    if python scripts/run_dev.py query "SELECT COUNT(*) FROM information_schema.tables WHERE table_name LIKE '%realtime%'" | grep -q "6"; then
         log_warning "Real-time tables already exist, skipping schema deployment"
         return 0
     fi
     
     # Apply database migration
-    if python scripts/dev_cli.py migrate realtime-data-collection; then
+    if python scripts/run_dev.py migrate realtime-data-collection; then
         log_success "Database schema deployed successfully"
     else
         log_error "Failed to deploy database schema"
@@ -269,10 +269,10 @@ show_troubleshooting() {
     echo "   kubectl logs -l app=realtime-streaming-collector -n $NAMESPACE"
     echo ""
     echo "2. Check database connectivity:"
-    echo "   python scripts/dev_cli.py query \"SELECT 1\""
+    echo "   python scripts/run_dev.py query \"SELECT 1\""
     echo ""
     echo "3. Verify real-time tables exist:"
-    echo "   python scripts/dev_cli.py query \"SELECT tablename FROM pg_tables WHERE tablename LIKE '%realtime%'\""
+    echo "   python scripts/run_dev.py query \"SELECT tablename FROM pg_tables WHERE tablename LIKE '%realtime%'\""
     echo ""
     echo "4. Check resource usage:"
     echo "   kubectl top pods -n $NAMESPACE"

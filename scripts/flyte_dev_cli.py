@@ -171,7 +171,7 @@ class FlyteDevCLI:
         
         # Submit the query via dev CLI
         subprocess.run([
-            "python", "scripts/dev_cli.py", "query", insert_query
+            "python", "scripts/run_dev.py", "query", insert_query
         ], check=True)
         
         return execution_id
@@ -190,7 +190,7 @@ class FlyteDevCLI:
             
             # For now, use dev CLI to get the data
             result = subprocess.run([
-                "python", "scripts/dev_cli.py", "query", query
+                "python", "scripts/run_dev.py", "query", query
             ], capture_output=True, text=True)
             
             print("🔍 Recent Flyte Workflow Executions:")
@@ -215,7 +215,7 @@ class FlyteDevCLI:
             """
             
             result = subprocess.run([
-                "python", "scripts/dev_cli.py", "query", query
+                "python", "scripts/run_dev.py", "query", query
             ], capture_output=True, text=True)
             
             print(f"📋 Execution Status: {execution_id}")
@@ -228,7 +228,7 @@ class FlyteDevCLI:
     def get_execution_logs(self, execution_id: str):
         """Get logs for a specific execution"""
         print(f"📄 Logs for execution: {execution_id}")
-        print("🔗 Use: python scripts/dev_cli.py logs <job-name>")
+        print("🔗 Use: python scripts/run_dev.py logs <job-name>")
         print("🌐 Or check webapp Job Runs section for integrated logs")
 
 

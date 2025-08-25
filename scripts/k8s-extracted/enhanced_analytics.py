@@ -19,17 +19,19 @@ DB_NAME = os.getenv('DB_NAME', 'dev_db')
 
 class AnalyticsManager:
     def __init__(self):
-        self.db_connection = None
+        self.db_pool = None
 
     async def initialize(self):
         try:
-            # Connect directly to Kubernetes database - no complex configuration needed
-            self.db_connection = await asyncpg.connect(
+            # Use connection pool to handle concurrent requests
+            self.db_pool = await asyncpg.create_pool(
                 host=DB_HOST,
                 port=DB_PORT,
                 user=DB_USER,
                 password=DB_PASSWORD,
-                database=DB_NAME
+                database=DB_NAME,
+                min_size=2,
+                max_size=10
             )
             print("✅ Analytics Manager connected to database successfully")
             print(f"   Database: {DB_HOST}:{DB_PORT}/{DB_NAME}")
@@ -39,56 +41,56 @@ class AnalyticsManager:
 
     async def get_datasets(self, limit: int = 5, offset: int = 0):
         try:
-            # Get datasets directly from database without DAO complexity
-            datasets = await self.db_connection.fetch("""
-                SELECT 
-                    id as dataset_id,
-                    dataset_name,
-                    symbols,
-                    total_sequences,
-                    feature_count,
-                    sequence_length,
-                    file_size_mb,
-                    status,
-                    creation_timestamp as created_at
-                FROM dev_training_dataset 
-                ORDER BY creation_timestamp DESC
-                LIMIT $1 OFFSET $2
-            """, limit, offset)
-            
-            result = []
-            for row in datasets:
-                result.append({
-                    "dataset_id": row['dataset_id'],
-                    "dataset_name": row['dataset_name'],
-                    "symbols": row['symbols'] or [],
-                    "total_sequences": row['total_sequences'],
-                    "feature_count": row['feature_count'],
-                    "sequence_length": row['sequence_length'],
-                    "file_size_mb": row['file_size_mb'],
-                    "status": row['status'],
-                    "created_at": row['created_at'].isoformat() if row['created_at'] else None
-                })
-            
-            total = await self.db_connection.fetchval("SELECT COUNT(*) FROM dev_training_dataset")
-            return {"datasets": result, "total": total or 0}
+            async with self.db_pool.acquire() as conn:
+                datasets = await conn.fetch("""
+                    SELECT 
+                        id as dataset_id,
+                        dataset_name,
+                        symbols,
+                        total_sequences,
+                        feature_count,
+                        sequence_length,
+                        file_size_mb,
+                        status,
+                        creation_timestamp as created_at
+                    FROM dev_training_dataset 
+                    ORDER BY creation_timestamp DESC
+                    LIMIT $1 OFFSET $2
+                """, limit, offset)
+                
+                result = []
+                for row in datasets:
+                    result.append({
+                        "dataset_id": row['dataset_id'],
+                        "dataset_name": row['dataset_name'],
+                        "symbols": row['symbols'] or [],
+                        "total_sequences": row['total_sequences'],
+                        "feature_count": row['feature_count'],
+                        "sequence_length": row['sequence_length'],
+                        "file_size_mb": row['file_size_mb'],
+                        "status": row['status'],
+                        "created_at": row['created_at'].isoformat() if row['created_at'] else None
+                    })
+                
+                total = await conn.fetchval("SELECT COUNT(*) FROM dev_training_dataset")
+                return {"datasets": result, "total": total or 0}
         except Exception as e:
             print(f"Error getting datasets: {e}")
             return {"datasets": [], "total": 0}
 
     async def get_job_stats(self):
         try:
-            # Get real job stats from database using direct connection
-            total = await self.db_connection.fetchval("SELECT COUNT(*) FROM dev_runs")
-            running = await self.db_connection.fetchval("SELECT COUNT(*) FROM dev_runs WHERE status = 'running'")
-            completed = await self.db_connection.fetchval("SELECT COUNT(*) FROM dev_runs WHERE status = 'completed'")
-            failed = await self.db_connection.fetchval("SELECT COUNT(*) FROM dev_runs WHERE status = 'failed'")
-            return {
-                "total_jobs": total or 0,
-                "running_jobs": running or 0,
-                "completed_jobs": completed or 0,
-                "failed_jobs": failed or 0
-            }
+            async with self.db_pool.acquire() as conn:
+                total = await conn.fetchval("SELECT COUNT(*) FROM dev_runs")
+                running = await conn.fetchval("SELECT COUNT(*) FROM dev_runs WHERE status = 'running'")
+                completed = await conn.fetchval("SELECT COUNT(*) FROM dev_runs WHERE status = 'completed'")
+                failed = await conn.fetchval("SELECT COUNT(*) FROM dev_runs WHERE status = 'failed'")
+                return {
+                    "total_jobs": total or 0,
+                    "running_jobs": running or 0,
+                    "completed_jobs": completed or 0,
+                    "failed_jobs": failed or 0
+                }
         except Exception as e:
             print(f"Error getting job stats: {e}")
             return {
@@ -116,8 +118,9 @@ async def get_jobs_stats():
 @app.get("/api/v1/jobs")
 async def get_jobs():
     try:
-        # Get real jobs from database using correct column names
-        jobs = await manager.db_connection.fetch("""
+        async with manager.db_pool.acquire() as conn:
+            # Get real jobs from database using correct column names
+            jobs = await conn.fetch("""
             SELECT 
                 id,
                 run_type,
@@ -142,8 +145,8 @@ async def get_jobs():
                 "symbol": symbol
             })
         
-        total = await manager.db_connection.fetchval("SELECT COUNT(*) FROM dev_runs")
-        return {"jobs": result, "total": total}
+            total = await conn.fetchval("SELECT COUNT(*) FROM dev_runs")
+            return {"jobs": result, "total": total}
     except Exception as e:
         print(f"Error getting jobs: {e}")
         return {"jobs": [], "total": 0}
@@ -151,60 +154,67 @@ async def get_jobs():
 @app.get("/api/v1/coverage/summary")
 async def get_coverage_summary():
     try:
-        # Get price data coverage from existing tables
-        polygon_count = await manager.db_connection.fetchval("SELECT COUNT(DISTINCT symbol) FROM dev_polygon_prices WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'")
-        tiingo_count = await manager.db_connection.fetchval("SELECT COUNT(DISTINCT symbol) FROM dev_tiingo_prices WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'")
-        fmp_count = await manager.db_connection.fetchval("SELECT COUNT(DISTINCT symbol) FROM dev_fmp_prices WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'")
-        
-        total_combinations = (polygon_count or 0) + (tiingo_count or 0) + (fmp_count or 0)
-        
-        # Get sample coverage data from price tables (using created_at instead of date column)
-        summary_data = await manager.db_connection.fetch("""
-            SELECT 
-                'polygon' as vendor,
-                symbol,
-                COUNT(*) as data_points
-            FROM dev_polygon_prices 
-            WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'
-            GROUP BY symbol
-            ORDER BY data_points DESC
-            LIMIT 5
+        async with manager.db_pool.acquire() as conn:
+            # Get price data coverage from existing tables (using correct timestamp columns)
+            polygon_count = await conn.fetchval("SELECT COUNT(DISTINCT symbol) FROM dev_polygon_prices WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'")
+            tiingo_count = await conn.fetchval("SELECT COUNT(DISTINCT symbol) FROM dev_tiingo_prices WHERE collected_at >= CURRENT_DATE - INTERVAL '1 day'")
+            # Check if FMP table has created_at column first
+            try:
+                fmp_count = await conn.fetchval("SELECT COUNT(DISTINCT symbol) FROM dev_fmp_prices WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'")
+            except:
+                fmp_count = 0  # FMP table might have different structure or be empty
             
-            UNION ALL
+            total_combinations = (polygon_count or 0) + (tiingo_count or 0) + (fmp_count or 0)
             
-            SELECT 
-                'tiingo' as vendor,
-                symbol,
-                COUNT(*) as data_points
-            FROM dev_tiingo_prices 
-            WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'
-            GROUP BY symbol
-            ORDER BY data_points DESC
-            LIMIT 5
-        """)
-        
-        summary = []
-        for row in summary_data:
-            # Simulate coverage percentage based on data points
-            coverage_24h = min(95, max(60, (row['data_points'] or 0) * 2))
-            quality_24h = 0.85 + (coverage_24h - 60) / 100 * 0.15
+            # Get sample coverage data from price tables (separately to avoid UNION issues)
+            polygon_data = await conn.fetch("""
+                SELECT 
+                    'polygon' as vendor,
+                    symbol,
+                    COUNT(*) as data_points
+                FROM dev_polygon_prices 
+                WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'
+                GROUP BY symbol
+                ORDER BY data_points DESC
+                LIMIT 5
+            """)
             
-            summary.append({
-                "symbol": row['symbol'],
-                "vendor": row['vendor'],
-                "coverage_24h": coverage_24h,
-                "coverage_7d": coverage_24h - 2,
-                "quality_24h": quality_24h,
-                "current_status": "active" if coverage_24h > 80 else "warning"
-            })
-        
-        return {
-            "total_combinations": total_combinations,
-            "active_combinations": total_combinations,
-            "average_coverage_24h": 87,
-            "average_quality_24h": 0.92,
-            "summary": summary[:10]
-        }
+            tiingo_data = await conn.fetch("""
+                SELECT 
+                    'tiingo' as vendor,
+                    symbol,
+                    COUNT(*) as data_points
+                FROM dev_tiingo_prices 
+                WHERE collected_at >= CURRENT_DATE - INTERVAL '1 day'
+                GROUP BY symbol
+                ORDER BY data_points DESC
+                LIMIT 5
+            """)
+            
+            summary_data = list(polygon_data) + list(tiingo_data)
+            
+            summary = []
+            for row in summary_data:
+                # Simulate coverage percentage based on data points
+                coverage_24h = min(95, max(60, (row['data_points'] or 0) * 2))
+                quality_24h = 0.85 + (coverage_24h - 60) / 100 * 0.15
+                
+                summary.append({
+                    "symbol": row['symbol'],
+                    "vendor": row['vendor'],
+                    "coverage_24h": coverage_24h,
+                    "coverage_7d": coverage_24h - 2,
+                    "quality_24h": quality_24h,
+                    "current_status": "active" if coverage_24h > 80 else "warning"
+                })
+            
+            return {
+                "total_combinations": total_combinations,
+                "active_combinations": total_combinations,
+                "average_coverage_24h": 87,
+                "average_quality_24h": 0.92,
+                "summary": summary[:10]
+            }
     except Exception as e:
         print(f"Error getting coverage summary: {e}")
         return {
@@ -218,11 +228,17 @@ async def get_coverage_summary():
 @app.get("/api/v1/coverage/gaps")
 async def get_coverage_gaps():
     try:
-        # Check for potential data gaps by looking for missing recent data
-        recent_data = await manager.db_connection.fetchval("""
-            SELECT COUNT(*) FROM dev_polygon_prices 
-            WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'
-        """)
+        async with manager.db_pool.acquire() as conn:
+            # Check for potential data gaps by looking for missing recent data
+            recent_polygon = await conn.fetchval("""
+                SELECT COUNT(*) FROM dev_polygon_prices 
+                WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'
+            """)
+            recent_tiingo = await conn.fetchval("""
+                SELECT COUNT(*) FROM dev_tiingo_prices 
+                WHERE collected_at >= CURRENT_DATE - INTERVAL '1 day'
+            """)
+            recent_data = (recent_polygon or 0) + (recent_tiingo or 0)
         
         gaps = []
         if (recent_data or 0) < 10:

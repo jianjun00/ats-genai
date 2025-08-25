@@ -12,41 +12,71 @@
 
 ## 📚 Core Documentation
 
-### 🛠️ Development
-- **[Unified Development Workflow](development/UNIFIED_DEVELOPMENT_WORKFLOW.md)** ⭐ **START HERE**
-  - JIRA integration, Git workflow, TDD process, schema validation
-- **[Unified CI/CD Guide](development/UNIFIED_CICD_GUIDE.md)** ⭐
-  - GitHub Actions, ArgoCD GitOps, testing strategies
-- **[GitOps Development Workflow](development/GITOPS_DEVELOPMENT_WORKFLOW.md)**
-  - Option 2 workflow with zero-downtime deployments
-- **[Kubernetes Guide](development/KUBERNETES_GUIDE.md)**
-  - K8s-first development patterns
-- **[Testing Guide](development/TESTING_GUIDE.md)**
-  - Unit, integration, and system testing
+### 🎯 **Essential Guides** (Start Here)
+- **[🚀 START_HERE.md](START_HERE.md)** ⭐ **15-minute setup, core concepts, troubleshooting**
+- **[💻 DEVELOPMENT.md](DEVELOPMENT.md)** ⭐ **Complete development workflow, testing, CI/CD**
+- **[🚢 DEPLOYMENT.md](DEPLOYMENT.md)** ⭐ **All deployment strategies, monitoring, operations**
 
-### 🚀 Operations
-- **[Unified Deployment Guide](operations/UNIFIED_DEPLOYMENT_GUIDE.md)** ⭐ **START HERE**
-  - All deployment strategies, environments, access management
-- **[ArgoCD Troubleshooting](operations/ARGOCD_TROUBLESHOOTING.md)**
-  - GitOps deployment issues and solutions
-- **[Monitoring Guide](operations/MONITORING.md)**
-  - System monitoring, metrics, alerting
-- **[Credential Management](operations/CREDENTIAL_MANAGEMENT_GUIDE.md)**
-  - Security and secrets management
+---
 
-### 🏗️ Architecture
-- **[System Architecture](architecture/SYSTEM_ARCHITECTURE.md)**
-  - High-level system design and components
-- **[Database Design](architecture/DATABASE_DESIGN.md)**
-  - Schema, data modeling, relationships
-- **[Infrastructure Guide](architecture/INFRASTRUCTURE.md)**
-  - Kubernetes, containers, networking
+## 🏗️ Platform Components
 
-### 👥 Role-Based Guides
-- **[Product Manager Guide](roles/PRODUCT_MANAGER.md)**
-  - Strategy, metrics, roadmaps
-- **[Backend Engineer Guide](roles/BACKEND_ENGINEER.md)**
-  - APIs, services, infrastructure development
+### 🔧 **[Backend Platform](backend-platform/)**
+**APIs, Services, Business Logic**
+- [Component Overview](backend-platform/README.md) - Service architecture and dependencies
+- [System Design](backend-platform/SYSTEM_DESIGN.md) - API design, database schema, security
+- [Operations](backend-platform/OPERATIONS.md) - Deployment, monitoring, troubleshooting
+- [PRDs & DRDs](backend-platform/prd/) - Product and detailed requirements
+
+### 📊 **[Data Infrastructure](data-infrastructure/)**  
+**Data Pipelines, Storage, ETL**
+- [Component Overview](data-infrastructure/README.md) - Multi-vendor data management
+- [System Design](data-infrastructure/SYSTEM_DESIGN.md) - Data flows, quality, reconciliation
+- [Operations](data-infrastructure/OPERATIONS.md) - Pipeline monitoring, data ops
+- [PRDs & DRDs](data-infrastructure/prd/) - Data platform requirements
+
+### 🤖 **[ML Platform](ml-platform/)**
+**Training, Models, AI-Powered Optimization**
+- [Component Overview](ml-platform/README.md) - ML lifecycle and model inventory
+- [System Design](ml-platform/SYSTEM_DESIGN.md) - Training pipelines, inference architecture
+- [Operations](ml-platform/OPERATIONS.md) - MLOps, model monitoring, performance
+- [PRDs & DRDs](ml-platform/prd/) - ML platform and model requirements
+
+### ☁️ **[Online Infrastructure](online-infrastructure/)**
+**Kubernetes, CI/CD, Monitoring**
+- [Component Overview](online-infrastructure/README.md) - Platform orchestration and operations
+- [System Design](online-infrastructure/SYSTEM_DESIGN.md) - K8s architecture, security, networking
+- [Operations](online-infrastructure/OPERATIONS.md) - DevOps, monitoring, incident response
+- [PRDs & DRDs](online-infrastructure/prd/) - Infrastructure platform requirements
+
+---
+
+## 👥 Role-Based Learning Paths
+
+### 🔧 **Backend Engineers**
+1. [🚀 START_HERE.md](START_HERE.md) - Platform overview and setup
+2. [🔧 Backend Platform](backend-platform/) - Service architecture and APIs
+3. [💻 DEVELOPMENT.md](DEVELOPMENT.md) - Development workflow and testing
+
+### 📊 **Data Engineers**  
+1. [🚀 START_HERE.md](START_HERE.md) - Platform overview and setup
+2. [📊 Data Infrastructure](data-infrastructure/) - Data pipelines and operations
+3. [💻 DEVELOPMENT.md](DEVELOPMENT.md) - Development workflow and testing
+
+### 🤖 **Data Scientists**
+1. [🚀 START_HERE.md](START_HERE.md) - Platform overview and setup  
+2. [🤖 ML Platform](ml-platform/) - Model development and deployment
+3. [📊 Data Infrastructure](data-infrastructure/) - Available datasets and access
+
+### ☁️ **DevOps Engineers**
+1. [🚀 START_HERE.md](START_HERE.md) - Platform overview and setup
+2. [☁️ Online Infrastructure](online-infrastructure/) - Platform operations
+3. [🚢 DEPLOYMENT.md](DEPLOYMENT.md) - Deployment strategies and monitoring
+
+### 📋 **Product Managers**
+1. [🚀 START_HERE.md](START_HERE.md) - Platform overview  
+2. Component PRDs: [Backend](backend-platform/prd/), [Data](data-infrastructure/prd/), [ML](ml-platform/prd/), [Infrastructure](online-infrastructure/prd/)
+3. [Product Requirements](product/) - Cross-component planning
 
 ## 🔧 Operational Scripts
 
