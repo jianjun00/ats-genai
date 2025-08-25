@@ -1,0 +1,249 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: populate-tiingo-instruments
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: populate-tiingo
+        image: dragonflyer762/ats-genai:latest
+        env:
+        - name: PYTHONPATH
+          value: "/workspace/src"
+        - name: ENVIRONMENT
+          value: "dev"
+        # API Credentials from secrets
+        - name: TIINGO_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-credentials
+              key: tiingo-api-key
+        # Database credentials from secrets
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: db-host
+        - name: DB_PORT
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: db-port
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: db-user
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: db-password
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: db-name
+        # Git credentials from secrets
+        - name: GIT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: git-credentials
+              key: git-token
+        - name: GIT_REPO_URL
+          valueFrom:
+            secretKeyRef:
+              name: git-credentials
+              key: git-repo-url
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "🔄 Setting up workspace with source code..."
+          cd /workspace
+          
+          # Clean workspace
+          rm -rf * .[!.]* 2>/dev/null || true
+          
+          # Clone with token authentication
+          echo "📥 Cloning repository..."
+          git clone https://${GIT_TOKEN}@github.com/AkoloTechnologies/ats-genai.git temp-repo
+          
+          # Copy source to workspace
+          if [ -d "temp-repo" ]; then
+            cp -r temp-repo/* . 2>/dev/null || true
+            cp -r temp-repo/.[!.]* . 2>/dev/null || true
+            rm -rf temp-repo
+            echo "✅ Source code ready"
+          else
+            echo "❌ No source directory found"
+            exit 1
+          fi
+          
+          # Verify source exists or create inline script
+          if [ -f "src/secmaster/populate_market_cap_tiingo.py" ]; then
+            echo "🚀 Running Tiingo market cap population..."
+            python3 src/secmaster/populate_market_cap_tiingo.py \
+              --environment dev \
+              --limit 100 \
+              --gin_config config/app_dev.gin || {
+                echo "Script failed, trying without gin config..."
+                python3 src/secmaster/populate_market_cap_tiingo.py \
+                  --environment dev \
+                  --limit 100
+              }
+          else
+            echo "🚀 Creating Tiingo population script..."
+            cat > /tmp/tiingo_populate.py << 'EOF'
+import asyncio
+import requests
+import zipfile
+import pandas as pd
+import asyncpg
+import json
+from datetime import datetime
+import logging
+import io
+import os
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def parse_date(date_str):
+    if not date_str or pd.isna(date_str):
+        return None
+    try:
+        return pd.to_datetime(date_str).date()
+    except Exception:
+        return None
+
+async def fetch_tiingo_instruments():
+    logger.info('Starting Tiingo instrument population...')
+    
+    # Connect to database
+    db_url = f'postgresql://{os.getenv("DB_USER")}:{os.getenv("DB_PASSWORD")}@{os.getenv("DB_HOST")}:{os.getenv("DB_PORT")}/{os.getenv("DB_NAME")}'
+    logger.info('Connecting to database...')
+    
+    try:
+        conn = await asyncpg.connect(db_url)
+        logger.info('✅ Database connection successful')
+    except Exception as e:
+        logger.error(f'❌ Database connection failed: {e}')
+        return
+    
+    try:
+        # Create table
+        create_table_sql = '''
+            CREATE TABLE IF NOT EXISTS dev_instrument_tiingo (
+                id SERIAL PRIMARY KEY,
+                ticker TEXT UNIQUE NOT NULL,
+                exchange TEXT,
+                asset_type TEXT,
+                price_currency TEXT,
+                start_date DATE,
+                end_date DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        '''
+        await conn.execute(create_table_sql)
+        logger.info('✅ Table dev_instrument_tiingo ready')
+        
+        # Download Tiingo data
+        url = 'https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip'
+        logger.info(f'Downloading from Tiingo: {url}')
+        
+        response = requests.get(url, timeout=300)
+        response.raise_for_status()
+        logger.info(f'✅ Downloaded ZIP file: {len(response.content)} bytes')
+        
+        # Extract CSV from ZIP
+        with zipfile.ZipFile(io.BytesIO(response.content)) as zip_file:
+            csv_filename = 'supported_tickers.csv'
+            with zip_file.open(csv_filename) as csv_file:
+                df = pd.read_csv(csv_file)
+        
+        logger.info(f'✅ Parsed CSV with {len(df)} instruments')
+        
+        # Process in batches (limit for testing)
+        batch_size = 1000
+        total_inserted = 0
+        max_batches = 5  # Limit to first 5000 records for testing
+        
+        for i in range(0, min(len(df), max_batches * batch_size), batch_size):
+            batch_df = df.iloc[i:i + batch_size]
+            batch_data = []
+            
+            for _, row in batch_df.iterrows():
+                # Skip empty tickers
+                if not row['ticker'] or str(row['ticker']).strip() == '':
+                    continue
+                
+                try:
+                    batch_data.append((
+                        str(row['ticker']).strip(),
+                        str(row['exchange']).strip() if pd.notna(row['exchange']) else None,
+                        str(row['assetType']).strip() if pd.notna(row['assetType']) else None,
+                        str(row['priceCurrency']).strip() if pd.notna(row['priceCurrency']) else None,
+                        parse_date(row['startDate']) if 'startDate' in row else None,
+                        parse_date(row['endDate']) if 'endDate' in row else None
+                    ))
+                except Exception as e:
+                    logger.warning(f'Error processing row {i}: {e}')
+                    continue
+            
+            if batch_data:
+                try:
+                    upsert_sql = '''
+                        INSERT INTO dev_instrument_tiingo 
+                        (ticker, exchange, asset_type, price_currency, start_date, end_date, updated_at)
+                        VALUES ($1, $2, $3, $4, $5, $6, now())
+                        ON CONFLICT (ticker) DO UPDATE SET
+                        exchange = EXCLUDED.exchange,
+                        asset_type = EXCLUDED.asset_type,
+                        price_currency = EXCLUDED.price_currency,
+                        start_date = EXCLUDED.start_date,
+                        end_date = EXCLUDED.end_date,
+                        updated_at = now()
+                    '''
+                    
+                    await conn.executemany(upsert_sql, batch_data)
+                    total_inserted += len(batch_data)
+                    logger.info(f'✅ Inserted batch {i//batch_size + 1}: {len(batch_data)} instruments (Total: {total_inserted})')
+                    
+                except Exception as e:
+                    logger.error(f'❌ Error inserting batch {i//batch_size + 1}: {e}')
+                    continue
+        
+        # Final statistics
+        final_count = await conn.fetchval('SELECT COUNT(*) FROM dev_instrument_tiingo')
+        logger.info(f'✅ Final count in dev_instrument_tiingo: {final_count}')
+        
+        logger.info('🎉 Tiingo instrument population completed successfully!')
+        
+    except Exception as e:
+        logger.error(f'❌ Error during Tiingo population: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        raise
+        
+    finally:
+        await conn.close()
+
+if __name__ == "__main__":
+    asyncio.run(fetch_tiingo_instruments())
+EOF
+            python3 /tmp/tiingo_populate.py
+          fi
+        workingDir: /workspace
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+  backoffLimit: 3

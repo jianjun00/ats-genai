@@ -1,0 +1,31 @@
+# Minimal gin configuration for data population scripts
+quandl_api_key = 'REPLACE_WITH_ACTUAL_QUANDL_API_KEY'
+fmp_api_key = 'REPLACE_WITH_ACTUAL_FMP_API_KEY'
+polygon_api_key = 'REPLACE_WITH_ACTUAL_POLYGON_API_KEY'
+tiingo_api_key = 'REPLACE_WITH_ACTUAL_TIINGO_API_KEY'
+eodhd_api_key = 'REPLACE_WITH_ACTUAL_EODHD_API_KEY'
+
+# Features
+bind = ['enable_caching', False]
+bind = ['enable_metrics', False]
+bind = ['strict_validation', True]
+
+# Only import minimal config
+import config.environment
+
+# Configure the environment for Docker
+# Define macros for environment types
+DOCKER = "DOCKER"
+
+# Database configuration - configured via environment variables
+database_host = 'postgres'
+database_port = 5432
+database_name = 'dev_db'
+database_user = 'postgres'
+
+# Environment configuration
+environment_type = 'dev'
+environment_db_host = 'postgres'
+environment_db_name = 'dev_db'
+environment_allow_table_creation = True
+environment_db_port = 5432
