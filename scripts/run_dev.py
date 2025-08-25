@@ -154,7 +154,7 @@ spec:
         image: postgres:13
         command: ["psql"]
         args:
-          - "postgresql://postgres:dev_password@postgres-simple:5432/dev_db"
+          - "postgresql://postgres:dev_password@postgres:5432/dev_db"
           - "-c"
           - "{sql_query}"
       restartPolicy: Never
