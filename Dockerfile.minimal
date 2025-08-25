@@ -37,7 +37,22 @@ RUN pip install --upgrade pip && \
         uvicorn[standard]==0.33.0 \
         pydantic==2.10.4 \
         numpy==1.26.4 \
-        sqlparse==0.5.3
+        sqlparse==0.5.3 \
+        sqlalchemy==2.0.25 \
+        scikit-learn==1.5.2 \
+        pytz==2025.2 \
+        structlog==25.1.0 \
+        prometheus-client==0.21.1 \
+        psutil==6.0.0 \
+        pandas-market-calendars==4.4.1 \
+        pyarrow==18.1.0 \
+        h5py==3.14.0 \
+        protobuf==5.29.2 \
+        ib_insync==0.9.86 \
+        attrs==25.3.0 \
+        websockets==15.0.1 \
+        aiohappyeyeballs==2.6.1 \
+        aiosignal==1.4.0
 
 # Verify packages are installed
 RUN echo "Verifying packages:" && \
@@ -48,6 +63,12 @@ RUN echo "Verifying packages:" && \
     python -c "import ray; print('✅ ray')" && \
     python -c "import gin; print('✅ gin-config')" && \
     python -c "import psycopg2; print('✅ psycopg2')" && \
+    python -c "import sqlalchemy; print('✅ sqlalchemy')" && \
+    python -c "import sklearn; print('✅ scikit-learn')" && \
+    python -c "import structlog; print('✅ structlog')" && \
+    python -c "import pandas_market_calendars; print('✅ pandas_market_calendars')" && \
+    python -c "import pyarrow; print('✅ pyarrow')" && \
+    python -c "import h5py; print('✅ h5py')" && \
     echo "All essential packages verified"
 
 # Copy only essential config files
