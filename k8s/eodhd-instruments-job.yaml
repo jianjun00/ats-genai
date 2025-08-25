@@ -14,7 +14,7 @@ spec:
         - name: ENVIRONMENT
           value: "dev"
         - name: DB_HOST
-          value: "postgres-simple"
+          value: "postgres"
         - name: DB_PORT
           value: "5432"
         - name: DB_USER
