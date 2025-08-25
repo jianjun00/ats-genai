@@ -5,13 +5,14 @@ This directory contains the Kubernetes secret definitions for the ATS platform. 
 ## 🔐 Available Secrets
 
 ### `api-credentials`
-External API keys for data sources.
+External API keys for data sources and Docker Hub.
 
 | Key | Description | Example |
 |-----|-------------|---------|
 | `polygon-api-key` | Polygon.io API key | `wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD` |
 | `tiingo-api-key` | Tiingo API key | `5f40b4f36e171405746304ec0e5a6f3aa9ca77e5` |
 | `eodhd-api-key` | EODHD API key | `679d7e11e25c51.17772351` |
+| `docker-hub-token` | Docker Hub personal access token | `dckr_pat_xxxxxxxxxxxxxxxxxxxxxxxxxxxx` |
 
 ### `db-credentials`
 Database connection parameters.

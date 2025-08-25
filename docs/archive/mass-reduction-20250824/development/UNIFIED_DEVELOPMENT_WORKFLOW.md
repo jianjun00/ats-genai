@@ -569,6 +569,7 @@ kubectl create secret generic api-credentials \
   --from-literal=polygon-api-key="your-polygon-key" \
   --from-literal=tiingo-api-key="your-tiingo-key" \
   --from-literal=eodhd-api-key="your-eodhd-key" \
+  --from-literal=docker-hub-token="dckr_pat_your_token_here" \
   -n ats-dev
 
 # Create database credentials secret
@@ -591,7 +592,7 @@ kubectl create secret generic git-credentials \
 
 | Secret Name | Keys | Purpose |
 |-------------|------|---------|
-| `api-credentials` | `polygon-api-key`, `tiingo-api-key`, `eodhd-api-key` | External API access |
+| `api-credentials` | `polygon-api-key`, `tiingo-api-key`, `eodhd-api-key`, `docker-hub-token` | External API access and Docker Hub |
 | `db-credentials` | `db-host`, `db-port`, `db-user`, `db-password`, `db-name` | Database connection |
 | `git-credentials` | `git-token`, `git-repo-url` | Source code access |
 
