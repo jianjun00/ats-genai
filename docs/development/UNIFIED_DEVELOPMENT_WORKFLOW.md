@@ -403,17 +403,76 @@ spec:
             --limit 1000
 ```
 
-### ❌ **ANTI-PATTERN: Inline Code in YAML**
+### ❌ **ANTI-PATTERN: Python Logic in YAML Files**
+
+**🚨 ABSOLUTELY FORBIDDEN: NO PYTHON CODE IN YAML FILES**
 
 ```yaml
-# DON'T DO THIS - code belongs in src/ directory
+# ❌ NEVER DO THIS - Python logic embedded in YAML
 command: ["python3"]
 args: ["-c", "
 import asyncio
 import asyncpg
-# ... 200 lines of Python code embedded in YAML
+# ... ANY Python code embedded in YAML
 asyncio.run(main())
 "]
+
+# ❌ NEVER DO THIS - Heredoc with Python code
+args:
+- |
+  python3 -c "
+  import asyncio
+  # ... Python logic in YAML
+  "
+
+# ❌ NEVER DO THIS - Multi-line Python in args
+args:
+- |
+  cat > /tmp/script.py << 'EOF'
+  import asyncio
+  # ... Python code
+  EOF
+  python3 /tmp/script.py
+```
+
+**🚨 RULE: Python code must ONLY exist in src/ directory and be pulled from git.**
+
+### ✅ **CORRECT: YAML Only Executes Scripts from src/**
+
+**The job YAML should ONLY:**
+1. Pull source code from git
+2. Execute existing Python scripts from src/ directory
+3. Set environment variables
+4. Configure resources
+
+```yaml
+# ✅ CORRECT: YAML executes scripts from git source
+command: ["/bin/bash", "-c"]
+args:
+- |
+  # Pull source from git
+  cd /workspace
+  git clone https://${GIT_TOKEN}@github.com/your-org/ats-genai.git temp
+  cp -r temp/* .
+  rm -rf temp
+  
+  # Execute existing script from src/
+  python3 src/secmaster/populate_instrument_polygon.py \
+    --environment dev \
+    --limit 1000
+```
+
+**Python scripts live in src/ directory structure:**
+```
+src/
+├── secmaster/
+│   ├── populate_instrument_polygon.py     ✅ Source controlled
+│   ├── populate_market_cap_tiingo.py      ✅ Source controlled
+│   └── populate_instrument_eodhd.py       ✅ Source controlled
+├── dao/
+│   └── instrument_dao.py                  ✅ Source controlled
+└── config/
+    └── environment.py                     ✅ Source controlled
 ```
 
 ### ❌ **ANTI-PATTERN: ConfigMap Code Storage**
@@ -561,6 +620,46 @@ kubectl create secret generic api-credentials --from-literal=polygon-api-key="ne
 4. **Limit secret access** using RBAC
 5. **Monitor secret usage** in production
 6. **Use external secret management** (AWS Secrets Manager, HashiCorp Vault) for production
+
+## 🚫 **ABSOLUTE PROHIBITION: No Python Code in YAML**
+
+### 🚨 **ENFORCEMENT RULES**
+
+**During Code Review:**
+- ❌ **Immediate rejection** if ANY Python code is found in YAML files
+- ❌ **Immediate rejection** if ConfigMaps contain Python scripts  
+- ❌ **Immediate rejection** if `python -c` or heredoc with Python is used
+- ✅ **Only approval** if YAML executes scripts from src/ directory
+
+**Why This Rule Exists:**
+1. **🔍 Code Review**: Python in YAML cannot be properly reviewed
+2. **🧪 Testing**: Embedded code cannot be unit tested
+3. **🔄 Version Control**: Changes to embedded code bypass git tracking
+4. **🔒 Security**: Embedded code bypasses security scanning
+5. **📖 Maintenance**: Embedded code is impossible to refactor/debug
+
+**Exception Policy:**
+- **No exceptions allowed**
+- **All Python logic must be in src/ directory**
+- **All scripts must be pulled from git repository**
+
+### ✅ **Correct Development Flow**
+
+```bash
+# 1. Write Python script in src/ directory
+touch src/secmaster/populate_new_data_source.py
+# ... develop and test locally ...
+
+# 2. Commit to git
+git add src/secmaster/populate_new_data_source.py
+git commit -m "feat: add new data source population"
+
+# 3. Create K8s job YAML that executes the script
+# YAML only contains: git pull + script execution + env vars
+
+# 4. Deploy job - it pulls latest source and runs script
+kubectl apply -f k8s/jobs/populate-new-data-source-job.yaml
+```
 
 ## 📋 Workflow Commands Reference
 
