@@ -470,6 +470,98 @@ git clone git@github.com:your-org/ats-genai-data.git
 git clone https://token:x-oauth-basic@github.com/your-org/ats-genai-data.git
 ```
 
+## 🔐 Kubernetes Secrets Management
+
+### ✅ **CORRECT: Using Kubernetes Secrets for Credentials**
+
+**Never hardcode credentials in YAML files. Always use Kubernetes secrets:**
+
+```yaml
+# ✅ CORRECT: Using secretKeyRef
+env:
+- name: POLYGON_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: api-credentials
+      key: polygon-api-key
+- name: DB_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: db-credentials
+      key: db-password
+```
+
+### ❌ **ANTI-PATTERN: Hardcoded Credentials**
+
+```yaml
+# ❌ WRONG: Hardcoded credentials in YAML
+env:
+- name: POLYGON_API_KEY
+  value: "wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"  # NEVER DO THIS
+- name: DB_PASSWORD
+  value: "dev_password"  # SECURITY RISK
+```
+
+### 🔧 **Creating and Managing Secrets**
+
+```bash
+# Create API credentials secret
+kubectl create secret generic api-credentials \
+  --from-literal=polygon-api-key="your-polygon-key" \
+  --from-literal=tiingo-api-key="your-tiingo-key" \
+  --from-literal=eodhd-api-key="your-eodhd-key" \
+  -n ats-dev
+
+# Create database credentials secret
+kubectl create secret generic db-credentials \
+  --from-literal=db-host="postgres" \
+  --from-literal=db-port="5432" \
+  --from-literal=db-user="postgres" \
+  --from-literal=db-password="dev_password" \
+  --from-literal=db-name="dev_db" \
+  -n ats-dev
+
+# Create git credentials secret
+kubectl create secret generic git-credentials \
+  --from-literal=git-token="ghp_your_token_here" \
+  --from-literal=git-repo-url="https://github.com/your-org/ats-genai.git" \
+  -n ats-dev
+```
+
+### 📋 **Available Secrets in ATS Platform**
+
+| Secret Name | Keys | Purpose |
+|-------------|------|---------|
+| `api-credentials` | `polygon-api-key`, `tiingo-api-key`, `eodhd-api-key` | External API access |
+| `db-credentials` | `db-host`, `db-port`, `db-user`, `db-password`, `db-name` | Database connection |
+| `git-credentials` | `git-token`, `git-repo-url` | Source code access |
+
+### 🔍 **Secret Management Commands**
+
+```bash
+# View secret keys (values are base64 encoded)
+kubectl get secret api-credentials -n ats-dev -o yaml
+
+# Decode secret value
+kubectl get secret api-credentials -n ats-dev -o jsonpath='{.data.polygon-api-key}' | base64 -d
+
+# Update secret
+kubectl patch secret api-credentials -n ats-dev -p='{"data":{"polygon-api-key":"bmV3LWFwaS1rZXk="}}'
+
+# Delete and recreate secret
+kubectl delete secret api-credentials -n ats-dev
+kubectl create secret generic api-credentials --from-literal=polygon-api-key="new-key" -n ats-dev
+```
+
+### 🚨 **Critical Security Rules**
+
+1. **Never commit secrets** to git repositories
+2. **Use different secrets** for dev/staging/prod environments
+3. **Rotate credentials regularly** (at least quarterly)
+4. **Limit secret access** using RBAC
+5. **Monitor secret usage** in production
+6. **Use external secret management** (AWS Secrets Manager, HashiCorp Vault) for production
+
 ## 📋 Workflow Commands Reference
 
 ### Git Workflow
