@@ -1,8 +1,0 @@
-# Monitoring placeholder - will be implemented in future phases
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: monitoring-placeholder
-  namespace: ats-dev
-data:
-  status: "placeholder"

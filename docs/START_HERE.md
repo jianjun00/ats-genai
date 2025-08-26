@@ -81,7 +81,7 @@ python scripts/run_dev.py test
 ### 🔄 End-to-End Validation
 
 **Features aren't complete until entire pipeline works:**
-1. **Generate real data** in K8s cluster
+1. **Generate real data** using Docker services
 2. **Store in database** with correct schema  
 3. **API serves data** to external clients
 4. **Frontend displays data** in browser
@@ -93,32 +93,32 @@ python scripts/run_dev.py test
 
 ### 🔧 Backend Engineer
 ```bash
-# Deploy API endpoint
-kubectl apply -f k8s/your-service.yaml
+# Start API service
+python scripts/run_dev.py start --service api
 # Test external access
-curl -s "http://external-ip:port/api/endpoint" | jq
+curl -s "http://localhost:8000/health" | jq
 ```
 
 ### 📊 Data Engineer
 ```bash
 # Run data pipeline
-python scripts/run_dev.py deploy --file k8s/data-pipeline-job.yaml
+python scripts/run_dev.py run --script scripts/data_pipeline.py
 # Verify data quality
 python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_prices WHERE symbol IN ('AAPL', 'MSFT')"
 ```
 
 ### 🎨 Frontend Engineer  
 ```bash
-# Deploy webapp
-kubectl apply -f k8s/webapp-deployment.yaml
+# Start analytics service
+python scripts/run_dev.py start --service analytics
 # Test in browser
-curl -s "http://external-ip:port/" | grep "Welcome to ATS"
+curl -s "http://localhost:3001/health" | grep -E "(OK|healthy)"
 ```
 
 ### 🤖 Model Developer
 ```bash
 # Generate training data
-python scripts/run_dev.py deploy --file k8s/enhanced-training-job.yaml
+python scripts/run_dev.py run --script scripts/enhanced_training.py
 # Verify dataset
 python scripts/run_dev.py query --query "SELECT dataset_name, total_sequences FROM dev_training_dataset ORDER BY id DESC LIMIT 5"
 ```
@@ -136,7 +136,7 @@ python scripts/run_dev.py query --query "SELECT version()"
 python scripts/run_dev.py status
 
 # 3. External service access
-curl -s "http://$(kubectl get nodes -o wide | awk 'NR==2{print $6}'):32090/health" | jq
+curl -s "http://localhost:3001/health" | jq
 
 # 4. Integration tests
 PYTHONPATH=src pytest tests/integration/ -v --tb=short
@@ -148,17 +148,17 @@ PYTHONPATH=src pytest tests/integration/ -v --tb=short
 
 ### "dev CLI not working"
 ```bash
-# Check cluster access
-kubectl get pods -n ats-dev
-# If fails: ask team for cluster access
-# If works: check dev CLI exists at scripts/dev_cli.py
+# Check Docker services
+python scripts/run_dev.py status
+# If fails: check Docker is running
+# If works: check dev CLI exists at scripts/run_dev.py
 ```
 
 ### "Database connection failed"  
 ```bash
 python scripts/run_dev.py query --query "SELECT 1"
-# If fails: check port forwarding is running
-ps aux | grep port-forward
+# If fails: check PostgreSQL service is running
+python scripts/run_dev.py status
 ```
 
 ### "Tests failing"
@@ -169,10 +169,10 @@ PYTHONPATH=src pytest tests/integration/specific_test.py -v -s
 
 ### "External access not working"
 ```bash
-# Get correct external IP and port (NOT localhost)
-kubectl get nodes -o wide
-kubectl get service service-name -n ats-dev  
-curl -v "http://NODE_IP:NODE_PORT/health"
+# Check service is running and get port
+python scripts/run_dev.py status
+# Test local access first
+curl -v "http://localhost:3001/health"
 ```
 
 ---
@@ -185,7 +185,7 @@ curl -v "http://NODE_IP:NODE_PORT/health"
 - **[🔧 Backend Platform](backend-platform/)** - APIs, services, business logic
 - **[📊 Data Infrastructure](data-infrastructure/)** - Data pipelines, storage, ETL
 - **[🤖 ML Platform](ml-platform/)** - Training, models, AI optimization
-- **[☁️ Online Infrastructure](online-infrastructure/)** - K8s, CI/CD, monitoring
+- **[☁️ Online Infrastructure](online-infrastructure/)** - Docker, CI/CD, monitoring
 
 ### **📖 Deep Dive Guides**
 - **[💻 DEVELOPMENT.md](DEVELOPMENT.md)** - Complete development workflow, testing, CI/CD
@@ -198,10 +198,10 @@ curl -v "http://NODE_IP:NODE_PORT/health"
 **You're ready to contribute when you can:**
 - [ ] Run `python scripts/run_dev.py query --query "SELECT 1"` successfully
 - [ ] Execute a data job and see results in database
-- [ ] Deploy a webapp and access it via external IP
+- [ ] Start a service and access it via localhost
 - [ ] Write failing test → implement code → see test pass
 - [ ] Run integration tests and have them pass  
-- [ ] Access services externally (not just port-forwarding)
+- [ ] Access services via Docker networking
 
 ---
 
@@ -212,7 +212,7 @@ curl -v "http://NODE_IP:NODE_PORT/health"
 - **🌿 Feature branches only** - NEVER commit to main
 - **🔍 Schema validation first** - prevent database errors
 - **🧪 TDD required** - tests before code
-- **☸️ K8s for everything** - no local scripts
+- **🐳 Docker for everything** - use run_dev.py and run_intg.py
 - **🚫 No demo data** - real data only in dev/staging/prod
 - **✅ End-to-end validation** - complete pipelines must work
 

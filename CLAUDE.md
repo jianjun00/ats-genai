@@ -233,12 +233,12 @@ python scripts/run_dev.py logs --service analytics
 - User: `postgres`, Password: `dev_password`, Database: `dev_db`
 - Started with: `python scripts/run_dev.py start --service postgres`
 
-**Port-forwarded K8s (fallback):**
+**Integration PostgreSQL:**
 - Host: `localhost`, Port: `5433`  
-- User: `postgres`, Password: `dev_password`, Database: `dev_db`
-- Started with: `kubectl port-forward svc/postgres -n ats-dev 5433:5432`
+- User: `postgres`, Password: `intg_password`, Database: `intg_db`
+- Started with: `python scripts/run_intg.py start --service postgres`
 
-**Auto-detection:** run_dev automatically detects available connection
+**Auto-detection:** run_dev and run_intg automatically detect available connections
 
 ---
 
