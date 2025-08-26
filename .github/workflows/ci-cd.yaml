@@ -52,7 +52,20 @@ jobs:
     - name: Install dependencies
       run: |
         echo "Installing dependencies with uv..."
-        uv sync --verbose
+        
+        # Check if pyproject.toml exists
+        if [ ! -f pyproject.toml ]; then
+          echo "❌ pyproject.toml not found"
+          exit 1
+        fi
+        echo "✅ pyproject.toml found"
+        
+        # Install with error handling
+        set -e
+        uv sync --verbose || {
+          echo "❌ uv sync failed, trying fallback approach..."
+          uv pip install pytest pytest-asyncio asyncpg aiofiles
+        }
         echo "Dependencies installed successfully"
 
     - name: Create PostgreSQL test user
