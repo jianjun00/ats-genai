@@ -45,8 +45,8 @@ async def get_jobs():
         pool = await get_db_connection()
         async with pool.acquire() as conn:
             jobs = await conn.fetch("""
-                SELECT job_id, vendor, symbol, status, created_at, completed_at, 
-                       rows_processed, error_message 
+                SELECT job_id, vendor, symbol, status, started_at, completed_at, 
+                       records_collected, error_message, created_at 
                 FROM vendor_job_progress 
                 ORDER BY created_at DESC 
                 LIMIT 10
@@ -72,8 +72,8 @@ async def get_datasets():
         pool = await get_db_connection()
         async with pool.acquire() as conn:
             datasets = await conn.fetch("""
-                SELECT dataset_id, dataset_name, description, symbols, 
-                       creation_timestamp, dataset_size_mb
+                SELECT id, dataset_name, symbol, file_size_mb, 
+                       record_count, creation_timestamp, status
                 FROM dev_training_dataset 
                 ORDER BY creation_timestamp DESC 
                 LIMIT 10
@@ -255,7 +255,7 @@ async def dashboard():
                             `<div style="margin: 3px 0; padding: 3px; border-left: 3px solid #ddd;">
                                 <strong>${job.vendor}/${job.symbol}</strong> 
                                 <span class="status ${job.status === 'completed' ? 'healthy' : job.status === 'running' ? 'running' : 'error'}" style="font-size: 0.7em; padding: 1px 4px;">${job.status}</span><br>
-                                <small>${new Date(job.created_at).toLocaleDateString()}</small>
+                                <small>Records: ${job.records_collected || 0} • ${new Date(job.created_at).toLocaleDateString()}</small>
                             </div>`
                         ).join('');
                     }
@@ -282,7 +282,7 @@ async def dashboard():
                         document.getElementById('recent-datasets').innerHTML = data.datasets.slice(0, 5).map(ds => 
                             `<div style="margin: 3px 0; padding: 3px; border-left: 3px solid #ddd;">
                                 <strong>${ds.dataset_name}</strong><br>
-                                <small>${ds.symbols} • ${(ds.dataset_size_mb || 0).toFixed(1)}MB</small><br>
+                                <small>${ds.symbol} • ${(ds.file_size_mb || 0).toFixed(1)}MB • ${ds.record_count || 0} records</small><br>
                                 <small>${new Date(ds.creation_timestamp).toLocaleDateString()}</small>
                             </div>`
                         ).join('');
