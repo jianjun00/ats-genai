@@ -6,9 +6,9 @@
 
 ## 📋 What Is ATS?
 
-**ATS is a Kubernetes-first fintech platform** for algorithmic trading:
+**ATS is a Docker + GPU-enabled fintech platform** for algorithmic trading:
 - **🏗️ Enterprise Architecture**: Market-neutral portfolio optimization, multi-vendor data, Smart Money Zones
-- **☸️ Kubernetes-Native**: Everything runs in K8s (ats-dev namespace) 
+- **🐳 Docker-First**: Everything runs in Docker containers with GPU support
 - **🧪 Test-Driven**: Write failing tests first, then implement
 - **🔄 End-to-End**: Real data → Database → API → Frontend → Tests pass
 
@@ -23,17 +23,17 @@ cd ats-genai
 uv sync
 ```
 
-### 2. Verify Dev CLI Access (2 min)
+### 2. Setup Dev Environment (2 min)
 ```bash
-# Test dev CLI - this is your PRIMARY interface
-python scripts/run_dev.py query --query "SELECT 1"
-# ✅ Success = you're connected to K8s cluster
-# ❌ Fails = ask team for cluster access
+# Setup complete development environment
+python scripts/run_dev.py setup
+# ✅ Success = Docker PostgreSQL started, database ready
+# ❌ Fails = check Docker Desktop is running
 ```
 
 ### 3. Run First Test (1 min)
 ```bash
-PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py::TestAnalyticsPlatformIntegration::test_backend_api_can_start -v
+python scripts/run_dev.py test --test tests/integration/test_analytics_platform_integration.py
 # ✅ Pass = environment ready
 # ❌ Fail = check troubleshooting below
 ```
@@ -42,20 +42,20 @@ PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py::
 
 ## 🎯 Core Concepts (10 minutes)
 
-### ☸️ Kubernetes-First Development
+### 🐳 Docker-First Development
 
 **✅ ALWAYS Use:**
 ```bash
 python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_prices"
-python scripts/run_dev.py deploy --file k8s/price-unification-job.yaml
-python scripts/run_dev.py logs --job job-name
-python scripts/run_dev.py status
+python scripts/run_dev.py run --script scripts/data_generation/create_sample_data.py
+python scripts/run_dev.py start --service postgres  # Start services
+python scripts/run_dev.py status                 # Check running services
 ```
 
 **❌ NEVER Use:**
 ```bash
-kubectl get pods -n ats-dev              # Use python scripts/run_dev.py instead
-PYTHONPATH=src python script.py          # Use K8s jobs instead
+docker run ...                          # Use python scripts/run_dev.py instead
+docker-compose up                       # Use run_dev service management
 ```
 
 ### 🧪 Test-Driven Development (TDD)
@@ -64,18 +64,18 @@ PYTHONPATH=src python script.py          # Use K8s jobs instead
 ```bash
 # 1. Write failing test FIRST
 touch tests/integration/test_new_feature.py
-PYTHONPATH=src pytest tests/integration/test_new_feature.py -v
+python scripts/run_dev.py test --test tests/integration/test_new_feature.py
 # ✅ Should FAIL (proves test works)
 
 # 2. Write minimal code to make test pass
 # (implement your feature in src/)
 
 # 3. Verify test passes
-PYTHONPATH=src pytest tests/integration/test_new_feature.py -v
+python scripts/run_dev.py test --test tests/integration/test_new_feature.py
 # ✅ Should PASS
 
 # 4. Run full test suite
-PYTHONPATH=src pytest tests/ -v
+python scripts/run_dev.py test
 ```
 
 ### 🔄 End-to-End Validation

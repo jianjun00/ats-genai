@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Dev CLI for running jobs in ats-dev Kubernetes namespace
+DEPRECATED: This is the old K8s-based dev CLI
 
-Automatically handles kubectl commands, namespace targeting, and monitoring
-without requiring manual password entry or kubectl knowledge.
+Use scripts/run_dev.py instead, which provides Docker-based development
+with GPU support and localhost services.
+
+This file is kept for reference only.
 """
 
 import subprocess

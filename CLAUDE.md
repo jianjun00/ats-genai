@@ -10,7 +10,7 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 
 **ALWAYS find opportunities to refactor code to remove duplicate functionality and delete unused code:**
 
-## 🚨 CRITICAL: Kubernetes-First Development
+## 🚨 CRITICAL: Docker + GPU Development
 
 **Never use mock or fake data other than unit test:**
 
@@ -26,13 +26,14 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 
 **ALWAYS create unit test for new code and think hard about test coverage and then run manual test in dev before claiming task is completed:**
 
-**ALWAYS USE KUBERNETES FOR DEV OPERATIONS:**
+**ALWAYS USE DOCKER FOR DEV OPERATIONS:**
 
-- ✅ **DEV Environment = Kubernetes (ats-dev namespace)**
-- ✅ **Database = postgres service in K8s cluster**  
-- ✅ **All operations = Use run_dev (NEVER kubectl directly)**
-- ❌ **NEVER run scripts locally for dev environment**
-- ❌ **NEVER manually set environment variables**
+- ✅ **DEV Environment = Docker containers on localhost**
+- ✅ **GPU Support = Docker with --gpus all flag**  
+- ✅ **Database = PostgreSQL container or localhost**
+- ✅ **All operations = Use run_dev (handles Docker automatically)**
+- ❌ **NEVER run complex setup manually**
+- ❌ **NEVER manually manage container lifecycle**
 
 
 
@@ -40,11 +41,16 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 
 ```bash
 # Your primary interface - use for ALL operations
+python scripts/run_dev.py setup                    # Setup dev environment
 python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_prices"
-python scripts/run_dev.py deploy --file k8s/price-unification-job.yaml
-python scripts/run_dev.py logs --job job-name
+python scripts/run_dev.py run --script scripts/data_generation/create_sample_data.py
+python scripts/run_dev.py run --script scripts/training/train_model.py --gpu  # With GPU
+python scripts/run_dev.py start --service postgres # Start database
+python scripts/run_dev.py start --service analytics # Start analytics service
+python scripts/run_dev.py status                   # Check running services
+python scripts/run_dev.py test                     # Run tests
 
-# ❌ NEVER use kubectl directly for dev work
+# ❌ NEVER run docker commands manually for dev work
 # ✅ ALWAYS use python scripts/run_dev.py
 ```
 
@@ -104,103 +110,112 @@ python scripts/run_dev.py logs --job job-name
 ```bash
 # 1. Write failing test FIRST
 touch tests/integration/test_new_feature.py
-PYTHONPATH=src pytest tests/integration/test_new_feature.py -v
+python scripts/run_dev.py test --test tests/integration/test_new_feature.py
 # ✅ Should FAIL (proves test works)
 
 # 2. Implement minimal code to pass test
-# (write your code in src/ or scripts/k8s-extracted/)
+# (write your code in src/)
 
 # 3. Verify test passes  
-PYTHONPATH=src pytest tests/integration/test_new_feature.py -v
+python scripts/run_dev.py test --test tests/integration/test_new_feature.py
 # ✅ Should PASS
 
-# 4. Test K8s extracted scripts (if applicable)
-python -m pytest scripts/k8s-extracted/ -v
+# 4. Run all tests
+python scripts/run_dev.py test
 
-# 5. Integration testing
-PYTHONPATH=src pytest tests/integration/ -v
+# 5. Integration testing with services
+python scripts/run_dev.py setup  # Start required services
+python scripts/run_dev.py test --test tests/integration/
 ```
 
 ### End-to-End Validation Required
 **Every feature must be complete end-to-end:**
-1. Generate real data in K8s cluster
+1. Generate real data using Docker containers
 2. Store data in database with correct schema
-3. API serves data to external clients
+3. API serves data via localhost services
 4. Frontend displays data in browser
 5. All integration tests pass
 
 ### Infrastructure Best Practices
-- **Reuse existing patterns** - Check `kubectl get all -n ats-dev` first
+- **Reuse existing patterns** - Check `python scripts/run_dev.py status` first
 - **Use official Docker image** - Always use `dragonflyer762/ats-genai:latest` from Docker Hub
-- **Don't install packages in jobs** - Dependencies are pre-installed in Docker image
-- **External script references** - K8s YAML files reference scripts in `scripts/k8s-extracted/`
-- **No embedded code** - Keep application logic separate from K8s configuration
-- **Test external access** - Not just port-forwarding
+- **Don't install packages manually** - Dependencies are pre-installed in Docker image
+- **GPU Support** - Use `--gpu` flag for ML/AI workloads
+- **Service management** - Use run_dev to start/stop services automatically
+- **Database connections** - Automatically detects and connects to available database
 - **Environment is pre-configured** - Don't set variables manually
 
 ## 📋 Common Commands
 
-### Development
+### Development Setup
 ```bash
+# Setup complete development environment
+python scripts/run_dev.py setup
+
 # Testing
-PYTHONPATH=src pytest tests/integration/ -v --tb=short
-PYTHONPATH=src pytest tests/ -m database -v
-python -m pytest scripts/k8s-extracted/ -v
+python scripts/run_dev.py test
+python scripts/run_dev.py test --test tests/integration/
+python scripts/run_dev.py test --test tests/unit/
 
-# Database operations via python scripts/run_dev.py
+# Database operations
 python scripts/run_dev.py query --query "SELECT version()"
-python scripts/run_dev.py deploy --file k8s/migration-job.yaml
+python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_prices"
 ```
 
-### Job Management
+### Service Management
 ```bash
-# Run jobs
-python scripts/run_dev.py deploy --file k8s/price-unification-job.yaml
-python scripts/run_dev.py deploy --file k8s/enhanced-training-job.yaml
+# Start services
+python scripts/run_dev.py start --service postgres
+python scripts/run_dev.py start --service analytics
+python scripts/run_dev.py start --service api
 
-# Monitor jobs
+# Check running services
 python scripts/run_dev.py status
-python scripts/run_dev.py logs --job job-name
+
+# Stop services
+python scripts/run_dev.py stop --service analytics
 ```
 
-### External Access Testing
+### Script Execution
 ```bash
-# Get external IP and port (not localhost)
-kubectl get nodes -o wide
-kubectl get service service-name -n ats-dev
+# Run data generation scripts
+python scripts/run_dev.py run --script scripts/data_generation/create_sample_data.py
 
-# Test actual external URL
-curl -s "http://NODE_IP:NODE_PORT/health" | jq
+# Run ML training with GPU
+python scripts/run_dev.py run --script scripts/training/train_model.py --gpu
+
+# Check service logs
+python scripts/run_dev.py logs --service analytics
 ```
 
 ## 🚨 Critical Anti-Patterns to Avoid
 
 **Infrastructure:**
-- ❌ Using kubectl directly for dev operations
+- ❌ Running docker commands directly for dev operations
 - ❌ Setting environment variables manually  
-- ❌ Creating new deployment patterns when existing ones work
-- ❌ Installing packages in Kubernetes job containers
-- ❌ Embedding code in K8s YAML files (use scripts/k8s-extracted/)
-- ❌ Testing only via port-forwarding (test external access)
+- ❌ Creating new container patterns when existing ones work
+- ❌ Installing packages manually in containers
+- ❌ Running services without using run_dev
+- ❌ Managing container lifecycle manually
 
 **Development:**
 - ❌ Claiming functionality works without tests
 - ❌ Writing tests after code (TDD requires tests first)
 - ❌ Skipping integration tests (they're mandatory)
-- ❌ Not testing actual service startup
+- ❌ Not testing actual service startup with run_dev
 - ❌ Half-baked implementations (incomplete end-to-end)
 
 ## 🎯 Success Criteria
 
 **You're following best practices when:**
-- [ ] Using run_dev for all K8s operations
+- [ ] Using run_dev for all development operations
 - [ ] Writing failing tests before code changes
-- [ ] Testing K8s extracted scripts independently
+- [ ] Running tests with run_dev test command
 - [ ] Running integration tests and seeing them pass
-- [ ] Testing external access (not just port-forwarding)
+- [ ] Testing services with localhost access
 - [ ] Completing full end-to-end validation
-- [ ] Reusing existing infrastructure patterns
-- [ ] Keeping K8s YAML free of embedded application code
+- [ ] Reusing existing Docker/service patterns
+- [ ] Using GPU support when needed for ML workloads
 
 ## 🆘 Getting Help
 
@@ -213,13 +228,17 @@ curl -s "http://NODE_IP:NODE_PORT/health" | jq
 
 ## Database Connection Info (Reference)
 
-**Kubernetes (primary):**
-- Host: `postgres`, Port: `5432`
+**Docker PostgreSQL (primary):**
+- Host: `localhost`, Port: `5432`
 - User: `postgres`, Password: `dev_password`, Database: `dev_db`
+- Started with: `python scripts/run_dev.py start --service postgres`
 
-**Port-forwarding (local testing only):**
+**Port-forwarded K8s (fallback):**
 - Host: `localhost`, Port: `5433`  
-- User: `postgres`, Password: `postgres`, Database: `dev_db`
+- User: `postgres`, Password: `dev_password`, Database: `dev_db`
+- Started with: `kubectl port-forward svc/postgres -n ats-dev 5433:5432`
+
+**Auto-detection:** run_dev automatically detects available connection
 
 ---
 
