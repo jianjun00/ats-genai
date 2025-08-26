@@ -123,10 +123,22 @@ class DevCLI:
         
         # Mount directories and set database connection
         volume_mounts = self.get_volume_mounts()
+        
+        # Add network link to PostgreSQL if it exists
+        network_link = ""
+        postgres_check = subprocess.run("docker ps -q -f name=ats-dev-postgres", shell=True, capture_output=True)
+        if postgres_check.stdout.strip():
+            network_link = "--link ats-dev-postgres:postgres"
+            # Use postgres hostname when linked
+            db_host_for_container = "postgres"
+        else:
+            db_host_for_container = self.db_host
+
         cmd = f"""docker run --rm {gpu_flag} \
             {volume_mounts} \
+            {network_link} \
             -w /workspace \
-            -e DB_HOST={self.db_host} \
+            -e DB_HOST={db_host_for_container} \
             -e DB_PORT={self.db_port} \
             -e DB_USER={self.db_user} \
             -e DB_PASSWORD={self.db_password} \
