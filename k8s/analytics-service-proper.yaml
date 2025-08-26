@@ -24,8 +24,15 @@ spec:
         args:
         - "-c"
         - |
-          echo "📦 Cloning source code from private repository with token..."
-          git clone -b feature/analytics-service-deployment https://${GITHUB_TOKEN}@github.com/AkoloTechnologies/ats-genai.git /tmp/src-repo
+          echo "📦 Downloading source code from private repository via GitHub API..."
+          curl -H "Authorization: token ${GITHUB_TOKEN}" \
+               -H "Accept: application/vnd.github.v3.raw" \
+               -o /tmp/analytics.py \
+               https://api.github.com/repos/AkoloTechnologies/ats-genai/contents/src/services/analytics/unified_analytics_app.py?ref=feature/analytics-service-deployment
+          
+          echo "📂 Creating src structure..."
+          mkdir -p /tmp/src-repo/src/services/analytics
+          cp /tmp/analytics.py /tmp/src-repo/src/services/analytics/unified_analytics_app.py
           cd /tmp/src-repo
           
           echo "🚀 Starting ATS Analytics Service..."
