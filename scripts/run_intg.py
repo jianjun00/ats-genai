@@ -20,7 +20,7 @@ class IntgCLI:
         self.db_host = "localhost"
         self.db_port = "5433"  # Integration PostgreSQL port (different from dev)
         self.db_user = "postgres"
-        self.db_password = "dev_password"
+        self.db_password = "intg_password"
         self.db_name = "intg_db"
         
         # ATS persistent volume paths (D: drive) - Integration specific
