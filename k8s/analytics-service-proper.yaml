@@ -24,15 +24,9 @@ spec:
         args:
         - "-c"
         - |
-          echo "📦 Installing git (dependencies already in Docker image)..."
-          apt-get update && apt-get install -y git
-          
-          echo "📦 Cloning source code from Git with credentials..."
           git clone -b feature/analytics-service-deployment https://${GITHUB_TOKEN}:x-oauth-basic@github.com/AkoloTechnologies/ats-genai.git /tmp/src-repo
           cd /tmp/src-repo
-          
-          echo "🚀 Starting ATS Analytics Service..."
-          PYTHONPATH=src python3 src/services/analytics_service.py
+          PYTHONPATH=src python3 src/services/analytics/unified_analytics_app.py
         ports:
         - containerPort: 8000
           name: http
