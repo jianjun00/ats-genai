@@ -24,7 +24,7 @@ spec:
         args:
         - "-c"
         - |
-          git clone -b feature/analytics-service-deployment https://${GITHUB_TOKEN}:x-oauth-basic@github.com/AkoloTechnologies/ats-genai.git /tmp/src-repo
+          git clone -b feature/analytics-service-deployment https://github.com/AkoloTechnologies/ats-genai.git /tmp/src-repo
           cd /tmp/src-repo
           PYTHONPATH=src python3 src/services/analytics/unified_analytics_app.py
         ports:
