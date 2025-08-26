@@ -24,6 +24,18 @@ graph TB
     H --> E
 ```
 
+## 📥 **Schema Design Update (Based on Vendor Analysis)**
+
+**Key Schema Simplification**: Analysis of vendor data (Tiingo, Polygon, EODHD) shows that all major vendors automatically handle corporate actions in their `adjusted_close` prices:
+
+**✅ AAPL 7:1 Split Evidence (2014-06-09)**:
+- Tiingo provides both `close_price` (raw) and `adj_close_price` (split/dividend adjusted)
+- Raw prices: $645.57 → $93.70 (7:1 split automatically applied)  
+- Adjusted prices: $20.28 → $20.60 (continuity maintained across corporate actions)
+- Volume properly adjusted: 12.4M → 75.4M shares
+
+**Schema Decision**: Remove `split_factor` and `dividend` columns as **redundant** - vendors handle this automatically in adjusted price feeds.
+
 ## 📥 **Phase 1: Historical Backfill System**
 
 ### **Multi-Vendor Data Orchestration**
@@ -307,6 +319,8 @@ SELECT add_compression_policy('dev_daily_prices', INTERVAL '2 years');
 CREATE INDEX idx_daily_prices_symbol_date ON dev_daily_prices (symbol, date DESC);
 CREATE INDEX idx_daily_prices_date ON dev_daily_prices (date DESC) WHERE date >= NOW() - INTERVAL '1 year';
 CREATE INDEX idx_daily_prices_vendor ON dev_daily_prices (data_vendor, symbol);
+CREATE INDEX idx_daily_prices_adjusted ON dev_daily_prices (symbol, date DESC) 
+    WHERE adjusted_close IS NOT NULL;
 ```
 
 ### **Data Partitioning Strategy**
