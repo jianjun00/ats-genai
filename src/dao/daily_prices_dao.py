@@ -1,14 +1,17 @@
 from config.environment import Environment
 import asyncpg
+import logging
 
 class DailyPricesDAO:
-    def __init__(self, db_url=None, env=None):
-        self.db_url = db_url or (env.get_database_url() if env else None)
+    def __init__(self, env: Environment):
         self.env = env
-        self.table_name = self.env.get_table_name('daily_prices_polygon') if self.env else None
-        print(f"[DAO DEBUG] DailyPricesDAO using db_url: {self.db_url}")
-        print(f"[DAO DEBUG] DailyPricesDAO env_type: {getattr(self.env, 'env_type', None)}")
-        print(f"[DAO DEBUG] DailyPricesDAO table_name: {self.table_name}")
+        self.table_name = self.env.get_table_name('daily_prices')
+        self.db_url = self.env.get_database_url()
+        self.logger = logging.getLogger(__name__)
+        self.logger.debug(f"DailyPricesDAO using db_url: {self.db_url}")
+        self.logger.debug(f"DailyPricesDAO env_type: {getattr(self.env, 'env_type', None)}")
+        self.logger.debug(f"DailyPricesDAO table_name: {self.table_name}")
+
     async def list_prices_for_date(self, as_of_date):
         pool = await asyncpg.create_pool(self.db_url)
         try:
@@ -16,18 +19,14 @@ class DailyPricesDAO:
                 return await conn.fetch(f"SELECT * FROM {self.table_name} WHERE date = $1", as_of_date)
         finally:
             await pool.close()
-    def __init__(self, env: Environment):
-        self.env = env
-        self.table_name = self.env.get_table_name('daily_prices')
-        self.db_url = self.env.get_database_url()
 
     async def list_prices_for_instruments_and_date(self, instrument_ids, as_of_date):
-        print(f"[DEBUG][list_prices_for_instruments_and_date] Called with instrument_ids={instrument_ids}, as_of_date={as_of_date}")
+        self.logger.debug(f"list_prices_for_instruments_and_date called with instrument_ids={instrument_ids}, as_of_date={as_of_date}")
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
                 rows = await conn.fetch(f"SELECT * FROM {self.table_name} WHERE date = $1 AND instrument_id = ANY($2)", as_of_date, instrument_ids)
-                print(f"[DEBUG][list_prices_for_instruments_and_date] Query returned {len(rows)} rows for date={as_of_date}")
+                self.logger.debug(f"Query returned {len(rows)} rows for date={as_of_date}")
                 if not rows:
                     # Also print all available dates for these instrument_ids
                     all_rows = await conn.fetch(f"SELECT date, instrument_id FROM {self.table_name} WHERE instrument_id = ANY($1) ORDER BY date", instrument_ids)
@@ -36,7 +35,7 @@ class DailyPricesDAO:
                         iid = r['instrument_id']
                         d = r['date']
                         date_map.setdefault(iid, []).append(str(d))
-                    print(f"[DEBUG][list_prices_for_instruments_and_date] Available dates per instrument_id: {date_map}")
+                    self.logger.debug(f"Available dates per instrument_id: {date_map}")
                 return rows
         finally:
             await pool.close()
@@ -58,7 +57,7 @@ class DailyPricesDAO:
             await pool.close()
 
     async def insert_price(self, date, instrument_id, open_, high, low, close, volume):
-        print(f"[DEBUG] insert_price called with: date={date}, instrument_id={instrument_id}, open={open_}, high={high}, low={low}, close={close}, volume={volume}")
+        self.logger.debug(f"insert_price called with: date={date}, instrument_id={instrument_id}, open={open_}, high={high}, low={low}, close={close}, volume={volume}")
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:

@@ -1,11 +1,13 @@
 from config.environment import Environment
 import asyncpg
+import logging
 
 class DailyPricesTiingoDAO:
     def __init__(self, env: Environment):
         self.env = env
         self.table_name = self.env.get_table_name('daily_prices_tiingo')
         self.db_url = self.env.get_database_url()
+        self.logger = logging.getLogger(__name__)
 
     async def insert_price(self, date, instrument_id, open_, high, low, close, adj_close, volume, status_id=None):
         pool = await asyncpg.create_pool(self.db_url, min_size=1, max_size=1)
@@ -31,7 +33,7 @@ class DailyPricesTiingoDAO:
         try:
             async with pool.acquire() as conn:
                 row = await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE date = $1 AND instrument_id = $2", date, instrument_id)
-                print(f"[DEBUG] get_price result for instrument_id={instrument_id}, date={date}: {row}")
+                self.logger.debug(f"get_price result for instrument_id={instrument_id}, date={date}: {row}")
                 return row
         finally:
             await pool.close()
@@ -41,7 +43,7 @@ class DailyPricesTiingoDAO:
         try:
             async with pool.acquire() as conn:
                 rows = await conn.fetch(f"SELECT * FROM {self.table_name} WHERE instrument_id = $1", instrument_id)
-                print(f"[DEBUG] list_prices result for instrument_id={instrument_id}: {rows}")
+                self.logger.debug(f"list_prices result for instrument_id={instrument_id}: {rows}")
                 return rows
         finally:
             await pool.close()
