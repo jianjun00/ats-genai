@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Dev CLI for running development operations with Docker and localhost services
+Integration CLI for running integration environment operations with Docker and localhost services
 
 Automatically handles Docker operations, database connections, and service management
-without requiring Kubernetes knowledge.
+for the integration environment without requiring Kubernetes knowledge.
 """
 
 import subprocess
@@ -15,18 +15,18 @@ import json
 import yaml
 from pathlib import Path
 
-class DevCLI:
+class IntgCLI:
     def __init__(self):
         self.db_host = "localhost"
-        self.db_port = "5432"  # Default PostgreSQL port
+        self.db_port = "5433"  # Integration PostgreSQL port (different from dev)
         self.db_user = "postgres"
         self.db_password = "dev_password"
-        self.db_name = "dev_db"
+        self.db_name = "intg_db"
         
-        # ATS persistent volume paths (D: drive)
-        self.ats_data_path = "/mnt/d/ats-data"
-        self.ats_backup_path = "/mnt/d/ats-backup"
-        self.ats_logs_path = "/mnt/d/ats-logs"
+        # ATS persistent volume paths (D: drive) - Integration specific
+        self.ats_data_path = "/mnt/d/ats-data/intg"
+        self.ats_backup_path = "/mnt/d/ats-backup/intg"
+        self.ats_logs_path = "/mnt/d/ats-logs/intg"
         
         # Ensure ATS directories exist
         self.ensure_ats_directories()
@@ -61,22 +61,15 @@ class DevCLI:
         
     def check_database_connection(self):
         """Check which database connection works"""
-        # Try localhost:5432 first (direct PostgreSQL)
-        if self.test_db_connection("localhost", "5432"):
-            self.db_host = "localhost"
-            self.db_port = "5432"
-            return
-            
-        # Try localhost:5433 (port-forwarded from k8s)
+        # Try localhost:5433 first (integration PostgreSQL)
         if self.test_db_connection("localhost", "5433"):
             self.db_host = "localhost"
             self.db_port = "5433"
             return
             
-        print("⚠️  No database connection available. You may need to:")
-        print("   1. Start local PostgreSQL")
-        print("   2. Start port-forwarding: kubectl port-forward svc/postgres -n ats-dev 5433:5432")
-        print("   3. Or run Docker PostgreSQL container")
+        print("⚠️  No integration database connection available. You may need to:")
+        print("   1. Start integration PostgreSQL: python scripts/run_intg.py start --service postgres")
+        print("   2. Or check integration database is running on port 5433")
         
     def test_db_connection(self, host, port):
         """Test database connection"""
@@ -110,7 +103,7 @@ class DevCLI:
             print(f"❌ Script not found: {script_path}")
             return False
             
-        print(f"🐳 Running Docker job: {script_path}")
+        print(f"🐳 Running Integration Docker job: {script_path}")
         
         # Build Docker command
         gpu_flag = "--gpus all" if gpu else ""
@@ -123,81 +116,67 @@ class DevCLI:
         
         # Mount directories and set database connection
         volume_mounts = self.get_volume_mounts()
-        cmd = f"""docker run --rm {gpu_flag} \
-            {volume_mounts} \
-            -w /workspace \
-            -e DB_HOST={self.db_host} \
-            -e DB_PORT={self.db_port} \
-            -e DB_USER={self.db_user} \
-            -e DB_PASSWORD={self.db_password} \
-            -e DB_NAME={self.db_name} \
-            -e PYTHONPATH=/workspace/src \
-            -e ATS_DATA_PATH=/data \
-            -e ATS_BACKUP_PATH=/backup \
-            -e ATS_LOGS_PATH=/logs \
-            {env_vars} \
-            {image} \
+        cmd = f"""docker run --rm {gpu_flag} \\
+            {volume_mounts} \\
+            -w /workspace \\
+            -e DB_HOST={self.db_host} \\
+            -e DB_PORT={self.db_port} \\
+            -e DB_USER={self.db_user} \\
+            -e DB_PASSWORD={self.db_password} \\
+            -e DB_NAME={self.db_name} \\
+            -e PYTHONPATH=/workspace/src \\
+            -e ATS_DATA_PATH=/data \\
+            -e ATS_BACKUP_PATH=/backup \\
+            -e ATS_LOGS_PATH=/logs \\
+            -e ENVIRONMENT=intg \\
+            {env_vars} \\
+            {image} \\
             python {script_path}"""
         
         print(f"🚀 Running: docker run ... python {script_path}")
         result = subprocess.run(cmd, shell=True)
         
         if result.returncode == 0:
-            print("✅ Job completed successfully")
+            print("✅ Integration job completed successfully")
             return True
         else:
-            print(f"❌ Job failed with exit code: {result.returncode}")
+            print(f"❌ Integration job failed with exit code: {result.returncode}")
             return False
     
     def start_service(self, service_name, port=None, gpu=False, environment=None):
         """Start a service using Docker"""
-        print(f"🚀 Starting service: {service_name}")
+        print(f"🚀 Starting integration service: {service_name}")
         
-        # Common service configurations
+        # Integration service configurations
         services = {
             "postgres": {
                 "image": "postgres:13",
-                "port": "5432:5432", 
+                "port": "5433:5432",  # Integration port
                 "env": {
                     "POSTGRES_USER": self.db_user,
                     "POSTGRES_PASSWORD": self.db_password,
                     "POSTGRES_DB": self.db_name
                 },
                 "volumes": [
-                    "postgres-data:/var/lib/postgresql/data",
+                    "postgres-intg-data:/var/lib/postgresql/data",
                     f"{self.ats_backup_path}:/backup"
                 ],
-                "backup_restore": True  # Enable automatic backup/restore to D: drive
-            },
-            "postgres-intg": {
-                "image": "postgres:13",
-                "port": "5433:5432",  # Different port to avoid conflicts
-                "env": {
-                    "POSTGRES_USER": self.db_user,
-                    "POSTGRES_PASSWORD": self.db_password,
-                    "POSTGRES_DB": "intg_db"  # Integration database
-                },
-                "volumes": [
-                    "postgres-intg-data:/var/lib/postgresql/data",
-                    f"{self.ats_backup_path}/intg:/backup"
-                ],
-                "backup_restore": True,
-                "environment": "intg"
+                "backup_restore": True
             },
             "analytics": {
                 "image": "dragonflyer762/ats-genai:latest",
-                "port": "3001:3001",
+                "port": "3002:3001",  # Different port for integration
                 "command": "python src/analytics/server.py"
             },
             "api": {
                 "image": "dragonflyer762/ats-genai:latest", 
-                "port": "8000:8000",
+                "port": "8001:8000",  # Different port for integration
                 "command": "python src/api/main.py"
             }
         }
         
         if service_name not in services:
-            print(f"❌ Unknown service: {service_name}")
+            print(f"❌ Unknown integration service: {service_name}")
             print(f"Available services: {', '.join(services.keys())}")
             return False
             
@@ -213,8 +192,8 @@ class DevCLI:
         if environment:
             env_vars += " " + " ".join([f"-e {k}={v}" for k, v in environment.items()])
         
-        # Container name
-        container_name = f"ats-dev-{service_name}"
+        # Container name with intg suffix
+        container_name = f"ats-intg-{service_name}"
         
         # Check if container is already running
         check_cmd = f"docker ps -q -f name={container_name}"
@@ -228,28 +207,17 @@ class DevCLI:
             for volume in config['volumes']:
                 volume_mounts += f" -v {volume}"
         
-        # Special handling for PostgreSQL to fix D: drive permissions
-        additional_args = ""
-        if service_name == "postgres":
-            # Initialize database directory with proper permissions
-            db_dir = f"{self.ats_data_path}/db"
-            if not os.path.exists(db_dir):
-                os.makedirs(db_dir, exist_ok=True)
-                print(f"📁 Created database directory: {db_dir}")
-            # Run as root initially to fix permissions, then PostgreSQL will handle user switching
-            additional_args = "--user root"
-        
-        cmd = f"""docker run -d --name {container_name} {gpu_flag} \
-            {volume_mounts} \
-            -w /workspace \
-            {port_flag} \
-            {additional_args} \
-            -e PYTHONPATH=/workspace/src \
-            -e ATS_DATA_PATH=/data \
-            -e ATS_BACKUP_PATH=/backup \
-            -e ATS_LOGS_PATH=/logs \
-            -e POSTGRES_INITDB_ARGS="--auth-host=md5 --auth-local=trust" \
-            {env_vars} \
+        cmd = f"""docker run -d --name {container_name} {gpu_flag} \\
+            {volume_mounts} \\
+            -w /workspace \\
+            {port_flag} \\
+            -e PYTHONPATH=/workspace/src \\
+            -e ATS_DATA_PATH=/data \\
+            -e ATS_BACKUP_PATH=/backup \\
+            -e ATS_LOGS_PATH=/logs \\
+            -e ENVIRONMENT=intg \\
+            -e POSTGRES_INITDB_ARGS="--auth-host=md5 --auth-local=trust" \\
+            {env_vars} \\
             {config['image']}"""
         
         if 'command' in config:
@@ -258,27 +226,25 @@ class DevCLI:
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         
         if result.returncode == 0:
-            print(f"✅ Service {service_name} started successfully")
+            print(f"✅ Integration service {service_name} started successfully")
             print(f"🌐 Container name: {container_name}")
             if 'port' in config:
                 print(f"🔗 Access at: http://localhost:{config['port'].split(':')[0]}")
             
             # Handle backup/restore for PostgreSQL services
-            if ("postgres" in service_name) and config.get("backup_restore"):
-                db_name = config["env"]["POSTGRES_DB"]
-                backup_dir = f"{self.ats_backup_path}/intg" if "intg" in service_name else self.ats_backup_path
-                self._handle_postgres_backup_restore(container_name, db_name, backup_dir)
+            if service_name == "postgres" and config.get("backup_restore"):
+                self._handle_postgres_backup_restore(container_name, self.db_name, self.ats_backup_path)
             
             return True
         else:
-            print(f"❌ Failed to start service: {result.stderr}")
+            print(f"❌ Failed to start integration service: {result.stderr}")
             return False
     
     def _handle_postgres_backup_restore(self, container_name, db_name, backup_dir):
         """Handle PostgreSQL backup/restore to D: drive"""
         import time
         
-        print("💾 Setting up D: drive backup/restore...")
+        print("💾 Setting up D: drive backup/restore for integration DB...")
         
         # Ensure backup directory exists
         os.makedirs(backup_dir, exist_ok=True)
@@ -308,7 +274,7 @@ class DevCLI:
                 # Restore from backup
                 restore_cmd = f"cat '{backup_file}' | docker exec -i {container_name} psql -U postgres -d {db_name}"
                 subprocess.run(restore_cmd, shell=True, check=True)
-                print("✅ Database restored from D: drive backup")
+                print("✅ Integration database restored from D: drive backup")
             except Exception as e:
                 print(f"⚠️  Restore failed: {e}")
         else:
@@ -318,35 +284,28 @@ class DevCLI:
     
     def stop_service(self, service_name):
         """Stop a Docker service"""
-        container_name = f"ats-dev-{service_name}"
+        container_name = f"ats-intg-{service_name}"
         
-        print(f"🛑 Stopping service: {service_name}")
+        print(f"🛑 Stopping integration service: {service_name}")
         
         # Backup PostgreSQL before stopping
-        if "postgres" in service_name:
-            # Get service config to determine database name and backup directory
-            services = {
-                "postgres": {"db": self.db_name, "backup_dir": self.ats_backup_path},
-                "postgres-intg": {"db": "intg_db", "backup_dir": f"{self.ats_backup_path}/intg"}
-            }
-            if service_name in services:
-                service_config = services[service_name]
-                self._backup_postgres_to_d_drive(container_name, service_config["db"], service_config["backup_dir"])
+        if service_name == "postgres":
+            self._backup_postgres_to_d_drive(container_name, self.db_name, self.ats_backup_path)
         
         cmd = f"docker stop {container_name} && docker rm {container_name}"
         result = subprocess.run(cmd, shell=True, capture_output=True)
         
         if result.returncode == 0:
-            print(f"✅ Service {service_name} stopped")
+            print(f"✅ Integration service {service_name} stopped")
             return True
         else:
-            print(f"❌ Failed to stop service {service_name}")
+            print(f"❌ Failed to stop integration service {service_name}")
             return False
     
     def _backup_postgres_to_d_drive(self, container_name, db_name, backup_dir):
         """Backup PostgreSQL to D: drive before stopping"""
         try:
-            print("💾 Backing up database to D: drive...")
+            print("💾 Backing up integration database to D: drive...")
             
             # Ensure backup directory exists
             os.makedirs(backup_dir, exist_ok=True)
@@ -366,7 +325,7 @@ class DevCLI:
                 # Copy to latest backup
                 import shutil
                 shutil.copy2(backup_file, latest_backup)
-                print(f"✅ Database backed up to: {backup_file}")
+                print(f"✅ Integration database backed up to: {backup_file}")
                 print(f"✅ Latest backup: {latest_backup}")
             else:
                 print(f"⚠️  Backup failed: {result.stderr.decode()}")
@@ -376,18 +335,18 @@ class DevCLI:
     
     def list_services(self):
         """List running Docker services"""
-        print("🐳 Running ATS services:")
-        cmd = "docker ps --filter name=ats-dev- --format 'table {{.Names}}\\t{{.Status}}\\t{{.Ports}}'"
+        print("🐳 Running ATS Integration services:")
+        cmd = "docker ps --filter name=ats-intg- --format 'table {{.Names}}\\\\t{{.Status}}\\\\t{{.Ports}}'"
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         
         if result.stdout.strip():
             print(result.stdout)
         else:
-            print("No ATS services currently running")
+            print("No ATS integration services currently running")
     
     def run_test(self, test_path=None, pattern=None):
         """Run tests using Docker"""
-        print("🧪 Running tests...")
+        print("🧪 Running integration tests...")
         
         test_cmd = "pytest"
         if test_path:
@@ -398,14 +357,15 @@ class DevCLI:
         test_cmd += " -v"
         
         volume_mounts = self.get_volume_mounts()
-        cmd = f"""docker run --rm \
-            {volume_mounts} \
-            -w /workspace \
-            -e PYTHONPATH=/workspace/src \
-            -e ATS_DATA_PATH=/data \
-            -e ATS_BACKUP_PATH=/backup \
-            -e ATS_LOGS_PATH=/logs \
-            dragonflyer762/ats-genai:latest \
+        cmd = f"""docker run --rm \\
+            {volume_mounts} \\
+            -w /workspace \\
+            -e PYTHONPATH=/workspace/src \\
+            -e ATS_DATA_PATH=/data \\
+            -e ATS_BACKUP_PATH=/backup \\
+            -e ATS_LOGS_PATH=/logs \\
+            -e ENVIRONMENT=intg \\
+            dragonflyer762/ats-genai:latest \\
             {test_cmd}"""
         
         result = subprocess.run(cmd, shell=True)
@@ -423,30 +383,30 @@ class DevCLI:
             print(result)
         return result
     
-    def setup_dev_env(self):
-        """Setup complete development environment"""
-        print("🏗️  Setting up development environment...")
+    def setup_intg_env(self):
+        """Setup complete integration environment"""
+        print("🏗️  Setting up integration environment...")
         
         # Start PostgreSQL
         if not self.start_service("postgres"):
             return False
         
         # Wait for database to be ready
-        print("⏳ Waiting for database to be ready...")
+        print("⏳ Waiting for integration database to be ready...")
         for i in range(30):
-            if self.test_db_connection("localhost", "5432"):
+            if self.test_db_connection("localhost", "5433"):
                 break
             time.sleep(1)
         else:
-            print("❌ Database failed to start")
+            print("❌ Integration database failed to start")
             return False
         
-        print("✅ Development environment ready!")
-        print("🔗 Database: postgresql://postgres:dev_password@localhost:5432/dev_db")
+        print("✅ Integration environment ready!")
+        print("🔗 Database: postgresql://postgres:dev_password@localhost:5433/intg_db")
         return True
 
 def main():
-    parser = argparse.ArgumentParser(description="Dev CLI for localhost/Docker development operations")
+    parser = argparse.ArgumentParser(description="Integration CLI for localhost/Docker integration operations")
     parser.add_argument("action", choices=[
         "run", "start", "stop", "status", "test", "query", "setup", "logs"
     ], help="Action to perform")
@@ -461,7 +421,7 @@ def main():
     
     args = parser.parse_args()
     
-    cli = DevCLI()
+    cli = IntgCLI()
     
     # Parse environment variables if provided
     environment = None
@@ -503,13 +463,13 @@ def main():
         cli.query_db(args.query)
         
     elif args.action == "setup":
-        cli.setup_dev_env()
+        cli.setup_intg_env()
         
     elif args.action == "logs":
         if not args.service:
             print("❌ --service required for logs action")
             sys.exit(1)
-        container_name = f"ats-dev-{args.service}"
+        container_name = f"ats-intg-{args.service}"
         cmd = f"docker logs -f {container_name}"
         subprocess.run(cmd, shell=True)
 
