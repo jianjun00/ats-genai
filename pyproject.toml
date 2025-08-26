@@ -58,6 +58,7 @@ dependencies = [
   "torchvision",
   "beautifulsoup4",
   "requests-html",
+  "aiofiles",
 ]
 
 [tool.uv]
