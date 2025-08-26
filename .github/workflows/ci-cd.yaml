@@ -57,14 +57,15 @@ jobs:
         # Wait for PostgreSQL to be ready
         sleep 5
         
-        # Create test_user with password and grant necessary permissions
+        # Create testuser with testpass password and testdb database to match test expectations
         PGPASSWORD=password psql -h localhost -U postgres -d postgres -c "
-          CREATE USER test_user WITH PASSWORD 'test_password';
-          ALTER USER test_user WITH SUPERUSER;
+          CREATE USER testuser WITH PASSWORD 'testpass';
+          ALTER USER testuser WITH SUPERUSER;
+          CREATE DATABASE testdb OWNER testuser;
         "
         
-        # Verify the user was created successfully
-        PGPASSWORD=test_password psql -h localhost -U test_user -d postgres -c "SELECT 'Test user connection successful';"    
+        # Verify the user and database were created successfully
+        PGPASSWORD=testpass psql -h localhost -U testuser -d testdb -c "SELECT 'Test user connection successful';"    
 
     - name: Run tests
       env:
