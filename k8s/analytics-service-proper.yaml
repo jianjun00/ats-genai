@@ -24,12 +24,8 @@ spec:
         args:
         - "-c"
         - |
-          echo "🔐 Configuring git credentials..."
-          git config --global credential.helper store
-          echo "https://${GITHUB_TOKEN}:@github.com" > ~/.git-credentials
-          
-          echo "📦 Cloning source code from private repository..."
-          git clone -b feature/analytics-service-deployment https://github.com/AkoloTechnologies/ats-genai.git /tmp/src-repo
+          echo "📦 Cloning source code from private repository with token..."
+          git clone -b feature/analytics-service-deployment https://${GITHUB_TOKEN}@github.com/AkoloTechnologies/ats-genai.git /tmp/src-repo
           cd /tmp/src-repo
           
           echo "🚀 Starting ATS Analytics Service..."
