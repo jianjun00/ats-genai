@@ -1,0 +1,391 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: economic-events-classification
+  namespace: ats-dev
+  labels:
+    app: economic-events-classification
+    component: economic-analysis
+    tier: processing
+spec:
+  backoffLimit: 3
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        app: economic-events-classification
+        component: economic-analysis
+        tier: processing
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: events-classifier
+        image: dragonflyer762/ats-genai:latest
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          
+          echo "🔍 Starting Economic Events Classification"
+          echo "📊 Analyzing news articles for economic events"
+          echo "⏰ Start time: $(date)"
+          
+          # Create economic events classification script
+          cat > /tmp/run_economic_events_classification.py << 'SCRIPT_EOF'
+          #!/usr/bin/env python3
+          """Run economic events classification on news data"""
+          
+          import asyncio
+          import os
+          import logging
+          import re
+          import json
+          from datetime import datetime
+          from typing import List, Dict, Any, Optional
+          from enum import Enum
+          
+          # Configure logging
+          logging.basicConfig(level=logging.INFO)
+          logger = logging.getLogger(__name__)
+          
+          class EventCategory(Enum):
+              EARNINGS = "earnings"
+              FEDERAL_RESERVE = "fed"
+              EMPLOYMENT = "employment"
+              INFLATION = "inflation"
+              GDP_GROWTH = "growth"
+              CORPORATE = "corporate"
+              MACRO = "macro"
+          
+          class EconomicEventsClassifier:
+              """Simplified economic events classifier for inline deployment"""
+              
+              def __init__(self):
+                  # Key patterns for major event types
+                  self.patterns = {
+                      'fed': [
+                          r'federal reserve.*rate', r'fed.*rate', r'fomc.*meeting', 
+                          r'powell', r'monetary policy', r'interest rate'
+                      ],
+                      'earnings': [
+                          r'earnings.*report', r'quarterly.*results', r'eps.*beat', 
+                          r'eps.*miss', r'revenue.*beat', r'revenue.*miss'
+                      ],
+                      'employment': [
+                          r'jobs report', r'unemployment', r'employment.*data', 
+                          r'jobless claims', r'labor market'
+                      ],
+                      'inflation': [
+                          r'inflation', r'cpi.*data', r'consumer price', r'core.*inflation'
+                      ],
+                      'gdp': [
+                          r'gdp.*growth', r'economic growth', r'recession', r'quarterly.*gdp'
+                      ]
+                  }
+                  
+                  # Compile patterns
+                  self.compiled_patterns = {}
+                  for category, pattern_list in self.patterns.items():
+                      self.compiled_patterns[category] = [
+                          re.compile(p, re.IGNORECASE) for p in pattern_list
+                      ]
+              
+              def classify_article(self, title: str, description: str, symbols: List[str]) -> Optional[Dict]:
+                  """Classify news article as economic event"""
+                  text = f"{title} {description}".lower()
+                  
+                  # Check each category
+                  for category, patterns in self.compiled_patterns.items():
+                      for pattern in patterns:
+                          if pattern.search(text):
+                              # Calculate confidence based on title match
+                              confidence = 0.8 if pattern.search(title.lower()) else 0.6
+                              
+                              # Calculate severity (simplified)
+                              severity = 7 if 'fed' in category else 5
+                              if any(word in text for word in ['surprise', 'unexpected', 'major']):
+                                  severity += 1
+                              
+                              # Calculate impact score
+                              impact_score = 0.0
+                              if category == 'fed':
+                                  impact_score = 0.3 if 'cut' in text else -0.2
+                              elif category == 'earnings':
+                                  impact_score = 0.1 if 'beat' in text else -0.1
+                              
+                              return {
+                                  'event_type': category,
+                                  'event_subtype': category,
+                                  'event_category': category,
+                                  'severity': min(10, severity),
+                                  'confidence_score': confidence,
+                                  'affected_symbols': symbols,
+                                  'affected_sectors': ['market'],
+                                  'predicted_impact_score': max(-1.0, min(1.0, impact_score)),
+                                  'title': title,
+                                  'description': description
+                              }
+                  
+                  return None
+          
+          class EconomicEventsProcessor:
+              """Process news articles and create economic events"""
+              
+              def __init__(self, db_config: Dict[str, Any]):
+                  self.db_config = db_config
+                  self.classifier = EconomicEventsClassifier()
+                  
+              async def process_news_articles(self) -> int:
+                  """Process news articles and extract economic events"""
+                  import asyncpg
+                  
+                  # Connect to database
+                  conn = await asyncpg.connect(**self.db_config)
+                  
+                  try:
+                      # Create tables if they don't exist
+                      await conn.execute("""
+                          CREATE TABLE IF NOT EXISTS dev_economic_events (
+                              id BIGSERIAL PRIMARY KEY,
+                              event_type VARCHAR(50) NOT NULL,
+                              event_subtype VARCHAR(50),
+                              event_category VARCHAR(30) NOT NULL,
+                              severity INTEGER NOT NULL CHECK (severity BETWEEN 1 AND 10),
+                              confidence_score DECIMAL(5,3) NOT NULL CHECK (confidence_score BETWEEN 0 AND 1),
+                              affected_symbols TEXT[] DEFAULT '{}',
+                              affected_sectors TEXT[] DEFAULT '{}',
+                              affected_regions TEXT[] DEFAULT '{}',
+                              event_date TIMESTAMP WITH TIME ZONE NOT NULL,
+                              announcement_date TIMESTAMP WITH TIME ZONE,
+                              predicted_impact_score DECIMAL(7,4),
+                              actual_impact_score DECIMAL(7,4),
+                              title TEXT NOT NULL,
+                              description TEXT,
+                              source_url TEXT,
+                              data JSONB NOT NULL,
+                              data_vendor VARCHAR(30) NOT NULL,
+                              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                              updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                          )
+                      """)
+                      
+                      await conn.execute("""
+                          CREATE TABLE IF NOT EXISTS dev_news_economic_events (
+                              id BIGSERIAL PRIMARY KEY,
+                              news_id BIGINT NOT NULL,
+                              news_source VARCHAR(20) NOT NULL,
+                              event_id BIGINT NOT NULL REFERENCES dev_economic_events(id),
+                              relevance_score DECIMAL(5,3) NOT NULL CHECK (relevance_score BETWEEN 0 AND 1),
+                              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                              UNIQUE(news_id, news_source, event_id)
+                          )
+                      """)
+                      
+                      logger.info("📊 Tables created/verified")
+                      
+                      events_created = 0
+                      
+                      # Process Polygon news
+                      polygon_articles = await conn.fetch("""
+                          SELECT id, title, description, tickers, published_utc
+                          FROM news_polygon
+                          WHERE id NOT IN (
+                              SELECT news_id FROM dev_news_economic_events 
+                              WHERE news_source = 'polygon'
+                          )
+                          ORDER BY published_utc DESC
+                          LIMIT 5000
+                      """)
+                      
+                      logger.info(f"Processing {len(polygon_articles)} Polygon articles...")
+                      
+                      for article in polygon_articles:
+                          event_data = self.classifier.classify_article(
+                              article['title'] or '',
+                              article['description'] or '',
+                              article['tickers'] or []
+                          )
+                          
+                          if event_data and event_data['confidence_score'] >= 0.5:
+                              # Insert economic event
+                              event_id = await conn.fetchval("""
+                                  INSERT INTO dev_economic_events (
+                                      event_type, event_subtype, event_category, severity, confidence_score,
+                                      affected_symbols, affected_sectors, affected_regions,
+                                      event_date, announcement_date, predicted_impact_score,
+                                      title, description, data, data_vendor
+                                  )
+                                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                                  RETURNING id
+                              """,
+                              event_data['event_type'],
+                              event_data['event_subtype'],
+                              event_data['event_category'],
+                              event_data['severity'],
+                              event_data['confidence_score'],
+                              event_data['affected_symbols'],
+                              event_data['affected_sectors'],
+                              ['US'],
+                              article['published_utc'],
+                              article['published_utc'],
+                              event_data['predicted_impact_score'],
+                              event_data['title'],
+                              event_data['description'],
+                              json.dumps({'source': 'polygon', 'article_id': article['id']}),
+                              'news_classifier'
+                              )
+                              
+                              # Create news-event mapping
+                              await conn.execute("""
+                                  INSERT INTO dev_news_economic_events (
+                                      news_id, news_source, event_id, relevance_score
+                                  )
+                                  VALUES ($1, $2, $3, $4)
+                                  ON CONFLICT (news_id, news_source, event_id) DO NOTHING
+                              """, article['id'], 'polygon', event_id, event_data['confidence_score'])
+                              
+                              events_created += 1
+                      
+                      # Process Tiingo news
+                      tiingo_articles = await conn.fetch("""
+                          SELECT id, title, description, tickers, published_date
+                          FROM news_tiingo
+                          WHERE id NOT IN (
+                              SELECT news_id FROM dev_news_economic_events 
+                              WHERE news_source = 'tiingo'
+                          )
+                          ORDER BY published_date DESC
+                          LIMIT 5000
+                      """)
+                      
+                      logger.info(f"Processing {len(tiingo_articles)} Tiingo articles...")
+                      
+                      for article in tiingo_articles:
+                          event_data = self.classifier.classify_article(
+                              article['title'] or '',
+                              article['description'] or '',
+                              article['tickers'] or []
+                          )
+                          
+                          if event_data and event_data['confidence_score'] >= 0.5:
+                              # Insert economic event
+                              event_id = await conn.fetchval("""
+                                  INSERT INTO dev_economic_events (
+                                      event_type, event_subtype, event_category, severity, confidence_score,
+                                      affected_symbols, affected_sectors, affected_regions,
+                                      event_date, announcement_date, predicted_impact_score,
+                                      title, description, data, data_vendor
+                                  )
+                                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                                  RETURNING id
+                              """,
+                              event_data['event_type'],
+                              event_data['event_subtype'],
+                              event_data['event_category'],
+                              event_data['severity'],
+                              event_data['confidence_score'],
+                              event_data['affected_symbols'],
+                              event_data['affected_sectors'],
+                              ['US'],
+                              article['published_date'],
+                              article['published_date'],
+                              event_data['predicted_impact_score'],
+                              event_data['title'],
+                              event_data['description'],
+                              json.dumps({'source': 'tiingo', 'article_id': article['id']}),
+                              'news_classifier'
+                              )
+                              
+                              # Create news-event mapping
+                              await conn.execute("""
+                                  INSERT INTO dev_news_economic_events (
+                                      news_id, news_source, event_id, relevance_score
+                                  )
+                                  VALUES ($1, $2, $3, $4)
+                                  ON CONFLICT (news_id, news_source, event_id) DO NOTHING
+                              """, article['id'], 'tiingo', event_id, event_data['confidence_score'])
+                              
+                              events_created += 1
+                      
+                      # Get summary statistics
+                      total_events = await conn.fetchval("SELECT COUNT(*) FROM dev_economic_events")
+                      category_stats = await conn.fetch("""
+                          SELECT event_category, COUNT(*) as count
+                          FROM dev_economic_events
+                          GROUP BY event_category
+                          ORDER BY count DESC
+                      """)
+                      
+                      logger.info(f"🎉 Economic Events Classification Complete!")
+                      logger.info(f"📊 Events Created: {events_created}")
+                      logger.info(f"📊 Total Events: {total_events}")
+                      logger.info(f"📊 By Category:")
+                      for row in category_stats:
+                          logger.info(f"   {row['event_category']}: {row['count']}")
+                      
+                      return events_created
+                      
+                  finally:
+                      await conn.close()
+          
+          async def main():
+              """Main execution function"""
+              try:
+                  db_config = {
+                      'host': os.getenv("DB_HOST", "postgres"),
+                      'port': int(os.getenv("DB_PORT", "5432")),
+                      'user': os.getenv("DB_USER", "postgres"),
+                      'password': os.getenv("DB_PASSWORD", "dev_password"),
+                      'database': os.getenv("DB_NAME", "dev_db")
+                  }
+                  
+                  processor = EconomicEventsProcessor(db_config)
+                  events_created = await processor.process_news_articles()
+                  
+                  if events_created > 0:
+                      logger.info("✅ ECONOMIC EVENTS CLASSIFICATION SUCCESSFUL")
+                      return 0
+                  else:
+                      logger.warning("⚠️ No events created - check news data")
+                      return 0  # Don't fail - might be no new data
+                      
+              except Exception as e:
+                  logger.error(f"❌ CLASSIFICATION FAILED: {e}")
+                  import traceback
+                  traceback.print_exc()
+                  return 1
+          
+          if __name__ == "__main__":
+              exit_code = asyncio.run(main())
+              exit(exit_code)
+          SCRIPT_EOF
+          
+          # Execute the economic events classification
+          python3 /tmp/run_economic_events_classification.py
+          
+          echo "✅ Economic Events Classification completed at $(date)"
+          echo "🎯 Database now contains classified economic events"
+          
+        env:
+        # Database connection
+        - name: DB_HOST
+          value: "postgres"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+        - name: ENVIRONMENT
+          value: "dev"
+        
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"

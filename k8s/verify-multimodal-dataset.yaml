@@ -1,0 +1,17 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: verify-multimodal-dataset
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: verify
+        image: postgres:13
+        env:
+        - name: PGPASSWORD
+          value: "dev_password"
+        command: ["psql"]
+        args: ["-h", "postgres", "-p", "5432", "-U", "postgres", "-d", "dev_db", "-c", "SELECT COUNT(*) as total_samples, COUNT(DISTINCT symbol) as unique_symbols, MIN(sample_date) as earliest_date, MAX(sample_date) as latest_date, AVG(sample_quality_score)::DECIMAL(5,3) as avg_quality FROM dev_multimodal_training_samples;"]
