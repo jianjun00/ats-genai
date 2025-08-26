@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ats-analytics-service
+  namespace: ats-dev
+  labels:
+    app: ats-analytics
+    component: web-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ats-analytics
+  template:
+    metadata:
+      labels:
+        app: ats-analytics
+        component: web-service
+    spec:
+      containers:
+      - name: analytics
+        image: dragonflyer762/ats-genai:latest
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "📦 Installing asyncpg dependency..."
+          pip install asyncpg --quiet || echo "❌ Failed to install asyncpg, dashboard will fail fast on database errors"
+          
+          echo "📦 Downloading real-data-only dashboard from GitHub..."
+          curl -H "Authorization: token ${GITHUB_TOKEN}" \
+               -H "Accept: application/vnd.github.v3.raw" \
+               -o /tmp/real_data_dashboard.py \
+               https://api.github.com/repos/AkoloTechnologies/ats-genai/contents/src/services/analytics/real_data_dashboard.py?ref=feature/analytics-service-deployment
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ Downloaded real_data_dashboard.py from GitHub"
+          else
+            echo "❌ Failed to download from GitHub, dashboard will exit"
+            exit 1
+          fi
+          
+          echo "🚀 Starting Real Data Analytics Dashboard - NO MOCK DATA..."
+          python3 /tmp/real_data_dashboard.py
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        - name: PORT
+          value: "3000"
+        - name: ENVIRONMENT
+          value: "development"
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: github-credentials
+              key: token
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health  
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ats-analytics-service
+  namespace: ats-dev
+  labels:
+    app: ats-analytics
+spec:
+  type: NodePort
+  ports:
+  - port: 3000
+    targetPort: 3000
+    nodePort: 30000
+    name: http
+  selector:
+    app: ats-analytics
