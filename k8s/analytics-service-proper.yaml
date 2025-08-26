@@ -24,8 +24,15 @@ spec:
         args:
         - "-c"
         - |
+          echo "🔐 Configuring git credentials..."
+          git config --global credential.helper store
+          echo "https://${GITHUB_TOKEN}:@github.com" > ~/.git-credentials
+          
+          echo "📦 Cloning source code from private repository..."
           git clone -b feature/analytics-service-deployment https://github.com/AkoloTechnologies/ats-genai.git /tmp/src-repo
           cd /tmp/src-repo
+          
+          echo "🚀 Starting ATS Analytics Service..."
           PYTHONPATH=src python3 src/services/analytics/unified_analytics_app.py
         ports:
         - containerPort: 8000
