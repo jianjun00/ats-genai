@@ -54,8 +54,16 @@ jobs:
       env:
         DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
       run: |
-        echo "Testing database connection with our test script..."
-        python3 test_basic_connection.py
+        echo "Testing database connection manually..."
+        python3 -c "
+        import asyncio, asyncpg, os;
+        async def test():
+            conn = await asyncpg.connect(os.getenv('DATABASE_URL'));
+            result = await conn.fetchval('SELECT 1');
+            print(f'✅ DB test result: {result}');
+            await conn.close()
+        asyncio.run(test())
+        "
         echo "✅ Database connection test successful!"
 
     - name: Run minimal unit tests
