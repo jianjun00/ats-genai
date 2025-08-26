@@ -727,6 +727,20 @@ kubectl exec -n ats-dev deployment/postgres -- psql -U postgres -d dev_db -c "\d
 # 5. Migration dependencies: dev_runs table must exist before training-dataset migration
 # 6. Always check logs for actual errors instead of assuming what went wrong
 
+# 🚨 CRITICAL DATABASE CONNECTION ISSUES (FROM INSTRUMENT POPULATION PROJECT)
+# Problem: connect_timeout parameter not supported by PostgreSQL server version
+# Solution: Set DB_DISABLE_CONNECT_TIMEOUT=true in all K8s job environments
+# - name: DB_DISABLE_CONNECT_TIMEOUT
+#   value: "true"
+
+# 🚨 API KEY VALIDATION - Test APIs directly before troubleshooting infrastructure
+# curl -s "https://api.polygon.io/v3/reference/tickers?limit=1&apiKey=YOUR_KEY"
+# curl -s "https://api.tiingo.com/tiingo/daily/AAPL?token=YOUR_KEY" 
+# curl -s "https://eodhd.com/api/eod/AAPL.US?api_token=YOUR_KEY&fmt=json"
+
+# 🚨 GIN CONFIGURATION - Use minimal configs for specific use cases
+# Use app_dev.gin for development (simpler than app_docker.gin with complex imports)
+
 # 🚨 CRITICAL DEBUGGING PRINCIPLES
 # 1. Always debug the current approach before switching to a different one
 # 2. Read error messages carefully and address the root cause

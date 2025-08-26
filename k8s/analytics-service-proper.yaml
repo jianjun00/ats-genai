@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ats-analytics-service
+  namespace: ats-dev
+  labels:
+    app: ats-analytics
+    component: web-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ats-analytics
+  template:
+    metadata:
+      labels:
+        app: ats-analytics
+        component: web-service
+    spec:
+      containers:
+      - name: analytics
+        image: dragonflyer762/ats-genai:latest
+        command: ["python3"]
+        args: ["/app/src/services/analytics_service.py"]
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: PORT
+          value: "8000"
+        - name: ENVIRONMENT
+          value: "development"
+        - name: PYTHONPATH
+          value: "src"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health  
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ats-analytics-service
+  namespace: ats-dev
+  labels:
+    app: ats-analytics
+spec:
+  type: NodePort
+  ports:
+  - port: 8000
+    targetPort: 8000
+    nodePort: 30080
+    name: http
+  selector:
+    app: ats-analytics

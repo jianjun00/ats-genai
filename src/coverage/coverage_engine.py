@@ -849,3 +849,412 @@ class CoverageAnalyticsEngine:
             detection_method=detection_method,
             detection_confidence=0.95
         )
+
+    # =====================================================
+    # Quality Scoring and Multi-Vendor Reconciliation
+    # =====================================================
+    
+    async def compute_quality_scores(self, symbols: List[str], date_range: Tuple[date, date]) -> Dict[str, Dict[str, float]]:
+        """
+        Compute quality scores for symbols across all vendors
+        
+        Returns:
+            {symbol: {vendor: quality_score}} where quality_score is 0-100
+        """
+        start_date, end_date = date_range
+        quality_scores = {}
+        
+        for symbol in symbols:
+            quality_scores[symbol] = {}
+            
+            # Get data from all vendors for this symbol
+            vendor_data = await self._get_multi_vendor_data(symbol, start_date, end_date)
+            
+            for vendor, data in vendor_data.items():
+                quality_score = await self._calculate_vendor_quality(vendor, data, symbol, start_date, end_date)
+                quality_scores[symbol][vendor] = quality_score
+                
+        return quality_scores
+    
+    async def _get_multi_vendor_data(self, symbol: str, start_date: date, end_date: date) -> Dict[str, List[Dict]]:
+        """Get price data for a symbol from all vendors"""
+        vendors = ['polygon', 'tiingo', 'eodhd']
+        vendor_data = {}
+        
+        async with self.db_pool.acquire() as conn:
+            for vendor in vendors:
+                table_name = f"dev_{vendor}_prices"
+                try:
+                    results = await conn.fetch(f"""
+                        SELECT price_date, open_price, high_price, low_price, close_price, volume
+                        FROM {table_name}
+                        WHERE symbol = $1 AND price_date >= $2 AND price_date <= $3
+                        ORDER BY price_date
+                    """, symbol, start_date, end_date)
+                    
+                    vendor_data[vendor] = [dict(row) for row in results]
+                except Exception as e:
+                    logger.warning(f"Failed to fetch {vendor} data for {symbol}: {e}")
+                    vendor_data[vendor] = []
+        
+        return vendor_data
+    
+    async def _calculate_vendor_quality(self, vendor: str, data: List[Dict], symbol: str, start_date: date, end_date: date) -> float:
+        """Calculate quality score (0-100) for a vendor's data"""
+        if not data:
+            return 0.0
+            
+        total_score = 0.0
+        factors = []
+        
+        # Factor 1: Completeness (40% weight)
+        expected_days = (end_date - start_date).days + 1
+        actual_days = len(data)
+        completeness = min(actual_days / expected_days, 1.0) if expected_days > 0 else 0.0
+        factors.append(('completeness', completeness, 0.4))
+        
+        # Factor 2: Data Integrity (30% weight) 
+        integrity_score = self._assess_data_integrity(data)
+        factors.append(('integrity', integrity_score, 0.3))
+        
+        # Factor 3: Freshness (20% weight)
+        freshness_score = self._assess_data_freshness(data, end_date)
+        factors.append(('freshness', freshness_score, 0.2))
+        
+        # Factor 4: Consistency (10% weight)
+        consistency_score = self._assess_price_consistency(data)
+        factors.append(('consistency', consistency_score, 0.1))
+        
+        # Calculate weighted score
+        for factor_name, score, weight in factors:
+            total_score += score * weight
+        
+        return round(total_score * 100, 2)  # Convert to 0-100 scale
+    
+    def _assess_data_integrity(self, data: List[Dict]) -> float:
+        """Assess data integrity (missing values, invalid prices, etc.)"""
+        if not data:
+            return 0.0
+        
+        valid_records = 0
+        total_records = len(data)
+        
+        for record in data:
+            # Check for required fields and valid values
+            required_fields = ['open_price', 'high_price', 'low_price', 'close_price']
+            has_all_fields = all(record.get(field) is not None for field in required_fields)
+            
+            if has_all_fields:
+                # Check price validity (positive values, high >= low, etc.)
+                prices = [float(record[field]) for field in required_fields]
+                if all(p > 0 for p in prices) and prices[1] >= prices[2]:  # high >= low
+                    valid_records += 1
+        
+        return valid_records / total_records if total_records > 0 else 0.0
+    
+    def _assess_data_freshness(self, data: List[Dict], end_date: date) -> float:
+        """Assess how fresh the data is relative to end_date"""
+        if not data:
+            return 0.0
+            
+        # Get the latest date in the data
+        latest_date = max(record['price_date'] for record in data)
+        days_old = (end_date - latest_date).days
+        
+        # Score based on recency (100% if same day, declining over time)
+        if days_old <= 1:
+            return 1.0
+        elif days_old <= 3:
+            return 0.8
+        elif days_old <= 7:
+            return 0.6
+        elif days_old <= 30:
+            return 0.4
+        else:
+            return 0.2
+    
+    def _assess_price_consistency(self, data: List[Dict]) -> float:
+        """Assess consistency of price data (no extreme outliers)"""
+        if len(data) < 2:
+            return 1.0
+            
+        # Calculate daily returns to detect outliers
+        returns = []
+        for i in range(1, len(data)):
+            prev_close = float(data[i-1]['close_price'])
+            curr_close = float(data[i]['close_price'])
+            if prev_close > 0:
+                daily_return = abs(curr_close - prev_close) / prev_close
+                returns.append(daily_return)
+        
+        if not returns:
+            return 1.0
+            
+        # Flag extreme moves (>50% daily change as potential data errors)
+        extreme_moves = sum(1 for r in returns if r > 0.5)
+        consistency_score = 1.0 - (extreme_moves / len(returns))
+        
+        return max(consistency_score, 0.0)
+    
+    async def multi_vendor_reconciliation(self, symbols: List[str], date_range: Tuple[date, date]) -> Dict[str, Dict]:
+        """
+        Perform multi-vendor reconciliation analysis
+        
+        Returns detailed comparison and recommended data sources
+        """
+        start_date, end_date = date_range
+        reconciliation_results = {}
+        
+        for symbol in symbols:
+            # Get vendor data and quality scores
+            vendor_data = await self._get_multi_vendor_data(symbol, start_date, end_date)
+            quality_scores = {}
+            
+            for vendor, data in vendor_data.items():
+                if data:  # Only score vendors with data
+                    quality_scores[vendor] = await self._calculate_vendor_quality(vendor, data, symbol, start_date, end_date)
+            
+            # Perform reconciliation analysis
+            reconciliation_results[symbol] = {
+                'vendor_coverage': {vendor: len(data) for vendor, data in vendor_data.items()},
+                'quality_scores': quality_scores,
+                'recommended_primary': self._select_primary_vendor(quality_scores, vendor_data),
+                'data_conflicts': await self._detect_price_conflicts(vendor_data),
+                'coverage_gaps': self._identify_coverage_gaps(vendor_data, start_date, end_date)
+            }
+        
+        return reconciliation_results
+    
+    def _select_primary_vendor(self, quality_scores: Dict[str, float], vendor_data: Dict[str, List]) -> str:
+        """Select the best primary vendor based on quality scores and coverage"""
+        if not quality_scores:
+            return None
+            
+        # Weight by both quality score and data coverage
+        vendor_scores = {}
+        for vendor, quality in quality_scores.items():
+            coverage = len(vendor_data.get(vendor, []))
+            # Combined score: 70% quality, 30% coverage
+            vendor_scores[vendor] = (quality * 0.7) + (min(coverage/252, 1.0) * 30 * 0.3)  # Assume 252 trading days/year
+        
+        return max(vendor_scores.items(), key=lambda x: x[1])[0] if vendor_scores else None
+    
+    async def _detect_price_conflicts(self, vendor_data: Dict[str, List]) -> List[Dict]:
+        """Detect significant price differences between vendors on same dates"""
+        conflicts = []
+        
+        # Group by date across vendors
+        date_data = {}
+        for vendor, data in vendor_data.items():
+            for record in data:
+                date_key = record['price_date']
+                if date_key not in date_data:
+                    date_data[date_key] = {}
+                date_data[date_key][vendor] = record
+        
+        # Check for conflicts on shared dates
+        for date_key, vendor_records in date_data.items():
+            if len(vendor_records) > 1:
+                # Compare close prices across vendors
+                vendors = list(vendor_records.keys())
+                prices = [float(vendor_records[v]['close_price']) for v in vendors]
+                
+                # Calculate coefficient of variation
+                if len(prices) > 1:
+                    mean_price = np.mean(prices)
+                    std_price = np.std(prices)
+                    cv = std_price / mean_price if mean_price > 0 else 0
+                    
+                    # Flag as conflict if CV > 2% (significant disagreement)
+                    if cv > 0.02:
+                        conflicts.append({
+                            'date': date_key,
+                            'vendors': vendors,
+                            'prices': prices,
+                            'coefficient_of_variation': cv,
+                            'max_deviation_pct': (max(prices) - min(prices)) / mean_price * 100
+                        })
+        
+        return conflicts
+    
+    def _identify_coverage_gaps(self, vendor_data: Dict[str, List], start_date: date, end_date: date) -> Dict[str, List]:
+        """Identify date ranges where each vendor has missing data"""
+        gaps = {}
+        
+        # Create complete date range
+        current_date = start_date
+        expected_dates = set()
+        while current_date <= end_date:
+            # Skip weekends (simplified - doesn't account for holidays)
+            if current_date.weekday() < 5:
+                expected_dates.add(current_date)
+            current_date += timedelta(days=1)
+        
+        for vendor, data in vendor_data.items():
+            vendor_dates = set(record['price_date'] for record in data)
+            missing_dates = expected_dates - vendor_dates
+            
+            if missing_dates:
+                gaps[vendor] = sorted(list(missing_dates))
+        
+        return gaps
+
+    # =====================================================
+    # Performance Monitoring and Storage Metrics
+    # =====================================================
+    
+    async def get_performance_metrics(self, time_window_hours: int = 24) -> Dict[str, Any]:
+        """Get comprehensive performance and storage metrics"""
+        cutoff_time = datetime.now() - timedelta(hours=time_window_hours)
+        
+        async with self.db_pool.acquire() as conn:
+            # Database size and table statistics
+            db_stats = await conn.fetchrow("""
+                SELECT 
+                    pg_database_size(current_database()) as total_db_size_bytes,
+                    (SELECT COUNT(*) FROM pg_stat_user_tables) as total_tables
+            """)
+            
+            # Price table statistics
+            price_table_stats = await conn.fetch("""
+                SELECT 
+                    schemaname,
+                    tablename,
+                    n_tup_ins as inserts,
+                    n_tup_upd as updates,
+                    n_tup_del as deletes,
+                    n_live_tup as live_rows,
+                    n_dead_tup as dead_rows
+                FROM pg_stat_user_tables 
+                WHERE tablename LIKE '%price%'
+                ORDER BY n_live_tup DESC
+            """)
+            
+            # Query performance stats (if available)
+            query_stats = await conn.fetch("""
+                SELECT 
+                    query,
+                    calls,
+                    total_exec_time,
+                    mean_exec_time,
+                    rows
+                FROM pg_stat_statements 
+                WHERE query LIKE '%price%'
+                ORDER BY total_exec_time DESC
+                LIMIT 10
+            """) if await self._check_pg_stat_statements_available(conn) else []
+            
+            # Storage metrics by vendor
+            vendor_storage = await conn.fetch("""
+                SELECT 
+                    'dev_polygon_prices' as table_name,
+                    COUNT(*) as row_count,
+                    pg_total_relation_size('dev_polygon_prices') as size_bytes
+                FROM dev_polygon_prices
+                UNION ALL
+                SELECT 
+                    'dev_tiingo_prices' as table_name,
+                    COUNT(*) as row_count,
+                    pg_total_relation_size('dev_tiingo_prices') as size_bytes
+                FROM dev_tiingo_prices
+                UNION ALL
+                SELECT 
+                    'dev_eodhd_prices' as table_name,
+                    COUNT(*) as row_count,
+                    pg_total_relation_size('dev_eodhd_prices') as size_bytes
+                FROM dev_eodhd_prices
+            """)
+        
+        # Format results
+        total_price_records = sum(row['row_count'] for row in vendor_storage)
+        total_price_storage_mb = sum(row['size_bytes'] for row in vendor_storage) / (1024 * 1024)
+        
+        performance_metrics = {
+            'timestamp': datetime.now().isoformat(),
+            'time_window_hours': time_window_hours,
+            'database': {
+                'total_size_mb': db_stats['total_db_size_bytes'] / (1024 * 1024),
+                'total_tables': db_stats['total_tables']
+            },
+            'price_data': {
+                'total_records': total_price_records,
+                'total_storage_mb': total_price_storage_mb,
+                'records_per_mb': total_price_records / total_price_storage_mb if total_price_storage_mb > 0 else 0,
+                'vendor_breakdown': {
+                    row['table_name']: {
+                        'records': row['row_count'],
+                        'size_mb': row['size_bytes'] / (1024 * 1024),
+                        'avg_bytes_per_record': row['size_bytes'] / row['row_count'] if row['row_count'] > 0 else 0
+                    }
+                    for row in vendor_storage
+                }
+            },
+            'table_activity': [
+                {
+                    'table': row['tablename'],
+                    'live_rows': row['live_rows'],
+                    'dead_rows': row['dead_rows'],
+                    'recent_inserts': row['inserts'],
+                    'recent_updates': row['updates']
+                }
+                for row in price_table_stats
+            ],
+            'query_performance': [
+                {
+                    'query_snippet': row['query'][:100] + '...' if len(row['query']) > 100 else row['query'],
+                    'total_calls': row['calls'],
+                    'avg_execution_time_ms': float(row['mean_exec_time']),
+                    'total_execution_time_ms': float(row['total_exec_time'])
+                }
+                for row in query_stats
+            ] if query_stats else [],
+            'performance_summary': {
+                'storage_efficiency_score': self._calculate_storage_efficiency(total_price_records, total_price_storage_mb),
+                'data_growth_rate': await self._estimate_data_growth_rate(conn),
+                'projected_30day_size_mb': total_price_storage_mb * 1.1  # Simple 10% growth assumption
+            }
+        }
+        
+        return performance_metrics
+    
+    async def _check_pg_stat_statements_available(self, conn) -> bool:
+        """Check if pg_stat_statements extension is available"""
+        try:
+            result = await conn.fetchval("SELECT 1 FROM pg_stat_statements LIMIT 1")
+            return True
+        except:
+            return False
+    
+    def _calculate_storage_efficiency(self, total_records: int, total_mb: float) -> float:
+        """Calculate storage efficiency score (0-100)"""
+        if total_mb <= 0 or total_records <= 0:
+            return 0.0
+            
+        # Benchmark: ~100 bytes per price record is efficient
+        bytes_per_record = (total_mb * 1024 * 1024) / total_records
+        efficiency_score = min(100 / bytes_per_record * 100, 100.0) if bytes_per_record > 0 else 0.0
+        
+        return round(efficiency_score, 2)
+    
+    async def _estimate_data_growth_rate(self, conn) -> float:
+        """Estimate daily data growth rate based on recent activity"""
+        try:
+            # Get data from last 7 days to estimate growth
+            result = await conn.fetchrow("""
+                SELECT 
+                    COUNT(*) as recent_records
+                FROM (
+                    SELECT price_date FROM dev_polygon_prices WHERE price_date > CURRENT_DATE - INTERVAL '7 days'
+                    UNION ALL
+                    SELECT price_date FROM dev_tiingo_prices WHERE price_date > CURRENT_DATE - INTERVAL '7 days'  
+                    UNION ALL
+                    SELECT price_date FROM dev_eodhd_prices WHERE price_date > CURRENT_DATE - INTERVAL '7 days'
+                ) recent_data
+            """)
+            
+            daily_growth = result['recent_records'] / 7.0 if result else 0.0
+            return round(daily_growth, 2)
+            
+        except Exception as e:
+            logger.warning(f"Failed to estimate growth rate: {e}")
+            return 0.0
