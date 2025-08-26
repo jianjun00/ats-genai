@@ -242,6 +242,29 @@ python scripts/run_dev.py logs --service analytics
 
 ---
 
+## 💾 **ATS Persistent Storage (D: Drive)**
+
+**Automatic Volume Mounting:**
+- **📁 Data**: `/mnt/d/ats-data` → `/data` (in containers)
+- **📁 Backup**: `/mnt/d/ats-backup` → `/backup` (in containers)  
+- **📁 Logs**: `/mnt/d/ats-logs` → `/logs` (in containers)
+- **🔄 Database**: PostgreSQL data persisted to `D:\ats-data\db`
+
+**Environment Variables Available in Containers:**
+- `ATS_DATA_PATH=/data`
+- `ATS_BACKUP_PATH=/backup`
+- `ATS_LOGS_PATH=/logs`
+
+**Usage in Code:**
+```python
+import os
+data_path = os.getenv('ATS_DATA_PATH', '/data')
+backup_path = os.getenv('ATS_BACKUP_PATH', '/backup')
+log_path = os.getenv('ATS_LOGS_PATH', '/logs')
+```
+
+---
+
 ## 🚨 **CRITICAL: SCHEMA VALIDATION PREVENTS DEV ENVIRONMENT ERRORS**
 
 **SCHEMA ERRORS MUST BE CAUGHT BY UNIT TESTS - NEVER IN DEV ENVIRONMENT**

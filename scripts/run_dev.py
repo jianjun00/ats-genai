@@ -23,8 +23,41 @@ class DevCLI:
         self.db_password = "dev_password"
         self.db_name = "dev_db"
         
+        # ATS persistent volume paths (D: drive)
+        self.ats_data_path = "/mnt/d/ats-data"
+        self.ats_backup_path = "/mnt/d/ats-backup"
+        self.ats_logs_path = "/mnt/d/ats-logs"
+        
+        # Ensure ATS directories exist
+        self.ensure_ats_directories()
+        
         # Check if we need to use port-forwarded connection
         self.check_database_connection()
+    
+    def ensure_ats_directories(self):
+        """Ensure ATS directories exist on D: drive"""
+        for path in [self.ats_data_path, self.ats_backup_path, self.ats_logs_path]:
+            if not os.path.exists(path):
+                try:
+                    os.makedirs(path, exist_ok=True)
+                    print(f"📁 Created directory: {path}")
+                except Exception as e:
+                    print(f"⚠️  Could not create {path}: {e}")
+    
+    def get_volume_mounts(self):
+        """Get Docker volume mount string for ATS directories"""
+        volumes = []
+        volumes.append(f"-v {os.getcwd()}:/workspace")
+        
+        # Add ATS persistent volumes if they exist
+        if os.path.exists(self.ats_data_path):
+            volumes.append(f"-v {self.ats_data_path}:/data")
+        if os.path.exists(self.ats_backup_path):
+            volumes.append(f"-v {self.ats_backup_path}:/backup") 
+        if os.path.exists(self.ats_logs_path):
+            volumes.append(f"-v {self.ats_logs_path}:/logs")
+            
+        return " ".join(volumes)
         
     def check_database_connection(self):
         """Check which database connection works"""
@@ -88,9 +121,10 @@ class DevCLI:
         # Use our official image
         image = "dragonflyer762/ats-genai:latest"
         
-        # Mount current directory and set database connection
+        # Mount directories and set database connection
+        volume_mounts = self.get_volume_mounts()
         cmd = f"""docker run --rm {gpu_flag} \
-            -v {os.getcwd()}:/workspace \
+            {volume_mounts} \
             -w /workspace \
             -e DB_HOST={self.db_host} \
             -e DB_PORT={self.db_port} \
@@ -98,6 +132,9 @@ class DevCLI:
             -e DB_PASSWORD={self.db_password} \
             -e DB_NAME={self.db_name} \
             -e PYTHONPATH=/workspace/src \
+            -e ATS_DATA_PATH=/data \
+            -e ATS_BACKUP_PATH=/backup \
+            -e ATS_LOGS_PATH=/logs \
             {env_vars} \
             {image} \
             python {script_path}"""
@@ -125,7 +162,8 @@ class DevCLI:
                     "POSTGRES_USER": self.db_user,
                     "POSTGRES_PASSWORD": self.db_password,
                     "POSTGRES_DB": self.db_name
-                }
+                },
+                "volumes": [f"{self.ats_data_path}/db:/var/lib/postgresql/data"]
             },
             "analytics": {
                 "image": "dragonflyer762/ats-genai:latest",
@@ -165,11 +203,20 @@ class DevCLI:
             print(f"⚠️  Container {container_name} is already running")
             return True
         
+        # Build volume mounts for service
+        volume_mounts = self.get_volume_mounts()
+        if 'volumes' in config:
+            for volume in config['volumes']:
+                volume_mounts += f" -v {volume}"
+        
         cmd = f"""docker run -d --name {container_name} {gpu_flag} \
-            -v {os.getcwd()}:/workspace \
+            {volume_mounts} \
             -w /workspace \
             {port_flag} \
             -e PYTHONPATH=/workspace/src \
+            -e ATS_DATA_PATH=/data \
+            -e ATS_BACKUP_PATH=/backup \
+            -e ATS_LOGS_PATH=/logs \
             {env_vars} \
             {config['image']}"""
         
@@ -226,10 +273,14 @@ class DevCLI:
         
         test_cmd += " -v"
         
+        volume_mounts = self.get_volume_mounts()
         cmd = f"""docker run --rm \
-            -v {os.getcwd()}:/workspace \
+            {volume_mounts} \
             -w /workspace \
             -e PYTHONPATH=/workspace/src \
+            -e ATS_DATA_PATH=/data \
+            -e ATS_BACKUP_PATH=/backup \
+            -e ATS_LOGS_PATH=/logs \
             dragonflyer762/ats-genai:latest \
             {test_cmd}"""
         
