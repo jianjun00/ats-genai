@@ -66,22 +66,19 @@ jobs:
         echo "Running minimal unit tests that don't require full dependencies..."
         # Run a very simple test to validate the basic setup
         python3 -c "
-import sys
-print('✅ Python environment working')
-print(f'Python version: {sys.version}')
-
-# Test basic imports that should work
-try:
-    import asyncio
-    import asyncpg
-    import aiofiles
-    print('✅ Core async imports working')
-except ImportError as e:
-    print(f'❌ Import error: {e}')
-    sys.exit(1)
-
-print('✅ All basic tests passed!')
-"
+        import sys; 
+        print('✅ Python environment working'); 
+        print(f'Python version: {sys.version}'); 
+        
+        try:
+            import asyncio, asyncpg, aiofiles; 
+            print('✅ Core async imports working')
+        except ImportError as e:
+            print(f'❌ Import error: {e}'); 
+            sys.exit(1)
+        
+        print('✅ All basic tests passed!')
+        "
         echo "✅ Minimal unit tests completed successfully"
 
     - name: Success message
