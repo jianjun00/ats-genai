@@ -50,7 +50,10 @@ jobs:
       run: uv python install 3.11
     
     - name: Install dependencies
-      run: uv sync
+      run: |
+        echo "Installing dependencies with uv..."
+        uv sync --verbose
+        echo "Dependencies installed successfully"
 
     - name: Create PostgreSQL test user
       run: |
