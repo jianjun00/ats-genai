@@ -8,18 +8,38 @@
 
 **EVERY code change must follow this exact process:**
 
-### 1. 🎫 JIRA Issue Management
-- **🚫 NEVER start work without a JIRA ticket**
-- Create detailed ticket with acceptance criteria
-- Link all commits and PRs to JIRA ticket ID
+### 1. 🎫 GitHub Issue Management
+- **🚫 NEVER start work without a GitHub Issue**
+- Create detailed issue with acceptance criteria
+- Link all commits and PRs to GitHub Issue ID
+
+```bash
+# Create issue first
+gh issue create --title "feat: add new trading signal algorithm" --body "
+## Description
+Brief description of the feature
+
+## Acceptance Criteria
+- [ ] Criterion 1
+- [ ] Criterion 2
+
+## Definition of Done
+- [ ] Tests written and passing
+- [ ] Schema validation completed
+- [ ] End-to-end validation successful
+"
+```
 
 ### 2. 🌿 Git Branching Workflow  
 ```bash
 # Start from latest main
 git checkout main && git pull origin main
 
-# Create feature branch with JIRA ID
-git checkout -b PGPT-1234/feature-description
+# Create feature branch with Issue ID
+git checkout -b issue-123/feature-description
+
+# OR use GitHub CLI to create branch from issue
+gh issue develop 123 --checkout
 ```
 
 ### 3. 🗄️ Schema Validation FIRST
@@ -84,16 +104,16 @@ PYTHONPATH=src pytest tests/system/ -v
 ### 8. 📋 Pull Request Process
 ```bash
 # Push feature branch
-git push origin PGPT-1234/feature-description
+git push origin issue-123/feature-description
 
 # Create PR with comprehensive details
-gh pr create --title "feat: description [PGPT-1234]" --body "
+gh pr create --title "feat: description (closes #123)" --body "
 ## Summary
 - Detailed description of changes
 - Why this change was needed
 
-## JIRA Ticket  
-[PGPT-1234](https://company.atlassian.net/browse/PGPT-1234)
+## Related Issue  
+Closes #123
 
 ## Testing
 - ✅ Schema validation tests pass
@@ -366,7 +386,7 @@ python scripts/detect_k8s_conflicts.py k8s/
 - [ ] Keeping K8s YAML free of embedded code
 
 **Development workflow is complete when:**
-- [ ] JIRA ticket created and linked
+- [ ] GitHub Issue created and linked
 - [ ] Feature branch created from main
 - [ ] Schema validation passes
 - [ ] TDD cycle completed (failing test → code → passing test)
@@ -374,7 +394,7 @@ python scripts/detect_k8s_conflicts.py k8s/
 - [ ] End-to-end validation completed
 - [ ] External access tested
 - [ ] PR reviewed and approved
-- [ ] JIRA ticket verified and closed
+- [ ] GitHub Issue automatically closed via PR merge
 
 ---
 

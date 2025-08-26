@@ -208,7 +208,7 @@ curl -v "http://NODE_IP:NODE_PORT/health"
 ## 🚨 Critical Rules
 
 ### Development Standards (MANDATORY)
-- **🎫 JIRA ticket required** before any work
+- **🎫 GitHub Issue required** before any work
 - **🌿 Feature branches only** - NEVER commit to main
 - **🔍 Schema validation first** - prevent database errors
 - **🧪 TDD required** - tests before code

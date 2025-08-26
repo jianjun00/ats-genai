@@ -1,0 +1,59 @@
+name: Minimal Test (No UV)
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies without uv
+      run: |
+        echo "Installing dependencies with pip..."
+        python -m pip install --upgrade pip
+        pip install pytest pytest-asyncio asyncpg aiofiles
+        echo "Dependencies installed successfully"
+    
+    - name: Create test database and user
+      run: |
+        echo "Setting up test database..."
+        sleep 10
+        PGPASSWORD=password psql -h localhost -U postgres -d postgres -c "
+          CREATE USER testuser WITH PASSWORD 'testpass' SUPERUSER;
+          CREATE DATABASE testdb OWNER testuser;
+        "
+        echo "Database setup completed"
+        
+    - name: Test database connection
+      env:
+        DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+      run: |
+        echo "Testing database connection..."
+        python3 test_basic_connection.py
+        echo "✅ Database connection test successful!"
+
+    - name: Success message
+      run: echo "🎉 Minimal CI/CD workflow completed successfully!"

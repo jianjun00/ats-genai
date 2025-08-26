@@ -1,7 +1,8 @@
 # Project Credentials and Access Tokens
 
 ## GitHub Tokens
-- **Working Token**: `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`
+- **Current Working Token**: `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` (jianjun00 account)
+- **Expired Token**: `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` (no longer working)
 - **Expired Token**: `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` (no longer working)
 
 ## Docker Hub
@@ -22,7 +23,15 @@
 - **Retention**: Custom + compressed SQL formats with integrity verification
 
 ## Usage Notes
-- Use the working GitHub token for API access to check workflow status
+- Use the current working GitHub token for API access, issue management, and workflow status
+- GitHub token has full repository access including issues, PRs, and repository management
+- Successfully used for creating GitHub Issues for 30-year price history project
 - Docker Hub credentials for pushing/pulling images from dragonflyer762/ats-genai repository
 - Slack webhooks configured in Kubernetes secrets for automated notifications
 - Private repo - credentials documented for team access
+
+## GitHub Token Capabilities (Verified 2025-08-25)
+- ✅ Repository access: AkoloTechnologies/ats-genai
+- ✅ Issue creation and management
+- ✅ API access for repository operations
+- ✅ Account: jianjun00 with MEMBER permissions

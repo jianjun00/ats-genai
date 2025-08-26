@@ -47,7 +47,7 @@ Build a comprehensive 30-year daily price database covering all US stocks and cr
 
 ## 🛠️ **Technical Requirements**
 
-### **Data Schema**
+### **Data Schema** (Updated based on vendor analysis)
 ```sql
 CREATE TABLE dev_daily_prices (
     symbol VARCHAR(10) NOT NULL,
@@ -55,17 +55,27 @@ CREATE TABLE dev_daily_prices (
     open DECIMAL(12,4),
     high DECIMAL(12,4), 
     low DECIMAL(12,4),
-    close DECIMAL(12,4),
+    close DECIMAL(12,4),           -- Raw close price
     volume BIGINT,
-    adjusted_close DECIMAL(12,4),
-    split_factor DECIMAL(8,4) DEFAULT 1.0,
-    dividend DECIMAL(8,4) DEFAULT 0.0,
-    data_vendor VARCHAR(20),
-    quality_score INTEGER DEFAULT 100,
+    adjusted_close DECIMAL(12,4),  -- Corporate action adjusted (KEY COLUMN)
+    data_vendor VARCHAR(20),       -- Source tracking (tiingo, polygon, eodhd)
+    quality_score INTEGER DEFAULT 100,  -- Cross-vendor validation score
     created_at TIMESTAMP DEFAULT NOW(),
     PRIMARY KEY (symbol, date)
 );
 ```
+
+### **Schema Design Rationale**
+**✅ Included:**
+- `adjusted_close` - **CRITICAL**: All vendors provide split/dividend adjusted prices
+- `data_vendor` - **ESSENTIAL**: Multi-vendor data lineage tracking  
+- `quality_score` - **VALUABLE**: Cross-vendor validation (0-100 scale)
+
+**❌ Removed (from original design):**
+- `split_factor` - **REDUNDANT**: Vendors handle this automatically in adjusted prices
+- `dividend` - **REDUNDANT**: Already incorporated in adjusted_close
+
+**🎯 Evidence**: AAPL 7:1 split (2014-06-09) analysis shows Tiingo automatically provides both raw and adjusted prices, eliminating need for manual corporate action tracking.
 
 ### **Data Sources & Prioritization**
 1. **Polygon.io** (Primary): 2000-present, high accuracy, corporate actions
