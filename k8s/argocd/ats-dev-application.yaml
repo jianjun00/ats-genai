@@ -1,0 +1,174 @@
+---
+# ArgoCD Application for ATS Development Environment
+# This manages the complete ATS development stack
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ats-dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/AkoloTechnologies/ats-genai
+    targetRevision: HEAD
+    path: k8s/environments/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ats-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - Validate=true
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 10
+
+---
+# ArgoCD Application for ATS Integration Environment
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ats-intg
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/AkoloTechnologies/ats-genai
+    targetRevision: develop
+    path: k8s/environments/intg
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ats-intg
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - Validate=true
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 10
+
+---
+# ArgoCD Application for ATS Production Environment (Manual Sync)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ats-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/AkoloTechnologies/ats-genai
+    targetRevision: main
+    path: k8s/environments/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ats-prod
+  syncPolicy:
+    # Production requires manual approval
+    syncOptions:
+      - Validate=true
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
+  revisionHistoryLimit: 20
+
+---
+# ArgoCD AppProject for ATS Platform
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: ats-platform
+  namespace: argocd
+spec:
+  description: ATS Trading Platform Project
+  sourceRepos:
+  - https://github.com/AkoloTechnologies/ats-genai
+  destinations:
+  - namespace: ats-dev
+    server: https://kubernetes.default.svc
+  - namespace: ats-intg
+    server: https://kubernetes.default.svc
+  - namespace: ats-prod
+    server: https://kubernetes.default.svc
+  - namespace: argocd
+    server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+  - group: ''
+    kind: Namespace
+  - group: 'rbac.authorization.k8s.io'
+    kind: ClusterRole
+  - group: 'rbac.authorization.k8s.io'
+    kind: ClusterRoleBinding
+  namespaceResourceWhitelist:
+  - group: ''
+    kind: ConfigMap
+  - group: ''
+    kind: Secret
+  - group: ''
+    kind: Service
+  - group: ''
+    kind: ServiceAccount
+  - group: 'apps'
+    kind: Deployment
+  - group: 'apps'
+    kind: StatefulSet
+  - group: 'batch'
+    kind: Job
+  - group: 'batch'
+    kind: CronJob
+  - group: 'networking.k8s.io'
+    kind: Ingress
+  - group: 'networking.k8s.io'
+    kind: NetworkPolicy
+  roles:
+  - name: admin
+    policies:
+    - p, proj:ats-platform:admin, applications, *, ats-platform/*, allow
+    - p, proj:ats-platform:admin, repositories, *, *, allow
+    groups:
+    - AkoloTechnologies:ats-admins
+  - name: developer
+    policies:
+    - p, proj:ats-platform:developer, applications, get, ats-platform/ats-dev, allow
+    - p, proj:ats-platform:developer, applications, sync, ats-platform/ats-dev, allow
+    - p, proj:ats-platform:developer, applications, get, ats-platform/ats-intg, allow
+    groups:
+    - AkoloTechnologies:ats-developers

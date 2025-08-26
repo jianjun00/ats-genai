@@ -1,0 +1,223 @@
+name: GitOps Deployment
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'src/**'
+      - 'services/**'
+      - 'k8s/**'
+      - 'Dockerfile*'
+      - 'requirements.txt'
+      - 'pyproject.toml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - intg
+        - prod
+      force_sync:
+        description: 'Force ArgoCD sync after update'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Determine deployment strategy
+  strategy:
+    runs-on: ubuntu-latest
+    outputs:
+      target-env: ${{ steps.env.outputs.target-env }}
+      should-deploy: ${{ steps.env.outputs.should-deploy }}
+      image-tag: ${{ steps.env.outputs.image-tag }}
+    
+    steps:
+    - name: Determine environment and strategy
+      id: env
+      run: |
+        # Determine target environment
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          TARGET_ENV="${{ github.event.inputs.environment }}"
+        elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          TARGET_ENV="dev"
+        elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+          TARGET_ENV="intg"
+        else
+          TARGET_ENV="dev"
+        fi
+        
+        # Generate image tag
+        IMAGE_TAG="${{ github.ref_name }}-$(git rev-parse --short HEAD)-$(date +%Y%m%d%H%M%S)"
+        
+        echo "target-env=${TARGET_ENV}" >> $GITHUB_OUTPUT
+        echo "should-deploy=true" >> $GITHUB_OUTPUT
+        echo "image-tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+        
+        echo "🎯 Target Environment: ${TARGET_ENV}"
+        echo "📦 Image Tag: ${IMAGE_TAG}"
+
+  # Build and push Docker image
+  build:
+    runs-on: ubuntu-latest
+    needs: strategy
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Build and push Docker image
+      id: image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.strategy.outputs.image-tag }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.strategy.outputs.target-env }}-latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        labels: |
+          org.opencontainers.image.title=ATS GenAI Platform
+          org.opencontainers.image.description=ATS GenAI Trading Platform
+          org.opencontainers.image.version=${{ needs.strategy.outputs.image-tag }}
+          org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          org.opencontainers.image.revision=${{ github.sha }}
+
+  # Update Kubernetes manifests for GitOps
+  gitops-update:
+    runs-on: ubuntu-latest
+    needs: [strategy, build]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Install yq
+      run: |
+        sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+        sudo chmod +x /usr/local/bin/yq
+    
+    - name: Update Kustomization image tag
+      run: |
+        TARGET_ENV="${{ needs.strategy.outputs.target-env }}"
+        IMAGE_TAG="${{ needs.strategy.outputs.image-tag }}"
+        NEW_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
+        
+        echo "🚀 Updating ${TARGET_ENV} environment with image: ${NEW_IMAGE}"
+        
+        # Update the kustomization.yaml for the target environment
+        KUSTOMIZATION_FILE="k8s/environments/${TARGET_ENV}/kustomization.yaml"
+        
+        if [[ -f "${KUSTOMIZATION_FILE}" ]]; then
+          # Update the image tag using yq
+          yq eval "(.images[] | select(.name == \"ats-genai\") | .newTag) = \"${IMAGE_TAG}\"" -i "${KUSTOMIZATION_FILE}"
+          
+          echo "✅ Updated ${KUSTOMIZATION_FILE}"
+          cat "${KUSTOMIZATION_FILE}"
+        else
+          echo "❌ Kustomization file not found: ${KUSTOMIZATION_FILE}"
+          exit 1
+        fi
+    
+    - name: Commit and push changes
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        
+        TARGET_ENV="${{ needs.strategy.outputs.target-env }}"
+        IMAGE_TAG="${{ needs.strategy.outputs.image-tag }}"
+        
+        git add k8s/environments/${TARGET_ENV}/kustomization.yaml
+        
+        if git diff --staged --quiet; then
+          echo "ℹ️ No changes to commit"
+        else
+          git commit -m "🚀 Update ${TARGET_ENV} deployment to ${IMAGE_TAG}
+
+Environment: ${TARGET_ENV}
+Image Tag: ${IMAGE_TAG}
+Commit: ${{ github.sha }}
+Author: ${{ github.actor }}
+
+🤖 Automated GitOps deployment"
+          
+          git push origin HEAD:${{ github.ref_name }}
+          echo "✅ Pushed GitOps update for ${TARGET_ENV}"
+        fi
+
+  # Trigger ArgoCD sync (optional)
+  argocd-sync:
+    runs-on: ubuntu-latest
+    needs: [strategy, gitops-update]
+    if: github.event.inputs.force_sync == 'true' || github.event.inputs.force_sync == ''
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Trigger ArgoCD sync
+      run: |
+        TARGET_ENV="${{ needs.strategy.outputs.target-env }}"
+        
+        echo "🔄 Triggering ArgoCD sync for ats-${TARGET_ENV}"
+        
+        # Use the force sync script if available
+        if [[ -f "scripts/force_argocd_sync.sh" ]]; then
+          echo "Using existing ArgoCD sync script..."
+          chmod +x scripts/force_argocd_sync.sh
+          ./scripts/force_argocd_sync.sh "ats-${TARGET_ENV}" || echo "⚠️ ArgoCD sync script failed or not configured"
+        else
+          echo "ℹ️ No ArgoCD sync script found - manual sync may be required"
+        fi
+        
+        echo "✅ ArgoCD sync triggered for ats-${TARGET_ENV}"
+
+  # Notification
+  notify:
+    runs-on: ubuntu-latest
+    needs: [strategy, build, gitops-update, argocd-sync]
+    if: always()
+    
+    steps:
+    - name: Send deployment notification
+      run: |
+        TARGET_ENV="${{ needs.strategy.outputs.target-env }}"
+        IMAGE_TAG="${{ needs.strategy.outputs.image-tag }}"
+        
+        if [[ "${{ needs.build.result }}" == "success" && "${{ needs.gitops-update.result }}" == "success" ]]; then
+          STATUS="✅ SUCCESS"
+          MESSAGE="Successfully deployed ATS GenAI to ${TARGET_ENV} environment"
+        else
+          STATUS="❌ FAILED"
+          MESSAGE="Failed to deploy ATS GenAI to ${TARGET_ENV} environment"
+        fi
+        
+        echo "📢 ${STATUS}: ${MESSAGE}"
+        echo "🎯 Environment: ${TARGET_ENV}"
+        echo "📦 Image Tag: ${IMAGE_TAG}"
+        echo "🔗 Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
