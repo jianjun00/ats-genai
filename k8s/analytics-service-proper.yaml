@@ -20,18 +20,78 @@ spec:
       containers:
       - name: analytics
         image: dragonflyer762/ats-genai:latest
-        command: ["python3"]
-        args: ["/app/src/services/analytics_service.py"]
+        command: ["/bin/bash"]
+        args:
+        - "-c"
+        - |
+          set -e  # Exit on any error
+          
+          echo "📦 Downloading source code from private repository via GitHub API..."
+          if ! curl -H "Authorization: token ${GITHUB_TOKEN}" \
+               -H "Accept: application/vnd.github.v3.raw" \
+               -o /tmp/analytics.py \
+               https://api.github.com/repos/AkoloTechnologies/ats-genai/contents/src/services/analytics/unified_analytics_app.py?ref=feature/analytics-service-deployment; then
+            echo "❌ Failed to download source code"
+            exit 1
+          fi
+          
+          echo "📂 Creating src structure..."
+          mkdir -p /tmp/src-repo/src/services/analytics
+          cp /tmp/analytics.py /tmp/src-repo/src/services/analytics/unified_analytics_app.py
+          cd /tmp/src-repo
+          
+          echo "📁 Adding required directories to Python path..."
+          # Create minimal directory structure for imports
+          mkdir -p src/config src/core/logging src/dao/base src/analytics
+          
+          # Create empty __init__.py files
+          touch src/__init__.py
+          touch src/config/__init__.py  
+          touch src/core/__init__.py
+          touch src/core/logging/__init__.py
+          touch src/dao/__init__.py
+          touch src/dao/base/__init__.py
+          touch src/analytics/__init__.py
+          touch src/services/__init__.py
+          touch src/services/analytics/__init__.py
+          
+          echo "🚀 Starting ATS Analytics Service on port ${PORT}..."
+          echo "🔧 Python path: ${PYTHONPATH}"
+          echo "📍 Working directory: $(pwd)"
+          echo "📁 Contents: $(ls -la src/services/analytics/)"
+          
+          # Create a simple startup script
+          cat > startup.py << 'EOF'
+import sys
+import os
+print(f'🐍 Python version: {sys.version}')
+print(f'📍 Python path: {sys.path}')
+print(f'🔧 PORT environment: {os.environ.get("PORT", "not set")}')
+sys.path.insert(0, '/tmp/src-repo/src')
+try:
+    exec(open('src/services/analytics/unified_analytics_app.py').read())
+except Exception as e:
+    print(f'❌ Error starting service: {e}')
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+EOF
+          
+          echo "🚀 Executing startup script..."
+          PYTHONPATH=/tmp/src-repo/src python3 startup.py
         ports:
-        - containerPort: 8000
+        - containerPort: 3000
           name: http
         env:
         - name: PORT
-          value: "8000"
+          value: "3000"
         - name: ENVIRONMENT
           value: "development"
-        - name: PYTHONPATH
-          value: "src"
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: github-credentials
+              key: token
         resources:
           requests:
             memory: "256Mi"
@@ -42,13 +102,13 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 8000
+            port: 3000
           initialDelaySeconds: 30
           periodSeconds: 30
         readinessProbe:
           httpGet:
             path: /health  
-            port: 8000
+            port: 3000
           initialDelaySeconds: 10
           periodSeconds: 10
 ---
@@ -62,9 +122,9 @@ metadata:
 spec:
   type: NodePort
   ports:
-  - port: 8000
-    targetPort: 8000
-    nodePort: 30080
+  - port: 3000
+    targetPort: 3000
+    nodePort: 30000
     name: http
   selector:
     app: ats-analytics
