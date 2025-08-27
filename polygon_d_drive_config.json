@@ -1,0 +1,46 @@
+{
+  "environment_config": {
+    "POLYGON_MINUTE_DATA_PATH": "/mnt/d/ats-data/minute-bars/polygon",
+    "POLYGON_CHECKPOINT_PATH": "/mnt/d/ats-data/checkpoints/polygon",
+    "POLYGON_LOG_PATH": "/mnt/d/ats-data/logs/polygon",
+    "POLYGON_BACKUP_PATH": "/mnt/d/ats-data/minute-bars/backups",
+    "POLYGON_QUALITY_REPORTS_PATH": "/mnt/d/ats-data/minute-bars/quality-reports",
+    "D_DRIVE_ROOT": "/mnt/d",
+    "POLYGON_PLAN_TYPE": "free",
+    "POLYGON_RATE_LIMIT": 5
+  },
+  "api_info": {
+    "valid": true,
+    "status_code": 200,
+    "request_time": 0.3764345645904541,
+    "results_count": 1,
+    "plan_type": "free",
+    "rate_limit": 5
+  },
+  "storage_estimates": {
+    "assumptions": {
+      "symbols": 8000,
+      "trading_days_per_year": 252,
+      "minutes_per_day": 390,
+      "years": 30,
+      "bytes_per_bar": 60,
+      "compression_ratio": 0.6,
+      "metadata_overhead": 1.2,
+      "quality_metadata": 1.1
+    },
+    "total_bars": 23587200000,
+    "estimated_size_bytes": 1120863744000.0,
+    "estimated_size_gb": 1043.89,
+    "estimated_size_tb": 1.02
+  },
+  "time_estimates": {
+    "total_api_calls": 2880000,
+    "requests_per_minute": 5,
+    "estimated_minutes": 576000.0,
+    "estimated_hours": 9600.0,
+    "estimated_days": 400.0,
+    "estimated_months": 13.333333333333334,
+    "plan_type": "free"
+  },
+  "setup_timestamp": "2025-08-27T00:29:00.936134"
+}

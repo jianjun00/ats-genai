@@ -16,12 +16,12 @@ import yaml
 from pathlib import Path
 
 class DevCLI:
-    def __init__(self):
-        self.db_host = "localhost"
-        self.db_port = "5432"  # Default PostgreSQL port
-        self.db_user = "postgres"
-        self.db_password = "dev_password"
-        self.db_name = "dev_db"
+    def __init__(self, environment=None):
+        # Detect environment based on containers or explicit parameter
+        self.environment = environment or self.detect_environment()
+        
+        # Set database configuration based on environment
+        self.configure_database()
         
         # ATS persistent volume paths (D: drive)
         self.ats_data_path = "/mnt/d/ats-data"
@@ -33,6 +33,42 @@ class DevCLI:
         
         # Check if we need to use port-forwarded connection
         self.check_database_connection()
+    
+    def detect_environment(self):
+        """Auto-detect environment based on running containers"""
+        try:
+            result = subprocess.run("docker ps --format '{{.Names}}'", shell=True, capture_output=True, text=True)
+            containers = result.stdout.strip().split('\n')
+            
+            if 'ats-intg-postgres' in containers:
+                return 'intg'
+            elif 'ats-dev-postgres' in containers:
+                return 'dev'
+            else:
+                print("⚠️  No ATS database containers found, defaulting to dev")
+                return 'dev'
+        except:
+            print("⚠️  Could not detect environment, defaulting to dev")
+            return 'dev'
+    
+    def configure_database(self):
+        """Configure database settings based on environment"""
+        if self.environment == 'intg':
+            self.db_host = "localhost"
+            self.db_port = "5433"  # ats-intg-postgres port
+            self.db_user = "postgres"
+            self.db_password = "intg_password"  # TimescaleDB might use password
+            self.db_name = "intg_db"
+            self.table_prefix = "intg_"
+        else:  # dev environment
+            self.db_host = "localhost"
+            self.db_port = "5432"  # ats-dev-postgres port
+            self.db_user = "postgres"
+            self.db_password = ""  # Docker container uses no password
+            self.db_name = "dev_db"
+            self.table_prefix = "dev_"
+            
+        print(f"🔧 Configured for {self.environment} environment: {self.db_host}:{self.db_port}/{self.db_name}")
     
     def ensure_ats_directories(self):
         """Ensure ATS directories exist on D: drive"""
@@ -81,9 +117,35 @@ class DevCLI:
     def test_db_connection(self, host, port):
         """Test database connection"""
         try:
-            cmd = f'PGPASSWORD={self.db_password} psql -h {host} -p {port} -U {self.db_user} -d {self.db_name} -c "SELECT 1" > /dev/null 2>&1'
+            # Try with the configured password first
+            if self.db_password:
+                cmd = f'PGPASSWORD={self.db_password} psql -h {host} -p {port} -U {self.db_user} -d {self.db_name} -c "SELECT 1" > /dev/null 2>&1'
+                result = subprocess.run(cmd, shell=True, capture_output=True)
+                if result.returncode == 0:
+                    return True
+            
+            # Try without password (for Docker containers)
+            cmd = f'psql -h {host} -p {port} -U {self.db_user} -d {self.db_name} -c "SELECT 1" > /dev/null 2>&1'
             result = subprocess.run(cmd, shell=True, capture_output=True)
-            return result.returncode == 0
+            if result.returncode == 0:
+                self.db_password = ""
+                return True
+                
+            # Try common passwords based on environment
+            passwords_to_try = []
+            if self.environment == 'intg':
+                passwords_to_try = ['intg_password', 'password', 'postgres']
+            else:
+                passwords_to_try = ['dev_password', 'password', 'postgres']
+                
+            for password in passwords_to_try:
+                cmd = f'PGPASSWORD={password} psql -h {host} -p {port} -U {self.db_user} -d {self.db_name} -c "SELECT 1" > /dev/null 2>&1'
+                result = subprocess.run(cmd, shell=True, capture_output=True)
+                if result.returncode == 0:
+                    self.db_password = password
+                    return True
+                
+            return False
         except:
             return False
         
@@ -431,7 +493,12 @@ class DevCLI:
         if description:
             print(f"📊 {description}")
         
-        cmd = f'PGPASSWORD={self.db_password} psql -h {self.db_host} -p {self.db_port} -U {self.db_user} -d {self.db_name} -c "{sql_query}"'
+        # Use password if we have one, otherwise connect without password
+        if self.db_password:
+            cmd = f'PGPASSWORD={self.db_password} psql -h {self.db_host} -p {self.db_port} -U {self.db_user} -d {self.db_name} -c "{sql_query}"'
+        else:
+            cmd = f'psql -h {self.db_host} -p {self.db_port} -U {self.db_user} -d {self.db_name} -c "{sql_query}"'
+        
         result = self.run_command(cmd)
         
         if result:
@@ -466,6 +533,8 @@ def main():
         "run", "start", "stop", "status", "test", "query", "setup", "logs"
     ], help="Action to perform")
     
+    parser.add_argument("--environment", choices=["dev", "intg"], help="Environment to use (auto-detected if not specified)")
+    
     parser.add_argument("--script", "-s", help="Script to run")
     parser.add_argument("--service", help="Service name")
     parser.add_argument("--query", "-q", help="SQL query to run")
@@ -476,7 +545,7 @@ def main():
     
     args = parser.parse_args()
     
-    cli = DevCLI()
+    cli = DevCLI(environment=args.environment)
     
     # Parse environment variables if provided
     environment = None

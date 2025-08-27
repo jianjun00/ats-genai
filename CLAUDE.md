@@ -537,6 +537,67 @@ docker exec ats-dev-postgres psql -U postgres -d dev_db -c "\d table_name"
 
 **📋 Complete Documentation**: See `tests/regression/README.md` for comprehensive regression testing guide
 
+**📋 Detailed Documentation**: [Instrument Population Lessons Learned](docs/development/INSTRUMENT_POPULATION_LESSONS_LEARNED.md)
+
+---
+
+## 🚨 **CRITICAL: ATS Platform Database Environments**
+
+### **🔥 Two-Environment Docker Architecture**
+
+**ATS-DEV (Development):**
+- **Purpose**: Primary development, unit testing, feature development
+- **Database**: PostgreSQL 16.9 on `localhost:5432` 
+- **Container**: `ats-dev-postgres` (postgres:13 image)
+- **Connection**: `dev_db` database, `postgres` user, **no password**
+- **Table Prefix**: `dev_*` (e.g., `dev_instruments`, `dev_daily_prices`)
+- **Usage**: `python3 scripts/run_dev.py --environment dev query --query "..."`
+
+**ATS-INTG (Integration):**
+- **Purpose**: CI/CD integration testing, pre-production validation  
+- **Database**: TimescaleDB (PostgreSQL 13.15) on `localhost:5433`
+- **Container**: `ats-intg-postgres` (timescale/timescaledb:latest-pg13 image)
+- **Connection**: `intg_db` database, `postgres` user, **no password** (auto-detected)
+- **Table Prefix**: `intg_*` (e.g., `intg_instruments`, `intg_daily_prices`)
+- **Usage**: `python3 scripts/run_dev.py --environment intg query --query "..."`
+
+### **📋 Database Connection Examples**
+
+**Auto-Detection (Recommended):**
+```bash
+# Automatically detects available environment based on running containers
+python3 scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_instruments"     # → dev env
+python3 scripts/run_dev.py query --query "SELECT COUNT(*) FROM intg_instruments"    # → intg env
+```
+
+**Explicit Environment Selection:**
+```bash
+# Force specific environment
+python3 scripts/run_dev.py --environment dev query --query "SELECT current_database()"
+python3 scripts/run_dev.py --environment intg query --query "SELECT current_database()" 
+```
+
+**Direct Database Connections:**
+```bash
+# ATS-DEV (no password required)
+psql -h localhost -p 5432 -U postgres -d dev_db -c "SELECT version()"
+
+# ATS-INTG (no password required) 
+psql -h localhost -p 5433 -U postgres -d intg_db -c "SELECT version()"
+```
+
+### **🚀 Critical Development Workflow**
+1. **Develop** in ATS-DEV environment using `dev_*` tables
+2. **Test** with `run_dev.py` for database operations  
+3. **Validate** data population scripts work with both environments
+4. **Use proper table prefixes** (`dev_` vs `intg_`) in all queries
+
+**⚠️ KEY DIFFERENCES:**
+- **Ports**: DEV=5432, INTG=5433  
+- **Databases**: dev_db vs intg_db
+- **Table Prefixes**: dev_* vs intg_*
+- **Container Images**: postgres:13 vs timescale/timescaledb:latest-pg13
+
 ---
 
 **📖 For comprehensive information, see the complete documentation structure at [docs/README.md](docs/README.md)**
