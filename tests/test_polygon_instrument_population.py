@@ -1,5 +1,6 @@
 import pytest
 import json
+import os
 from unittest.mock import Mock
 from urllib.parse import urlencode, urlparse, parse_qs
 
@@ -185,7 +186,7 @@ class TestPolygonApiIntegration:
         # Simulate the problematic next_url from Polygon API
         problematic_next_url = "https://api.polygon.io/v3/reference/tickers?cursor=YWN0aXZlPXRydWUmZGF0ZT0yMDIzLTEyLTE1JmxpbWl0PTEwMDAmbHQ9MjAyMy0xMi0xNQ%3D%3D&limit=1000&market=stocks&order=asc&sort=ticker"
         
-        api_key = "wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"
+        api_key = os.getenv('POLYGON_API_KEY', 'test_api_key_placeholder')
         
         # Before fix: next_url would be used directly, causing 401
         assert 'apikey=' not in problematic_next_url

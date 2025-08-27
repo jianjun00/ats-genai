@@ -168,7 +168,7 @@ class TestKubernetesJobDeploymentIssues:
             
             # Check for hardcoded API keys (common patterns)
             api_key_patterns = [
-                'wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD',  # Polygon key from our jobs
+                'test_api_key_placeholder',  # Polygon key pattern from our jobs
                 '5f40b4f36e171405746304ec0e5a6f3aa9ca77e5',  # Tiingo key from our jobs
                 'api_key = "',
                 'API_KEY = "',
@@ -187,7 +187,7 @@ class TestKubernetesJobDeploymentIssues:
                 'template': {
                     'spec': {
                         'containers': [{
-                            'command': ['python', '-c', 'API_KEY = "wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"']
+                            'command': ['python', '-c', 'API_KEY = "test_api_key_placeholder"']
                         }]
                     }
                 }

@@ -165,7 +165,7 @@ class ValueETFResearcher:
     
     def __init__(self):
         # API keys
-        self.polygon_key = os.getenv('POLYGON_API_KEY', 'wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD')
+        self.polygon_key = os.getenv('POLYGON_API_KEY', 'test_api_key_placeholder')
         self.tiingo_key = os.getenv('TIINGO_API_KEY', '5f40b4f36e171405746304ec0e5a6f3aa9ca77e5')  
         self.eodhd_key = os.getenv('EODHD_API_KEY', '68aa0c7d2fe831.67386369')
         
