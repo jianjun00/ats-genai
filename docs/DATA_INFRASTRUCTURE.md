@@ -19,10 +19,10 @@ The Data Infrastructure provides comprehensive data ingestion, processing, stora
 - **Event Processing** - Earnings, economic events, corporate actions
 
 ### **Key Technologies**
-- **TimescaleDB** - Time-series optimized PostgreSQL
-- **Redis** - Caching and temporary storage
+- **PostgreSQL** - Time-series optimized relational database
+- **Docker** - Containerized database and service execution
 - **Python** - Data processing and ETL pipelines
-- **Kubernetes** - Containerized job execution
+- **run_dev.py** - Docker-based development environment
 - **Prometheus/Grafana** - Monitoring and alerting
 
 ---
@@ -31,17 +31,18 @@ The Data Infrastructure provides comprehensive data ingestion, processing, stora
 
 ### **Data Pipeline Execution**
 ```bash
-# Run real-time data collection
-python scripts/run_dev.py deploy --file k8s/realtime-data-collection-system.yaml
+# Start development database
+python scripts/run_dev.py start --service postgres
 
-# Execute historical backfill
-python scripts/run_dev.py deploy --file k8s/polygon-10year-backfill-job.yaml
+# Execute historical backfill scripts
+python scripts/run_dev.py run --script scripts/polygon_daily_price_backfill.py
+python scripts/run_dev.py run --script scripts/tiingo_30_year_fundamentals_backfill.py
 
-# Data quality validation
-python scripts/run_dev.py deploy --file k8s/data-quality-validation-job.yaml
+# Run data quality validation
+python scripts/run_dev.py run --script scripts/validate_data_quality.py
 
 # Multi-vendor reconciliation
-python scripts/run_dev.py deploy --file k8s/cross-vendor-reconciliation-job.yaml
+python scripts/run_dev.py run --script scripts/cross_vendor_reconciliation.py
 ```
 
 ### **Data Access Patterns**
@@ -181,9 +182,9 @@ class DataQualityEngine:
 
 ## 🗄️ Storage Architecture
 
-### **TimescaleDB Optimization**
+### **PostgreSQL Optimization**
 ```sql
--- Hypertable creation for time-series data
+-- Time-series data table creation
 CREATE TABLE dev_daily_prices (
     symbol VARCHAR(10) NOT NULL,
     date DATE NOT NULL, 
@@ -194,11 +195,9 @@ CREATE TABLE dev_daily_prices (
     volume BIGINT,
     vendor VARCHAR(20),
     quality_score DECIMAL(3,2),
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT NOW(),
+    PRIMARY KEY (symbol, date, vendor)
 );
-
--- Convert to hypertable for time-series optimization
-SELECT create_hypertable('dev_daily_prices', 'date', chunk_time_interval => interval '1 month');
 
 -- Create indexes for fast queries
 CREATE INDEX ON dev_daily_prices (symbol, date DESC);
@@ -206,27 +205,31 @@ CREATE INDEX ON dev_daily_prices (vendor, date DESC);
 CREATE INDEX ON dev_daily_prices (date DESC, symbol) WHERE vendor = 'polygon';
 ```
 
-### **Data Partitioning Strategy**
+### **Database Management Strategy**
 ```sql
--- Automatic compression for older data
-SELECT add_compression_policy('dev_daily_prices', INTERVAL '7 days');
+-- Database environments
+-- Development: localhost:5432 (dev_db)
+-- Integration: localhost:5433 (intg_db)
 
--- Retention policy for dev environment 
-SELECT add_retention_policy('dev_daily_prices', INTERVAL '2 years');
+-- Environment-specific table prefixes
+-- dev_daily_prices, dev_instruments (development)
+-- intg_daily_prices, intg_instruments (integration)
 
--- Continuous aggregates for common queries
-CREATE MATERIALIZED VIEW daily_ohlcv_summary
-WITH (timescaledb.continuous) AS
+-- Materialized view for common queries
+CREATE MATERIALIZED VIEW daily_ohlcv_summary AS
 SELECT symbol, 
-       time_bucket('1 day', date) as day,
-       first(open, date) as open,
-       max(high) as high,
-       min(low) as low, 
-       last(close, date) as close,
-       sum(volume) as volume,
-       count(*) as vendor_count
+       date,
+       MIN(open) as open,
+       MAX(high) as high,
+       MIN(low) as low, 
+       MAX(close) as close,
+       SUM(volume) as total_volume,
+       COUNT(DISTINCT vendor) as vendor_count
 FROM dev_daily_prices 
-GROUP BY symbol, day;
+GROUP BY symbol, date;
+
+-- Refresh command
+REFRESH MATERIALIZED VIEW daily_ohlcv_summary;
 ```
 
 ### **Multi-Vendor Data Model**

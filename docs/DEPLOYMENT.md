@@ -102,50 +102,65 @@ watch kubectl get pods -n ats-prod
 #### Development Database (ats-dev)
 ```bash
 # Connection Details:
-# Host: postgres (within cluster) / localhost:5433 (port-forward)
-# Port: 5432 (cluster) / 5433 (local)
+# Host: localhost
+# Port: 5432 (Docker container)
 # User: postgres
 # Password: dev_password  
 # Database: dev_db
 # Tables: dev_* prefixed (e.g., dev_daily_prices, dev_instruments)
 
+# Start Database:
+python scripts/run_dev.py start --service postgres
+
 # Database Operations:
-python3 scripts/run_dev.py psql --query "SELECT version()"
-kubectl port-forward service/postgres 5433:5432 -n ats-dev &
-PGPASSWORD=dev_password psql -h localhost -p 5433 -U postgres -d dev_db
+python scripts/run_dev.py query --query "SELECT version()"
+PGPASSWORD=dev_password psql -h localhost -p 5432 -U postgres -d dev_db
 ```
 
-#### Migration Management
+#### Integration Database (ats-intg)
 ```bash
-# Run migrations for ats-dev
-PYTHONPATH=src ENVIRONMENT=dev DB_HOST=localhost DB_PORT=5433 \
-DB_USER=postgres DB_PASSWORD=dev_password DB_NAME=dev_db \
-uv run python src/db/migration_manager.py migrate \
---db-url "postgresql://postgres:dev_password@localhost:5433/dev_db"
+# Connection Details:
+# Host: localhost
+# Port: 5433 (Docker container)
+# User: postgres
+# Password: intg_password  
+# Database: intg_db
+# Tables: intg_* prefixed (e.g., intg_daily_prices, intg_instruments)
 
-# Check migration status
-PYTHONPATH=src ENVIRONMENT=dev DB_HOST=localhost DB_PORT=5433 \
-DB_USER=postgres DB_PASSWORD=dev_password DB_NAME=dev_db \
-uv run python src/db/migration_manager.py version \
---db-url "postgresql://postgres:dev_password@localhost:5433/dev_db"
+# Start Database:
+python scripts/run_intg.py start --service postgres
+
+# Database Operations:
+python scripts/run_intg.py query --query "SELECT version()"
+PGPASSWORD=intg_password psql -h localhost -p 5433 -U postgres -d intg_db
 ```
 
 | Environment | Tables | Purpose | Access Method |
 |-------------|--------|---------|---------------|
-| **dev** | `dev_*` | Development | K8s TimescaleDB |
-| **intg** | `intg_*` | Integration testing | K8s TimescaleDB |
-| **prod** | `prod_*` | Production data | K8s TimescaleDB |
+| **dev** | `dev_*` | Development | Docker PostgreSQL |
+| **intg** | `intg_*` | Integration testing | Docker PostgreSQL |
+| **prod** | `prod_*` | Production data | Docker PostgreSQL |
 
 ### Access Configuration
 
 #### Development Environment
 ```bash
-# Database access
-Host: postgres (internal) / localhost (port-forward)
+# Database access (ats-dev)
+Host: localhost
 Port: 5432
 Database: dev_db
 User: postgres
 Password: dev_password
+
+# Start development environment
+python scripts/run_dev.py start --service postgres
+
+# Integration environment
+Host: localhost
+Port: 5433
+Database: intg_db
+User: postgres
+Password: intg_password
 
 # External access
 External IP: 192.168.49.2

@@ -13,7 +13,7 @@
 
 ---
 
-## 📚 **Complete Documentation (10 Essential Guides)**
+## 📚 **Complete Documentation (11 Essential Guides)**
 
 ### **🎯 Platform Essentials**
 1. **[README.md](README.md)** - This navigation hub
@@ -25,14 +25,15 @@
 5. **[SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md)** - Complete technical architecture
 6. **[BACKEND_PLATFORM.md](BACKEND_PLATFORM.md)** - APIs, services, authentication
 7. **[DATA_INFRASTRUCTURE.md](DATA_INFRASTRUCTURE.md)** - Data pipelines, storage, ETL
-8. **[ML_PLATFORM.md](ML_PLATFORM.md)** - AI/ML training, inference, optimization
+8. **[DATABASE_ENVIRONMENTS.md](DATABASE_ENVIRONMENTS.md)** - Database setup, ats-dev/ats-intg environments
+9. **[ML_PLATFORM.md](ML_PLATFORM.md)** - AI/ML training, inference, optimization
 
 ### **⚙️ Operations**
-9. **[OPERATIONS.md](OPERATIONS.md)** - DevOps, monitoring, infrastructure management
-10. **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues, solutions, emergency procedures
+10. **[OPERATIONS.md](OPERATIONS.md)** - DevOps, monitoring, infrastructure management
+11. **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues, solutions, emergency procedures
 
 ### **📋 Project Documentation**
-11. **[projects/](projects/)** - Active project requirements and design documents
+12. **[projects/](projects/)** - Active project requirements and design documents
 
 ---
 
@@ -136,4 +137,4 @@ Complete historical daily price database covering all US stocks and critical mar
 
 ---
 
-**🎉 Welcome to ATS! These 10 guides contain everything you need to build enterprise algorithmic trading infrastructure.**
+**🎉 Welcome to ATS! These 11 guides contain everything you need to build enterprise algorithmic trading infrastructure.**
