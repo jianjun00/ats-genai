@@ -147,6 +147,8 @@ class DevCLI:
             -e ATS_DATA_PATH=/data \
             -e ATS_BACKUP_PATH=/backup \
             -e ATS_LOGS_PATH=/logs \
+            -e IDEMPOTENT_MODE={os.getenv('IDEMPOTENT_MODE', 'false')} \
+            -e FORCE_REBUILD={os.getenv('FORCE_REBUILD', 'false')} \
             {env_vars} \
             {image} \
             python {script_path}"""
