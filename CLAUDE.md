@@ -176,6 +176,24 @@ python scripts/run_dev.py status
 python scripts/run_dev.py stop --service analytics
 ```
 
+### Comprehensive Instrument Population
+```bash
+# Populate ALL supported stocks from vendor APIs (no hardcoding)
+python scripts/run_dev.py run --script scripts/run_tiingo_bulk.py    # 60,998 stocks via TiingoClient.list_stock_tickers()
+python scripts/run_dev.py run --script scripts/run_eodhd_bulk.py     # 50,746 stocks via exchange-symbol-list/US API
+
+# Individual vendor population (for testing)
+python scripts/run_dev.py run --script scripts/run_polygon_instruments.py
+python scripts/run_dev.py run --script scripts/run_tiingo_instruments.py  
+python scripts/run_dev.py run --script scripts/run_eodhd_instruments.py
+
+# Verify comprehensive population
+python scripts/run_dev.py query --query "SELECT 'Tiingo' as vendor, COUNT(*) as instruments FROM dev_instrument_tiingo UNION SELECT 'EODHD', COUNT(*) FROM dev_instrument_eodhd"
+
+# Check delisted/historical stocks
+python scripts/run_dev.py query --query "SELECT COUNT(*) as delisted_before_2020 FROM dev_instrument_tiingo WHERE end_date < '2020-01-01'"
+```
+
 ### Script Execution
 ```bash
 # Run data generation scripts

@@ -101,10 +101,16 @@ curl -s "http://localhost:8000/health" | jq
 
 ### 📊 Data Engineer
 ```bash
-# Run data pipeline
-python scripts/run_dev.py run --script scripts/data_pipeline.py
-# Verify data quality
-python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_prices WHERE symbol IN ('AAPL', 'MSFT')"
+# Populate comprehensive instrument universe (60K+ Tiingo + 50K+ EODHD stocks)
+python scripts/run_dev.py run --script scripts/run_tiingo_bulk.py    # All Tiingo stocks including delisted
+python scripts/run_dev.py run --script scripts/run_eodhd_bulk.py     # All EODHD US exchange stocks
+
+# Verify instrument population
+python scripts/run_dev.py query --query "SELECT COUNT(*) as tiingo_instruments FROM dev_instrument_tiingo"
+python scripts/run_dev.py query --query "SELECT COUNT(*) as eodhd_instruments FROM dev_instrument_eodhd"
+
+# Check delisted stocks
+python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_instrument_tiingo WHERE end_date < '2020-01-01'"
 ```
 
 ### 🎨 Frontend Engineer  
