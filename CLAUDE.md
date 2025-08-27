@@ -246,17 +246,28 @@ python scripts/run_dev.py logs --service analytics
 
 ## Database Connection Info (Reference)
 
-**Docker PostgreSQL (primary):**
+**ATS-DEV PostgreSQL (primary):**
 - Host: `localhost`, Port: `5432`
-- User: `postgres`, Password: `dev_password`, Database: `dev_db`
+- User: `postgres`, Password: `postgres` (no password), Database: `dev_db`
+- Container: `ats-dev-postgres` (PostgreSQL 13)
 - Started with: `python scripts/run_dev.py start --service postgres`
 
-**Integration PostgreSQL:**
+**ATS-INTG PostgreSQL (integration):**
 - Host: `localhost`, Port: `5433`  
 - User: `postgres`, Password: `intg_password`, Database: `intg_db`
+- Container: `ats-intg-postgres` (TimescaleDB latest-pg13)
 - Started with: `python scripts/run_intg.py start --service postgres`
 
 **Auto-detection:** run_dev and run_intg automatically detect available connections
+
+**Backup Commands:**
+```bash
+# Dev backup
+docker exec ats-dev-postgres pg_dump -U postgres dev_db > /mnt/d/ats-backup/dev/backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Integration backup  
+PGPASSWORD=intg_password pg_dump -h localhost -p 5433 -U postgres intg_db > /mnt/d/ats-backup/intg/backup_$(date +%Y%m%d_%H%M%S).sql
+```
 
 ---
 
@@ -379,6 +390,37 @@ async def get_dataset(dataset_id: str):
 
 ---
 
+---
+
+## 🚨 **CRITICAL: ATS Platform Environments**
+
+### **🔥 Two-Environment Development Architecture**
+
+**ATS-DEV (Development):**
+- **Purpose**: Primary development, unit testing, feature development
+- **Database**: PostgreSQL 13 on port 5432 (no password)
+- **Container**: `ats-dev-postgres`
+- **Usage**: `python scripts/run_dev.py setup`
+
+**ATS-INTG (Integration):**
+- **Purpose**: CI/CD integration testing, pre-production validation
+- **Database**: TimescaleDB (PostgreSQL 13.15 + TimescaleDB 2.15.3) on port 5433
+- **Container**: `ats-intg-postgres`
+- **Password**: `intg_password` 
+- **Usage**: `python scripts/run_intg.py setup`
+- **CI/CD**: Automatic deployment on main branch push when unit tests pass
+
+### **🚀 Critical Workflow**
+1. **Develop** in ATS-DEV environment (`run_dev.py`)
+2. **Test** unit tests locally
+3. **Push** to main branch
+4. **CI/CD** automatically deploys to ATS-INTG if tests pass
+5. **Integration tests** run against live ATS-INTG environment
+
+**⚠️ NEVER confuse the environments - they have different ports, passwords, and purposes!**
+
+---
+
 **📖 For comprehensive information, see the complete documentation structure at [docs/README.md](docs/README.md)**
 
-*This is a Kubernetes-first, test-driven development platform. Every change must be validated end-to-end in the actual K8s cluster with REAL DATA ONLY.*
+*This is a Docker + GPU-enabled, test-driven development platform. Every change must be validated end-to-end in both ATS-DEV and ATS-INTG environments with REAL DATA ONLY.*

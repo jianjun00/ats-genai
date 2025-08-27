@@ -90,7 +90,23 @@ python scripts/run_dev.py status                   # Check running services
 4. Frontend displays data in browser
 5. All integration tests pass
 
-### 7. 🔍 Integration Testing
+### 7. 🚀 Integration Environment Testing
+**CRITICAL: Test features in ATS-INTG environment:**
+```bash
+# Start integration environment
+python scripts/run_intg.py setup
+
+# Deploy to integration (triggers automatically on main push)
+# Or manually test with:
+python scripts/run_intg.py start --service analytics
+python scripts/run_intg.py start --service api
+
+# Verify integration deployment
+curl -f http://localhost:3002/health  # Analytics service
+curl -f http://localhost:8001/health  # API service
+```
+
+### 8. 🔍 Integration Testing
 ```bash
 # Test actual service startup
 PYTHONPATH=src pytest tests/integration/ -v --tb=short
@@ -102,7 +118,7 @@ python -m pytest scripts/k8s-extracted/ -v
 PYTHONPATH=src pytest tests/system/ -v
 ```
 
-### 8. 📋 Pull Request Process
+### 9. 📋 Pull Request Process
 ```bash
 # Push feature branch
 git push origin issue-123/feature-description
@@ -120,8 +136,15 @@ Closes #123
 - ✅ Schema validation tests pass
 - ✅ All unit tests pass
 - ✅ All integration tests pass
-- ✅ Kubernetes deployment verified
+- ✅ ATS-INTG environment deployment verified
 - ✅ End-to-end functionality verified
+
+## 🚀 CI/CD Integration
+This PR will automatically trigger:
+- ✅ Unit tests and schema validation
+- ✅ Docker image build and push
+- ✅ Deployment to ATS-INTG environment (TimescaleDB)
+- ✅ Integration tests against live environment
 
 ## Verification Checklist
 - [x] Tests written first (TDD followed)
