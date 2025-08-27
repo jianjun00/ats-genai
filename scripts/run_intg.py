@@ -402,7 +402,7 @@ class IntgCLI:
             return False
         
         print("✅ Integration environment ready!")
-        print("🔗 Database: postgresql://postgres:dev_password@localhost:5433/intg_db")
+        print("🔗 Database: postgresql://postgres:intg_password@localhost:5433/intg_db")
         return True
 
 def main():

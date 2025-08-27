@@ -19,7 +19,7 @@ The Backend Platform provides the core application layer that exposes business f
 
 ### **Key Technologies**
 - **FastAPI** - High-performance async API framework
-- **PostgreSQL/TimescaleDB** - Primary data store
+- **PostgreSQL** - Primary data store
 - **Redis** - Caching and session management
 - **Pydantic** - Data validation and serialization
 - **SQLAlchemy** - Database ORM
@@ -47,7 +47,7 @@ API Gateway → Authentication Service
      ↓
 Analytics API → Business Logic Services  
      ↓
-Data Access Layer → PostgreSQL/TimescaleDB
+Data Access Layer → PostgreSQL
 ```
 
 ---
@@ -292,7 +292,7 @@ class RiskManager:
 ```python
 class DataAccessLayer:
     def __init__(self):
-        self.db = TimescaleDBConnection()
+        self.db = PostgreSQLConnection()
         self.cache = RedisConnection()
         
     async def get_market_data(

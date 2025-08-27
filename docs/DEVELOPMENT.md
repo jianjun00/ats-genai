@@ -179,9 +179,9 @@ PYTHONPATH=src pytest tests/system/ -v --tb=short
 | Environment | Tables | Purpose | Database Access |
 |-------------|--------|---------|-----------------|
 | **test** | `test_*` | Unit tests | Local PostgreSQL |
-| **dev** | `dev_*` | Development | K8s TimescaleDB |
-| **intg** | `intg_*` | Integration | K8s TimescaleDB |  
-| **prod** | `prod_*` | Production | K8s TimescaleDB |
+| **dev** | `dev_*` | Development | Docker PostgreSQL |
+| **intg** | `intg_*` | Integration | Docker PostgreSQL |  
+| **prod** | `prod_*` | Production | Docker PostgreSQL |
 
 ### Testing Commands
 ```bash
@@ -189,8 +189,8 @@ PYTHONPATH=src pytest tests/system/ -v --tb=short
 export PYTHONPATH=src
 uv run pytest tests/ -v
 
-# Local dev against K8s DB (port-forward)
-kubectl port-forward -n ats-dev service/timescaledb 5432:5432
+# Local dev using Docker PostgreSQL
+python scripts/run_dev.py start --service postgres
 export ENVIRONMENT=dev DB_HOST=localhost
 uv run python src/script.py
 

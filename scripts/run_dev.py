@@ -74,9 +74,9 @@ class DevCLI:
             return
             
         print("⚠️  No database connection available. You may need to:")
-        print("   1. Start local PostgreSQL")
-        print("   2. Start port-forwarding: kubectl port-forward svc/postgres -n ats-dev 5433:5432")
-        print("   3. Or run Docker PostgreSQL container")
+        print("   1. Start Docker PostgreSQL: python scripts/run_dev.py start --service postgres")
+        print("   2. Start local PostgreSQL")
+        print("   3. Or use existing database connection")
         
     def test_db_connection(self, host, port):
         """Test database connection"""

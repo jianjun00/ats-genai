@@ -41,12 +41,19 @@ Market Data Sources → Data Ingestion → Processing → Storage → APIs → F
 - `monitoring` - Prometheus, Grafana, AlertManager
 
 ### **Core Services**
-- **postgres** - TimescaleDB primary database
+- **postgres** - Primary database (PostgreSQL for dev/intg, TimescaleDB for prod)
 - **redis** - Caching and session management
 - **api-gateway** - Single entry point for all requests
 - **analytics-api** - Portfolio analytics and recommendations
 - **ml-inference** - Real-time model predictions
 - **data-collector** - Multi-vendor data ingestion
+
+### **Database Environment Differences**
+| Environment | Database Type | Access Method | Connection |
+|-------------|---------------|---------------|-------------|
+| **Development** | Docker PostgreSQL | run_dev.py | localhost:5432 |
+| **Integration** | Docker PostgreSQL | run_intg.py | localhost:5433 |
+| **Production** | K8s TimescaleDB | kubectl | cluster-internal |
 
 ### **Storage Architecture**
 - **Database**: TimescaleDB for time-series data
