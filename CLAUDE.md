@@ -343,6 +343,11 @@ This infrastructure provides comprehensive multi-vendor price data validation, r
 - **📁 Logs**: `/mnt/d/ats-logs` → `/logs` (in containers)
 - **🔄 Database**: PostgreSQL data persisted to `D:\ats-data\db`
 
+**Vendor-Specific Data Organization:**
+- **📊 Polygon**: `/mnt/d/ats-data/polygon/minute-bars/` (30-year minute OHLCV data)
+- **📊 Tiingo**: `/mnt/d/ats-data/tiingo/minute-bars/` (future implementation)
+- **📊 EODHD**: `/mnt/d/ats-data/eodhd/minute-bars/` (future implementation)
+
 **Environment Variables Available in Containers:**
 - `ATS_DATA_PATH=/data`
 - `ATS_BACKUP_PATH=/backup`
