@@ -168,7 +168,7 @@ class TiingoNewsCollector:
                     pass
             
             return {
-                'tiingo_id': article.get('id', ''),
+                'tiingo_id': str(article.get('id', '')),
                 'title': article.get('title', ''),
                 'description': article.get('description', ''),
                 'author': article.get('author', ''),
