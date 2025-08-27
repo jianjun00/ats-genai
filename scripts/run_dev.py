@@ -149,6 +149,7 @@ class DevCLI:
             -e ATS_LOGS_PATH=/logs \
             -e IDEMPOTENT_MODE={os.getenv('IDEMPOTENT_MODE', 'false')} \
             -e FORCE_REBUILD={os.getenv('FORCE_REBUILD', 'false')} \
+            -e EXCHANGE_FILTER={os.getenv('EXCHANGE_FILTER', 'all')} \
             {env_vars} \
             {image} \
             python {script_path}"""
