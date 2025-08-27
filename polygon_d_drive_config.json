@@ -1,10 +1,10 @@
 {
   "environment_config": {
-    "POLYGON_MINUTE_DATA_PATH": "/mnt/d/ats-data/minute-bars/polygon",
-    "POLYGON_CHECKPOINT_PATH": "/mnt/d/ats-data/checkpoints/polygon",
-    "POLYGON_LOG_PATH": "/mnt/d/ats-data/logs/polygon",
-    "POLYGON_BACKUP_PATH": "/mnt/d/ats-data/minute-bars/backups",
-    "POLYGON_QUALITY_REPORTS_PATH": "/mnt/d/ats-data/minute-bars/quality-reports",
+    "POLYGON_MINUTE_DATA_PATH": "/mnt/d/ats-data/polygon/minute-bars",
+    "POLYGON_CHECKPOINT_PATH": "/mnt/d/ats-data/polygon/checkpoints",
+    "POLYGON_LOG_PATH": "/mnt/d/ats-data/polygon/logs",
+    "POLYGON_BACKUP_PATH": "/mnt/d/ats-data/polygon/backups",
+    "POLYGON_QUALITY_REPORTS_PATH": "/mnt/d/ats-data/polygon/quality-reports",
     "D_DRIVE_ROOT": "/mnt/d",
     "POLYGON_PLAN_TYPE": "free",
     "POLYGON_RATE_LIMIT": 5
@@ -12,7 +12,7 @@
   "api_info": {
     "valid": true,
     "status_code": 200,
-    "request_time": 0.3764345645904541,
+    "request_time": 0.40450429916381836,
     "results_count": 1,
     "plan_type": "free",
     "rate_limit": 5
@@ -42,5 +42,5 @@
     "estimated_months": 13.333333333333334,
     "plan_type": "free"
   },
-  "setup_timestamp": "2025-08-27T00:29:00.936134"
+  "setup_timestamp": "2025-08-27T06:22:21.895995"
 }

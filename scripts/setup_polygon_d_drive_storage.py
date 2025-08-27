@@ -150,16 +150,16 @@ def create_polygon_directory_structure(base_path):
     """Create the required directory structure for Polygon data"""
     
     directories = [
-        "minute-bars",                    # Main minute bar storage
-        "minute-bars/polygon",            # Polygon-specific data
-        "minute-bars/backups",            # Backup files
-        "minute-bars/metadata",           # File metadata
-        "minute-bars/temp",               # Temporary files during processing
-        "minute-bars/quality-reports",    # Data quality validation reports
-        "logs/polygon",                   # Polygon processing logs
-        "checkpoints/polygon",            # Polygon checkpoint files
-        "reports/polygon",                # Population reports and statistics
-        "config/polygon"                  # Polygon-specific configuration
+        "polygon",                        # Main Polygon vendor directory
+        "polygon/minute-bars",            # Polygon minute bar storage
+        "polygon/backups",               # Polygon backup files
+        "polygon/metadata",              # Polygon file metadata
+        "polygon/temp",                  # Temporary files during processing
+        "polygon/quality-reports",       # Data quality validation reports
+        "polygon/logs",                  # Polygon processing logs
+        "polygon/checkpoints",           # Polygon checkpoint files
+        "polygon/reports",               # Population reports and statistics
+        "polygon/config"                 # Polygon-specific configuration
     ]
     
     created_dirs = []
@@ -181,11 +181,11 @@ def generate_polygon_env_config(d_drive_path, api_info):
     """Generate environment configuration for Polygon population"""
     
     config = {
-        'POLYGON_MINUTE_DATA_PATH': str(Path(d_drive_path) / "ats-data" / "minute-bars" / "polygon"),
-        'POLYGON_CHECKPOINT_PATH': str(Path(d_drive_path) / "ats-data" / "checkpoints" / "polygon"),
-        'POLYGON_LOG_PATH': str(Path(d_drive_path) / "ats-data" / "logs" / "polygon"),
-        'POLYGON_BACKUP_PATH': str(Path(d_drive_path) / "ats-data" / "minute-bars" / "backups"),
-        'POLYGON_QUALITY_REPORTS_PATH': str(Path(d_drive_path) / "ats-data" / "minute-bars" / "quality-reports"),
+        'POLYGON_MINUTE_DATA_PATH': str(Path(d_drive_path) / "ats-data" / "polygon" / "minute-bars"),
+        'POLYGON_CHECKPOINT_PATH': str(Path(d_drive_path) / "ats-data" / "polygon" / "checkpoints"),
+        'POLYGON_LOG_PATH': str(Path(d_drive_path) / "ats-data" / "polygon" / "logs"),
+        'POLYGON_BACKUP_PATH': str(Path(d_drive_path) / "ats-data" / "polygon" / "backups"),
+        'POLYGON_QUALITY_REPORTS_PATH': str(Path(d_drive_path) / "ats-data" / "polygon" / "quality-reports"),
         'D_DRIVE_ROOT': d_drive_path,
         'POLYGON_PLAN_TYPE': api_info.get('plan_type', 'free'),
         'POLYGON_RATE_LIMIT': api_info.get('rate_limit', 5)

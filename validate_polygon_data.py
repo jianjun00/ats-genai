@@ -40,7 +40,7 @@ def main():
     print("🔍 POLYGON MINUTE BAR DATA VALIDATION")
     print("=" * 50)
     
-    base_path = "/mnt/d/ats-data/minute-bars"
+    base_path = "/mnt/d/ats-data/polygon/minute-bars"
     symbols = ['AAPL', 'MSFT', 'GOOGL']
     
     all_valid = True

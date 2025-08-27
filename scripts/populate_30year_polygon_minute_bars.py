@@ -83,9 +83,9 @@ class Polygon30YearPopulator:
         self.premium_plan = premium_plan
         self.debug = debug
         
-        # Initialize storage manager for D: drive
+        # Initialize storage manager for D: drive with Polygon-specific path
         self.file_manager = FileBasedMinuteManager(
-            base_path=str(self.storage_path / "minute-bars"),
+            base_path=str(self.storage_path / "polygon" / "minute-bars"),
             max_concurrent_operations=max_concurrent,
             backup_enabled=True,
             compression='snappy'
