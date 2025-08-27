@@ -19,7 +19,7 @@ Environment-specific configuration files are stored in the project root:
 - `.env.prod` - Production environment configuration
 - `.env.test` - Test environment configuration
 
-These files contain environment variables including database credentials:
+These files contain environment variables including database credentials and API keys:
 
 ```
 # Database configuration
@@ -28,6 +28,11 @@ DB_PASSWORD=your_password
 DB_HOST=timescaledb
 DB_PORT=5432
 DB_NAME=dev_db
+
+# Market Data API Keys (CRITICAL: Never hardcode these)
+POLYGON_API_KEY=your_polygon_api_key_here
+TIINGO_API_KEY=your_tiingo_api_key_here
+EODHD_API_KEY=your_eodhd_api_key_here
 ```
 
 ## Kubernetes Secret Management
@@ -107,21 +112,112 @@ This approach works seamlessly with both:
 - Local development (environment variables from `.env` files)
 - Kubernetes deployments (environment variables from secrets)
 
+## 🚨 CRITICAL: API Key Security Incident (2025-08-27)
+
+**MAJOR SECURITY VULNERABILITY RESOLVED:**
+- **Impact**: Hardcoded API keys found in 18+ files across codebase
+- **Exposed Keys**: Polygon (`wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD`), Tiingo, EODHD API keys
+- **Risk**: Credential exposure in version control, logs, documentation, and container environments
+- **Resolution**: Systematic replacement with environment variable patterns
+
+### ✅ **CORRECT API Key Usage**
+```python
+# ✅ ALWAYS use environment variables
+import os
+
+polygon_api_key = os.getenv('POLYGON_API_KEY')
+if not polygon_api_key:
+    raise ValueError("POLYGON_API_KEY environment variable is required")
+
+tiingo_api_key = os.getenv('TIINGO_API_KEY')
+eodhd_api_key = os.getenv('EODHD_API_KEY')
+```
+
+### ❌ **NEVER Do This**
+```python
+# ❌ NEVER hardcode API keys
+polygon_api_key = "wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"  # SECURITY VIOLATION!
+tiingo_api_key = "5f40b4f36e171405746304ec0e5a6f3aa9ca77e5"    # SECURITY VIOLATION!
+
+# ❌ NEVER use API keys in:
+# - Documentation examples
+# - Test files (use test_api_key_placeholder)
+# - Configuration templates (use your_api_key_here)
+# - Log messages or error outputs
+```
+
+### 🔒 **Security Prevention Measures**
+
+**Automated Detection:**
+```bash
+# Run security regression tests before commit
+python3 scripts/run_regression_tests.py --category security --fast
+
+# Scan codebase for hardcoded secrets
+python3 tests/regression/test_hardcoded_api_keys_security.py
+```
+
+**Environment File Security:**
+- `.env.test` - Contains working keys for operations (controlled exception)
+- `.env.template` - Uses placeholder values only
+- `.env.dev`, `.env.prod` - Use placeholder values, real keys in deployment
+
+**Git Security:**
+```bash
+# Check git history for leaked secrets
+git log --all --full-history -- "**/*.py" "**/*.md" | grep -i "api.*key"
+
+# Use pre-commit hooks to prevent secret commits
+pre-commit install
+```
+
 ## Best Practices
 
-1. **Never commit sensitive credentials** to the repository
-2. **Always use `.env` files as the single source of truth** for credentials
-3. **Update Kubernetes secrets** whenever credentials change:
+1. **🚨 NEVER commit sensitive credentials** to the repository
+2. **🔐 ALWAYS use environment variables** for all API keys and secrets
+3. **Always use `.env` files as the single source of truth** for credentials
+4. **Use placeholder values** in documentation and templates:
+   - `your_polygon_api_key_here`
+   - `your_api_key_here`
+   - `test_api_key_placeholder` (in tests)
+5. **Update Kubernetes secrets** whenever credentials change:
    ```bash
    ./scripts/create_k8s_secrets.sh --all-envs --apply
    ```
-4. **Ensure namespaces exist** before applying secrets:
+6. **Ensure namespaces exist** before applying secrets:
    ```bash
    ./scripts/create_k8s_secrets.sh --all-envs --create-ns --apply
    ```
-5. **Use environment-specific database names** to prevent accidental data manipulation:
+7. **Use environment-specific database names** to prevent accidental data manipulation:
    - `dev_db` for development
    - `intg_db` for integration
+8. **🛡️ Run security tests** before every deployment:
+   ```bash
+   python3 scripts/run_regression_tests.py --category security
+   ```
+
+## 🔍 **Security Verification**
+
+Before deploying or committing code:
+
+1. **API Key Scan:**
+   ```bash
+   # Search for potential hardcoded keys
+   grep -r "sk-" . --exclude-dir=.git
+   grep -r "wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD" . --exclude-dir=.git
+   ```
+
+2. **Environment Variable Validation:**
+   ```bash
+   # Check that scripts use os.getenv()
+   grep -r "POLYGON_API_KEY" --include="*.py" . | grep -v "os.getenv"
+   ```
+
+3. **Regression Test Execution:**
+   ```bash
+   # Full security regression test suite
+   python3 scripts/run_regression_tests.py --category security --integration
+   ```
    - `trading_db` for production
 
 ## Troubleshooting

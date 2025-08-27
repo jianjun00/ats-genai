@@ -114,6 +114,84 @@ WHERE (now() - pg_stat_activity.query_start) > interval '5 minutes';
 "
 ```
 
+### **🚨 Database Schema Compatibility Failures** ⭐ **CRITICAL LESSONS (2025-08-27)**
+
+**Symptoms:**
+- Data insertion failures during backfills
+- `column "column_name" does not exist` errors  
+- Price data not appearing despite successful API calls
+- Container logs showing SQL errors
+
+**Root Cause:** Scripts expect different column names than actual database schema.
+
+**Critical Examples Found:**
+- Scripts expect `adj_close` → Database has `adjclose` (no underscore)
+- Scripts expect `created_at` → Database has `creation_timestamp`
+- Scripts expect `dev_training_datasets` → Database has `dev_training_dataset` (singular)
+
+**Immediate Actions:**
+```bash
+# 1. Validate actual table schema before any database operations
+docker exec ats-dev-postgres psql -U postgres -d dev_db -c "\d table_name"
+
+# 2. Check specific column names for price data
+docker exec ats-dev-postgres psql -U postgres -d dev_db -c "\d dev_daily_prices_tiingo"
+docker exec ats-dev-postgres psql -U postgres -d dev_db -c "\d dev_daily_prices_polygon"
+
+# 3. Compare script expectations vs reality
+grep -n "INSERT INTO.*adj_close" scripts/*.py  # Should use 'adjclose' not 'adj_close'
+```
+
+**Schema Validation Commands:**
+```bash
+# Run schema validation before deployment
+python scripts/validate_schema.py --check-all
+
+# Run schema compatibility regression tests
+python3 scripts/run_regression_tests.py --category schema --integration
+
+# Check all price data table schemas
+for table in dev_daily_prices_polygon dev_daily_prices_tiingo dev_daily_prices_eodhd; do
+    echo "=== $table ==="
+    docker exec ats-dev-postgres psql -U postgres -d dev_db -c "\d $table"
+done
+```
+
+**Prevention (MANDATORY):**
+```bash
+# ALWAYS validate schema before writing database code
+docker exec ats-dev-postgres psql -U postgres -d dev_db -c "\d target_table"
+
+# Example: Correct Tiingo price insertion
+INSERT INTO dev_daily_prices_tiingo 
+(date, symbol, open, high, low, close, adjclose, volume, status_id, instrument_id)
+--                                   ^^^^^^^^^ Use 'adjclose' not 'adj_close'
+```
+
+**Emergency Fixes:**
+```bash
+# If containers failing with schema errors:
+# 1. Stop failing containers
+docker stop container_id
+
+# 2. Fix INSERT statements in scripts (use correct column names)
+# 3. Restart with corrected scripts
+
+# Check backfill progress
+docker exec ats-dev-postgres psql -U postgres -d dev_db -c "
+SELECT 
+    'Polygon' as vendor,
+    COUNT(DISTINCT instrument_id) as instruments_with_data,
+    COUNT(*) as total_records
+FROM dev_daily_prices_polygon
+UNION ALL
+SELECT 
+    'Tiingo' as vendor,
+    COUNT(DISTINCT instrument_id) as instruments_with_data,
+    COUNT(*) as total_records
+FROM dev_daily_prices_tiingo"
+```
+
 ### **🚨 ML Model Inference Failures**
 
 **Symptoms:**

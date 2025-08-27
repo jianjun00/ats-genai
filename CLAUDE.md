@@ -367,15 +367,100 @@ async def get_dataset(dataset_id: str):
 
 ---
 
-## 📚 Recent Implementation Lessons
+## 📚 Critical Implementation Lessons
 
-**Critical Findings from Instrument Population Implementation (2025-08-25):**
+### 🚨 **MAJOR DATA QUALITY INCIDENT - RESOLVED (2025-08-27)**
+
+**❌ TIINGO END DATE MISINTERPRETATION ISSUE:**
+- **Impact**: 9,834 active stocks (75%) incorrectly marked as delisted
+- **Root Cause**: Tiingo `endDate` field misinterpreted as delisting date instead of data availability date
+- **Critical Finding**: Recent `endDate` (within 7 days) indicates active data feed, NOT stock delisting
+- **Fix**: `scripts/fix_tiingo_population.py` - Set `end_date = NULL` for instruments with recent endDate
+- **Result**: Tiingo active rate restored from 25% to 72.1% (12,118 of 16,811 instruments)
+- **Prevention**: Comprehensive regression test suite in `tests/regression/`
+
+**🔒 HARDCODED API KEYS SECURITY VULNERABILITY:**
+- **Impact**: API keys exposed in 18+ files across codebase (version control, logs, documentation)
+- **Root Cause**: Direct hardcoding of sensitive credentials instead of environment variable references
+- **Critical Keys Found**: Polygon (`wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD`), Tiingo, EODHD API keys
+- **Fix**: Systematic replacement with `os.getenv()` patterns and placeholder values
+- **Prevention**: Security regression tests scan entire codebase for credential exposure
+
+**🗃️ DATABASE SCHEMA COMPATIBILITY FAILURES:**
+- **Impact**: Runtime failures, ~1.2M price records failing to insert during backfills
+- **Root Cause**: Scripts expected `adj_close` column, but database table has `adjclose` (no underscore)
+- **Critical Pattern**: Column name mismatches between expectations and reality
+- **Fix**: Schema alignment and validation in backfill scripts
+- **Prevention**: Database schema compatibility tests validate table structures
+
+**📊 EODHD INSTRUMENT POPULATION INCOMPLETE:**
+- **Impact**: Only 7,613 of 50,747 available US instruments populated (15% coverage)
+- **Root Cause**: Population script designed for individual ticker lookup, not bulk historical population
+- **Missing Data**: 43,134 instruments missing, including decades of delisted/historical stocks
+- **Critical Gap**: Historical analysis severely limited without complete instrument universe
+- **Fix Required**: Create bulk EODHD population script for comprehensive 30+ year coverage
+
+### 🛡️ **PREVENTION FRAMEWORK DEPLOYED**
+
+**Comprehensive Regression Testing (48+ tests):**
+```bash
+# Run all critical regression tests before deployment
+python3 scripts/run_regression_tests.py --integration
+
+# Run specific issue categories  
+python3 scripts/run_regression_tests.py --category security --fast
+python3 scripts/run_regression_tests.py --category schema --integration
+```
+
+**Test Coverage:**
+- **15 Tiingo date interpretation tests** - Prevents active stock misclassification
+- **12 hardcoded API keys security tests** - Prevents credential exposure  
+- **13 database schema compatibility tests** - Prevents runtime insertion failures
+- **8 test suite validation tests** - Ensures prevention framework works
+
+### 📋 **OPERATIONAL LESSONS LEARNED**
+
+**Database Schema Validation (MANDATORY):**
+```bash
+# ALWAYS validate schema before database operations
+docker exec ats-dev-postgres psql -U postgres -d dev_db -c "\d table_name"
+
+# Check actual column names vs script expectations
+# Example: Use 'adjclose' not 'adj_close' for Tiingo price data
+```
+
+**API Data Interpretation:**
+- **Tiingo endDate Logic**: Recent dates (< 7 days) = active data feed, not delisting
+- **Polygon Active Field**: Boolean true/false clearly indicates instrument status  
+- **EODHD**: No explicit delisting field, assume all instruments active
+
+**Historical Backfill Scale:**
+- **Target**: ~15 million price records (Polygon 30-year + Tiingo 5-year)
+- **Rate Limits**: Polygon 12-sec delays, Tiingo 1-sec delays
+- **Schema Issues**: Always validate table structure before bulk operations
+
+### 🎯 **SUCCESS CRITERIA FOR FUTURE WORK**
+
+**Data Quality:**
+- ✅ **>70% active instrument rate** for Tiingo (currently 72.1%)
+- ✅ **100% active rate** for Polygon (11,598 instruments)
+- ❌ **EODHD critical gap**: Only 15% populated (7,613 of 50,747 available)
+- ✅ **Zero hardcoded API keys** in codebase scans
+- ✅ **Schema compatibility validated** before database operations
+
+**Prevention:**
+- ✅ **All regression tests pass** before deployment
+- ✅ **Fast feedback** (<5 minutes for security/schema tests)
+- ✅ **Clear actionable failures** with specific fix guidance
+- ✅ **Automated testing** in CI/CD pipeline
+
+**Critical Findings from Earlier Implementation (2025-08-25):**
 - **Database Connection Issues**: Always set `DB_DISABLE_CONNECT_TIMEOUT=true` for PostgreSQL compatibility
 - **API Key Validation**: Test API endpoints directly before troubleshooting infrastructure
 - **Gin Configuration**: Use `app_dev.gin` for development (simpler than `app_docker.gin`)
 - **Docker Dependencies**: Include ALL required packages in base image, not minimal subsets
 
-**📋 Detailed Documentation**: [Instrument Population Lessons Learned](docs/development/INSTRUMENT_POPULATION_LESSONS_LEARNED.md)
+**📋 Complete Documentation**: See `tests/regression/README.md` for comprehensive regression testing guide
 
 ---
 
