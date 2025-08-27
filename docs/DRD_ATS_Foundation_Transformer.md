@@ -318,6 +318,134 @@ class SmartMoneyAttention(nn.Module):
         return output, attention_weights
 ```
 
+#### 5.3 LLM-Enhanced News Integration
+
+```python
+class LLMNewsIntegrationLayer(nn.Module):
+    """
+    Integration layer for LLM-processed news features
+    """
+    def __init__(self, dim=768):
+        super().__init__()
+        self.deepseek_feature_processor = DeepSeekFeatureProcessor()
+        self.llama_classifier = LlamaRealTimeClassifier()
+        self.news_attention = NewsAttention(dim)
+        
+        # Feature fusion layers
+        self.news_feature_projector = nn.Linear(512, dim)  # Project LLM features to transformer dim
+        self.sentiment_projector = nn.Linear(256, dim)
+        self.event_projector = nn.Linear(384, dim)
+        
+        # Multi-modal fusion
+        self.cross_modal_attention = nn.MultiheadAttention(
+            embed_dim=dim,
+            num_heads=12,
+            dropout=0.1
+        )
+        
+    def forward(self, price_features, news_data):
+        # Process news through LLM pipeline
+        llm_features = self.deepseek_feature_processor.extract_features(news_data)
+        
+        # Project different feature types to transformer dimensions
+        news_embeddings = self.news_feature_projector(llm_features['news_analysis'])
+        sentiment_embeddings = self.sentiment_projector(llm_features['sentiment_reasoning'])
+        event_embeddings = self.event_projector(llm_features['event_extraction'])
+        
+        # Combine all news-related embeddings
+        news_context = torch.stack([
+            news_embeddings, sentiment_embeddings, event_embeddings
+        ], dim=1)
+        
+        # Cross-modal attention between price and news
+        fused_features, attention_weights = self.cross_modal_attention(
+            price_features, news_context, news_context
+        )
+        
+        return fused_features, {
+            'news_attention': attention_weights,
+            'llm_confidence': llm_features['confidence_scores'],
+            'risk_factors': llm_features['risk_assessment']
+        }
+
+
+class DeepSeekFeatureProcessor:
+    """
+    Processes news content through DeepSeek-R1 for advanced financial analysis
+    """
+    def __init__(self):
+        self.deepseek_client = DeepSeekClient(model="deepseek-r1-67b")
+        self.feature_cache = {}
+        
+    def extract_features(self, news_data: Dict) -> Dict[str, torch.Tensor]:
+        """Extract structured features from news using DeepSeek reasoning"""
+        
+        # Advanced event extraction prompt
+        analysis_prompt = f"""
+        Analyze this financial news for algorithmic trading:
+        
+        News: {news_data['content']}
+        Symbol: {news_data['symbol']}
+        Source: {news_data['source']}
+        
+        Extract structured features:
+        1. Event categorization (earnings, M&A, regulatory, guidance, etc.)
+        2. Quantified impact estimates (revenue %, guidance changes, price targets)
+        3. Timeline analysis (immediate, 1-week, 1-month, 1-quarter impacts)
+        4. Stakeholder analysis (who benefits/suffers and by how much)
+        5. Risk factors and uncertainties (regulatory, competitive, macro)
+        6. Cross-asset implications (sector, supply chain, competitor effects)
+        7. Sentiment reasoning (not just positive/negative but why and duration)
+        
+        Return structured JSON with confidence scores for each element.
+        """
+        
+        # Get LLM analysis
+        llm_response = self.deepseek_client.generate(
+            prompt=analysis_prompt,
+            max_tokens=2048,
+            temperature=0.1  # Low temperature for consistent structured output
+        )
+        
+        # Parse structured response and convert to tensors
+        parsed_features = self._parse_llm_response(llm_response)
+        
+        return {
+            'news_analysis': self._create_news_tensor(parsed_features),
+            'sentiment_reasoning': self._create_sentiment_tensor(parsed_features),
+            'event_extraction': self._create_event_tensor(parsed_features),
+            'confidence_scores': parsed_features['confidence_scores'],
+            'risk_assessment': parsed_features['risk_factors']
+        }
+        
+    def _create_news_tensor(self, features: Dict) -> torch.Tensor:
+        """Convert news analysis to tensor representation"""
+        # Create 512-dimensional feature vector from structured analysis
+        feature_vector = torch.zeros(512)
+        
+        # Encode event types (one-hot + intensity)
+        event_encoding = self._encode_event_types(features['events'])
+        feature_vector[:64] = event_encoding
+        
+        # Encode quantified impacts
+        impact_encoding = self._encode_impacts(features['quantified_impacts'])
+        feature_vector[64:128] = impact_encoding
+        
+        # Encode timeline features
+        timeline_encoding = self._encode_timeline(features['timeline_analysis'])
+        feature_vector[128:256] = timeline_encoding
+        
+        # Encode stakeholder analysis
+        stakeholder_encoding = self._encode_stakeholders(features['stakeholder_analysis'])
+        feature_vector[256:384] = stakeholder_encoding
+        
+        # Encode cross-asset implications
+        cross_asset_encoding = self._encode_cross_asset(features['cross_asset_implications'])
+        feature_vector[384:512] = cross_asset_encoding
+        
+        return feature_vector
+```
+
 #### 5.2 Support/Resistance Level Encoder
 
 ```python
@@ -446,34 +574,179 @@ class ZeroShotInferenceEngine:
 
 ### 8. Integration with Existing Systems
 
-#### 8.1 Backward Compatibility
+#### 8.1 Backward Compatibility with LLM Enhancement
 
 ```python
 class ATSTFTCompatibilityLayer:
     """
-    Maintain compatibility with existing TFT-based systems
+    Maintain compatibility with existing TFT-based systems while adding LLM capabilities
     """
     def __init__(self):
         self.legacy_adapter = LegacyTFTAdapter()
         self.prediction_formatter = PredictionFormatter()
         self.api_wrapper = APICompatibilityWrapper()
+        self.llm_news_processor = LLMNewsIntegrationLayer()
         
     def convert_legacy_request(self, tft_request: TFTRequest) -> FoundationRequest:
-        """Convert existing TFT API requests to foundation model format"""
+        """Convert existing TFT API requests to foundation model format with LLM news"""
+        
+        # Get enhanced news features using LLM
+        enhanced_news_features = None
+        if hasattr(tft_request, 'include_news') and tft_request.include_news:
+            enhanced_news_features = self._get_llm_news_features(
+                tft_request.symbols, 
+                tft_request.timeframe
+            )
+        
         return FoundationRequest(
             instrument_ids=tft_request.symbols,
             timeframes=tft_request.timeframes,
             features=self.legacy_adapter.map_features(tft_request.features),
-            prediction_horizon=tft_request.prediction_length
+            prediction_horizon=tft_request.prediction_length,
+            enhanced_news_features=enhanced_news_features  # New LLM-powered feature
         )
         
     def format_legacy_response(self, foundation_output: FoundationOutput) -> TFTResponse:
-        """Format foundation model outputs for existing TFT consumers"""
-        return TFTResponse(
+        """Format foundation model outputs for existing TFT consumers with LLM insights"""
+        
+        response = TFTResponse(
             predictions=self.prediction_formatter.format(foundation_output.predictions),
             attention_weights=foundation_output.attention_weights,
             confidence_scores=foundation_output.confidence_scores
         )
+        
+        # Add LLM-enhanced explanations if available
+        if hasattr(foundation_output, 'llm_insights'):
+            response.news_analysis = foundation_output.llm_insights.get('news_analysis', {})
+            response.risk_factors = foundation_output.llm_insights.get('risk_factors', [])
+            response.event_timeline = foundation_output.llm_insights.get('event_timeline', {})
+        
+        return response
+        
+    def _get_llm_news_features(self, symbols: List[str], timeframe: str) -> Dict:
+        """Fetch and process news using LLM pipeline"""
+        # This integrates with the existing news processing system
+        from sentiment.news_sentiment_analyzer import NewsSentimentAnalyzer
+        
+        # Get recent news
+        news_analyzer = NewsSentimentAnalyzer(self.pool, self.env)
+        recent_news = news_analyzer.fetch_news_for_symbols(symbols, hours_back=24)
+        
+        # Process through LLM for enhanced features
+        llm_features = {}
+        for symbol in symbols:
+            symbol_news = [n for n in recent_news if symbol in n.symbols]
+            if symbol_news:
+                llm_analysis = self.llm_news_processor.deepseek_feature_processor.extract_features({
+                    'content': ' '.join([n.title + ' ' + n.content for n in symbol_news[:5]]),
+                    'symbol': symbol,
+                    'source': 'aggregated'
+                })
+                llm_features[symbol] = llm_analysis
+        
+        return llm_features
+
+
+#### 8.2 LLM News Processing Integration
+
+```python
+class HybridNewsProcessingSystem:
+    """
+    Hybrid system combining existing FinBERT with new LLM capabilities
+    """
+    def __init__(self, foundation_transformer: ATSFoundationTransformer):
+        self.foundation_transformer = foundation_transformer
+        
+        # Existing systems (maintained)
+        self.finbert_analyzer = FinBERTSentimentAnalyzer()
+        self.news_fetcher = NewsContentFetcher()
+        
+        # New LLM systems
+        self.deepseek_processor = DeepSeekFeatureProcessor()
+        self.llama_classifier = LlamaRealTimeClassifier()
+        self.intelligent_router = NewsProcessingRouter()
+        
+    async def process_news_for_prediction(self, symbols: List[str]) -> Dict[str, Any]:
+        """Process news using hybrid approach for prediction enhancement"""
+        
+        # Fetch recent news (existing system)
+        news_articles = await self.news_fetcher.fetch_news_for_symbols(symbols, hours_back=24)
+        
+        processed_news = {}
+        for symbol in symbols:
+            symbol_news = [n for n in news_articles if symbol in n.symbols]
+            if not symbol_news:
+                continue
+            
+            # Route news processing based on complexity and importance
+            routing_decision = self.intelligent_router.route_news(symbol_news)
+            
+            if routing_decision == 'llm_deep_analysis':
+                # Use DeepSeek for complex/high-impact news
+                llm_analysis = await self._process_with_deepseek(symbol_news)
+                processed_news[symbol] = {
+                    'type': 'llm_enhanced',
+                    'features': llm_analysis,
+                    'confidence': llm_analysis.get('confidence_scores', {}),
+                    'reasoning': llm_analysis.get('reasoning_chain', '')
+                }
+                
+            elif routing_decision == 'llm_fast_classification':
+                # Use Llama for quick classification
+                quick_analysis = await self._process_with_llama(symbol_news)
+                processed_news[symbol] = {
+                    'type': 'llm_fast',
+                    'features': quick_analysis,
+                    'confidence': quick_analysis.get('confidence', 0.7)
+                }
+                
+            else:
+                # Use existing FinBERT system
+                finbert_analysis = await self._process_with_finbert(symbol_news)
+                processed_news[symbol] = {
+                    'type': 'traditional',
+                    'features': finbert_analysis,
+                    'confidence': finbert_analysis.get('confidence', 0.6)
+                }
+        
+        return processed_news
+
+
+class NewsProcessingRouter:
+    """
+    Intelligent routing for news processing based on content analysis
+    """
+    def route_news(self, news_articles: List[NewsArticle]) -> str:
+        """Determine optimal processing method for news articles"""
+        
+        # High-impact keywords trigger deep LLM analysis
+        high_impact_keywords = {
+            'earnings', 'guidance', 'merger', 'acquisition', 'bankruptcy', 
+            'investigation', 'fda approval', 'clinical trial', 'buyback'
+        }
+        
+        # Check for high-impact content
+        all_text = ' '.join([n.title + ' ' + n.content for n in news_articles]).lower()
+        
+        if any(keyword in all_text for keyword in high_impact_keywords):
+            return 'llm_deep_analysis'
+        
+        # Multiple articles or recent breaking news gets fast LLM
+        if len(news_articles) > 3 or self._is_breaking_news(news_articles):
+            return 'llm_fast_classification'
+        
+        # Default to existing FinBERT system
+        return 'traditional_processing'
+    
+    def _is_breaking_news(self, articles: List[NewsArticle]) -> bool:
+        """Check if articles represent breaking news"""
+        now = datetime.now()
+        recent_threshold = timedelta(hours=2)
+        
+        recent_articles = [a for a in articles 
+                          if (now - a.published_date) < recent_threshold]
+        
+        return len(recent_articles) >= 2  # Multiple articles in 2 hours = breaking news
 ```
 
 ## Deployment Strategy
@@ -499,6 +772,12 @@ class ATSTFTCompatibilityLayer:
 - **API Integration**: Seamless integration with existing TFT endpoints
 - **Performance Optimization**: Inference optimization for production deployment
 - **A/B Testing**: Gradual rollout with performance comparison against existing TFT
+
+#### Phase 5: LLM News Processing Integration (Weeks 19-22)
+- **Open Source LLM Deployment**: Deploy DeepSeek-R1 and Llama 3.3 for news analysis
+- **Hybrid Processing Pipeline**: Intelligent routing system for optimal cost/performance
+- **Advanced Feature Integration**: LLM-extracted features integrated with Foundation Transformer
+- **Performance Validation**: A/B testing LLM-enhanced vs traditional news processing
 
 ### 10. Risk Mitigation
 

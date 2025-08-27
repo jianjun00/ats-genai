@@ -28,12 +28,13 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             
         elif self.path == '/' or self.path == '/dashboard':
             self.send_response(200)
-            self.send_header('Content-type', 'text/html')
+            self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             html = """
             <!DOCTYPE html>
             <html>
             <head>
+                <meta charset="utf-8">
                 <title>ATS Analytics Dashboard</title>
                 <style>
                     body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
@@ -99,7 +100,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             </body>
             </html>
             """
-            self.wfile.write(html.encode())
+            self.wfile.write(html.encode('utf-8'))
             
         elif self.path == '/api/summary':
             self.send_response(200)

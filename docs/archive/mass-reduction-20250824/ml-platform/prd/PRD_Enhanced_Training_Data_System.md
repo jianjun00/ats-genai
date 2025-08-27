@@ -194,12 +194,18 @@ Enhanced Training Data System + ATS Foundation Transformer
 ├── Typed Feature Assembler (creates typed feature matrices)
 ├── Metadata Generator (creates comprehensive metadata)
 ├── Single Dataset Packager (bundles everything together)
-└── ATS Foundation Transformer Pipeline
-    ├── Multi-Resolution Encoders (5min/15min/1hour/daily)
-    ├── Cross-Timeframe Fusion Layer
-    ├── Financial Pattern Recognition (Smart Money, S/R)
-    ├── Foundation Model Pre-training (500M+ sequences)
-    └── Zero-Shot Inference Engine
+├── ATS Foundation Transformer Pipeline
+│   ├── Multi-Resolution Encoders (5min/15min/1hour/daily)
+│   ├── Cross-Timeframe Fusion Layer
+│   ├── Financial Pattern Recognition (Smart Money, S/R)
+│   ├── Foundation Model Pre-training (500M+ sequences)
+│   └── Zero-Shot Inference Engine
+└── LLM-Enhanced News Processing System
+    ├── Multi-Tier LLM Pipeline (Llama 3.3 → DeepSeek-R1 → FinBERT)
+    ├── Intelligent Content Routing Engine
+    ├── Advanced Event Extraction & Reasoning
+    ├── Multi-Document Cross-Reference Validation
+    └── Enhanced Risk Factor Detection
 ```
 
 ### Frontend Architecture  
@@ -246,6 +252,13 @@ Training Data Visualizer
 - **Financial Domain Specialization**: Integrate Smart Money Zone detection and support/resistance prediction
 - **Foundation Model Pre-training**: Train on 30-year dataset (500M+ sequences across 4,000 instruments)
 - **Zero-Shot Inference**: Enable predictions on new instruments without retraining
+
+### Phase 5: LLM-Enhanced News Processing (Week 11-14)
+- **Open Source LLM Integration**: Deploy DeepSeek-R1 for advanced financial news analysis
+- **Hybrid Processing Pipeline**: Intelligent routing between FinBERT and LLM based on content complexity
+- **Advanced Event Extraction**: Multi-document reasoning and cross-reference validation
+- **Real-Time Risk Assessment**: Enhanced risk factor detection with LLM reasoning capabilities
+- **Cost-Optimized Deployment**: Tiered processing strategy (Llama 3.3 → DeepSeek-R1 → FinBERT)
 
 ## Storage Architecture Update
 
@@ -297,6 +310,8 @@ Training Data Visualizer
 - [ ] Enable cross-timeframe indicator overlays (Phase 3)
 - [ ] **ATS Foundation Transformer**: Implement multi-resolution transformer architecture (Phase 4)
 - [ ] **Zero-Shot Inference**: Enable predictions on unseen instruments (Phase 4)
+- [ ] **LLM-Enhanced News Processing**: Deploy open source LLM for advanced news analysis (Phase 5)
+- [ ] **Multi-Tier LLM Pipeline**: Intelligent routing between Llama/DeepSeek/FinBERT (Phase 5)
 - [x] **Backwards Compatibility**: Dual-write system ensures seamless transition
 
 ### Performance Requirements Met
@@ -308,6 +323,8 @@ Training Data Visualizer
 - [ ] Cross-timeframe navigation responds within 500ms (Phase 3)
 - [ ] **Foundation Model Inference**: <50ms real-time predictions for 4,000 instruments (Phase 4)
 - [ ] **Pre-training Performance**: Process 500M+ sequences in 2 months on H100 cluster (Phase 4)
+- [ ] **LLM News Processing**: <2s analysis time for complex financial events using DeepSeek-R1 (Phase 5)
+- [ ] **Hybrid Processing Efficiency**: 80% fast-path (Llama), 15% deep analysis (DeepSeek) (Phase 5)
 
 ### Quality Requirements Met
 - [x] **Data Integrity**: 25+ comprehensive tests with 100% pass rate
@@ -319,6 +336,8 @@ Training Data Visualizer
 - [ ] Visualization consistency across all 6 timeframes (Phase 3)
 - [ ] **Foundation Model Accuracy**: >75% prediction accuracy on financial forecasting tasks (Phase 4)
 - [ ] **Zero-Shot Performance**: >70% accuracy on unseen instruments without fine-tuning (Phase 4)
+- [ ] **LLM News Analysis Accuracy**: >85% accuracy vs current 70% FinBERT baseline (Phase 5)
+- [ ] **Multi-Document Reasoning**: >90% consistency in cross-reference validation (Phase 5)
 
 ---
 

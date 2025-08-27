@@ -20,9 +20,12 @@ The ML Platform provides end-to-end machine learning capabilities for the ATS sy
 
 ### **Key Technologies**
 - **Foundation Models** - ATS Foundation Transformer with 200M parameters, 8K context length
+- **Open Source LLMs** - DeepSeek-R1 for advanced reasoning, Llama 3.3 for real-time classification
+- **Hybrid News Processing** - Intelligent routing between FinBERT, DeepSeek, and Llama models
 - **Python ML Stack** - scikit-learn, XGBoost, LightGBM, PyTorch, Transformers
 - **Multi-Resolution Processing** - Simultaneous 5min/15min/1hour/daily timeframe analysis
-- **Feature Engineering** - Custom indicators, technical analysis, Smart Money Zones, sentiment integration
+- **Advanced Event Extraction** - LLM-powered structured financial event analysis
+- **Feature Engineering** - Custom indicators, technical analysis, Smart Money Zones, LLM news features
 - **Zero-Shot Inference** - Predictions on unseen instruments without retraining
 - **MLOps** - Model versioning, A/B testing, continuous training, foundation model pre-training
 - **Inference Serving** - FastAPI async prediction endpoints with <50ms latency
@@ -36,6 +39,9 @@ The ML Platform provides end-to-end machine learning capabilities for the ATS sy
 ```bash
 # ATS Foundation Transformer pre-training (500M+ sequences)
 python scripts/run_dev.py deploy --file k8s/foundation-model-pretraining-job.yaml
+
+# Deploy LLM-enhanced news processing system
+python scripts/run_dev.py deploy --file k8s/llm-news-processing-job.yaml
 
 # Generate training data for enhanced model
 python scripts/run_dev.py deploy --file k8s/enhanced-training-job.yaml
@@ -172,14 +178,15 @@ class SmartMoneyFeatureEngine:
 
 ## 🏗️ Training Pipeline Architecture
 
-### **Foundation Model + Traditional ML Workflow**
+### **Foundation Model + LLM-Enhanced Workflow**
 ```
-Multi-Timeframe Data → Feature Engineering → Foundation Pre-training → Fine-tuning → Deployment
-         ↓                     ↓                      ↓                  ↓            ↓
-    [5min/15min/        [Multi-resolution]      [500M+ sequences]   [Task-specific]  [Zero-shot]
-     1hour/daily]       [Cross-timeframe]      [Multi-task obj]    [Fine-tuning]    [Inference]
-    [8K sequences]      [Smart Money/S&R]      [200M parameters]   [A/B Testing]    [<50ms latency]
-    [File-based]        [Sentiment/Macro]      [H100 cluster]     [Validation]     [Monitoring]
+Multi-Timeframe Data → LLM News Processing → Foundation Pre-training → Fine-tuning → Deployment
+         ↓                      ↓                     ↓                  ↓            ↓
+    [5min/15min/        [DeepSeek Reasoning]    [500M+ sequences]   [Task-specific]  [Zero-shot]
+     1hour/daily]       [Llama Classification]  [Multi-task obj]    [Fine-tuning]    [Inference]
+    [8K sequences]      [Event Extraction]      [200M parameters]   [A/B Testing]    [<50ms latency]
+    [File-based]        [Cross-reference]       [H100 cluster]     [Validation]     [Monitoring]
+                        [FinBERT Fallback]
 ```
 
 ### **Traditional ML Pipeline (Maintained)**
@@ -656,6 +663,8 @@ spec:
 - **Model Availability**: 99.9% uptime for inference services
 - **A/B Test Velocity**: 5+ model experiments per month
 - **Foundation Model Scale**: 500M+ training sequences, 200M parameters
+- **LLM News Processing**: DeepSeek-R1 + Llama 3.3 hybrid pipeline with intelligent routing
+- **Advanced Event Extraction**: >85% accuracy in financial event categorization and impact analysis
 
 ### **Business Impact Metrics**
 - **Portfolio Alpha Generation**: Target excess return > 5% annually

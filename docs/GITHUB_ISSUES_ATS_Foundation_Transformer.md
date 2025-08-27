@@ -386,6 +386,164 @@ Implement comprehensive A/B testing framework to validate foundation model perfo
 
 ---
 
+## Phase 5: LLM-Enhanced News Processing (Weeks 19-22)
+
+### Issue #18: Open Source LLM Infrastructure Setup
+**Title**: Deploy DeepSeek-R1 and Llama 3.3 for financial news analysis
+
+**Description**:
+Set up open source LLM infrastructure to enhance news processing capabilities beyond the existing FinBERT system, providing advanced reasoning and event extraction.
+
+**Tasks**:
+- [ ] Deploy DeepSeek-R1-67B model for complex financial reasoning
+- [ ] Deploy Llama 3.3-70B for real-time news classification
+- [ ] Configure model serving infrastructure with vLLM/TensorRT-LLM
+- [ ] Implement cost-optimized request routing and batching
+- [ ] Set up monitoring and logging for LLM usage and costs
+
+**Acceptance Criteria**:
+- [ ] DeepSeek-R1 processes complex financial events with <2s latency
+- [ ] Llama 3.3 provides fast classification with <100ms latency
+- [ ] Model serving handles concurrent requests efficiently
+- [ ] Cost monitoring tracks per-request expenses
+
+**Priority**: High  
+**Assignee**: ML Infrastructure Team  
+**Labels**: `llm-deployment`, `infrastructure`, `cost-optimization`  
+**Estimated Effort**: 8 days
+
+---
+
+### Issue #19: Hybrid News Processing Pipeline
+**Title**: Intelligent routing system between FinBERT, Llama, and DeepSeek
+
+**Description**:
+Implement intelligent routing system that optimally directs news articles to appropriate processing models based on complexity, importance, and cost considerations.
+
+**Tasks**:
+- [ ] Implement `NewsProcessingRouter` with intelligent content analysis
+- [ ] Create routing logic for high-impact vs routine news
+- [ ] Develop fallback mechanisms for LLM failures
+- [ ] Integrate with existing FinBERT sentiment analysis system
+- [ ] Add performance metrics and cost tracking per routing decision
+
+**Acceptance Criteria**:
+- [ ] Router correctly identifies high-impact news requiring deep LLM analysis
+- [ ] 80% of routine news processed via fast path (Llama/FinBERT)
+- [ ] 15% of complex news gets DeepSeek reasoning
+- [ ] System maintains <100ms average processing time
+
+**Priority**: High  
+**Assignee**: ML Engineering Team  
+**Labels**: `routing`, `optimization`, `news-processing`  
+**Estimated Effort**: 10 days
+
+---
+
+### Issue #20: Advanced Event Extraction with LLM Reasoning
+**Title**: Implement structured financial event extraction using DeepSeek-R1
+
+**Description**:
+Develop advanced event extraction capabilities that go beyond sentiment analysis to provide structured financial event information with reasoning chains.
+
+**Tasks**:
+- [ ] Design structured prompt templates for financial event extraction
+- [ ] Implement `DeepSeekFeatureProcessor` for advanced analysis
+- [ ] Create tensor encoding for LLM-extracted features
+- [ ] Develop cross-reference validation across multiple news sources
+- [ ] Add confidence scoring and uncertainty quantification
+
+**Acceptance Criteria**:
+- [ ] System extracts structured events (earnings, M&A, regulatory, etc.)
+- [ ] Quantified impact estimates with confidence scores
+- [ ] Timeline analysis (immediate, 1-week, 1-month, 1-quarter impacts)
+- [ ] Cross-reference validation identifies conflicting information
+
+**Priority**: High  
+**Assignee**: ML Research Team  
+**Labels**: `event-extraction`, `reasoning`, `structured-data`  
+**Estimated Effort**: 12 days
+
+---
+
+### Issue #21: LLM Feature Integration with Foundation Transformer
+**Title**: Integrate LLM-extracted news features with Foundation Transformer architecture
+
+**Description**:
+Seamlessly integrate LLM-processed news features into the Foundation Transformer's multi-modal architecture for enhanced prediction capabilities.
+
+**Tasks**:
+- [ ] Implement `LLMNewsIntegrationLayer` in Foundation Transformer
+- [ ] Create cross-modal attention between price and LLM news features
+- [ ] Design feature projection layers for different LLM outputs
+- [ ] Add LLM confidence weighting in prediction fusion
+- [ ] Implement attention visualization for LLM feature importance
+
+**Acceptance Criteria**:
+- [ ] LLM news features seamlessly integrated into transformer architecture
+- [ ] Cross-modal attention properly weighs price vs news information
+- [ ] Model performance improves with LLM features vs baseline
+- [ ] Feature attribution shows LLM contribution to predictions
+
+**Priority**: High  
+**Assignee**: ML Architecture Team  
+**Labels**: `integration`, `multi-modal`, `attention-mechanism`  
+**Estimated Effort**: 10 days
+
+---
+
+### Issue #22: Cost-Optimized LLM Deployment Strategy
+**Title**: Implement tiered processing strategy for optimal cost/performance balance
+
+**Description**:
+Design and implement cost-optimized deployment strategy that balances processing quality with operational costs through intelligent tiering.
+
+**Tasks**:
+- [ ] Implement three-tier processing strategy (Llama → DeepSeek → FinBERT)
+- [ ] Create cost tracking and budgeting system
+- [ ] Develop dynamic routing based on market volatility and news volume
+- [ ] Add request batching and caching for cost optimization
+- [ ] Implement cost alerting and automatic scaling controls
+
+**Acceptance Criteria**:
+- [ ] Monthly LLM costs stay within $1000-2000 budget
+- [ ] 80% of news processed via low-cost path
+- [ ] Cost per prediction tracked and optimized
+- [ ] System scales processing based on market conditions
+
+**Priority**: Medium  
+**Assignee**: ML Engineering Team  
+**Labels**: `cost-optimization`, `scaling`, `monitoring`  
+**Estimated Effort**: 8 days
+
+---
+
+### Issue #23: LLM Performance Validation and A/B Testing
+**Title**: Comprehensive validation of LLM-enhanced news processing vs traditional methods
+
+**Description**:
+Implement comprehensive A/B testing framework to validate LLM-enhanced news processing performance against existing FinBERT baseline.
+
+**Tasks**:
+- [ ] Design A/B test framework for news processing comparison
+- [ ] Implement prediction accuracy tracking for LLM vs traditional methods
+- [ ] Create business impact measurement (trading performance, risk reduction)
+- [ ] Develop statistical significance testing for performance improvements
+- [ ] Add automated rollback if LLM performance degrades
+
+**Acceptance Criteria**:
+- [ ] A/B test shows >15% improvement in news analysis accuracy
+- [ ] Trading signals quality improvement demonstrable
+- [ ] Cost vs performance analysis validates ROI
+- [ ] Automated rollback prevents performance degradation
+
+**Priority**: Medium  
+**Assignee**: ML Validation Team  
+**Labels**: `validation`, `ab-testing`, `performance-measurement`  
+**Estimated Effort**: 7 days
+
+---
+
 ## Additional Issues for Future Enhancement
 
 ### Issue #15: Cross-Asset Foundation Model
@@ -459,7 +617,11 @@ graph TD
 
 ---
 
-**Total Estimated Effort**: 142 developer days across 18 weeks  
+**Total Estimated Effort**: 197 developer days across 22 weeks  
+**Phase Breakdown**:
+- Phase 1-4 (Foundation Transformer): 142 developer days (Weeks 1-18)
+- Phase 5 (LLM News Processing): 55 developer days (Weeks 19-22)
+
 **Team Size**: 8-10 engineers across ML, Infrastructure, and Backend teams  
 **Risk Buffer**: 20% additional time allocated for unexpected challenges  
-**Go-Live Target**: Q2 2025
+**Go-Live Target**: Q2 2025 (Foundation Transformer) + Q3 2025 (LLM Enhancement)
