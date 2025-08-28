@@ -7,14 +7,125 @@ Provides web-based analytics dashboard for 30-year price database
 import asyncio
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import sys
 import os
+import asyncpg
+from typing import Dict, List, Optional
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+class JobManager:
+    """Job management functionality for analytics service."""
+    
+    def __init__(self):
+        self.pool = None
+        
+    async def initialize(self):
+        """Initialize database connection."""
+        try:
+            self.pool = await asyncpg.create_pool(
+                host='postgres',
+                port=5432, 
+                user='postgres',
+                password='dev_password',
+                database='dev_db',
+                min_size=2,
+                max_size=5
+            )
+        except Exception as e:
+            logger.warning(f"Database connection failed: {e}")
+            self.pool = None
+    
+    async def get_job_stats(self) -> Dict:
+        """Get job statistics."""
+        if not self.pool:
+            return {"error": "Database not available"}
+        
+        try:
+            async with self.pool.acquire() as conn:
+                stats = await conn.fetchrow("""
+                    SELECT 
+                        COUNT(*) as total_jobs,
+                        COUNT(CASE WHEN status = 'running' THEN 1 END) as running_jobs,
+                        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_jobs,
+                        COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_jobs,
+                        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_jobs
+                    FROM dev_runs
+                """)
+                
+                return {
+                    "total_jobs": stats['total_jobs'],
+                    "running_jobs": stats['running_jobs'],
+                    "completed_jobs": stats['completed_jobs'],
+                    "failed_jobs": stats['failed_jobs'],
+                    "pending_jobs": stats['pending_jobs']
+                }
+        except Exception as e:
+            logger.error(f"Database error getting job stats: {e}")
+            return {"error": str(e)}
+    
+    async def get_recent_jobs(self, limit: int = 10) -> List[Dict]:
+        """Get recent jobs."""
+        if not self.pool:
+            return []
+        
+        try:
+            async with self.pool.acquire() as conn:
+                jobs = await conn.fetch("""
+                    SELECT id, run_type, status, start_time, end_time, created_by, 
+                           created_at, error_message, parameters
+                    FROM dev_runs
+                    ORDER BY created_at DESC
+                    LIMIT $1
+                """, limit)
+                
+                result = []
+                for job in jobs:
+                    duration = None
+                    if job['start_time'] and job['end_time']:
+                        duration = int((job['end_time'] - job['start_time']).total_seconds())
+                    
+                    result.append({
+                        "job_id": str(job['id']),
+                        "job_type": job['run_type'],
+                        "status": job['status'],
+                        "user_id": job['created_by'] or 'system',
+                        "start_time": job['start_time'].isoformat() if job['start_time'] else None,
+                        "end_time": job['end_time'].isoformat() if job['end_time'] else None,
+                        "duration_seconds": duration,
+                        "created_at": job['created_at'].isoformat() if job['created_at'] else None,
+                        "error_message": job['error_message'],
+                        "parameters": job['parameters'] or {}
+                    })
+                
+                return result
+        except Exception as e:
+            logger.error(f"Database error getting recent jobs: {e}")
+            return []
+    
+    async def get_collection_status(self) -> Dict:
+        """Get collection job status (simplified version)."""
+        # This is a simplified version - full version would parse log files like monitor_all_collections.py
+        return {
+            "price_backfills": {
+                "polygon_30y": {"status": "unknown", "records": 0},
+                "tiingo_30y": {"status": "unknown", "records": 0}, 
+                "eodhd_30y": {"status": "unknown", "records": 0}
+            },
+            "events_collection": {
+                "polygon": {"status": "unknown", "events": 0},
+                "eodhd": {"status": "unknown", "events": 0},
+                "tiingo": {"status": "unknown", "events": 0}
+            },
+            "last_updated": datetime.now().isoformat()
+        }
+
+# Initialize global job manager
+job_manager = JobManager()
 
 class AnalyticsHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -43,6 +154,15 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
                     .metric { font-size: 2em; font-weight: bold; color: #2c3e50; }
                     .btn { background: #3498db; color: white; padding: 10px 20px; border: none; border-radius: 4px; text-decoration: none; display: inline-block; margin: 5px; }
+                    .job-item { padding: 8px; margin: 4px 0; border-radius: 4px; font-size: 0.9em; border-left: 3px solid #ddd; }
+                    .job-running { border-left-color: #3498db; background: #e8f4fd; }
+                    .job-completed { border-left-color: #27ae60; background: #eafaf1; }
+                    .job-failed { border-left-color: #e74c3c; background: #fdf2f2; }
+                    .job-pending { border-left-color: #f39c12; background: #fef9e7; }
+                    .job-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 10px; margin-bottom: 10px; }
+                    .stat-item { text-align: center; }
+                    .stat-value { font-size: 1.2em; font-weight: bold; }
+                    .stat-label { font-size: 0.8em; color: #666; }
                 </style>
             </head>
             <body>
@@ -74,29 +194,110 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     </div>
                     
                     <div class="card">
-                        <h3>Quality Metrics</h3>
-                        <p>Multi-vendor reconciliation system with:</p>
-                        <ul>
-                            <li>Quality scoring (0-100 scale)</li>
-                            <li>Data integrity validation</li>
-                            <li>Gap detection and analysis</li>
-                            <li>Performance monitoring</li>
-                        </ul>
-                        <a href="/api/quality" class="btn">Quality Report</a>
+                        <h3>Job Management</h3>
+                        <div id="job-stats">Loading job statistics...</div>
+                        <div id="recent-jobs" style="margin-top: 15px; max-height: 150px; overflow-y: auto;">
+                            <p>Loading recent jobs...</p>
+                        </div>
+                        <a href="/api/jobs/stats" class="btn">Job Stats</a>
+                        <a href="/api/jobs/recent" class="btn">Recent Jobs</a>
                     </div>
                     
                     <div class="card">
                         <h3>API Endpoints</h3>
                         <a href="/health" class="btn">Health Check</a>
                         <a href="/api/summary" class="btn">Data Summary</a>
-                        <a href="/api/instruments" class="btn">Instruments</a>
-                        <a href="/api/coverage" class="btn">Coverage Analysis</a>
+                        <a href="/api/jobs/stats" class="btn">Job Stats</a>
+                        <a href="/api/collections/status" class="btn">Collection Status</a>
                     </div>
                 </div>
                 
                 <div style="margin-top: 20px; text-align: center; color: #7f8c8d;">
                     <p>ATS Analytics Service | Development Environment | External Access Available</p>
                 </div>
+                
+                <script>
+                    async function loadJobStats() {
+                        try {
+                            const response = await fetch('/api/jobs/stats');
+                            const stats = await response.json();
+                            
+                            if (stats.error) {
+                                document.getElementById('job-stats').innerHTML = '<p style="color: #e74c3c;">Database unavailable</p>';
+                                return;
+                            }
+                            
+                            document.getElementById('job-stats').innerHTML = `
+                                <div class="job-stats">
+                                    <div class="stat-item">
+                                        <div class="stat-value">${stats.total_jobs || 0}</div>
+                                        <div class="stat-label">Total</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-value" style="color: #3498db;">${stats.running_jobs || 0}</div>
+                                        <div class="stat-label">Running</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-value" style="color: #27ae60;">${stats.completed_jobs || 0}</div>
+                                        <div class="stat-label">Completed</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-value" style="color: #e74c3c;">${stats.failed_jobs || 0}</div>
+                                        <div class="stat-label">Failed</div>
+                                    </div>
+                                </div>
+                            `;
+                        } catch (error) {
+                            console.error('Failed to load job stats:', error);
+                            document.getElementById('job-stats').innerHTML = '<p style="color: #e74c3c;">Failed to load stats</p>';
+                        }
+                    }
+                    
+                    async function loadRecentJobs() {
+                        try {
+                            const response = await fetch('/api/jobs/recent');
+                            const data = await response.json();
+                            
+                            if (!data.jobs || data.jobs.length === 0) {
+                                document.getElementById('recent-jobs').innerHTML = '<p style="color: #666;">No recent jobs found</p>';
+                                return;
+                            }
+                            
+                            const jobsHtml = data.jobs.slice(0, 5).map(job => {
+                                const statusClass = `job-${job.status}`;
+                                const duration = job.duration_seconds ? `${Math.round(job.duration_seconds/60)}m` : 'N/A';
+                                const timeAgo = job.created_at ? new Date(job.created_at).toLocaleString() : 'Unknown';
+                                
+                                return `
+                                    <div class="job-item ${statusClass}">
+                                        <div style="font-weight: bold;">${job.job_type}</div>
+                                        <div style="font-size: 0.8em; color: #666;">
+                                            ${job.status.toUpperCase()} | ${job.user_id} | ${duration}
+                                        </div>
+                                        ${job.error_message ? `<div style="color: #e74c3c; font-size: 0.8em;">${job.error_message}</div>` : ''}
+                                    </div>
+                                `;
+                            }).join('');
+                            
+                            document.getElementById('recent-jobs').innerHTML = jobsHtml;
+                        } catch (error) {
+                            console.error('Failed to load recent jobs:', error);
+                            document.getElementById('recent-jobs').innerHTML = '<p style="color: #e74c3c;">Failed to load jobs</p>';
+                        }
+                    }
+                    
+                    // Load data on page load
+                    document.addEventListener('DOMContentLoaded', function() {
+                        loadJobStats();
+                        loadRecentJobs();
+                        
+                        // Refresh every 30 seconds
+                        setInterval(() => {
+                            loadJobStats();
+                            loadRecentJobs();
+                        }, 30000);
+                    });
+                </script>
             </body>
             </html>
             """
@@ -157,6 +358,50 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 "timestamp": datetime.now().isoformat()
             }
             self.wfile.write(json.dumps(vendors, indent=2).encode())
+        
+        elif self.path == '/api/jobs/stats':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            # Need to run async function in sync context
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                stats = loop.run_until_complete(job_manager.get_job_stats())
+                self.wfile.write(json.dumps(stats, indent=2).encode())
+            finally:
+                loop.close()
+        
+        elif self.path == '/api/jobs/recent':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                jobs = loop.run_until_complete(job_manager.get_recent_jobs(15))
+                response = {"jobs": jobs, "total": len(jobs), "timestamp": datetime.now().isoformat()}
+                self.wfile.write(json.dumps(response, indent=2).encode())
+            finally:
+                loop.close()
+        
+        elif self.path == '/api/collections/status':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                status = loop.run_until_complete(job_manager.get_collection_status())
+                self.wfile.write(json.dumps(status, indent=2).encode())
+            finally:
+                loop.close()
             
         else:
             self.send_response(404)
@@ -165,15 +410,31 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             error = {"error": "Not found", "path": self.path}
             self.wfile.write(json.dumps(error).encode())
 
+async def initialize_job_manager():
+    """Initialize the job manager."""
+    try:
+        await job_manager.initialize()
+        logger.info("✅ Job manager initialized")
+    except Exception as e:
+        logger.warning(f"⚠️  Job manager initialization failed: {e}")
+
 def main():
     """Main entry point for analytics service"""
     port = int(os.getenv('PORT', 8000))
     
     try:
+        # Initialize job manager
+        logger.info("🔧 Initializing job manager...")
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(initialize_job_manager())
+        loop.close()
+        
         server = HTTPServer(('0.0.0.0', port), AnalyticsHandler)
         logger.info(f"🚀 ATS Analytics Service starting on port {port}")
-        logger.info("📊 Serving 30-year price database analytics")
+        logger.info("📊 Serving 30-year price database analytics with job management")
         logger.info(f"🌐 External access available")
+        logger.info("🔧 Job management endpoints: /api/jobs/stats, /api/jobs/recent")
         
         server.serve_forever()
         
