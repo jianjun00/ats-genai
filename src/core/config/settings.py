@@ -47,12 +47,9 @@ class Settings:
         self.api_host = os.getenv("API_HOST", "0.0.0.0")
         self.api_port = int(os.getenv("API_PORT", "8000"))
         
-        # Database settings
-        self.database_host = os.getenv("DB_HOST", "localhost")
-        self.database_port = int(os.getenv("DB_PORT", "5432"))
-        self.database_name = os.getenv("DB_NAME", "ats_dev")
-        self.database_user = os.getenv("DB_USER", "postgres")
-        self.database_password = os.getenv("DB_PASSWORD", "postgres")
+        # Database settings - Container-aware ATS dev environment defaults
+        self._setup_database_config()
+        # Connection pool settings
         self.database_pool_size = int(os.getenv("DB_POOL_SIZE", "20"))
         self.database_max_overflow = int(os.getenv("DB_MAX_OVERFLOW", "30"))
         self.database_pool_timeout = int(os.getenv("DB_POOL_TIMEOUT", "30"))
@@ -106,6 +103,29 @@ class Settings:
         self.risk_max_market_beta = float(os.getenv("RISK_MAX_MARKET_BETA", "0.03"))
         self.risk_max_sector_beta = float(os.getenv("RISK_MAX_SECTOR_BETA", "0.08"))
         self.risk_target_dollar_neutral = self._get_bool("RISK_TARGET_DOLLAR_NEUTRAL", True)
+    
+    def _setup_database_config(self):
+        """Setup database configuration with container-aware defaults."""
+        # Detect if we're running inside a Docker container
+        is_in_container = os.path.exists('/.dockerenv')
+        
+        if is_in_container:
+            # Inside container - use container network defaults
+            # Container-to-container communication uses service names and internal ports
+            default_host = "postgres"
+            default_port = "5432"
+        else:
+            # Outside container - use host defaults
+            # Host communication uses localhost and mapped ports
+            default_host = "localhost" 
+            default_port = "5433"
+        
+        # But always respect explicit environment variables
+        self.database_host = os.getenv("DB_HOST", default_host)
+        self.database_port = int(os.getenv("DB_PORT", default_port))
+        self.database_name = os.getenv("DB_NAME", "dev_db")
+        self.database_user = os.getenv("DB_USER", "postgres")
+        self.database_password = os.getenv("DB_PASSWORD", "dev_password")
     
     def _get_environment(self) -> Environment:
         """Detect and validate environment."""

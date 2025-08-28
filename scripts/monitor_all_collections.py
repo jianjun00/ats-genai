@@ -19,13 +19,13 @@ sys.path.append('/workspace/src')
 
 import os
 import asyncio
-import asyncpg
 import time
 import argparse
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import subprocess
 import json
+from utils.db_utils import get_db_connection, execute_query, get_table_name
 
 class ATSCollectionMonitor:
     """
@@ -58,15 +58,9 @@ class ATSCollectionMonitor:
         self.target_symbols = 15000  # Approximate number of instruments
         self.start_time = datetime.now()
 
-    async def get_database_connection(self):
-        """Get database connection."""
-        return await asyncpg.connect(
-            host='postgres',
-            port=5432,
-            user='postgres',
-            password='dev_password',
-            database='dev_db'
-        )
+    def get_database_connection(self):
+        """Get database connection using centralized manager."""
+        return get_db_connection()
 
     def get_process_status(self, log_path: str) -> Dict:
         """Get process status from log file."""
@@ -141,37 +135,44 @@ class ATSCollectionMonitor:
         
         return status
 
-    async def get_database_stats(self, table_name: str, vendor: str = None) -> Dict:
-        """Get database statistics for a table."""
-        conn = await self.get_database_connection()
+    def get_database_stats(self, table_name: str, vendor: str = None) -> Dict:
+        """Get database statistics for a table using centralized connection."""
         try:
-            if vendor:
-                # For events table, filter by vendor
-                count_query = f"SELECT COUNT(*) FROM {table_name} WHERE vendor = $1"
-                count = await conn.fetchval(count_query, vendor)
+            with self.get_database_connection() as conn:
+                with conn.cursor() as cursor:
+                    if vendor:
+                        # For events table, filter by vendor
+                        cursor.execute(f"SELECT COUNT(*) FROM {table_name} WHERE vendor = %s", (vendor,))
+                        count = cursor.fetchone()[0]
+                        
+                        cursor.execute(f"SELECT MAX(created_at) FROM {table_name} WHERE vendor = %s", (vendor,))
+                        latest = cursor.fetchone()[0]
+                        
+                        cursor.execute(f"SELECT COUNT(DISTINCT symbol) FROM {table_name} WHERE vendor = %s", (vendor,))
+                        unique_symbols = cursor.fetchone()[0]
+                    else:
+                        # For price tables
+                        cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+                        count = cursor.fetchone()[0]
+                        
+                        cursor.execute(f"SELECT MAX(created_at) FROM {table_name}")
+                        latest = cursor.fetchone()[0]
+                        
+                        cursor.execute(f"SELECT COUNT(DISTINCT symbol) FROM {table_name}")
+                        unique_symbols = cursor.fetchone()[0]
                 
-                latest_query = f"SELECT MAX(created_at) FROM {table_name} WHERE vendor = $1"
-                latest = await conn.fetchval(latest_query, vendor)
-                
-                symbols_query = f"SELECT COUNT(DISTINCT symbol) FROM {table_name} WHERE vendor = $1"
-                unique_symbols = await conn.fetchval(symbols_query, vendor)
-            else:
-                # For price tables
-                count = await conn.fetchval(f"SELECT COUNT(*) FROM {table_name}")
-                latest = await conn.fetchval(f"SELECT MAX(created_at) FROM {table_name}")
-                unique_symbols = await conn.fetchval(f"SELECT COUNT(DISTINCT symbol) FROM {table_name}")
-            
-            return {
-                'total_records': count or 0,
-                'unique_symbols': unique_symbols or 0,
-                'latest_record': latest
-            }
+                return {
+                    'total_records': count or 0,
+                    'unique_symbols': unique_symbols or 0,
+                    'latest_record': latest
+                }
         except Exception as e:
             return {
                 'total_records': 0,
                 'unique_symbols': 0,
                 'latest_record': None,
                 'error': str(e)
+            }
             }
         finally:
             await conn.close()
@@ -220,7 +221,7 @@ class ATSCollectionMonitor:
                 process_status = self.get_process_status(job['log'])
                 
                 # Get database statistics
-                db_stats = await self.get_database_stats(
+                db_stats = self.get_database_stats(
                     job['table'], 
                     job.get('vendor')
                 )

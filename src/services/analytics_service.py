@@ -11,142 +11,105 @@ from datetime import datetime, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import sys
 import os
-import asyncpg
 from typing import Dict, List, Optional
+
+# Add the src directory to the path for imports
+sys.path.insert(0, '/workspace/src')
+from core.database.connection_manager import get_connection_manager
+from core.config.settings import get_settings
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class JobManager:
-    """Job management functionality for analytics service."""
+    """Job management functionality for analytics service using centralized connection manager."""
     
     def __init__(self):
-        self.pool = None
+        self.db_manager = get_connection_manager()
+        self.settings = get_settings()
         
     async def initialize(self):
-        """Initialize database connection."""
+        """Initialize database connection using centralized manager."""
         try:
-            # Try multiple connection methods
-            connection_attempts = [
-                {'host': 'ats-dev-postgres', 'port': 5432},  # Container name
-                {'host': '172.17.0.2', 'port': 5432},        # Direct container IP
-                {'host': 'localhost', 'port': 5433},         # Host port mapping
-                {'host': 'host.docker.internal', 'port': 5433},  # Docker Desktop
-                {'host': '172.17.0.1', 'port': 5433},        # Docker bridge gateway
-            ]
-            
-            for attempt in connection_attempts:
-                try:
-                    logger.info(f"Attempting database connection to {attempt['host']}:{attempt['port']}")
-                    self.pool = await asyncpg.create_pool(
-                        host=attempt['host'],
-                        port=attempt['port'],
-                        user='postgres',
-                        password='dev_password',
-                        database='dev_db',
-                        min_size=1,
-                        max_size=3,
-                        timeout=5
-                    )
-                    # Test the connection
-                    async with self.pool.acquire() as conn:
-                        await conn.fetchval('SELECT 1')
-                    logger.info(f"✅ Database connected via {attempt['host']}:{attempt['port']}")
-                    return
-                except Exception as e:
-                    logger.debug(f"Connection attempt failed for {attempt['host']}:{attempt['port']} - {e}")
-                    if self.pool:
-                        await self.pool.close()
-                        self.pool = None
-                    continue
-            
-            # If all attempts fail
-            raise Exception("All database connection attempts failed")
+            # Test the centralized connection
+            if await self.db_manager.check_async_connection():
+                logger.info("✅ Database connection established via centralized manager")
+            else:
+                logger.warning("⚠️ Database connection check failed")
         except Exception as e:
-            logger.warning(f"Database connection failed: {e}")
-            self.pool = None
+            logger.warning(f"Database initialization failed: {e}")
     
     async def get_job_stats(self) -> Dict:
-        """Get job statistics."""
+        """Get job statistics using centralized connection manager."""
         try:
-            conn = await asyncpg.connect(
-                host='172.17.0.2',
-                port=5432,
-                user='postgres',
-                password='dev_password',
-                database='dev_db',
-                timeout=3
-            )
+            from core.database.connection_manager import get_raw_connection
             
-            try:
-                stats = await conn.fetchrow("""
-                    SELECT 
-                        COUNT(*) as total_jobs,
-                        COUNT(CASE WHEN status = 'running' THEN 1 END) as running_jobs,
-                        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_jobs,
-                        COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_jobs,
-                        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_jobs
-                    FROM dev_runs
-                """)
-                
-                return {
-                    "total_jobs": stats['total_jobs'],
-                    "running_jobs": stats['running_jobs'],
-                    "completed_jobs": stats['completed_jobs'],
-                    "failed_jobs": stats['failed_jobs'],
-                    "pending_jobs": stats['pending_jobs']
-                }
-            finally:
-                await conn.close()
+            with get_raw_connection() as conn:
+                with conn.cursor() as cursor:
+                    table_name = self.settings.get_table_name("runs")
+                    cursor.execute(f"""
+                        SELECT 
+                            COUNT(*) as total_jobs,
+                            COUNT(CASE WHEN status = 'running' THEN 1 END) as running_jobs,
+                            COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_jobs,
+                            COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_jobs,
+                            COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_jobs
+                        FROM {table_name}
+                    """)
+                    
+                    result = cursor.fetchone()
+                    
+                    return {
+                        "total_jobs": result['total_jobs'],
+                        "running_jobs": result['running_jobs'],
+                        "completed_jobs": result['completed_jobs'],
+                        "failed_jobs": result['failed_jobs'],
+                        "pending_jobs": result['pending_jobs']
+                    }
                 
         except Exception as e:
             logger.error(f"Database error getting job stats: {e}")
             return {"error": str(e)}
     
     async def get_recent_jobs(self, limit: int = 10) -> List[Dict]:
-        """Get recent jobs."""
+        """Get recent jobs using centralized connection manager."""
         try:
-            conn = await asyncpg.connect(
-                host='172.17.0.2',
-                port=5432,
-                user='postgres',
-                password='dev_password',
-                database='dev_db',
-                timeout=3
-            )
+            from core.database.connection_manager import get_raw_connection
             
-            try:
-                jobs = await conn.fetch("""
-                    SELECT id, run_type, status, start_time, end_time, created_by, 
-                           created_at, error_message, parameters
-                    FROM dev_runs
-                    ORDER BY created_at DESC
-                    LIMIT $1
-                """, limit)
-                
-                result = []
-                for job in jobs:
-                    duration = None
-                    if job['start_time'] and job['end_time']:
-                        duration = int((job['end_time'] - job['start_time']).total_seconds())
+            with get_raw_connection() as conn:
+                with conn.cursor() as cursor:
+                    table_name = self.settings.get_table_name("runs")
+                    cursor.execute(f"""
+                        SELECT id, run_type, status, start_time, end_time, created_by, 
+                               created_at, error_message, parameters
+                        FROM {table_name}
+                        ORDER BY created_at DESC
+                        LIMIT %s
+                    """, (limit,))
                     
-                    result.append({
-                        "job_id": str(job['id']),
-                        "job_type": job['run_type'],
-                        "status": job['status'],
-                        "user_id": job['created_by'] or 'system',
-                        "start_time": job['start_time'].isoformat() if job['start_time'] else None,
-                        "end_time": job['end_time'].isoformat() if job['end_time'] else None,
-                        "duration_seconds": duration,
-                        "created_at": job['created_at'].isoformat() if job['created_at'] else None,
-                        "error_message": job['error_message'],
-                        "parameters": job['parameters'] or {}
-                    })
-                
-                return result
-            finally:
-                await conn.close()
+                    jobs = cursor.fetchall()
+                    
+                    result = []
+                    for job in jobs:
+                        duration = None
+                        if job['start_time'] and job['end_time']:
+                            duration = int((job['end_time'] - job['start_time']).total_seconds())
+                        
+                        result.append({
+                            "job_id": str(job['id']),
+                            "job_type": job['run_type'],
+                            "status": job['status'],
+                            "user_id": job['created_by'] or 'system',
+                            "start_time": job['start_time'].isoformat() if job['start_time'] else None,
+                            "end_time": job['end_time'].isoformat() if job['end_time'] else None,
+                            "duration_seconds": duration,
+                            "created_at": job['created_at'].isoformat() if job['created_at'] else None,
+                            "error_message": job['error_message'],
+                            "parameters": job['parameters'] or {}
+                        })
+                    
+                    return result
                 
         except Exception as e:
             logger.error(f"Database error getting recent jobs: {e}")
@@ -532,7 +495,7 @@ async def initialize_job_manager():
 
 def main():
     """Main entry point for analytics service"""
-    port = int(os.getenv('PORT', 8000))
+    port = int(os.getenv('PORT', 3000))
     
     try:
         # Initialize job manager

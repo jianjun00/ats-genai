@@ -7,6 +7,7 @@ with connection pooling, retry logic, and environment isolation.
 
 import asyncio
 import logging
+import os
 from contextlib import contextmanager, asynccontextmanager
 from typing import Optional, Dict, Any, Generator, AsyncGenerator
 from sqlalchemy import create_engine, Engine, text
@@ -184,7 +185,7 @@ class DatabaseConnectionManager:
     @contextmanager
     def get_raw_connection(self) -> Generator[psycopg2.extensions.connection, None, None]:
         """
-        Get raw psycopg2 connection for direct SQL operations.
+        Get raw psycopg2 connection for direct SQL operations with fallback attempts.
         
         Usage:
             with db_manager.get_raw_connection() as conn:
@@ -193,22 +194,62 @@ class DatabaseConnectionManager:
                     results = cursor.fetchall()
         """
         connection = None
+        
+        # Multiple connection attempts for container environments
+        connection_attempts = [
+            # Primary: Use configured settings
+            {
+                'host': self.settings.database_host,
+                'port': self.settings.database_port,
+                'database': self.settings.database_name,
+                'user': self.settings.database_user,
+                'password': self.settings.database_password
+            }
+        ]
+        
+        # If inside container, add container-specific fallbacks
+        if os.path.exists('/.dockerenv'):
+            container_attempts = [
+                # Container network attempts
+                {'host': 'postgres', 'port': 5432, 'database': 'dev_db', 'user': 'postgres', 'password': 'dev_password'},
+                {'host': 'ats-dev-postgres', 'port': 5432, 'database': 'dev_db', 'user': 'postgres', 'password': 'dev_password'},
+                {'host': '172.17.0.2', 'port': 5432, 'database': 'dev_db', 'user': 'postgres', 'password': 'dev_password'}
+            ]
+            # Add container fallbacks if they're different from primary
+            for attempt in container_attempts:
+                if attempt not in connection_attempts:
+                    connection_attempts.append(attempt)
+        
+        last_exception = None
+        for attempt in connection_attempts:
+            try:
+                connection = psycopg2.connect(
+                    host=attempt['host'],
+                    port=attempt['port'],
+                    database=attempt['database'],
+                    user=attempt['user'],
+                    password=attempt['password'],
+                    cursor_factory=RealDictCursor
+                )
+                connection.autocommit = False
+                logger.debug(f"Connected via {attempt['host']}:{attempt['port']}")
+                break
+            except Exception as e:
+                last_exception = e
+                logger.debug(f"Connection attempt failed for {attempt['host']}:{attempt['port']} - {e}")
+                continue
+        
+        if not connection:
+            logger.error(f"All database connection attempts failed. Last error: {last_exception}")
+            raise DatabaseError(f"All database connection attempts failed: {last_exception}")
+        
         try:
-            connection = psycopg2.connect(
-                host=self.settings.database_host,
-                port=self.settings.database_port,
-                database=self.settings.database_name,
-                user=self.settings.database_user,
-                password=self.settings.database_password,
-                cursor_factory=RealDictCursor
-            )
-            connection.autocommit = False
             yield connection
             connection.commit()
         except Exception as e:
             if connection:
                 connection.rollback()
-            logger.error(f"Raw database connection error: {e}")
+            logger.error(f"Raw database operation error: {e}")
             raise DatabaseError(f"Raw database operation failed: {e}")
         finally:
             if connection:

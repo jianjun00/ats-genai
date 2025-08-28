@@ -201,8 +201,8 @@ class DevCLI:
             },
             "analytics": {
                 "image": "dragonflyer762/ats-genai:latest",
-                "port": "3001:3001",
-                "command": "python src/analytics/server.py"
+                "port": "3000:3000",
+                "command": "python src/services/analytics_service.py"
             },
             "api": {
                 "image": "dragonflyer762/ats-genai:latest", 
