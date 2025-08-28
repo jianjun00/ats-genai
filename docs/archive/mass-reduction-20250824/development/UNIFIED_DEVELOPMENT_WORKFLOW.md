@@ -556,7 +556,7 @@ env:
 # ❌ WRONG: Hardcoded credentials in YAML
 env:
 - name: POLYGON_API_KEY
-  value: "wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"  # NEVER DO THIS
+  value: "your_api_key_here"  # NEVER DO THIS
 - name: DB_PASSWORD
   value: "dev_password"  # SECURITY RISK
 ```

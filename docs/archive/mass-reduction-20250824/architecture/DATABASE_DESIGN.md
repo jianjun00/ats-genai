@@ -48,7 +48,7 @@ PYTHONPATH=src ENVIRONMENT=dev DB_HOST=localhost DB_PORT=5432 DB_USER=postgres D
 
 ### Polygon.io (Validation & Real-time)
 - **Environment Variable**: `POLYGON_API_KEY`
-- **Current Key**: `wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD`
+- **Current Key**: `${POLYGON_API_KEY}` (set from environment variable)
 - **Usage**: Real-time data validation, instrument metadata
 - **Rate Limits**: 5 calls per minute (free tier)
 - **Coverage**: US stocks, excellent for validation

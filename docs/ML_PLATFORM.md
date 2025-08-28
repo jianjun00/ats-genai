@@ -19,11 +19,17 @@ The ML Platform provides end-to-end machine learning capabilities for the ATS sy
 - **Model Monitoring** - Performance tracking and drift detection
 
 ### **Key Technologies**
-- **Python ML Stack** - scikit-learn, XGBoost, LightGBM, PyTorch
-- **Feature Engineering** - Custom indicators, technical analysis, alternative data
-- **MLOps** - Model versioning, A/B testing, continuous training
-- **Inference Serving** - FastAPI async prediction endpoints
-- **Kubernetes** - Containerized training jobs and model serving
+- **Foundation Models** - ATS Foundation Transformer with 200M parameters, 8K context length
+- **Open Source LLMs** - DeepSeek-R1 for advanced reasoning, Llama 3.3 for real-time classification
+- **Hybrid News Processing** - Intelligent routing between FinBERT, DeepSeek, and Llama models
+- **Python ML Stack** - scikit-learn, XGBoost, LightGBM, PyTorch, Transformers
+- **Multi-Resolution Processing** - Simultaneous 5min/15min/1hour/daily timeframe analysis
+- **Advanced Event Extraction** - LLM-powered structured financial event analysis
+- **Feature Engineering** - Custom indicators, technical analysis, Smart Money Zones, LLM news features
+- **Zero-Shot Inference** - Predictions on unseen instruments without retraining
+- **MLOps** - Model versioning, A/B testing, continuous training, foundation model pre-training
+- **Inference Serving** - FastAPI async prediction endpoints with <50ms latency
+- **Kubernetes** - Containerized training jobs and model serving with H100 cluster support
 
 ---
 
@@ -31,11 +37,20 @@ The ML Platform provides end-to-end machine learning capabilities for the ATS sy
 
 ### **Model Training Pipeline**
 ```bash
+# ATS Foundation Transformer pre-training (500M+ sequences)
+python scripts/run_dev.py deploy --file k8s/foundation-model-pretraining-job.yaml
+
+# Deploy LLM-enhanced news processing system
+python scripts/run_dev.py deploy --file k8s/llm-news-processing-job.yaml
+
 # Generate training data for enhanced model
 python scripts/run_dev.py deploy --file k8s/enhanced-training-job.yaml
 
 # Train support/resistance prediction model  
 python scripts/run_dev.py deploy --file k8s/sr-training-job.yaml
+
+# Fine-tune foundation model for specific strategies
+python scripts/run_dev.py deploy --file k8s/foundation-model-finetune-job.yaml
 
 # Deploy trained model to inference
 kubectl apply -f k8s/ml-inference-service.yaml
@@ -57,6 +72,7 @@ python scripts/run_dev.py deploy --file k8s/smart-money-zones-job.yaml
 ### **Model Inventory**
 | Model | Purpose | Input Features | Output | Accuracy | Status |
 |-------|---------|----------------|--------|----------|---------|
+| **ATS Foundation Transformer** | Multi-horizon forecasting | 8K sequence, multi-timeframe | Multi-task predictions | >75% (target) | 🚧 Development |
 | **Support/Resistance Predictor** | Next-day level prediction | 50+ technical indicators | Price levels + confidence | 72.3% | ✅ Active |
 | **Smart Money Detector** | Institutional flow analysis | Volume, price action, order flow | Buy/sell signals | 68.5% | ✅ Active |
 | **Portfolio Optimizer** | Market-neutral allocation | Risk factors, correlations | Position weights | IR: 1.34 | ✅ Active |
@@ -162,7 +178,18 @@ class SmartMoneyFeatureEngine:
 
 ## 🏗️ Training Pipeline Architecture
 
-### **Automated Training Workflow**
+### **Foundation Model + LLM-Enhanced Workflow**
+```
+Multi-Timeframe Data → LLM News Processing → Foundation Pre-training → Fine-tuning → Deployment
+         ↓                      ↓                     ↓                  ↓            ↓
+    [5min/15min/        [DeepSeek Reasoning]    [500M+ sequences]   [Task-specific]  [Zero-shot]
+     1hour/daily]       [Llama Classification]  [Multi-task obj]    [Fine-tuning]    [Inference]
+    [8K sequences]      [Event Extraction]      [200M parameters]   [A/B Testing]    [<50ms latency]
+    [File-based]        [Cross-reference]       [H100 cluster]     [Validation]     [Monitoring]
+                        [FinBERT Fallback]
+```
+
+### **Traditional ML Pipeline (Maintained)**
 ```
 Data Ingestion → Feature Engineering → Label Generation → Model Training → Validation → Deployment
       ↓               ↓                    ↓               ↓              ↓           ↓
@@ -627,12 +654,17 @@ spec:
 ## 📊 Performance Metrics & KPIs
 
 ### **ML Platform KPIs**
-- **Model Accuracy**: > 70% for support/resistance predictions
-- **Inference Latency**: < 50ms for real-time predictions
-- **Training Pipeline**: < 4 hours for full model retraining  
+- **Foundation Model Accuracy**: > 75% for multi-horizon forecasting (target)
+- **Zero-Shot Performance**: > 70% accuracy on unseen instruments
+- **Model Accuracy**: > 70% for support/resistance predictions (current)
+- **Inference Latency**: < 50ms for real-time predictions (4,000 instruments)
+- **Training Pipeline**: < 4 hours for traditional models, 2 months for foundation model pre-training  
 - **Portfolio Performance**: Sharpe ratio > 1.2, max drawdown < 10%
 - **Model Availability**: 99.9% uptime for inference services
 - **A/B Test Velocity**: 5+ model experiments per month
+- **Foundation Model Scale**: 500M+ training sequences, 200M parameters
+- **LLM News Processing**: DeepSeek-R1 + Llama 3.3 hybrid pipeline with intelligent routing
+- **Advanced Event Extraction**: >85% accuracy in financial event categorization and impact analysis
 
 ### **Business Impact Metrics**
 - **Portfolio Alpha Generation**: Target excess return > 5% annually

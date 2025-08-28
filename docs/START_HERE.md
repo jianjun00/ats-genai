@@ -6,9 +6,9 @@
 
 ## 📋 What Is ATS?
 
-**ATS is a Kubernetes-first fintech platform** for algorithmic trading:
+**ATS is a Docker + GPU-enabled fintech platform** for algorithmic trading:
 - **🏗️ Enterprise Architecture**: Market-neutral portfolio optimization, multi-vendor data, Smart Money Zones
-- **☸️ Kubernetes-Native**: Everything runs in K8s (ats-dev namespace) 
+- **🐳 Docker-First**: Everything runs in Docker containers with GPU support
 - **🧪 Test-Driven**: Write failing tests first, then implement
 - **🔄 End-to-End**: Real data → Database → API → Frontend → Tests pass
 
@@ -23,17 +23,17 @@ cd ats-genai
 uv sync
 ```
 
-### 2. Verify Dev CLI Access (2 min)
+### 2. Setup Dev Environment (2 min)
 ```bash
-# Test dev CLI - this is your PRIMARY interface
-python scripts/run_dev.py query --query "SELECT 1"
-# ✅ Success = you're connected to K8s cluster
-# ❌ Fails = ask team for cluster access
+# Setup complete development environment
+python scripts/run_dev.py setup
+# ✅ Success = Docker PostgreSQL started, database ready
+# ❌ Fails = check Docker Desktop is running
 ```
 
 ### 3. Run First Test (1 min)
 ```bash
-PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py::TestAnalyticsPlatformIntegration::test_backend_api_can_start -v
+python scripts/run_dev.py test --test tests/integration/test_analytics_platform_integration.py
 # ✅ Pass = environment ready
 # ❌ Fail = check troubleshooting below
 ```
@@ -42,20 +42,20 @@ PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py::
 
 ## 🎯 Core Concepts (10 minutes)
 
-### ☸️ Kubernetes-First Development
+### 🐳 Docker-First Development
 
 **✅ ALWAYS Use:**
 ```bash
 python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_prices"
-python scripts/run_dev.py deploy --file k8s/price-unification-job.yaml
-python scripts/run_dev.py logs --job job-name
-python scripts/run_dev.py status
+python scripts/run_dev.py run --script scripts/data_generation/create_sample_data.py
+python scripts/run_dev.py start --service postgres  # Start services
+python scripts/run_dev.py status                 # Check running services
 ```
 
 **❌ NEVER Use:**
 ```bash
-kubectl get pods -n ats-dev              # Use python scripts/run_dev.py instead
-PYTHONPATH=src python script.py          # Use K8s jobs instead
+docker run ...                          # Use python scripts/run_dev.py instead
+docker-compose up                       # Use run_dev service management
 ```
 
 ### 🧪 Test-Driven Development (TDD)
@@ -64,24 +64,24 @@ PYTHONPATH=src python script.py          # Use K8s jobs instead
 ```bash
 # 1. Write failing test FIRST
 touch tests/integration/test_new_feature.py
-PYTHONPATH=src pytest tests/integration/test_new_feature.py -v
+python scripts/run_dev.py test --test tests/integration/test_new_feature.py
 # ✅ Should FAIL (proves test works)
 
 # 2. Write minimal code to make test pass
 # (implement your feature in src/)
 
 # 3. Verify test passes
-PYTHONPATH=src pytest tests/integration/test_new_feature.py -v
+python scripts/run_dev.py test --test tests/integration/test_new_feature.py
 # ✅ Should PASS
 
 # 4. Run full test suite
-PYTHONPATH=src pytest tests/ -v
+python scripts/run_dev.py test
 ```
 
 ### 🔄 End-to-End Validation
 
 **Features aren't complete until entire pipeline works:**
-1. **Generate real data** in K8s cluster
+1. **Generate real data** using Docker services
 2. **Store in database** with correct schema  
 3. **API serves data** to external clients
 4. **Frontend displays data** in browser
@@ -93,32 +93,38 @@ PYTHONPATH=src pytest tests/ -v
 
 ### 🔧 Backend Engineer
 ```bash
-# Deploy API endpoint
-kubectl apply -f k8s/your-service.yaml
+# Start API service
+python scripts/run_dev.py start --service api
 # Test external access
-curl -s "http://external-ip:port/api/endpoint" | jq
+curl -s "http://localhost:8000/health" | jq
 ```
 
 ### 📊 Data Engineer
 ```bash
-# Run data pipeline
-python scripts/run_dev.py deploy --file k8s/data-pipeline-job.yaml
-# Verify data quality
-python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_prices WHERE symbol IN ('AAPL', 'MSFT')"
+# Populate comprehensive instrument universe (60K+ Tiingo + 50K+ EODHD stocks)
+python scripts/run_dev.py run --script scripts/run_tiingo_bulk.py    # All Tiingo stocks including delisted
+python scripts/run_dev.py run --script scripts/run_eodhd_bulk.py     # All EODHD US exchange stocks
+
+# Verify instrument population
+python scripts/run_dev.py query --query "SELECT COUNT(*) as tiingo_instruments FROM dev_instrument_tiingo"
+python scripts/run_dev.py query --query "SELECT COUNT(*) as eodhd_instruments FROM dev_instrument_eodhd"
+
+# Check delisted stocks
+python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_instrument_tiingo WHERE end_date < '2020-01-01'"
 ```
 
 ### 🎨 Frontend Engineer  
 ```bash
-# Deploy webapp
-kubectl apply -f k8s/webapp-deployment.yaml
+# Start analytics service
+python scripts/run_dev.py start --service analytics
 # Test in browser
-curl -s "http://external-ip:port/" | grep "Welcome to ATS"
+curl -s "http://localhost:3001/health" | grep -E "(OK|healthy)"
 ```
 
 ### 🤖 Model Developer
 ```bash
 # Generate training data
-python scripts/run_dev.py deploy --file k8s/enhanced-training-job.yaml
+python scripts/run_dev.py run --script scripts/enhanced_training.py
 # Verify dataset
 python scripts/run_dev.py query --query "SELECT dataset_name, total_sequences FROM dev_training_dataset ORDER BY id DESC LIMIT 5"
 ```
@@ -136,7 +142,7 @@ python scripts/run_dev.py query --query "SELECT version()"
 python scripts/run_dev.py status
 
 # 3. External service access
-curl -s "http://$(kubectl get nodes -o wide | awk 'NR==2{print $6}'):32090/health" | jq
+curl -s "http://localhost:3001/health" | jq
 
 # 4. Integration tests
 PYTHONPATH=src pytest tests/integration/ -v --tb=short
@@ -148,17 +154,17 @@ PYTHONPATH=src pytest tests/integration/ -v --tb=short
 
 ### "dev CLI not working"
 ```bash
-# Check cluster access
-kubectl get pods -n ats-dev
-# If fails: ask team for cluster access
-# If works: check dev CLI exists at scripts/dev_cli.py
+# Check Docker services
+python scripts/run_dev.py status
+# If fails: check Docker is running
+# If works: check dev CLI exists at scripts/run_dev.py
 ```
 
 ### "Database connection failed"  
 ```bash
 python scripts/run_dev.py query --query "SELECT 1"
-# If fails: check port forwarding is running
-ps aux | grep port-forward
+# If fails: check PostgreSQL service is running
+python scripts/run_dev.py status
 ```
 
 ### "Tests failing"
@@ -169,10 +175,10 @@ PYTHONPATH=src pytest tests/integration/specific_test.py -v -s
 
 ### "External access not working"
 ```bash
-# Get correct external IP and port (NOT localhost)
-kubectl get nodes -o wide
-kubectl get service service-name -n ats-dev  
-curl -v "http://NODE_IP:NODE_PORT/health"
+# Check service is running and get port
+python scripts/run_dev.py status
+# Test local access first
+curl -v "http://localhost:3001/health"
 ```
 
 ---
@@ -181,15 +187,16 @@ curl -v "http://NODE_IP:NODE_PORT/health"
 
 **After completing this setup, learn more:**
 
-### **🏗️ Explore Platform Components**
-- **[🔧 Backend Platform](backend-platform/)** - APIs, services, business logic
+### **🏗️ Platform Environments**
+- **[🔧 ATS-DEV Environment](DEVELOPMENT.md)** - Development workflow, testing, Docker setup
+- **[🚀 ATS-INTG Environment](ATS_INTEGRATION_ENVIRONMENT.md)** - Integration testing, CI/CD pipeline, TimescaleDB
 - **[📊 Data Infrastructure](data-infrastructure/)** - Data pipelines, storage, ETL
 - **[🤖 ML Platform](ml-platform/)** - Training, models, AI optimization
-- **[☁️ Online Infrastructure](online-infrastructure/)** - K8s, CI/CD, monitoring
 
 ### **📖 Deep Dive Guides**
 - **[💻 DEVELOPMENT.md](DEVELOPMENT.md)** - Complete development workflow, testing, CI/CD
 - **[🚢 DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment strategies, environments, monitoring
+- **[🗄️ ATS_INTEGRATION_ENVIRONMENT.md](ATS_INTEGRATION_ENVIRONMENT.md)** - Integration environment setup and CI/CD
 
 ---
 
@@ -198,10 +205,10 @@ curl -v "http://NODE_IP:NODE_PORT/health"
 **You're ready to contribute when you can:**
 - [ ] Run `python scripts/run_dev.py query --query "SELECT 1"` successfully
 - [ ] Execute a data job and see results in database
-- [ ] Deploy a webapp and access it via external IP
+- [ ] Start a service and access it via localhost
 - [ ] Write failing test → implement code → see test pass
 - [ ] Run integration tests and have them pass  
-- [ ] Access services externally (not just port-forwarding)
+- [ ] Access services via Docker networking
 
 ---
 
@@ -212,7 +219,7 @@ curl -v "http://NODE_IP:NODE_PORT/health"
 - **🌿 Feature branches only** - NEVER commit to main
 - **🔍 Schema validation first** - prevent database errors
 - **🧪 TDD required** - tests before code
-- **☸️ K8s for everything** - no local scripts
+- **🐳 Docker for everything** - use run_dev.py and run_intg.py
 - **🚫 No demo data** - real data only in dev/staging/prod
 - **✅ End-to-end validation** - complete pipelines must work
 

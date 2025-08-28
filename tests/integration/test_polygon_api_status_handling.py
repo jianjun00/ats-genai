@@ -18,7 +18,8 @@ from unittest.mock import AsyncMock, patch, MagicMock
 @pytest.fixture
 def polygon_api_key():
     """Polygon API key for testing"""
-    return "wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"
+    import os
+    return os.getenv('POLYGON_API_KEY', 'test_api_key_placeholder')
 
 
 @pytest.fixture  

@@ -776,7 +776,7 @@ data:
   fmp_rate_limit: "5.0"
   fmp_batch_size: "3"
   
-  polygon_api_key: "wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"
+  polygon_api_key: "${POLYGON_API_KEY}"
   polygon_rate_limit: "12.0"
   polygon_batch_size: "20"
   

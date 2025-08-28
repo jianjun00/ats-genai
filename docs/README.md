@@ -27,12 +27,15 @@
 7. **[DATA_INFRASTRUCTURE.md](DATA_INFRASTRUCTURE.md)** - Data pipelines, storage, ETL
 8. **[ML_PLATFORM.md](ML_PLATFORM.md)** - AI/ML training, inference, optimization
 
+### **🚀 Environment Management**
+9. **[ATS_INTEGRATION_ENVIRONMENT.md](ATS_INTEGRATION_ENVIRONMENT.md)** - Integration testing, CI/CD pipeline, TimescaleDB
+
 ### **⚙️ Operations**
-9. **[OPERATIONS.md](OPERATIONS.md)** - DevOps, monitoring, infrastructure management
-10. **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues, solutions, emergency procedures
+10. **[OPERATIONS.md](OPERATIONS.md)** - DevOps, monitoring, infrastructure management
+11. **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues, solutions, emergency procedures
 
 ### **📋 Project Documentation**
-11. **[projects/](projects/)** - Active project requirements and design documents
+12. **[projects/](projects/)** - Active project requirements and design documents
 
 ---
 
@@ -48,6 +51,9 @@
 → **[START_HERE.md](START_HERE.md)** → **[ML_PLATFORM.md](ML_PLATFORM.md)** → **[DATA_INFRASTRUCTURE.md](DATA_INFRASTRUCTURE.md)**
 
 ### **☁️ DevOps Engineers**
+→ **[START_HERE.md](START_HERE.md)** → **[ATS_INTEGRATION_ENVIRONMENT.md](ATS_INTEGRATION_ENVIRONMENT.md)** → **[OPERATIONS.md](OPERATIONS.md)**
+
+### **🚀 CI/CD Engineers**
 → **[DEPLOYMENT.md](DEPLOYMENT.md)** → **[OPERATIONS.md](OPERATIONS.md)** → **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**
 
 ### **👥 Product Managers**

@@ -46,50 +46,67 @@ gh issue develop 123 --checkout
 ```bash
 # Validate database schema before coding
 python scripts/validate_schema.py --check-all
-PYTHONPATH=src pytest tests/unit/test_database_schema_validation.py -v
+python scripts/run_dev.py test --test tests/unit/test_database_schema_validation.py
 
 # Get current schema
-kubectl exec -n ats-dev deployment/postgres -- psql -U postgres -d dev_db -c "\d+ table_name"
+python scripts/run_dev.py query --query "\d+ table_name"
 ```
 
 ### 4. 🧪 Test-Driven Development (TDD)
 ```bash
 # 1. Write failing test FIRST
 touch tests/integration/test_new_feature.py
-PYTHONPATH=src pytest tests/integration/test_new_feature.py -v
+python scripts/run_dev.py test --test tests/integration/test_new_feature.py
 # ✅ Should FAIL (proves test works)
 
 # 2. Write minimal code to make test pass
 # 3. Verify test passes  
-PYTHONPATH=src pytest tests/integration/test_new_feature.py -v
+python scripts/run_dev.py test --test tests/integration/test_new_feature.py
 # ✅ Should PASS
 
 # 4. Run full test suite
-PYTHONPATH=src pytest tests/ -v
+python scripts/run_dev.py test
 ```
 
-### 5. ☸️ Kubernetes-First Development
+### 5. 🐳 Docker-First Development
 ```bash
 # Use python scripts/run_dev.py for ALL operations
+python scripts/run_dev.py setup                    # Setup dev environment
 python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_prices"
-python scripts/run_dev.py deploy --file k8s/price-unification-job.yaml
-python scripts/run_dev.py logs --job job-name
-python scripts/run_dev.py status
+python scripts/run_dev.py run --script scripts/data_generation/create_sample_data.py
+python scripts/run_dev.py start --service postgres # Start services
+python scripts/run_dev.py status                   # Check running services
 
-# NEVER use kubectl directly for dev work
-# NEVER run scripts locally for dev environment
+# NEVER run docker commands directly for dev work
+# NEVER manage container lifecycle manually
 # NEVER manually set environment variables
 ```
 
 ### 6. 🔄 End-to-End Validation
 **Features must complete entire pipeline:**
-1. Generate real data in K8s cluster
+1. Generate real data using Docker containers
 2. Store data in database with correct schema
 3. API serves data to external clients  
 4. Frontend displays data in browser
 5. All integration tests pass
 
-### 7. 🔍 Integration Testing
+### 7. 🚀 Integration Environment Testing
+**CRITICAL: Test features in ATS-INTG environment:**
+```bash
+# Start integration environment
+python scripts/run_intg.py setup
+
+# Deploy to integration (triggers automatically on main push)
+# Or manually test with:
+python scripts/run_intg.py start --service analytics
+python scripts/run_intg.py start --service api
+
+# Verify integration deployment
+curl -f http://localhost:3002/health  # Analytics service
+curl -f http://localhost:8001/health  # API service
+```
+
+### 8. 🔍 Integration Testing
 ```bash
 # Test actual service startup
 PYTHONPATH=src pytest tests/integration/ -v --tb=short
@@ -101,7 +118,7 @@ python -m pytest scripts/k8s-extracted/ -v
 PYTHONPATH=src pytest tests/system/ -v
 ```
 
-### 8. 📋 Pull Request Process
+### 9. 📋 Pull Request Process
 ```bash
 # Push feature branch
 git push origin issue-123/feature-description
@@ -119,8 +136,15 @@ Closes #123
 - ✅ Schema validation tests pass
 - ✅ All unit tests pass
 - ✅ All integration tests pass
-- ✅ Kubernetes deployment verified
+- ✅ ATS-INTG environment deployment verified
 - ✅ End-to-end functionality verified
+
+## 🚀 CI/CD Integration
+This PR will automatically trigger:
+- ✅ Unit tests and schema validation
+- ✅ Docker image build and push
+- ✅ Deployment to ATS-INTG environment (TimescaleDB)
+- ✅ Integration tests against live environment
 
 ## Verification Checklist
 - [x] Tests written first (TDD followed)
