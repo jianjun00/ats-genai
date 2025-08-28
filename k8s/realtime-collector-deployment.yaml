@@ -1,0 +1,244 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: realtime-collector
+  namespace: ats-dev
+  labels:
+    app: realtime-collector
+    component: data-collection
+    vendor: multi
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: realtime-collector
+  template:
+    metadata:
+      labels:
+        app: realtime-collector
+        component: data-collection
+        vendor: multi
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: realtime-collector
+        image: dragonflyer762/ats-genai:latest
+        imagePullPolicy: Always
+        
+        command:
+          - "python3"
+          - "scripts/realtime_collector_orchestrator.py"
+        
+        env:
+          # Database connection
+          - name: DB_HOST
+            value: "postgres"
+          - name: DB_PORT
+            value: "5432"
+          - name: DB_USER
+            value: "postgres"
+          - name: DB_PASSWORD
+            value: "postgres"
+          - name: DB_NAME
+            value: "dev_db"
+          
+          # API Keys for all vendors
+          - name: POLYGON_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: api-keys
+                key: polygon-api-key
+          - name: TIINGO_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: api-keys
+                key: tiingo-api-key
+          - name: FMP_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: api-keys
+                key: fmp-api-key
+          
+          # Python path
+          - name: PYTHONPATH
+            value: "/workspace/src"
+          
+          # Collection configuration
+          - name: COLLECTION_INTERVAL_SECONDS
+            value: "60"
+          - name: MAX_CONCURRENT_SYMBOLS
+            value: "100"
+          - name: QUALITY_THRESHOLD
+            value: "0.7"
+          - name: MAX_LATENCY_MINUTES
+            value: "5"
+        
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        
+        # Resource limits for real-time performance
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 2
+        
+        # Volume mounts for logging
+        volumeMounts:
+        - name: logs
+          mountPath: /workspace/logs
+        - name: workspace
+          mountPath: /workspace
+      
+      volumes:
+      - name: logs
+        emptyDir: {}
+      - name: workspace
+        emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: realtime-collector-service
+  namespace: ats-dev
+  labels:
+    app: realtime-collector
+spec:
+  type: NodePort
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30090
+    name: http
+  selector:
+    app: realtime-collector
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: realtime-collector-config
+  namespace: ats-dev
+data:
+  collection.conf: |
+    # Real-time collection configuration
+    polygon:
+      websocket_url: wss://socket.polygon.io/stocks
+      subscription_pattern: AM.{symbol}
+      max_symbols: 100
+      reconnect_interval: 10
+    
+    tiingo:
+      api_url: https://api.tiingo.com/iex
+      poll_interval: 60
+      batch_size: 10
+      max_symbols: 50
+    
+    fmp:
+      api_url: https://financialmodelingprep.com/api/v3
+      poll_interval: 60
+      batch_size: 10
+      max_symbols: 50
+      rate_limit: 5  # requests per second
+    
+    database:
+      connection_pool_min: 5
+      connection_pool_max: 20
+      command_timeout: 30
+      batch_insert_size: 100
+    
+    monitoring:
+      health_check_interval: 300
+      status_report_interval: 600
+      gap_detection_interval: 900
+
+---
+# Horizontal Pod Autoscaler for scaling based on CPU
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: realtime-collector-hpa
+  namespace: ats-dev
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: realtime-collector
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# Network Policy to restrict access
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: realtime-collector-policy
+  namespace: ats-dev
+spec:
+  podSelector:
+    matchLabels:
+      app: realtime-collector
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ats-dev
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  # Allow external API calls
+  - {}
+  # Allow database access
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
