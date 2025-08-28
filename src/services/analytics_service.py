@@ -27,26 +27,59 @@ class JobManager:
     async def initialize(self):
         """Initialize database connection."""
         try:
-            self.pool = await asyncpg.create_pool(
-                host='postgres',
-                port=5432, 
-                user='postgres',
-                password='dev_password',
-                database='dev_db',
-                min_size=2,
-                max_size=5
-            )
+            # Try multiple connection methods
+            connection_attempts = [
+                {'host': 'ats-dev-postgres', 'port': 5432},  # Container name
+                {'host': '172.17.0.2', 'port': 5432},        # Direct container IP
+                {'host': 'localhost', 'port': 5433},         # Host port mapping
+                {'host': 'host.docker.internal', 'port': 5433},  # Docker Desktop
+                {'host': '172.17.0.1', 'port': 5433},        # Docker bridge gateway
+            ]
+            
+            for attempt in connection_attempts:
+                try:
+                    logger.info(f"Attempting database connection to {attempt['host']}:{attempt['port']}")
+                    self.pool = await asyncpg.create_pool(
+                        host=attempt['host'],
+                        port=attempt['port'],
+                        user='postgres',
+                        password='dev_password',
+                        database='dev_db',
+                        min_size=1,
+                        max_size=3,
+                        timeout=5
+                    )
+                    # Test the connection
+                    async with self.pool.acquire() as conn:
+                        await conn.fetchval('SELECT 1')
+                    logger.info(f"✅ Database connected via {attempt['host']}:{attempt['port']}")
+                    return
+                except Exception as e:
+                    logger.debug(f"Connection attempt failed for {attempt['host']}:{attempt['port']} - {e}")
+                    if self.pool:
+                        await self.pool.close()
+                        self.pool = None
+                    continue
+            
+            # If all attempts fail
+            raise Exception("All database connection attempts failed")
         except Exception as e:
             logger.warning(f"Database connection failed: {e}")
             self.pool = None
     
     async def get_job_stats(self) -> Dict:
         """Get job statistics."""
-        if not self.pool:
-            return {"error": "Database not available"}
-        
         try:
-            async with self.pool.acquire() as conn:
+            conn = await asyncpg.connect(
+                host='172.17.0.2',
+                port=5432,
+                user='postgres',
+                password='dev_password',
+                database='dev_db',
+                timeout=3
+            )
+            
+            try:
                 stats = await conn.fetchrow("""
                     SELECT 
                         COUNT(*) as total_jobs,
@@ -64,17 +97,26 @@ class JobManager:
                     "failed_jobs": stats['failed_jobs'],
                     "pending_jobs": stats['pending_jobs']
                 }
+            finally:
+                await conn.close()
+                
         except Exception as e:
             logger.error(f"Database error getting job stats: {e}")
             return {"error": str(e)}
     
     async def get_recent_jobs(self, limit: int = 10) -> List[Dict]:
         """Get recent jobs."""
-        if not self.pool:
-            return []
-        
         try:
-            async with self.pool.acquire() as conn:
+            conn = await asyncpg.connect(
+                host='172.17.0.2',
+                port=5432,
+                user='postgres',
+                password='dev_password',
+                database='dev_db',
+                timeout=3
+            )
+            
+            try:
                 jobs = await conn.fetch("""
                     SELECT id, run_type, status, start_time, end_time, created_by, 
                            created_at, error_message, parameters
@@ -103,6 +145,9 @@ class JobManager:
                     })
                 
                 return result
+            finally:
+                await conn.close()
+                
         except Exception as e:
             logger.error(f"Database error getting recent jobs: {e}")
             return []
@@ -366,13 +411,17 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             self.end_headers()
             
             # Need to run async function in sync context
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
             try:
+                loop = asyncio.get_event_loop()
+                if loop.is_closed():
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
                 stats = loop.run_until_complete(job_manager.get_job_stats())
                 self.wfile.write(json.dumps(stats, indent=2).encode())
-            finally:
-                loop.close()
+            except Exception as e:
+                logger.error(f"Error getting job stats: {e}")
+                error_response = {"error": str(e)}
+                self.wfile.write(json.dumps(error_response).encode())
         
         elif self.path == '/api/jobs/recent':
             self.send_response(200)
@@ -380,14 +429,18 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
             try:
+                loop = asyncio.get_event_loop()
+                if loop.is_closed():
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
                 jobs = loop.run_until_complete(job_manager.get_recent_jobs(15))
                 response = {"jobs": jobs, "total": len(jobs), "timestamp": datetime.now().isoformat()}
                 self.wfile.write(json.dumps(response, indent=2).encode())
-            finally:
-                loop.close()
+            except Exception as e:
+                logger.error(f"Error getting recent jobs: {e}")
+                error_response = {"jobs": [], "total": 0, "error": str(e)}
+                self.wfile.write(json.dumps(error_response).encode())
         
         elif self.path == '/api/collections/status':
             self.send_response(200)
@@ -395,13 +448,17 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
             try:
+                loop = asyncio.get_event_loop()
+                if loop.is_closed():
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
                 status = loop.run_until_complete(job_manager.get_collection_status())
                 self.wfile.write(json.dumps(status, indent=2).encode())
-            finally:
-                loop.close()
+            except Exception as e:
+                logger.error(f"Error getting collection status: {e}")
+                error_response = {"error": str(e)}
+                self.wfile.write(json.dumps(error_response).encode())
             
         else:
             self.send_response(404)
