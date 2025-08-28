@@ -34,6 +34,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             <!DOCTYPE html>
             <html>
             <head>
+                <meta charset="UTF-8">
                 <title>ATS Analytics Dashboard</title>
                 <style>
                     body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
@@ -46,13 +47,13 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             </head>
             <body>
                 <div class="header">
-                    <h1>📊 ATS Analytics Platform</h1>
+                    <h1>ATS Analytics Platform</h1>
                     <p>30-Year Price History Database - Development Environment</p>
                 </div>
                 
                 <div class="grid">
                     <div class="card">
-                        <h3>📈 Database Summary</h3>
+                        <h3>Database Summary</h3>
                         <div class="metric">7.95M+</div>
                         <p>Total price records across all vendors</p>
                         <ul>
@@ -63,7 +64,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     </div>
                     
                     <div class="card">
-                        <h3>🏢 Vendor Coverage</h3>
+                        <h3>Vendor Coverage</h3>
                         <ul>
                             <li><strong>Tiingo:</strong> 6.56M records, 2,355 symbols</li>
                             <li><strong>EODHD:</strong> 728K records, 268 symbols</li>
@@ -73,7 +74,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     </div>
                     
                     <div class="card">
-                        <h3>🎯 Quality Metrics</h3>
+                        <h3>Quality Metrics</h3>
                         <p>Multi-vendor reconciliation system with:</p>
                         <ul>
                             <li>Quality scoring (0-100 scale)</li>
@@ -85,7 +86,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     </div>
                     
                     <div class="card">
-                        <h3>🔗 API Endpoints</h3>
+                        <h3>API Endpoints</h3>
                         <a href="/health" class="btn">Health Check</a>
                         <a href="/api/summary" class="btn">Data Summary</a>
                         <a href="/api/instruments" class="btn">Instruments</a>
@@ -94,7 +95,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 </div>
                 
                 <div style="margin-top: 20px; text-align: center; color: #7f8c8d;">
-                    <p>🚀 ATS Analytics Service | Development Environment | External Access Available</p>
+                    <p>ATS Analytics Service | Development Environment | External Access Available</p>
                 </div>
             </body>
             </html>
