@@ -29,18 +29,18 @@ class JobManager:
         self.db_manager = get_connection_manager()
         self.settings = get_settings()
         
-    async def initialize(self):
+    def initialize(self):
         """Initialize database connection using centralized manager."""
         try:
             # Test the centralized connection
-            if await self.db_manager.check_async_connection():
+            if self.db_manager.check_connection():
                 logger.info("✅ Database connection established via centralized manager")
             else:
                 logger.warning("⚠️ Database connection check failed")
         except Exception as e:
             logger.warning(f"Database initialization failed: {e}")
     
-    async def get_job_stats(self) -> Dict:
+    def get_job_stats(self) -> Dict:
         """Get job statistics using centralized connection manager."""
         try:
             from core.database.connection_manager import get_raw_connection
@@ -72,7 +72,7 @@ class JobManager:
             logger.error(f"Database error getting job stats: {e}")
             return {"error": str(e)}
     
-    async def get_recent_jobs(self, limit: int = 10) -> List[Dict]:
+    def get_recent_jobs(self, limit: int = 10) -> List[Dict]:
         """Get recent jobs using centralized connection manager."""
         try:
             from core.database.connection_manager import get_raw_connection
@@ -115,7 +115,7 @@ class JobManager:
             logger.error(f"Database error getting recent jobs: {e}")
             return []
     
-    async def get_collection_status(self) -> Dict:
+    def get_collection_status(self) -> Dict:
         """Get REAL collection job status from actual running processes."""
         import subprocess
         import os
@@ -430,11 +430,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             
             # Need to run async function in sync context
             try:
-                loop = asyncio.get_event_loop()
-                if loop.is_closed():
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                stats = loop.run_until_complete(job_manager.get_job_stats())
+                stats = job_manager.get_job_stats()
                 self.wfile.write(json.dumps(stats, indent=2).encode())
             except Exception as e:
                 logger.error(f"Error getting job stats: {e}")
@@ -448,11 +444,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             self.end_headers()
             
             try:
-                loop = asyncio.get_event_loop()
-                if loop.is_closed():
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                jobs = loop.run_until_complete(job_manager.get_recent_jobs(15))
+                jobs = job_manager.get_recent_jobs(15)
                 response = {"jobs": jobs, "total": len(jobs), "timestamp": datetime.now().isoformat()}
                 self.wfile.write(json.dumps(response, indent=2).encode())
             except Exception as e:
@@ -485,10 +477,10 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             error = {"error": "Not found", "path": self.path}
             self.wfile.write(json.dumps(error).encode())
 
-async def initialize_job_manager():
+def initialize_job_manager():
     """Initialize the job manager."""
     try:
-        await job_manager.initialize()
+        job_manager.initialize()
         logger.info("✅ Job manager initialized")
     except Exception as e:
         logger.warning(f"⚠️  Job manager initialization failed: {e}")
@@ -500,10 +492,7 @@ def main():
     try:
         # Initialize job manager
         logger.info("🔧 Initializing job manager...")
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(initialize_job_manager())
-        loop.close()
+        initialize_job_manager()
         
         server = HTTPServer(('0.0.0.0', port), AnalyticsHandler)
         logger.info(f"🚀 ATS Analytics Service starting on port {port}")
