@@ -287,6 +287,52 @@ conn = await asyncpg.connect(
 
 **Verification:** All three vendor scripts (Polygon, Tiingo, EODHD) now successfully connect and are processing 18,296 instruments over 30 years.
 
+## 🚀 **CRITICAL: Multi-Vendor 30-Year Daily Price Backfill Infrastructure (2025-08-28)**
+
+**Complete 3-Vendor Coverage:**
+```bash
+# All three vendors running in parallel for comprehensive coverage
+nohup python3 scripts/run_dev.py run --script scripts/tiingo_30_year_daily_backfill.py --env '{"TIINGO_API_KEY": "xxx"}' > /tmp/tiingo_30year_backfill.log 2>&1 &
+nohup python3 scripts/run_dev.py run --script scripts/eodhd_30_year_daily_backfill.py --env '{"EODHD_API_KEY": "xxx"}' > /tmp/eodhd_30year_backfill.log 2>&1 &  
+nohup python3 scripts/run_dev.py run --script scripts/polygon_30_year_daily_backfill.py --env '{"POLYGON_API_KEY": "xxx"}' > /tmp/polygon_30year_daily_backfill.log 2>&1 &
+```
+
+**Database Tables:**
+- `dev_daily_prices_tiingo` - Tiingo 30-year daily prices (1995-2025)
+- `dev_daily_prices_eodhd` - EODHD 30-year daily prices (1995-2025)  
+- `dev_daily_prices_polygon_30year` - Polygon 30-year daily prices (1995-2025)
+- `dev_daily_prices_polygon` - Original minute-derived data (2015-2025, 1,575,276 records)
+
+**Scale and Coverage:**
+- **Instruments**: 18,296 active US exchange symbols
+- **Time Span**: 30 years (1995-2025)
+- **Expected Records**: ~40+ million daily price records total
+- **Rate Limits**: Tiingo (1000/hr), EODHD (20/min), Polygon (5/min)
+- **Completion**: 15-20 hours depending on vendor
+
+**Idempotent Operations:**
+All scripts use UPSERT operations with `ON CONFLICT (date, instrument_id)` for safe resuming and re-running without duplicates.
+
+**Monitoring:**
+```bash
+# Check progress
+tail -f /tmp/tiingo_30year_backfill.log
+tail -f /tmp/eodhd_30year_backfill.log  
+tail -f /tmp/polygon_30year_daily_backfill.log
+
+# Check record counts
+python3 scripts/run_dev.py query --query "SELECT 'Tiingo' as vendor, COUNT(*) as records FROM dev_daily_prices_tiingo UNION SELECT 'EODHD', COUNT(*) FROM dev_daily_prices_eodhd UNION SELECT 'Polygon_30yr', COUNT(*) FROM dev_daily_prices_polygon_30year"
+```
+
+**Files Created:**
+- `scripts/tiingo_30_year_daily_backfill.py` - Comprehensive Tiingo backfiller
+- `scripts/eodhd_30_year_daily_backfill.py` - Comprehensive EODHD backfiller  
+- `scripts/polygon_30_year_daily_backfill.py` - Comprehensive Polygon backfiller
+- `scripts/tiingo_30year_daily_simple.py` - Test version
+- `scripts/eodhd_30year_daily_simple.py` - Test version
+
+This infrastructure provides comprehensive multi-vendor price data validation, redundancy, and comparison capabilities across 30 years of market history.
+
 ---
 
 ## 💾 **ATS Persistent Storage (D: Drive)**
