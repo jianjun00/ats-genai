@@ -153,21 +153,76 @@ class JobManager:
             return []
     
     async def get_collection_status(self) -> Dict:
-        """Get collection job status (simplified version)."""
-        # This is a simplified version - full version would parse log files like monitor_all_collections.py
-        return {
+        """Get REAL collection job status from actual running processes."""
+        import subprocess
+        import os
+        
+        def check_real_process_status(log_path: str, process_name: str) -> Dict:
+            """Check if a real process is running based on log activity."""
+            status = {
+                "status": "inactive",
+                "last_activity": None,
+                "records": 0
+            }
+            
+            try:
+                if os.path.exists(log_path):
+                    # Check log modification time
+                    log_mtime = os.path.getmtime(log_path)
+                    last_activity = datetime.fromtimestamp(log_mtime)
+                    status['last_activity'] = last_activity.isoformat()
+                    
+                    # Consider active if modified within last 5 minutes
+                    minutes_ago = (datetime.now() - last_activity).total_seconds() / 60
+                    if minutes_ago < 5:
+                        status['status'] = 'running'
+                    elif minutes_ago < 60:
+                        status['status'] = 'recent'
+                    
+                    # Try to extract record count from logs
+                    try:
+                        result = subprocess.run(['tail', '-50', log_path], 
+                                              capture_output=True, text=True, timeout=3)
+                        log_lines = result.stdout
+                        
+                        # Look for record counts
+                        for line in reversed(log_lines.split('\n')):
+                            if 'records' in line.lower():
+                                # Extract numbers from line
+                                import re
+                                numbers = re.findall(r'(\d+(?:,\d+)*)', line)
+                                if numbers:
+                                    # Take the largest number found
+                                    record_count = max(int(n.replace(',', '')) for n in numbers)
+                                    status['records'] = record_count
+                                    break
+                    except:
+                        pass
+                        
+            except Exception as e:
+                logger.debug(f"Error checking {process_name}: {e}")
+            
+            return status
+        
+        # Check REAL collection processes
+        real_jobs = {
             "price_backfills": {
-                "polygon_30y": {"status": "unknown", "records": 0},
-                "tiingo_30y": {"status": "unknown", "records": 0}, 
-                "eodhd_30y": {"status": "unknown", "records": 0}
+                "polygon_30y": check_real_process_status("/tmp/polygon_30year_daily_backfill.log", "Polygon 30Y"),
+                "tiingo_30y": check_real_process_status("/tmp/tiingo_30year_backfill.log", "Tiingo 30Y"),
+                "eodhd_30y": check_real_process_status("/tmp/eodhd_30year_backfill.log", "EODHD 30Y"),
             },
             "events_collection": {
-                "polygon": {"status": "unknown", "events": 0},
-                "eodhd": {"status": "unknown", "events": 0},
-                "tiingo": {"status": "unknown", "events": 0}
+                "polygon": check_real_process_status("/tmp/polygon_earnings_fixed.log", "Polygon Events"),
+                "eodhd": check_real_process_status("/tmp/eodhd_events.log", "EODHD Events"),
+                "tiingo": check_real_process_status("/tmp/tiingo_events.log", "Tiingo Events"),
+            },
+            "minute_data": {
+                "polygon": check_real_process_status("/tmp/polygon_minute_backfill.log", "Polygon Minutes"),
             },
             "last_updated": datetime.now().isoformat()
         }
+        
+        return real_jobs
 
 # Initialize global job manager
 job_manager = JobManager()

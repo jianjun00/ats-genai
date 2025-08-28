@@ -19,12 +19,7 @@ CREATE INDEX IF NOT EXISTS idx_dev_runs_status ON dev_runs(status);
 CREATE INDEX IF NOT EXISTS idx_dev_runs_type ON dev_runs(run_type);
 CREATE INDEX IF NOT EXISTS idx_dev_runs_created_at ON dev_runs(created_at DESC);
 
--- Add some sample data for testing (optional)
-INSERT INTO dev_runs (run_type, status, start_time, end_time, created_by, parameters) VALUES 
-('analytics_job', 'completed', NOW() - INTERVAL '2 hours', NOW() - INTERVAL '1 hour', 'system', '{"test": "data"}'),
-('data_processing', 'running', NOW() - INTERVAL '30 minutes', NULL, 'user1', '{"symbols": ["AAPL", "MSFT"]}'),
-('training_job', 'failed', NOW() - INTERVAL '1 day', NOW() - INTERVAL '23 hours', 'user2', '{"model": "transformer"}')
-ON CONFLICT DO NOTHING;
+-- No sample data - only real job runs will be inserted by actual processes
 
 -- Add comments for documentation
 COMMENT ON TABLE dev_runs IS 'Job tracking table for analytics service to display job history and status';
