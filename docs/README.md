@@ -13,7 +13,7 @@
 
 ---
 
-## 📚 **Complete Documentation (11 Essential Guides)**
+## 📚 **Complete Documentation (12 Essential Guides)**
 
 ### **🎯 Platform Essentials**
 1. **[README.md](README.md)** - This navigation hub
@@ -30,10 +30,11 @@
 
 ### **⚙️ Operations**
 10. **[OPERATIONS.md](OPERATIONS.md)** - DevOps, monitoring, infrastructure management
-11. **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues, solutions, emergency procedures
+11. **[ANALYTICS_DASHBOARD.md](ANALYTICS_DASHBOARD.md)** - Real-time database analytics and job management
+12. **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues, solutions, emergency procedures
 
 ### **📋 Project Documentation**
-12. **[projects/](projects/)** - Active project requirements and design documents
+13. **[projects/](projects/)** - Active project requirements and design documents
 
 ---
 
@@ -49,7 +50,7 @@
 → **[START_HERE.md](START_HERE.md)** → **[ML_PLATFORM.md](ML_PLATFORM.md)** → **[DATA_INFRASTRUCTURE.md](DATA_INFRASTRUCTURE.md)**
 
 ### **☁️ DevOps Engineers**
-→ **[DEPLOYMENT.md](DEPLOYMENT.md)** → **[OPERATIONS.md](OPERATIONS.md)** → **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**
+→ **[DEPLOYMENT.md](DEPLOYMENT.md)** → **[OPERATIONS.md](OPERATIONS.md)** → **[ANALYTICS_DASHBOARD.md](ANALYTICS_DASHBOARD.md)** → **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**
 
 ### **👥 Product Managers**
 → **[START_HERE.md](START_HERE.md)** → **[SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md)** → All platform docs
@@ -137,4 +138,4 @@ Complete historical daily price database covering all US stocks and critical mar
 
 ---
 
-**🎉 Welcome to ATS! These 11 guides contain everything you need to build enterprise algorithmic trading infrastructure.**
+**🎉 Welcome to ATS! These 12 guides contain everything you need to build enterprise algorithmic trading infrastructure.**
