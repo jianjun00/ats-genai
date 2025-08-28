@@ -241,6 +241,7 @@ python scripts/run_dev.py logs --service analytics
 - **Role-Specific**: [Role Guides](docs/roles/)
 - **Architecture Questions**: [System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)
 - **New Team Member**: [Quick Start](docs/onboarding/QUICK_START.md)
+- **System Monitoring**: [Monitoring Setup](docs/MONITORING_SETUP.md) - WSL monitoring with Slack alerts
 
 ---
 

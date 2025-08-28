@@ -1,0 +1,59 @@
+{
+  "description": "WSL System Monitor Configuration",
+  "version": "1.0",
+  "last_updated": "2025-08-28",
+  
+  "thresholds": {
+    "cpu_warning": 75.0,
+    "cpu_critical": 90.0,
+    "cpu_duration_minutes": 3,
+    
+    "memory_warning": 80.0,
+    "memory_critical": 92.0,
+    "memory_available_mb": 1000,
+    
+    "disk_warning": 80.0,
+    "disk_critical": 90.0,
+    "disk_free_gb": 10.0,
+    
+    "network_mb_per_sec": 500.0,
+    "max_processes": 400,
+    "max_db_connections": 80,
+    "ats_data_max_gb": 1000.0
+  },
+  
+  "alert_settings": {
+    "rate_limit_minutes": 15,
+    "monitoring_interval_seconds": 60,
+    "enable_recovery_alerts": true,
+    "enable_trend_analysis": true
+  },
+  
+  "slack_settings": {
+    "webhook_url": "https://hooks.slack.com/services/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",
+    "channel": "#ats-alerts",
+    "username": "ATS System Monitor",
+    "icon_emoji": ":robot_face:"
+  },
+  
+  "monitoring_targets": {
+    "system_metrics": true,
+    "docker_containers": true,
+    "database_health": true,
+    "ats_processes": true,
+    "disk_usage": true,
+    "network_usage": true
+  },
+  
+  "critical_processes": [
+    "polygon_30year_minute_backfill",
+    "postgres",
+    "docker"
+  ],
+  
+  "data_directories": {
+    "ats_data": "/mnt/d/ats-data",
+    "ats_backup": "/mnt/d/ats-backup",
+    "ats_logs": "/mnt/d/ats-logs"
+  }
+}
