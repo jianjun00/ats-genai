@@ -466,4 +466,4 @@ docker exec ats-dev-postgres psql -U postgres -d dev_db -c "\d table_name"
 
 **📖 For comprehensive information, see the complete documentation structure at [docs/README.md](docs/README.md)**
 
-*This is a Kubernetes-first, test-driven development platform. Every change must be validated end-to-end in the actual K8s cluster with REAL DATA ONLY.*
+*This is a Docker-first, test-driven development platform. Every change must be validated end-to-end with REAL DATA ONLY.*

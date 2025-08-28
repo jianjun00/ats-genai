@@ -6,7 +6,7 @@ This document captures the key findings, lessons learned, and best practices dis
 
 ## 🎯 Project Scope
 
-**Objective**: Implement comprehensive instrument history population from three data sources (Polygon, Tiingo, EODHD) using Kubernetes-first development approach.
+**Objective**: Implement comprehensive instrument history population from three data sources (Polygon, Tiingo, EODHD) using Docker-first development approach.
 
 **Duration**: Implementation session on 2025-08-25  
 **Status**: ✅ Successfully Completed - All infrastructure working correctly
@@ -234,7 +234,7 @@ The instrument population system implementation was highly successful, with all 
 
 The system is now production-ready and can populate instrument data from multiple vendors once valid API keys are provided. All lessons learned have been incorporated into repeatable best practices for future development.
 
-**Key Success Factor**: Following the platform's Kubernetes-first development workflow and anti-patterns prevented many common issues and resulted in a robust, maintainable solution.
+**Key Success Factor**: Following the platform's Docker-first development workflow and anti-patterns prevented many common issues and resulted in a robust, maintainable solution.
 
 ---
 

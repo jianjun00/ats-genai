@@ -399,7 +399,7 @@ python scripts/detect_k8s_conflicts.py k8s/
 
 ---
 
-**🔥 This is a Kubernetes-first, test-driven development platform. Every change must be validated end-to-end in the actual K8s cluster with REAL DATA ONLY.**
+**🔥 This is a Docker-first, test-driven development platform. Every change must be validated end-to-end with REAL DATA ONLY.**
 
 #### When Fixing Missing Dependencies
 1. **Identify the root cause** - trace the import chain to find where the missing dependency is used

@@ -116,7 +116,7 @@ Complete historical daily price database covering all US stocks and critical mar
 
 ## 🏗️ **What Is ATS?**
 
-**ATS is a Kubernetes-first fintech platform** for algorithmic trading:
+**ATS is a Docker-first fintech platform** for algorithmic trading:
 - **🎯 AI-Powered Portfolio Recommendations** - Hourly ML-driven investment signals
 - **📊 Multi-Vendor Data Infrastructure** - Polygon, Tiingo, Alpha Vantage, FMP integration  
 - **🤖 Smart Money Zone Detection** - Institutional flow analysis and pattern recognition
@@ -129,7 +129,7 @@ Complete historical daily price database covering all US stocks and critical mar
 
 ## 🚨 **Critical Development Rules**
 
-- **☸️ Kubernetes-First** - All development in K8s clusters (`python scripts/run_dev.py`)
+- **🐳 Docker-First** - All development in Docker containers (`python scripts/run_dev.py`)
 - **🧪 Test-Driven Development** - Write failing tests first, then implement
 - **🚫 No Demo Data** - Real data only in dev/staging/prod environments  
 - **✅ End-to-End Validation** - Complete pipeline must work before claiming done

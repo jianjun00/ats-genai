@@ -7,7 +7,7 @@
 [![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)](https://www.docker.com/)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-ready-326CE5.svg)](https://kubernetes.io/)
 
-**Enterprise-grade algorithmic trading system** with AI-powered portfolio optimization, multi-vendor data ingestion, Smart Money Zone detection, and Kubernetes-first development.
+**Enterprise-grade algorithmic trading system** with AI-powered portfolio optimization, multi-vendor data ingestion, Smart Money Zone detection, and Docker-first development.
 
 ---
 
