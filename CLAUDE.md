@@ -259,6 +259,34 @@ python scripts/run_dev.py logs --service analytics
 
 **Auto-detection:** run_dev and run_intg automatically detect available connections
 
+**🚨 CRITICAL: Docker Container Database Connection Fix (2025-08-28)**
+
+**Issue:** Scripts running inside Docker containers were failing with database connection errors when trying to connect to port 5433.
+
+**Root Cause:** Docker containers should use internal service names and ports, not host-mapped ports:
+- ❌ **Wrong**: `host='localhost', port=5433` (tries to connect outside container)
+- ✅ **Correct**: `host='postgres', port=5432` (connects to Docker service internally)
+
+**Solution Applied to All Vendor Backfill Scripts:**
+```python
+# Correct Docker-compatible database connection
+conn = await asyncpg.connect(
+    host='postgres',  # Docker service name
+    port=5432,        # Internal Docker port  
+    user='postgres',
+    password='dev_password',
+    database='dev_db'
+)
+```
+
+**Files Fixed:**
+- `scripts/tiingo_30_year_daily_backfill.py` - Updated database connection
+- `scripts/eodhd_30_year_daily_backfill.py` - Created with correct parameters  
+- `scripts/tiingo_30year_daily_simple.py` - Working test version
+- `scripts/eodhd_30year_daily_simple.py` - Working test version
+
+**Verification:** All three vendor scripts (Polygon, Tiingo, EODHD) now successfully connect and are processing 18,296 instruments over 30 years.
+
 ---
 
 ## 💾 **ATS Persistent Storage (D: Drive)**

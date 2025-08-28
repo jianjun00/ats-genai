@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Tiingo 30-Year Daily Price Backfill
+EODHD 30-Year Daily Price Backfill
 
 Comprehensive backfill of historical daily price data for all active instruments
-using Tiingo API with 30-year historical depth. Based on existing working patterns
+using EODHD API with 30-year historical depth. Based on working patterns
 with enhanced idempotent operations.
 """
 
@@ -22,26 +22,26 @@ import argparse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("tiingo_30_year_daily_backfill")
+logger = logging.getLogger("eodhd_30_year_daily_backfill")
 
-class Tiingo30YearBackfiller:
+class EODHD30YearBackfiller:
     """
-    Tiingo 30-year daily price backfiller with idempotent operations.
+    EODHD 30-year daily price backfiller with idempotent operations.
     
     Features:
     - 30-year historical data collection
     - Idempotent UPSERT operations
-    - Rate limiting (1000 requests/hour for paid Tiingo)
+    - Rate limiting (20 requests/minute for free tier)
     - Resume capability with existing data detection
     - Uses dev_instruments table for symbol list
     """
     
     def __init__(self, api_key: str):
         self.api_key = api_key
-        self.base_url = "https://api.tiingo.com/tiingo/daily"
+        self.base_url = "https://eodhd.com/api/eod"
         
-        # Rate limiting (Tiingo allows ~1000 requests/hour for paid plans)
-        self.request_delay = 3.6  # seconds between requests (safer than 3.6 limit)
+        # Rate limiting (EODHD allows 20 requests/minute for free tier)
+        self.request_delay = 3.0  # 3 seconds between requests
         
         # Statistics
         self.stats = {
@@ -53,8 +53,8 @@ class Tiingo30YearBackfiller:
             'skipped_instruments': 0
         }
         
-        logger.info(f"📊 Tiingo 30-Year Backfiller initialized")
-        logger.info(f"   Rate limit: {3600/self.request_delay:.1f} requests/hour")
+        logger.info(f"📊 EODHD 30-Year Backfiller initialized")
+        logger.info(f"   Rate limit: {60/self.request_delay:.1f} requests/minute")
 
     async def get_database_connection(self):
         """Get database connection (Docker-compatible)."""
@@ -65,6 +65,30 @@ class Tiingo30YearBackfiller:
             password='dev_password',
             database='dev_db'
         )
+
+    async def ensure_table_exists(self, conn):
+        """Ensure EODHD table exists."""
+        try:
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS dev_daily_prices_eodhd (
+                    id SERIAL PRIMARY KEY,
+                    date DATE NOT NULL,
+                    symbol VARCHAR(20) NOT NULL,
+                    open NUMERIC(12,4),
+                    high NUMERIC(12,4),
+                    low NUMERIC(12,4),
+                    close NUMERIC(12,4),
+                    adjusted_close NUMERIC(12,4),
+                    volume BIGINT,
+                    instrument_id INTEGER,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(date, instrument_id)
+                )
+            """)
+            logger.info("✅ EODHD table ready")
+        except Exception as e:
+            logger.error(f"❌ Failed to ensure table exists: {e}")
+            raise
 
     async def get_instruments_for_backfill(self, conn, limit=None):
         """Get active instruments from dev_instruments table."""
@@ -85,14 +109,15 @@ class Tiingo30YearBackfiller:
         logger.info(f"📊 Found {len(instruments)} instruments for 30-year backfill")
         return instruments
 
-    def download_tiingo_daily_prices(self, symbol, start_date, end_date):
-        """Download daily prices from Tiingo API."""
-        url = f"{self.base_url}/{symbol}/prices"
+    def download_eodhd_daily_prices(self, symbol, start_date, end_date):
+        """Download daily prices from EODHD API."""
+        url = f"{self.base_url}/{symbol}.US"
         params = {
-            'startDate': start_date.strftime('%Y-%m-%d'),
-            'endDate': end_date.strftime('%Y-%m-%d'),
-            'format': 'json',
-            'token': self.api_key
+            'from': start_date.strftime('%Y-%m-%d'),
+            'to': end_date.strftime('%Y-%m-%d'),
+            'period': 'd',
+            'fmt': 'json',
+            'api_token': self.api_key
         }
         
         try:
@@ -101,17 +126,21 @@ class Tiingo30YearBackfiller:
             
             if response.status_code == 200:
                 data = response.json()
-                logger.debug(f"✅ Downloaded {len(data)} records for {symbol}")
-                return data
+                if isinstance(data, list):
+                    logger.debug(f"✅ Downloaded {len(data)} records for {symbol}")
+                    return data
+                else:
+                    logger.debug(f"⚠️ Unexpected response format for {symbol}")
+                    return []
             elif response.status_code == 404:
                 logger.debug(f"⚠️ No data available for {symbol}")
                 return []
             elif response.status_code == 429:
                 logger.warning(f"⚠️ Rate limit hit for {symbol}, waiting...")
                 time.sleep(60)  # Wait 1 minute
-                return self.download_tiingo_daily_prices(symbol, start_date, end_date)
+                return self.download_eodhd_daily_prices(symbol, start_date, end_date)
             else:
-                logger.error(f"❌ Tiingo API error for {symbol}: {response.status_code}")
+                logger.error(f"❌ EODHD API error for {symbol}: {response.status_code}")
                 self.stats['errors'] += 1
                 return []
                 
@@ -129,11 +158,8 @@ class Tiingo30YearBackfiller:
         rows = []
         for price in prices:
             try:
-                # Parse Tiingo date format
-                if isinstance(price['date'], str):
-                    date_val = datetime.strptime(price['date'][:10], '%Y-%m-%d').date()
-                else:
-                    date_val = price['date']
+                # Parse EODHD date format
+                date_val = datetime.strptime(price['date'], '%Y-%m-%d').date()
                 
                 rows.append((
                     date_val,
@@ -142,6 +168,7 @@ class Tiingo30YearBackfiller:
                     price.get('high'),
                     price.get('low'),
                     price.get('close'),
+                    price.get('adjusted_close'),
                     price.get('volume', 0),
                     instrument_id
                 ))
@@ -152,18 +179,19 @@ class Tiingo30YearBackfiller:
         if not rows:
             return 0
         
-        # Insert with idempotent UPSERT (using existing Tiingo table schema)
+        # Insert with idempotent UPSERT
         try:
             result = await conn.executemany("""
-                INSERT INTO dev_daily_prices_tiingo 
-                (date, symbol, open, high, low, close, volume, instrument_id)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                INSERT INTO dev_daily_prices_eodhd 
+                (date, symbol, open, high, low, close, adjusted_close, volume, instrument_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                 ON CONFLICT (date, instrument_id) DO UPDATE SET
                     symbol = EXCLUDED.symbol,
                     open = EXCLUDED.open,
                     high = EXCLUDED.high,
                     low = EXCLUDED.low,
                     close = EXCLUDED.close,
+                    adjusted_close = EXCLUDED.adjusted_close,
                     volume = EXCLUDED.volume
             """, rows)
             
@@ -179,7 +207,7 @@ class Tiingo30YearBackfiller:
     async def check_existing_data(self, conn, instrument_id, start_date, end_date):
         """Check if instrument already has data in the date range."""
         count = await conn.fetchval("""
-            SELECT COUNT(*) FROM dev_daily_prices_tiingo
+            SELECT COUNT(*) FROM dev_daily_prices_eodhd
             WHERE instrument_id = $1 AND date BETWEEN $2 AND $3
         """, instrument_id, start_date, end_date)
         
@@ -201,8 +229,8 @@ class Tiingo30YearBackfiller:
             
             logger.info(f"📈 Processing {symbol} (ID: {instrument_id}) for 30-year backfill...")
             
-            # Download data from Tiingo
-            prices = self.download_tiingo_daily_prices(symbol, start_date, end_date)
+            # Download data from EODHD
+            prices = self.download_eodhd_daily_prices(symbol, start_date, end_date)
             
             if not prices:
                 logger.warning(f"⚠️ No price data for {symbol}")
@@ -226,12 +254,15 @@ class Tiingo30YearBackfiller:
 
     async def run_backfill(self, start_date, end_date, limit=None, skip_existing=True):
         """Run the complete 30-year backfill process."""
-        logger.info("🚀 Starting Tiingo 30-year daily price backfill...")
+        logger.info("🚀 Starting EODHD 30-year daily price backfill...")
         logger.info(f"📅 Date range: {start_date} to {end_date}")
         
         conn = await self.get_database_connection()
         
         try:
+            # Ensure table exists
+            await self.ensure_table_exists(conn)
+            
             # Get instruments to process
             instruments = await self.get_instruments_for_backfill(conn, limit)
             
@@ -262,7 +293,7 @@ class Tiingo30YearBackfiller:
     def log_final_summary(self):
         """Log comprehensive final summary."""
         logger.info("=" * 80)
-        logger.info("🎉 TIINGO 30-YEAR DAILY PRICE BACKFILL COMPLETE")
+        logger.info("🎉 EODHD 30-YEAR DAILY PRICE BACKFILL COMPLETE")
         logger.info("=" * 80)
         logger.info(f"📊 PROCESSING SUMMARY:")
         logger.info(f"  Total Instruments: {self.stats['total_instruments']:,}")
@@ -281,7 +312,7 @@ class Tiingo30YearBackfiller:
         logger.info("=" * 80)
 
 async def main():
-    parser = argparse.ArgumentParser(description="Tiingo 30-year daily price backfill")
+    parser = argparse.ArgumentParser(description="EODHD 30-year daily price backfill")
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--limit', type=int, default=int(os.getenv('LIMIT', '0')) or None, 
                        help='Limit number of instruments to process')
@@ -302,13 +333,13 @@ async def main():
         logger.setLevel(logging.DEBUG)
     
     try:
-        # Get Tiingo API key
-        tiingo_api_key = os.environ.get("TIINGO_API_KEY")
-        if not tiingo_api_key:
-            logger.error("❌ TIINGO_API_KEY environment variable not set")
+        # Get EODHD API key
+        eodhd_api_key = os.environ.get("EODHD_API_KEY")
+        if not eodhd_api_key:
+            logger.error("❌ EODHD_API_KEY environment variable not set")
             sys.exit(1)
         
-        logger.info("✅ Tiingo API key found")
+        logger.info("✅ EODHD API key found")
         
         # Calculate date range
         if args.start_date:
@@ -321,10 +352,10 @@ async def main():
         else:
             end_date = datetime.now().date()
         
-        logger.info(f"📅 Backfilling Tiingo prices from {start_date} to {end_date}")
+        logger.info(f"📅 Backfilling EODHD prices from {start_date} to {end_date}")
         
         # Initialize backfiller
-        backfiller = Tiingo30YearBackfiller(tiingo_api_key)
+        backfiller = EODHD30YearBackfiller(eodhd_api_key)
         
         # Run backfill
         await backfiller.run_backfill(
@@ -336,10 +367,10 @@ async def main():
         # Log final summary
         backfiller.log_final_summary()
         
-        logger.info("✅ Tiingo 30-year daily price backfill complete")
+        logger.info("✅ EODHD 30-year daily price backfill complete")
         
     except Exception as e:
-        logger.error(f"❌ Failed to run Tiingo 30-year backfill: {e}")
+        logger.error(f"❌ Failed to run EODHD 30-year backfill: {e}")
         import traceback
         logger.error(traceback.format_exc())
         sys.exit(1)
