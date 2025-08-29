@@ -23,6 +23,7 @@ async def test_basic_connection():
         return False
     
     try:
+        print(f"Attempting to connect to: {db_url}")
         conn = await asyncpg.connect(db_url)
         result = await conn.fetchval('SELECT 1 as test')
         print(f"✅ Database connection successful, result: {result}")
@@ -30,6 +31,16 @@ async def test_basic_connection():
         return True
     except Exception as e:
         print(f"❌ Database connection failed: {e}")
+        print(f"Error type: {type(e).__name__}")
+        
+        # Try to provide more helpful error information
+        if "Connect call failed" in str(e):
+            print("💡 Hint: PostgreSQL service may not be running or ready")
+        elif "authentication failed" in str(e).lower():
+            print("💡 Hint: Check username/password credentials")
+        elif "database" in str(e).lower() and "does not exist" in str(e).lower():
+            print("💡 Hint: Target database may not exist")
+        
         return False
 
 if __name__ == "__main__":

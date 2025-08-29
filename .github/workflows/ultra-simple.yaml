@@ -22,7 +22,16 @@ jobs:
         echo "🧪 Ultra simple test starting..."
         python3 --version
         echo "✅ Python is working"
-        pip install asyncpg
+        
+        echo "Testing pip installation..."
+        pip install asyncpg --quiet
         echo "✅ Can install packages"
+        
+        echo "Testing Python imports..."
+        python3 -c "import asyncpg; print('✅ asyncpg import works')"
         python3 -c "print('✅ Python execution works')"
+        
+        echo "Testing basic async functionality..."
+        python3 -c "import asyncio; asyncio.run(asyncio.sleep(0.1)); print('✅ Async functionality works')"
+        
         echo "🎉 ULTRA SIMPLE TEST PASSED! 🎉"
