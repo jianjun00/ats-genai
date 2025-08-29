@@ -1,0 +1,26 @@
+name: Basic Test
+
+# Try multiple trigger types to see if any work
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# Minimal permissions
+permissions:
+  contents: read
+
+jobs:
+  basic:
+    # Try different runner types
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+    - name: Minimal test
+      run: echo "Basic test starting..."
+      
+    - name: Success
+      run: echo "✅ Basic test passed!"
