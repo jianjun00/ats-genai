@@ -45,6 +45,16 @@ class TiingoAdapter(VendorAdapter):
                 api_key=self.api_key
             )
             resp = requests.get(url)
+            
+            # Handle rate limiting (429 errors)
+            if resp.status_code == 429:
+                import time
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Rate limited for {ticker}, skipping")
+                # Don't retry immediately, just skip this symbol
+                continue
+            
             # Log request/response for AAPL/TSLA in date range
             from datetime import datetime
             import json, os

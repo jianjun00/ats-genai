@@ -76,7 +76,10 @@ class PolygonAdapter(VendorAdapter):
                 continue
             data = resp.json()
             for row in data.get("results", []):
-                date_val = datetime.utcfromtimestamp(row["t"] / 1000).date()
+                # Fix timezone handling - use timezone-aware datetime
+                from zoneinfo import ZoneInfo
+                utc_dt = datetime.fromtimestamp(row["t"] / 1000, tz=ZoneInfo("UTC"))
+                date_val = utc_dt.date()
                 eod_prices.append(EODPrice(
                     instrument_id=ticker,
                     date=date_val,
