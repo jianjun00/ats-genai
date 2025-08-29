@@ -1,0 +1,124 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: ats-dev
+data:
+  alertmanager.yml: |
+    global:
+      slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+
+    route:
+      group_by: ['alertname']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: 'ats-dev-alerts'
+      routes:
+        - match:
+            severity: critical
+          receiver: 'ats-dev-critical'
+        - match:
+            service: data-quality
+          receiver: 'ats-dev-data-quality'
+
+    receivers:
+      - name: 'ats-dev-alerts'
+        slack_configs:
+          - channel: '#ats-dev-alerts'
+            title: 'ATS DEV Alert - {{ .GroupLabels.alertname }}'
+            text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+            send_resolved: true
+
+      - name: 'ats-dev-critical'
+        slack_configs:
+          - channel: '#ats-dev-critical'
+            title: '🚨 CRITICAL: ATS DEV Alert - {{ .GroupLabels.alertname }}'
+            text: |
+              *Alert:* {{ .GroupLabels.alertname }}
+              *Environment:* DEV
+              *Severity:* {{ .CommonLabels.severity }}
+              *Service:* {{ .CommonLabels.service }}
+              
+              {{ range .Alerts }}
+              *Description:* {{ .Annotations.description }}
+              *Summary:* {{ .Annotations.summary }}
+              {{ end }}
+            send_resolved: true
+
+      - name: 'ats-dev-data-quality'
+        slack_configs:
+          - channel: '#ats-data-quality'
+            title: '📊 Data Quality Alert - {{ .GroupLabels.alertname }} (DEV)'
+            text: |
+              *Environment:* DEV
+              *Service:* Data Quality
+              
+              {{ range .Alerts }}
+              *Issue:* {{ .Annotations.summary }}
+              *Details:* {{ .Annotations.description }}
+              {{ end }}
+            send_resolved: true
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: ats-intg
+data:
+  alertmanager.yml: |
+    global:
+      slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+
+    route:
+      group_by: ['alertname']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: 'ats-intg-alerts'
+      routes:
+        - match:
+            severity: critical
+          receiver: 'ats-intg-critical'
+        - match:
+            service: data-quality
+          receiver: 'ats-intg-data-quality'
+
+    receivers:
+      - name: 'ats-intg-alerts'
+        slack_configs:
+          - channel: '#ats-intg-alerts'
+            title: 'ATS INTG Alert - {{ .GroupLabels.alertname }}'
+            text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+            send_resolved: true
+
+      - name: 'ats-intg-critical'
+        slack_configs:
+          - channel: '#ats-intg-critical'
+            title: '🚨 CRITICAL: ATS INTG Alert - {{ .GroupLabels.alertname }}'
+            text: |
+              *Alert:* {{ .GroupLabels.alertname }}
+              *Environment:* INTG
+              *Severity:* {{ .CommonLabels.severity }}
+              *Service:* {{ .CommonLabels.service }}
+              
+              {{ range .Alerts }}
+              *Description:* {{ .Annotations.description }}
+              *Summary:* {{ .Annotations.summary }}
+              {{ end }}
+            send_resolved: true
+
+      - name: 'ats-intg-data-quality'
+        slack_configs:
+          - channel: '#ats-data-quality'
+            title: '📊 Data Quality Alert - {{ .GroupLabels.alertname }} (INTG)'
+            text: |
+              *Environment:* INTG
+              *Service:* Data Quality
+              
+              {{ range .Alerts }}
+              *Issue:* {{ .Annotations.summary }}
+              *Details:* {{ .Annotations.description }}
+              {{ end }}
+            send_resolved: true
