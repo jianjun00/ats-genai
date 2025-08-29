@@ -194,24 +194,8 @@ class JobManager:
         logger.info("Using fallback dataset data for EDA")
         return [
             {
-                'name': 'dev_instruments',
-                'display_name': 'All Instruments (Consolidated)',
-                'row_count': 69796,
-                'column_count': 16,
-                'vendor': 'ATS',
-                'data_type': 'instruments'
-            },
-            {
-                'name': 'dev_instrument_tiingo',
-                'display_name': 'Tiingo Instruments',
-                'row_count': 28080,
-                'column_count': 8,
-                'vendor': 'Tiingo',
-                'data_type': 'instruments'
-            },
-            {
                 'name': 'dev_daily_prices_polygon_30year',
-                'display_name': 'Polygon Daily Prices 30 Year',
+                'display_name': '📊 Polygon Daily Prices 30 Year (Best for Analysis)',
                 'row_count': 666212,
                 'column_count': 7,
                 'vendor': 'Polygon', 
@@ -219,27 +203,43 @@ class JobManager:
             },
             {
                 'name': 'dev_daily_prices_tiingo',
-                'display_name': 'Tiingo Daily Prices',
+                'display_name': '📊 Tiingo Daily Prices (Best for Analysis)',
                 'row_count': 6559540,
                 'column_count': 7,
                 'vendor': 'Tiingo',
                 'data_type': 'prices'
             },
             {
-                'name': 'dev_instrument_polygon',
-                'display_name': 'Polygon Instruments', 
-                'row_count': 15000,
-                'column_count': 8,
-                'vendor': 'Polygon',
+                'name': 'dev_instruments',
+                'display_name': 'All Instruments (Consolidated) - Metadata Only',
+                'row_count': 69796,
+                'column_count': 16,
+                'vendor': 'ATS',
+                'data_type': 'instruments'
+            },
+            {
+                'name': 'dev_instrument_tiingo',
+                'display_name': 'Tiingo Instruments - Metadata Only',
+                'row_count': 28080,
+                'column_count': 11,
+                'vendor': 'Tiingo',
                 'data_type': 'instruments'
             },
             {
                 'name': 'dev_daily_prices_eodhd',
-                'display_name': 'EODHD Daily Prices',
+                'display_name': '📊 EODHD Daily Prices (Best for Analysis)',
                 'row_count': 727905,
                 'column_count': 7,
                 'vendor': 'EODHD',
                 'data_type': 'prices'
+            },
+            {
+                'name': 'dev_instrument_polygon',
+                'display_name': 'Polygon Instruments - Metadata Only', 
+                'row_count': 15000,
+                'column_count': 16,
+                'vendor': 'Polygon',
+                'data_type': 'instruments'
             }
         ]
     
@@ -272,13 +272,16 @@ class JobManager:
         elif table_name == "dev_instrument_tiingo":
             return {
                 "columns": [
-                    {"column_name": "symbol", "data_type": "character varying", "is_nullable": "NO"},
-                    {"column_name": "name", "data_type": "text", "is_nullable": "YES"}, 
-                    {"column_name": "market_cap", "data_type": "numeric", "is_nullable": "YES"},
-                    {"column_name": "price", "data_type": "double precision", "is_nullable": "YES"},
-                    {"column_name": "volume", "data_type": "bigint", "is_nullable": "YES"},
+                    {"column_name": "id", "data_type": "integer", "is_nullable": "NO"},
+                    {"column_name": "symbol", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "name", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "exchange", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "asset_type", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "currency", "data_type": "text", "is_nullable": "YES"},
                     {"column_name": "start_date", "data_type": "date", "is_nullable": "YES"},
-                    {"column_name": "end_date", "data_type": "date", "is_nullable": "YES"}
+                    {"column_name": "end_date", "data_type": "date", "is_nullable": "YES"},
+                    {"column_name": "created_at", "data_type": "timestamp without time zone", "is_nullable": "YES"},
+                    {"column_name": "updated_at", "data_type": "timestamp without time zone", "is_nullable": "YES"}
                 ]
             }
         elif table_name in ["dev_daily_prices_polygon_30year", "dev_daily_prices_tiingo", "dev_daily_prices_eodhd"]:
@@ -296,11 +299,21 @@ class JobManager:
         elif table_name == "dev_instrument_polygon":
             return {
                 "columns": [
-                    {"column_name": "symbol", "data_type": "character varying", "is_nullable": "NO"},
+                    {"column_name": "symbol", "data_type": "text", "is_nullable": "YES"},
                     {"column_name": "name", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "market_cap", "data_type": "numeric", "is_nullable": "YES"},
-                    {"column_name": "price", "data_type": "double precision", "is_nullable": "YES"},
-                    {"column_name": "volume", "data_type": "bigint", "is_nullable": "YES"}
+                    {"column_name": "exchange", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "type", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "currency", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "figi", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "isin", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "cusip", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "composite_figi", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "active", "data_type": "boolean", "is_nullable": "YES"},
+                    {"column_name": "list_date", "data_type": "date", "is_nullable": "YES"},
+                    {"column_name": "delist_date", "data_type": "date", "is_nullable": "YES"},
+                    {"column_name": "sector", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "created_at", "data_type": "timestamp with time zone", "is_nullable": "YES"},
+                    {"column_name": "updated_at", "data_type": "timestamp with time zone", "is_nullable": "YES"}
                 ]
             }
         else:
