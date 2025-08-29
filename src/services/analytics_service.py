@@ -429,6 +429,238 @@ class JobManager:
                 'note': 'Demo data - database unavailable'
             }
     
+    def get_column_values(self, table_name: str, column: str, limit: int = 100) -> Dict:
+        """Get unique values for a categorical column or min/max for numeric columns."""
+        try:
+            from core.database.connection_manager import get_raw_connection
+            
+            with get_raw_connection() as conn:
+                with conn.cursor() as cursor:
+                    # First check if column is numeric
+                    schema = self.get_dataset_schema(table_name)
+                    if "error" in schema:
+                        return {"error": schema["error"]}
+                    
+                    column_info = next((col for col in schema["columns"] if col["column_name"] == column), None)
+                    if not column_info:
+                        return {"error": f"Column {column} not found in {table_name}"}
+                    
+                    data_type = column_info["data_type"].lower()
+                    is_numeric = any(t in data_type for t in ["numeric", "integer", "double", "bigint", "smallint", "real", "decimal", "float"])
+                    
+                    if is_numeric:
+                        # Get min/max for numeric columns
+                        cursor.execute(f"""
+                            SELECT 
+                                MIN({column}) as min_value,
+                                MAX({column}) as max_value,
+                                COUNT(DISTINCT {column}) as distinct_count,
+                                COUNT({column}) as total_count
+                            FROM {table_name} 
+                            WHERE {column} IS NOT NULL
+                        """)
+                        result = cursor.fetchone()
+                        
+                        return {
+                            "column": column,
+                            "data_type": "numeric",
+                            "min_value": float(result['min_value']) if result['min_value'] is not None else None,
+                            "max_value": float(result['max_value']) if result['max_value'] is not None else None,
+                            "distinct_count": result['distinct_count'],
+                            "total_count": result['total_count']
+                        }
+                    else:
+                        # Get unique values for categorical columns
+                        cursor.execute(f"""
+                            SELECT {column} as value, COUNT(*) as count
+                            FROM {table_name}
+                            WHERE {column} IS NOT NULL AND {column} != ''
+                            GROUP BY {column}
+                            ORDER BY count DESC
+                            LIMIT %s
+                        """, (limit,))
+                        
+                        results = cursor.fetchall()
+                        values = [{"value": row['value'], "count": row['count']} for row in results]
+                        
+                        return {
+                            "column": column,
+                            "data_type": "categorical",
+                            "values": values,
+                            "total_unique": len(values)
+                        }
+                        
+        except Exception as e:
+            logger.warning(f"Failed to get column values for {table_name}.{column}: {e}")
+            
+            # Return demo data based on column type
+            column_info = self.get_dataset_schema(table_name).get("columns", [])
+            column_def = next((col for col in column_info if col["column_name"] == column), None)
+            
+            if column_def:
+                data_type = column_def["data_type"].lower()
+                is_numeric = any(t in data_type for t in ["numeric", "integer", "double", "bigint"])
+                
+                if is_numeric:
+                    if column in ['price', 'close', 'open', 'high', 'low']:
+                        return {"column": column, "data_type": "numeric", "min_value": 10.0, "max_value": 500.0, "distinct_count": 1000}
+                    elif column == 'volume':
+                        return {"column": column, "data_type": "numeric", "min_value": 1000, "max_value": 10000000, "distinct_count": 5000}
+                    else:
+                        return {"column": column, "data_type": "numeric", "min_value": 0, "max_value": 1000, "distinct_count": 100}
+                else:
+                    # Demo categorical data
+                    if column == 'symbol':
+                        values = [{"value": "AAPL", "count": 1000}, {"value": "GOOGL", "count": 800}, {"value": "MSFT", "count": 750}]
+                    elif column == 'exchange':
+                        values = [{"value": "NASDAQ", "count": 5000}, {"value": "NYSE", "count": 4000}, {"value": "AMEX", "count": 500}]
+                    else:
+                        values = [{"value": "Category A", "count": 3000}, {"value": "Category B", "count": 2000}]
+                    
+                    return {"column": column, "data_type": "categorical", "values": values, "total_unique": len(values)}
+            
+            return {"error": f"Could not determine column type for {column}"}
+    
+    def get_filtered_data(self, table_name: str, filters: Dict = {}, page: int = 1, page_size: int = 50) -> Dict:
+        """Get paginated data with applied filters."""
+        try:
+            from core.database.connection_manager import get_raw_connection
+            
+            with get_raw_connection() as conn:
+                with conn.cursor() as cursor:
+                    # Build WHERE clause from filters
+                    where_conditions = []
+                    params = []
+                    
+                    for column, filter_config in filters.items():
+                        if filter_config.get('type') == 'categorical' and filter_config.get('values'):
+                            # Categorical filter - IN clause
+                            placeholders = ', '.join(['%s'] * len(filter_config['values']))
+                            where_conditions.append(f"{column} IN ({placeholders})")
+                            params.extend(filter_config['values'])
+                            
+                        elif filter_config.get('type') == 'numeric':
+                            # Numeric range filter
+                            if 'min' in filter_config and filter_config['min'] is not None:
+                                where_conditions.append(f"{column} >= %s")
+                                params.append(filter_config['min'])
+                            if 'max' in filter_config and filter_config['max'] is not None:
+                                where_conditions.append(f"{column} <= %s")
+                                params.append(filter_config['max'])
+                    
+                    # Build base query
+                    where_clause = ""
+                    if where_conditions:
+                        where_clause = "WHERE " + " AND ".join(where_conditions)
+                    
+                    # Get total count
+                    count_query = f"SELECT COUNT(*) as total FROM {table_name} {where_clause}"
+                    cursor.execute(count_query, params)
+                    total_count = cursor.fetchone()['total']
+                    
+                    # Get paginated data
+                    offset = (page - 1) * page_size
+                    data_query = f"""
+                        SELECT * FROM {table_name} 
+                        {where_clause}
+                        ORDER BY 1
+                        LIMIT %s OFFSET %s
+                    """
+                    
+                    cursor.execute(data_query, params + [page_size, offset])
+                    rows = cursor.fetchall()
+                    
+                    # Convert rows to list of dicts
+                    data = []
+                    for row in rows:
+                        row_dict = {}
+                        for column_name in row.keys():
+                            value = row[column_name]
+                            # Format values for display
+                            if isinstance(value, (int, float)):
+                                row_dict[column_name] = value
+                            elif value is not None:
+                                row_dict[column_name] = str(value)
+                            else:
+                                row_dict[column_name] = None
+                        data.append(row_dict)
+                    
+                    total_pages = (total_count + page_size - 1) // page_size
+                    
+                    return {
+                        "data": data,
+                        "pagination": {
+                            "current_page": page,
+                            "page_size": page_size,
+                            "total_count": total_count,
+                            "total_pages": total_pages,
+                            "has_next": page < total_pages,
+                            "has_prev": page > 1
+                        },
+                        "filters_applied": filters,
+                        "table_name": table_name
+                    }
+                    
+        except Exception as e:
+            logger.warning(f"Failed to get filtered data for {table_name}: {e}")
+            
+            # Return demo data when database is unavailable
+            import random
+            demo_data = []
+            
+            # Get schema to generate appropriate demo data
+            schema = self.get_dataset_schema(table_name)
+            if "columns" in schema:
+                for i in range(page_size):
+                    row = {}
+                    for col in schema["columns"]:
+                        col_name = col["column_name"]
+                        data_type = col["data_type"].lower()
+                        
+                        if "integer" in data_type or "bigint" in data_type:
+                            if col_name == "id":
+                                row[col_name] = (page - 1) * page_size + i + 1
+                            elif col_name == "volume":
+                                row[col_name] = random.randint(1000, 10000000)
+                            else:
+                                row[col_name] = random.randint(1, 1000)
+                        elif "numeric" in data_type or "double" in data_type:
+                            if col_name in ['price', 'open', 'high', 'low', 'close']:
+                                row[col_name] = round(random.uniform(50, 200), 2)
+                            else:
+                                row[col_name] = round(random.uniform(0, 100), 2)
+                        elif "date" in data_type:
+                            row[col_name] = "2024-01-15"
+                        elif "boolean" in data_type:
+                            row[col_name] = random.choice([True, False])
+                        else:
+                            # Text columns
+                            if col_name == "symbol":
+                                row[col_name] = random.choice(["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA"])
+                            elif col_name == "exchange":
+                                row[col_name] = random.choice(["NASDAQ", "NYSE", "AMEX"])
+                            elif col_name == "name":
+                                row[col_name] = f"Company {i+1}"
+                            else:
+                                row[col_name] = f"Value {i+1}"
+                    
+                    demo_data.append(row)
+            
+            return {
+                "data": demo_data,
+                "pagination": {
+                    "current_page": page,
+                    "page_size": page_size,
+                    "total_count": 1000,  # Demo total
+                    "total_pages": 20,
+                    "has_next": page < 20,
+                    "has_prev": page > 1
+                },
+                "filters_applied": filters,
+                "table_name": table_name,
+                "note": "Demo data - database unavailable"
+            }
+    
     def format_display_name(self, table_name: str) -> str:
         """Format table name for display."""
         parts = table_name.replace('dev_', '').split('_')
@@ -763,6 +995,35 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 error_response = {"error": str(e)}
                 self.wfile.write(json.dumps(error_response).encode())
         
+        elif self.path.startswith('/api/eda/datasets/') and '/columns/' in self.path and '/values' in self.path:
+            # GET /api/eda/datasets/{table_name}/columns/{column_name}/values
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            try:
+                # Parse URL to handle query parameters
+                from urllib.parse import urlparse, parse_qs
+                parsed_url = urlparse(self.path)
+                path_parts = parsed_url.path.split('/')
+                
+                # Extract dataset name and column name from path
+                # Path: /api/eda/datasets/{table_name}/columns/{column_name}/values
+                table_name = path_parts[4]  # table name
+                column_name = path_parts[6]  # column name
+                
+                # Parse query parameters for limit
+                query_params = parse_qs(parsed_url.query)
+                limit = int(query_params.get('limit', [100])[0])
+                
+                column_values = job_manager.get_column_values(table_name, column_name, limit)
+                self.wfile.write(json.dumps(column_values, indent=2).encode())
+            except Exception as e:
+                logger.error(f"Error getting column values: {e}")
+                error_response = {"error": str(e)}
+                self.wfile.write(json.dumps(error_response).encode())
+        
         elif self.path == '/eda':
             # EDA Dashboard page
             self.send_response(200)
@@ -807,6 +1068,36 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 logger.error(f"Error analyzing distribution: {e}")
                 error_response = {"error": str(e)}
                 self.wfile.write(json.dumps(error_response).encode())
+        
+        elif self.path.startswith('/api/eda/datasets/') and self.path.endswith('/data'):
+            # POST /api/eda/datasets/{table_name}/data
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            try:
+                # Extract table name from path
+                parts = self.path.split('/')
+                table_name = parts[4]  # /api/eda/datasets/{table_name}/data
+                
+                # Read POST data
+                content_length = int(self.headers.get('Content-Length', 0))
+                post_data = self.rfile.read(content_length)
+                data = json.loads(post_data.decode('utf-8'))
+                
+                filters = data.get('filters', {})
+                page = data.get('page', 1)
+                page_size = data.get('page_size', 50)
+                
+                filtered_data = job_manager.get_filtered_data(table_name, filters, page, page_size)
+                self.wfile.write(json.dumps(filtered_data, indent=2).encode())
+                
+            except Exception as e:
+                logger.error(f"Error getting filtered data: {e}")
+                error_response = {"error": str(e)}
+                self.wfile.write(json.dumps(error_response).encode())
+        
         else:
             self.send_response(404)
             self.send_header('Content-type', 'application/json')
@@ -839,12 +1130,31 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 .stat-item { text-align: center; padding: 10px; background: #f8f9fa; border-radius: 4px; }
                 .stat-value { font-size: 1.2em; font-weight: bold; color: #2c3e50; }
                 .stat-label { font-size: 0.9em; color: #666; }
+                .filter-group { margin: 15px 0; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; }
+                .filter-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+                .filter-input { width: 100%; padding: 5px; margin: 2px 0; }
+                .checkbox-list { max-height: 150px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background: white; }
+                .checkbox-list label { font-weight: normal; }
+                #data-table { border: 1px solid #ddd; }
+                #data-table th, #data-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                #data-table th { background: #f8f9fa; font-weight: bold; }
+                #data-table tbody tr:nth-child(even) { background: #f9f9f9; }
+                .pagination-btn { padding: 5px 10px; margin: 0 2px; cursor: pointer; border: 1px solid #ddd; background: white; }
+                .pagination-btn.active { background: #3498db; color: white; }
+                .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+                .column-distribution { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #fafafa; }
+                .column-distribution h4 { margin: 0 0 10px 0; color: #2c3e50; }
+                .distribution-chart { width: 100%; height: 300px; margin: 10px 0; }
+                .distribution-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin: 10px 0; }
+                .distribution-stat { text-align: center; padding: 8px; background: white; border-radius: 4px; }
+                .stat-value-small { font-size: 1em; font-weight: bold; color: #2c3e50; }
+                .stat-label-small { font-size: 0.8em; color: #666; }
             </style>
         </head>
         <body>
             <div class="header">
                 <h1>ATS Exploratory Data Analysis</h1>
-                <p>Interactive histogram analysis with cross-filtering</p>
+                <p>Comprehensive dataset analysis with automatic column distributions and filtering</p>
                 <a href="/" style="color: #3498db; margin-right: 15px;">← Back to Analytics Dashboard</a>
             </div>
             
@@ -855,42 +1165,58 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 </div>
                 
                 <div class="card">
-                    <h3>Interactive Analysis</h3>
+                    <h3>Dataset Analysis</h3>
                     <div class="controls">
                         <div>
                             <label>Dataset: </label>
-                            <select id="dataset-select" onchange="loadColumns()">
+                            <select id="dataset-select" onchange="loadDatasetAnalysis()">
                                 <option value="">Select dataset...</option>
                             </select>
                         </div>
-                        <div style="margin-top: 10px;">
-                            <label>Column: </label>
-                            <select id="column-select">
-                                <option value="">Select column...</option>
-                            </select>
-                        </div>
-                        <div style="margin-top: 15px;">
-                            <button onclick="analyzeDistribution()">Analyze Distribution</button>
-                            <button onclick="compareDatasets()">Compare with Another Dataset</button>
+                        <div style="margin-top: 15px;" id="dataset-info" style="display: none;">
+                            <div id="dataset-summary"></div>
                         </div>
                     </div>
                     
-                    <div id="statistics-summary" style="display: none;">
-                        <h4>Statistical Summary</h4>
-                        <div id="stats-grid" class="stats-grid"></div>
+                    <!-- Filters Section -->
+                    <div id="filters-section" class="controls" style="display: none;">
+                        <h4>Data Filters</h4>
+                        <div id="filter-controls"></div>
+                        <div style="margin-top: 15px;">
+                            <button onclick="applyFilters()">Apply Filters</button>
+                            <button onclick="clearFilters()" style="background: #95a5a6;">Clear Filters</button>
+                            <button onclick="loadFilteredData()">Load Filtered Data</button>
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <div class="card">
-                <h3>Distribution Analysis</h3>
-                <div id="histogram-chart" class="chart-container"></div>
-                <div id="comparison-chart" class="chart-container" style="display: none;"></div>
+            <div class="card" id="distribution-analysis" style="display: none;">
+                <h3>Column Distributions</h3>
+                <div id="distributions-container">
+                    <p style="text-align: center; color: #666;">Select a dataset to view column distributions</p>
+                </div>
+            </div>
+            
+            <!-- Filtered Data Table -->
+            <div id="data-table-section" class="card" style="display: none;">
+                <h3>Filtered Data</h3>
+                <div id="table-info" style="margin-bottom: 15px; color: #666;"></div>
+                <div id="data-table-container" style="overflow-x: auto;">
+                    <table id="data-table" style="width: 100%; border-collapse: collapse;">
+                        <thead id="table-head"></thead>
+                        <tbody id="table-body"></tbody>
+                    </table>
+                </div>
+                <div id="pagination-controls" style="margin-top: 15px; text-align: center;"></div>
             </div>
             
             <script>
                 let datasets = [];
                 let currentAnalysis = null;
+                let currentFilters = {};
+                let currentPage = 1;
+                let totalPages = 1;
                 
                 async function loadDatasets() {
                     try {
@@ -942,7 +1268,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 
                 function selectDataset(datasetName) {
                     document.getElementById('dataset-select').value = datasetName;
-                    loadColumns();
+                    loadDatasetAnalysis();
                     
                     // Visual selection
                     document.querySelectorAll('.dataset-card').forEach(card => {
@@ -951,41 +1277,164 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     event.target.closest('.dataset-card').classList.add('selected');
                 }
                 
-                async function loadColumns() {
+                async function loadDatasetAnalysis() {
                     const datasetName = document.getElementById('dataset-select').value;
-                    if (!datasetName) return;
-                    
-                    try {
-                        const response = await fetch(`/api/eda/datasets/${datasetName}/schema`);
-                        const schema = await response.json();
-                        
-                        const columnSelect = document.getElementById('column-select');
-                        columnSelect.innerHTML = '<option value="">Select column...</option>';
-                        
-                        schema.columns.forEach(col => {
-                            const dataType = col.data_type.toLowerCase();
-                            if (dataType.includes('numeric') || dataType.includes('integer') || 
-                                dataType.includes('double') || dataType.includes('bigint') ||
-                                dataType.includes('smallint') || dataType.includes('real') ||
-                                dataType.includes('decimal') || dataType.includes('float')) {
-                                columnSelect.innerHTML += `<option value="${col.column_name}">${col.column_name}</option>`;
-                            }
-                        });
-                    } catch (error) {
-                        console.error('Error loading columns:', error);
-                    }
-                }
-                
-                async function analyzeDistribution() {
-                    const datasetName = document.getElementById('dataset-select').value;
-                    const columnName = document.getElementById('column-select').value;
-                    
-                    if (!datasetName || !columnName) {
-                        alert('Please select both dataset and column');
+                    if (!datasetName) {
+                        document.getElementById('filters-section').style.display = 'none';
+                        document.getElementById('distribution-analysis').style.display = 'none';
+                        document.getElementById('dataset-info').style.display = 'none';
                         return;
                     }
                     
                     try {
+                        // Show loading state
+                        document.getElementById('distributions-container').innerHTML = '<p style="text-align: center;">Loading distributions...</p>';
+                        document.getElementById('distribution-analysis').style.display = 'block';
+                        
+                        // Load schema
+                        const response = await fetch(`/api/eda/datasets/${datasetName}/schema`);
+                        const schema = await response.json();
+                        
+                        // Show dataset info
+                        const datasetInfo = datasets.find(d => d.name === datasetName);
+                        if (datasetInfo) {
+                            document.getElementById('dataset-summary').innerHTML = `
+                                <strong>${datasetInfo.display_name}</strong><br>
+                                <small>${datasetInfo.row_count.toLocaleString()} rows, ${datasetInfo.column_count} columns | Vendor: ${datasetInfo.vendor}</small>
+                            `;
+                            document.getElementById('dataset-info').style.display = 'block';
+                        }
+                        
+                        // Show filters section and load filters for all columns
+                        document.getElementById('filters-section').style.display = 'block';
+                        await loadFiltersForDataset(datasetName, schema.columns);
+                        
+                        // Load distributions for all columns
+                        await loadAllColumnDistributions(datasetName, schema.columns);
+                        
+                    } catch (error) {
+                        console.error('Error loading dataset analysis:', error);
+                        document.getElementById('distributions-container').innerHTML = `<p style="color: red;">Error loading distributions: ${error.message}</p>`;
+                    }
+                }
+                
+                async function loadFiltersForDataset(datasetName, columns) {
+                    const filterControls = document.getElementById('filter-controls');
+                    filterControls.innerHTML = '<p>Loading filters...</p>';
+                    
+                    let filterHtml = '';
+                    
+                    // Load a subset of important columns for filtering
+                    const importantColumns = columns.slice(0, 6); // First 6 columns
+                    
+                    for (const col of importantColumns) {
+                        const dataType = col.data_type.toLowerCase();
+                        const isNumeric = dataType.includes('numeric') || dataType.includes('integer') || 
+                            dataType.includes('double') || dataType.includes('bigint') ||
+                            dataType.includes('smallint') || dataType.includes('real') ||
+                            dataType.includes('decimal') || dataType.includes('float');
+                        
+                        try {
+                            const response = await fetch(`/api/eda/datasets/${datasetName}/columns/${col.column_name}/values?limit=50`);
+                            const columnData = await response.json();
+                            
+                            if (columnData.error) continue; // Skip if error loading values
+                            
+                            filterHtml += `<div class="filter-group">`;
+                            filterHtml += `<label>${col.column_name} (${isNumeric ? 'numeric' : 'categorical'}):</label>`;
+                            
+                            if (isNumeric && columnData.min_value !== undefined && columnData.max_value !== undefined) {
+                                // Numeric range filter
+                                filterHtml += `
+                                    <div>
+                                        <label>Min: <input type="number" class="filter-input" id="filter-${col.column_name}-min" placeholder="Min value (${columnData.min_value})"></label>
+                                        <label>Max: <input type="number" class="filter-input" id="filter-${col.column_name}-max" placeholder="Max value (${columnData.max_value})"></label>
+                                        <small>Range: ${columnData.min_value} - ${columnData.max_value} (${columnData.distinct_count} distinct values)</small>
+                                    </div>
+                                `;
+                            } else if (columnData.values && Array.isArray(columnData.values)) {
+                                // Categorical checkbox filter
+                                filterHtml += `<div class="checkbox-list">`;
+                                columnData.values.slice(0, 20).forEach(valueData => { // Show first 20 values
+                                    const value = typeof valueData === 'object' ? valueData.value : valueData;
+                                    const count = typeof valueData === 'object' ? valueData.count : '';
+                                    const countText = count ? ` (${count})` : '';
+                                    filterHtml += `
+                                        <label>
+                                            <input type="checkbox" name="filter-${col.column_name}" value="${value}"> ${value}${countText}
+                                        </label><br>
+                                    `;
+                                });
+                                if (columnData.values.length > 20) {
+                                    filterHtml += `<small>... and ${columnData.values.length - 20} more values</small>`;
+                                }
+                                filterHtml += `</div>`;
+                            }
+                            
+                            filterHtml += `</div>`;
+                            
+                        } catch (error) {
+                            console.error(`Error loading values for column ${col.column_name}:`, error);
+                        }
+                    }
+                    
+                    if (!filterHtml) {
+                        filterHtml = '<p>No filterable columns found</p>';
+                    }
+                    
+                    filterControls.innerHTML = filterHtml;
+                }
+                
+                async function loadAllColumnDistributions(datasetName, columns) {
+                    const distributionsContainer = document.getElementById('distributions-container');
+                    distributionsContainer.innerHTML = '';
+                    
+                    // Limit to first 10 columns to avoid overwhelming the UI
+                    const columnsToAnalyze = columns.slice(0, 10);
+                    
+                    for (const col of columnsToAnalyze) {
+                        const dataType = col.data_type.toLowerCase();
+                        const isNumeric = dataType.includes('numeric') || dataType.includes('integer') || 
+                            dataType.includes('double') || dataType.includes('bigint') ||
+                            dataType.includes('smallint') || dataType.includes('real') ||
+                            dataType.includes('decimal') || dataType.includes('float');
+                        
+                        // Create container for this column's distribution
+                        const colDiv = document.createElement('div');
+                        colDiv.className = 'column-distribution';
+                        colDiv.innerHTML = `
+                            <h4>${col.column_name} (${isNumeric ? 'Numeric' : 'Categorical'})</h4>
+                            <div id="chart-${col.column_name}" class="distribution-chart">Loading...</div>
+                            <div id="stats-${col.column_name}" class="distribution-stats"></div>
+                        `;
+                        distributionsContainer.appendChild(colDiv);
+                        
+                        // Load distribution for this column
+                        try {
+                            if (isNumeric) {
+                                await loadNumericDistribution(datasetName, col.column_name);
+                            } else {
+                                await loadCategoricalDistribution(datasetName, col.column_name);
+                            }
+                        } catch (error) {
+                            console.error(`Error loading distribution for ${col.column_name}:`, error);
+                            document.getElementById(`chart-${col.column_name}`).innerHTML = 
+                                `<p style="color: red; text-align: center;">Error loading distribution</p>`;
+                        }
+                    }
+                    
+                    if (columns.length > 10) {
+                        const moreDiv = document.createElement('div');
+                        moreDiv.innerHTML = `<p style="text-align: center; color: #666; font-style: italic;">
+                            Showing first 10 columns (${columns.length - 10} more columns available)
+                        </p>`;
+                        distributionsContainer.appendChild(moreDiv);
+                    }
+                }
+                
+                async function loadNumericDistribution(datasetName, columnName) {
+                    try {
+                        // Analyze distribution for numeric column
                         const response = await fetch('/api/eda/analyze', {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json'},
@@ -997,78 +1446,281 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         });
                         
                         const analysis = await response.json();
-                        currentAnalysis = analysis;
                         
                         if (analysis.error) {
-                            alert('Analysis error: ' + analysis.error);
+                            document.getElementById(`chart-${columnName}`).innerHTML = 
+                                `<p style="color: orange; text-align: center;">No data available</p>`;
                             return;
                         }
                         
-                        displayStatistics(analysis.statistics);
-                        displayHistogram(analysis);
+                        // Display statistics
+                        const statsContainer = document.getElementById(`stats-${columnName}`);
+                        if (analysis.statistics) {
+                            statsContainer.innerHTML = `
+                                <div class="distribution-stat">
+                                    <div class="stat-value-small">${analysis.statistics.count.toLocaleString()}</div>
+                                    <div class="stat-label-small">Count</div>
+                                </div>
+                                <div class="distribution-stat">
+                                    <div class="stat-value-small">${analysis.statistics.mean.toFixed(2)}</div>
+                                    <div class="stat-label-small">Mean</div>
+                                </div>
+                                <div class="distribution-stat">
+                                    <div class="stat-value-small">${analysis.statistics.std.toFixed(2)}</div>
+                                    <div class="stat-label-small">Std Dev</div>
+                                </div>
+                                <div class="distribution-stat">
+                                    <div class="stat-value-small">${analysis.statistics.min.toFixed(2)}</div>
+                                    <div class="stat-label-small">Min</div>
+                                </div>
+                                <div class="distribution-stat">
+                                    <div class="stat-value-small">${analysis.statistics.max.toFixed(2)}</div>
+                                    <div class="stat-label-small">Max</div>
+                                </div>
+                            `;
+                        }
+                        
+                        // Display histogram
+                        if (analysis.histogram) {
+                            const trace = {
+                                x: analysis.histogram.bin_centers,
+                                y: analysis.histogram.counts,
+                                type: 'bar',
+                                name: columnName,
+                                marker: { color: '#3498db' }
+                            };
+                            
+                            const layout = {
+                                title: `Distribution: ${columnName}`,
+                                xaxis: { title: columnName },
+                                yaxis: { title: 'Frequency' },
+                                bargap: 0.1,
+                                margin: { l: 60, r: 20, t: 40, b: 60 }
+                            };
+                            
+                            Plotly.newPlot(`chart-${columnName}`, [trace], layout, {responsive: true});
+                        }
                         
                     } catch (error) {
-                        console.error('Error analyzing distribution:', error);
-                        alert('Error analyzing distribution');
+                        console.error(`Error analyzing numeric column ${columnName}:`, error);
+                        throw error;
                     }
                 }
                 
-                function displayStatistics(stats) {
-                    const statsContainer = document.getElementById('statistics-summary');
-                    const statsGrid = document.getElementById('stats-grid');
+                async function loadCategoricalDistribution(datasetName, columnName) {
+                    try {
+                        // Get column values for categorical distribution
+                        const response = await fetch(`/api/eda/datasets/${datasetName}/columns/${columnName}/values?limit=20`);
+                        const data = await response.json();
+                        
+                        if (data.error || !data.values) {
+                            document.getElementById(`chart-${columnName}`).innerHTML = 
+                                `<p style="color: orange; text-align: center;">No data available</p>`;
+                            return;
+                        }
+                        
+                        // Display statistics
+                        const statsContainer = document.getElementById(`stats-${columnName}`);
+                        statsContainer.innerHTML = `
+                            <div class="distribution-stat">
+                                <div class="stat-value-small">${data.total_unique}</div>
+                                <div class="stat-label-small">Unique</div>
+                            </div>
+                            <div class="distribution-stat">
+                                <div class="stat-value-small">${data.values.length}</div>
+                                <div class="stat-label-small">Showing</div>
+                            </div>
+                        `;
+                        
+                        // Create bar chart for categorical data
+                        if (data.values && data.values.length > 0) {
+                            const values = data.values.slice(0, 15); // Show top 15 values
+                            
+                            const trace = {
+                                x: values.map(v => v.value),
+                                y: values.map(v => v.count || 1),
+                                type: 'bar',
+                                name: columnName,
+                                marker: { color: '#e74c3c' }
+                            };
+                            
+                            const layout = {
+                                title: `Distribution: ${columnName}`,
+                                xaxis: { 
+                                    title: columnName,
+                                    tickangle: -45
+                                },
+                                yaxis: { title: 'Count' },
+                                bargap: 0.2,
+                                margin: { l: 60, r: 20, t: 40, b: 100 }
+                            };
+                            
+                            Plotly.newPlot(`chart-${columnName}`, [trace], layout, {responsive: true});
+                        }
+                        
+                    } catch (error) {
+                        console.error(`Error analyzing categorical column ${columnName}:`, error);
+                        throw error;
+                    }
+                }
+                
+                function applyFilters() {
+                    const datasetName = document.getElementById('dataset-select').value;
+                    if (!datasetName) return;
                     
-                    statsGrid.innerHTML = `
-                        <div class="stat-item">
-                            <div class="stat-value">${stats.count.toLocaleString()}</div>
-                            <div class="stat-label">Count</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${stats.mean.toFixed(2)}</div>
-                            <div class="stat-label">Mean</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${stats.median.toFixed(2)}</div>
-                            <div class="stat-label">Median</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${stats.std.toFixed(2)}</div>
-                            <div class="stat-label">Std Dev</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${stats.min.toFixed(2)}</div>
-                            <div class="stat-label">Min</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${stats.max.toFixed(2)}</div>
-                            <div class="stat-label">Max</div>
-                        </div>
+                    currentFilters = {};
+                    
+                    // Collect numeric filters
+                    document.querySelectorAll('[id^="filter-"][id$="-min"], [id^="filter-"][id$="-max"]').forEach(input => {
+                        if (input.value) {
+                            const match = input.id.match(/filter-(.+)-(min|max)/);
+                            if (match) {
+                                const columnName = match[1];
+                                const type = match[2];
+                                
+                                if (!currentFilters[columnName]) {
+                                    currentFilters[columnName] = { type: 'range' };
+                                }
+                                currentFilters[columnName][type] = parseFloat(input.value);
+                            }
+                        }
+                    });
+                    
+                    // Collect categorical filters
+                    document.querySelectorAll('[name^="filter-"]:checked').forEach(checkbox => {
+                        const columnName = checkbox.name.replace('filter-', '');
+                        if (!currentFilters[columnName]) {
+                            currentFilters[columnName] = { type: 'values', values: [] };
+                        }
+                        currentFilters[columnName].values.push(checkbox.value);
+                    });
+                    
+                    console.log('Applied filters:', currentFilters);
+                    alert(`Filters applied! Found ${Object.keys(currentFilters).length} filter(s). Use "Load Filtered Data" to see results.`);
+                }
+                
+                function clearFilters() {
+                    currentFilters = {};
+                    
+                    // Clear all filter inputs
+                    document.querySelectorAll('[id^="filter-"]').forEach(input => {
+                        if (input.type === 'checkbox') {
+                            input.checked = false;
+                        } else {
+                            input.value = '';
+                        }
+                    });
+                    
+                    // Hide data table
+                    document.getElementById('data-table-section').style.display = 'none';
+                    console.log('Filters cleared');
+                }
+                
+                async function loadFilteredData(page = 1) {
+                    const datasetName = document.getElementById('dataset-select').value;
+                    if (!datasetName) return;
+                    
+                    try {
+                        const response = await fetch(`/api/eda/datasets/${datasetName}/data`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                filters: currentFilters,
+                                page: page,
+                                page_size: 50
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.error) {
+                            alert('Error loading data: ' + data.error);
+                            return;
+                        }
+                        
+                        displayDataTable(data);
+                        currentPage = data.current_page || 1;
+                        totalPages = data.total_pages || 1;
+                        
+                    } catch (error) {
+                        console.error('Error loading filtered data:', error);
+                        alert('Error loading filtered data');
+                    }
+                }
+                
+                function displayDataTable(data) {
+                    const tableSection = document.getElementById('data-table-section');
+                    const tableInfo = document.getElementById('table-info');
+                    const tableHead = document.getElementById('table-head');
+                    const tableBody = document.getElementById('table-body');
+                    
+                    // Show table section
+                    tableSection.style.display = 'block';
+                    
+                    // Update info
+                    const filterCount = Object.keys(currentFilters).length;
+                    tableInfo.innerHTML = `
+                        Showing ${data.data.length} of ${data.total_count} records 
+                        (Page ${data.current_page} of ${data.total_pages})
+                        ${filterCount > 0 ? `with ${filterCount} filter(s) applied` : ''}
                     `;
                     
-                    statsContainer.style.display = 'block';
+                    // Create table header
+                    if (data.data.length > 0) {
+                        const headers = Object.keys(data.data[0]);
+                        tableHead.innerHTML = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+                        
+                        // Create table body
+                        tableBody.innerHTML = data.data.map(row => 
+                            '<tr>' + headers.map(h => `<td>${row[h] || ''}</td>`).join('') + '</tr>'
+                        ).join('');
+                    } else {
+                        tableHead.innerHTML = '<tr><th>No Data</th></tr>';
+                        tableBody.innerHTML = '<tr><td>No data matches the current filters</td></tr>';
+                    }
+                    
+                    // Update pagination
+                    updatePagination(data);
                 }
                 
-                function displayHistogram(analysis) {
-                    const trace = {
-                        x: analysis.histogram.bin_centers,
-                        y: analysis.histogram.counts,
-                        type: 'bar',
-                        name: `${analysis.table} - ${analysis.column}`,
-                        marker: { color: '#3498db' }
-                    };
+                function updatePagination(data) {
+                    const paginationControls = document.getElementById('pagination-controls');
                     
-                    const layout = {
-                        title: `Distribution: ${analysis.column}`,
-                        xaxis: { title: analysis.column },
-                        yaxis: { title: 'Frequency' },
-                        bargap: 0.1
-                    };
+                    if (data.total_pages <= 1) {
+                        paginationControls.innerHTML = '';
+                        return;
+                    }
                     
-                    Plotly.newPlot('histogram-chart', [trace], layout);
+                    let paginationHtml = '';
+                    
+                    // Previous button
+                    paginationHtml += `<button class="pagination-btn" ${data.has_previous ? '' : 'disabled'} onclick="loadFilteredData(${data.current_page - 1})">← Previous</button>`;
+                    
+                    // Page numbers (show a few around current page)
+                    const startPage = Math.max(1, data.current_page - 2);
+                    const endPage = Math.min(data.total_pages, data.current_page + 2);
+                    
+                    if (startPage > 1) {
+                        paginationHtml += `<button class="pagination-btn" onclick="loadFilteredData(1)">1</button>`;
+                        if (startPage > 2) paginationHtml += '<span>...</span>';
+                    }
+                    
+                    for (let i = startPage; i <= endPage; i++) {
+                        const activeClass = i === data.current_page ? ' active' : '';
+                        paginationHtml += `<button class="pagination-btn${activeClass}" onclick="loadFilteredData(${i})">${i}</button>`;
+                    }
+                    
+                    if (endPage < data.total_pages) {
+                        if (endPage < data.total_pages - 1) paginationHtml += '<span>...</span>';
+                        paginationHtml += `<button class="pagination-btn" onclick="loadFilteredData(${data.total_pages})">${data.total_pages}</button>`;
+                    }
+                    
+                    // Next button
+                    paginationHtml += `<button class="pagination-btn" ${data.has_next ? '' : 'disabled'} onclick="loadFilteredData(${data.current_page + 1})">Next →</button>`;
+                    
+                    paginationControls.innerHTML = paginationHtml;
                 }
                 
-                function compareDatasets() {
-                    alert('Dataset comparison feature coming soon! This will allow side-by-side histogram comparison with cross-filtering.');
-                }
                 
                 // Load data on page load
                 document.addEventListener('DOMContentLoaded', function() {
