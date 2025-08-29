@@ -32,6 +32,11 @@ from analytics.portfolio_analytics import (
     DrillDownAnalysis
 )
 
+# Import type-aware analytics components
+from services.analytics_service import AnalyticsService
+from api.type_aware_analytics_api import create_type_aware_analytics_router
+from schema.registry import schema_registry
+
 # Configure Gin
 try:
     gin.parse_config_file('config/app_dev.gin')
@@ -120,6 +125,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include type-aware analytics router
+type_aware_router = create_type_aware_analytics_router()
+app.include_router(type_aware_router)
+
 class UnifiedAnalyticsService:
     """Main unified analytics service orchestrator"""
     
@@ -128,6 +137,7 @@ class UnifiedAnalyticsService:
         self.analytics_engine = PortfolioAnalyticsEngine(self.env)
         self.redis_client = None
         self.connection_manager = ConnectionManager()
+        self.type_aware_analytics = None  # Will be initialized on startup
         
         # Service endpoints for health monitoring
         self.service_endpoints = {
@@ -165,7 +175,17 @@ class UnifiedAnalyticsService:
         except Exception as e:
             self.logger.warning(f"Redis connection failed: {e}")
         
-        self.logger.info("Unified analytics service initialized")
+        # Initialize type-aware analytics service
+        try:
+            db_manager = self.env.get_database()
+            self.type_aware_analytics = AnalyticsService(db_manager)
+            self.logger.info("Type-aware analytics service initialized")
+            self.logger.info(f"Schema registry loaded with {len(schema_registry.get_schema_summary()['entities'])} entities")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize type-aware analytics: {e}")
+            raise
+        
+        self.logger.info("Unified analytics service initialized with type system")
     
     async def close(self):
         """Clean up connections"""
