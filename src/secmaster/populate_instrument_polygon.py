@@ -51,6 +51,15 @@ async def fetch_and_upsert_direct(symbols, env_type, table_name, polygon_api_key
                     direct_logger.info(f"Skipping {symbol} (no list_date)")
                     results.append((symbol, 'skipped'))
                     break
+                
+                # Filter for US exchanges only
+                US_EXCHANGES = {'XNYS', 'XNAS', 'XASE', 'BATS'}
+                primary_exchange = detail.get('primary_exchange', '')
+                if primary_exchange not in US_EXCHANGES:
+                    direct_logger.info(f"Skipping {symbol} (non-US exchange: {primary_exchange})")
+                    results.append((symbol, 'skipped'))
+                    break
+                    
                 details.append(detail)
                 results.append((symbol, 'ok'))
                 break
@@ -147,6 +156,15 @@ def fetch_and_upsert_ray(symbols, env_type, table_name, polygon_api_key):
                     ray_logger.info(f"Skipping {symbol} (no list_date)")
                     results.append((symbol, 'skipped'))
                     break
+                
+                # Filter for US exchanges only
+                US_EXCHANGES = {'XNYS', 'XNAS', 'XASE', 'BATS'}
+                primary_exchange = detail.get('primary_exchange', '')
+                if primary_exchange not in US_EXCHANGES:
+                    ray_logger.info(f"Skipping {symbol} (non-US exchange: {primary_exchange})")
+                    results.append((symbol, 'skipped'))
+                    break
+                    
                 details.append(detail)
                 results.append((symbol, 'ok'))
                 break
@@ -261,7 +279,15 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
                         break
                     detail = detail_resp.json().get('results', {})
                     logger.debug(f"Detail parsed: {detail}")
-                    logger.info(f"Ticker: {symbol}, list_date: {detail.get('list_date')}, delisted_utc: {detail.get('delisted_utc')}")
+                    
+                    # Check for US exchanges only
+                    US_EXCHANGES = {'XNYS', 'XNAS', 'XASE', 'BATS'}
+                    primary_exchange = detail.get('primary_exchange', '')
+                    if primary_exchange not in US_EXCHANGES:
+                        logger.info(f"Skipping {symbol} (non-US exchange: {primary_exchange})")
+                        break
+                    
+                    logger.info(f"Ticker: {symbol}, list_date: {detail.get('list_date')}, exchange: {primary_exchange}")
                     logger.debug(f"Calling upsert_instrument(pool, detail)")
                     await upsert_instrument(pool, detail)
                     total += 1
@@ -276,8 +302,12 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
         logger.info(f"Total tickers processed: {total}")
         await pool.close()
         return
+    # Define US exchanges for filtering
+    US_EXCHANGES = {'XNYS', 'XNAS', 'XASE', 'BATS'}  # NYSE, NASDAQ, NYSE American, BATS
+    
     url = BASE_URL + f"?market=stocks&active=true&limit=1000&apiKey={POLYGON_API_KEY}"
     all_symbols = []
+    filtered_count = 0
     while url:
         logger.debug(f"Fetching tickers from {url}")
         resp = requests.get(url)
@@ -289,15 +319,33 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
         logger.info(f"Fetched {len(tickers)} tickers from bulk endpoint.")
         for item in tickers:
             symbol = item.get('ticker')
+            primary_exchange = item.get('primary_exchange', '')
+            
             if symbol <= start_ticker:
                 continue  # Skip until we pass start_ticker
-            all_symbols.append(symbol)
+            
+            # Filter for US exchanges only
+            if primary_exchange in US_EXCHANGES:
+                all_symbols.append(symbol)
+            else:
+                filtered_count += 1
+                logger.debug(f"Filtered out {symbol} (exchange: {primary_exchange})")
+                
+        # More efficient counting for logging
+        batch_us_count = sum(1 for item in tickers if item.get('ticker', '') > start_ticker and item.get('primary_exchange', '') in US_EXCHANGES)
+        batch_non_us_count = sum(1 for item in tickers if item.get('ticker', '') > start_ticker and item.get('primary_exchange', '') not in US_EXCHANGES)
+        logger.info(f"Batch: Added {batch_us_count} US symbols, filtered {batch_non_us_count} non-US symbols")
         url = data.get('next_url')
         if url and 'apiKey=' not in url:
             url += f"&apiKey={POLYGON_API_KEY}"
     await pool.close()
+    
+    # Log filtering summary
+    total_fetched = len(all_symbols) + filtered_count  
+    logger.info(f"US-only filtering summary: {len(all_symbols)} US symbols retained, {filtered_count} non-US symbols filtered out (total fetched: {total_fetched})")
+    
     if not all_symbols:
-        logger.info("No symbols to process.")
+        logger.info("No US symbols to process.")
         return
     # Use simple sequential processing instead of Ray to avoid working_dir issues
     table_name = env.get_table_name('instrument_polygon')

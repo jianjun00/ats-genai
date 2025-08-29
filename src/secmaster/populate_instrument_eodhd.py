@@ -30,7 +30,77 @@ def parse_date(val):
     except Exception:
         return None
 
-async def fetch_and_store_instruments(start_ticker='', ticker=None):
+async def get_exchange_symbols(exchange='US', api_key=None):
+    """Get symbols from EODHD exchange-symbol-list API"""
+    if not api_key:
+        api_key = EODHD_API_KEY
+    
+    url = f"https://eodhd.com/api/exchange-symbol-list/{exchange}?api_token={api_key}&fmt=json"
+    
+    try:
+        logger.info(f"Fetching symbols from exchange: {exchange}")
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        
+        symbols = []
+        for item in data:
+            code = item.get('Code')
+            if code and len(code) <= 10:  # Filter out overly long symbols
+                symbols.append({
+                    'symbol': code,
+                    'name': item.get('Name'),
+                    'exchange': item.get('Exchange'),
+                    'type': item.get('Type'),
+                    'currency': item.get('Currency'),
+                    'country': item.get('Country')
+                })
+        
+        logger.info(f"Retrieved {len(symbols)} symbols from {exchange} exchange")
+        return symbols
+        
+    except Exception as e:
+        logger.error(f"Failed to fetch symbols from exchange {exchange}: {e}")
+        return []
+
+async def fetch_fundamental_data(symbol, api_key=None):
+    """Fetch fundamental data including IPO date for a symbol"""
+    if not api_key:
+        api_key = EODHD_API_KEY
+    
+    # Ensure symbol has exchange suffix
+    if '.' not in symbol:
+        symbol = f"{symbol}.US"
+    
+    url = f"https://eodhd.com/api/fundamentals/{symbol}?api_token={api_key}&fmt=json"
+    
+    try:
+        response = requests.get(url, timeout=10)
+        if response.status_code != 200:
+            logger.warning(f"Failed to fetch fundamentals for {symbol}: {response.status_code}")
+            return None
+        
+        data = response.json()
+        general = data.get('General', {})
+        
+        return {
+            'symbol': symbol.split('.')[0],  # Remove exchange suffix
+            'name': general.get('Name'),
+            'exchange': general.get('Exchange'),
+            'type': general.get('Type'),
+            'currency': general.get('CurrencyCode'),
+            'ipo_date': general.get('IPODate'),
+            'country': general.get('Country'),
+            'sector': general.get('Sector'),
+            'industry': general.get('Industry'),
+            'full_response': data
+        }
+        
+    except Exception as e:
+        logger.warning(f"Error fetching fundamentals for {symbol}: {e}")
+        return None
+
+async def fetch_and_store_instruments(start_ticker='', ticker=None, bulk_mode=False, exchange='US'):
     from config.database import Database
     
     # Use centralized database connection logic
@@ -43,62 +113,8 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
         raise
     
     total = 0
-    if ticker:
-        # Handle comma-separated ticker symbols
-        tickers = [t.strip() for t in ticker.split(',')]
-        logger.info(f"Processing {len(tickers)} tickers: {tickers}")
-        
-        for symbol in tickers:
-            logger.info(f"Fetching ticker: {symbol}")
-            # EODHD uses a different format - usually SYMBOL.EXCHANGE
-            if '.' not in symbol:
-                symbol = f"{symbol}.US"  # Default to US exchange
-            
-            detail_url = f"https://eodhd.com/api/fundamentals/{symbol}?api_token={EODHD_API_KEY}&fmt=json"
-            # Log URL with masked API key for security
-            logger.debug(f"Fetching https://eodhd.com/api/fundamentals/{symbol}?api_token={'*****' if EODHD_API_KEY else 'None'}")
-            for attempt in range(3):
-                try:
-                    logger.debug(f"Fetching ticker details with API key: {'*****' if EODHD_API_KEY else 'None'}")
-                    detail_resp = requests.get(detail_url)
-                    logger.debug(f"Response status code: {detail_resp.status_code}")
-                    logger.debug(f"Response text: {detail_resp.text[:500]}")  # First 500 chars
-                    if detail_resp.status_code != 200:
-                        logger.error(f"Failed to fetch detail for {symbol}: {detail_resp.status_code} {detail_resp.text}")
-                        break
-                    detail = detail_resp.json()
-                    logger.debug(f"Detail parsed: {type(detail)}")
-                    
-                    # Extract basic info from EODHD response
-                    general_info = detail.get('General', {})
-                    logger.info(f"Ticker: {symbol}, Name: {general_info.get('Name')}, Exchange: {general_info.get('Exchange')}")
-                    
-                    instrument_data = {
-                        'Code': symbol.split('.')[0],  # Remove exchange suffix
-                        'Name': general_info.get('Name'),
-                        'Exchange': general_info.get('Exchange'),
-                        'Type': general_info.get('Type'),
-                        'CurrencyCode': general_info.get('CurrencyCode'),
-                        'IPODate': general_info.get('IPODate'),
-                        'full_response': detail
-                    }
-                    
-                    logger.debug(f"Calling upsert_instrument(pool, instrument_data)")
-                    await upsert_instrument(pool, instrument_data)
-                    total += 1
-                    break
-                except ConnectionError as e:
-                    logger.error(f"Connection error for {symbol}: {e}, retrying...")
-                    time.sleep(2 ** attempt)  # Exponential backoff
-                except Exception as e:
-                    logger.error(f"Exception in fetch_and_store_instruments for {symbol}: {e}")
-            # Add a small delay between API calls to avoid rate limiting
-            time.sleep(0.5)
-        logger.info(f"Total tickers processed: {total}")
-        await pool.close()
-        return
     
-    # For bulk processing, create table structure
+    # Create table structure first
     table_name = env.get_table_name('instrument_eodhd')
     async with pool.acquire() as conn:
         await conn.execute(f"""
@@ -110,36 +126,167 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
                 asset_type TEXT,
                 currency TEXT,
                 ipo_date DATE,
+                country TEXT,
+                sector TEXT,
+                industry TEXT,
                 raw JSONB,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+    logger.info(f"Created/verified {table_name} table structure")
     
-    logger.info(f"Created {table_name} table structure")
+    if ticker:
+        # Handle specific tickers
+        tickers = [t.strip() for t in ticker.split(',')]
+        logger.info(f"Processing {len(tickers)} specific tickers: {tickers}")
+        
+        for symbol in tickers:
+            logger.info(f"Fetching fundamentals for: {symbol}")
+            
+            # Fetch fundamental data with IPO date
+            fundamental_data = await fetch_fundamental_data(symbol, EODHD_API_KEY)
+            
+            if fundamental_data:
+                # Additional US filtering check
+                country = fundamental_data.get('country', '')
+                exchange = fundamental_data.get('exchange', '')
+                
+                # Filter for US only - check both country and known US exchanges  
+                US_EXCHANGES = ['US', 'NASDAQ', 'NYSE', 'AMEX', 'NYSE MKT', 'BATS', 'IEX']
+                is_us_stock = (country == 'USA' or country == 'US' or 
+                              exchange in US_EXCHANGES or 
+                              any(us_ex in str(exchange).upper() for us_ex in ['NYSE', 'NASDAQ']))
+                
+                if not is_us_stock:
+                    logger.info(f"Skipping {symbol} (non-US stock: country={country}, exchange={exchange})")
+                else:
+                    logger.info(f"Retrieved US data for {symbol}: {fundamental_data['name']}, IPO: {fundamental_data['ipo_date']}, country: {country}, exchange: {exchange}")
+                    await upsert_instrument(pool, fundamental_data)
+                    total += 1
+            else:
+                logger.warning(f"No fundamental data found for {symbol}")
+            
+            # Rate limiting
+            time.sleep(0.5)
+            
+        logger.info(f"Individual ticker processing completed: {total}/{len(tickers)} successful")
+        
+    elif bulk_mode:
+        # Handle bulk processing with fundamentals API
+        logger.info(f"Starting bulk processing for {exchange} exchange")
+        
+        # First, get all symbols from exchange
+        symbols = await get_exchange_symbols(exchange, EODHD_API_KEY)
+        
+        if not symbols:
+            logger.error(f"No symbols retrieved from {exchange} exchange")
+            await pool.close()
+            return
+        
+        logger.info(f"Retrieved {len(symbols)} symbols from {exchange} exchange")
+        
+        # Filter by start_ticker if provided
+        if start_ticker:
+            symbols = [s for s in symbols if s['symbol'] >= start_ticker]
+            logger.info(f"Filtered to {len(symbols)} symbols starting from {start_ticker}")
+        
+        # Process each symbol with fundamentals API
+        successful = 0
+        failed = 0
+        api_calls = 0
+        batch_size = 100  # Process in batches for logging
+        
+        for i, symbol_info in enumerate(symbols):
+            symbol = symbol_info['symbol']
+            
+            try:
+                # Fetch fundamental data including IPO date
+                fundamental_data = await fetch_fundamental_data(symbol, EODHD_API_KEY)
+                api_calls += 1
+                
+                if fundamental_data:
+                    # Additional US filtering check for bulk mode
+                    country = fundamental_data.get('country', '')
+                    exchange = fundamental_data.get('exchange', '')
+                    
+                    # Filter for US only - check both country and known US exchanges  
+                    US_EXCHANGES = ['US', 'NASDAQ', 'NYSE', 'AMEX', 'NYSE MKT', 'BATS', 'IEX']
+                    is_us_stock = (country == 'USA' or country == 'US' or 
+                                  exchange in US_EXCHANGES or 
+                                  any(us_ex in str(exchange).upper() for us_ex in ['NYSE', 'NASDAQ']))
+                    
+                    if not is_us_stock:
+                        logger.debug(f"Skipping {symbol} (non-US stock: country={country}, exchange={exchange})")
+                        failed += 1
+                    else:
+                        # Merge exchange list data with fundamental data
+                        merged_data = {**symbol_info, **fundamental_data}
+                        await upsert_instrument(pool, merged_data)
+                        successful += 1
+                        
+                        if fundamental_data['ipo_date']:
+                            logger.debug(f"{symbol}: IPO date {fundamental_data['ipo_date']}")
+                else:
+                    failed += 1
+                    logger.debug(f"No fundamental data for {symbol}")
+                
+                # Progress logging
+                if (i + 1) % batch_size == 0:
+                    progress = (i + 1) / len(symbols) * 100
+                    logger.info(f"Progress: {i + 1}/{len(symbols)} ({progress:.1f}%) - "
+                              f"Success: {successful}, Failed: {failed}, API calls: {api_calls}")
+                
+                # Rate limiting - EODHD allows up to 20 requests/minute on free tier
+                # We'll use conservative rate limiting: 1 request per 3 seconds = 20/minute
+                time.sleep(3.0)
+                
+            except Exception as e:
+                failed += 1
+                logger.error(f"Error processing {symbol}: {e}")
+                
+                # Continue processing other symbols
+                continue
+        
+        total = successful
+        logger.info(f"Bulk processing completed: {successful} successful, {failed} failed, {api_calls} API calls")
+    
+    else:
+        # Legacy mode - just create table structure
+        logger.info("Table structure created - no data processing requested")
+    
+    logger.info(f"Total instruments processed successfully: {total}")
     await pool.close()
 
 async def upsert_instrument(pool, item):
+    """Upsert instrument data with enhanced field mapping"""
     async with pool.acquire() as conn:
         await conn.execute(
             f"""
-            INSERT INTO {env.get_table_name('instrument_eodhd')} (symbol, name, exchange, asset_type, currency, ipo_date, raw, updated_at)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,now())
+            INSERT INTO {env.get_table_name('instrument_eodhd')} 
+            (symbol, name, exchange, asset_type, currency, ipo_date, country, sector, industry, raw, updated_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now())
             ON CONFLICT (symbol) DO UPDATE SET
                 name=EXCLUDED.name,
                 exchange=EXCLUDED.exchange,
                 asset_type=EXCLUDED.asset_type,
                 currency=EXCLUDED.currency,
                 ipo_date=EXCLUDED.ipo_date,
+                country=EXCLUDED.country,
+                sector=EXCLUDED.sector,
+                industry=EXCLUDED.industry,
                 raw=EXCLUDED.raw,
                 updated_at=now()
             """,
-            item.get('Code'),
-            item.get('Name'),
-            item.get('Exchange'),
-            item.get('Type'),
-            item.get('CurrencyCode'),
-            parse_date(item.get('IPODate')),
+            item.get('symbol') or item.get('Code'),
+            item.get('name') or item.get('Name'),
+            item.get('exchange') or item.get('Exchange'),
+            item.get('type') or item.get('Type'),
+            item.get('currency') or item.get('CurrencyCode'),
+            parse_date(item.get('ipo_date') or item.get('IPODate')),
+            item.get('country'),
+            item.get('sector'),
+            item.get('industry'),
             json.dumps(item.get('full_response', item))
         )
 
@@ -148,6 +295,8 @@ if __name__ == "__main__":
     parser.add_argument('--start_ticker', type=str, default='', help='Only update/add instrument_eodhd if symbol > start_ticker (lexical order)')
     parser.add_argument('--environment', type=str, default='dev', choices=['test', 'intg', 'prod', 'dev'], help='Environment to use (test/intg/prod/dev)')
     parser.add_argument('--ticker', type=str, default=None, help='Populate only this ticker (optional, skips bulk)')
+    parser.add_argument('--bulk', action='store_true', help='Run bulk processing using fundamentals API for all symbols')
+    parser.add_argument('--exchange', type=str, default='US', help='Exchange to process for bulk mode (default: US)')
     parser.add_argument('--gin_config', type=str, default=None, help='Path to Gin config file (optional)')
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--db_host', type=str, default=None, help='Database host override')
@@ -257,7 +406,12 @@ if __name__ == "__main__":
     
     import asyncio
     try:
-        asyncio.run(fetch_and_store_instruments(start_ticker=args.start_ticker, ticker=args.ticker))
+        asyncio.run(fetch_and_store_instruments(
+            start_ticker=args.start_ticker, 
+            ticker=args.ticker, 
+            bulk_mode=args.bulk,
+            exchange=args.exchange
+        ))
     except Exception as e:
         logger.error(f"Failed to run fetch_and_store_instruments: {e}")
         import traceback
