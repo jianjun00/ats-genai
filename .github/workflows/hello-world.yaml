@@ -1,0 +1,27 @@
+name: Hello World Test
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  hello:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Hello World
+      run: |
+        echo "Hello, World!"
+        echo "Current date: $(date)"
+        echo "GitHub Actions is working!"
+        
+    - name: Show environment
+      run: |
+        echo "Working directory: $(pwd)"
+        echo "User: $(whoami)"
+        echo "OS: $(uname -a)"
+        
+    - name: Success
+      run: |
+        echo "🎉 Hello World test completed successfully!"
+        exit 0
