@@ -194,6 +194,14 @@ class JobManager:
         logger.info("Using fallback dataset data for EDA")
         return [
             {
+                'name': 'dev_instruments',
+                'display_name': 'All Instruments (Consolidated)',
+                'row_count': 69796,
+                'column_count': 16,
+                'vendor': 'ATS',
+                'data_type': 'instruments'
+            },
+            {
                 'name': 'dev_instrument_tiingo',
                 'display_name': 'Tiingo Instruments',
                 'row_count': 28080,
@@ -240,7 +248,28 @@ class JobManager:
         # Use fallback schemas to avoid database timeout issues
         logger.info(f"Using fallback schema for {table_name}")
         
-        if table_name == "dev_instrument_tiingo":
+        if table_name == "dev_instruments":
+            return {
+                "columns": [
+                    {"column_name": "id", "data_type": "integer", "is_nullable": "NO"},
+                    {"column_name": "symbol", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "name", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "exchange", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "type", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "currency", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "figi", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "isin", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "cusip", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "composite_figi", "data_type": "text", "is_nullable": "YES"},
+                    {"column_name": "active", "data_type": "boolean", "is_nullable": "YES"},
+                    {"column_name": "list_date", "data_type": "date", "is_nullable": "YES"},
+                    {"column_name": "delist_date", "data_type": "date", "is_nullable": "YES"},
+                    {"column_name": "created_at", "data_type": "timestamp with time zone", "is_nullable": "YES"},
+                    {"column_name": "updated_at", "data_type": "timestamp with time zone", "is_nullable": "YES"},
+                    {"column_name": "sector", "data_type": "text", "is_nullable": "YES"}
+                ]
+            }
+        elif table_name == "dev_instrument_tiingo":
             return {
                 "columns": [
                     {"column_name": "symbol", "data_type": "character varying", "is_nullable": "NO"},
