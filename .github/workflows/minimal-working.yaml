@@ -1,0 +1,13 @@
+name: Minimal Working Test
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - run: echo "Hello World"
+    - run: echo "Success!"
