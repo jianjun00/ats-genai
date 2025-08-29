@@ -44,5 +44,8 @@ async def test_basic_connection():
         return False
 
 if __name__ == "__main__":
+    print("🚀 Starting database connection test...")
     success = asyncio.run(test_basic_connection())
+    if success:
+        print("🎉 All tests passed!")
     sys.exit(0 if success else 1)
