@@ -1,0 +1,19 @@
+[Unit]
+Description=ATS Development Environment Autostart
+After=docker.service
+Requires=docker.service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=jianjun
+Group=jianjun
+WorkingDirectory=/home/jianjun/ats-genai-admin
+ExecStart=/home/jianjun/ats-genai-admin/scripts/ats_autostart.sh
+RemainAfterExit=yes
+StandardOutput=append:/mnt/d/ats-logs/systemd-autostart.log
+StandardError=append:/mnt/d/ats-logs/systemd-autostart.log
+
+[Install]
+WantedBy=multi-user.target
