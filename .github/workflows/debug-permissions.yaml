@@ -1,0 +1,46 @@
+name: Debug Permissions Test
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions: write-all
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check if workflow starts
+      run: |
+        echo "🎯 WORKFLOW STARTED SUCCESSFULLY!"
+        echo "This proves the workflow infrastructure is working."
+        
+    - name: Check permissions
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "Checking GitHub token permissions..."
+        if [ -n "$GITHUB_TOKEN" ]; then
+          echo "✅ GITHUB_TOKEN is available"
+          echo "Token length: ${#GITHUB_TOKEN}"
+        else
+          echo "❌ GITHUB_TOKEN is not available"
+        fi
+        
+    - name: Environment check
+      run: |
+        echo "=== ENVIRONMENT DETAILS ==="
+        echo "Runner: $RUNNER_OS"
+        echo "GitHub Actor: $GITHUB_ACTOR"
+        echo "Repository: $GITHUB_REPOSITORY"
+        echo "Ref: $GITHUB_REF"
+        echo "SHA: $GITHUB_SHA"
+        echo "Event: $GITHUB_EVENT_NAME"
+        echo "=== END DETAILS ==="
+        
+    - name: Final success message  
+      run: |
+        echo "🎉 PERMISSIONS TEST COMPLETED SUCCESSFULLY!"
+        echo "If you see this message, GitHub Actions infrastructure is working."

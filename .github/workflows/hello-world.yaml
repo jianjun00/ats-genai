@@ -3,12 +3,38 @@ name: Hello World Test
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: 'Enable debug mode'
+        required: false
+        default: 'true'
+
+permissions:
+  contents: read
+  actions: read
+  checks: write
+  statuses: write
+  pull-requests: read
+  issues: read
+  repository-projects: read
 
 jobs:
   hello:
     runs-on: ubuntu-latest
     
     steps:
+    - name: Debug Environment
+      run: |
+        echo "=== DEBUG INFORMATION ==="
+        echo "Runner OS: $RUNNER_OS"
+        echo "GitHub Actor: $GITHUB_ACTOR"
+        echo "GitHub Repository: $GITHUB_REPOSITORY"
+        echo "GitHub Ref: $GITHUB_REF"
+        echo "GitHub SHA: $GITHUB_SHA"
+        echo "GitHub Token available: ${{ secrets.GITHUB_TOKEN != '' }}"
+        echo "=== END DEBUG ==="
+        
     - name: Hello World
       run: |
         echo "Hello, World!"
