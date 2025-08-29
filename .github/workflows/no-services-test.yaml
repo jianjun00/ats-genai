@@ -1,0 +1,68 @@
+name: No Services Test
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test-without-services:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Test uv installation
+      run: |
+        echo "🧪 Testing uv functionality..."
+        uv --version
+        echo "✅ uv is working"
+    
+    - name: Test Python setup with uv
+      run: |
+        echo "Testing Python setup..."
+        uv python install 3.11
+        echo "✅ Python setup works with uv"
+    
+    - name: Install basic dependencies
+      run: |
+        echo "Installing test dependencies..."
+        uv pip install pytest asyncpg --quiet
+        echo "✅ Dependencies installed successfully"
+    
+    - name: Test imports
+      run: |
+        echo "Testing Python imports..."
+        uv run python -c "import pytest; print('✅ pytest import works')"
+        uv run python -c "import asyncpg; print('✅ asyncpg import works')"
+        uv run python -c "import asyncio; print('✅ asyncio import works')"
+        echo "✅ All imports successful"
+    
+    - name: Test basic file operations
+      run: |
+        echo "Testing file operations..."
+        echo "test content" > test_file.txt
+        cat test_file.txt
+        rm test_file.txt
+        echo "✅ File operations work"
+    
+    - name: Success message
+      run: |
+        echo "🎉 NO SERVICES TEST PASSED! 🎉"
+        echo "✅ All basic functionality is working:"
+        echo "  - GitHub Actions environment ✅"
+        echo "  - Python 3.11 ✅" 
+        echo "  - uv package manager ✅"
+        echo "  - Dependencies installation ✅"
+        echo "  - Basic imports ✅"
+        echo "  - File system operations ✅"

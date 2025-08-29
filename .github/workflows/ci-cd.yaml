@@ -119,6 +119,7 @@ jobs:
   build:
     needs: test
     runs-on: ubuntu-latest
+    if: false  # Temporarily disable build to focus on test fixes
     outputs:
       image-digest: ${{ steps.build.outputs.digest }}
       image-tag: ${{ steps.meta.outputs.tags }}

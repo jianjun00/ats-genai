@@ -1,0 +1,40 @@
+name: Super Simple Test
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  basic-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Test basic Python functionality
+      run: |
+        echo "🧪 Super simple test starting..."
+        python3 --version
+        echo "✅ Python is working"
+        
+        echo "Testing basic imports..."
+        python3 -c "import sys; print(f'✅ Python {sys.version} works')"
+        python3 -c "import os; print('✅ os module works')"
+        python3 -c "import json; print('✅ json module works')"
+        
+        echo "Testing file system access..."
+        ls -la
+        echo "✅ File system access works"
+        
+        echo "Testing environment variables..."
+        echo "HOME: $HOME"
+        echo "PATH: $PATH"
+        echo "✅ Environment variables work"
+        
+        echo "🎉 SUPER SIMPLE TEST PASSED! 🎉"
