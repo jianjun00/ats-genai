@@ -40,21 +40,20 @@ class TestEDAPerformanceIntegration:
         assert "loadDatasetAnalysis()" in content
         assert "parallel" in content.lower()
     
-    def test_demo_data_immediate_availability(self):
-        """Test that demo data patterns are embedded for immediate display."""
+    def test_proper_loading_indicators_availability(self):
+        """Test that proper loading indicators are embedded for user feedback."""
         response = requests.get(f"{self.base_url}/eda", timeout=5)
         content = response.text
         
-        # Check for demo data patterns
-        assert "Demo Data" in content
-        assert "demo filters for immediate UI feedback" in content
-        assert 'name="filter-symbol"' in content
-        assert "AAPL" in content and "GOOGL" in content  # Demo filter values
+        # Check for loading indicators instead of demo data
+        assert "Loading..." in content
+        assert "Loading column analysis..." in content  
+        assert "Loading filters..." in content
+        assert 'name="filter-' in content or 'id="filter-' in content  # Filter input patterns
         
-        # Check for immediate demo chart data
-        assert "demoData = [" in content
-        assert "demoBins = [" in content
-        assert "demoValues = [" in content
+        # Check for error handling patterns
+        assert "error-message" in content
+        assert "Failed to load" in content or "Error:" in content
     
     def test_parallel_loading_patterns(self):
         """Test that parallel loading patterns are implemented."""
@@ -158,54 +157,56 @@ class TestEDAPerformanceIntegration:
         # Should respect small page size
         assert len(data["data"]) <= 5
     
-    def test_demo_filter_functionality(self):
-        """Test that demo filters work for immediate user interaction."""
+    def test_filter_functionality_structure(self):
+        """Test that filter functionality structure is properly implemented."""
         response = requests.get(f"{self.base_url}/eda", timeout=5)
         content = response.text
         
-        # Verify demo filter structure
-        assert 'input type="checkbox"' in content
-        assert 'name="filter-symbol"' in content
-        assert 'value="AAPL"' in content
-        assert 'value="GOOGL"' in content
-        assert 'value="MSFT"' in content
+        # Verify filter structure templates
+        assert 'input type="checkbox"' in content or 'type="checkbox"' in content
+        assert 'input type="range"' in content or 'type="range"' in content
+        assert 'name="filter-' in content or 'id="filter-' in content
         
         # Verify filter application logic is present
         assert "applyFilters()" in content
         assert "currentFilters = {}" in content
         assert "clearFilters()" in content
     
-    def test_error_handling_and_fallbacks(self):
-        """Test that error handling provides graceful fallbacks."""
+    def test_proper_error_handling(self):
+        """Test that proper error handling is implemented without fallbacks."""
         response = requests.get(f"{self.base_url}/eda", timeout=5)
         content = response.text
         
         # Verify error handling patterns
         assert ".catch(error =>" in content
-        assert "Using demo data" in content
-        assert "Demo Data - DB Unavailable" in content
-        assert "Demo Data - Error Loading" in content
+        assert "error-message" in content
+        assert "Failed to load" in content
+        assert "Error:" in content
         
-        # Verify fallback mechanisms
+        # Verify proper error mechanisms (no fallbacks to demo data)
         assert "if (columnData.error)" in content
-        assert "return null" in content  # Skip failed requests
+        assert "throw new Error" in content or "console.error" in content
+        
+        # Should NOT contain demo data fallbacks
+        assert "Demo Data" not in content
+        assert "demo data" not in content
     
     def test_immediate_ui_feedback_patterns(self):
         """Test that UI provides immediate feedback before data loads."""
         response = requests.get(f"{self.base_url}/eda", timeout=5)
         content = response.text
         
-        # Check for immediate loading indicators
+        # Check for loading indicators (proper feedback without demo data)
         assert "Loading..." in content
+        assert "Loading column analysis..." in content
         assert "Loading filters..." in content
-        assert "Loading distributions..." in content
-        
-        # Check for immediate demo data
-        assert "Immediate demo stats" in content
-        assert "Immediate demo chart" in content
         
         # Check for progress indicators
-        assert "Loading in parallel..." in content
+        assert "Loading in parallel..." in content or "parallel" in content.lower()
+        
+        # Should NOT contain demo data references
+        assert "demo stats" not in content.lower()
+        assert "demo chart" not in content.lower()
     
     def test_optimized_data_structures(self):
         """Test that data structures are optimized for performance."""
@@ -308,8 +309,8 @@ if __name__ == "__main__":
         test_suite.test_eda_page_load_performance()
         print("✅ Page load performance test passed")
         
-        test_suite.test_demo_data_immediate_availability()
-        print("✅ Demo data availability test passed")
+        test_suite.test_proper_loading_indicators_availability()
+        print("✅ Loading indicators availability test passed")
         
         test_suite.test_parallel_loading_patterns()
         print("✅ Parallel loading patterns test passed")
@@ -326,11 +327,11 @@ if __name__ == "__main__":
         test_suite.test_filtered_data_endpoint_performance()
         print("✅ Filtered data performance test passed")
         
-        test_suite.test_demo_filter_functionality()
-        print("✅ Demo filter functionality test passed")
+        test_suite.test_filter_functionality_structure()
+        print("✅ Filter functionality structure test passed")
         
-        test_suite.test_error_handling_and_fallbacks()
-        print("✅ Error handling test passed")
+        test_suite.test_proper_error_handling()
+        print("✅ Proper error handling test passed")
         
         test_suite.test_immediate_ui_feedback_patterns()
         print("✅ Immediate UI feedback test passed")

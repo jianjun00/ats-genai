@@ -62,38 +62,24 @@ class TestEDAPerformanceOptimizations:
         assert len(seq_results) == len(par_results)
         assert len(seq_results) == 6
     
-    def test_demo_data_structure_validation(self):
-        """Test that demo data structures are valid."""
-        # Demo numeric data
-        demo_numeric_stats = {
-            "count": 1250,
-            "mean": 42.5,
-            "std": 15.3,
-            "min": 1.2,
-            "max": 99.8
+    def test_error_handling_structure_validation(self):
+        """Test that error handling structures are valid."""
+        # Expected error response structure
+        error_response = {
+            "error": "Database connection failed",
+            "status_code": 500,
+            "detail": "Connection timeout after 30 seconds"
         }
         
-        # Validate structure
-        required_fields = ["count", "mean", "std", "min", "max"]
+        # Validate error structure
+        required_fields = ["error", "status_code", "detail"]
         for field in required_fields:
-            assert field in demo_numeric_stats
-            assert isinstance(demo_numeric_stats[field], (int, float))
-        
-        # Demo categorical data
-        demo_categorical_values = ["AAPL", "GOOGL", "MSFT"]
-        demo_categorical_counts = [45, 32, 28]
-        
-        assert len(demo_categorical_values) == len(demo_categorical_counts)
-        assert len(demo_categorical_values) == 3
-        
-        # All should be strings and positive integers
-        for value in demo_categorical_values:
-            assert isinstance(value, str)
-            assert len(value) > 0
+            assert field in error_response
             
-        for count in demo_categorical_counts:
-            assert isinstance(count, int)
-            assert count > 0
+        assert isinstance(error_response["error"], str)
+        assert isinstance(error_response["status_code"], int)
+        assert isinstance(error_response["detail"], str)
+        assert len(error_response["error"]) > 0
     
     def test_data_limiting_logic(self):
         """Test data limiting logic for performance."""
@@ -116,27 +102,26 @@ class TestEDAPerformanceOptimizations:
         assert len(apply_limit(large_values, 10)) == 10
         assert len(apply_limit(large_values, 50)) == 50
     
-    def test_error_fallback_logic(self):
-        """Test error handling and fallback logic."""
-        def process_with_fallback(data, fallback_data):
-            """Simulate processing with fallback."""
-            try:
-                if data.get("error"):
-                    return fallback_data
-                return data
-            except:
-                return fallback_data
+    def test_proper_error_handling_logic(self):
+        """Test proper error handling without fallbacks."""
+        def process_with_proper_errors(data):
+            """Simulate proper error handling without fallbacks."""
+            if data.get("error"):
+                raise Exception(f"Database error: {data['error']}")
+            return data
         
-        # Test error case
+        # Test error case - should raise exception
         error_data = {"error": "Database unavailable"}
-        fallback_data = {"demo": True, "values": ["demo1", "demo2"]}
-        
-        result = process_with_fallback(error_data, fallback_data)
-        assert result == fallback_data
+        try:
+            process_with_proper_errors(error_data)
+            assert False, "Should have raised an exception"
+        except Exception as e:
+            assert "Database error" in str(e)
+            assert "Database unavailable" in str(e)
         
         # Test success case
         good_data = {"values": ["real1", "real2"], "count": 100}
-        result = process_with_fallback(good_data, fallback_data)
+        result = process_with_proper_errors(good_data)
         assert result == good_data
     
     def test_pagination_optimization_logic(self):
@@ -290,14 +275,14 @@ if __name__ == "__main__":
         test_class.test_parallel_vs_sequential_timing_simulation()
         print("✅ Parallel vs sequential timing test passed")
         
-        test_class.test_demo_data_structure_validation()
-        print("✅ Demo data structure validation test passed")
+        test_class.test_error_handling_structure_validation()
+        print("✅ Error handling structure validation test passed")
         
         test_class.test_data_limiting_logic()
         print("✅ Data limiting logic test passed")
         
-        test_class.test_error_fallback_logic()
-        print("✅ Error fallback logic test passed")
+        test_class.test_proper_error_handling_logic()
+        print("✅ Proper error handling logic test passed")
         
         test_class.test_pagination_optimization_logic()
         print("✅ Pagination optimization test passed")

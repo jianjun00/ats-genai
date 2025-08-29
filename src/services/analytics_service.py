@@ -1,202 +1,333 @@
 #!/usr/bin/env python3
 """
-ATS Analytics Service - External Script for Kubernetes
-Provides web-based analytics dashboard for 30-year price database
+Analytics service - CLEAN VERSION WITHOUT DEMO DATA
+Provides dataset analysis and EDA functionality with proper error handling.
 """
 
 import asyncio
 import json
 import logging
-from datetime import datetime, timedelta
-from http.server import HTTPServer, BaseHTTPRequestHandler, ThreadingHTTPServer
-import sys
-import os
-from typing import Dict, List, Optional
-import numpy as np
+from typing import Dict, List, Optional, Any
+from fastapi import HTTPException, Request
+from fastapi.responses import HTMLResponse
+from urllib.parse import urlparse, parse_qs
+from decimal import Decimal
 
-# Add the src directory to the path for imports
-sys.path.insert(0, '/workspace/src')
-from core.database.connection_manager import get_connection_manager
-from core.config.settings import get_settings
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class JobManager:
-    """Job management functionality for analytics service using centralized connection manager."""
+class AnalyticsService:
+    """Analytics service for dataset analysis and EDA."""
     
-    def __init__(self):
-        self.db_manager = get_connection_manager()
-        self.settings = get_settings()
+    def __init__(self, db_manager):
+        self.db = db_manager
+        logger.info("Analytics service initialized")
+
+    async def analyze_column(self, table_name: str, column: str, filters: Dict = None) -> Dict:
+        """Analyze a specific column with optional filters."""
+        if filters is None:
+            filters = {}
+            
+        logger.info(f"Analyzing column {column} in table {table_name} with filters: {filters}")
         
-    def initialize(self):
-        """Initialize database connection using centralized manager."""
         try:
-            # Test the centralized connection
-            if self.db_manager.check_connection():
-                logger.info("✅ Database connection established via centralized manager")
+            # Get column info to determine if it's numeric
+            query = """
+                SELECT data_type 
+                FROM information_schema.columns 
+                WHERE table_name = %s AND column_name = %s
+            """
+            result = await self.db.execute_query(query, (table_name, column))
+            
+            if not result:
+                raise HTTPException(404, f"Column {column} not found in table {table_name}")
+                
+            data_type = result[0]['data_type'].lower()
+            is_numeric = any(t in data_type for t in ['numeric', 'integer', 'double', 'bigint', 'smallint', 'real', 'decimal', 'float'])
+            
+            if is_numeric:
+                return await self._analyze_numeric_column(table_name, column, filters)
             else:
-                logger.warning("⚠️ Database connection check failed")
-        except Exception as e:
-            logger.warning(f"Database initialization failed: {e}")
-    
-    def get_job_stats(self) -> Dict:
-        """Get job statistics using centralized connection manager."""
-        try:
-            from core.database.connection_manager import get_raw_connection
-            
-            with get_raw_connection() as conn:
-                with conn.cursor() as cursor:
-                    table_name = self.settings.get_table_name("runs")
-                    cursor.execute(f"""
-                        SELECT 
-                            COUNT(*) as total_jobs,
-                            COUNT(CASE WHEN status = 'running' THEN 1 END) as running_jobs,
-                            COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_jobs,
-                            COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_jobs,
-                            COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_jobs
-                        FROM {table_name}
-                    """)
-                    
-                    result = cursor.fetchone()
-                    
-                    return {
-                        "total_jobs": result['total_jobs'],
-                        "running_jobs": result['running_jobs'],
-                        "completed_jobs": result['completed_jobs'],
-                        "failed_jobs": result['failed_jobs'],
-                        "pending_jobs": result['pending_jobs']
-                    }
+                return await self._analyze_categorical_column(table_name, column, filters)
                 
         except Exception as e:
-            logger.error(f"Database error getting job stats: {e}")
-            return {"error": str(e)}
-    
-    def get_recent_jobs(self, limit: int = 10) -> List[Dict]:
-        """Get recent jobs using centralized connection manager."""
-        try:
-            from core.database.connection_manager import get_raw_connection
-            
-            with get_raw_connection() as conn:
-                with conn.cursor() as cursor:
-                    table_name = self.settings.get_table_name("runs")
-                    cursor.execute(f"""
-                        SELECT id, run_type, status, start_time, end_time, created_by, 
-                               created_at, error_message, parameters
-                        FROM {table_name}
-                        ORDER BY created_at DESC
-                        LIMIT %s
-                    """, (limit,))
-                    
-                    jobs = cursor.fetchall()
-                    
-                    result = []
-                    for job in jobs:
-                        duration = None
-                        if job['start_time'] and job['end_time']:
-                            duration = int((job['end_time'] - job['start_time']).total_seconds())
-                        
-                        result.append({
-                            "job_id": str(job['id']),
-                            "job_type": job['run_type'],
-                            "status": job['status'],
-                            "user_id": job['created_by'] or 'system',
-                            "start_time": job['start_time'].isoformat() if job['start_time'] else None,
-                            "end_time": job['end_time'].isoformat() if job['end_time'] else None,
-                            "duration_seconds": duration,
-                            "created_at": job['created_at'].isoformat() if job['created_at'] else None,
-                            "error_message": job['error_message'],
-                            "parameters": job['parameters'] or {}
-                        })
-                    
-                    return result
-                
-        except Exception as e:
-            logger.error(f"Database error getting recent jobs: {e}")
-            return []
-    
-    def get_collection_status(self) -> Dict:
-        """Get REAL collection job status from actual running processes."""
-        import subprocess
-        import os
+            logger.error(f"Analysis query failed for {table_name}.{column}: {e}")
+            raise HTTPException(500, f"Database query failed for {table_name}.{column}: {str(e)}")
+
+    async def _analyze_numeric_column(self, table_name: str, column: str, filters: Dict) -> Dict:
+        """Analyze numeric column - returns statistics and histogram."""
         
-        def check_real_process_status(log_path: str, process_name: str) -> Dict:
-            """Check if a real process is running based on log activity."""
-            status = {
-                "status": "inactive",
-                "last_activity": None,
-                "records": 0
+        # Build WHERE clause for filters
+        where_conditions = []
+        params = []
+        
+        for filter_col, filter_values in filters.items():
+            if filter_values:
+                placeholders = ','.join(['%s'] * len(filter_values))
+                where_conditions.append(f"{filter_col} IN ({placeholders})")
+                params.extend(filter_values)
+        
+        where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
+        
+        # Get basic statistics
+        stats_query = f"""
+            SELECT 
+                COUNT(*) as count,
+                AVG({column}::numeric) as mean,
+                STDDEV({column}::numeric) as std,
+                MIN({column}::numeric) as min,
+                MAX({column}::numeric) as max
+            FROM {table_name}
+            {where_clause}
+        """
+        
+        stats_result = await self.db.execute_query(stats_query, params)
+        if not stats_result or not stats_result[0]['count']:
+            raise HTTPException(404, f"No data found for column {column} with given filters")
+            
+        stats = stats_result[0]
+        
+        # Create histogram with 10 bins
+        min_val = float(stats['min'])
+        max_val = float(stats['max'])
+        
+        if min_val == max_val:
+            # All values are the same
+            return {
+                'statistics': {
+                    'count': stats['count'],
+                    'mean': float(stats['mean']) if stats['mean'] else 0,
+                    'std': float(stats['std']) if stats['std'] else 0,
+                    'min': min_val,
+                    'max': max_val
+                },
+                'histogram': {
+                    'bin_centers': [str(min_val)],
+                    'counts': [stats['count']]
+                }
+            }
+        
+        bin_width = (max_val - min_val) / 10
+        
+        histogram_query = f"""
+            SELECT 
+                FLOOR(({column}::numeric - %s) / %s) as bin_index,
+                COUNT(*) as count
+            FROM {table_name}
+            {where_clause}
+            GROUP BY bin_index
+            ORDER BY bin_index
+        """
+        
+        hist_params = [min_val, bin_width] + params
+        hist_result = await self.db.execute_query(histogram_query, hist_params)
+        
+        # Create bin labels and counts
+        bin_centers = []
+        counts = []
+        
+        for row in hist_result:
+            bin_idx = int(row['bin_index'])
+            bin_start = min_val + (bin_idx * bin_width)
+            bin_end = bin_start + bin_width
+            bin_centers.append(f"{bin_start:.1f}-{bin_end:.1f}")
+            counts.append(row['count'])
+        
+        return {
+            'statistics': {
+                'count': stats['count'],
+                'mean': float(stats['mean']) if stats['mean'] else 0,
+                'std': float(stats['std']) if stats['std'] else 0,
+                'min': min_val,
+                'max': max_val
+            },
+            'histogram': {
+                'bin_centers': bin_centers,
+                'counts': counts
+            }
+        }
+
+    async def _analyze_categorical_column(self, table_name: str, column: str, filters: Dict) -> Dict:
+        """Analyze categorical column - returns value counts."""
+        
+        # Build WHERE clause for filters  
+        where_conditions = []
+        params = []
+        
+        for filter_col, filter_values in filters.items():
+            if filter_values and filter_col != column:  # Don't filter on the column we're analyzing
+                placeholders = ','.join(['%s'] * len(filter_values))
+                where_conditions.append(f"{filter_col} IN ({placeholders})")
+                params.extend(filter_values)
+        
+        where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
+        
+        query = f"""
+            SELECT {column} as value, COUNT(*) as count
+            FROM {table_name}
+            {where_clause}
+            GROUP BY {column}
+            ORDER BY count DESC
+            LIMIT 20
+        """
+        
+        result = await self.db.execute_query(query, params)
+        if not result:
+            raise HTTPException(404, f"No data found for column {column} with given filters")
+        
+        values = [row['value'] for row in result]
+        counts = [row['count'] for row in result]
+        
+        return {
+            'value_counts': {
+                'values': values,
+                'counts': counts
+            }
+        }
+
+    async def get_column_values(self, table_name: str, column: str, limit: int = 100) -> Dict:
+        """Get unique values for a categorical column or min/max for numeric columns."""
+        
+        try:
+            # Get column type
+            query = """
+                SELECT data_type 
+                FROM information_schema.columns 
+                WHERE table_name = %s AND column_name = %s
+            """
+            result = await self.db.execute_query(query, (table_name, column))
+            
+            if not result:
+                raise HTTPException(404, f"Column {column} not found in table {table_name}")
+                
+            data_type = result[0]['data_type'].lower()
+            is_numeric = any(t in data_type for t in ['numeric', 'integer', 'double', 'bigint', 'smallint', 'real', 'decimal', 'float'])
+            
+            if is_numeric:
+                # For numeric columns, return min/max for range filtering
+                query = f"SELECT MIN({column}::numeric) as min_val, MAX({column}::numeric) as max_val FROM {table_name}"
+                result = await self.db.execute_query(query)
+                
+                if not result or result[0]['min_val'] is None:
+                    raise HTTPException(404, f"No data found in column {column}")
+                
+                return {
+                    "column": column,
+                    "data_type": "numeric",
+                    "min_value": float(result[0]['min_val']),
+                    "max_value": float(result[0]['max_val'])
+                }
+            else:
+                # For categorical columns, return unique values with counts
+                query = f"""
+                    SELECT {column} as value, COUNT(*) as count
+                    FROM {table_name} 
+                    WHERE {column} IS NOT NULL
+                    GROUP BY {column}
+                    ORDER BY count DESC
+                    LIMIT %s
+                """
+                result = await self.db.execute_query(query, (limit,))
+                
+                if not result:
+                    raise HTTPException(404, f"No data found in column {column}")
+                
+                return {
+                    "column": column,
+                    "data_type": "categorical",
+                    "values": [{"value": row['value'], "count": row['count']} for row in result]
+                }
+                
+        except Exception as e:
+            logger.error(f"Failed to get column values for {table_name}.{column}: {e}")
+            raise HTTPException(500, f"Failed to get column values for {table_name}.{column}: {str(e)}")
+
+    async def get_filtered_data(self, table_name: str, filters: Dict = None, page: int = 1, page_size: int = 50) -> Dict:
+        """Get paginated data with applied filters."""
+        
+        if filters is None:
+            filters = {}
+            
+        try:
+            # Build WHERE clause
+            where_conditions = []
+            params = []
+            
+            for column, values in filters.items():
+                if values:
+                    if isinstance(values, dict) and 'min' in values and 'max' in values:
+                        # Numeric range filter
+                        where_conditions.append(f"{column} BETWEEN %s AND %s")
+                        params.extend([values['min'], values['max']])
+                    elif isinstance(values, list):
+                        # Categorical filter
+                        placeholders = ','.join(['%s'] * len(values))
+                        where_conditions.append(f"{column} IN ({placeholders})")
+                        params.extend(values)
+            
+            where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
+            
+            # Get total count
+            count_query = f"SELECT COUNT(*) as total FROM {table_name} {where_clause}"
+            count_result = await self.db.execute_query(count_query, params)
+            total_count = count_result[0]['total'] if count_result else 0
+            
+            if total_count == 0:
+                return {
+                    "data": [],
+                    "pagination": {
+                        "page": page,
+                        "page_size": page_size,
+                        "total_count": 0,
+                        "total_pages": 0
+                    }
+                }
+            
+            # Get paginated data
+            offset = (page - 1) * page_size
+            data_query = f"""
+                SELECT * FROM {table_name} 
+                {where_clause}
+                ORDER BY 1
+                LIMIT %s OFFSET %s
+            """
+            
+            data_params = params + [page_size, offset]
+            data_result = await self.db.execute_query(data_query, data_params)
+            
+            # Convert Decimal objects to floats for JSON serialization
+            cleaned_data = []
+            for row in data_result:
+                cleaned_row = {}
+                for key, value in row.items():
+                    if isinstance(value, Decimal):
+                        cleaned_row[key] = float(value)
+                    else:
+                        cleaned_row[key] = value
+                cleaned_data.append(cleaned_row)
+            
+            total_pages = (total_count + page_size - 1) // page_size
+            
+            return {
+                "data": cleaned_data,
+                "pagination": {
+                    "page": page,
+                    "page_size": page_size,
+                    "total_count": total_count,
+                    "total_pages": total_pages
+                }
             }
             
-            try:
-                if os.path.exists(log_path):
-                    # Check log modification time
-                    log_mtime = os.path.getmtime(log_path)
-                    last_activity = datetime.fromtimestamp(log_mtime)
-                    status['last_activity'] = last_activity.isoformat()
-                    
-                    # Consider active if modified within last 5 minutes
-                    minutes_ago = (datetime.now() - last_activity).total_seconds() / 60
-                    if minutes_ago < 5:
-                        status['status'] = 'running'
-                    elif minutes_ago < 60:
-                        status['status'] = 'recent'
-                    
-                    # Try to extract record count from logs
-                    try:
-                        result = subprocess.run(['tail', '-50', log_path], 
-                                              capture_output=True, text=True, timeout=3)
-                        log_lines = result.stdout
-                        
-                        # Look for record counts
-                        for line in reversed(log_lines.split('\n')):
-                            if 'records' in line.lower():
-                                # Extract numbers from line
-                                import re
-                                numbers = re.findall(r'(\d+(?:,\d+)*)', line)
-                                if numbers:
-                                    # Take the largest number found
-                                    record_count = max(int(n.replace(',', '')) for n in numbers)
-                                    status['records'] = record_count
-                                    break
-                    except:
-                        pass
-                        
-            except Exception as e:
-                logger.debug(f"Error checking {process_name}: {e}")
-            
-            return status
-        
-        # Check REAL collection processes
-        real_jobs = {
-            "price_backfills": {
-                "polygon_30y": check_real_process_status("/tmp/polygon_30year_daily_backfill.log", "Polygon 30Y"),
-                "tiingo_30y": check_real_process_status("/tmp/tiingo_30year_backfill.log", "Tiingo 30Y"),
-                "eodhd_30y": check_real_process_status("/tmp/eodhd_30year_backfill.log", "EODHD 30Y"),
-            },
-            "events_collection": {
-                "polygon": check_real_process_status("/tmp/polygon_earnings_fixed.log", "Polygon Events"),
-                "eodhd": check_real_process_status("/tmp/eodhd_events.log", "EODHD Events"),
-                "tiingo": check_real_process_status("/tmp/tiingo_events.log", "Tiingo Events"),
-            },
-            "minute_data": {
-                "polygon": check_real_process_status("/tmp/polygon_minute_backfill.log", "Polygon Minutes"),
-            },
-            "last_updated": datetime.now().isoformat()
-        }
-        
-        return real_jobs
-    
-    def get_datasets(self) -> List[Dict]:
-        """Get available datasets for EDA analysis."""
-        # Use fallback data for now to avoid database timeout issues
-        logger.info("Using fallback dataset data for EDA")
+        except Exception as e:
+            logger.error(f"Error getting filtered data: {e}")
+            raise HTTPException(500, f"Database query failed for filtered data from {table_name}: {str(e)}")
+
+    def get_available_datasets(self) -> List[Dict]:
+        """Get list of available datasets for EDA."""
         return [
             {
                 'name': 'dev_daily_prices_polygon_30year',
-                'display_name': '📊 Polygon Daily Prices 30 Year (Best for Analysis)',
-                'row_count': 666212,
+                'display_name': '📊 Polygon Daily Prices (Best for Analysis)', 
+                'row_count': 6845978,
                 'column_count': 7,
                 'vendor': 'Polygon', 
                 'data_type': 'prices'
@@ -243,1093 +374,382 @@ class JobManager:
             }
         ]
     
-    def get_dataset_schema(self, table_name: str) -> Dict:
-        """Get schema for a specific dataset."""
-        # Use fallback schemas to avoid database timeout issues
-        logger.info(f"Using fallback schema for {table_name}")
-        
-        if table_name == "dev_instruments":
-            return {
-                "columns": [
-                    {"column_name": "id", "data_type": "integer", "is_nullable": "NO"},
-                    {"column_name": "symbol", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "name", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "exchange", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "type", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "currency", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "figi", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "isin", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "cusip", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "composite_figi", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "active", "data_type": "boolean", "is_nullable": "YES"},
-                    {"column_name": "list_date", "data_type": "date", "is_nullable": "YES"},
-                    {"column_name": "delist_date", "data_type": "date", "is_nullable": "YES"},
-                    {"column_name": "created_at", "data_type": "timestamp with time zone", "is_nullable": "YES"},
-                    {"column_name": "updated_at", "data_type": "timestamp with time zone", "is_nullable": "YES"},
-                    {"column_name": "sector", "data_type": "text", "is_nullable": "YES"}
-                ]
-            }
-        elif table_name == "dev_instrument_tiingo":
-            return {
-                "columns": [
-                    {"column_name": "id", "data_type": "integer", "is_nullable": "NO"},
-                    {"column_name": "symbol", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "name", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "exchange", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "asset_type", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "currency", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "start_date", "data_type": "date", "is_nullable": "YES"},
-                    {"column_name": "end_date", "data_type": "date", "is_nullable": "YES"},
-                    {"column_name": "created_at", "data_type": "timestamp without time zone", "is_nullable": "YES"},
-                    {"column_name": "updated_at", "data_type": "timestamp without time zone", "is_nullable": "YES"}
-                ]
-            }
-        elif table_name in ["dev_daily_prices_polygon_30year", "dev_daily_prices_tiingo", "dev_daily_prices_eodhd"]:
-            return {
-                "columns": [
-                    {"column_name": "symbol", "data_type": "character varying", "is_nullable": "NO"},
-                    {"column_name": "date", "data_type": "date", "is_nullable": "NO"},
-                    {"column_name": "open", "data_type": "numeric", "is_nullable": "YES"},
-                    {"column_name": "high", "data_type": "numeric", "is_nullable": "YES"}, 
-                    {"column_name": "low", "data_type": "numeric", "is_nullable": "YES"},
-                    {"column_name": "close", "data_type": "numeric", "is_nullable": "YES"},
-                    {"column_name": "volume", "data_type": "bigint", "is_nullable": "YES"}
-                ]
-            }
-        elif table_name == "dev_instrument_polygon":
-            return {
-                "columns": [
-                    {"column_name": "symbol", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "name", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "exchange", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "type", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "currency", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "figi", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "isin", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "cusip", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "composite_figi", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "active", "data_type": "boolean", "is_nullable": "YES"},
-                    {"column_name": "list_date", "data_type": "date", "is_nullable": "YES"},
-                    {"column_name": "delist_date", "data_type": "date", "is_nullable": "YES"},
-                    {"column_name": "sector", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "created_at", "data_type": "timestamp with time zone", "is_nullable": "YES"},
-                    {"column_name": "updated_at", "data_type": "timestamp with time zone", "is_nullable": "YES"}
-                ]
-            }
-        else:
-            return {"error": f"Schema not available for {table_name}"}
-    
-    def analyze_column_distribution(self, table_name: str, column: str, filters: dict = {}) -> Dict:
-        """Analyze distribution of a column with optional filters."""
+    async def get_dataset_schema(self, table_name: str) -> Dict:
+        """Get schema for a specific dataset from database."""
         try:
-            from core.database.connection_manager import get_raw_connection
-            
-            with get_raw_connection() as conn:
-                with conn.cursor() as cursor:
-                    # Build query
-                    query = f"SELECT {column} FROM {table_name} WHERE {column} IS NOT NULL"
-                    params = []
-                    
-                    # Add filters if provided
-                    if filters:
-                        for key, value in filters.items():
-                            if isinstance(value, str):
-                                query += f" AND {key} = %s"
-                                params.append(value)
-                            else:
-                                query += f" AND {key} = %s"
-                                params.append(value)
-                    
-                    # Limit for performance
-                    query += " LIMIT 10000"
-                    
-                    cursor.execute(query, params)
-                    results = cursor.fetchall()
-                    
-                    if not results:
-                        return {'error': 'No data found'}
-                    
-                    values = [row[column] for row in results if row[column] is not None]
-                    
-                    if not values:
-                        return {'error': 'No valid values found'}
-                    
-                    # Calculate statistics
-                    values_array = np.array(values)
-                    stats = {
-                        'count': len(values),
-                        'mean': float(np.mean(values_array)),
-                        'median': float(np.median(values_array)),
-                        'std': float(np.std(values_array)),
-                        'min': float(np.min(values_array)),
-                        'max': float(np.max(values_array)),
-                        'q25': float(np.percentile(values_array, 25)),
-                        'q75': float(np.percentile(values_array, 75))
-                    }
-                    
-                    # Create histogram
-                    hist, bin_edges = np.histogram(values_array, bins=20)
-                    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-                    
-                    return {
-                        'statistics': stats,
-                        'histogram': {
-                            'counts': hist.tolist(),
-                            'bin_centers': bin_centers.tolist(),
-                            'bin_edges': bin_edges.tolist()
-                        },
-                        'column': column,
-                        'table': table_name
-                    }
-                    
-        except Exception as e:
-            logger.warning(f"Analysis query failed for {table_name}.{column}, using demo data: {e}")
-            # Return demo histogram data for testing when DB is unavailable
-            import random
-            
-            # Generate realistic demo data based on column name
-            if column in ['price', 'close', 'open', 'high', 'low']:
-                # Price data - normal distribution around 50-200
-                values = [random.normalvariate(100, 30) for _ in range(1000)]
-            elif column == 'volume':
-                # Volume data - log-normal distribution
-                values = [random.lognormvariate(10, 1) for _ in range(1000)]
-            elif column == 'market_cap':
-                # Market cap - very large numbers
-                values = [random.lognormvariate(20, 2) for _ in range(1000)]
-            else:
-                # Generic numeric data
-                values = [random.normalvariate(0, 1) for _ in range(1000)]
-            
-            values_array = np.array(values)
-            stats = {
-                'count': len(values),
-                'mean': float(np.mean(values_array)),
-                'median': float(np.median(values_array)),
-                'std': float(np.std(values_array)),
-                'min': float(np.min(values_array)),
-                'max': float(np.max(values_array)),
-                'q25': float(np.percentile(values_array, 25)),
-                'q75': float(np.percentile(values_array, 75))
-            }
-            
-            # Create histogram
-            hist, bin_edges = np.histogram(values_array, bins=20)
-            bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-            
-            return {
-                'statistics': stats,
-                'histogram': {
-                    'counts': hist.tolist(),
-                    'bin_centers': bin_centers.tolist(),
-                    'bin_edges': bin_edges.tolist()
-                },
-                'column': column,
-                'table': table_name,
-                'note': 'Demo data - database unavailable'
-            }
-    
-    def get_column_values(self, table_name: str, column: str, limit: int = 100) -> Dict:
-        """Get unique values for a categorical column or min/max for numeric columns."""
-        try:
-            from core.database.connection_manager import get_raw_connection
-            
-            with get_raw_connection() as conn:
-                with conn.cursor() as cursor:
-                    # First check if column is numeric
-                    schema = self.get_dataset_schema(table_name)
-                    if "error" in schema:
-                        return {"error": schema["error"]}
-                    
-                    column_info = next((col for col in schema["columns"] if col["column_name"] == column), None)
-                    if not column_info:
-                        return {"error": f"Column {column} not found in {table_name}"}
-                    
-                    data_type = column_info["data_type"].lower()
-                    is_numeric = any(t in data_type for t in ["numeric", "integer", "double", "bigint", "smallint", "real", "decimal", "float"])
-                    
-                    if is_numeric:
-                        # Get min/max for numeric columns
-                        cursor.execute(f"""
-                            SELECT 
-                                MIN({column}) as min_value,
-                                MAX({column}) as max_value,
-                                COUNT(DISTINCT {column}) as distinct_count,
-                                COUNT({column}) as total_count
-                            FROM {table_name} 
-                            WHERE {column} IS NOT NULL
-                        """)
-                        result = cursor.fetchone()
-                        
-                        return {
-                            "column": column,
-                            "data_type": "numeric",
-                            "min_value": float(result['min_value']) if result['min_value'] is not None else None,
-                            "max_value": float(result['max_value']) if result['max_value'] is not None else None,
-                            "distinct_count": result['distinct_count'],
-                            "total_count": result['total_count']
-                        }
-                    else:
-                        # Get unique values for categorical columns
-                        cursor.execute(f"""
-                            SELECT {column} as value, COUNT(*) as count
-                            FROM {table_name}
-                            WHERE {column} IS NOT NULL AND {column} != ''
-                            GROUP BY {column}
-                            ORDER BY count DESC
-                            LIMIT %s
-                        """, (limit,))
-                        
-                        results = cursor.fetchall()
-                        values = [{"value": row['value'], "count": row['count']} for row in results]
-                        
-                        return {
-                            "column": column,
-                            "data_type": "categorical",
-                            "values": values,
-                            "total_unique": len(values)
-                        }
-                        
-        except Exception as e:
-            logger.warning(f"Failed to get column values for {table_name}.{column}: {e}")
-            
-            # Return demo data based on column type
-            column_info = self.get_dataset_schema(table_name).get("columns", [])
-            column_def = next((col for col in column_info if col["column_name"] == column), None)
-            
-            if column_def:
-                data_type = column_def["data_type"].lower()
-                is_numeric = any(t in data_type for t in ["numeric", "integer", "double", "bigint"])
-                
-                if is_numeric:
-                    if column in ['price', 'close', 'open', 'high', 'low']:
-                        return {"column": column, "data_type": "numeric", "min_value": 10.0, "max_value": 500.0, "distinct_count": 1000}
-                    elif column == 'volume':
-                        return {"column": column, "data_type": "numeric", "min_value": 1000, "max_value": 10000000, "distinct_count": 5000}
-                    else:
-                        return {"column": column, "data_type": "numeric", "min_value": 0, "max_value": 1000, "distinct_count": 100}
-                else:
-                    # Demo categorical data
-                    if column == 'symbol':
-                        values = [{"value": "AAPL", "count": 1000}, {"value": "GOOGL", "count": 800}, {"value": "MSFT", "count": 750}]
-                    elif column == 'exchange':
-                        values = [{"value": "NASDAQ", "count": 5000}, {"value": "NYSE", "count": 4000}, {"value": "AMEX", "count": 500}]
-                    else:
-                        values = [{"value": "Category A", "count": 3000}, {"value": "Category B", "count": 2000}]
-                    
-                    return {"column": column, "data_type": "categorical", "values": values, "total_unique": len(values)}
-            
-            return {"error": f"Could not determine column type for {column}"}
-    
-    def get_filtered_data(self, table_name: str, filters: Dict = {}, page: int = 1, page_size: int = 50) -> Dict:
-        """Get paginated data with applied filters."""
-        try:
-            from core.database.connection_manager import get_raw_connection
-            
-            with get_raw_connection() as conn:
-                with conn.cursor() as cursor:
-                    # Build WHERE clause from filters
-                    where_conditions = []
-                    params = []
-                    
-                    for column, filter_config in filters.items():
-                        if filter_config.get('type') == 'categorical' and filter_config.get('values'):
-                            # Categorical filter - IN clause
-                            placeholders = ', '.join(['%s'] * len(filter_config['values']))
-                            where_conditions.append(f"{column} IN ({placeholders})")
-                            params.extend(filter_config['values'])
-                            
-                        elif filter_config.get('type') == 'numeric':
-                            # Numeric range filter
-                            if 'min' in filter_config and filter_config['min'] is not None:
-                                where_conditions.append(f"{column} >= %s")
-                                params.append(filter_config['min'])
-                            if 'max' in filter_config and filter_config['max'] is not None:
-                                where_conditions.append(f"{column} <= %s")
-                                params.append(filter_config['max'])
-                    
-                    # Build base query
-                    where_clause = ""
-                    if where_conditions:
-                        where_clause = "WHERE " + " AND ".join(where_conditions)
-                    
-                    # Get total count
-                    count_query = f"SELECT COUNT(*) as total FROM {table_name} {where_clause}"
-                    cursor.execute(count_query, params)
-                    total_count = cursor.fetchone()['total']
-                    
-                    # Get paginated data
-                    offset = (page - 1) * page_size
-                    data_query = f"""
-                        SELECT * FROM {table_name} 
-                        {where_clause}
-                        ORDER BY 1
-                        LIMIT %s OFFSET %s
-                    """
-                    
-                    cursor.execute(data_query, params + [page_size, offset])
-                    rows = cursor.fetchall()
-                    
-                    # Convert rows to list of dicts
-                    data = []
-                    for row in rows:
-                        row_dict = {}
-                        for column_name in row.keys():
-                            value = row[column_name]
-                            # Format values for display
-                            if isinstance(value, (int, float)):
-                                row_dict[column_name] = value
-                            elif value is not None:
-                                row_dict[column_name] = str(value)
-                            else:
-                                row_dict[column_name] = None
-                        data.append(row_dict)
-                    
-                    total_pages = (total_count + page_size - 1) // page_size
-                    
-                    return {
-                        "data": data,
-                        "pagination": {
-                            "current_page": page,
-                            "page_size": page_size,
-                            "total_count": total_count,
-                            "total_pages": total_pages,
-                            "has_next": page < total_pages,
-                            "has_prev": page > 1
-                        },
-                        "filters_applied": filters,
-                        "table_name": table_name
-                    }
-                    
-        except Exception as e:
-            logger.warning(f"Failed to get filtered data for {table_name}: {e}")
-            
-            # Return demo data when database is unavailable
-            import random
-            demo_data = []
-            
-            # Get schema to generate appropriate demo data
-            schema = self.get_dataset_schema(table_name)
-            if "columns" in schema:
-                for i in range(page_size):
-                    row = {}
-                    for col in schema["columns"]:
-                        col_name = col["column_name"]
-                        data_type = col["data_type"].lower()
-                        
-                        if "integer" in data_type or "bigint" in data_type:
-                            if col_name == "id":
-                                row[col_name] = (page - 1) * page_size + i + 1
-                            elif col_name == "volume":
-                                row[col_name] = random.randint(1000, 10000000)
-                            else:
-                                row[col_name] = random.randint(1, 1000)
-                        elif "numeric" in data_type or "double" in data_type:
-                            if col_name in ['price', 'open', 'high', 'low', 'close']:
-                                row[col_name] = round(random.uniform(50, 200), 2)
-                            else:
-                                row[col_name] = round(random.uniform(0, 100), 2)
-                        elif "date" in data_type:
-                            row[col_name] = "2024-01-15"
-                        elif "boolean" in data_type:
-                            row[col_name] = random.choice([True, False])
-                        else:
-                            # Text columns
-                            if col_name == "symbol":
-                                row[col_name] = random.choice(["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA"])
-                            elif col_name == "exchange":
-                                row[col_name] = random.choice(["NASDAQ", "NYSE", "AMEX"])
-                            elif col_name == "name":
-                                row[col_name] = f"Company {i+1}"
-                            else:
-                                row[col_name] = f"Value {i+1}"
-                    
-                    demo_data.append(row)
-            
-            return {
-                "data": demo_data,
-                "pagination": {
-                    "current_page": page,
-                    "page_size": page_size,
-                    "total_count": 1000,  # Demo total
-                    "total_pages": 20,
-                    "has_next": page < 20,
-                    "has_prev": page > 1
-                },
-                "filters_applied": filters,
-                "table_name": table_name,
-                "note": "Demo data - database unavailable"
-            }
-    
-    def format_display_name(self, table_name: str) -> str:
-        """Format table name for display."""
-        parts = table_name.replace('dev_', '').split('_')
-        return ' '.join(word.title() for word in parts)
-    
-    def extract_vendor(self, table_name: str) -> str:
-        """Extract vendor from table name."""
-        if 'tiingo' in table_name:
-            return 'Tiingo'
-        elif 'polygon' in table_name:
-            return 'Polygon'
-        elif 'eodhd' in table_name:
-            return 'EODHD'
-        return 'Unknown'
-
-# Initialize global job manager
-job_manager = JobManager()
-
-class AnalyticsHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        if self.path == '/health':
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            response = {"status": "healthy", "service": "ats-analytics", "timestamp": datetime.now().isoformat()}
-            self.wfile.write(json.dumps(response).encode())
-            
-        elif self.path == '/' or self.path == '/dashboard':
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html')
-            self.end_headers()
-            html = """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <title>ATS Analytics Dashboard</title>
-                <style>
-                    body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
-                    .header { background: #2c3e50; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-                    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-                    .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-                    .metric { font-size: 2em; font-weight: bold; color: #2c3e50; }
-                    .btn { background: #3498db; color: white; padding: 10px 20px; border: none; border-radius: 4px; text-decoration: none; display: inline-block; margin: 5px; }
-                    .job-item { padding: 8px; margin: 4px 0; border-radius: 4px; font-size: 0.9em; border-left: 3px solid #ddd; }
-                    .job-running { border-left-color: #3498db; background: #e8f4fd; }
-                    .job-completed { border-left-color: #27ae60; background: #eafaf1; }
-                    .job-failed { border-left-color: #e74c3c; background: #fdf2f2; }
-                    .job-pending { border-left-color: #f39c12; background: #fef9e7; }
-                    .job-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 10px; margin-bottom: 10px; }
-                    .stat-item { text-align: center; }
-                    .stat-value { font-size: 1.2em; font-weight: bold; }
-                    .stat-label { font-size: 0.8em; color: #666; }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <h1>ATS Analytics Platform</h1>
-                    <p>30-Year Price History Database - Development Environment</p>
-                </div>
-                
-                <div class="grid">
-                    <div class="card">
-                        <h3>Database Summary</h3>
-                        <div class="metric">7.95M+</div>
-                        <p>Total price records across all vendors</p>
-                        <ul>
-                            <li><strong>Instruments:</strong> 17,700 unique symbols</li>
-                            <li><strong>ETFs:</strong> 23 critical market factors</li>
-                            <li><strong>Date Range:</strong> 1995-2025 (30 years)</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="card">
-                        <h3>Vendor Coverage</h3>
-                        <ul>
-                            <li><strong>Tiingo:</strong> 6.56M records, 2,355 symbols</li>
-                            <li><strong>EODHD:</strong> 728K records, 268 symbols</li>
-                            <li><strong>Polygon:</strong> 666K records, 849 symbols</li>
-                        </ul>
-                        <a href="/api/vendors" class="btn">Vendor Details</a>
-                    </div>
-                    
-                    <div class="card">
-                        <h3>Job Management</h3>
-                        <div id="job-stats">Loading job statistics...</div>
-                        <div id="recent-jobs" style="margin-top: 15px; max-height: 150px; overflow-y: auto;">
-                            <p>Loading recent jobs...</p>
-                        </div>
-                        <a href="/api/jobs/stats" class="btn">Job Stats</a>
-                        <a href="/api/jobs/recent" class="btn">Recent Jobs</a>
-                    </div>
-                    
-                    <div class="card">
-                        <h3>Analytics Tools</h3>
-                        <a href="/eda" class="btn" style="background: #27ae60; margin-bottom: 10px; display: block; text-align: center;">🔍 Exploratory Data Analysis</a>
-                        <p style="font-size: 0.9em; color: #666; margin-bottom: 15px;">Interactive histograms, cross-filtering, and dataset comparison</p>
-                        
-                        <h4>API Endpoints</h4>
-                        <a href="/health" class="btn">Health Check</a>
-                        <a href="/api/summary" class="btn">Data Summary</a>
-                        <a href="/api/jobs/stats" class="btn">Job Stats</a>
-                        <a href="/api/collections/status" class="btn">Collection Status</a>
-                    </div>
-                </div>
-                
-                <div style="margin-top: 20px; text-align: center; color: #7f8c8d;">
-                    <p>ATS Analytics Service | Development Environment | External Access Available</p>
-                </div>
-                
-                <script>
-                    async function loadJobStats() {
-                        try {
-                            const response = await fetch('/api/jobs/stats');
-                            const stats = await response.json();
-                            
-                            if (stats.error) {
-                                document.getElementById('job-stats').innerHTML = '<p style="color: #e74c3c;">Database unavailable</p>';
-                                return;
-                            }
-                            
-                            document.getElementById('job-stats').innerHTML = `
-                                <div class="job-stats">
-                                    <div class="stat-item">
-                                        <div class="stat-value">${stats.total_jobs || 0}</div>
-                                        <div class="stat-label">Total</div>
-                                    </div>
-                                    <div class="stat-item">
-                                        <div class="stat-value" style="color: #3498db;">${stats.running_jobs || 0}</div>
-                                        <div class="stat-label">Running</div>
-                                    </div>
-                                    <div class="stat-item">
-                                        <div class="stat-value" style="color: #27ae60;">${stats.completed_jobs || 0}</div>
-                                        <div class="stat-label">Completed</div>
-                                    </div>
-                                    <div class="stat-item">
-                                        <div class="stat-value" style="color: #e74c3c;">${stats.failed_jobs || 0}</div>
-                                        <div class="stat-label">Failed</div>
-                                    </div>
-                                </div>
-                            `;
-                        } catch (error) {
-                            console.error('Failed to load job stats:', error);
-                            document.getElementById('job-stats').innerHTML = '<p style="color: #e74c3c;">Failed to load stats</p>';
-                        }
-                    }
-                    
-                    async function loadRecentJobs() {
-                        try {
-                            const response = await fetch('/api/jobs/recent');
-                            const data = await response.json();
-                            
-                            if (!data.jobs || data.jobs.length === 0) {
-                                document.getElementById('recent-jobs').innerHTML = '<p style="color: #666;">No recent jobs found</p>';
-                                return;
-                            }
-                            
-                            const jobsHtml = data.jobs.slice(0, 5).map(job => {
-                                const statusClass = `job-${job.status}`;
-                                const duration = job.duration_seconds ? `${Math.round(job.duration_seconds/60)}m` : 'N/A';
-                                const timeAgo = job.created_at ? new Date(job.created_at).toLocaleString() : 'Unknown';
-                                
-                                return `
-                                    <div class="job-item ${statusClass}">
-                                        <div style="font-weight: bold;">${job.job_type}</div>
-                                        <div style="font-size: 0.8em; color: #666;">
-                                            ${job.status.toUpperCase()} | ${job.user_id} | ${duration}
-                                        </div>
-                                        ${job.error_message ? `<div style="color: #e74c3c; font-size: 0.8em;">${job.error_message}</div>` : ''}
-                                    </div>
-                                `;
-                            }).join('');
-                            
-                            document.getElementById('recent-jobs').innerHTML = jobsHtml;
-                        } catch (error) {
-                            console.error('Failed to load recent jobs:', error);
-                            document.getElementById('recent-jobs').innerHTML = '<p style="color: #e74c3c;">Failed to load jobs</p>';
-                        }
-                    }
-                    
-                    // Load data on page load
-                    document.addEventListener('DOMContentLoaded', function() {
-                        loadJobStats();
-                        loadRecentJobs();
-                        
-                        // Refresh every 30 seconds
-                        setInterval(() => {
-                            loadJobStats();
-                            loadRecentJobs();
-                        }, 30000);
-                    });
-                </script>
-            </body>
-            </html>
+            query = """
+                SELECT column_name, data_type, is_nullable
+                FROM information_schema.columns 
+                WHERE table_name = %s 
+                ORDER BY ordinal_position
             """
-            self.wfile.write(html.encode())
+            result = await self.db.execute_query(query, (table_name,))
             
-        elif self.path == '/api/summary':
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            summary = {
-                "environment": "development",
-                "database": "dev_db",
-                "total_records": "7,953,657",
-                "vendors": {
-                    "tiingo": {"records": "6,559,540", "symbols": 2355},
-                    "eodhd": {"records": "727,905", "symbols": 268}, 
-                    "polygon": {"records": "666,212", "symbols": 849}
-                },
-                "instruments": "17,700",
-                "etfs": "23",
-                "date_range": "1995-2025",
-                "status": "operational",
-                "timestamp": datetime.now().isoformat()
-            }
-            self.wfile.write(json.dumps(summary, indent=2).encode())
+            if not result:
+                raise HTTPException(404, f"Table {table_name} not found or has no accessible columns")
             
-        elif self.path == '/api/vendors':
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            vendors = {
-                "vendors": [
+            return {
+                "columns": [
                     {
-                        "name": "tiingo",
-                        "records": 6559540,
-                        "symbols": 2355,
-                        "coverage": "1995-2025",
-                        "status": "active"
-                    },
-                    {
-                        "name": "eodhd", 
-                        "records": 727905,
-                        "symbols": 268,
-                        "coverage": "1995-2025",
-                        "status": "active"
-                    },
-                    {
-                        "name": "polygon",
-                        "records": 666212,
-                        "symbols": 849,
-                        "coverage": "2015-2025",
-                        "status": "active"
+                        "column_name": row["column_name"],
+                        "data_type": row["data_type"],
+                        "is_nullable": row["is_nullable"]
                     }
-                ],
-                "total_records": 7953657,
-                "timestamp": datetime.now().isoformat()
+                    for row in result
+                ]
             }
-            self.wfile.write(json.dumps(vendors, indent=2).encode())
-        
-        elif self.path == '/api/jobs/stats':
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
             
-            # Need to run async function in sync context
-            try:
-                stats = job_manager.get_job_stats()
-                self.wfile.write(json.dumps(stats, indent=2).encode())
-            except Exception as e:
-                logger.error(f"Error getting job stats: {e}")
-                error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode())
-        
-        elif self.path == '/api/jobs/recent':
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            try:
-                jobs = job_manager.get_recent_jobs(15)
-                response = {"jobs": jobs, "total": len(jobs), "timestamp": datetime.now().isoformat()}
-                self.wfile.write(json.dumps(response, indent=2).encode())
-            except Exception as e:
-                logger.error(f"Error getting recent jobs: {e}")
-                error_response = {"jobs": [], "total": 0, "error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode())
-        
-        elif self.path == '/api/collections/status':
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_closed():
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                status = loop.run_until_complete(job_manager.get_collection_status())
-                self.wfile.write(json.dumps(status, indent=2).encode())
-            except Exception as e:
-                logger.error(f"Error getting collection status: {e}")
-                error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode())
-        
-        elif self.path == '/api/eda/datasets':
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            try:
-                datasets = job_manager.get_datasets()
-                self.wfile.write(json.dumps(datasets, indent=2).encode())
-            except Exception as e:
-                logger.error(f"Error getting datasets: {e}")
-                error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode())
-        
-        elif self.path.startswith('/api/eda/datasets/') and self.path.endswith('/schema'):
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            try:
-                # Extract dataset name from path
-                parts = self.path.split('/')
-                dataset_name = parts[4]  # /api/eda/datasets/{name}/schema
-                
-                schema = job_manager.get_dataset_schema(dataset_name)
-                self.wfile.write(json.dumps(schema, indent=2).encode())
-            except Exception as e:
-                logger.error(f"Error getting schema: {e}")
-                error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode())
-        
-        elif self.path.startswith('/api/eda/datasets/') and '/columns/' in self.path and '/values' in self.path:
-            # GET /api/eda/datasets/{table_name}/columns/{column_name}/values
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            try:
-                # Parse URL to handle query parameters
-                from urllib.parse import urlparse, parse_qs
-                parsed_url = urlparse(self.path)
-                path_parts = parsed_url.path.split('/')
-                
-                # Extract dataset name and column name from path
-                # Path: /api/eda/datasets/{table_name}/columns/{column_name}/values
-                table_name = path_parts[4]  # table name
-                column_name = path_parts[6]  # column name
-                
-                # Parse query parameters for limit
-                query_params = parse_qs(parsed_url.query)
-                limit = int(query_params.get('limit', [100])[0])
-                
-                column_values = job_manager.get_column_values(table_name, column_name, limit)
-                self.wfile.write(json.dumps(column_values, indent=2).encode())
-            except Exception as e:
-                logger.error(f"Error getting column values: {e}")
-                error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode())
-        
-        elif self.path == '/eda':
-            # EDA Dashboard page
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html')
-            self.end_headers()
-            eda_html = self.get_eda_dashboard_html()
-            self.wfile.write(eda_html.encode())
-            
-        else:
-            self.send_response(404)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            error = {"error": "Not found", "path": self.path}
-            self.wfile.write(json.dumps(error).encode())
+        except Exception as e:
+            logger.error(f"Error getting schema for {table_name}: {e}")
+            raise HTTPException(500, f"Failed to get schema for {table_name}: {str(e)}")
 
-    def do_POST(self):
-        if self.path == '/api/eda/analyze':
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            try:
-                # Read POST data
-                content_length = int(self.headers.get('Content-Length', 0))
-                post_data = self.rfile.read(content_length)
-                data = json.loads(post_data.decode('utf-8'))
-                
-                dataset_name = data.get('dataset_name')
-                column = data.get('column')
-                filters = data.get('filters', {})
-                
-                if not dataset_name or not column:
-                    error_response = {"error": "Missing dataset_name or column"}
-                    self.wfile.write(json.dumps(error_response).encode())
-                    return
-                
-                analysis = job_manager.analyze_column_distribution(dataset_name, column, filters)
-                self.wfile.write(json.dumps(analysis, indent=2).encode())
-                
-            except Exception as e:
-                logger.error(f"Error analyzing distribution: {e}")
-                error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode())
+    async def get_eda_page(self, request: Request) -> HTMLResponse:
+        """Serve the EDA interface page with proper error handling."""
         
-        elif self.path.startswith('/api/eda/datasets/') and self.path.endswith('/data'):
-            # POST /api/eda/datasets/{table_name}/data
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            try:
-                # Extract table name from path
-                parts = self.path.split('/')
-                table_name = parts[4]  # /api/eda/datasets/{table_name}/data
-                
-                # Read POST data
-                content_length = int(self.headers.get('Content-Length', 0))
-                post_data = self.rfile.read(content_length)
-                data = json.loads(post_data.decode('utf-8'))
-                
-                filters = data.get('filters', {})
-                page = data.get('page', 1)
-                page_size = data.get('page_size', 50)
-                
-                filtered_data = job_manager.get_filtered_data(table_name, filters, page, page_size)
-                self.wfile.write(json.dumps(filtered_data, indent=2).encode())
-                
-            except Exception as e:
-                logger.error(f"Error getting filtered data: {e}")
-                error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode())
-        
-        else:
-            self.send_response(404)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            error = {"error": "Not found", "path": self.path}
-            self.wfile.write(json.dumps(error).encode())
-
-    def get_eda_dashboard_html(self):
-        """Generate the EDA dashboard HTML."""
-        return """
+        html_content = '''
         <!DOCTYPE html>
-        <html>
+        <html lang="en">
         <head>
-            <title>ATS EDA - Exploratory Data Analysis</title>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Dataset EDA - Exploratory Data Analysis</title>
             <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
             <style>
-                body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-                .header { background: #2c3e50; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-                .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 20px; }
-                .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-                .dataset-card { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; cursor: pointer; }
-                .dataset-card:hover { background: #f0f8ff; }
-                .dataset-card.selected { background: #e8f4fd; border-color: #3498db; }
-                .chart-container { width: 100%; height: 400px; margin: 20px 0; }
-                button, select { padding: 10px 15px; margin: 5px; cursor: pointer; border: 1px solid #ddd; border-radius: 4px; }
-                button { background: #3498db; color: white; border: none; }
-                button:hover { background: #2980b9; }
-                .controls { margin: 20px 0; padding: 20px; background: white; border-radius: 8px; }
-                .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 15px 0; }
-                .stat-item { text-align: center; padding: 10px; background: #f8f9fa; border-radius: 4px; }
-                .stat-value { font-size: 1.2em; font-weight: bold; color: #2c3e50; }
-                .stat-label { font-size: 0.9em; color: #666; }
-                .filter-group { margin: 15px 0; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; }
-                .filter-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-                .filter-input { width: 100%; padding: 5px; margin: 2px 0; }
-                .checkbox-list { max-height: 150px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background: white; }
-                .checkbox-list label { font-weight: normal; }
-                #data-table { border: 1px solid #ddd; }
-                #data-table th, #data-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                #data-table th { background: #f8f9fa; font-weight: bold; }
-                #data-table tbody tr:nth-child(even) { background: #f9f9f9; }
-                .pagination-btn { padding: 5px 10px; margin: 0 2px; cursor: pointer; border: 1px solid #ddd; background: white; }
-                .pagination-btn.active { background: #3498db; color: white; }
-                .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-                .column-distribution { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #fafafa; }
-                .column-distribution h4 { margin: 0 0 10px 0; color: #2c3e50; }
-                .distribution-chart { width: 100%; height: 300px; margin: 10px 0; }
-                .distribution-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin: 10px 0; }
-                .distribution-stat { text-align: center; padding: 8px; background: white; border-radius: 4px; }
-                .stat-value-small { font-size: 1em; font-weight: bold; color: #2c3e50; }
-                .stat-label-small { font-size: 0.8em; color: #666; }
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    margin: 0;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: #333;
+                    min-height: 100vh;
+                }
+                
+                .container {
+                    max-width: 1400px;
+                    margin: 0 auto;
+                    background: white;
+                    border-radius: 15px;
+                    padding: 30px;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                }
+                
+                h1 {
+                    color: #2c3e50;
+                    text-align: center;
+                    margin-bottom: 30px;
+                    font-size: 2.5em;
+                    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+                }
+                
+                .controls {
+                    background: #f8f9fa;
+                    padding: 25px;
+                    border-radius: 10px;
+                    margin-bottom: 30px;
+                    border: 2px solid #e9ecef;
+                }
+                
+                .control-group {
+                    margin-bottom: 20px;
+                }
+                
+                label {
+                    display: block;
+                    margin-bottom: 8px;
+                    font-weight: 600;
+                    color: #495057;
+                }
+                
+                select {
+                    width: 100%;
+                    padding: 12px;
+                    border: 2px solid #ced4da;
+                    border-radius: 6px;
+                    font-size: 16px;
+                    background: white;
+                    transition: border-color 0.3s;
+                }
+                
+                select:focus {
+                    outline: none;
+                    border-color: #007bff;
+                    box-shadow: 0 0 0 3px rgba(0,123,255,0.25);
+                }
+                
+                .analysis-container {
+                    display: grid;
+                    grid-template-columns: 1fr 2fr;
+                    gap: 30px;
+                    margin-top: 30px;
+                }
+                
+                .filters-container {
+                    background: #f8f9fa;
+                    padding: 25px;
+                    border-radius: 10px;
+                    border: 2px solid #e9ecef;
+                    height: fit-content;
+                }
+                
+                .distributions-container {
+                    display: grid;
+                    gap: 25px;
+                }
+                
+                .column-distribution {
+                    background: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    border: 1px solid #dee2e6;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+                }
+                
+                .distribution-chart {
+                    height: 300px;
+                    margin-bottom: 15px;
+                }
+                
+                .distribution-stats {
+                    display: flex;
+                    justify-content: space-around;
+                    flex-wrap: wrap;
+                    background: #f8f9fa;
+                    padding: 15px;
+                    border-radius: 8px;
+                    border: 1px solid #e9ecef;
+                }
+                
+                .distribution-stat {
+                    text-align: center;
+                    margin: 5px;
+                }
+                
+                .stat-value-small {
+                    font-size: 1.4em;
+                    font-weight: bold;
+                    color: #007bff;
+                }
+                
+                .stat-label-small {
+                    font-size: 0.9em;
+                    color: #6c757d;
+                    margin-top: 2px;
+                }
+                
+                .filter-group {
+                    margin-bottom: 20px;
+                    padding: 15px;
+                    background: white;
+                    border-radius: 8px;
+                    border: 1px solid #dee2e6;
+                }
+                
+                .checkbox-list {
+                    max-height: 200px;
+                    overflow-y: auto;
+                    border: 1px solid #ced4da;
+                    border-radius: 4px;
+                    padding: 10px;
+                    background: white;
+                }
+                
+                .checkbox-list label {
+                    margin-bottom: 8px;
+                    font-weight: normal;
+                }
+                
+                .data-table-container {
+                    margin-top: 30px;
+                    background: white;
+                    border-radius: 10px;
+                    border: 1px solid #dee2e6;
+                    overflow: hidden;
+                }
+                
+                .data-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                
+                .data-table th,
+                .data-table td {
+                    padding: 12px;
+                    text-align: left;
+                    border-bottom: 1px solid #dee2e6;
+                }
+                
+                .data-table th {
+                    background: #f8f9fa;
+                    font-weight: 600;
+                    color: #495057;
+                }
+                
+                .pagination {
+                    padding: 20px;
+                    text-align: center;
+                    background: #f8f9fa;
+                    border-top: 1px solid #dee2e6;
+                }
+                
+                .pagination button {
+                    margin: 0 5px;
+                    padding: 8px 16px;
+                    border: 1px solid #ced4da;
+                    background: white;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                }
+                
+                .pagination button:hover:not(:disabled) {
+                    background: #007bff;
+                    color: white;
+                    border-color: #007bff;
+                }
+                
+                .pagination button:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+                
+                .error-message {
+                    background: #f8d7da;
+                    color: #721c24;
+                    padding: 15px;
+                    border-radius: 8px;
+                    border: 1px solid #f5c6cb;
+                    margin: 15px 0;
+                }
+                
+                .loading-message {
+                    background: #d4edda;
+                    color: #155724;
+                    padding: 15px;
+                    border-radius: 8px;
+                    border: 1px solid #c3e6cb;
+                    margin: 15px 0;
+                    text-align: center;
+                }
             </style>
         </head>
         <body>
-            <div class="header">
-                <h1>ATS Exploratory Data Analysis</h1>
-                <p>Comprehensive dataset analysis with automatic column distributions and filtering</p>
-                <a href="/" style="color: #3498db; margin-right: 15px;">← Back to Analytics Dashboard</a>
-            </div>
-            
-            <div class="grid">
-                <div class="card">
-                    <h3>Available Datasets</h3>
-                    <div id="datasets-list">Loading...</div>
+            <div class="container">
+                <h1>🔍 Dataset Explorer & Analysis</h1>
+                
+                <div class="controls">
+                    <div class="control-group">
+                        <label for="dataset-select">Select Dataset:</label>
+                        <select id="dataset-select">
+                            <option value="">Choose a dataset...</option>
+                        </select>
+                    </div>
                 </div>
                 
-                <div class="card">
-                    <h3>Dataset Analysis</h3>
-                    <div class="controls">
-                        <div>
-                            <label>Dataset: </label>
-                            <select id="dataset-select" onchange="loadDatasetAnalysis()">
-                                <option value="">Select dataset...</option>
-                            </select>
+                <div class="analysis-container">
+                    <div class="filters-container">
+                        <h3>Filters</h3>
+                        <div id="filters-controls">
+                            <p>Select a dataset to see available filters</p>
                         </div>
-                        <div style="margin-top: 15px;" id="dataset-info" style="display: none;">
-                            <div id="dataset-summary"></div>
-                        </div>
+                        <button onclick="applyFilters()" style="margin-top: 15px; padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Apply Filters</button>
+                        <button onclick="clearFilters()" style="margin-top: 15px; margin-left: 10px; padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Clear Filters</button>
                     </div>
                     
-                    <!-- Filters Section -->
-                    <div id="filters-section" class="controls" style="display: none;">
-                        <h4>Data Filters</h4>
-                        <div id="filter-controls"></div>
-                        <div style="margin-top: 15px;">
-                            <button onclick="applyFilters()">Apply Filters</button>
-                            <button onclick="clearFilters()" style="background: #95a5a6;">Clear Filters</button>
-                            <button onclick="loadFilteredData()">Load Filtered Data</button>
-                        </div>
+                    <div class="distributions-container" id="distributions-container">
+                        <p>Select a dataset to see column distributions</p>
                     </div>
                 </div>
-            </div>
-            
-            <div class="card" id="distribution-analysis" style="display: none;">
-                <h3>Column Distributions</h3>
-                <div id="distributions-container">
-                    <p style="text-align: center; color: #666;">Select a dataset to view column distributions</p>
-                </div>
-            </div>
-            
-            <!-- Filtered Data Table -->
-            <div id="data-table-section" class="card" style="display: none;">
-                <h3>Filtered Data</h3>
-                <div id="table-info" style="margin-bottom: 15px; color: #666;"></div>
-                <div id="data-table-container" style="overflow-x: auto;">
-                    <table id="data-table" style="width: 100%; border-collapse: collapse;">
-                        <thead id="table-head"></thead>
+                
+                <div id="data-table-container" class="data-table-container" style="display: none;">
+                    <table class="data-table" id="data-table">
+                        <thead id="table-headers"></thead>
                         <tbody id="table-body"></tbody>
                     </table>
+                    <div class="pagination" id="pagination-controls"></div>
                 </div>
-                <div id="pagination-controls" style="margin-top: 15px; text-align: center;"></div>
             </div>
-            
+
             <script>
-                let datasets = [];
-                let currentAnalysis = null;
                 let currentFilters = {};
+                let currentDataset = '';
                 let currentPage = 1;
-                let totalPages = 1;
-                
+                const pageSize = 10;
+
+                // Load datasets on page load
+                document.addEventListener('DOMContentLoaded', async function() {
+                    await loadDatasets();
+                });
+
                 async function loadDatasets() {
                     try {
-                        console.log('Loading datasets...');
                         const response = await fetch('/api/eda/datasets');
-                        console.log('Response status:', response.status);
+                        const datasets = await response.json();
                         
-                        if (!response.ok) {
-                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                        }
-                        
-                        datasets = await response.json();
-                        console.log('Datasets received:', datasets.length);
-                        
-                        if (!Array.isArray(datasets) || datasets.length === 0) {
-                            document.getElementById('datasets-list').innerHTML = '<p style="color: orange;">No datasets found</p>';
-                            return;
-                        }
-                        
-                        let html = '';
                         const select = document.getElementById('dataset-select');
-                        select.innerHTML = '<option value="">Select dataset...</option>';
+                        select.innerHTML = '<option value="">Choose a dataset...</option>';
                         
-                        datasets.forEach((dataset, index) => {
-                            console.log(`Dataset ${index}:`, dataset.display_name);
-                            html += `
-                                <div class="dataset-card" onclick="selectDataset('${dataset.name}')">
-                                    <h4>${dataset.display_name}</h4>
-                                    <p>Table: ${dataset.name}</p>
-                                    <p>Rows: ${dataset.row_count.toLocaleString()}</p>
-                                    <p>Columns: ${dataset.column_count} | Vendor: ${dataset.vendor}</p>
-                                </div>
-                            `;
-                            
-                            select.innerHTML += `<option value="${dataset.name}">${dataset.display_name}</option>`;
+                        datasets.forEach(dataset => {
+                            const option = document.createElement('option');
+                            option.value = dataset.name;
+                            option.textContent = `${dataset.display_name} (${dataset.row_count.toLocaleString()} rows)`;
+                            select.appendChild(option);
                         });
                         
-                        document.getElementById('datasets-list').innerHTML = html;
-                        console.log('Datasets loaded successfully');
+                        select.addEventListener('change', async function() {
+                            if (this.value) {
+                                currentDataset = this.value;
+                                await loadDatasetAnalysis();
+                            } else {
+                                clearAnalysis();
+                            }
+                        });
                         
                     } catch (error) {
                         console.error('Error loading datasets:', error);
-                        document.getElementById('datasets-list').innerHTML = `
-                            <p style="color: red;">Error loading datasets: ${error.message}</p>
-                            <p style="color: #666; font-size: 0.9em;">Check browser console for details</p>
-                        `;
+                        document.getElementById('distributions-container').innerHTML = 
+                            '<div class="error-message">Failed to load datasets. Please check database connection.</div>';
                     }
                 }
-                
-                function selectDataset(datasetName) {
-                    document.getElementById('dataset-select').value = datasetName;
-                    loadDatasetAnalysis();
-                    
-                    // Visual selection
-                    document.querySelectorAll('.dataset-card').forEach(card => {
-                        card.classList.remove('selected');
-                    });
-                    event.target.closest('.dataset-card').classList.add('selected');
-                }
-                
+
                 async function loadDatasetAnalysis() {
-                    const datasetName = document.getElementById('dataset-select').value;
-                    if (!datasetName) {
-                        document.getElementById('filters-section').style.display = 'none';
-                        document.getElementById('distribution-analysis').style.display = 'none';
-                        document.getElementById('dataset-info').style.display = 'none';
-                        return;
-                    }
+                    if (!currentDataset) return;
+                    
+                    document.getElementById('distributions-container').innerHTML = 
+                        '<div class="loading-message">Loading column analysis...</div>';
+                    document.getElementById('filters-controls').innerHTML = 
+                        '<div class="loading-message">Loading filters...</div>';
                     
                     try {
-                        // Show loading state
-                        document.getElementById('distributions-container').innerHTML = '<p style="text-align: center;">Loading distributions...</p>';
-                        document.getElementById('distribution-analysis').style.display = 'block';
-                        
-                        // Load schema
-                        const response = await fetch(`/api/eda/datasets/${datasetName}/schema`);
-                        const schema = await response.json();
-                        
-                        // Show dataset info
-                        const datasetInfo = datasets.find(d => d.name === datasetName);
-                        if (datasetInfo) {
-                            document.getElementById('dataset-summary').innerHTML = `
-                                <strong>${datasetInfo.display_name}</strong><br>
-                                <small>${datasetInfo.row_count.toLocaleString()} rows, ${datasetInfo.column_count} columns | Vendor: ${datasetInfo.vendor}</small>
-                            `;
-                            document.getElementById('dataset-info').style.display = 'block';
+                        // Get schema first
+                        const schemaResponse = await fetch(`/api/eda/datasets/${currentDataset}/schema`);
+                        if (!schemaResponse.ok) {
+                            throw new Error(`Failed to load schema: ${schemaResponse.status}`);
                         }
+                        const schema = await schemaResponse.json();
                         
-                        // Show filters section and load filters for all columns
-                        document.getElementById('filters-section').style.display = 'block';
+                        // Load filters and distributions in parallel for better performance
+                        const filterPromise = loadFiltersForDataset(currentDataset, schema.columns);
+                        const distributionPromise = loadAllColumnDistributions(currentDataset, schema.columns);
                         
-                        // Load filters and distributions in parallel for speed
-                        const filterPromise = loadFiltersForDataset(datasetName, schema.columns);
-                        const distributionPromise = loadAllColumnDistributions(datasetName, schema.columns);
-                        
-                        // Wait for both to complete
                         await Promise.allSettled([filterPromise, distributionPromise]);
                         
                     } catch (error) {
                         console.error('Error loading dataset analysis:', error);
-                        document.getElementById('distributions-container').innerHTML = `<p style="color: red;">Error loading distributions: ${error.message}</p>`;
+                        document.getElementById('distributions-container').innerHTML = 
+                            `<div class="error-message">Failed to load analysis: ${error.message}</div>`;
+                        document.getElementById('filters-controls').innerHTML = 
+                            `<div class="error-message">Failed to load filters: ${error.message}</div>`;
                     }
                 }
-                
+
                 async function loadFiltersForDataset(datasetName, columns) {
-                    const filterControls = document.getElementById('filter-controls');
-                    filterControls.innerHTML = '<p>Loading filters...</p>';
+                    const filterControls = document.getElementById('filters-controls');
+                    let combinedFilterHtml = '';
                     
-                    // Load only first 4 columns for fast filter loading
-                    const importantColumns = columns.slice(0, 4);
+                    // Limit to first 4 columns for better performance
+                    const columnsForFilters = columns.slice(0, 4);
                     
-                    // Create all filter requests in parallel
-                    const filterPromises = importantColumns.map(async (col) => {
+                    for (const col of columnsForFilters) {
                         const dataType = col.data_type.toLowerCase();
                         const isNumeric = dataType.includes('numeric') || dataType.includes('integer') || 
                             dataType.includes('double') || dataType.includes('bigint') ||
@@ -1337,75 +757,49 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             dataType.includes('decimal') || dataType.includes('float');
                         
                         try {
-                            const response = await fetch(`/api/eda/datasets/${datasetName}/columns/${col.column_name}/values?limit=10`, {timeout: 3000});
+                            const response = await fetch(`/api/eda/datasets/${datasetName}/columns/${col.column_name}/values?limit=10`);
                             const columnData = await response.json();
                             
-                            if (columnData.error) return null; // Skip if error loading values
-                            
-                            let filterHtml = `<div class="filter-group">`;
-                            filterHtml += `<label>${col.column_name} (${isNumeric ? 'numeric' : 'categorical'}):</label>`;
-                            
-                            if (isNumeric && columnData.min_value !== undefined && columnData.max_value !== undefined) {
-                                // Numeric range filter
-                                filterHtml += `
-                                    <div>
-                                        <label>Min: <input type="number" class="filter-input" id="filter-${col.column_name}-min" placeholder="Min value (${columnData.min_value})"></label>
-                                        <label>Max: <input type="number" class="filter-input" id="filter-${col.column_name}-max" placeholder="Max value (${columnData.max_value})"></label>
-                                        <small>Range: ${columnData.min_value} - ${columnData.max_value}</small>
-                                    </div>
-                                `;
-                            } else if (columnData.values && Array.isArray(columnData.values)) {
-                                // Categorical checkbox filter
-                                filterHtml += `<div class="checkbox-list">`;
-                                columnData.values.slice(0, 8).forEach(valueData => { // Show only first 8 values for speed
-                                    const value = typeof valueData === 'object' ? valueData.value : valueData;
-                                    const count = typeof valueData === 'object' ? valueData.count : '';
-                                    const countText = count ? ` (${count})` : '';
-                                    filterHtml += `
-                                        <label>
-                                            <input type="checkbox" name="filter-${col.column_name}" value="${value}"> ${value}${countText}
-                                        </label><br>
-                                    `;
-                                });
-                                if (columnData.values.length > 8) {
-                                    filterHtml += `<small>... and ${columnData.values.length - 8} more values</small>`;
-                                }
-                                filterHtml += `</div>`;
+                            if (columnData.error) {
+                                console.warn(`Error loading filter for ${col.column_name}:`, columnData.error);
+                                continue;
                             }
                             
-                            filterHtml += `</div>`;
-                            return filterHtml;
-                            
+                            if (isNumeric && columnData.min_value !== undefined) {
+                                combinedFilterHtml += `
+                                    <div class="filter-group">
+                                        <label>${col.column_name} (numeric):</label>
+                                        <input type="range" id="filter-${col.column_name}-min" 
+                                               min="${columnData.min_value}" max="${columnData.max_value}" 
+                                               value="${columnData.min_value}" step="0.01">
+                                        <input type="range" id="filter-${col.column_name}-max" 
+                                               min="${columnData.min_value}" max="${columnData.max_value}" 
+                                               value="${columnData.max_value}" step="0.01">
+                                        <span id="filter-${col.column_name}-display">${columnData.min_value} - ${columnData.max_value}</span>
+                                    </div>
+                                `;
+                            } else if (columnData.values && columnData.values.length > 0) {
+                                let checkboxHtml = '';
+                                columnData.values.slice(0, 8).forEach(item => {
+                                    checkboxHtml += `<label><input type="checkbox" name="filter-${col.column_name}" value="${item.value}"> ${item.value} (${item.count})</label><br>`;
+                                });
+                                
+                                combinedFilterHtml += `
+                                    <div class="filter-group">
+                                        <label>${col.column_name} (categorical):</label>
+                                        <div class="checkbox-list">
+                                            ${checkboxHtml}
+                                        </div>
+                                    </div>
+                                `;
+                            }
                         } catch (error) {
-                            console.error(`Error loading values for column ${col.column_name}:`, error);
-                            return null;
+                            console.error(`Error loading filter for ${col.column_name}:`, error);
                         }
-                    });
-                    
-                    // Wait for all filter promises to resolve
-                    const filterResults = await Promise.allSettled(filterPromises);
-                    
-                    // Combine successful results
-                    let combinedFilterHtml = '';
-                    filterResults.forEach(result => {
-                        if (result.status === 'fulfilled' && result.value) {
-                            combinedFilterHtml += result.value;
-                        }
-                    });
+                    }
                     
                     if (!combinedFilterHtml) {
-                        combinedFilterHtml = '<p>Loading filters (using demo data)...</p>';
-                        // Create simple demo filters for immediate UI feedback
-                        combinedFilterHtml += `
-                            <div class="filter-group">
-                                <label>symbol (categorical):</label>
-                                <div class="checkbox-list">
-                                    <label><input type="checkbox" name="filter-symbol" value="AAPL"> AAPL</label><br>
-                                    <label><input type="checkbox" name="filter-symbol" value="GOOGL"> GOOGL</label><br>
-                                    <label><input type="checkbox" name="filter-symbol" value="MSFT"> MSFT</label><br>
-                                </div>
-                            </div>
-                        `;
+                        combinedFilterHtml = '<div class="error-message">No filters could be loaded. Database may be unavailable.</div>';
                     }
                     
                     filterControls.innerHTML = combinedFilterHtml;
@@ -1415,10 +809,10 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     const distributionsContainer = document.getElementById('distributions-container');
                     distributionsContainer.innerHTML = '';
                     
-                    // Limit to first 6 columns for faster loading
+                    // Limit to first 6 columns for better performance
                     const columnsToAnalyze = columns.slice(0, 6);
                     
-                    // Create all containers first (immediate UI feedback)
+                    // Create all containers first for immediate feedback
                     const distributionPromises = [];
                     
                     for (const col of columnsToAnalyze) {
@@ -1438,13 +832,14 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         `;
                         distributionsContainer.appendChild(colDiv);
                         
-                        // Add to parallel loading promises (no await here!)
+                        // Add to parallel loading promises
                         if (isNumeric) {
                             distributionPromises.push(
                                 loadNumericDistribution(datasetName, col.column_name).catch(error => {
                                     console.error(`Error loading numeric distribution for ${col.column_name}:`, error);
                                     document.getElementById(`chart-${col.column_name}`).innerHTML = 
-                                        `<p style="color: orange; text-align: center;">Using demo data</p>`;
+                                        `<div class="error-message">Failed to load distribution: ${error.message}</div>`;
+                                    return null;
                                 })
                             );
                         } else {
@@ -1452,7 +847,8 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                 loadCategoricalDistribution(datasetName, col.column_name).catch(error => {
                                     console.error(`Error loading categorical distribution for ${col.column_name}:`, error);
                                     document.getElementById(`chart-${col.column_name}`).innerHTML = 
-                                        `<p style="color: orange; text-align: center;">Using demo data</p>`;
+                                        `<div class="error-message">Failed to load distribution: ${error.message}</div>`;
+                                    return null;
                                 })
                             );
                         }
@@ -1481,57 +877,9 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 }
                 
                 async function loadNumericDistribution(datasetName, columnName) {
-                    // Show demo data immediately for fast UI feedback
                     const statsContainer = document.getElementById(`stats-${columnName}`);
                     const chartContainer = document.getElementById(`chart-${columnName}`);
                     
-                    // Immediate demo stats
-                    statsContainer.innerHTML = `
-                        <div class="distribution-stat">
-                            <div class="stat-value-small">1,250</div>
-                            <div class="stat-label-small">Count</div>
-                        </div>
-                        <div class="distribution-stat">
-                            <div class="stat-value-small">42.5</div>
-                            <div class="stat-label-small">Mean</div>
-                        </div>
-                        <div class="distribution-stat">
-                            <div class="stat-value-small">15.3</div>
-                            <div class="stat-label-small">Std Dev</div>
-                        </div>
-                        <div class="distribution-stat">
-                            <div class="stat-value-small">1.2</div>
-                            <div class="stat-label-small">Min</div>
-                        </div>
-                        <div class="distribution-stat">
-                            <div class="stat-value-small">99.8</div>
-                            <div class="stat-label-small">Max</div>
-                        </div>
-                    `;
-                    
-                    // Immediate demo chart
-                    const demoData = [5, 12, 23, 45, 67, 89, 76, 54, 32, 18, 8, 3];
-                    const demoBins = ['0-10', '10-20', '20-30', '30-40', '40-50', '50-60', '60-70', '70-80', '80-90', '90-100'];
-                    
-                    const trace = {
-                        x: demoBins,
-                        y: demoData,
-                        type: 'bar',
-                        name: columnName,
-                        marker: { color: '#3498db' }
-                    };
-                    
-                    const layout = {
-                        title: `Distribution: ${columnName} (Demo Data)`,
-                        xaxis: { title: columnName },
-                        yaxis: { title: 'Frequency' },
-                        bargap: 0.1,
-                        margin: { l: 60, r: 20, t: 40, b: 60 }
-                    };
-                    
-                    Plotly.newPlot(`chart-${columnName}`, [trace], layout, {responsive: true});
-                    
-                    // Try to load real data in background (optional)
                     try {
                         const response = await fetch('/api/eda/analyze', {
                             method: 'POST',
@@ -1546,17 +894,10 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         const analysis = await response.json();
                         
                         if (analysis.error) {
-                            // Keep demo data, just update title
-                            const currentChart = document.getElementById(`chart-${columnName}`);
-                            if (currentChart) {
-                                Plotly.relayout(`chart-${columnName}`, {
-                                    title: `Distribution: ${columnName} (Demo Data - DB Unavailable)`
-                                });
-                            }
-                            return;
+                            throw new Error(analysis.error);
                         }
                         
-                        // Update with real data if available
+                        // Update statistics
                         if (analysis.statistics) {
                             statsContainer.innerHTML = `
                                 <div class="distribution-stat">
@@ -1582,8 +923,9 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             `;
                         }
                         
+                        // Update chart
                         if (analysis.histogram) {
-                            const realTrace = {
+                            const trace = {
                                 x: analysis.histogram.bin_centers,
                                 y: analysis.histogram.counts,
                                 type: 'bar',
@@ -1591,7 +933,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                 marker: { color: '#3498db' }
                             };
                             
-                            const realLayout = {
+                            const layout = {
                                 title: `Distribution: ${columnName}`,
                                 xaxis: { title: columnName },
                                 yaxis: { title: 'Frequency' },
@@ -1599,317 +941,222 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                 margin: { l: 60, r: 20, t: 40, b: 60 }
                             };
                             
-                            Plotly.newPlot(`chart-${columnName}`, [realTrace], realLayout, {responsive: true});
+                            Plotly.newPlot(`chart-${columnName}`, [trace], layout, {responsive: true});
                         }
                         
                     } catch (error) {
-                        console.error(`Error loading real data for ${columnName}:`, error);
-                        // Keep demo data, just update title
-                        Plotly.relayout(`chart-${columnName}`, {
-                            title: `Distribution: ${columnName} (Demo Data - Error Loading)`
-                        });
+                        console.error(`Error loading numeric distribution for ${columnName}:`, error);
+                        chartContainer.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+                        statsContainer.innerHTML = `<div class="error-message">Statistics unavailable</div>`;
+                        throw error;
                     }
                 }
                 
                 async function loadCategoricalDistribution(datasetName, columnName) {
-                    // Show demo data immediately for fast UI feedback
-                    const statsContainer = document.getElementById(`stats-${columnName}`);
                     const chartContainer = document.getElementById(`chart-${columnName}`);
                     
-                    // Immediate demo stats
-                    statsContainer.innerHTML = `
-                        <div class="distribution-stat">
-                            <div class="stat-value-small">15</div>
-                            <div class="stat-label-small">Unique</div>
-                        </div>
-                        <div class="distribution-stat">
-                            <div class="stat-value-small">8</div>
-                            <div class="stat-label-small">Showing</div>
-                        </div>
-                    `;
-                    
-                    // Immediate demo chart
-                    const demoValues = ['Value A', 'Value B', 'Value C', 'Value D', 'Value E', 'Value F', 'Value G', 'Value H'];
-                    const demoCounts = [45, 32, 28, 22, 18, 15, 12, 8];
-                    
-                    const trace = {
-                        x: demoValues,
-                        y: demoCounts,
-                        type: 'bar',
-                        name: columnName,
-                        marker: { color: '#e74c3c' }
-                    };
-                    
-                    const layout = {
-                        title: `Distribution: ${columnName} (Demo Data)`,
-                        xaxis: { 
-                            title: columnName,
-                            tickangle: -45
-                        },
-                        yaxis: { title: 'Count' },
-                        bargap: 0.2,
-                        margin: { l: 60, r: 20, t: 40, b: 100 }
-                    };
-                    
-                    Plotly.newPlot(`chart-${columnName}`, [trace], layout, {responsive: true});
-                    
-                    // Try to load real data in background (optional)
                     try {
-                        const response = await fetch(`/api/eda/datasets/${datasetName}/columns/${columnName}/values?limit=10`);
-                        const data = await response.json();
+                        const response = await fetch('/api/eda/analyze', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                dataset_name: datasetName,
+                                column: columnName,
+                                filters: {}
+                            })
+                        });
                         
-                        if (data.error || !data.values) {
-                            // Keep demo data, just update title
-                            Plotly.relayout(`chart-${columnName}`, {
-                                title: `Distribution: ${columnName} (Demo Data - DB Unavailable)`
-                            });
-                            return;
+                        const analysis = await response.json();
+                        
+                        if (analysis.error) {
+                            throw new Error(analysis.error);
                         }
                         
-                        // Update with real data if available
-                        statsContainer.innerHTML = `
-                            <div class="distribution-stat">
-                                <div class="stat-value-small">${data.total_unique}</div>
-                                <div class="stat-label-small">Unique</div>
-                            </div>
-                            <div class="distribution-stat">
-                                <div class="stat-value-small">${data.values.length}</div>
-                                <div class="stat-label-small">Showing</div>
-                            </div>
-                        `;
-                        
-                        if (data.values && data.values.length > 0) {
-                            const values = data.values.slice(0, 8); // Show top 8 values for speed
-                            
-                            const realTrace = {
-                                x: values.map(v => v.value),
-                                y: values.map(v => v.count || 1),
+                        if (analysis.value_counts) {
+                            const trace = {
+                                x: analysis.value_counts.values,
+                                y: analysis.value_counts.counts,
                                 type: 'bar',
                                 name: columnName,
                                 marker: { color: '#e74c3c' }
                             };
                             
-                            const realLayout = {
+                            const layout = {
                                 title: `Distribution: ${columnName}`,
-                                xaxis: { 
-                                    title: columnName,
-                                    tickangle: -45
-                                },
+                                xaxis: { title: columnName },
                                 yaxis: { title: 'Count' },
-                                bargap: 0.2,
-                                margin: { l: 60, r: 20, t: 40, b: 100 }
+                                bargap: 0.1,
+                                margin: { l: 60, r: 20, t: 40, b: 60 }
                             };
                             
-                            Plotly.newPlot(`chart-${columnName}`, [realTrace], realLayout, {responsive: true});
+                            Plotly.newPlot(`chart-${columnName}`, [trace], layout, {responsive: true});
                         }
                         
                     } catch (error) {
-                        console.error(`Error loading real data for ${columnName}:`, error);
-                        // Keep demo data, just update title
-                        Plotly.relayout(`chart-${columnName}`, {
-                            title: `Distribution: ${columnName} (Demo Data - Error Loading)`
-                        });
+                        console.error(`Error loading categorical distribution for ${columnName}:`, error);
+                        chartContainer.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+                        throw error;
                     }
                 }
-                
-                function applyFilters() {
-                    const datasetName = document.getElementById('dataset-select').value;
-                    if (!datasetName) return;
+
+                function clearAnalysis() {
+                    document.getElementById('distributions-container').innerHTML = '<p>Select a dataset to see column distributions</p>';
+                    document.getElementById('filters-controls').innerHTML = '<p>Select a dataset to see available filters</p>';
+                    document.getElementById('data-table-container').style.display = 'none';
+                    currentFilters = {};
+                    currentDataset = '';
+                }
+
+                async function applyFilters() {
+                    if (!currentDataset) {
+                        alert('Please select a dataset first');
+                        return;
+                    }
                     
+                    // Collect filter values
                     currentFilters = {};
                     
-                    // Collect numeric filters
-                    document.querySelectorAll('[id^="filter-"][id$="-min"], [id^="filter-"][id$="-max"]').forEach(input => {
-                        if (input.value) {
-                            const match = input.id.match(/filter-(.+)-(min|max)/);
-                            if (match) {
-                                const columnName = match[1];
-                                const type = match[2];
-                                
-                                if (!currentFilters[columnName]) {
-                                    currentFilters[columnName] = { type: 'range' };
-                                }
-                                currentFilters[columnName][type] = parseFloat(input.value);
+                    // Get all filter inputs
+                    const filterInputs = document.querySelectorAll('[name^="filter-"], [id^="filter-"]');
+                    
+                    filterInputs.forEach(input => {
+                        const columnName = input.name ? input.name.replace('filter-', '') : input.id.split('-')[1];
+                        
+                        if (input.type === 'checkbox' && input.checked) {
+                            if (!currentFilters[columnName]) {
+                                currentFilters[columnName] = [];
+                            }
+                            currentFilters[columnName].push(input.value);
+                        } else if (input.type === 'range') {
+                            // Handle numeric range filters
+                            const isMin = input.id.includes('-min');
+                            if (!currentFilters[columnName]) {
+                                currentFilters[columnName] = {};
+                            }
+                            if (isMin) {
+                                currentFilters[columnName].min = parseFloat(input.value);
+                            } else {
+                                currentFilters[columnName].max = parseFloat(input.value);
                             }
                         }
                     });
                     
-                    // Collect categorical filters
-                    document.querySelectorAll('[name^="filter-"]:checked').forEach(checkbox => {
-                        const columnName = checkbox.name.replace('filter-', '');
-                        if (!currentFilters[columnName]) {
-                            currentFilters[columnName] = { type: 'values', values: [] };
-                        }
-                        currentFilters[columnName].values.push(checkbox.value);
-                    });
-                    
-                    console.log('Applied filters:', currentFilters);
-                    alert(`Filters applied! Found ${Object.keys(currentFilters).length} filter(s). Use "Load Filtered Data" to see results.`);
+                    // Load filtered data
+                    currentPage = 1;
+                    await loadFilteredData();
                 }
-                
-                function clearFilters() {
-                    currentFilters = {};
-                    
-                    // Clear all filter inputs
-                    document.querySelectorAll('[id^="filter-"]').forEach(input => {
-                        if (input.type === 'checkbox') {
-                            input.checked = false;
-                        } else {
-                            input.value = '';
-                        }
-                    });
-                    
-                    // Hide data table
-                    document.getElementById('data-table-section').style.display = 'none';
-                    console.log('Filters cleared');
-                }
-                
-                async function loadFilteredData(page = 1) {
-                    const datasetName = document.getElementById('dataset-select').value;
-                    if (!datasetName) return;
-                    
+
+                async function loadFilteredData() {
                     try {
-                        const response = await fetch(`/api/eda/datasets/${datasetName}/data`, {
+                        const response = await fetch(`/api/eda/datasets/${currentDataset}/data`, {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json'},
                             body: JSON.stringify({
                                 filters: currentFilters,
-                                page: page,
-                                page_size: 50
+                                page: currentPage,
+                                page_size: pageSize
                             })
                         });
                         
-                        const data = await response.json();
+                        const result = await response.json();
                         
-                        if (data.error) {
-                            alert('Error loading data: ' + data.error);
-                            return;
+                        if (result.error) {
+                            throw new Error(result.error);
                         }
                         
-                        displayDataTable(data);
-                        currentPage = data.current_page || 1;
-                        totalPages = data.total_pages || 1;
+                        displayDataTable(result.data, result.pagination);
                         
                     } catch (error) {
                         console.error('Error loading filtered data:', error);
-                        alert('Error loading filtered data');
+                        document.getElementById('data-table-container').innerHTML = 
+                            `<div class="error-message">Failed to load data: ${error.message}</div>`;
+                        document.getElementById('data-table-container').style.display = 'block';
                     }
                 }
-                
-                function displayDataTable(data) {
-                    const tableSection = document.getElementById('data-table-section');
-                    const tableInfo = document.getElementById('table-info');
-                    const tableHead = document.getElementById('table-head');
-                    const tableBody = document.getElementById('table-body');
-                    
-                    // Show table section
-                    tableSection.style.display = 'block';
-                    
-                    // Update info
-                    const filterCount = Object.keys(currentFilters).length;
-                    tableInfo.innerHTML = `
-                        Showing ${data.data.length} of ${data.total_count} records 
-                        (Page ${data.current_page} of ${data.total_pages})
-                        ${filterCount > 0 ? `with ${filterCount} filter(s) applied` : ''}
-                    `;
-                    
-                    // Create table header
-                    if (data.data.length > 0) {
-                        const headers = Object.keys(data.data[0]);
-                        tableHead.innerHTML = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
-                        
-                        // Create table body
-                        tableBody.innerHTML = data.data.map(row => 
-                            '<tr>' + headers.map(h => `<td>${row[h] || ''}</td>`).join('') + '</tr>'
-                        ).join('');
-                    } else {
-                        tableHead.innerHTML = '<tr><th>No Data</th></tr>';
-                        tableBody.innerHTML = '<tr><td>No data matches the current filters</td></tr>';
-                    }
-                    
-                    // Update pagination
-                    updatePagination(data);
-                }
-                
-                function updatePagination(data) {
+
+                function displayDataTable(data, pagination) {
+                    const container = document.getElementById('data-table-container');
+                    const headers = document.getElementById('table-headers');
+                    const tbody = document.getElementById('table-body');
                     const paginationControls = document.getElementById('pagination-controls');
                     
-                    if (data.total_pages <= 1) {
-                        paginationControls.innerHTML = '';
+                    if (!data || data.length === 0) {
+                        container.innerHTML = '<div class="error-message">No data matches the selected filters</div>';
+                        container.style.display = 'block';
                         return;
                     }
                     
-                    let paginationHtml = '';
+                    // Create headers
+                    const headerRow = document.createElement('tr');
+                    Object.keys(data[0]).forEach(key => {
+                        const th = document.createElement('th');
+                        th.textContent = key;
+                        headerRow.appendChild(th);
+                    });
+                    headers.innerHTML = '';
+                    headers.appendChild(headerRow);
                     
-                    // Previous button
-                    paginationHtml += `<button class="pagination-btn" ${data.has_previous ? '' : 'disabled'} onclick="loadFilteredData(${data.current_page - 1})">← Previous</button>`;
+                    // Create data rows
+                    tbody.innerHTML = '';
+                    data.forEach(row => {
+                        const tr = document.createElement('tr');
+                        Object.values(row).forEach(value => {
+                            const td = document.createElement('td');
+                            td.textContent = value !== null && value !== undefined ? value : '';
+                            tr.appendChild(td);
+                        });
+                        tbody.appendChild(tr);
+                    });
                     
-                    // Page numbers (show a few around current page)
-                    const startPage = Math.max(1, data.current_page - 2);
-                    const endPage = Math.min(data.total_pages, data.current_page + 2);
+                    // Create pagination controls
+                    let paginationHtml = `
+                        <span>Page ${pagination.page} of ${pagination.total_pages} (${pagination.total_count.toLocaleString()} total records)</span><br><br>
+                    `;
                     
-                    if (startPage > 1) {
-                        paginationHtml += `<button class="pagination-btn" onclick="loadFilteredData(1)">1</button>`;
-                        if (startPage > 2) paginationHtml += '<span>...</span>';
+                    if (pagination.page > 1) {
+                        paginationHtml += '<button onclick="changePage(1)">First</button>';
+                        paginationHtml += `<button onclick="changePage(${pagination.page - 1})">Previous</button>`;
                     }
                     
-                    for (let i = startPage; i <= endPage; i++) {
-                        const activeClass = i === data.current_page ? ' active' : '';
-                        paginationHtml += `<button class="pagination-btn${activeClass}" onclick="loadFilteredData(${i})">${i}</button>`;
+                    if (pagination.page < pagination.total_pages) {
+                        paginationHtml += `<button onclick="changePage(${pagination.page + 1})">Next</button>`;
+                        paginationHtml += `<button onclick="changePage(${pagination.total_pages})">Last</button>`;
                     }
-                    
-                    if (endPage < data.total_pages) {
-                        if (endPage < data.total_pages - 1) paginationHtml += '<span>...</span>';
-                        paginationHtml += `<button class="pagination-btn" onclick="loadFilteredData(${data.total_pages})">${data.total_pages}</button>`;
-                    }
-                    
-                    // Next button
-                    paginationHtml += `<button class="pagination-btn" ${data.has_next ? '' : 'disabled'} onclick="loadFilteredData(${data.current_page + 1})">Next →</button>`;
                     
                     paginationControls.innerHTML = paginationHtml;
+                    container.style.display = 'block';
                 }
-                
-                
-                // Load data on page load
-                document.addEventListener('DOMContentLoaded', function() {
-                    loadDatasets();
-                });
+
+                async function changePage(newPage) {
+                    currentPage = newPage;
+                    await loadFilteredData();
+                }
+
+                function clearFilters() {
+                    // Clear all checkboxes
+                    document.querySelectorAll('[name^="filter-"]').forEach(input => {
+                        if (input.type === 'checkbox') {
+                            input.checked = false;
+                        }
+                    });
+                    
+                    // Reset range inputs to their min/max values
+                    document.querySelectorAll('[id^="filter-"]').forEach(input => {
+                        if (input.type === 'range') {
+                            if (input.id.includes('-min')) {
+                                input.value = input.min;
+                            } else {
+                                input.value = input.max;
+                            }
+                        }
+                    });
+                    
+                    currentFilters = {};
+                    document.getElementById('data-table-container').style.display = 'none';
+                }
             </script>
         </body>
         </html>
-        """
-
-def initialize_job_manager():
-    """Initialize the job manager."""
-    try:
-        job_manager.initialize()
-        logger.info("✅ Job manager initialized")
-    except Exception as e:
-        logger.warning(f"⚠️  Job manager initialization failed: {e}")
-
-def main():
-    """Main entry point for analytics service"""
-    port = int(os.getenv('PORT', 3000))
-    
-    try:
-        # Initialize job manager
-        logger.info("🔧 Initializing job manager...")
-        initialize_job_manager()
+        '''
         
-        server = ThreadingHTTPServer(('0.0.0.0', port), AnalyticsHandler)
-        logger.info(f"🚀 ATS Analytics Service starting on port {port}")
-        logger.info("📊 Serving 30-year price database analytics with job management")
-        logger.info(f"🌐 External access available")
-        logger.info("🔧 Job management endpoints: /api/jobs/stats, /api/jobs/recent")
-        
-        server.serve_forever()
-        
-    except KeyboardInterrupt:
-        logger.info("📊 Analytics service stopped")
-        server.server_close()
-    except Exception as e:
-        logger.error(f"❌ Analytics service error: {e}")
-        sys.exit(1)
-
-if __name__ == '__main__':
-    main()
+        return HTMLResponse(content=html_content)
