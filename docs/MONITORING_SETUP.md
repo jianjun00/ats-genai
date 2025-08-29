@@ -2,26 +2,25 @@
 
 ## Overview
 
-Complete monitoring solution for ATS platform with Prometheus, Grafana, and AlertManager across both `ats-dev` and `ats-intg` environments.
+Complete Docker-based monitoring solution for ATS platform with Prometheus, Grafana, and AlertManager for data quality and system health monitoring.
 
 ## Architecture
 
 ```
-┌─────────────────────┐    ┌─────────────────────┐
-│     ats-dev         │    │     ats-intg        │
-├─────────────────────┤    ├─────────────────────┤
-│ Prometheus :30090   │    │ Prometheus :30091   │
-│ Grafana    :30300   │    │ Grafana    :30301   │
-│ AlertMgr   :30093   │    │ AlertMgr   :30094   │
-│ DataExp    :8080    │    │ DataExp    :8080    │
-└─────────────────────┘    └─────────────────────┘
-           │                          │
-           └──────────┬─────────────────┘
+┌─────────────────────────────────────────┐
+│         Docker Monitoring Stack        │
+├─────────────────────────────────────────┤
+│ Grafana           :3001                 │
+│ Prometheus        :9090                 │
+│ AlertManager      :9093                 │
+│ Data Quality Exp  :8080                 │
+│ Node Exporter     :9100                 │
+└─────────────────────────────────────────┘
                       │
             ┌─────────────────┐
             │ Slack Channels  │
-            │ #ats-dev-alerts │
-            │ #ats-intg-alerts│
+            │ #ats-alerts     │
+            │ #ats-critical   │
             │ #ats-data-quality│
             └─────────────────┘
 ```
@@ -30,25 +29,30 @@ Complete monitoring solution for ATS platform with Prometheus, Grafana, and Aler
 
 ### 1. Prometheus
 - **Purpose**: Metrics collection and alerting
-- **Port**: 30090 (dev), 30091 (intg)  
+- **Port**: 9090
 - **Config**: Custom rules for ATS data quality alerts
 - **Retention**: 15 days
 
 ### 2. Grafana
 - **Purpose**: Metrics visualization and dashboards
-- **Port**: 30300 (dev), 30301 (intg)
-- **Credentials**: admin / ats-dev-password, admin / ats-intg-password
+- **Port**: 3001
+- **Credentials**: admin / ats-monitoring-password
 - **Dashboards**: ATS Data Quality Dashboard pre-configured
 
 ### 3. AlertManager
 - **Purpose**: Alert routing and Slack notifications
-- **Port**: 30093 (dev), 30094 (intg)
-- **Channels**: Environment-specific Slack channels
+- **Port**: 9093
+- **Channels**: Configurable Slack channels
 
 ### 4. Data Quality Exporter
 - **Purpose**: Custom metrics exporter for ATS-specific data quality
-- **Port**: 8080 (internal)
+- **Port**: 8080
 - **Metrics**: Instrument counts, price counts, data freshness
+
+### 5. Node Exporter
+- **Purpose**: System metrics collection
+- **Port**: 9100
+- **Metrics**: CPU, memory, disk, network statistics
 
 ## Key Metrics
 
@@ -80,53 +84,51 @@ Complete monitoring solution for ATS platform with Prometheus, Grafana, and Aler
 
 ### Quick Start
 ```bash
-# Deploy to both environments
-./scripts/deploy_monitoring.sh both
+# Start monitoring stack
+./scripts/start_monitoring.sh
 
-# Deploy to specific environment
-./scripts/deploy_monitoring.sh dev
-./scripts/deploy_monitoring.sh intg
+# Stop monitoring stack
+./scripts/stop_monitoring.sh
 ```
 
 ### Manual Deployment
 ```bash
-# Create namespaces
-kubectl apply -f k8s/monitoring/namespaces.yaml
+# Start all monitoring services
+docker-compose -f docker-compose.monitoring.yml up -d
 
-# Deploy Prometheus stack
-kubectl apply -f k8s/monitoring/prometheus-config.yaml
-kubectl apply -f k8s/monitoring/prometheus-deployment.yaml
+# Check service status
+docker-compose -f docker-compose.monitoring.yml ps
 
-# Deploy Grafana
-kubectl apply -f k8s/monitoring/grafana-config.yaml
-kubectl apply -f k8s/monitoring/grafana-dashboards.yaml
-kubectl apply -f k8s/monitoring/grafana-deployment.yaml
+# View logs
+docker-compose -f docker-compose.monitoring.yml logs -f
 
-# Deploy AlertManager
-kubectl apply -f k8s/monitoring/alertmanager-config.yaml
-kubectl apply -f k8s/monitoring/alertmanager-deployment.yaml
+# Stop services
+docker-compose -f docker-compose.monitoring.yml down
 
-# Deploy Data Quality Exporter
-kubectl apply -f k8s/monitoring/data-quality-exporter.yaml
+# Stop and remove volumes
+docker-compose -f docker-compose.monitoring.yml down -v
 ```
 
 ## Access Information
 
-### Development Environment (ats-dev)
-- **Grafana**: http://NODE_IP:30300 (admin/ats-dev-password)
-- **Prometheus**: http://NODE_IP:30090
-- **AlertManager**: http://NODE_IP:30093
+### Monitoring Services
+- **Grafana**: http://localhost:3001 (admin/ats-monitoring-password)
+- **Prometheus**: http://localhost:9090
+- **AlertManager**: http://localhost:9093
+- **Data Quality Exporter**: http://localhost:8080/metrics
+- **Node Exporter**: http://localhost:9100/metrics
 
-### Integration Environment (ats-intg)  
-- **Grafana**: http://NODE_IP:30301 (admin/ats-intg-password)
-- **Prometheus**: http://NODE_IP:30091  
-- **AlertManager**: http://NODE_IP:30094
-
-### Data Quality Metrics
+### Service Health Checks
 ```bash
-# Access via port-forward
-kubectl port-forward -n ats-dev service/ats-data-quality-exporter 8080:8080
-curl http://localhost:8080/metrics
+# Check all services are running
+docker-compose -f docker-compose.monitoring.yml ps
+
+# Test service endpoints
+curl http://localhost:3001/api/health      # Grafana
+curl http://localhost:9090/-/ready         # Prometheus  
+curl http://localhost:9093/-/ready         # AlertManager
+curl http://localhost:8080/metrics         # Data Quality Metrics
+curl http://localhost:9100/metrics         # Node Exporter
 ```
 
 ## Slack Integration Setup
@@ -143,7 +145,7 @@ curl http://localhost:8080/metrics
 ### 2. Configure Webhook URLs
 Update the webhook URLs in AlertManager configs:
 ```yaml
-# k8s/monitoring/alertmanager-config.yaml
+# monitoring/alertmanager/alertmanager.yml
 global:
   slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
 ```
@@ -151,7 +153,7 @@ global:
 ### 3. Test Alerts
 ```bash
 # Trigger test alert via Prometheus
-curl -X POST http://NODE_IP:30090/api/v1/alerts
+curl -X POST http://localhost:9090/api/v1/alerts
 ```
 
 ## Monitoring Dashboards
@@ -175,7 +177,7 @@ curl -X POST http://NODE_IP:30090/api/v1/alerts
 #### Data Quality Exporter Not Starting
 ```bash
 # Check logs
-kubectl logs -n ats-dev deployment/ats-data-quality-exporter
+docker-compose -f docker-compose.monitoring.yml logs ats-data-quality-exporter
 
 # Common fixes:
 # 1. Database connection issues - verify config
@@ -186,22 +188,28 @@ kubectl logs -n ats-dev deployment/ats-data-quality-exporter
 #### Metrics Not Appearing
 ```bash
 # Check Prometheus targets
-curl http://NODE_IP:30090/api/v1/targets
+curl http://localhost:9090/api/v1/targets
 
-# Verify service discovery
-kubectl get services -n ats-dev
-kubectl get endpoints -n ats-dev
+# Verify all services are running
+docker-compose -f docker-compose.monitoring.yml ps
+
+# Check service logs
+docker-compose -f docker-compose.monitoring.yml logs prometheus
 ```
 
 #### Grafana Dashboard Empty
 1. Verify Prometheus data source connection
 2. Check metric names match exporter output
 3. Verify time range and environment labels
+4. Test data source: http://prometheus:9090
 
 #### Alerts Not Firing
 ```bash
 # Check AlertManager status
-curl http://NODE_IP:30093/api/v1/status
+curl http://localhost:9093/api/v1/status
+
+# Check AlertManager logs
+docker-compose -f docker-compose.monitoring.yml logs alertmanager
 
 # Verify Slack webhook
 curl -X POST -H 'Content-type: application/json' \
@@ -211,19 +219,20 @@ curl -X POST -H 'Content-type: application/json' \
 
 ### Verification Commands
 ```bash
-# Check all pods are running
-kubectl get pods -n ats-dev
-kubectl get pods -n ats-intg
+# Check all services are running
+docker-compose -f docker-compose.monitoring.yml ps
 
-# Check services and endpoints
-kubectl get svc,endpoints -n ats-dev
+# Check service logs
+docker-compose -f docker-compose.monitoring.yml logs
 
 # Check metrics endpoint
-kubectl port-forward -n ats-dev svc/ats-data-quality-exporter 8080:8080
 curl http://localhost:8080/metrics | grep ats_
 
 # Test Prometheus queries
-curl "http://NODE_IP:30090/api/v1/query?query=up"
+curl "http://localhost:9090/api/v1/query?query=up"
+
+# Check Grafana health
+curl http://localhost:3001/api/health
 ```
 
 ## Maintenance
@@ -238,14 +247,14 @@ curl "http://NODE_IP:30090/api/v1/query?query=up"
 - Increase Prometheus retention for longer history
 - Add more data quality exporters for additional metrics
 - Create custom dashboards for specific use cases
-- Implement cross-environment comparison views
+- Scale services using Docker Compose scaling: `docker-compose -f docker-compose.monitoring.yml up -d --scale prometheus=2`
 
 ## Security Considerations
 - Grafana admin passwords should be changed from defaults
-- Slack webhook URLs should be stored as Kubernetes secrets
-- Network policies can restrict access between namespaces
-- RBAC policies should limit monitoring service permissions
+- Slack webhook URLs should be stored as environment variables or Docker secrets
+- Docker network isolation restricts access between containers
+- Use Docker secrets for sensitive configuration data
 
 ---
 
-For questions or issues, refer to the troubleshooting section or check component logs using `kubectl logs`.
+For questions or issues, refer to the troubleshooting section or check component logs using `docker-compose logs`.
