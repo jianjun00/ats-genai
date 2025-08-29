@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fundamentals-dao-integration-test
+  namespace: ats-dev
+spec:
+  template:
+    spec:
+      containers:
+      - name: fundamentals-dao-test
+        image: dragonflyer762/ats-genai:latest
+        command: ["python3", "/app/scripts/k8s-extracted/test_fundamentals_dao_integration.py"]
+        env:
+        - name: PYTHONPATH
+          value: "/app/src"
+        - name: ENVIRONMENT
+          value: "dev"
+        - name: DB_HOST
+          value: "postgres"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "dev_password"
+        - name: DB_NAME
+          value: "dev_db"
+        - name: DB_DISABLE_CONNECT_TIMEOUT
+          value: "true"
+        volumeMounts:
+        - name: script-volume
+          mountPath: /app/scripts/k8s-extracted
+        - name: src-volume
+          mountPath: /app/src
+      volumes:
+      - name: script-volume
+        hostPath:
+          path: /home/jianjun/ats-genai-data/scripts/k8s-extracted
+          type: Directory
+      - name: src-volume
+        hostPath:
+          path: /home/jianjun/ats-genai-data/src
+          type: Directory
+      restartPolicy: Never
+  backoffLimit: 1
