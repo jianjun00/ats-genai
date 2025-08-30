@@ -95,12 +95,17 @@ The ATS EDA Tool is a comprehensive data exploration and visualization platform 
 - **FR-2.5**: Missing data pattern visualizations
 - **FR-2.6**: Outlier detection scatter plots
 
-### 3. **Data Filtering and Query**
-- **FR-3.1**: Interactive filters for date ranges, symbols, vendors
-- **FR-3.2**: SQL-like query interface for complex filtering
-- **FR-3.3**: Filter persistence and sharing via URLs
-- **FR-3.4**: Real-time filter updates without page refresh
-- **FR-3.5**: Filter combination logic (AND, OR, NOT operations)
+### 3. **Data Filtering and Query - Enhanced Type-Aware System**
+- **FR-3.1**: **Type-Specific Filter Controls**:
+  - **Numeric**: Range sliders with min/max inputs for precise filtering
+  - **Categorical**: Checkbox selection with value counts for discrete choices
+  - **String**: Real-time text search with partial matching (debounced 500ms)
+- **FR-3.2**: **String Search Capabilities**: ILIKE-based partial matching for string columns (id, symbol, name, title, url, description)
+- **FR-3.3**: **Intelligent Column Classification**: Automatic detection of string vs categorical vs numeric types
+- **FR-3.4**: Interactive filters for date ranges, symbols, vendors
+- **FR-3.5**: Filter persistence and sharing via URLs
+- **FR-3.6**: Real-time filter updates without page refresh
+- **FR-3.7**: Filter combination logic (AND, OR, NOT operations)
 
 ### 4. **Dataset Comparison**
 - **FR-4.1**: Side-by-side distribution comparison between two datasets
@@ -127,6 +132,11 @@ The ATS EDA Tool is a comprehensive data exploration and visualization platform 
 - **FR-6.6**: Data quality indicators (null count, unique values, data types)
 - **FR-6.7**: Interactive pagination controls with Previous/Next buttons
 - **FR-6.8**: Responsive layout supporting simultaneous visualization viewing and data browsing
+- **FR-6.9**: **String Type Handling**: Intelligent column type detection and specialized handling:
+  - **String Detection**: Columns named `id`, `symbol`, `name`, `title`, `url`, `description` or with VARCHAR/TEXT types treated as strings
+  - **Visualization Exclusion**: String columns excluded from distribution charts, show "String column - available in filters" message
+  - **Partial String Matching**: Text search filters with debounced input (500ms delay) for real-time filtering
+  - **Type Labeling**: Clear column type indication (numeric/categorical/string) in both filters and visualizations
 
 ### 7. **Analytics and Insights**
 - **FR-7.1**: Automated data quality scoring

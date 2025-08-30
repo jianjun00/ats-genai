@@ -13,6 +13,7 @@ import sys
 import os
 from typing import Dict, List, Optional
 import numpy as np
+import time
 
 # Configure logging first
 logging.basicConfig(level=logging.INFO)
@@ -31,6 +32,39 @@ try:
 except ImportError as e:
     RAY_AVAILABLE = False
     logger.warning(f"⚠️ Ray EDA engine not available: {e}. Falling back to traditional methods")
+
+# Dataset metadata cache - expires after 4 hours
+DATASET_CACHE = {
+    'data': None,
+    'timestamp': 0,
+    'ttl': 4 * 60 * 60  # 4 hours in seconds
+}
+
+def get_cached_datasets(job_manager):
+    """Get cached dataset metadata or refresh if expired."""
+    current_time = time.time()
+    
+    # Check if cache is valid
+    if (DATASET_CACHE['data'] is not None and 
+        current_time - DATASET_CACHE['timestamp'] < DATASET_CACHE['ttl']):
+        logger.debug("📋 Using cached dataset metadata")
+        return DATASET_CACHE['data']
+    
+    # Cache miss or expired - refresh data
+    logger.info("🔄 Refreshing dataset metadata cache...")
+    try:
+        datasets = job_manager.get_datasets()
+        DATASET_CACHE['data'] = datasets
+        DATASET_CACHE['timestamp'] = current_time
+        logger.info(f"✅ Cached {len(datasets)} datasets (expires in {DATASET_CACHE['ttl']//3600}h)")
+        return datasets
+    except Exception as e:
+        logger.error(f"❌ Failed to refresh dataset cache: {e}")
+        # Return stale cache if available
+        if DATASET_CACHE['data'] is not None:
+            logger.warning("⚠️ Using stale dataset cache due to refresh failure")
+            return DATASET_CACHE['data']
+        raise
 
 class JobManager:
     """Job management functionality for analytics service using centralized connection manager."""
@@ -953,10 +987,11 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'public, max-age=3600')  # 1 hour browser cache
             self.end_headers()
             
             try:
-                datasets = job_manager.get_datasets()
+                datasets = get_cached_datasets(job_manager)
                 self.wfile.write(json.dumps(datasets, indent=2).encode())
             except Exception as e:
                 logger.error(f"Error getting datasets: {e}")
@@ -1240,9 +1275,27 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 let currentPage = 1;
                 let totalPages = 1;
                 
+                // Frontend cache for datasets - 1 hour cache
+                let datasetsCache = {
+                    data: null,
+                    timestamp: 0,
+                    ttl: 60 * 60 * 1000  // 1 hour in milliseconds
+                };
+                
                 async function loadDatasets() {
                     try {
-                        console.log('🚀 Loading datasets...');
+                        const currentTime = Date.now();
+                        
+                        // Check frontend cache first
+                        if (datasetsCache.data && 
+                            currentTime - datasetsCache.timestamp < datasetsCache.ttl) {
+                            console.log('📋 Using cached datasets (frontend cache)');
+                            datasets = datasetsCache.data;
+                            populateDatasetDropdown();
+                            return;
+                        }
+                        
+                        console.log('🚀 Loading datasets from API...');
                         const response = await fetch('/api/eda/datasets');
                         console.log('✅ Response status:', response.status);
                         
@@ -1255,29 +1308,37 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         datasets = Array.isArray(data) ? data : data.datasets || [];
                         console.log('Datasets received:', datasets.length);
                         
-                        if (!Array.isArray(datasets) || datasets.length === 0) {
-                            document.getElementById('dataset-select').innerHTML = '<option value="">No datasets found</option>';
-                            return;
-                        }
+                        // Cache the results
+                        datasetsCache.data = datasets;
+                        datasetsCache.timestamp = currentTime;
+                        console.log('💾 Datasets cached for 1 hour');
                         
-                        let html = '';
-                        const select = document.getElementById('dataset-select');
-                        select.innerHTML = '<option value="">Select dataset...</option>';
-                        
-                        datasets.forEach((dataset, index) => {
-                            console.log(`Dataset ${index}:`, dataset.display_name);
-                            
-                            // Add dataset size information to dropdown
-                            const sizeInfo = formatDatasetSize(dataset.row_count, dataset.column_count);
-                            select.innerHTML += `<option value="${dataset.name}">${dataset.display_name} (${sizeInfo})</option>`;
-                        });
-                        
-                        console.log('Datasets loaded successfully');
+                        populateDatasetDropdown();
                         
                     } catch (error) {
                         console.error('Error loading datasets:', error);
                         document.getElementById('dataset-select').innerHTML = '<option value="">Error loading datasets</option>';
                     }
+                }
+                
+                function populateDatasetDropdown() {
+                    if (!Array.isArray(datasets) || datasets.length === 0) {
+                        document.getElementById('dataset-select').innerHTML = '<option value="">No datasets found</option>';
+                        return;
+                    }
+                    
+                    const select = document.getElementById('dataset-select');
+                    select.innerHTML = '<option value="">Select dataset...</option>';
+                    
+                    datasets.forEach((dataset, index) => {
+                        console.log(`Dataset ${index}:`, dataset.display_name);
+                        
+                        // Add dataset size information to dropdown
+                        const sizeInfo = formatDatasetSize(dataset.row_count, dataset.column_count);
+                        select.innerHTML += `<option value="${dataset.name}">${dataset.display_name} (${sizeInfo})</option>`;
+                    });
+                    
+                    console.log('✅ Datasets populated successfully');
                 }
                 
                 function formatDatasetSize(rowCount, columnCount) {
@@ -1361,6 +1422,13 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             dataType.includes('smallint') || dataType.includes('real') ||
                             dataType.includes('decimal') || dataType.includes('float');
                         
+                        // Identify string columns that should not be treated as categorical
+                        const isStringType = dataType.includes('varchar') || dataType.includes('text') || 
+                            dataType.includes('character') || col.name.toLowerCase().includes('id') ||
+                            col.name.toLowerCase().includes('symbol') || col.name.toLowerCase().includes('name') ||
+                            col.name.toLowerCase().includes('title') || col.name.toLowerCase().includes('url') ||
+                            col.name.toLowerCase().includes('description');
+                        
                         try {
                             const response = await fetch(`/api/eda/datasets/${datasetName}/columns/${col.name}/values?limit=10`, {timeout: 3000});
                             const columnData = await response.json();
@@ -1368,7 +1436,8 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             if (columnData.error) return null; // Skip if error loading values
                             
                             let filterHtml = `<div class="filter-group">`;
-                            filterHtml += `<label>${col.name} (${isNumeric ? 'numeric' : 'categorical'}):</label>`;
+                            const typeLabel = isNumeric ? 'numeric' : (isStringType ? 'string' : 'categorical');
+                            filterHtml += `<label>${col.name} (${typeLabel}):</label>`;
                             
                             if (isNumeric && columnData.min_value !== undefined && columnData.max_value !== undefined) {
                                 // Numeric range filter
@@ -1377,6 +1446,15 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                         <label>Min: <input type="number" class="filter-input" id="filter-${col.name}-min" placeholder="Min value (${columnData.min_value})"></label>
                                         <label>Max: <input type="number" class="filter-input" id="filter-${col.name}-max" placeholder="Max value (${columnData.max_value})"></label>
                                         <small>Range: ${columnData.min_value} - ${columnData.max_value}</small>
+                                    </div>
+                                `;
+                            } else if (isStringType) {
+                                // String partial match filter
+                                filterHtml += `
+                                    <div>
+                                        <input type="text" class="filter-input" id="filter-${col.name}-search" placeholder="Enter text to search..." 
+                                               onkeyup="debounceStringFilter('${col.name}', this.value)">
+                                        <small>Searches for partial matches in ${col.name}</small>
                                     </div>
                                 `;
                             } else if (columnData.values && Array.isArray(columnData.values)) {
@@ -1441,6 +1519,29 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             dataType.includes('double') || dataType.includes('bigint') ||
                             dataType.includes('smallint') || dataType.includes('real') ||
                             dataType.includes('decimal') || dataType.includes('float');
+                        
+                        // Identify string columns to exclude from visualization
+                        const isStringType = dataType.includes('varchar') || dataType.includes('text') || 
+                            dataType.includes('character') || col.name.toLowerCase().includes('id') ||
+                            col.name.toLowerCase().includes('symbol') || col.name.toLowerCase().includes('name') ||
+                            col.name.toLowerCase().includes('title') || col.name.toLowerCase().includes('url') ||
+                            col.name.toLowerCase().includes('description');
+                        
+                        // Skip string columns for visualization but show in filters
+                        if (isStringType) {
+                            const colDiv = document.createElement('div');
+                            colDiv.className = 'column-distribution';
+                            colDiv.innerHTML = `
+                                <h4>${col.name} (String)</h4>
+                                <div class="distribution-chart">
+                                    <p style="text-align: center; color: #666; font-style: italic;">
+                                        String column - available in filters for text search
+                                    </p>
+                                </div>
+                            `;
+                            distributionsContainer.appendChild(colDiv);
+                            continue;
+                        }
                         
                         // Create container for this column's distribution
                         const colDiv = document.createElement('div');
@@ -1651,6 +1752,14 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         }
                     });
                     
+                    // Collect string search filters
+                    document.querySelectorAll('[id$="-search"]').forEach(input => {
+                        if (input.value && input.value.trim()) {
+                            const columnName = input.id.replace('filter-', '').replace('-search', '');
+                            currentFilters[columnName] = { type: 'string_search', value: input.value.trim() };
+                        }
+                    });
+                    
                     // Collect categorical filters
                     document.querySelectorAll('[name^="filter-"]:checked').forEach(checkbox => {
                         const columnName = checkbox.name.replace('filter-', '');
@@ -1661,7 +1770,25 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     });
                     
                     console.log('Applied filters:', currentFilters);
-                    alert(`Filters applied! Found ${Object.keys(currentFilters).length} filter(s). Use "Load Filtered Data" to see results.`);
+                    
+                    // Actually load the filtered data instead of just showing alert
+                    if (Object.keys(currentFilters).length > 0) {
+                        loadFilteredData(1); // Load first page of filtered data
+                        
+                        // Show success message briefly
+                        const filterButton = document.querySelector('button[onclick="applyFilters()"]');
+                        if (filterButton) {
+                            const originalText = filterButton.textContent;
+                            filterButton.textContent = '✅ Filters Applied';
+                            filterButton.style.background = '#28a745';
+                            setTimeout(() => {
+                                filterButton.textContent = originalText;
+                                filterButton.style.background = '';
+                            }, 2000);
+                        }
+                    } else {
+                        alert('No filters selected. Please set some filter values first.');
+                    }
                 }
                 
                 function clearFilters() {
@@ -1674,6 +1801,11 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         } else {
                             input.value = '';
                         }
+                    });
+                    
+                    // Clear string search filters specifically
+                    document.querySelectorAll('[id$="-search"]').forEach(input => {
+                        input.value = '';
                     });
                     
                     // Hide data table
@@ -1784,6 +1916,20 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     paginationHtml += `<button class="pagination-btn" ${data.has_next ? '' : 'disabled'} onclick="loadFilteredData(${data.current_page + 1})">Next →</button>`;
                     
                     paginationControls.innerHTML = paginationHtml;
+                }
+                
+                // Debounce function for string filters
+                let stringFilterTimeout = null;
+                function debounceStringFilter(columnName, searchValue) {
+                    clearTimeout(stringFilterTimeout);
+                    stringFilterTimeout = setTimeout(() => {
+                        if (searchValue.trim().length > 0) {
+                            currentFilters[columnName] = { type: 'string_search', value: searchValue.trim() };
+                        } else {
+                            delete currentFilters[columnName];
+                        }
+                        console.log(`String filter for ${columnName}:`, searchValue);
+                    }, 500); // 500ms delay
                 }
                 
                 async function loadDataTable(datasetName, columns) {
