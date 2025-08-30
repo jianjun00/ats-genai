@@ -563,17 +563,17 @@ docker exec ats-dev-postgres psql -U postgres -d dev_db -c "\d table_name"
 
 **ATS-DEV (Development):**
 - **Purpose**: Primary development, unit testing, feature development
-- **Database**: PostgreSQL 16.9 on `localhost:5432` 
+- **Database**: PostgreSQL 13 on `localhost:3432` 
 - **Container**: `ats-dev-postgres` (postgres:13 image)
-- **Connection**: `dev_db` database, `postgres` user, **no password**
+- **Connection**: `dev_db` database, `postgres` user, `dev_password`
 - **Table Prefix**: `dev_*` (e.g., `dev_instruments`, `dev_daily_prices`)
 - **Usage**: `python3 scripts/run_dev.py --environment dev query --query "..."`
 
 **ATS-INTG (Integration):**
 - **Purpose**: CI/CD integration testing, pre-production validation  
-- **Database**: TimescaleDB (PostgreSQL 13.15) on `localhost:5433`
+- **Database**: TimescaleDB (PostgreSQL 13.15) on `localhost:4432`
 - **Container**: `ats-intg-postgres` (timescale/timescaledb:latest-pg13 image)
-- **Connection**: `intg_db` database, `postgres` user, **no password** (auto-detected)
+- **Connection**: `intg_db` database, `postgres` user, `intg_password`
 - **Table Prefix**: `intg_*` (e.g., `intg_instruments`, `intg_daily_prices`)
 - **Usage**: `python3 scripts/run_dev.py --environment intg query --query "..."`
 
@@ -595,11 +595,11 @@ python3 scripts/run_dev.py --environment intg query --query "SELECT current_data
 
 **Direct Database Connections:**
 ```bash
-# ATS-DEV (no password required)
-psql -h localhost -p 5432 -U postgres -d dev_db -c "SELECT version()"
+# ATS-DEV (password required)
+PGPASSWORD=dev_password psql -h localhost -p 3432 -U postgres -d dev_db -c "SELECT version()"
 
-# ATS-INTG (no password required) 
-psql -h localhost -p 5433 -U postgres -d intg_db -c "SELECT version()"
+# ATS-INTG (password required) 
+PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "SELECT version()"
 ```
 
 ### **🚀 Critical Development Workflow**
@@ -609,10 +609,215 @@ psql -h localhost -p 5433 -U postgres -d intg_db -c "SELECT version()"
 4. **Use proper table prefixes** (`dev_` vs `intg_`) in all queries
 
 **⚠️ KEY DIFFERENCES:**
-- **Ports**: DEV=5432, INTG=5433  
+- **Ports**: DEV=3432, INTG=4432  
 - **Databases**: dev_db vs intg_db
 - **Table Prefixes**: dev_* vs intg_*
 - **Container Images**: postgres:13 vs timescale/timescaledb:latest-pg13
+
+---
+
+## ⚙️ **CRITICAL OPERATIONS GUIDE**
+
+### **🚀 Environment Management**
+
+**ATS-DEV Environment:**
+```bash
+# Complete environment setup
+python3 scripts/run_dev.py setup
+
+# Individual service management
+python3 scripts/run_dev.py start --service postgres    # PostgreSQL database
+python3 scripts/run_dev.py start --service analytics   # Analytics service
+python3 scripts/run_dev.py stop --service analytics
+python3 scripts/run_dev.py status
+
+# Database operations
+python3 scripts/run_dev.py query --query "SELECT version()"
+python3 scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_prices"
+```
+
+**ATS-INTG Environment:**
+```bash
+# Complete environment (Docker Compose)
+docker-compose -f docker-compose.intg-jobs.yml up -d
+docker-compose -f docker-compose.intg-jobs.yml down
+
+# Database operations (direct connection)
+PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db
+PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "SELECT version()"
+```
+
+### **📋 Quick Reference - Database Connections**
+
+| Environment | Host | Port | Database | Username | Password | Connection String |
+|-------------|------|------|----------|----------|----------|-------------------|
+| **ATS-DEV** | localhost | 3432 | dev_db | postgres | dev_password | `postgresql://postgres:dev_password@localhost:3432/dev_db` |
+| **ATS-INTG** | localhost | 4432 | intg_db | postgres | intg_password | `postgresql://postgres:intg_password@localhost:4432/intg_db` |
+
+### **🔑 API Keys & Authentication**
+
+**Market Data Vendor API Keys:**
+
+| Vendor | Environment Variable | Purpose | Rate Limits |
+|--------|---------------------|---------|-------------|
+| **Polygon** | `POLYGON_API_KEY` | Stock prices, fundamentals, news | 5 calls/min |
+| **Tiingo** | `TIINGO_API_KEY` | Daily prices, fundamentals | 1000 calls/hr |
+| **FMP** | `FMP_API_KEY` | Fundamentals, earnings | 250 calls/day |
+| **Alpha Vantage** | `ALPHA_VANTAGE_API_KEY` | Economic indicators | 25 calls/day |
+| **EODHD** | `EODHD_API_KEY` | EOD prices, fundamentals | 20 calls/min |
+| **FirstRate** | `FIRSTRATE_USER_ID` | Minute-level OHLCV data | Premium feed |
+
+**API Key Configuration:**
+```bash
+# Set keys for development scripts
+export POLYGON_API_KEY=your_polygon_key
+export TIINGO_API_KEY=your_tiingo_key
+export FMP_API_KEY=your_fmp_key
+
+# Use with scripts
+python3 scripts/run_dev.py run --script scripts/tiingo_30_year_daily_backfill.py
+```
+
+### **💾 Backup & Recovery**
+
+**Automated Daily Backup System:**
+```bash
+# ✅ AUTOMATED SYSTEM IS CONFIGURED AND RUNNING
+# Daily backups run automatically via cron:
+# - ATS-DEV: Daily at 2:00 AM
+# - ATS-INTG: Daily at 2:15 AM  
+# - Retention: 7 days automatic cleanup
+
+# Check backup status
+./scripts/manage_backups.sh status
+
+# Manual backup operations
+./scripts/manage_backups.sh run-dev     # Backup ATS-DEV now
+./scripts/manage_backups.sh run-intg    # Backup ATS-INTG now
+./scripts/manage_backups.sh run-all     # Backup both environments
+./scripts/manage_backups.sh cleanup     # Clean old backups
+./scripts/manage_backups.sh logs        # View recent logs
+
+# Backup locations
+# ATS-DEV: /mnt/d/ats-backup/dev/daily_backup_YYYYMMDD_HHMMSS.sql
+# ATS-INTG: /mnt/d/ats-backup/intg/daily_backup_YYYYMMDD_HHMMSS.sql
+```
+
+### **📊 Monitoring & Health Checks**
+
+**Service Health Checks:**
+```bash
+# Check all running services
+docker ps
+python3 scripts/run_dev.py status                    # ATS-DEV status
+docker-compose -f docker-compose.intg-jobs.yml ps    # ATS-INTG status
+
+# Service endpoints
+curl -f http://localhost:3000/health     # ATS-DEV analytics
+curl -f http://localhost:4000/health     # ATS-INTG dashboard
+curl -f http://localhost:4002/login      # ATS-INTG Grafana
+curl -f http://localhost:4091/-/ready    # ATS-INTG Prometheus
+
+# Database connectivity tests
+python3 scripts/run_dev.py query --query "SELECT version()"
+PGPASSWORD=intg_password pg_isready -h localhost -p 4432 -U postgres -d intg_db
+
+# View logs
+docker logs ats-dev-analytics        # ATS-DEV analytics logs
+docker logs ats-dev-postgres         # ATS-DEV database logs  
+docker logs postgres-intg            # ATS-INTG database logs
+docker logs ats-intg-scheduler       # ATS-INTG job scheduler logs
+```
+
+**Performance Monitoring:**
+```bash
+# System performance overview
+docker stats --no-stream | grep -E "(ats-dev|intg)"
+free -h
+df -h /mnt/d/
+
+# Container uptime and restart counts
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.RestartCount}}"
+
+# Storage usage
+ls -lah /mnt/d/ats-data/     # Data directory usage
+ls -lah /mnt/d/ats-backup/   # Backup directory usage
+ls -lah /mnt/d/ats-logs/     # Log directory usage
+```
+
+### **🆘 Emergency Response**
+
+**Docker Networking Issues (FIXED 2025-08-30):**
+```bash
+# ✅ ROOT CAUSE IDENTIFIED AND FIXED:
+# - run_dev.py was using deprecated --link instead of --network
+# - Fixed by updating run_dev.py to use --network ats-network
+
+# Verify the fix is working:
+python3 scripts/run_dev.py run --script any_script.py   # Should work now
+docker network inspect ats-network                     # Show containers on network
+```
+
+**Service Recovery:**
+```bash
+# ATS-DEV Service Recovery
+python3 scripts/run_dev.py stop --service analytics
+python3 scripts/run_dev.py start --service analytics
+
+# ATS-INTG Service Recovery  
+docker-compose -f docker-compose.intg-jobs.yml restart ats-intg-scheduler
+docker restart grafana-intg prometheus-intg
+
+# Database restart if needed
+docker restart ats-dev-postgres
+docker restart postgres-intg
+```
+
+**Data Quality Checks:**
+```bash
+# Check instrument populations
+python3 scripts/run_dev.py query --query "
+SELECT 'Tiingo' as vendor, COUNT(*) as instruments FROM dev_instrument_tiingo
+UNION
+SELECT 'EODHD' as vendor, COUNT(*) as instruments FROM dev_instrument_eodhd
+UNION  
+SELECT 'Polygon' as vendor, COUNT(*) as instruments FROM dev_instrument_polygon
+"
+
+# Check data freshness
+python3 scripts/run_dev.py query --query "
+SELECT vendor, MAX(date) as latest_data, COUNT(*) as records_today
+FROM dev_daily_prices 
+WHERE date >= CURRENT_DATE - 1
+GROUP BY vendor
+"
+```
+
+### **🎯 Daily Operations Checklist**
+
+```bash
+# Morning health check routine
+./scripts/manage_backups.sh status      # Check overnight backups
+docker ps | grep -E "(ats-dev|intg)"    # Verify containers running
+python3 scripts/run_dev.py status       # Check ATS-DEV health
+
+# Critical: Verify Docker networking is working (FIXED 2025-08-30)
+docker network inspect ats-network --format "{{.Containers}}" | grep -q "ats-dev-postgres" && echo "✅ Docker networking OK" || echo "❌ Docker networking issue"
+
+# Weekly maintenance
+./scripts/manage_backups.sh cleanup     # Clean old backups
+docker system prune -f                  # Clean unused containers/images
+du -sh /mnt/d/ats-*                     # Check storage usage
+
+# Performance monitoring
+docker stats --no-stream | head -10     # Container resource usage
+tail -50 /mnt/d/ats-logs/backup-*.log   # Recent backup activity
+```
+
+**🚨 CRITICAL ANTI-PATTERNS:**
+- ❌ **DO NOT** use `docker run` for ATS-INTG services (use Docker Compose)
+- ❌ **DO NOT** use Docker Compose for ATS-DEV services (use `run_dev.py`)
+- ❌ **DO NOT** mix `run_dev.py` commands with `docker-compose` commands
 
 ---
 
