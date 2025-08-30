@@ -1330,7 +1330,6 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                 </select>
                             </div>
                             <div id="dataset-info" style="display: none; margin-top: 15px;">
-                                <div id="dataset-summary"></div>
                             </div>
                         </div>
                         
@@ -1489,10 +1488,6 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         // Show dataset info
                         const datasetInfo = datasets.find(d => d.name === datasetName);
                         if (datasetInfo) {
-                            document.getElementById('dataset-summary').innerHTML = `
-                                <strong>${datasetInfo.display_name}</strong><br>
-                                <small>${datasetInfo.row_count.toLocaleString()} rows, ${datasetInfo.column_count} columns | Vendor: ${datasetInfo.vendor}</small>
-                            `;
                             document.getElementById('dataset-info').style.display = 'block';
                         }
                         
