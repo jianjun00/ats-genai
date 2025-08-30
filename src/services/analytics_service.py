@@ -819,26 +819,6 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 </div>
                 
                 <div class="grid">
-                    <div class="card">
-                        <h3>Database Summary</h3>
-                        <div class="metric">7.95M+</div>
-                        <p>Total price records across all vendors</p>
-                        <ul>
-                            <li><strong>Instruments:</strong> 17,700 unique symbols</li>
-                            <li><strong>ETFs:</strong> 23 critical market factors</li>
-                            <li><strong>Date Range:</strong> 1995-2025 (30 years)</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="card">
-                        <h3>Vendor Coverage</h3>
-                        <ul>
-                            <li><strong>Tiingo:</strong> 6.56M records, 2,355 symbols</li>
-                            <li><strong>EODHD:</strong> 728K records, 268 symbols</li>
-                            <li><strong>Polygon:</strong> 666K records, 849 symbols</li>
-                        </ul>
-                        <a href="/api/vendors" class="btn">Vendor Details</a>
-                    </div>
                     
                     <div class="card">
                         <h3>Job Management</h3>

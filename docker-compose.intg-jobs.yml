@@ -118,8 +118,8 @@ services:
       - PYTHONPATH=/workspace/src
       - ENVIRONMENT=intg
       - PORT=4000
-      - DB_HOST=postgres-intg
-      - DB_PORT=5432
+      - DB_HOST=172.17.0.1  # Connect to host machine  
+      - DB_PORT=4432        # TimescaleDB port with actual data
       - DB_USER=postgres
       - DB_PASSWORD=intg_password
       - DB_NAME=intg_db
