@@ -596,22 +596,63 @@ class RayEDAService:
 _ray_eda_service: Optional[RayEDAService] = None
 
 def get_ray_eda_service() -> RayEDAService:
-    """Get or create the global Ray EDA service instance"""
+    """Get or create the global Ray EDA service instance with DNS resolution fixes"""
     global _ray_eda_service
     
     if _ray_eda_service is None:
-        # Docker container database connection parameters
-        # Ray workers need to connect to PostgreSQL container via Docker network
+        # Smart DNS resolution for Docker environment
+        import socket
+        
+        # Try multiple host options with fallbacks
+        possible_hosts = [
+            ('postgres', 5432),         # Docker Compose service name
+            ('postgres-dev', 5432),     # Alternative service name
+            ('localhost', 5432),        # Direct host access
+            ('127.0.0.1', 5432),       # IP fallback
+            ('localhost', 3432),        # Host-mapped port fallback
+        ]
+        
+        working_host = None
+        working_port = None
+        
+        for host, port in possible_hosts:
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(2)
+                result = sock.connect_ex((host, port))
+                sock.close()
+                
+                if result == 0:
+                    working_host = host
+                    working_port = port
+                    logging.info(f"✅ Ray DNS resolution: Found database at {host}:{port}")
+                    break
+            except Exception as e:
+                logging.debug(f"❌ Ray DNS test failed for {host}:{port}: {e}")
+                continue
+        
+        # Fallback to environment variables if DNS resolution fails
+        if not working_host:
+            working_host = os.getenv('DB_HOST', 'localhost')
+            working_port = int(os.getenv('DB_PORT', 5432))
+            logging.warning(f"⚠️ Ray DNS resolution failed, using env defaults: {working_host}:{working_port}")
+        
+        # Connection parameters with DNS resolution fixes
         connection_params = {
-            'host': os.getenv('DB_HOST', 'postgres-dev'),  # Docker service name
-            'port': int(os.getenv('DB_PORT', 5432)),       # Internal Docker port
+            'host': working_host,
+            'port': working_port,
             'user': os.getenv('DB_USER', 'postgres'),
             'password': os.getenv('DB_PASSWORD', 'dev_password'),
             'database': os.getenv('DB_NAME', 'dev_db'),
             'min_size': 2,
-            'max_size': 20
+            'max_size': 20,
+            'command_timeout': 10,      # 10-second query timeout
+            'server_settings': {
+                'application_name': 'ray_eda_worker'
+            }
         }
         
+        logging.info(f"🚀 Ray EDA service connecting to: {working_host}:{working_port}")
         _ray_eda_service = RayEDAService(connection_params)
     
     return _ray_eda_service
