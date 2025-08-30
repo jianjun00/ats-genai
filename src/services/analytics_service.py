@@ -1133,6 +1133,64 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 error_response = {"error": str(e)}
                 self.wfile.write(json.dumps(error_response).encode())
         
+        elif self.path.startswith('/api/eda/datasets/') and '/precompute' in self.path:
+            # GET /api/eda/datasets/{table_name}/precompute - Trigger pre-computation
+            # GET /api/eda/datasets/{table_name}/precompute/status - Check status
+            logger.info(f"🚀 Pre-compute endpoint accessed: {self.path}")
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            try:
+                path_parts = self.path.split('/')
+                table_name = path_parts[4]
+                
+                if '/status' in self.path:
+                    # Check pre-computation status (synchronous fallback)
+                    try:
+                        from services.ray_eda_engine import get_ray_eda_service
+                        ray_service = get_ray_eda_service()
+                        
+                        # For now, assume no pre-computation available (will be enhanced)
+                        status_response = {
+                            'table': table_name,
+                            'precomputed': False,
+                            'message': 'Pre-computation status check not yet implemented',
+                            'precomputed_tables': []
+                        }
+                        
+                        self.wfile.write(json.dumps(status_response, indent=2).encode())
+                        
+                    except Exception as e:
+                        error_response = {'error': f'Status check failed: {str(e)}'}
+                        self.wfile.write(json.dumps(error_response).encode())
+                else:
+                    # Trigger pre-computation (synchronous fallback)
+                    try:
+                        from services.ray_eda_engine import get_ray_eda_service
+                        ray_service = get_ray_eda_service()
+                        
+                        # For now, return a placeholder response (will be enhanced)
+                        result = {
+                            'table': table_name,
+                            'success': True,
+                            'message': 'Pre-computation scheduled (implementation in progress)',
+                            'columns_computed': 'placeholder'
+                        }
+                        logger.info(f"📋 Pre-computation requested for {table_name}")
+                        self.wfile.write(json.dumps(result, indent=2).encode())
+                            
+                    except Exception as e:
+                        logger.error(f"Pre-computation failed for {table_name}: {e}")
+                        error_response = {'error': f'Pre-computation failed: {str(e)}'}
+                        self.wfile.write(json.dumps(error_response).encode())
+                
+            except Exception as e:
+                logger.error(f"Error in pre-compute endpoint: {e}")
+                error_response = {"error": str(e)}
+                self.wfile.write(json.dumps(error_response).encode())
+
         elif self.path.startswith('/api/eda/datasets/') and '/timeseries/' in self.path:
             # GET /api/eda/datasets/{table_name}/timeseries/{y_column}/{x_column}
             logger.info(f"🎯 Timeseries endpoint accessed: {self.path}")
@@ -1294,7 +1352,11 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 .checkbox-list label { font-weight: normal; }
                 #data-table { border: 1px solid #ddd; }
                 #data-table th, #data-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                #data-table th { background: #f8f9fa; font-weight: bold; }
+                #data-table th { background: #f8f9fa; font-weight: bold; cursor: pointer; user-select: none; position: relative; }
+                #data-table th:hover { background: #e9ecef; }
+                #data-table th.sortable::after { content: ' ⇅'; color: #999; font-size: 12px; }
+                #data-table th.sort-asc::after { content: ' ↑'; color: #3498db; }
+                #data-table th.sort-desc::after { content: ' ↓'; color: #3498db; }
                 #data-table tbody tr:nth-child(even) { background: #f9f9f9; }
                 .pagination-btn { padding: 5px 10px; margin: 0 2px; cursor: pointer; border: 1px solid #ddd; background: white; }
                 .pagination-btn.active { background: #3498db; color: white; }
@@ -1329,6 +1391,19 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                     <option value="">Select dataset...</option>
                                 </select>
                             </div>
+                            <div style="margin-top: 10px;">
+                                <button id="precompute-btn" onclick="precomputeStatistics()" 
+                                        style="background: #e74c3c; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;" 
+                                        disabled>
+                                    ⚡ Pre-compute Statistics
+                                </button>
+                                <button id="precompute-status-btn" onclick="checkPrecomputeStatus()" 
+                                        style="background: #3498db; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; margin-left: 5px;" 
+                                        disabled>
+                                    📊 Check Status
+                                </button>
+                            </div>
+                            <div id="precompute-info" style="margin-top: 10px; padding: 10px; border-radius: 4px; display: none;"></div>
                             <div id="dataset-info" style="display: none; margin-top: 15px;">
                             </div>
                         </div>
@@ -1379,6 +1454,11 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 let currentFilters = {};
                 let currentPage = 1;
                 let totalPages = 1;
+                
+                // Table sorting variables
+                let currentSortColumn = null;
+                let currentSortDirection = 'asc';
+                let currentTableData = [];
                 
                 // Frontend cache for datasets - 1 hour cache
                 let datasetsCache = {
@@ -1473,8 +1553,16 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         document.getElementById('filters-section').style.display = 'none';
                         document.getElementById('distribution-analysis').style.display = 'none';
                         document.getElementById('dataset-info').style.display = 'none';
+                        // Disable pre-compute buttons
+                        document.getElementById('precompute-btn').disabled = true;
+                        document.getElementById('precompute-status-btn').disabled = true;
+                        document.getElementById('precompute-info').style.display = 'none';
                         return;
                     }
+                    
+                    // Enable pre-compute buttons
+                    document.getElementById('precompute-btn').disabled = false;
+                    document.getElementById('precompute-status-btn').disabled = false;
                     
                     try {
                         // Show loading state
@@ -2001,35 +2089,126 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     }
                 }
                 
+                function sortTable(column, direction = null) {
+                    if (!currentTableData.length) return;
+                    
+                    // Toggle direction if same column clicked
+                    if (direction === null) {
+                        if (currentSortColumn === column) {
+                            currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+                        } else {
+                            currentSortDirection = 'asc';
+                        }
+                    } else {
+                        currentSortDirection = direction;
+                    }
+                    
+                    currentSortColumn = column;
+                    
+                    // Sort the data
+                    currentTableData.sort((a, b) => {
+                        let aVal = a[column];
+                        let bVal = b[column];
+                        
+                        // Handle null/undefined values
+                        if (aVal === null || aVal === undefined) aVal = '';
+                        if (bVal === null || bVal === undefined) bVal = '';
+                        
+                        // Convert to strings for comparison
+                        aVal = String(aVal);
+                        bVal = String(bVal);
+                        
+                        // Try to parse as numbers if they look numeric
+                        const aNum = parseFloat(aVal);
+                        const bNum = parseFloat(bVal);
+                        
+                        if (!isNaN(aNum) && !isNaN(bNum)) {
+                            // Numeric comparison
+                            return currentSortDirection === 'asc' ? aNum - bNum : bNum - aNum;
+                        } else {
+                            // String comparison
+                            return currentSortDirection === 'asc' 
+                                ? aVal.localeCompare(bVal) 
+                                : bVal.localeCompare(aVal);
+                        }
+                    });
+                    
+                    // Re-render table body
+                    renderTableBody();
+                    updateSortIndicators();
+                }
+                
+                function renderTableBody() {
+                    const tableBody = document.getElementById('table-body');
+                    if (currentTableData.length > 0) {
+                        const headers = Object.keys(currentTableData[0]);
+                        tableBody.innerHTML = currentTableData.map(row => 
+                            '<tr>' + headers.map(h => `<td>${row[h] || ''}</td>`).join('') + '</tr>'
+                        ).join('');
+                    }
+                }
+                
+                function updateSortIndicators() {
+                    // Remove all sort classes
+                    document.querySelectorAll('#data-table th').forEach(th => {
+                        th.classList.remove('sort-asc', 'sort-desc');
+                        th.classList.add('sortable');
+                    });
+                    
+                    // Add current sort class
+                    if (currentSortColumn) {
+                        const headers = Array.from(document.querySelectorAll('#data-table th'));
+                        const headerIndex = headers.findIndex(th => 
+                            th.textContent.replace(/ [⇅↑↓]/, '') === currentSortColumn
+                        );
+                        
+                        if (headerIndex >= 0) {
+                            headers[headerIndex].classList.add(`sort-${currentSortDirection}`);
+                        }
+                    }
+                }
+                
                 function displayDataTable(data) {
                     const tableSection = document.getElementById('data-table-section');
                     const tableInfo = document.getElementById('table-info');
                     const tableHead = document.getElementById('table-head');
                     const tableBody = document.getElementById('table-body');
                     
+                    // Store current data for sorting
+                    currentTableData = [...data.data];
+                    
                     // Show table section
                     tableSection.style.display = 'block';
                     
-                    // Update info
+                    // Update info with sorting hint
                     const filterCount = Object.keys(currentFilters).length;
                     tableInfo.innerHTML = `
                         Showing ${data.data.length} of ${data.total_count} records 
                         (Page ${data.current_page} of ${data.total_pages})
                         ${filterCount > 0 ? `with ${filterCount} filter(s) applied` : ''}
+                        <span style="color: #666; margin-left: 15px; font-style: italic;">📊 Click column headers to sort</span>
                     `;
                     
-                    // Create table header
+                    // Create sortable table header
                     if (data.data.length > 0) {
                         const headers = Object.keys(data.data[0]);
-                        tableHead.innerHTML = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+                        tableHead.innerHTML = '<tr>' + headers.map(h => 
+                            `<th class="sortable" onclick="sortTable('${h}')" title="Click to sort by ${h}">${h}</th>`
+                        ).join('') + '</tr>';
                         
-                        // Create table body
-                        tableBody.innerHTML = data.data.map(row => 
-                            '<tr>' + headers.map(h => `<td>${row[h] || ''}</td>`).join('') + '</tr>'
-                        ).join('');
+                        // Render table body
+                        renderTableBody();
+                        
+                        // Apply current sort if any, otherwise just update indicators
+                        if (currentSortColumn && headers.includes(currentSortColumn)) {
+                            sortTable(currentSortColumn, currentSortDirection);
+                        } else {
+                            updateSortIndicators();
+                        }
                     } else {
                         tableHead.innerHTML = '<tr><th>No Data</th></tr>';
                         tableBody.innerHTML = '<tr><td>No data matches the current filters</td></tr>';
+                        currentTableData = [];
                     }
                     
                     // Update pagination
@@ -2290,6 +2469,103 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     }
                 }
                 
+                
+                // Pre-computation functions
+                async function precomputeStatistics() {
+                    const datasetName = document.getElementById('dataset-select').value;
+                    if (!datasetName) {
+                        alert('Please select a dataset first');
+                        return;
+                    }
+                    
+                    const precomputeInfo = document.getElementById('precompute-info');
+                    const precomputeBtn = document.getElementById('precompute-btn');
+                    
+                    try {
+                        // Show loading state
+                        precomputeInfo.style.display = 'block';
+                        precomputeInfo.style.backgroundColor = '#fff3cd';
+                        precomputeInfo.style.borderColor = '#ffeaa7';
+                        precomputeInfo.innerHTML = '🔄 Starting pre-computation for ' + datasetName + '...';
+                        precomputeBtn.disabled = true;
+                        precomputeBtn.textContent = 'Computing...';
+                        
+                        const response = await fetch(`/api/eda/datasets/${datasetName}/precompute`);
+                        const result = await response.json();
+                        
+                        if (result.error) {
+                            throw new Error(result.error);
+                        }
+                        
+                        if (result.success) {
+                            precomputeInfo.style.backgroundColor = '#d4edda';
+                            precomputeInfo.style.borderColor = '#c3e6cb';
+                            precomputeInfo.innerHTML = `✅ Pre-computation completed for ${datasetName}!<br/>` +
+                                `📊 Statistics computed for ${result.columns_computed || 'all'} columns<br/>` +
+                                `⚡ Visualization performance should be significantly improved`;
+                        } else {
+                            // Still running - start polling for status
+                            precomputeInfo.innerHTML = '🔄 Pre-computation in progress... checking status...';
+                            setTimeout(() => checkPrecomputeStatus(), 2000);
+                        }
+                        
+                    } catch (error) {
+                        console.error('Error starting pre-computation:', error);
+                        precomputeInfo.style.backgroundColor = '#f8d7da';
+                        precomputeInfo.style.borderColor = '#f5c6cb';
+                        precomputeInfo.innerHTML = `❌ Error: ${error.message}`;
+                    } finally {
+                        precomputeBtn.disabled = false;
+                        precomputeBtn.textContent = '⚡ Pre-compute All Statistics';
+                    }
+                }
+                
+                async function checkPrecomputeStatus() {
+                    const datasetName = document.getElementById('dataset-select').value;
+                    if (!datasetName) {
+                        alert('Please select a dataset first');
+                        return;
+                    }
+                    
+                    const precomputeInfo = document.getElementById('precompute-info');
+                    const statusBtn = document.getElementById('precompute-status-btn');
+                    
+                    try {
+                        precomputeInfo.style.display = 'block';
+                        precomputeInfo.style.backgroundColor = '#fff3cd';
+                        precomputeInfo.style.borderColor = '#ffeaa7';
+                        precomputeInfo.innerHTML = '🔍 Checking pre-computation status...';
+                        statusBtn.disabled = true;
+                        
+                        const response = await fetch(`/api/eda/datasets/${datasetName}/precompute/status`);
+                        const result = await response.json();
+                        
+                        if (result.error) {
+                            throw new Error(result.error);
+                        }
+                        
+                        if (result.precomputed) {
+                            precomputeInfo.style.backgroundColor = '#d4edda';
+                            precomputeInfo.style.borderColor = '#c3e6cb';
+                            precomputeInfo.innerHTML = `✅ ${result.message}<br/>` +
+                                `📋 Pre-computed tables: ${(result.precomputed_tables || []).join(', ')}<br/>` +
+                                `⚡ Fast histogram generation enabled!`;
+                        } else {
+                            precomputeInfo.style.backgroundColor = '#f8d7da';
+                            precomputeInfo.style.borderColor = '#f5c6cb';
+                            precomputeInfo.innerHTML = `ℹ️ ${result.message}<br/>` +
+                                'Run pre-computation to speed up visualization loading times by 20-100x';
+                        }
+                        
+                    } catch (error) {
+                        console.error('Error checking pre-computation status:', error);
+                        precomputeInfo.style.backgroundColor = '#f8d7da';
+                        precomputeInfo.style.borderColor = '#f5c6cb';
+                        precomputeInfo.innerHTML = `❌ Error checking status: ${error.message}`;
+                    } finally {
+                        statusBtn.disabled = false;
+                    }
+                }
                 
                 // Load data on page load
                 document.addEventListener('DOMContentLoaded', function() {

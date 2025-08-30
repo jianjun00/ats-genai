@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test toFixed Fix</title>
+</head>
+<body>
+    <h1>Test toFixed Fix</h1>
+    <div id="result"></div>
+    
+    <script>
+        // Test the fixed logic
+        const testData = {
+            statistics: {
+                count: 152732,
+                mean: 19499613.234783806,
+                std: 143752135.77529266,
+                min: 0,
+                max: 17437935010
+            }
+        };
+        
+        const testDataIncomplete = {
+            statistics: {
+                count: 152732,
+                mean: 19499613.234783806
+                // std, min, max are undefined
+            }
+        };
+        
+        function testStats(analysis, testName) {
+            const html = `
+                <h3>${testName}</h3>
+                <div>Count: ${analysis.statistics.count.toLocaleString()}</div>
+                <div>Mean: ${analysis.statistics.mean ? analysis.statistics.mean.toFixed(2) : 'N/A'}</div>
+                <div>Std: ${analysis.statistics.std ? analysis.statistics.std.toFixed(2) : 'N/A'}</div>
+                <div>Min: ${analysis.statistics.min ? analysis.statistics.min.toFixed(2) : 'N/A'}</div>
+                <div>Max: ${analysis.statistics.max ? analysis.statistics.max.toFixed(2) : 'N/A'}</div>
+                <hr>
+            `;
+            return html;
+        }
+        
+        try {
+            const result1 = testStats(testData, "Complete Statistics");
+            const result2 = testStats(testDataIncomplete, "Incomplete Statistics");
+            
+            document.getElementById('result').innerHTML = result1 + result2 + '<div style="color: green;">✅ Both tests passed - no toFixed errors!</div>';
+        } catch (error) {
+            document.getElementById('result').innerHTML = `<div style="color: red;">❌ Error: ${error.message}</div>`;
+        }
+    </script>
+</body>
+</html>

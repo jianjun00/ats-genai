@@ -410,12 +410,22 @@ class EDACoordinator:
             )
 
 class RayEDAService:
-    """Main service interface for Ray-powered EDA"""
+    """Main service interface for Ray-powered EDA with pre-computed statistics"""
     
     def __init__(self, connection_params: Dict[str, str]):
         self.connection_params = connection_params
         self.coordinator = EDACoordinator.remote(connection_params, num_workers=8)
         self.cache = {}  # Simple in-memory cache
+        
+        # Initialize pre-computed statistics engine
+        try:
+            from services.precomputed_stats_engine import get_precomputed_stats_engine
+            self.precomputed_engine = get_precomputed_stats_engine(connection_params)
+            self.use_precomputed = True
+        except ImportError:
+            self.precomputed_engine = None
+            self.use_precomputed = False
+            logging.warning("Pre-computed statistics engine not available, falling back to live computation")
     
     async def analyze_dataset_columns(
         self, 
@@ -428,8 +438,47 @@ class RayEDAService:
         # Limit columns for UI performance
         columns_to_analyze = columns[:max_columns]
         
-        # Submit all column analyses to Ray in parallel
+        # Try pre-computed statistics first for better performance
+        if self.use_precomputed and self.precomputed_engine:
+            try:
+                # Attempt to get pre-computed profile for the entire table
+                profile = await self.precomputed_engine.compute_table_profile(table_name, force_recompute=False)
+                
+                for col in columns_to_analyze:
+                    column_name = col['column_name']
+                    
+                    if column_name in profile.column_profiles:
+                        # Use pre-computed statistics (super fast!)
+                        precomputed_stats = await self.precomputed_engine.get_filtered_statistics(
+                            table_name, column_name
+                        )
+                        
+                        # Convert to DistributionResult format
+                        result = DistributionResult(
+                            column_name=column_name,
+                            data_type=precomputed_stats['data_type'],
+                            statistics=precomputed_stats['statistics'],
+                            histogram=precomputed_stats['histogram'],
+                            top_values=precomputed_stats['top_values'],
+                            computation_time=precomputed_stats['computation_time'],
+                            sample_size=precomputed_stats['total_count']
+                        )
+                        
+                        yield {
+                            'column': column_name,
+                            'result': result,
+                            'cached': True,
+                            'precomputed': True
+                        }
+                        continue
+            
+            except Exception as e:
+                logging.warning(f"Pre-computed statistics failed for {table_name}: {e}. Falling back to Ray computation.")
+        
+        # Fall back to distributed Ray computation for columns not handled by pre-computed stats
         analysis_tasks = []
+        remaining_columns = []
+        
         for col in columns_to_analyze:
             cache_key = f"{table_name}:{col['column_name']}"
             
@@ -438,10 +487,12 @@ class RayEDAService:
                 yield {
                     'column': col['column_name'],
                     'result': self.cache[cache_key],
-                    'cached': True
+                    'cached': True,
+                    'precomputed': False
                 }
                 continue
             
+            remaining_columns.append(col)
             task = self.coordinator.analyze_column_distributed.remote(
                 table_name, 
                 col['column_name'], 
@@ -461,7 +512,8 @@ class RayEDAService:
                 yield {
                     'column': column_name,
                     'result': result,
-                    'cached': False
+                    'cached': False,
+                    'precomputed': False
                 }
                 
             except Exception as e:
@@ -475,13 +527,70 @@ class RayEDAService:
                     'cached': False
                 }
     
+    async def precompute_table_statistics(self, table_name: str, force_recompute: bool = False) -> Dict[str, Any]:
+        """
+        Pre-compute statistics for a table to enable fast interactive filtering
+        This should be called in the background for frequently accessed tables
+        """
+        if not self.use_precomputed or not self.precomputed_engine:
+            return {'status': 'pre-computed engine not available'}
+        
+        try:
+            start_time = asyncio.get_event_loop().time()
+            
+            profile = await self.precomputed_engine.compute_table_profile(
+                table_name, 
+                force_recompute=force_recompute,
+                num_standard_bins=25,  # Higher resolution for better interactive filtering
+                num_quantile_bins=15   # More quantile bins for robust outlier handling
+            )
+            
+            computation_time = asyncio.get_event_loop().time() - start_time
+            
+            return {
+                'status': 'success',
+                'table': table_name,
+                'columns_analyzed': len(profile.column_profiles),
+                'row_count': profile.row_count,
+                'computation_time': computation_time,
+                'last_updated': profile.last_updated.isoformat(),
+                'cache_location': str(self.precomputed_engine.cache_dir)
+            }
+            
+        except Exception as e:
+            return {
+                'status': 'error',
+                'table': table_name,
+                'error': str(e)
+            }
+    
+    async def get_precomputed_table_list(self) -> List[str]:
+        """Get list of tables with pre-computed statistics available"""
+        if not self.use_precomputed or not self.precomputed_engine:
+            return []
+        
+        cache_files = list(self.precomputed_engine.cache_dir.glob("*_profile.pkl"))
+        return [f.stem.replace('_profile', '') for f in cache_files]
+    
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache statistics for monitoring"""
-        return {
+        stats = {
             'cached_columns': len(self.cache),
             'ray_cluster_resources': ray.cluster_resources(),
-            'ray_cluster_status': 'connected' if ray.is_initialized() else 'disconnected'
+            'ray_cluster_status': 'connected' if ray.is_initialized() else 'disconnected',
+            'precomputed_engine_available': self.use_precomputed
         }
+        
+        if self.use_precomputed and self.precomputed_engine:
+            stats['precomputed_cache_dir'] = str(self.precomputed_engine.cache_dir)
+            # Add precomputed table count if available
+            try:
+                cache_files = list(self.precomputed_engine.cache_dir.glob("*_profile.pkl"))
+                stats['precomputed_tables'] = len(cache_files)
+            except:
+                stats['precomputed_tables'] = 0
+        
+        return stats
 
 # Global Ray EDA service instance
 _ray_eda_service: Optional[RayEDAService] = None
