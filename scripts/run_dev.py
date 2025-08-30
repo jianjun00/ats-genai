@@ -317,6 +317,7 @@ class DevCLI:
             additional_args = "--user root"
         
         cmd = f"""docker run -d --name {container_name} {gpu_flag} \
+            --network ats-network \
             {volume_mounts} \
             -w /workspace \
             {port_flag} \
