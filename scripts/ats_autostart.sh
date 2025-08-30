@@ -3,8 +3,8 @@
 ATS Autostart Script - Automatically start ATS dev and intg environments on WSL startup
 
 This script:
-1. Starts ats-dev PostgreSQL database
-2. Starts ats-intg PostgreSQL database (if needed)
+1. Starts complete ATS stack using Docker Compose
+2. Includes PostgreSQL, Analytics, Monitoring, and Price Collection services
 3. Logs startup activities
 4. Runs in background to avoid blocking shell startup
 """
@@ -14,6 +14,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 LOG_FILE="/mnt/d/ats-logs/autostart.log"
 PID_FILE="/tmp/ats_autostart.pid"
+COMPOSE_FILE="$PROJECT_ROOT/docker-compose.ats.yml"
 
 # Ensure log directory exists
 mkdir -p "$(dirname "$LOG_FILE")"
@@ -23,54 +24,69 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
 
-# Function to check if service is already running
-is_service_running() {
-    local service_name="$1"
-    docker ps --format "{{.Names}}" | grep -q "^${service_name}$"
+# Function to check if Docker Compose services are running
+is_compose_running() {
+    cd "$PROJECT_ROOT" || return 1
+    docker-compose -f docker-compose.ats.yml ps -q | wc -l
 }
 
-# Function to start ATS services
+# Function to start ATS services using Docker Compose
 start_ats_services() {
-    log "🚀 Starting ATS autostart sequence..."
+    log "🚀 Starting ATS autostart sequence with Docker Compose..."
     
     cd "$PROJECT_ROOT" || {
         log "❌ Failed to change to project root: $PROJECT_ROOT"
         return 1
     }
     
-    # Start ats-dev environment
-    if ! is_service_running "ats-dev-postgres"; then
-        log "🔧 Starting ats-dev PostgreSQL..."
-        python3 scripts/run_dev.py start --service postgres >> "$LOG_FILE" 2>&1
-        if [ $? -eq 0 ]; then
-            log "✅ ats-dev PostgreSQL started successfully"
-        else
-            log "❌ Failed to start ats-dev PostgreSQL"
-        fi
-    else
-        log "✅ ats-dev PostgreSQL already running"
+    # Check if Docker Compose file exists
+    if [ ! -f "$COMPOSE_FILE" ]; then
+        log "❌ Docker Compose file not found: $COMPOSE_FILE"
+        return 1
     fi
     
-    # Start ats-intg environment (if run_intg.py exists)
-    if [ -f "scripts/run_intg.py" ]; then
-        if ! is_service_running "ats-intg-postgres"; then
-            log "🔧 Starting ats-intg PostgreSQL..."
-            python3 scripts/run_intg.py start --service postgres >> "$LOG_FILE" 2>&1
-            if [ $? -eq 0 ]; then
-                log "✅ ats-intg PostgreSQL started successfully"
-            else
-                log "❌ Failed to start ats-intg PostgreSQL"
-            fi
-        else
-            log "✅ ats-intg PostgreSQL already running"
-        fi
-    else
-        log "ℹ️  ats-intg script not found, skipping"
+    # Set up environment file if it doesn't exist
+    if [ ! -f ".env" ] && [ -f ".env.ats" ]; then
+        log "📝 Creating .env from .env.ats template"
+        cp .env.ats .env
     fi
+    
+    # Check current running services
+    running_services=$(is_compose_running)
+    log "📊 Currently running ATS services: $running_services"
+    
+    if [ "$running_services" -gt 0 ]; then
+        log "✅ Some ATS services already running, checking health..."
+        docker-compose -f docker-compose.ats.yml ps >> "$LOG_FILE" 2>&1
+    else
+        log "🔧 Starting complete ATS stack..."
+        
+        # Start all services
+        docker-compose -f docker-compose.ats.yml up -d >> "$LOG_FILE" 2>&1
+        if [ $? -eq 0 ]; then
+            log "✅ ATS Docker Compose stack started successfully"
+        else
+            log "❌ Failed to start ATS Docker Compose stack"
+            return 1
+        fi
+    fi
+    
+    # Wait for services to be healthy
+    log "⏳ Waiting for services to be healthy..."
+    sleep 10
     
     # Show final status
     log "📊 Final ATS services status:"
-    python3 scripts/run_dev.py status >> "$LOG_FILE" 2>&1
+    docker-compose -f docker-compose.ats.yml ps >> "$LOG_FILE" 2>&1
+    
+    # Show service URLs
+    log "🌐 Service URLs:"
+    log "  - Dev Analytics: http://localhost:3000"
+    log "  - Intg Analytics: http://localhost:3002" 
+    log "  - Grafana: http://localhost:3001"
+    log "  - Prometheus: http://localhost:9090"
+    log "  - Dev PostgreSQL: localhost:5432"
+    log "  - Intg PostgreSQL: localhost:5433"
     
     log "🎉 ATS autostart sequence completed"
 }
