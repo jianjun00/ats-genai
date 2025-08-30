@@ -189,23 +189,36 @@ class DevCLI:
         
         # Add network connection to PostgreSQL if it exists
         network_link = ""
-        postgres_check = subprocess.run("docker ps -q -f name=ats-dev-postgres", shell=True, capture_output=True)
-        if postgres_check.stdout.strip():
-            network_link = "--network ats-network"
-            # Use postgres container name when on same network
-            db_host_for_container = "ats-dev-postgres"
+        db_port_for_container = self.db_port  # Default to host port
+        if self.environment == 'intg':
+            postgres_check = subprocess.run("docker ps -q -f name=ats-intg-postgres", shell=True, capture_output=True)
+            if postgres_check.stdout.strip():
+                network_link = "--network ats-intg-network"
+                db_host_for_container = "ats-intg-postgres"
+                db_port_for_container = "5432"  # Use internal PostgreSQL port in Docker network
+            else:
+                db_host_for_container = self.db_host
+                db_port_for_container = self.db_port
         else:
-            db_host_for_container = self.db_host
+            postgres_check = subprocess.run("docker ps -q -f name=ats-dev-postgres", shell=True, capture_output=True)
+            if postgres_check.stdout.strip():
+                network_link = "--network ats-network"
+                db_host_for_container = "ats-dev-postgres"
+                db_port_for_container = "5432"  # Use internal PostgreSQL port in Docker network
+            else:
+                db_host_for_container = self.db_host
+                db_port_for_container = self.db_port
 
         cmd = f"""docker run --rm {gpu_flag} \
             {volume_mounts} \
             {network_link} \
             -w /workspace \
             -e DB_HOST={db_host_for_container} \
-            -e DB_PORT={self.db_port} \
+            -e DB_PORT={db_port_for_container} \
             -e DB_USER={self.db_user} \
             -e DB_PASSWORD={self.db_password} \
             -e DB_NAME={self.db_name} \
+            -e ENVIRONMENT={self.environment} \
             -e PYTHONPATH=/workspace/src \
             -e ATS_DATA_PATH=/data \
             -e ATS_BACKUP_PATH=/backup \
