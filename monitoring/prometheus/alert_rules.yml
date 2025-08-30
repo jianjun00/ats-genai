@@ -1,0 +1,64 @@
+groups:
+  - name: ats-data-quality
+    rules:
+      - alert: InstrumentCountLow
+        expr: ats_instruments_count < 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: data-quality
+        annotations:
+          summary: "Low instrument count detected"
+          description: "Instrument count for {{ $labels.vendor }} is {{ $value }}, below threshold of 1000"
+
+      - alert: DailyPricesStale
+        expr: (time() - ats_daily_prices_last_update) > 86400
+        for: 10m
+        labels:
+          severity: critical
+          service: data-quality
+        annotations:
+          summary: "Daily prices data is stale"
+          description: "Daily prices for {{ $labels.vendor }} haven't been updated in {{ $value }} seconds"
+
+      - alert: InstrumentCountDrop
+        expr: (ats_instruments_count - ats_instruments_count offset 1h) / ats_instruments_count offset 1h < -0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: data-quality
+        annotations:
+          summary: "Significant drop in instrument count"
+          description: "Instrument count for {{ $labels.vendor }} dropped by {{ $value | humanizePercentage }}"
+
+      - alert: DataQualityExporterDown
+        expr: up{job="ats-data-quality-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: monitoring
+        annotations:
+          summary: "Data Quality Exporter is down"
+          description: "ATS Data Quality Exporter is not responding"
+
+  - name: ats-system-health
+    rules:
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is above 85%"
+
+      - alert: HighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High disk usage"
+          description: "Disk usage is above 85% on {{ $labels.mountpoint }}"

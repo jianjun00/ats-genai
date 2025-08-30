@@ -1,0 +1,64 @@
+groups:
+  - name: ats-intg-data-quality-alerts
+    rules:
+      - alert: InstrumentCountLowINTG
+        expr: ats_instruments_count{environment="intg"} < 1000
+        for: 5m
+        labels:
+          severity: warning
+          environment: intg
+        annotations:
+          summary: "Low instrument count in INTG environment"
+          description: "Instrument count is {{ $value }} which is below the threshold of 1000"
+
+      - alert: DailyPricesStaleINTG
+        expr: (time() - ats_daily_prices_last_update{environment="intg"}) > 86400
+        for: 5m
+        labels:
+          severity: critical
+          environment: intg
+        annotations:
+          summary: "Daily prices data is stale in INTG environment"
+          description: "Daily prices for {{ $labels.vendor }} haven't been updated for {{ $value | humanizeDuration }}"
+
+      - alert: InstrumentCountDropINTG
+        expr: rate(ats_instruments_count{environment="intg"}[1h]) < -0.05
+        for: 10m
+        labels:
+          severity: warning
+          environment: intg
+        annotations:
+          summary: "Instrument count dropping rapidly in INTG environment"
+          description: "Instrument count for {{ $labels.vendor }} is dropping at {{ $value | humanizePercentage }} per hour"
+
+  - name: ats-intg-system-alerts
+    rules:
+      - alert: DatabaseConnectionDownINTG
+        expr: up{job="ats-data-quality-exporter-intg"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          environment: intg
+        annotations:
+          summary: "Database connection down in INTG environment"
+          description: "Cannot connect to INTG database for data quality metrics"
+
+      - alert: HighMemoryUsageINTG
+        expr: (1 - (node_memory_MemAvailable_bytes{job="node-exporter-intg"} / node_memory_MemTotal_bytes{job="node-exporter-intg"})) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          environment: intg
+        annotations:
+          summary: "High memory usage in INTG environment"
+          description: "Memory usage is above 85% ({{ $value | humanizePercentage }})"
+
+      - alert: HighDiskUsageINTG
+        expr: (1 - (node_filesystem_avail_bytes{job="node-exporter-intg",mountpoint="/"} / node_filesystem_size_bytes{job="node-exporter-intg",mountpoint="/"})) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          environment: intg
+        annotations:
+          summary: "High disk usage in INTG environment"
+          description: "Disk usage is above 85% ({{ $value | humanizePercentage }})"

@@ -1,0 +1,155 @@
+version: '3.8'
+
+services:
+  # ATS Integration Environment Scheduled Jobs
+  ats-intg-scheduler:
+    image: dragonflyer762/ats-genai:latest
+    container_name: ats-intg-scheduler
+    restart: unless-stopped
+    privileged: true
+    
+    environment:
+      - PYTHONPATH=/workspace/src
+      - ATS_DATA_PATH=/data
+      - ATS_BACKUP_PATH=/backup
+      - ATS_LOGS_PATH=/logs
+      - ENVIRONMENT=intg
+      - DB_HOST=postgres-intg
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=intg_password
+      - DB_NAME=intg_db
+      
+      # API Keys for all vendors
+      - POLYGON_API_KEY=wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD
+      - FMP_API_KEY=Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr
+      - TIINGO_API_KEY=5f40b4f36e171405746304ec0e5a6f3aa9ca77e5
+      - ALPHA_VANTAGE_API_KEY=9GI0NZ3V4VNFX271
+      
+      # Migration and Job configuration
+      - AUTO_MIGRATION_ENABLED=true
+      - DEV_DB_HOST=172.17.0.1
+      - DEV_DB_PORT=3434  # Updated to reference ATS-DEV on 300x range
+      - DEV_DB_USER=postgres
+      - DEV_DB_PASSWORD=postgres
+      - DEV_DB_NAME=dev_db
+      - CRON_ENABLED=true
+      - LOG_LEVEL=INFO
+      - RATE_LIMIT_ENABLED=true
+      - CHECKPOINT_ENABLED=true
+    
+    volumes:
+      - ./:/workspace
+      - /mnt/d/ats-data/intg:/data
+      - /mnt/d/ats-backup/intg:/backup
+      - /mnt/d/ats-logs/intg:/logs
+      - /etc/localtime:/etc/localtime:ro
+    
+    working_dir: /workspace
+    
+    # Setup migration and cron jobs for daily data refresh
+    command: ["python3", "scripts/intg_startup_manager.py"]
+    
+    depends_on:
+      - postgres-intg
+    
+    networks:
+      - ats-intg-network
+    
+    healthcheck:
+      test: ["CMD", "ps", "aux", "|", "grep", "cron"]
+      interval: 300s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL Database for Integration Environment
+  postgres-intg:
+    image: postgres:13
+    container_name: postgres-intg
+    restart: unless-stopped
+    
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: intg_password
+      POSTGRES_DB: intg_db
+      POSTGRES_INITDB_ARGS: "--auth-host=md5 --auth-local=trust"
+    
+    ports:
+      - "4434:5432"  # Updated to 400x range for integration
+    
+    volumes:
+      # Docker-managed volume for data persistence
+      - postgres_intg_data:/var/lib/postgresql/data
+      - /mnt/d/ats-backup/intg:/backup
+      - ./sql/init-intg-tables.sql:/docker-entrypoint-initdb.d/01-init-tables.sql
+    
+    networks:
+      - ats-intg-network
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d intg_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    
+    # Optimize PostgreSQL for data processing
+    command: >
+      postgres
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.7
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=4MB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+
+  # Monitoring Dashboard (Optional)
+  ats-intg-dashboard:
+    image: dragonflyer762/ats-genai:latest
+    container_name: ats-intg-dashboard
+    restart: unless-stopped
+    
+    environment:
+      - PYTHONPATH=/workspace/src
+      - ENVIRONMENT=intg
+      - DB_HOST=postgres-intg
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=intg_password
+      - DB_NAME=intg_db
+    
+    ports:
+      - "4002:3001"  # Updated to 400x range for dashboard
+    
+    volumes:
+      - ./:/workspace
+      - /mnt/d/ats-logs/intg:/logs
+    
+    working_dir: /workspace
+    
+    command: >
+      bash -c "
+        echo '🎯 Starting ATS-INTG Dashboard...' &&
+        python scripts/monitor_daily_jobs.py
+      "
+    
+    depends_on:
+      - postgres-intg
+      - ats-intg-scheduler
+    
+    networks:
+      - ats-intg-network
+
+networks:
+  ats-intg-network:
+    driver: bridge
+    name: ats-intg-network
+
+volumes:
+  postgres_intg_data:
+    driver: local
