@@ -12,7 +12,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres-dev-data:/var/lib/postgresql/data
+      - postgres-data-new:/var/lib/postgresql/data
       - /mnt/d/ats-backup/dev:/backup
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d dev_db"]
@@ -228,7 +228,7 @@ networks:
     name: ats-network
 
 volumes:
-  postgres-dev-data:
-    driver: local
+  postgres-data-new:
+    external: true
   postgres-intg-data:
     driver: local

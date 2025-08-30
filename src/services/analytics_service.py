@@ -189,135 +189,91 @@ class JobManager:
         return real_jobs
     
     def get_datasets(self) -> List[Dict]:
-        """Get available datasets for EDA analysis."""
-        # Use fallback data for now to avoid database timeout issues
-        logger.info("Using fallback dataset data for EDA")
-        return [
-            {
-                'name': 'dev_daily_prices_polygon_30year',
-                'display_name': '📊 Polygon Daily Prices 30 Year (Best for Analysis)',
-                'row_count': 666212,
-                'column_count': 7,
-                'vendor': 'Polygon', 
-                'data_type': 'prices'
-            },
-            {
-                'name': 'dev_daily_prices_tiingo',
-                'display_name': '📊 Tiingo Daily Prices (Best for Analysis)',
-                'row_count': 6559540,
-                'column_count': 7,
-                'vendor': 'Tiingo',
-                'data_type': 'prices'
-            },
-            {
-                'name': 'dev_instruments',
-                'display_name': 'All Instruments (Consolidated) - Metadata Only',
-                'row_count': 69796,
-                'column_count': 16,
-                'vendor': 'ATS',
-                'data_type': 'instruments'
-            },
-            {
-                'name': 'dev_instrument_tiingo',
-                'display_name': 'Tiingo Instruments - Metadata Only',
-                'row_count': 28080,
-                'column_count': 11,
-                'vendor': 'Tiingo',
-                'data_type': 'instruments'
-            },
-            {
-                'name': 'dev_daily_prices_eodhd',
-                'display_name': '📊 EODHD Daily Prices (Best for Analysis)',
-                'row_count': 727905,
-                'column_count': 7,
-                'vendor': 'EODHD',
-                'data_type': 'prices'
-            },
-            {
-                'name': 'dev_instrument_polygon',
-                'display_name': 'Polygon Instruments - Metadata Only', 
-                'row_count': 15000,
-                'column_count': 16,
-                'vendor': 'Polygon',
-                'data_type': 'instruments'
-            }
-        ]
+        """Get available datasets for EDA analysis from real database."""
+        try:
+            from core.database.connection_manager import get_raw_connection
+            
+            with get_raw_connection() as conn:
+                with conn.cursor() as cursor:
+                    # Get actual table information from database
+                    cursor.execute("""
+                        SELECT 
+                            schemaname, tablename,
+                            pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
+                        FROM pg_tables 
+                        WHERE schemaname = 'public' 
+                        AND tablename LIKE 'dev_%'
+                        ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
+                    """)
+                    
+                    tables = cursor.fetchall()
+                    datasets = []
+                    
+                    for table in tables:
+                        table_name = table['tablename']
+                        # Get row count for each table
+                        cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+                        row_count = cursor.fetchone()['count']
+                        
+                        # Get column count
+                        cursor.execute(f"""
+                            SELECT COUNT(*) 
+                            FROM information_schema.columns 
+                            WHERE table_name = %s AND table_schema = 'public'
+                        """, (table_name,))
+                        column_count = cursor.fetchone()['count']
+                        
+                        datasets.append({
+                            'name': table_name,
+                            'display_name': table_name.replace('_', ' ').title(),
+                            'row_count': row_count,
+                            'column_count': column_count,
+                            'size': table['size']
+                        })
+                    
+                    return datasets
+                    
+        except Exception as e:
+            logger.error(f"Failed to get datasets from database: {e}")
+            raise Exception(f"Database error getting datasets: {e}")
     
     def get_dataset_schema(self, table_name: str) -> Dict:
-        """Get schema for a specific dataset."""
-        # Use fallback schemas to avoid database timeout issues
-        logger.info(f"Using fallback schema for {table_name}")
-        
-        if table_name == "dev_instruments":
-            return {
-                "columns": [
-                    {"column_name": "id", "data_type": "integer", "is_nullable": "NO"},
-                    {"column_name": "symbol", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "name", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "exchange", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "type", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "currency", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "figi", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "isin", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "cusip", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "composite_figi", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "active", "data_type": "boolean", "is_nullable": "YES"},
-                    {"column_name": "list_date", "data_type": "date", "is_nullable": "YES"},
-                    {"column_name": "delist_date", "data_type": "date", "is_nullable": "YES"},
-                    {"column_name": "created_at", "data_type": "timestamp with time zone", "is_nullable": "YES"},
-                    {"column_name": "updated_at", "data_type": "timestamp with time zone", "is_nullable": "YES"},
-                    {"column_name": "sector", "data_type": "text", "is_nullable": "YES"}
-                ]
-            }
-        elif table_name == "dev_instrument_tiingo":
-            return {
-                "columns": [
-                    {"column_name": "id", "data_type": "integer", "is_nullable": "NO"},
-                    {"column_name": "symbol", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "name", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "exchange", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "asset_type", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "currency", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "start_date", "data_type": "date", "is_nullable": "YES"},
-                    {"column_name": "end_date", "data_type": "date", "is_nullable": "YES"},
-                    {"column_name": "created_at", "data_type": "timestamp without time zone", "is_nullable": "YES"},
-                    {"column_name": "updated_at", "data_type": "timestamp without time zone", "is_nullable": "YES"}
-                ]
-            }
-        elif table_name in ["dev_daily_prices_polygon_30year", "dev_daily_prices_tiingo", "dev_daily_prices_eodhd"]:
-            return {
-                "columns": [
-                    {"column_name": "symbol", "data_type": "character varying", "is_nullable": "NO"},
-                    {"column_name": "date", "data_type": "date", "is_nullable": "NO"},
-                    {"column_name": "open", "data_type": "numeric", "is_nullable": "YES"},
-                    {"column_name": "high", "data_type": "numeric", "is_nullable": "YES"}, 
-                    {"column_name": "low", "data_type": "numeric", "is_nullable": "YES"},
-                    {"column_name": "close", "data_type": "numeric", "is_nullable": "YES"},
-                    {"column_name": "volume", "data_type": "bigint", "is_nullable": "YES"}
-                ]
-            }
-        elif table_name == "dev_instrument_polygon":
-            return {
-                "columns": [
-                    {"column_name": "symbol", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "name", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "exchange", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "type", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "currency", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "figi", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "isin", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "cusip", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "composite_figi", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "active", "data_type": "boolean", "is_nullable": "YES"},
-                    {"column_name": "list_date", "data_type": "date", "is_nullable": "YES"},
-                    {"column_name": "delist_date", "data_type": "date", "is_nullable": "YES"},
-                    {"column_name": "sector", "data_type": "text", "is_nullable": "YES"},
-                    {"column_name": "created_at", "data_type": "timestamp with time zone", "is_nullable": "YES"},
-                    {"column_name": "updated_at", "data_type": "timestamp with time zone", "is_nullable": "YES"}
-                ]
-            }
-        else:
-            return {"error": f"Schema not available for {table_name}"}
+        """Get schema for a specific dataset from real database."""
+        try:
+            from core.database.connection_manager import get_raw_connection
+            
+            with get_raw_connection() as conn:
+                with conn.cursor() as cursor:
+                    # Get actual column information from database
+                    cursor.execute("""
+                        SELECT column_name, data_type, is_nullable, column_default
+                        FROM information_schema.columns 
+                        WHERE table_name = %s AND table_schema = 'public'
+                        ORDER BY ordinal_position
+                    """, (table_name,))
+                    
+                    columns = cursor.fetchall()
+                    if not columns:
+                        raise Exception(f"Table '{table_name}' not found")
+                    
+                    schema = {
+                        'table_name': table_name,
+                        'columns': []
+                    }
+                    
+                    for col in columns:
+                        schema['columns'].append({
+                            'name': col['column_name'],
+                            'type': col['data_type'],
+                            'nullable': col['is_nullable'] == 'YES',
+                            'default': col['column_default']
+                        })
+                    
+                    return schema
+                    
+        except Exception as e:
+            logger.error(f"Failed to get schema for table {table_name}: {e}")
+            raise Exception(f"Database error getting schema for {table_name}: {e}")
     
     def analyze_column_distribution(self, table_name: str, column: str, filters: dict = {}) -> Dict:
         """Analyze distribution of a column with optional filters."""
@@ -383,51 +339,8 @@ class JobManager:
                     }
                     
         except Exception as e:
-            logger.warning(f"Analysis query failed for {table_name}.{column}, using demo data: {e}")
-            # Return demo histogram data for testing when DB is unavailable
-            import random
-            
-            # Generate realistic demo data based on column name
-            if column in ['price', 'close', 'open', 'high', 'low']:
-                # Price data - normal distribution around 50-200
-                values = [random.normalvariate(100, 30) for _ in range(1000)]
-            elif column == 'volume':
-                # Volume data - log-normal distribution
-                values = [random.lognormvariate(10, 1) for _ in range(1000)]
-            elif column == 'market_cap':
-                # Market cap - very large numbers
-                values = [random.lognormvariate(20, 2) for _ in range(1000)]
-            else:
-                # Generic numeric data
-                values = [random.normalvariate(0, 1) for _ in range(1000)]
-            
-            values_array = np.array(values)
-            stats = {
-                'count': len(values),
-                'mean': float(np.mean(values_array)),
-                'median': float(np.median(values_array)),
-                'std': float(np.std(values_array)),
-                'min': float(np.min(values_array)),
-                'max': float(np.max(values_array)),
-                'q25': float(np.percentile(values_array, 25)),
-                'q75': float(np.percentile(values_array, 75))
-            }
-            
-            # Create histogram
-            hist, bin_edges = np.histogram(values_array, bins=20)
-            bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-            
-            return {
-                'statistics': stats,
-                'histogram': {
-                    'counts': hist.tolist(),
-                    'bin_centers': bin_centers.tolist(),
-                    'bin_edges': bin_edges.tolist()
-                },
-                'column': column,
-                'table': table_name,
-                'note': 'Demo data - database unavailable'
-            }
+            logger.error(f"Analysis query failed for {table_name}.{column}: {e}")
+            raise Exception(f"Database error analyzing column {column} in table {table_name}: {e}")
     
     def get_column_values(self, table_name: str, column: str, limit: int = 100) -> Dict:
         """Get unique values for a categorical column or min/max for numeric columns."""
@@ -491,35 +404,8 @@ class JobManager:
                         }
                         
         except Exception as e:
-            logger.warning(f"Failed to get column values for {table_name}.{column}: {e}")
-            
-            # Return demo data based on column type
-            column_info = self.get_dataset_schema(table_name).get("columns", [])
-            column_def = next((col for col in column_info if col["column_name"] == column), None)
-            
-            if column_def:
-                data_type = column_def["data_type"].lower()
-                is_numeric = any(t in data_type for t in ["numeric", "integer", "double", "bigint"])
-                
-                if is_numeric:
-                    if column in ['price', 'close', 'open', 'high', 'low']:
-                        return {"column": column, "data_type": "numeric", "min_value": 10.0, "max_value": 500.0, "distinct_count": 1000}
-                    elif column == 'volume':
-                        return {"column": column, "data_type": "numeric", "min_value": 1000, "max_value": 10000000, "distinct_count": 5000}
-                    else:
-                        return {"column": column, "data_type": "numeric", "min_value": 0, "max_value": 1000, "distinct_count": 100}
-                else:
-                    # Demo categorical data
-                    if column == 'symbol':
-                        values = [{"value": "AAPL", "count": 1000}, {"value": "GOOGL", "count": 800}, {"value": "MSFT", "count": 750}]
-                    elif column == 'exchange':
-                        values = [{"value": "NASDAQ", "count": 5000}, {"value": "NYSE", "count": 4000}, {"value": "AMEX", "count": 500}]
-                    else:
-                        values = [{"value": "Category A", "count": 3000}, {"value": "Category B", "count": 2000}]
-                    
-                    return {"column": column, "data_type": "categorical", "values": values, "total_unique": len(values)}
-            
-            return {"error": f"Could not determine column type for {column}"}
+            logger.error(f"Failed to get column values for {table_name}.{column}: {e}")
+            raise Exception(f"Database error getting column values for {column} in table {table_name}: {e}")
     
     def get_filtered_data(self, table_name: str, filters: Dict = {}, page: int = 1, page_size: int = 50) -> Dict:
         """Get paginated data with applied filters."""
@@ -602,64 +488,8 @@ class JobManager:
                     }
                     
         except Exception as e:
-            logger.warning(f"Failed to get filtered data for {table_name}: {e}")
-            
-            # Return demo data when database is unavailable
-            import random
-            demo_data = []
-            
-            # Get schema to generate appropriate demo data
-            schema = self.get_dataset_schema(table_name)
-            if "columns" in schema:
-                for i in range(page_size):
-                    row = {}
-                    for col in schema["columns"]:
-                        col_name = col["column_name"]
-                        data_type = col["data_type"].lower()
-                        
-                        if "integer" in data_type or "bigint" in data_type:
-                            if col_name == "id":
-                                row[col_name] = (page - 1) * page_size + i + 1
-                            elif col_name == "volume":
-                                row[col_name] = random.randint(1000, 10000000)
-                            else:
-                                row[col_name] = random.randint(1, 1000)
-                        elif "numeric" in data_type or "double" in data_type:
-                            if col_name in ['price', 'open', 'high', 'low', 'close']:
-                                row[col_name] = round(random.uniform(50, 200), 2)
-                            else:
-                                row[col_name] = round(random.uniform(0, 100), 2)
-                        elif "date" in data_type:
-                            row[col_name] = "2024-01-15"
-                        elif "boolean" in data_type:
-                            row[col_name] = random.choice([True, False])
-                        else:
-                            # Text columns
-                            if col_name == "symbol":
-                                row[col_name] = random.choice(["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA"])
-                            elif col_name == "exchange":
-                                row[col_name] = random.choice(["NASDAQ", "NYSE", "AMEX"])
-                            elif col_name == "name":
-                                row[col_name] = f"Company {i+1}"
-                            else:
-                                row[col_name] = f"Value {i+1}"
-                    
-                    demo_data.append(row)
-            
-            return {
-                "data": demo_data,
-                "pagination": {
-                    "current_page": page,
-                    "page_size": page_size,
-                    "total_count": 1000,  # Demo total
-                    "total_pages": 20,
-                    "has_next": page < 20,
-                    "has_prev": page > 1
-                },
-                "filters_applied": filters,
-                "table_name": table_name,
-                "note": "Demo data - database unavailable"
-            }
+            logger.error(f"Failed to get filtered data for {table_name}: {e}")
+            raise Exception(f"Database error getting filtered data for table {table_name}: {e}")
     
     def format_display_name(self, table_name: str) -> str:
         """Format table name for display."""
