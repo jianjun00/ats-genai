@@ -335,9 +335,17 @@ class EDACoordinator:
             # Merge numeric statistics
             counts = [r.statistics.get('count', 0) for r in valid_results]
             means = [r.statistics.get('mean', 0) for r in valid_results]
+            stds = [r.statistics.get('std', 0) for r in valid_results]
+            mins = [r.statistics.get('min_val', 0) for r in valid_results if r.statistics.get('min_val') is not None]
+            maxs = [r.statistics.get('max_val', 0) for r in valid_results if r.statistics.get('max_val') is not None]
             
             total_count = sum(counts)
             weighted_mean = sum(c * m for c, m in zip(counts, means)) / total_count if total_count > 0 else 0
+            
+            # For std, min, max we'll use approximations from the partitions
+            approx_std = sum(c * s for c, s in zip(counts, stds)) / total_count if total_count > 0 else 0
+            global_min = min(mins) if mins else None
+            global_max = max(maxs) if maxs else None
             
             # Combine histograms (simplified)
             combined_histogram = None
@@ -347,6 +355,9 @@ class EDACoordinator:
             merged_stats = {
                 'count': total_count,
                 'mean': weighted_mean,
+                'std': approx_std,
+                'min': global_min,
+                'max': global_max,
                 'sample_partitions': len(valid_results)
             }
             

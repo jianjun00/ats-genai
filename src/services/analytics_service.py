@@ -392,11 +392,12 @@ class JobManager:
                             "total_count": result['total_count']
                         }
                     else:
-                        # Get unique values for categorical columns
+                        # Get unique values for categorical columns  
+                        # Handle ENUM types by only checking for NOT NULL
                         cursor.execute(f"""
                             SELECT {column} as value, COUNT(*) as count
                             FROM {table_name}
-                            WHERE {column} IS NOT NULL AND {column} != ''
+                            WHERE {column} IS NOT NULL
                             GROUP BY {column}
                             ORDER BY count DESC
                             LIMIT %s
@@ -1127,7 +1128,13 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             <style>
                 body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
                 .header { background: #2c3e50; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-                .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 20px; }
+                .main-layout { display: flex; gap: 20px; height: calc(100vh - 200px); }
+                .nav-panel { width: 300px; flex-shrink: 0; }
+                .content-panel { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+                .nav-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); height: fit-content; }
+                .content-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                .distributions-scroll { max-height: 60vh; overflow-y: auto; overflow-x: hidden; }
+                .table-scroll { max-height: 400px; overflow: auto; border: 1px solid #ddd; border-radius: 4px; }
                 .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
                 .dataset-card { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; cursor: pointer; }
                 .dataset-card:hover { background: #f0f8ff; }
@@ -1166,56 +1173,60 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             <div class="header">
                 <h1>ATS Exploratory Data Analysis</h1>
                 <p>Comprehensive dataset analysis with automatic column distributions and filtering</p>
-                <a href="/" style="color: #3498db; margin-right: 15px;">← Back to Analytics Dashboard</a>
+                <a href="/" style="color: #3498db; margin-right: 15px;">&lt; Back to Analytics Dashboard</a>
             </div>
             
-            <div class="grid">
-                <div class="card">
-                    <h3>Available Datasets</h3>
-                    <div id="datasets-list">Loading...</div>
-                </div>
-                
-                <div class="card">
-                    <h3>Dataset Analysis</h3>
-                    <div class="controls">
-                        <div>
-                            <label>Dataset: </label>
-                            <select id="dataset-select" onchange="loadDatasetAnalysis()">
-                                <option value="">Select dataset...</option>
-                            </select>
+            <div class="main-layout">
+                <!-- Left Navigation Panel -->
+                <div class="nav-panel">
+                    <div class="nav-card">
+                        <h3>Dataset Selection</h3>
+                        <div class="controls">
+                            <div>
+                                <label>Choose Dataset:</label>
+                                <select id="dataset-select" onchange="loadDatasetAnalysis()">
+                                    <option value="">Select dataset...</option>
+                                </select>
+                            </div>
+                            <div id="dataset-info" style="display: none; margin-top: 15px;">
+                                <div id="dataset-summary"></div>
+                            </div>
                         </div>
-                        <div style="margin-top: 15px;" id="dataset-info" style="display: none;">
-                            <div id="dataset-summary"></div>
+                        
+                        <!-- Filters Section -->
+                        <div id="filters-section" class="controls" style="display: none;">
+                            <h4>Data Filters</h4>
+                            <div id="filter-controls"></div>
+                            <div style="margin-top: 15px;">
+                                <button onclick="applyFilters()" class="btn btn-primary">Apply Filters</button>
+                                <button onclick="clearFilters()" class="btn btn-secondary">Clear</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Content Panel -->
+                <div class="content-panel">
+                    <!-- Column Distributions (Top) -->
+                    <div id="distribution-analysis" class="content-card">
+                        <h3>All Column Distributions</h3>
+                        <div id="distributions-container" class="distributions-scroll">
+                            <p style="text-align: center; color: #666; padding: 40px;">Select a dataset to view all column distributions</p>
                         </div>
                     </div>
                     
-                    <!-- Filters Section -->
-                    <div id="filters-section" class="controls" style="display: none;">
-                        <h4>Data Filters</h4>
-                        <div id="filter-controls"></div>
-                        <div style="margin-top: 15px;">
-                            <button onclick="applyFilters()">Apply Filters</button>
-                            <button onclick="clearFilters()" style="background: #95a5a6;">Clear Filters</button>
-                            <button onclick="loadFilteredData()">Load Filtered Data</button>
+                    <!-- Data Table (Bottom) -->
+                    <div id="data-table-section" class="content-card" style="display: none;">
+                        <h3>Dataset Preview</h3>
+                        <div id="table-info" style="margin-bottom: 15px; color: #666;"></div>
+                        <div class="table-pagination">
+                            <button id="prev-page" onclick="previousPage()" disabled>← Previous</button>
+                            <span id="page-info">Page 1</span>
+                            <button id="next-page" onclick="nextPage()">Next →</button>
                         </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="card" id="distribution-analysis" style="display: none;">
-                <h3>Column Distributions</h3>
-                <div id="distributions-container">
-                    <p style="text-align: center; color: #666;">Select a dataset to view column distributions</p>
-                </div>
-            </div>
-            
-            <!-- Filtered Data Table -->
-            <div id="data-table-section" class="card" style="display: none;">
-                <h3>Filtered Data</h3>
-                <div id="table-info" style="margin-bottom: 15px; color: #666;"></div>
-                <div id="data-table-container" style="overflow-x: auto;">
-                    <table id="data-table" style="width: 100%; border-collapse: collapse;">
-                        <thead id="table-head"></thead>
+                        <div id="data-table-container" class="table-scroll">
+                            <table id="data-table">
+                                <thead id="table-head"></thead>
                         <tbody id="table-body"></tbody>
                     </table>
                 </div>
@@ -1231,19 +1242,21 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 
                 async function loadDatasets() {
                     try {
-                        console.log('Loading datasets...');
+                        console.log('🚀 Loading datasets...');
                         const response = await fetch('/api/eda/datasets');
-                        console.log('Response status:', response.status);
+                        console.log('✅ Response status:', response.status);
                         
                         if (!response.ok) {
+                            console.error('❌ API request failed:', response.status, response.statusText);
                             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                         }
                         
-                        datasets = await response.json();
+                        const data = await response.json();
+                        datasets = Array.isArray(data) ? data : data.datasets || [];
                         console.log('Datasets received:', datasets.length);
                         
                         if (!Array.isArray(datasets) || datasets.length === 0) {
-                            document.getElementById('datasets-list').innerHTML = '<p style="color: orange;">No datasets found</p>';
+                            document.getElementById('dataset-select').innerHTML = '<option value="">No datasets found</option>';
                             return;
                         }
                         
@@ -1253,27 +1266,27 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         
                         datasets.forEach((dataset, index) => {
                             console.log(`Dataset ${index}:`, dataset.display_name);
-                            html += `
-                                <div class="dataset-card" onclick="selectDataset('${dataset.name}')">
-                                    <h4>${dataset.display_name}</h4>
-                                    <p>Table: ${dataset.name}</p>
-                                    <p>Rows: ${dataset.row_count.toLocaleString()}</p>
-                                    <p>Columns: ${dataset.column_count} | Vendor: ${dataset.vendor}</p>
-                                </div>
-                            `;
                             
-                            select.innerHTML += `<option value="${dataset.name}">${dataset.display_name}</option>`;
+                            // Add dataset size information to dropdown
+                            const sizeInfo = formatDatasetSize(dataset.row_count, dataset.column_count);
+                            select.innerHTML += `<option value="${dataset.name}">${dataset.display_name} (${sizeInfo})</option>`;
                         });
                         
-                        document.getElementById('datasets-list').innerHTML = html;
                         console.log('Datasets loaded successfully');
                         
                     } catch (error) {
                         console.error('Error loading datasets:', error);
-                        document.getElementById('datasets-list').innerHTML = `
-                            <p style="color: red;">Error loading datasets: ${error.message}</p>
-                            <p style="color: #666; font-size: 0.9em;">Check browser console for details</p>
-                        `;
+                        document.getElementById('dataset-select').innerHTML = '<option value="">Error loading datasets</option>';
+                    }
+                }
+                
+                function formatDatasetSize(rowCount, columnCount) {
+                    if (rowCount >= 1000000) {
+                        return `${(rowCount/1000000).toFixed(1)}M rows, ${columnCount} cols`;
+                    } else if (rowCount >= 1000) {
+                        return `${(rowCount/1000).toFixed(1)}k rows, ${columnCount} cols`;
+                    } else {
+                        return `${rowCount} rows, ${columnCount} cols`;
                     }
                 }
                 
@@ -1319,12 +1332,13 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         // Show filters section and load filters for all columns
                         document.getElementById('filters-section').style.display = 'block';
                         
-                        // Load filters and distributions in parallel for speed
+                        // Load filters, distributions, and data table in parallel for speed
                         const filterPromise = loadFiltersForDataset(datasetName, schema.columns);
                         const distributionPromise = loadAllColumnDistributions(datasetName, schema.columns);
+                        const dataTablePromise = loadDataTable(datasetName, schema.columns);
                         
-                        // Wait for both to complete
-                        await Promise.allSettled([filterPromise, distributionPromise]);
+                        // Wait for all to complete
+                        await Promise.allSettled([filterPromise, distributionPromise, dataTablePromise]);
                         
                     } catch (error) {
                         console.error('Error loading dataset analysis:', error);
@@ -1415,8 +1429,8 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     const distributionsContainer = document.getElementById('distributions-container');
                     distributionsContainer.innerHTML = '';
                     
-                    // Limit to first 6 columns for faster loading
-                    const columnsToAnalyze = columns.slice(0, 6);
+                    // Show ALL columns as requested by user - do not hide any columns
+                    const columnsToAnalyze = columns;
                     
                     // Create all containers first (immediate UI feedback)
                     const distributionPromises = [];
@@ -1458,25 +1472,22 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         }
                     }
                     
-                    if (columns.length > 6) {
-                        const moreDiv = document.createElement('div');
-                        moreDiv.innerHTML = `<p style="text-align: center; color: #666; font-style: italic;">
-                            Showing first 6 columns (${columns.length - 6} more columns available) - Loading in parallel...
-                        </p>`;
-                        distributionsContainer.appendChild(moreDiv);
-                    }
+                    // Show loading status for all columns
+                    const statusDiv = document.createElement('div');
+                    statusDiv.innerHTML = `<p style="text-align: center; color: #666; font-style: italic;">
+                        Loading all ${columns.length} column distributions in parallel...
+                    </p>`;
+                    distributionsContainer.appendChild(statusDiv);
                     
                     // Load all distributions in parallel
                     await Promise.allSettled(distributionPromises);
                     
                     // Update status when done
-                    if (columns.length > 6) {
-                        const statusDiv = distributionsContainer.querySelector('p');
-                        if (statusDiv) {
-                            statusDiv.innerHTML = `<p style="text-align: center; color: #666; font-style: italic;">
-                                Showing first 6 columns (${columns.length - 6} more columns available)
-                            </p>`;
-                        }
+                    const completionStatusDiv = distributionsContainer.querySelector('p');
+                    if (completionStatusDiv) {
+                        completionStatusDiv.parentElement.innerHTML = `<p style="text-align: center; color: #666; font-style: italic;">
+                            ✅ All ${columns.length} column distributions loaded successfully
+                        </p>`;
                     }
                 }
                 
@@ -1513,19 +1524,19 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                     <div class="stat-label-small">Count</div>
                                 </div>
                                 <div class="distribution-stat">
-                                    <div class="stat-value-small">${analysis.statistics.mean.toFixed(2)}</div>
+                                    <div class="stat-value-small">${analysis.statistics.mean ? analysis.statistics.mean.toFixed(2) : 'N/A'}</div>
                                     <div class="stat-label-small">Mean</div>
                                 </div>
                                 <div class="distribution-stat">
-                                    <div class="stat-value-small">${analysis.statistics.std.toFixed(2)}</div>
+                                    <div class="stat-value-small">${analysis.statistics.std ? analysis.statistics.std.toFixed(2) : 'N/A'}</div>
                                     <div class="stat-label-small">Std Dev</div>
                                 </div>
                                 <div class="distribution-stat">
-                                    <div class="stat-value-small">${analysis.statistics.min.toFixed(2)}</div>
+                                    <div class="stat-value-small">${analysis.statistics.min ? analysis.statistics.min.toFixed(2) : 'N/A'}</div>
                                     <div class="stat-label-small">Min</div>
                                 </div>
                                 <div class="distribution-stat">
-                                    <div class="stat-value-small">${analysis.statistics.max.toFixed(2)}</div>
+                                    <div class="stat-value-small">${analysis.statistics.max ? analysis.statistics.max.toFixed(2) : 'N/A'}</div>
                                     <div class="stat-label-small">Max</div>
                                 </div>
                             `;
@@ -1775,11 +1786,64 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     paginationControls.innerHTML = paginationHtml;
                 }
                 
+                async function loadDataTable(datasetName, columns) {
+                    try {
+                        // Load initial data table without filters (first page)
+                        const response = await fetch(`/api/eda/datasets/${datasetName}/data`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                filters: {},
+                                page: 1,
+                                page_size: 50
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.error) {
+                            console.error('Error loading data table:', data.error);
+                            return;
+                        }
+                        
+                        displayDataTable(data);
+                        currentPage = data.current_page || 1;
+                        totalPages = data.total_pages || 1;
+                        
+                        // Show data table section
+                        document.getElementById('data-table-section').style.display = 'block';
+                        
+                    } catch (error) {
+                        console.error('Error loading data table:', error);
+                    }
+                }
+                
+                function nextPage() {
+                    if (currentPage < totalPages) {
+                        loadFilteredData(currentPage + 1);
+                    }
+                }
+                
+                function previousPage() {
+                    if (currentPage > 1) {
+                        loadFilteredData(currentPage - 1);
+                    }
+                }
+                
                 
                 // Load data on page load
                 document.addEventListener('DOMContentLoaded', function() {
+                    console.log('DOM loaded, calling loadDatasets...');
                     loadDatasets();
                 });
+                
+                // Also try loading after a short delay as backup
+                setTimeout(function() {
+                    console.log('Backup load attempt...');
+                    if (datasets.length === 0) {
+                        loadDatasets();
+                    }
+                }, 1000);
             </script>
         </body>
         </html>

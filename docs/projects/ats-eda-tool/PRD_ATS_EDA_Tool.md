@@ -116,12 +116,17 @@ The ATS EDA Tool is a comprehensive data exploration and visualization platform 
 - **FR-5.4**: Custom formula columns for derived metrics
 - **FR-5.5**: Visualization templates for common financial analysis patterns
 
-### 6. **Data Dashboard**
-- **FR-6.1**: Tabular data browser with pagination and sorting
-- **FR-6.2**: Export capabilities (CSV, Excel, JSON)
-- **FR-6.3**: Statistical summary cards (mean, median, std, min, max)
-- **FR-6.4**: Data quality indicators (null count, unique values, data types)
-- **FR-6.5**: Interactive data drill-down and detail views
+### 6. **Data Dashboard - Updated Interface Design**
+- **FR-6.1**: Left navigation panel with dataset selection and filtering controls
+- **FR-6.2**: Right content area with two scrollable sections:
+  - **Top Section**: All column distributions display (no columns hidden)
+  - **Bottom Section**: Paged data table with scrollable rows
+- **FR-6.3**: Dataset size information in dropdown selection (e.g., "EODHD Daily Prices (4.4M rows, 7 cols)")
+- **FR-6.4**: Export capabilities (CSV, Excel, JSON) from data table
+- **FR-6.5**: Statistical summary cards (mean, median, std, min, max) with null-safe display
+- **FR-6.6**: Data quality indicators (null count, unique values, data types)
+- **FR-6.7**: Interactive pagination controls with Previous/Next buttons
+- **FR-6.8**: Responsive layout supporting simultaneous visualization viewing and data browsing
 
 ### 7. **Analytics and Insights**
 - **FR-7.1**: Automated data quality scoring
@@ -157,8 +162,10 @@ The ATS EDA Tool is a comprehensive data exploration and visualization platform 
 
 ### Usability
 - **NFR-14**: Zero-setup data exploration (automatic dataset discovery)
-- **NFR-15**: Intuitive interface requiring minimal training
-- **NFR-16**: Mobile-responsive design for basic data viewing
+- **NFR-15**: Intuitive left-navigation + right-content layout with immediate visual feedback
+- **NFR-16**: All columns visible without hiding - comprehensive data visibility
+- **NFR-17**: Scrollable interface supporting large datasets without pagination limits
+- **NFR-18**: Mobile-responsive design for basic data viewing
 
 ---
 
