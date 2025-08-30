@@ -108,15 +108,16 @@ services:
       -c min_wal_size=1GB
       -c max_wal_size=4GB
 
-  # Monitoring Dashboard (Optional)
-  ats-intg-dashboard:
+  # Analytics Service (Real Analytics Dashboard)
+  ats-intg-analytics:
     image: dragonflyer762/ats-genai:latest
-    container_name: ats-intg-dashboard
+    container_name: ats-intg-analytics
     restart: unless-stopped
     
     environment:
       - PYTHONPATH=/workspace/src
       - ENVIRONMENT=intg
+      - PORT=4000
       - DB_HOST=postgres-intg
       - DB_PORT=5432
       - DB_USER=postgres
@@ -124,7 +125,7 @@ services:
       - DB_NAME=intg_db
     
     ports:
-      - "4000:4000"  # Consistent with ATS-DEV analytics on 3000
+      - "4000:4000"  # ATS-INTG Analytics Service
     
     volumes:
       - ./:/workspace
@@ -134,8 +135,8 @@ services:
     
     command: >
       bash -c "
-        echo '🎯 Starting ATS-INTG Dashboard...' &&
-        python scripts/monitor_daily_jobs.py
+        echo '🚀 Starting ATS-INTG Analytics Service on port 4000...' &&
+        python src/services/analytics_service.py
       "
     
     depends_on:
