@@ -1,0 +1,49 @@
+global:
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'ats-intg-alerts@company.com'
+  # Add your Slack webhook URL here
+  slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+
+route:
+  group_by: ['alertname', 'environment']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'ats-intg-alerts'
+  routes:
+  - match:
+      severity: critical
+      environment: intg
+    receiver: 'ats-intg-critical'
+  - match:
+      alertname: InstrumentCountLowINTG
+      environment: intg
+    receiver: 'ats-intg-data-quality'
+  - match:
+      alertname: DailyPricesStaleINTG
+      environment: intg
+    receiver: 'ats-intg-data-quality'
+
+receivers:
+- name: 'ats-intg-alerts'
+  slack_configs:
+  - channel: '#ats-intg-alerts'
+    username: 'ATS-INTG-Monitor'
+    title: 'ATS INTG Alert'
+    text: 'Alert: {{ .GroupLabels.alertname }} - {{ .GroupLabels.environment }}'
+
+- name: 'ats-intg-critical'
+  slack_configs:
+  - channel: '#ats-intg-critical'
+    username: 'ATS-INTG-Critical'
+    title: 'CRITICAL: ATS INTG Alert'
+    text: 'CRITICAL Alert in INTG: {{ .GroupLabels.alertname }}'
+    color: 'danger'
+
+- name: 'ats-intg-data-quality'
+  slack_configs:
+  - channel: '#ats-intg-data-quality'
+    username: 'ATS-INTG-DataQuality'
+    title: 'ATS INTG Data Quality Alert'
+    text: 'Data Quality Issue in INTG: {{ .GroupLabels.alertname }}'
+    color: 'warning'
