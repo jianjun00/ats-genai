@@ -56,7 +56,7 @@ class DevCLI:
         """Configure database settings based on environment"""
         if self.environment == 'intg':
             self.db_host = "localhost"
-            self.db_port = "4434"  # ats-intg-postgres port (updated to 400x range)
+            self.db_port = "4432"  # ats-intg-postgres port
             self.db_user = "postgres"
             self.db_password = "intg_password"  # TimescaleDB might use password
             self.db_name = "intg_db"
@@ -104,10 +104,10 @@ class DevCLI:
             self.db_port = "3432"
             return
             
-        # Try localhost:4434 (ATS-INTG on 400x range)
-        if self.test_db_connection("localhost", "4434"):
+        # Try localhost:4432 (ATS-INTG)
+        if self.test_db_connection("localhost", "4432"):
             self.db_host = "localhost"
-            self.db_port = "4434"
+            self.db_port = "4432"
             return
             
         print("⚠️  No database connection available. You may need to:")
@@ -249,7 +249,7 @@ class DevCLI:
             },
             "postgres-intg": {
                 "image": "postgres:13",
-                "port": "4434:5432",  # Updated to 400x range
+                "port": "4432:5432",
                 "env": {
                     "POSTGRES_USER": self.db_user,
                     "POSTGRES_PASSWORD": self.db_password,
