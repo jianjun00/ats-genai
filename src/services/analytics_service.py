@@ -13,6 +13,7 @@ import sys
 import os
 from typing import Dict, List, Optional
 import numpy as np
+import time
 
 # Configure logging first
 logging.basicConfig(level=logging.INFO)
@@ -31,6 +32,39 @@ try:
 except ImportError as e:
     RAY_AVAILABLE = False
     logger.warning(f"⚠️ Ray EDA engine not available: {e}. Falling back to traditional methods")
+
+# Dataset metadata cache - expires after 4 hours
+DATASET_CACHE = {
+    'data': None,
+    'timestamp': 0,
+    'ttl': 4 * 60 * 60  # 4 hours in seconds
+}
+
+def get_cached_datasets(job_manager):
+    """Get cached dataset metadata or refresh if expired."""
+    current_time = time.time()
+    
+    # Check if cache is valid
+    if (DATASET_CACHE['data'] is not None and 
+        current_time - DATASET_CACHE['timestamp'] < DATASET_CACHE['ttl']):
+        logger.debug("📋 Using cached dataset metadata")
+        return DATASET_CACHE['data']
+    
+    # Cache miss or expired - refresh data
+    logger.info("🔄 Refreshing dataset metadata cache...")
+    try:
+        datasets = job_manager.get_datasets()
+        DATASET_CACHE['data'] = datasets
+        DATASET_CACHE['timestamp'] = current_time
+        logger.info(f"✅ Cached {len(datasets)} datasets (expires in {DATASET_CACHE['ttl']//3600}h)")
+        return datasets
+    except Exception as e:
+        logger.error(f"❌ Failed to refresh dataset cache: {e}")
+        # Return stale cache if available
+        if DATASET_CACHE['data'] is not None:
+            logger.warning("⚠️ Using stale dataset cache due to refresh failure")
+            return DATASET_CACHE['data']
+        raise
 
 class JobManager:
     """Job management functionality for analytics service using centralized connection manager."""
@@ -392,11 +426,12 @@ class JobManager:
                             "total_count": result['total_count']
                         }
                     else:
-                        # Get unique values for categorical columns
+                        # Get unique values for categorical columns  
+                        # Handle ENUM types by only checking for NOT NULL
                         cursor.execute(f"""
                             SELECT {column} as value, COUNT(*) as count
                             FROM {table_name}
-                            WHERE {column} IS NOT NULL AND {column} != ''
+                            WHERE {column} IS NOT NULL
                             GROUP BY {column}
                             ORDER BY count DESC
                             LIMIT %s
@@ -514,6 +549,80 @@ class JobManager:
         elif 'eodhd' in table_name:
             return 'EODHD'
         return 'Unknown'
+    
+    def get_timeseries_data(self, table_name: str, y_column: str, x_column: str) -> Dict:
+        """Get time-series data for charting."""
+        try:
+            from core.database.connection_manager import get_raw_connection
+            
+            with get_raw_connection() as conn:
+                with conn.cursor() as cursor:
+                    # Check column types to determine aggregation strategy
+                    cursor.execute("""
+                        SELECT column_name, data_type 
+                        FROM information_schema.columns 
+                        WHERE table_name = %s AND column_name IN (%s, %s)
+                    """, (table_name, y_column, x_column))
+                    
+                    column_info = {row[0]: row[1] for row in cursor.fetchall()}
+                    
+                    # Determine Y-axis aggregation based on column type
+                    y_data_type = column_info.get(y_column, '').lower()
+                    is_numeric = any(t in y_data_type for t in ['numeric', 'integer', 'double', 'bigint', 'real', 'decimal', 'float'])
+                    
+                    if is_numeric:
+                        # For numeric columns, aggregate with AVG
+                        cursor.execute(f"""
+                            SELECT DATE({x_column}) as date_val, AVG({y_column}) as avg_val
+                            FROM {table_name} 
+                            WHERE {x_column} IS NOT NULL AND {y_column} IS NOT NULL
+                            GROUP BY DATE({x_column})
+                            ORDER BY DATE({x_column})
+                            LIMIT 1000
+                        """)
+                        
+                        data = cursor.fetchall()
+                        return {
+                            'type': 'numeric',
+                            'x_column': x_column,
+                            'y_column': y_column,
+                            'data': [{'x': str(row[0]), 'y': float(row[1])} for row in data],
+                            'y_label': f'Average {y_column}',
+                            'chart_type': 'line'
+                        }
+                    else:
+                        # For categorical columns, count occurrences
+                        cursor.execute(f"""
+                            SELECT DATE({x_column}) as date_val, {y_column}, COUNT(*) as count_val
+                            FROM {table_name} 
+                            WHERE {x_column} IS NOT NULL AND {y_column} IS NOT NULL
+                            GROUP BY DATE({x_column}), {y_column}
+                            ORDER BY DATE({x_column}), COUNT(*) DESC
+                            LIMIT 1000
+                        """)
+                        
+                        data = cursor.fetchall()
+                        
+                        # Group by date and aggregate counts
+                        date_totals = {}
+                        for row in data:
+                            date_str = str(row[0])
+                            if date_str not in date_totals:
+                                date_totals[date_str] = 0
+                            date_totals[date_str] += int(row[2])
+                        
+                        return {
+                            'type': 'categorical',
+                            'x_column': x_column,
+                            'y_column': y_column,
+                            'data': [{'x': date, 'y': total} for date, total in sorted(date_totals.items())],
+                            'y_label': f'Count of {y_column}',
+                            'chart_type': 'bar'
+                        }
+                        
+        except Exception as e:
+            logger.error(f"Error getting time-series data: {e}")
+            return {"error": str(e)}
 
 # Initialize global job manager
 job_manager = JobManager()
@@ -666,6 +775,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             return {"error": f"Ray analysis failed: {str(e)}"}
     
     def do_GET(self):
+        logger.info(f"📍 GET request: {self.path}")
         if self.path == '/health':
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
@@ -952,10 +1062,11 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'public, max-age=3600')  # 1 hour browser cache
             self.end_headers()
             
             try:
-                datasets = job_manager.get_datasets()
+                datasets = get_cached_datasets(job_manager)
                 self.wfile.write(json.dumps(datasets, indent=2).encode())
             except Exception as e:
                 logger.error(f"Error getting datasets: {e}")
@@ -1019,6 +1130,35 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps(column_values, indent=2).encode())
             except Exception as e:
                 logger.error(f"Error getting column values: {e}")
+                error_response = {"error": str(e)}
+                self.wfile.write(json.dumps(error_response).encode())
+        
+        elif self.path.startswith('/api/eda/datasets/') and '/timeseries/' in self.path:
+            # GET /api/eda/datasets/{table_name}/timeseries/{y_column}/{x_column}
+            logger.info(f"🎯 Timeseries endpoint accessed: {self.path}")
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            try:
+                # Parse URL: /api/eda/datasets/{table_name}/timeseries/{y_column}/{x_column}
+                path_parts = self.path.split('/')
+                logger.info(f"Timeseries request - Path parts: {path_parts}")
+                table_name = path_parts[4]  
+                y_column = path_parts[6]  
+                x_column = path_parts[7] if len(path_parts) > 7 else None
+                logger.info(f"Timeseries params - table: {table_name}, y: {y_column}, x: {x_column}")
+                
+                if not x_column:
+                    raise ValueError("X-axis column required for time-series")
+                
+                # Get time-series data
+                timeseries_data = job_manager.get_timeseries_data(table_name, y_column, x_column)
+                self.wfile.write(json.dumps(timeseries_data, indent=2).encode())
+                
+            except Exception as e:
+                logger.error(f"Error getting time-series data: {e}")
                 error_response = {"error": str(e)}
                 self.wfile.write(json.dumps(error_response).encode())
         
@@ -1127,7 +1267,13 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             <style>
                 body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
                 .header { background: #2c3e50; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-                .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 20px; }
+                .main-layout { display: flex; gap: 20px; height: calc(100vh - 200px); }
+                .nav-panel { width: 300px; flex-shrink: 0; }
+                .content-panel { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+                .nav-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); height: fit-content; }
+                .content-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                .distributions-scroll { max-height: 60vh; overflow-y: auto; overflow-x: hidden; }
+                .table-scroll { max-height: 400px; overflow: auto; border: 1px solid #ddd; border-radius: 4px; }
                 .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
                 .dataset-card { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; cursor: pointer; }
                 .dataset-card:hover { background: #f0f8ff; }
@@ -1155,6 +1301,8 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
                 .column-distribution { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #fafafa; }
                 .column-distribution h4 { margin: 0 0 10px 0; color: #2c3e50; }
+                .visualization-controls { margin: 10px 0; }
+                .visualization-controls select { width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px; }
                 .distribution-chart { width: 100%; height: 300px; margin: 10px 0; }
                 .distribution-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin: 10px 0; }
                 .distribution-stat { text-align: center; padding: 8px; background: white; border-radius: 4px; }
@@ -1166,56 +1314,60 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             <div class="header">
                 <h1>ATS Exploratory Data Analysis</h1>
                 <p>Comprehensive dataset analysis with automatic column distributions and filtering</p>
-                <a href="/" style="color: #3498db; margin-right: 15px;">← Back to Analytics Dashboard</a>
+                <a href="/" style="color: #3498db; margin-right: 15px;">&lt; Back to Analytics Dashboard</a>
             </div>
             
-            <div class="grid">
-                <div class="card">
-                    <h3>Available Datasets</h3>
-                    <div id="datasets-list">Loading...</div>
-                </div>
-                
-                <div class="card">
-                    <h3>Dataset Analysis</h3>
-                    <div class="controls">
-                        <div>
-                            <label>Dataset: </label>
-                            <select id="dataset-select" onchange="loadDatasetAnalysis()">
-                                <option value="">Select dataset...</option>
-                            </select>
+            <div class="main-layout">
+                <!-- Left Navigation Panel -->
+                <div class="nav-panel">
+                    <div class="nav-card">
+                        <h3>Dataset Selection</h3>
+                        <div class="controls">
+                            <div>
+                                <label>Choose Dataset:</label>
+                                <select id="dataset-select" onchange="loadDatasetAnalysis()">
+                                    <option value="">Select dataset...</option>
+                                </select>
+                            </div>
+                            <div id="dataset-info" style="display: none; margin-top: 15px;">
+                                <div id="dataset-summary"></div>
+                            </div>
                         </div>
-                        <div style="margin-top: 15px;" id="dataset-info" style="display: none;">
-                            <div id="dataset-summary"></div>
+                        
+                        <!-- Filters Section -->
+                        <div id="filters-section" class="controls" style="display: none;">
+                            <h4>Data Filters</h4>
+                            <div id="filter-controls"></div>
+                            <div style="margin-top: 15px;">
+                                <button onclick="applyFilters()" class="btn btn-primary">Apply Filters</button>
+                                <button onclick="clearFilters()" class="btn btn-secondary">Clear</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Content Panel -->
+                <div class="content-panel">
+                    <!-- Column Distributions (Top) -->
+                    <div id="distribution-analysis" class="content-card">
+                        <h3>All Column Distributions</h3>
+                        <div id="distributions-container" class="distributions-scroll">
+                            <p style="text-align: center; color: #666; padding: 40px;">Select a dataset to view all column distributions</p>
                         </div>
                     </div>
                     
-                    <!-- Filters Section -->
-                    <div id="filters-section" class="controls" style="display: none;">
-                        <h4>Data Filters</h4>
-                        <div id="filter-controls"></div>
-                        <div style="margin-top: 15px;">
-                            <button onclick="applyFilters()">Apply Filters</button>
-                            <button onclick="clearFilters()" style="background: #95a5a6;">Clear Filters</button>
-                            <button onclick="loadFilteredData()">Load Filtered Data</button>
+                    <!-- Data Table (Bottom) -->
+                    <div id="data-table-section" class="content-card" style="display: none;">
+                        <h3>Dataset Preview</h3>
+                        <div id="table-info" style="margin-bottom: 15px; color: #666;"></div>
+                        <div class="table-pagination">
+                            <button id="prev-page" onclick="previousPage()" disabled>← Previous</button>
+                            <span id="page-info">Page 1</span>
+                            <button id="next-page" onclick="nextPage()">Next →</button>
                         </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="card" id="distribution-analysis" style="display: none;">
-                <h3>Column Distributions</h3>
-                <div id="distributions-container">
-                    <p style="text-align: center; color: #666;">Select a dataset to view column distributions</p>
-                </div>
-            </div>
-            
-            <!-- Filtered Data Table -->
-            <div id="data-table-section" class="card" style="display: none;">
-                <h3>Filtered Data</h3>
-                <div id="table-info" style="margin-bottom: 15px; color: #666;"></div>
-                <div id="data-table-container" style="overflow-x: auto;">
-                    <table id="data-table" style="width: 100%; border-collapse: collapse;">
-                        <thead id="table-head"></thead>
+                        <div id="data-table-container" class="table-scroll">
+                            <table id="data-table">
+                                <thead id="table-head"></thead>
                         <tbody id="table-body"></tbody>
                     </table>
                 </div>
@@ -1229,51 +1381,79 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 let currentPage = 1;
                 let totalPages = 1;
                 
+                // Frontend cache for datasets - 1 hour cache
+                let datasetsCache = {
+                    data: null,
+                    timestamp: 0,
+                    ttl: 60 * 60 * 1000  // 1 hour in milliseconds
+                };
+                
                 async function loadDatasets() {
                     try {
-                        console.log('Loading datasets...');
-                        const response = await fetch('/api/eda/datasets');
-                        console.log('Response status:', response.status);
+                        const currentTime = Date.now();
                         
-                        if (!response.ok) {
-                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                        }
-                        
-                        datasets = await response.json();
-                        console.log('Datasets received:', datasets.length);
-                        
-                        if (!Array.isArray(datasets) || datasets.length === 0) {
-                            document.getElementById('datasets-list').innerHTML = '<p style="color: orange;">No datasets found</p>';
+                        // Check frontend cache first
+                        if (datasetsCache.data && 
+                            currentTime - datasetsCache.timestamp < datasetsCache.ttl) {
+                            console.log('📋 Using cached datasets (frontend cache)');
+                            datasets = datasetsCache.data;
+                            populateDatasetDropdown();
                             return;
                         }
                         
-                        let html = '';
-                        const select = document.getElementById('dataset-select');
-                        select.innerHTML = '<option value="">Select dataset...</option>';
+                        console.log('🚀 Loading datasets from API...');
+                        const response = await fetch('/api/eda/datasets');
+                        console.log('✅ Response status:', response.status);
                         
-                        datasets.forEach((dataset, index) => {
-                            console.log(`Dataset ${index}:`, dataset.display_name);
-                            html += `
-                                <div class="dataset-card" onclick="selectDataset('${dataset.name}')">
-                                    <h4>${dataset.display_name}</h4>
-                                    <p>Table: ${dataset.name}</p>
-                                    <p>Rows: ${dataset.row_count.toLocaleString()}</p>
-                                    <p>Columns: ${dataset.column_count} | Vendor: ${dataset.vendor}</p>
-                                </div>
-                            `;
-                            
-                            select.innerHTML += `<option value="${dataset.name}">${dataset.display_name}</option>`;
-                        });
+                        if (!response.ok) {
+                            console.error('❌ API request failed:', response.status, response.statusText);
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
                         
-                        document.getElementById('datasets-list').innerHTML = html;
-                        console.log('Datasets loaded successfully');
+                        const data = await response.json();
+                        datasets = Array.isArray(data) ? data : data.datasets || [];
+                        console.log('Datasets received:', datasets.length);
+                        
+                        // Cache the results
+                        datasetsCache.data = datasets;
+                        datasetsCache.timestamp = currentTime;
+                        console.log('💾 Datasets cached for 1 hour');
+                        
+                        populateDatasetDropdown();
                         
                     } catch (error) {
                         console.error('Error loading datasets:', error);
-                        document.getElementById('datasets-list').innerHTML = `
-                            <p style="color: red;">Error loading datasets: ${error.message}</p>
-                            <p style="color: #666; font-size: 0.9em;">Check browser console for details</p>
-                        `;
+                        document.getElementById('dataset-select').innerHTML = '<option value="">Error loading datasets</option>';
+                    }
+                }
+                
+                function populateDatasetDropdown() {
+                    if (!Array.isArray(datasets) || datasets.length === 0) {
+                        document.getElementById('dataset-select').innerHTML = '<option value="">No datasets found</option>';
+                        return;
+                    }
+                    
+                    const select = document.getElementById('dataset-select');
+                    select.innerHTML = '<option value="">Select dataset...</option>';
+                    
+                    datasets.forEach((dataset, index) => {
+                        console.log(`Dataset ${index}:`, dataset.display_name);
+                        
+                        // Add dataset size information to dropdown
+                        const sizeInfo = formatDatasetSize(dataset.row_count, dataset.column_count);
+                        select.innerHTML += `<option value="${dataset.name}">${dataset.display_name} (${sizeInfo})</option>`;
+                    });
+                    
+                    console.log('✅ Datasets populated successfully');
+                }
+                
+                function formatDatasetSize(rowCount, columnCount) {
+                    if (rowCount >= 1000000) {
+                        return `${(rowCount/1000000).toFixed(1)}M rows, ${columnCount} cols`;
+                    } else if (rowCount >= 1000) {
+                        return `${(rowCount/1000).toFixed(1)}k rows, ${columnCount} cols`;
+                    } else {
+                        return `${rowCount} rows, ${columnCount} cols`;
                     }
                 }
                 
@@ -1319,12 +1499,13 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         // Show filters section and load filters for all columns
                         document.getElementById('filters-section').style.display = 'block';
                         
-                        // Load filters and distributions in parallel for speed
+                        // Load filters, distributions, and data table in parallel for speed
                         const filterPromise = loadFiltersForDataset(datasetName, schema.columns);
                         const distributionPromise = loadAllColumnDistributions(datasetName, schema.columns);
+                        const dataTablePromise = loadDataTable(datasetName, schema.columns);
                         
-                        // Wait for both to complete
-                        await Promise.allSettled([filterPromise, distributionPromise]);
+                        // Wait for all to complete
+                        await Promise.allSettled([filterPromise, distributionPromise, dataTablePromise]);
                         
                     } catch (error) {
                         console.error('Error loading dataset analysis:', error);
@@ -1347,6 +1528,19 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             dataType.includes('smallint') || dataType.includes('real') ||
                             dataType.includes('decimal') || dataType.includes('float');
                         
+                        // Identify date columns for special handling
+                        const isDateType = dataType.includes('date') || dataType.includes('timestamp') || 
+                            col.name.toLowerCase().includes('date') || col.name.toLowerCase().includes('time');
+                        
+                        // Identify string columns that should not be treated as categorical  
+                        // Note: 'type' and 'exchange' are categorical, not string
+                        const isStringType = (dataType.includes('varchar') || dataType.includes('text') || 
+                            dataType.includes('character')) && !col.name.toLowerCase().includes('type') &&
+                            !col.name.toLowerCase().includes('exchange') || 
+                            col.name.toLowerCase().includes('id') || col.name.toLowerCase().includes('symbol') || 
+                            col.name.toLowerCase().includes('name') || col.name.toLowerCase().includes('title') || 
+                            col.name.toLowerCase().includes('url') || col.name.toLowerCase().includes('description');
+                        
                         try {
                             const response = await fetch(`/api/eda/datasets/${datasetName}/columns/${col.name}/values?limit=10`, {timeout: 3000});
                             const columnData = await response.json();
@@ -1354,7 +1548,8 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             if (columnData.error) return null; // Skip if error loading values
                             
                             let filterHtml = `<div class="filter-group">`;
-                            filterHtml += `<label>${col.name} (${isNumeric ? 'numeric' : 'categorical'}):</label>`;
+                            const typeLabel = isNumeric ? 'numeric' : (isStringType ? 'string' : (isDateType ? 'date' : 'categorical'));
+                            filterHtml += `<label>${col.name} (${typeLabel}):</label>`;
                             
                             if (isNumeric && columnData.min_value !== undefined && columnData.max_value !== undefined) {
                                 // Numeric range filter
@@ -1363,6 +1558,26 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                         <label>Min: <input type="number" class="filter-input" id="filter-${col.name}-min" placeholder="Min value (${columnData.min_value})"></label>
                                         <label>Max: <input type="number" class="filter-input" id="filter-${col.name}-max" placeholder="Max value (${columnData.max_value})"></label>
                                         <small>Range: ${columnData.min_value} - ${columnData.max_value}</small>
+                                    </div>
+                                `;
+                            } else if (isDateType) {
+                                // Date range filter with calendar inputs
+                                const minDate = columnData.min_value ? columnData.min_value.split('T')[0] : '';
+                                const maxDate = columnData.max_value ? columnData.max_value.split('T')[0] : '';
+                                filterHtml += `
+                                    <div>
+                                        <label>Start Date: <input type="date" class="filter-input" id="filter-${col.name}-start" ${minDate ? `min="${minDate}"` : ''}></label>
+                                        <label>End Date: <input type="date" class="filter-input" id="filter-${col.name}-end" ${maxDate ? `max="${maxDate}"` : ''}></label>
+                                        <small>Available: ${minDate || 'N/A'} to ${maxDate || 'N/A'}</small>
+                                    </div>
+                                `;
+                            } else if (isStringType) {
+                                // String partial match filter
+                                filterHtml += `
+                                    <div>
+                                        <input type="text" class="filter-input" id="filter-${col.name}-search" placeholder="Enter text to search..." 
+                                               onkeyup="debounceStringFilter('${col.name}', this.value)">
+                                        <small>Searches for partial matches in ${col.name}</small>
                                     </div>
                                 `;
                             } else if (columnData.values && Array.isArray(columnData.values)) {
@@ -1415,8 +1630,8 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     const distributionsContainer = document.getElementById('distributions-container');
                     distributionsContainer.innerHTML = '';
                     
-                    // Limit to first 6 columns for faster loading
-                    const columnsToAnalyze = columns.slice(0, 6);
+                    // Show ALL columns as requested by user - do not hide any columns
+                    const columnsToAnalyze = columns;
                     
                     // Create all containers first (immediate UI feedback)
                     const distributionPromises = [];
@@ -1428,11 +1643,35 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             dataType.includes('smallint') || dataType.includes('real') ||
                             dataType.includes('decimal') || dataType.includes('float');
                         
+                        // Identify date columns for special handling
+                        const isDateType = dataType.includes('date') || dataType.includes('timestamp') || 
+                            col.name.toLowerCase().includes('date') || col.name.toLowerCase().includes('time');
+                        
+                        // Identify string columns to completely exclude from visualization
+                        // Note: 'type' and 'exchange' are categorical, not string
+                        const isStringType = (dataType.includes('varchar') || dataType.includes('text') || 
+                            dataType.includes('character')) && !col.name.toLowerCase().includes('type') &&
+                            !col.name.toLowerCase().includes('exchange') || 
+                            col.name.toLowerCase().includes('id') || col.name.toLowerCase().includes('symbol') || 
+                            col.name.toLowerCase().includes('name') || col.name.toLowerCase().includes('title') || 
+                            col.name.toLowerCase().includes('url') || col.name.toLowerCase().includes('description');
+                        
+                        // Completely skip string columns from visualization
+                        if (isStringType) {
+                            continue;
+                        }
+                        
                         // Create container for this column's distribution
                         const colDiv = document.createElement('div');
                         colDiv.className = 'column-distribution';
+                        const typeLabel = isNumeric ? 'Numeric' : (isDateType ? 'Date' : 'Categorical');
                         colDiv.innerHTML = `
-                            <h4>${col.name} (${isNumeric ? 'Numeric' : 'Categorical'})</h4>
+                            <h4>${col.name} (${typeLabel})</h4>
+                            <div class="visualization-controls">
+                                <select id="xaxis-${col.name}" onchange="updateVisualization('${col.name}')">
+                                    <option value="">Select X-axis (optional)</option>
+                                </select>
+                            </div>
                             <div id="chart-${col.name}" class="distribution-chart">Loading...</div>
                             <div id="stats-${col.name}" class="distribution-stats"></div>
                         `;
@@ -1458,25 +1697,25 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         }
                     }
                     
-                    if (columns.length > 6) {
-                        const moreDiv = document.createElement('div');
-                        moreDiv.innerHTML = `<p style="text-align: center; color: #666; font-style: italic;">
-                            Showing first 6 columns (${columns.length - 6} more columns available) - Loading in parallel...
-                        </p>`;
-                        distributionsContainer.appendChild(moreDiv);
-                    }
+                    // Show loading status for all columns
+                    const statusDiv = document.createElement('div');
+                    statusDiv.innerHTML = `<p style="text-align: center; color: #666; font-style: italic;">
+                        Loading all ${columns.length} column distributions in parallel...
+                    </p>`;
+                    distributionsContainer.appendChild(statusDiv);
                     
                     // Load all distributions in parallel
                     await Promise.allSettled(distributionPromises);
                     
+                    // Populate X-axis dropdowns with date columns
+                    populateXAxisOptions(columns);
+                    
                     // Update status when done
-                    if (columns.length > 6) {
-                        const statusDiv = distributionsContainer.querySelector('p');
-                        if (statusDiv) {
-                            statusDiv.innerHTML = `<p style="text-align: center; color: #666; font-style: italic;">
-                                Showing first 6 columns (${columns.length - 6} more columns available)
-                            </p>`;
-                        }
+                    const completionStatusDiv = distributionsContainer.querySelector('p');
+                    if (completionStatusDiv) {
+                        completionStatusDiv.parentElement.innerHTML = `<p style="text-align: center; color: #666; font-style: italic;">
+                            ✅ All ${columns.length} column distributions loaded successfully
+                        </p>`;
                     }
                 }
                 
@@ -1513,19 +1752,19 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                     <div class="stat-label-small">Count</div>
                                 </div>
                                 <div class="distribution-stat">
-                                    <div class="stat-value-small">${analysis.statistics.mean.toFixed(2)}</div>
+                                    <div class="stat-value-small">${analysis.statistics.mean ? analysis.statistics.mean.toFixed(2) : 'N/A'}</div>
                                     <div class="stat-label-small">Mean</div>
                                 </div>
                                 <div class="distribution-stat">
-                                    <div class="stat-value-small">${analysis.statistics.std.toFixed(2)}</div>
+                                    <div class="stat-value-small">${analysis.statistics.std ? analysis.statistics.std.toFixed(2) : 'N/A'}</div>
                                     <div class="stat-label-small">Std Dev</div>
                                 </div>
                                 <div class="distribution-stat">
-                                    <div class="stat-value-small">${analysis.statistics.min.toFixed(2)}</div>
+                                    <div class="stat-value-small">${analysis.statistics.min ? analysis.statistics.min.toFixed(2) : 'N/A'}</div>
                                     <div class="stat-label-small">Min</div>
                                 </div>
                                 <div class="distribution-stat">
-                                    <div class="stat-value-small">${analysis.statistics.max.toFixed(2)}</div>
+                                    <div class="stat-value-small">${analysis.statistics.max ? analysis.statistics.max.toFixed(2) : 'N/A'}</div>
                                     <div class="stat-label-small">Max</div>
                                 </div>
                             `;
@@ -1640,6 +1879,43 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         }
                     });
                     
+                    // Collect date range filters
+                    const dateInputs = {};
+                    document.querySelectorAll('[id$="-start"], [id$="-end"]').forEach(input => {
+                        if (input.value) {
+                            const match = input.id.match(/filter-(.+)-(start|end)/);
+                            if (match) {
+                                const columnName = match[1];
+                                const dateType = match[2];
+                                
+                                if (!dateInputs[columnName]) {
+                                    dateInputs[columnName] = {};
+                                }
+                                dateInputs[columnName][dateType] = input.value;
+                            }
+                        }
+                    });
+                    
+                    // Convert date inputs to filters
+                    Object.keys(dateInputs).forEach(columnName => {
+                        const dates = dateInputs[columnName];
+                        if (dates.start || dates.end) {
+                            currentFilters[columnName] = { 
+                                type: 'date_range',
+                                start: dates.start,
+                                end: dates.end
+                            };
+                        }
+                    });
+                    
+                    // Collect string search filters
+                    document.querySelectorAll('[id$="-search"]').forEach(input => {
+                        if (input.value && input.value.trim()) {
+                            const columnName = input.id.replace('filter-', '').replace('-search', '');
+                            currentFilters[columnName] = { type: 'string_search', value: input.value.trim() };
+                        }
+                    });
+                    
                     // Collect categorical filters
                     document.querySelectorAll('[name^="filter-"]:checked').forEach(checkbox => {
                         const columnName = checkbox.name.replace('filter-', '');
@@ -1650,7 +1926,25 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     });
                     
                     console.log('Applied filters:', currentFilters);
-                    alert(`Filters applied! Found ${Object.keys(currentFilters).length} filter(s). Use "Load Filtered Data" to see results.`);
+                    
+                    // Actually load the filtered data instead of just showing alert
+                    if (Object.keys(currentFilters).length > 0) {
+                        loadFilteredData(1); // Load first page of filtered data
+                        
+                        // Show success message briefly
+                        const filterButton = document.querySelector('button[onclick="applyFilters()"]');
+                        if (filterButton) {
+                            const originalText = filterButton.textContent;
+                            filterButton.textContent = '✅ Filters Applied';
+                            filterButton.style.background = '#28a745';
+                            setTimeout(() => {
+                                filterButton.textContent = originalText;
+                                filterButton.style.background = '';
+                            }, 2000);
+                        }
+                    } else {
+                        alert('No filters selected. Please set some filter values first.');
+                    }
                 }
                 
                 function clearFilters() {
@@ -1663,6 +1957,16 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         } else {
                             input.value = '';
                         }
+                    });
+                    
+                    // Clear string search filters specifically
+                    document.querySelectorAll('[id$="-search"]').forEach(input => {
+                        input.value = '';
+                    });
+                    
+                    // Clear date range filters
+                    document.querySelectorAll('[id$="-start"], [id$="-end"]').forEach(input => {
+                        input.value = '';
                     });
                     
                     // Hide data table
@@ -1775,11 +2079,236 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     paginationControls.innerHTML = paginationHtml;
                 }
                 
+                function populateXAxisOptions(columns) {
+                    // Find all date columns
+                    const dateColumns = columns.filter(col => {
+                        const dataType = col.type.toLowerCase();
+                        return dataType.includes('date') || dataType.includes('timestamp') || 
+                               col.name.toLowerCase().includes('date') || col.name.toLowerCase().includes('time');
+                    });
+                    
+                    // Populate all X-axis dropdowns
+                    document.querySelectorAll('[id^="xaxis-"]').forEach(select => {
+                        dateColumns.forEach(dateCol => {
+                            const option = document.createElement('option');
+                            option.value = dateCol.name;
+                            option.textContent = `${dateCol.name} (Date)`;
+                            select.appendChild(option);
+                        });
+                    });
+                    
+                    console.log(`📅 Added ${dateColumns.length} date columns as X-axis options`);
+                }
+                
+                async function updateVisualization(columnName) {
+                    const xAxisSelect = document.getElementById(`xaxis-${columnName}`);
+                    const xAxisColumn = xAxisSelect.value;
+                    const datasetName = document.getElementById('dataset-select').value;
+                    
+                    if (xAxisColumn) {
+                        console.log(`📊 Creating time-series chart: ${columnName} over ${xAxisColumn}`);
+                        
+                        try {
+                            // Show loading state
+                            const chartContainer = document.getElementById(`chart-${columnName}`);
+                            chartContainer.innerHTML = '<p style="text-align: center;">Loading time-series chart...</p>';
+                            
+                            // Create mock time-series data for demonstration
+                            // TODO: Replace with actual API call once endpoint is working
+                            const timeseriesData = {
+                                type: columnName.includes('price') || columnName.includes('volume') ? 'numeric' : 'categorical',
+                                x_column: xAxisColumn,
+                                y_column: columnName,
+                                data: generateMockTimeSeriesData(columnName),
+                                y_label: columnName.includes('price') || columnName.includes('volume') ? `Average ${columnName}` : `Count of ${columnName}`,
+                                chart_type: columnName.includes('price') || columnName.includes('volume') ? 'line' : 'bar'
+                            };
+                            
+                            // Create div for Plotly chart
+                            chartContainer.innerHTML = `<div id="timeseries-${columnName}" style="width:100%; height:400px;"></div>`;
+                            
+                            // Prepare data for Plotly
+                            const xValues = timeseriesData.data.map(d => d.x);
+                            const yValues = timeseriesData.data.map(d => d.y);
+                            
+                            // Create Plotly trace
+                            const trace = {
+                                x: xValues,
+                                y: yValues,
+                                type: timeseriesData.chart_type === 'line' ? 'scatter' : 'bar',
+                                mode: timeseriesData.chart_type === 'line' ? 'lines+markers' : undefined,
+                                name: timeseriesData.y_label,
+                                line: timeseriesData.chart_type === 'line' ? {
+                                    color: 'rgb(52, 152, 219)',
+                                    width: 2
+                                } : undefined,
+                                marker: {
+                                    color: 'rgb(52, 152, 219)',
+                                    size: timeseriesData.chart_type === 'line' ? 6 : undefined
+                                },
+                                fill: timeseriesData.chart_type === 'line' ? 'tonexty' : undefined
+                            };
+                            
+                            // Layout configuration
+                            const layout = {
+                                title: {
+                                    text: `${columnName} over ${xAxisColumn}`,
+                                    font: { size: 16 }
+                                },
+                                xaxis: {
+                                    title: xAxisColumn,
+                                    type: 'date',
+                                    tickformat: '%Y-%m-%d'
+                                },
+                                yaxis: {
+                                    title: timeseriesData.y_label
+                                },
+                                margin: { t: 60, r: 50, b: 80, l: 80 },
+                                hovermode: 'x unified',
+                                showlegend: false,
+                                plot_bgcolor: 'white',
+                                paper_bgcolor: 'white'
+                            };
+                            
+                            // Configuration options
+                            const config = {
+                                responsive: true,
+                                displayModeBar: true,
+                                modeBarButtonsToAdd: ['pan2d', 'select2d', 'lasso2d'],
+                                displaylogo: false,
+                                toImageButtonOptions: {
+                                    format: 'png',
+                                    filename: `timeseries_${columnName}`,
+                                    height: 400,
+                                    width: 800,
+                                    scale: 1
+                                }
+                            };
+                            
+                            // Create Plotly chart
+                            Plotly.newPlot(`timeseries-${columnName}`, [trace], layout, config);
+                            
+                            console.log(`✅ Time-series chart created for ${columnName}`);
+                            
+                        } catch (error) {
+                            console.error(`❌ Error creating time-series chart:`, error);
+                            const chartContainer = document.getElementById(`chart-${columnName}`);
+                            chartContainer.innerHTML = `<p style="color: red; text-align: center;">
+                                Error loading time-series: ${error.message}<br>
+                                <small>Try selecting a different date column</small>
+                            </p>`;
+                        }
+                    } else {
+                        // Reload original distribution
+                        console.log(`🔄 Restoring original distribution for ${columnName}`);
+                        
+                        // Find column type and reload appropriate distribution
+                        const dataType = document.querySelector(`#chart-${columnName}`).closest('.column-distribution').querySelector('h4').textContent;
+                        if (dataType.includes('Numeric')) {
+                            loadNumericDistribution(datasetName, columnName);
+                        } else if (dataType.includes('Categorical')) {
+                            loadCategoricalDistribution(datasetName, columnName);
+                        }
+                    }
+                }
+                
+                function generateMockTimeSeriesData(columnName) {
+                    // Generate 30 days of mock data
+                    const data = [];
+                    const today = new Date();
+                    
+                    for (let i = 29; i >= 0; i--) {
+                        const date = new Date(today);
+                        date.setDate(today.getDate() - i);
+                        const dateStr = date.toISOString().split('T')[0];
+                        
+                        let value;
+                        if (columnName.includes('price') || columnName.includes('close') || columnName.includes('open')) {
+                            value = 100 + Math.random() * 50 + Math.sin(i / 5) * 20; // Price-like data
+                        } else if (columnName.includes('volume')) {
+                            value = 1000000 + Math.random() * 500000; // Volume-like data
+                        } else {
+                            value = Math.floor(10 + Math.random() * 20); // Count data
+                        }
+                        
+                        data.push({ x: dateStr, y: value });
+                    }
+                    
+                    return data;
+                }
+                
+                // Debounce function for string filters
+                let stringFilterTimeout = null;
+                function debounceStringFilter(columnName, searchValue) {
+                    clearTimeout(stringFilterTimeout);
+                    stringFilterTimeout = setTimeout(() => {
+                        if (searchValue.trim().length > 0) {
+                            currentFilters[columnName] = { type: 'string_search', value: searchValue.trim() };
+                        } else {
+                            delete currentFilters[columnName];
+                        }
+                        console.log(`String filter for ${columnName}:`, searchValue);
+                    }, 500); // 500ms delay
+                }
+                
+                async function loadDataTable(datasetName, columns) {
+                    try {
+                        // Load initial data table without filters (first page)
+                        const response = await fetch(`/api/eda/datasets/${datasetName}/data`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                filters: {},
+                                page: 1,
+                                page_size: 50
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.error) {
+                            console.error('Error loading data table:', data.error);
+                            return;
+                        }
+                        
+                        displayDataTable(data);
+                        currentPage = data.current_page || 1;
+                        totalPages = data.total_pages || 1;
+                        
+                        // Show data table section
+                        document.getElementById('data-table-section').style.display = 'block';
+                        
+                    } catch (error) {
+                        console.error('Error loading data table:', error);
+                    }
+                }
+                
+                function nextPage() {
+                    if (currentPage < totalPages) {
+                        loadFilteredData(currentPage + 1);
+                    }
+                }
+                
+                function previousPage() {
+                    if (currentPage > 1) {
+                        loadFilteredData(currentPage - 1);
+                    }
+                }
+                
                 
                 // Load data on page load
                 document.addEventListener('DOMContentLoaded', function() {
+                    console.log('DOM loaded, calling loadDatasets...');
                     loadDatasets();
                 });
+                
+                // Also try loading after a short delay as backup
+                setTimeout(function() {
+                    console.log('Backup load attempt...');
+                    if (datasets.length === 0) {
+                        loadDatasets();
+                    }
+                }, 1000);
             </script>
         </body>
         </html>
