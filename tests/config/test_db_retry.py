@@ -174,6 +174,7 @@ class TestRetrySync:
     def test_retry_sync_success_after_retries(self):
         """Test retry_sync succeeds after multiple failures."""
         mock_func = MagicMock()
+        mock_func.__name__ = "test_function"  # Add __name__ attribute for logging
         # Fail twice, then succeed
         mock_func.side_effect = [Exception("error1"), Exception("error2"), "success"]
         
@@ -196,6 +197,7 @@ class TestRetrySync:
     def test_retry_sync_all_attempts_fail(self):
         """Test retry_sync when all attempts fail."""
         mock_func = MagicMock()
+        mock_func.__name__ = "test_function"  # Add __name__ attribute for logging
         test_exception = ValueError("persistent error")
         mock_func.side_effect = test_exception
         
@@ -214,6 +216,7 @@ class TestRetrySync:
     def test_retry_sync_custom_exceptions(self):
         """Test retry_sync with custom exception filtering."""
         mock_func = MagicMock()
+        mock_func.__name__ = "test_function"  # Add __name__ attribute for logging
         # First call raises ConnectionError (should retry), second raises ValueError (should not retry)
         mock_func.side_effect = [ConnectionError("connection failed"), ValueError("bad value")]
         
@@ -226,6 +229,7 @@ class TestRetrySync:
     def test_retry_sync_zero_retries(self):
         """Test retry_sync with zero retries."""
         mock_func = MagicMock(side_effect=Exception("immediate failure"))
+        mock_func.__name__ = "test_function"  # Add __name__ attribute for logging
         
         with pytest.raises(Exception, match="immediate failure"):
             retry_sync(mock_func, retries=0)
@@ -235,6 +239,7 @@ class TestRetrySync:
     def test_retry_sync_custom_backoff_factor(self):
         """Test retry_sync with custom backoff factor."""
         mock_func = MagicMock()
+        mock_func.__name__ = "test_function"  # Add __name__ attribute for logging
         mock_func.side_effect = [Exception("error1"), Exception("error2"), "success"]
         
         with patch('time.sleep') as mock_sleep:
@@ -250,6 +255,7 @@ class TestRetrySync:
     def test_retry_sync_detailed_logging(self):
         """Test retry_sync logs detailed exception information."""
         mock_func = MagicMock()
+        mock_func.__name__ = "test_function"  # Add __name__ attribute for logging
         test_exception = ConnectionError("Database connection timeout")
         mock_func.side_effect = test_exception
         
@@ -298,6 +304,7 @@ class TestRetrySync:
         
         for expected_value, expected_type in test_cases:
             mock_func = MagicMock(return_value=expected_value)
+            mock_func.__name__ = "test_function"  # Add __name__ attribute for logging
             result = retry_sync(mock_func)
             assert result == expected_value
             assert type(result) == expected_type
@@ -319,6 +326,7 @@ class TestRetryUtilitiesEdgeCases:
     def test_retry_sync_with_multiple_exception_types(self):
         """Test retry_sync with multiple exception types."""
         mock_func = MagicMock()
+        mock_func.__name__ = "test_function"  # Add __name__ attribute for logging
         mock_func.side_effect = [
             ConnectionError("connection error"),
             TimeoutError("timeout error"),
@@ -356,6 +364,7 @@ class TestRetryUtilitiesEdgeCases:
         
         expected_obj = CustomObject("test_value")
         mock_func = MagicMock(return_value=expected_obj)
+        mock_func.__name__ = "test_function"  # Add __name__ attribute for logging
         
         result = retry_sync(mock_func)
         assert result == expected_obj

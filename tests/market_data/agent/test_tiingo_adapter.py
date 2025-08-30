@@ -215,7 +215,7 @@ class TestTiingoAdapter:
         mock_get.side_effect = mock_response_side_effect
         
         adapter = TiingoAdapter(api_key="test_key")
-        with patch('market_data.agent.tiingo_adapter.logging.getLogger') as mock_logger:
+        with patch('logging.getLogger') as mock_logger:
             prices = adapter.fetch_eod(["AAPL", "GOOGL"], "2023-12-15", "2023-12-15")
         
         # Only GOOGL should be returned (AAPL was rate limited)

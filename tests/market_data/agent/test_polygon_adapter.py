@@ -1,10 +1,11 @@
 import os
 import pytest
+import requests
+from unittest.mock import patch, MagicMock
+from datetime import datetime, date
 from market_data.agent.polygon_adapter import PolygonAdapter
 from market_data.agent.models import InstrumentMetadata, EODPrice
-
 import responses
-from datetime import date
 
 @responses.activate
 def test_fetch_instruments_parsing():

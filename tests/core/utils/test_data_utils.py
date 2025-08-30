@@ -5,15 +5,14 @@ from unittest.mock import patch, MagicMock
 from decimal import Decimal
 from core.utils.data_utils import (
     clean_numeric_data,
-    normalize_data,
+    standardize_price_data,
     calculate_returns,
-    detect_outliers,
-    aggregate_time_series,
-    validate_data_quality,
-    fill_missing_values,
-    round_financial_value,
-    create_lagged_features,
-    smooth_time_series
+    calculate_volatility,
+    resample_price_data,
+    validate_data_consistency,
+    safe_divide,
+    format_currency,
+    format_percentage
 )
 from core.validation.data_validators import ValidationResult
 
