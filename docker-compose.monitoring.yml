@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: ats-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - ats-monitoring
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: ats-grafana
+    ports:
+      - "3001:3000"  # Use 3001 to avoid conflict with existing analytics on 3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=ats-monitoring-password
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
+      - GF_USERS_ALLOW_SIGN_UP=false
+    restart: unless-stopped
+    networks:
+      - ats-monitoring
+
+  # AlertManager for alert routing
+  alertmanager:
+    image: prom/alertmanager:v0.25.0
+    container_name: ats-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+    restart: unless-stopped
+    networks:
+      - ats-monitoring
+
+  # Data Quality Exporter (disabled for quick testing)
+  # ats-data-quality-exporter:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: ats-data-quality-exporter
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     - ATS_ENVIRONMENT=dev
+  #     - METRICS_PORT=8080
+  #     - SCRAPE_INTERVAL=30
+  #     - PYTHONPATH=/app/src
+  #     - DEV_DB_HOST=ats-dev-postgres
+  #     - DEV_DB_PORT=5432
+  #     - DEV_DB_USER=postgres
+  #     - DEV_DB_PASSWORD=dev_password
+  #     - DEV_DB_NAME=dev_db
+  #   command: ["python3", "/app/src/monitoring/data_quality_exporter.py"]
+  #   restart: unless-stopped
+  #   networks:
+  #     - ats-monitoring
+  #   external_links:
+  #     - ats-dev-postgres:ats-dev-postgres
+
+  # Node Exporter for system metrics
+  node-exporter:
+    image: prom/node-exporter:v1.6.0
+    container_name: ats-node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: unless-stopped
+    networks:
+      - ats-monitoring
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:
+
+networks:
+  ats-monitoring:
+    driver: bridge

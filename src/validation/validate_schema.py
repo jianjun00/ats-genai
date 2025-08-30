@@ -82,6 +82,38 @@ class SchemaValidator:
             }
         
         print(f"✅ Loaded schema for {len(self.db_schema)} tables")
+        
+        # Validate that all dev tables have required audit columns
+        self.validate_required_columns()
+    
+    def validate_required_columns(self):
+        """Validate that all dev tables have required audit columns like created_at"""
+        required_columns = ['created_at']  # Could add 'updated_at' in future if needed
+        
+        # Exception list for tables that might not need created_at
+        exceptions = {
+            'dev_db_version',  # Migration management table, managed separately
+        }
+        
+        for table_name, columns in self.db_schema.items():
+            if not table_name.startswith('dev_'):
+                continue
+                
+            if table_name in exceptions:
+                continue
+                
+            for required_col in required_columns:
+                if required_col not in columns:
+                    self.errors.append(
+                        f"❌ Table '{table_name}' missing required column '{required_col}' - all data tables must have audit timestamps"
+                    )
+                else:
+                    # Validate column type for created_at
+                    col_type = columns[required_col]['type']
+                    if required_col == 'created_at' and 'timestamp' not in col_type.lower():
+                        self.warnings.append(
+                            f"⚠️  Table '{table_name}' column '{required_col}' has type '{col_type}' - should be TIMESTAMPTZ"
+                        )
     
     def scan_python_files(self, directory: str = "src") -> List[Path]:
         """Find all Python files that might contain database code"""

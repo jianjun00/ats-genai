@@ -14,14 +14,23 @@ import os
 from typing import Dict, List, Optional
 import numpy as np
 
+# Configure logging first
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Add the src directory to the path for imports
 sys.path.insert(0, '/workspace/src')
 from core.database.connection_manager import get_connection_manager
 from core.config.settings import get_settings
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Ray EDA integration for massive dataset analysis
+try:
+    from services.ray_eda_engine import get_ray_eda_service, RayEDAService
+    RAY_AVAILABLE = True
+    logger.info("✅ Ray EDA engine loaded - distributed computing enabled")
+except ImportError as e:
+    RAY_AVAILABLE = False
+    logger.warning(f"⚠️ Ray EDA engine not available: {e}. Falling back to traditional methods")
 
 class JobManager:
     """Job management functionality for analytics service using centralized connection manager."""
@@ -354,11 +363,11 @@ class JobManager:
                     if "error" in schema:
                         return {"error": schema["error"]}
                     
-                    column_info = next((col for col in schema["columns"] if col["column_name"] == column), None)
+                    column_info = next((col for col in schema["columns"] if col["name"] == column), None)
                     if not column_info:
                         return {"error": f"Column {column} not found in {table_name}"}
                     
-                    data_type = column_info["data_type"].lower()
+                    data_type = column_info["type"].lower()
                     is_numeric = any(t in data_type for t in ["numeric", "integer", "double", "bigint", "smallint", "real", "decimal", "float"])
                     
                     if is_numeric:
@@ -510,6 +519,152 @@ class JobManager:
 job_manager = JobManager()
 
 class AnalyticsHandler(BaseHTTPRequestHandler):
+    
+    def should_use_ray_for_table(self, table_name: str) -> bool:
+        """Determine if Ray should be used for large tables"""
+        large_tables = [
+            'dev_daily_prices_eodhd',     # 4.4GB
+            'dev_daily_prices_tiingo',    # 3.6GB  
+            'dev_daily_prices_polygon',   # 250MB
+            'dev_financial_events',       # 359MB
+            'dev_news_polygon'            # 236MB
+        ]
+        return table_name in large_tables
+    
+    async def analyze_column_with_ray(self, dataset_name: str, column: str, filters: dict) -> dict:
+        """Analyze column using Ray distributed computing"""
+        try:
+            ray_service = get_ray_eda_service()
+            
+            # Get column metadata
+            column_info = await self.get_column_metadata(dataset_name, column)
+            if not column_info:
+                return {"error": f"Column {column} not found in {dataset_name}"}
+            
+            # Use Ray to analyze the column
+            columns_list = [{'column_name': column, 'data_type': column_info['data_type']}]
+            
+            async for result in ray_service.analyze_dataset_columns(dataset_name, columns_list, max_columns=1):
+                if result['result'].statistics.get('error'):
+                    return {"error": result['result'].statistics['error']}
+                
+                # Convert Ray result to expected API format
+                ray_result = result['result']
+                
+                response = {
+                    "column": column,
+                    "data_type": ray_result.data_type,
+                    "sample_size": ray_result.sample_size,
+                    "computation_time": ray_result.computation_time,
+                    "distributed_analysis": True
+                }
+                
+                if ray_result.statistics:
+                    response["statistics"] = ray_result.statistics
+                
+                if ray_result.histogram:
+                    # Convert Ray histogram format to expected format
+                    bins = ray_result.histogram.get('bins', [])
+                    if bins and isinstance(bins, list) and len(bins) > 0:
+                        # Handle different histogram formats
+                        if isinstance(bins[0], dict):
+                            # Bin is a dictionary with bucket and count
+                            response["histogram"] = {
+                                "bin_centers": [b.get('bucket', 0) for b in bins],
+                                "counts": [b.get('count', 0) for b in bins]
+                            }
+                        else:
+                            # Bin is a simple value or tuple
+                            response["histogram"] = {
+                                "bin_centers": list(range(len(bins))),
+                                "counts": [int(b) if isinstance(b, (int, float)) else 0 for b in bins]
+                            }
+                
+                if ray_result.top_values:
+                    response["top_values"] = ray_result.top_values[:10]  # Limit to top 10
+                
+                return response
+        
+        except Exception as e:
+            logger.error(f"Ray analysis failed for {column}: {e}")
+            return {"error": f"Ray analysis failed: {str(e)}"}
+    
+    async def get_column_metadata(self, table_name: str, column_name: str) -> dict:
+        """Get column metadata from database"""
+        try:
+            # Use centralized raw connection
+            from core.database.connection_manager import get_raw_connection
+            
+            with get_raw_connection() as conn:
+                from psycopg2.extras import RealDictCursor
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute("""
+                        SELECT column_name, data_type, is_nullable
+                        FROM information_schema.columns 
+                        WHERE table_name = %s AND column_name = %s
+                    """, (table_name, column_name))
+                    
+                    result = cursor.fetchone()
+                    if result:
+                        return {
+                            'column_name': result['column_name'],
+                            'data_type': result['data_type'], 
+                            'is_nullable': result['is_nullable']
+                        }
+        except Exception as e:
+            logger.error(f"Error getting column metadata: {e}")
+        
+        return None
+    
+    async def get_column_values_with_ray(self, table_name: str, column_name: str, limit: int) -> dict:
+        """Get column values using Ray for massive datasets"""
+        try:
+            ray_service = get_ray_eda_service()
+            
+            # Skip metadata lookup - infer data type from column name or assume mixed
+            # Common numeric columns in financial data
+            numeric_columns = ['close', 'open', 'high', 'low', 'volume', 'adjclose', 'price', 'amount']
+            is_numeric = any(col in column_name.lower() for col in numeric_columns)
+            
+            # Use Ray to analyze the column for values - let Ray determine the data type
+            data_type = 'double precision' if is_numeric else 'text'
+            columns_list = [{'column_name': column_name, 'data_type': data_type}]
+            
+            async for result in ray_service.analyze_dataset_columns(table_name, columns_list, max_columns=1):
+                ray_result = result['result']
+                
+                if ray_result.statistics.get('error'):
+                    return {"error": ray_result.statistics['error']}
+                
+                if is_numeric:
+                    # Return numeric range info
+                    stats = ray_result.statistics
+                    return {
+                        "min_value": stats.get('min_val', 0),
+                        "max_value": stats.get('max_val', 1), 
+                        "distinct_count": stats.get('count', 0),
+                        "total_count": stats.get('count', 0),
+                        "data_type": "numeric",
+                        "ray_powered": True
+                    }
+                else:
+                    # Return categorical values
+                    values = []
+                    if ray_result.top_values:
+                        values = ray_result.top_values[:limit]  # Limit results
+                    
+                    stats = ray_result.statistics
+                    return {
+                        "values": values,
+                        "total_unique": stats.get('unique_count', len(values)),
+                        "data_type": "categorical", 
+                        "ray_powered": True
+                    }
+        
+        except Exception as e:
+            logger.error(f"Ray column values failed for {column_name}: {e}")
+            return {"error": f"Ray analysis failed: {str(e)}"}
+    
     def do_GET(self):
         if self.path == '/health':
             self.send_response(200)
@@ -847,7 +1002,20 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 query_params = parse_qs(parsed_url.query)
                 limit = int(query_params.get('limit', [100])[0])
                 
-                column_values = job_manager.get_column_values(table_name, column_name, limit)
+                # Use Ray EDA for massive datasets
+                if RAY_AVAILABLE and self.should_use_ray_for_table(table_name):
+                    # Use Ray to get column values for large tables
+                    import concurrent.futures
+                    import asyncio
+                    
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(
+                            lambda: asyncio.run(self.get_column_values_with_ray(table_name, column_name, limit))
+                        )
+                        column_values = future.result(timeout=15)  # 15 second timeout
+                else:
+                    column_values = job_manager.get_column_values(table_name, column_name, limit)
+                
                 self.wfile.write(json.dumps(column_values, indent=2).encode())
             except Exception as e:
                 logger.error(f"Error getting column values: {e}")
@@ -891,7 +1059,20 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps(error_response).encode())
                     return
                 
-                analysis = job_manager.analyze_column_distribution(dataset_name, column, filters)
+                # Use Ray EDA for massive dataset analysis if available
+                if RAY_AVAILABLE and self.should_use_ray_for_table(dataset_name):
+                    # Run async Ray analysis in thread pool
+                    import asyncio
+                    import concurrent.futures
+                    
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(
+                            lambda: asyncio.run(self.analyze_column_with_ray(dataset_name, column, filters))
+                        )
+                        analysis = future.result(timeout=30)  # 30 second timeout for Ray analysis
+                else:
+                    analysis = job_manager.analyze_column_distribution(dataset_name, column, filters)
+                
                 self.wfile.write(json.dumps(analysis, indent=2).encode())
                 
             except Exception as e:
@@ -1160,27 +1341,27 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     
                     // Create all filter requests in parallel
                     const filterPromises = importantColumns.map(async (col) => {
-                        const dataType = col.data_type.toLowerCase();
+                        const dataType = col.type.toLowerCase();
                         const isNumeric = dataType.includes('numeric') || dataType.includes('integer') || 
                             dataType.includes('double') || dataType.includes('bigint') ||
                             dataType.includes('smallint') || dataType.includes('real') ||
                             dataType.includes('decimal') || dataType.includes('float');
                         
                         try {
-                            const response = await fetch(`/api/eda/datasets/${datasetName}/columns/${col.column_name}/values?limit=10`, {timeout: 3000});
+                            const response = await fetch(`/api/eda/datasets/${datasetName}/columns/${col.name}/values?limit=10`, {timeout: 3000});
                             const columnData = await response.json();
                             
                             if (columnData.error) return null; // Skip if error loading values
                             
                             let filterHtml = `<div class="filter-group">`;
-                            filterHtml += `<label>${col.column_name} (${isNumeric ? 'numeric' : 'categorical'}):</label>`;
+                            filterHtml += `<label>${col.name} (${isNumeric ? 'numeric' : 'categorical'}):</label>`;
                             
                             if (isNumeric && columnData.min_value !== undefined && columnData.max_value !== undefined) {
                                 // Numeric range filter
                                 filterHtml += `
                                     <div>
-                                        <label>Min: <input type="number" class="filter-input" id="filter-${col.column_name}-min" placeholder="Min value (${columnData.min_value})"></label>
-                                        <label>Max: <input type="number" class="filter-input" id="filter-${col.column_name}-max" placeholder="Max value (${columnData.max_value})"></label>
+                                        <label>Min: <input type="number" class="filter-input" id="filter-${col.name}-min" placeholder="Min value (${columnData.min_value})"></label>
+                                        <label>Max: <input type="number" class="filter-input" id="filter-${col.name}-max" placeholder="Max value (${columnData.max_value})"></label>
                                         <small>Range: ${columnData.min_value} - ${columnData.max_value}</small>
                                     </div>
                                 `;
@@ -1193,7 +1374,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                     const countText = count ? ` (${count})` : '';
                                     filterHtml += `
                                         <label>
-                                            <input type="checkbox" name="filter-${col.column_name}" value="${value}"> ${value}${countText}
+                                            <input type="checkbox" name="filter-${col.name}" value="${value}"> ${value}${countText}
                                         </label><br>
                                     `;
                                 });
@@ -1207,7 +1388,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             return filterHtml;
                             
                         } catch (error) {
-                            console.error(`Error loading values for column ${col.column_name}:`, error);
+                            console.error(`Error loading values for column ${col.name}:`, error);
                             return null;
                         }
                     });
@@ -1224,18 +1405,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     });
                     
                     if (!combinedFilterHtml) {
-                        combinedFilterHtml = '<p>Loading filters (using demo data)...</p>';
-                        // Create simple demo filters for immediate UI feedback
-                        combinedFilterHtml += `
-                            <div class="filter-group">
-                                <label>symbol (categorical):</label>
-                                <div class="checkbox-list">
-                                    <label><input type="checkbox" name="filter-symbol" value="AAPL"> AAPL</label><br>
-                                    <label><input type="checkbox" name="filter-symbol" value="GOOGL"> GOOGL</label><br>
-                                    <label><input type="checkbox" name="filter-symbol" value="MSFT"> MSFT</label><br>
-                                </div>
-                            </div>
-                        `;
+                        combinedFilterHtml = '<p style="color: red; text-align: center;">No filter data available - database connection required</p>';
                     }
                     
                     filterControls.innerHTML = combinedFilterHtml;
@@ -1252,7 +1422,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     const distributionPromises = [];
                     
                     for (const col of columnsToAnalyze) {
-                        const dataType = col.data_type.toLowerCase();
+                        const dataType = col.type.toLowerCase();
                         const isNumeric = dataType.includes('numeric') || dataType.includes('integer') || 
                             dataType.includes('double') || dataType.includes('bigint') ||
                             dataType.includes('smallint') || dataType.includes('real') ||
@@ -1262,27 +1432,27 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         const colDiv = document.createElement('div');
                         colDiv.className = 'column-distribution';
                         colDiv.innerHTML = `
-                            <h4>${col.column_name} (${isNumeric ? 'Numeric' : 'Categorical'})</h4>
-                            <div id="chart-${col.column_name}" class="distribution-chart">Loading...</div>
-                            <div id="stats-${col.column_name}" class="distribution-stats"></div>
+                            <h4>${col.name} (${isNumeric ? 'Numeric' : 'Categorical'})</h4>
+                            <div id="chart-${col.name}" class="distribution-chart">Loading...</div>
+                            <div id="stats-${col.name}" class="distribution-stats"></div>
                         `;
                         distributionsContainer.appendChild(colDiv);
                         
                         // Add to parallel loading promises (no await here!)
                         if (isNumeric) {
                             distributionPromises.push(
-                                loadNumericDistribution(datasetName, col.column_name).catch(error => {
-                                    console.error(`Error loading numeric distribution for ${col.column_name}:`, error);
-                                    document.getElementById(`chart-${col.column_name}`).innerHTML = 
-                                        `<p style="color: orange; text-align: center;">Using demo data</p>`;
+                                loadNumericDistribution(datasetName, col.name).catch(error => {
+                                    console.error(`Error loading numeric distribution for ${col.name}:`, error);
+                                    document.getElementById(`chart-${col.name}`).innerHTML = 
+                                        `<p style="color: red; text-align: center;">Error loading distribution</p>`;
                                 })
                             );
                         } else {
                             distributionPromises.push(
-                                loadCategoricalDistribution(datasetName, col.column_name).catch(error => {
-                                    console.error(`Error loading categorical distribution for ${col.column_name}:`, error);
-                                    document.getElementById(`chart-${col.column_name}`).innerHTML = 
-                                        `<p style="color: orange; text-align: center;">Using demo data</p>`;
+                                loadCategoricalDistribution(datasetName, col.name).catch(error => {
+                                    console.error(`Error loading categorical distribution for ${col.name}:`, error);
+                                    document.getElementById(`chart-${col.name}`).innerHTML = 
+                                        `<p style="color: red; text-align: center;">Error loading distribution</p>`;
                                 })
                             );
                         }
@@ -1311,57 +1481,13 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 }
                 
                 async function loadNumericDistribution(datasetName, columnName) {
-                    // Show demo data immediately for fast UI feedback
                     const statsContainer = document.getElementById(`stats-${columnName}`);
                     const chartContainer = document.getElementById(`chart-${columnName}`);
                     
-                    // Immediate demo stats
-                    statsContainer.innerHTML = `
-                        <div class="distribution-stat">
-                            <div class="stat-value-small">1,250</div>
-                            <div class="stat-label-small">Count</div>
-                        </div>
-                        <div class="distribution-stat">
-                            <div class="stat-value-small">42.5</div>
-                            <div class="stat-label-small">Mean</div>
-                        </div>
-                        <div class="distribution-stat">
-                            <div class="stat-value-small">15.3</div>
-                            <div class="stat-label-small">Std Dev</div>
-                        </div>
-                        <div class="distribution-stat">
-                            <div class="stat-value-small">1.2</div>
-                            <div class="stat-label-small">Min</div>
-                        </div>
-                        <div class="distribution-stat">
-                            <div class="stat-value-small">99.8</div>
-                            <div class="stat-label-small">Max</div>
-                        </div>
-                    `;
+                    // Show loading state
+                    statsContainer.innerHTML = '<p style="text-align: center;">Loading...</p>';
+                    chartContainer.innerHTML = '<p style="text-align: center;">Loading distribution...</p>';
                     
-                    // Immediate demo chart
-                    const demoData = [5, 12, 23, 45, 67, 89, 76, 54, 32, 18, 8, 3];
-                    const demoBins = ['0-10', '10-20', '20-30', '30-40', '40-50', '50-60', '60-70', '70-80', '80-90', '90-100'];
-                    
-                    const trace = {
-                        x: demoBins,
-                        y: demoData,
-                        type: 'bar',
-                        name: columnName,
-                        marker: { color: '#3498db' }
-                    };
-                    
-                    const layout = {
-                        title: `Distribution: ${columnName} (Demo Data)`,
-                        xaxis: { title: columnName },
-                        yaxis: { title: 'Frequency' },
-                        bargap: 0.1,
-                        margin: { l: 60, r: 20, t: 40, b: 60 }
-                    };
-                    
-                    Plotly.newPlot(`chart-${columnName}`, [trace], layout, {responsive: true});
-                    
-                    // Try to load real data in background (optional)
                     try {
                         const response = await fetch('/api/eda/analyze', {
                             method: 'POST',
@@ -1376,17 +1502,10 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         const analysis = await response.json();
                         
                         if (analysis.error) {
-                            // Keep demo data, just update title
-                            const currentChart = document.getElementById(`chart-${columnName}`);
-                            if (currentChart) {
-                                Plotly.relayout(`chart-${columnName}`, {
-                                    title: `Distribution: ${columnName} (Demo Data - DB Unavailable)`
-                                });
-                            }
-                            return;
+                            throw new Error(analysis.error);
                         }
                         
-                        // Update with real data if available
+                        // Update with real data
                         if (analysis.statistics) {
                             statsContainer.innerHTML = `
                                 <div class="distribution-stat">
@@ -1434,69 +1553,28 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         
                     } catch (error) {
                         console.error(`Error loading real data for ${columnName}:`, error);
-                        // Keep demo data, just update title
-                        Plotly.relayout(`chart-${columnName}`, {
-                            title: `Distribution: ${columnName} (Demo Data - Error Loading)`
-                        });
+                        statsContainer.innerHTML = `<p style="color: red; text-align: center;">Error loading stats: ${error.message}</p>`;
+                        chartContainer.innerHTML = `<p style="color: red; text-align: center;">Error loading distribution: ${error.message}</p>`;
                     }
                 }
                 
                 async function loadCategoricalDistribution(datasetName, columnName) {
-                    // Show demo data immediately for fast UI feedback
                     const statsContainer = document.getElementById(`stats-${columnName}`);
                     const chartContainer = document.getElementById(`chart-${columnName}`);
                     
-                    // Immediate demo stats
-                    statsContainer.innerHTML = `
-                        <div class="distribution-stat">
-                            <div class="stat-value-small">15</div>
-                            <div class="stat-label-small">Unique</div>
-                        </div>
-                        <div class="distribution-stat">
-                            <div class="stat-value-small">8</div>
-                            <div class="stat-label-small">Showing</div>
-                        </div>
-                    `;
+                    // Show loading state
+                    statsContainer.innerHTML = '<p style="text-align: center;">Loading...</p>';
+                    chartContainer.innerHTML = '<p style="text-align: center;">Loading distribution...</p>';
                     
-                    // Immediate demo chart
-                    const demoValues = ['Value A', 'Value B', 'Value C', 'Value D', 'Value E', 'Value F', 'Value G', 'Value H'];
-                    const demoCounts = [45, 32, 28, 22, 18, 15, 12, 8];
-                    
-                    const trace = {
-                        x: demoValues,
-                        y: demoCounts,
-                        type: 'bar',
-                        name: columnName,
-                        marker: { color: '#e74c3c' }
-                    };
-                    
-                    const layout = {
-                        title: `Distribution: ${columnName} (Demo Data)`,
-                        xaxis: { 
-                            title: columnName,
-                            tickangle: -45
-                        },
-                        yaxis: { title: 'Count' },
-                        bargap: 0.2,
-                        margin: { l: 60, r: 20, t: 40, b: 100 }
-                    };
-                    
-                    Plotly.newPlot(`chart-${columnName}`, [trace], layout, {responsive: true});
-                    
-                    // Try to load real data in background (optional)
                     try {
                         const response = await fetch(`/api/eda/datasets/${datasetName}/columns/${columnName}/values?limit=10`);
                         const data = await response.json();
                         
                         if (data.error || !data.values) {
-                            // Keep demo data, just update title
-                            Plotly.relayout(`chart-${columnName}`, {
-                                title: `Distribution: ${columnName} (Demo Data - DB Unavailable)`
-                            });
-                            return;
+                            throw new Error(data.error || 'No data available');
                         }
                         
-                        // Update with real data if available
+                        // Update with real data
                         statsContainer.innerHTML = `
                             <div class="distribution-stat">
                                 <div class="stat-value-small">${data.total_unique}</div>
@@ -1535,10 +1613,8 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         
                     } catch (error) {
                         console.error(`Error loading real data for ${columnName}:`, error);
-                        // Keep demo data, just update title
-                        Plotly.relayout(`chart-${columnName}`, {
-                            title: `Distribution: ${columnName} (Demo Data - Error Loading)`
-                        });
+                        statsContainer.innerHTML = `<p style="color: red; text-align: center;">Error loading stats: ${error.message}</p>`;
+                        chartContainer.innerHTML = `<p style="color: red; text-align: center;">Error loading distribution: ${error.message}</p>`;
                     }
                 }
                 

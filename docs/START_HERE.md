@@ -187,15 +187,16 @@ curl -v "http://localhost:3001/health"
 
 **After completing this setup, learn more:**
 
-### **🏗️ Explore Platform Components**
-- **[🔧 Backend Platform](backend-platform/)** - APIs, services, business logic
+### **🏗️ Platform Environments**
+- **[🔧 ATS-DEV Environment](DEVELOPMENT.md)** - Development workflow, testing, Docker setup
+- **[🚀 ATS-INTG Environment](ATS_INTEGRATION_ENVIRONMENT.md)** - Integration testing, CI/CD pipeline, TimescaleDB
 - **[📊 Data Infrastructure](data-infrastructure/)** - Data pipelines, storage, ETL
 - **[🤖 ML Platform](ml-platform/)** - Training, models, AI optimization
-- **[☁️ Online Infrastructure](online-infrastructure/)** - Docker, CI/CD, monitoring
 
 ### **📖 Deep Dive Guides**
 - **[💻 DEVELOPMENT.md](DEVELOPMENT.md)** - Complete development workflow, testing, CI/CD
 - **[🚢 DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment strategies, environments, monitoring
+- **[🗄️ ATS_INTEGRATION_ENVIRONMENT.md](ATS_INTEGRATION_ENVIRONMENT.md)** - Integration environment setup and CI/CD
 
 ---
 

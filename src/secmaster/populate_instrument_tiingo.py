@@ -64,7 +64,16 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
                         break
                     detail = detail_resp.json()
                     logger.debug(f"Detail parsed: {detail}")
-                    logger.info(f"Ticker: {symbol}, startDate: {detail.get('startDate')}, endDate: {detail.get('endDate')}")
+                    
+                    # Filter for US exchanges only - Tiingo primarily serves US data but check exchange codes
+                    exchange_code = detail.get('exchangeCode', '')
+                    US_EXCHANGE_CODES = ['NYSE', 'NASDAQ', 'AMEX', 'BATS', 'IEX']  # Tiingo US exchange codes
+                    
+                    if exchange_code and exchange_code not in US_EXCHANGE_CODES:
+                        logger.info(f"Skipping {symbol} (non-US exchange: {exchange_code})")
+                        break
+                    
+                    logger.info(f"Ticker: {symbol}, startDate: {detail.get('startDate')}, endDate: {detail.get('endDate')}, exchange: {exchange_code}")
                     logger.debug(f"Calling upsert_instrument(pool, detail)")
                     await upsert_instrument(pool, detail)
                     total += 1
