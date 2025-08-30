@@ -248,14 +248,16 @@ python scripts/run_dev.py logs --service analytics
 
 ## Database Connection Info (Reference)
 
-**Docker PostgreSQL (primary):**
-- Host: `localhost`, Port: `5432`
+**ATS-DEV PostgreSQL:**
+- Host: `localhost`, Port: `3432`
 - User: `postgres`, Password: `dev_password`, Database: `dev_db`
+- Container: `ats-dev-postgres`
 - Started with: `python scripts/run_dev.py start --service postgres`
 
-**Integration PostgreSQL:**
-- Host: `localhost`, Port: `5433`  
+**ATS-INTG PostgreSQL:**
+- Host: `localhost`, Port: `4432`  
 - User: `postgres`, Password: `intg_password`, Database: `intg_db`
+- Container: `ats-intg-postgres`
 - Started with: `python scripts/run_intg.py start --service postgres`
 
 **Auto-detection:** run_dev and run_intg automatically detect available connections
