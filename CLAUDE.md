@@ -242,6 +242,7 @@ python scripts/run_dev.py logs --service analytics
 - **Architecture Questions**: [System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)
 - **New Team Member**: [Quick Start](docs/onboarding/QUICK_START.md)
 - **System Monitoring**: [Monitoring Setup](docs/MONITORING_SETUP.md) - WSL monitoring with Slack alerts
+- **API Keys & Authentication**: [Operations Guide - Security](docs/OPERATIONS.md#api-keys--authentication) - Complete vendor API keys reference
 
 ---
 
