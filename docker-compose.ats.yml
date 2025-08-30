@@ -231,4 +231,4 @@ volumes:
   postgres-data-new:
     external: true
   postgres-intg-data:
-    driver: local
+    external: true
