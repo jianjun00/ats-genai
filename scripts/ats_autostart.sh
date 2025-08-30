@@ -4,9 +4,12 @@ ATS Autostart Script - Automatically start ATS dev and intg environments on WSL 
 
 This script:
 1. Starts complete ATS stack using Docker Compose
-2. Includes PostgreSQL, Analytics, Monitoring, and Price Collection services
-3. Logs startup activities
-4. Runs in background to avoid blocking shell startup
+2. Includes PostgreSQL (with correct postgres-data-new volume), Analytics, Monitoring, and Price Collection services
+3. Ensures PostgreSQL uses persistent volume with existing data (9,973 instruments, 26M+ price records)
+4. Logs startup activities
+5. Runs in background to avoid blocking shell startup
+
+IMPORTANT: Uses postgres-data-new volume to maintain data persistence across WSL restarts
 """
 
 # Configuration
@@ -87,6 +90,17 @@ start_ats_services() {
     log "  - Prometheus: http://localhost:9090"
     log "  - Dev PostgreSQL: localhost:5432"
     log "  - Intg PostgreSQL: localhost:5433"
+    
+    # Verify database data is accessible
+    log "🔍 Verifying database data accessibility..."
+    sleep 5  # Give PostgreSQL time to fully start
+    
+    if docker exec ats-dev-postgres psql -U postgres -d dev_db -c "SELECT COUNT(*) FROM dev_instrument_tiingo;" >/dev/null 2>&1; then
+        instrument_count=$(docker exec ats-dev-postgres psql -U postgres -d dev_db -t -c "SELECT COUNT(*) FROM dev_instrument_tiingo;" 2>/dev/null | xargs)
+        log "✅ Database data verified: $instrument_count Tiingo instruments accessible"
+    else
+        log "⚠️  Could not verify database data - may still be starting up"
+    fi
     
     log "🎉 ATS autostart sequence completed"
 }
