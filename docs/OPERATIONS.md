@@ -51,11 +51,11 @@ python3 scripts/run_dev.py test
 
 **ATS-DEV Database Configuration:**
 - **Host**: `localhost`
-- **Port**: `5432`
+- **Port**: `3434`
 - **Database Name**: `dev_db`
 - **Username**: `postgres`
 - **Password**: *(no password required)*
-- **Connection String**: `postgresql://postgres@localhost:5432/dev_db`
+- **Connection String**: `postgresql://postgres@localhost:3434/dev_db`
 - **Container**: `ats-dev-postgres` (PostgreSQL 13)
 - **Data Files**: Docker volume `postgres-data-new` → `/var/lib/postgresql/data` (container)
 
@@ -82,24 +82,24 @@ docker-compose -f docker-compose.intg-jobs.yml ps
 docker ps | grep intg
 
 # Database operations (direct connection)
-PGPASSWORD=intg_password psql -h localhost -p 5434 -U postgres -d intg_db
-PGPASSWORD=intg_password psql -h localhost -p 5434 -U postgres -d intg_db -c "SELECT version()"
+PGPASSWORD=intg_password psql -h localhost -p 4434 -U postgres -d intg_db
+PGPASSWORD=intg_password psql -h localhost -p 4434 -U postgres -d intg_db -c "SELECT version()"
 ```
 
 **ATS-INTG Database Configuration:**
 - **Host**: `localhost`
-- **Port**: `5434`
+- **Port**: `4434`
 - **Database Name**: `intg_db`
 - **Username**: `postgres`
 - **Password**: `intg_password`
-- **Connection String**: `postgresql://postgres:intg_password@localhost:5434/intg_db`
+- **Connection String**: `postgresql://postgres:intg_password@localhost:4434/intg_db`
 - **Container**: `postgres-intg` (PostgreSQL 13)
 - **Data Files**: Docker volume `ats-genai-data_postgres_intg_data` → `/var/lib/postgresql/data` (container)
 
 **ATS-INTG Service Configuration:**
 - **Scheduler**: Background job processing (container: `ats-intg-scheduler`)
-- **Monitoring**: Grafana at `http://localhost:3002` (admin/ats-intg-monitoring)
-- **Metrics**: Prometheus at `http://localhost:9091` (no authentication)
+- **Monitoring**: Grafana at `http://localhost:4002` (admin/ats-intg-monitoring)
+- **Metrics**: Prometheus at `http://localhost:4091` (no authentication)
 - **Management**: Docker Compose orchestration for multiple services
 
 ### **Data File Locations & Persistent Storage**
@@ -156,8 +156,8 @@ Files: backup-intg.log, scheduler.log
 
 | Environment | Host | Port | Database | Username | Password | Connection String |
 |-------------|------|------|----------|----------|----------|-------------------|
-| **ATS-DEV** | localhost | 5432 | dev_db | postgres | *(none)* | `postgresql://postgres@localhost:5432/dev_db` |
-| **ATS-INTG** | localhost | 5434 | intg_db | postgres | intg_password | `postgresql://postgres:intg_password@localhost:5434/intg_db` |
+| **ATS-DEV** | localhost | 3434 | dev_db | postgres | *(none)* | `postgresql://postgres@localhost:3434/dev_db` |
+| **ATS-INTG** | localhost | 4434 | intg_db | postgres | intg_password | `postgresql://postgres:intg_password@localhost:4434/intg_db` |
 
 ### **Quick Reference - Data Locations**
 
@@ -166,20 +166,37 @@ Files: backup-intg.log, scheduler.log
 | **ATS-DEV** | Docker volume: `postgres-data-new` | `/mnt/d/ats-data/` | `/mnt/d/ats-backup/dev/` | `/mnt/d/ats-logs/` |
 | **ATS-INTG** | Docker volume: `ats-genai-data_postgres_intg_data` | `/mnt/d/ats-data/intg/` | `/mnt/d/ats-backup/intg/` | `/mnt/d/ats-logs/intg/` |
 
+### **📋 Complete Port Reference**
+
+**ATS-DEV Environment (300x range):**
+| Service | Port | URL | Purpose |
+|---------|------|-----|---------|
+| PostgreSQL Database | 3434 | `localhost:3434` | Main development database |
+| Analytics Service | 3000 | `http://localhost:3000` | Analytics dashboard and API |
+| Reserved | 3001 | `localhost:3001` | Future development services |
+
+**ATS-INTG Environment (400x range):**
+| Service | Port | URL | Purpose |
+|---------|------|-----|---------|
+| PostgreSQL Database | 4434 | `localhost:4434` | Integration testing database |
+| Dashboard Service | 4002 | `http://localhost:4002` | Integration dashboard |
+| Prometheus Metrics | 4091 | `http://localhost:4091` | Metrics collection |
+
 ### **Connection Examples**
 ```bash
 # ATS-DEV Database Access
 python3 scripts/run_dev.py query --query "SELECT version()"
 docker exec ats-dev-postgres psql -U postgres -d dev_db
+psql -h localhost -p 3434 -U postgres -d dev_db
 
 # ATS-INTG Database Access  
-PGPASSWORD=intg_password psql -h localhost -p 5434 -U postgres -d intg_db
-PGPASSWORD=intg_password psql -h localhost -p 5434 -U postgres -d intg_db -c "SELECT version()"
+PGPASSWORD=intg_password psql -h localhost -p 4434 -U postgres -d intg_db
+PGPASSWORD=intg_password psql -h localhost -p 4434 -U postgres -d intg_db -c "SELECT version()"
 
 # Service Health Checks
 curl -f http://localhost:3000/health     # ATS-DEV analytics
-curl -f http://localhost:3002/login      # ATS-INTG Grafana
-curl -f http://localhost:9091/-/ready    # ATS-INTG Prometheus
+curl -f http://localhost:4002/health     # ATS-INTG dashboard
+curl -f http://localhost:4091/-/ready    # ATS-INTG Prometheus
 ```
 
 ## ⚡ **SERVICE MANAGEMENT SUMMARY**
@@ -225,7 +242,7 @@ docker logs ats-intg-scheduler       # ATS-INTG job scheduler logs
 
 # Database health checks
 python3 scripts/run_dev.py query --query "SELECT COUNT(*) as dev_instruments FROM dev_instrument_tiingo"
-PGPASSWORD=intg_password psql -h localhost -p 5434 -U postgres -d intg_db -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_name LIKE 'intg_%'"
+PGPASSWORD=intg_password psql -h localhost -p 4434 -U postgres -d intg_db -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_name LIKE 'intg_%'"
 
 # Backup operations (automated system)
 ./scripts/manage_backups.sh status    # Check backup health
@@ -246,9 +263,9 @@ PGPASSWORD=intg_password psql -h localhost -p 5434 -U postgres -d intg_db -c "SE
 - **Database Health**: `python3 scripts/run_dev.py query --query "SELECT version()"`
 
 **ATS-INTG Environment:**
-- **Grafana Dashboard**: `http://localhost:3002` (admin/ats-intg-monitoring)
-- **Prometheus Metrics**: `http://localhost:9091` (no authentication)
-- **Database Health**: `PGPASSWORD=intg_password pg_isready -h localhost -p 5434 -U postgres -d intg_db`
+- **Grafana Dashboard**: `http://localhost:4002` (admin/ats-intg-monitoring)
+- **Prometheus Metrics**: `http://localhost:4091` (no authentication)
+- **Database Health**: `PGPASSWORD=intg_password pg_isready -h localhost -p 4434 -U postgres -d intg_db`
 - **Container Status**: `docker ps | grep intg`
 
 ### **Backup Monitoring**
@@ -275,12 +292,12 @@ PGPASSWORD=intg_password psql -h localhost -p 5434 -U postgres -d intg_db -c "SE
 # Add PostgreSQL metrics to Prometheus (optional)
 docker run -d --name postgres-exporter-dev \
   --network host \
-  -e DATA_SOURCE_NAME="postgresql://postgres@localhost:5432/dev_db?sslmode=disable" \
+  -e DATA_SOURCE_NAME="postgresql://postgres@localhost:3434/dev_db?sslmode=disable" \
   prometheuscommunity/postgres-exporter:latest
 
 docker run -d --name postgres-exporter-intg \
   --network host \
-  -e DATA_SOURCE_NAME="postgresql://postgres:intg_password@localhost:5434/intg_db?sslmode=disable" \
+  -e DATA_SOURCE_NAME="postgresql://postgres:intg_password@localhost:4434/intg_db?sslmode=disable" \
   prometheuscommunity/postgres-exporter:latest
 
 # Configure Prometheus to scrape exporters (add to prometheus.yml)
@@ -302,12 +319,12 @@ docker stats --no-stream
 
 # Service-specific health checks
 curl -f http://localhost:3000/health  # ATS-DEV analytics
-curl -f http://localhost:3002/health  # ATS-INTG Grafana
-curl -f http://localhost:9091/-/ready # ATS-INTG Prometheus
+curl -f http://localhost:4002/health  # ATS-INTG Grafana
+curl -f http://localhost:4091/-/ready # ATS-INTG Prometheus
 
 # Database connectivity tests
 python3 scripts/run_dev.py query --query "SELECT version()"
-PGPASSWORD=intg_password pg_isready -h localhost -p 5434 -U postgres -d intg_db
+PGPASSWORD=intg_password pg_isready -h localhost -p 4434 -U postgres -d intg_db
 ```
 
 ### **Automated Monitoring & Alerting**
@@ -329,12 +346,12 @@ docker logs ats-intg-scheduler --tail=50
 ### **Grafana Dashboard Setup**
 ```bash
 # Access Grafana for ATS-INTG
-# URL: http://localhost:3002
+# URL: http://localhost:4002
 # Login: admin / ats-intg-monitoring
 
 # Add Prometheus data source:
 # 1. Go to Configuration → Data Sources
-# 2. Add Prometheus source: http://localhost:9091
+# 2. Add Prometheus source: http://localhost:4091
 # 3. Test connection
 
 # Import common dashboards:
@@ -427,7 +444,7 @@ docker exec ats-dev-postgres whoami     # Check process user
 docker exec postgres-intg whoami        # Check process user
 
 # Network security (containers are on localhost only)
-netstat -tlnp | grep -E ":3000|:3002|:5432|:5434|:9091"
+netstat -tlnp | grep -E ":3000|:4002|:3434|:4434|:4091"
 ```
 
 ### **Access Control**
@@ -520,9 +537,9 @@ docker-compose -f docker-compose.postgres-intg.yml up -d
 sleep 10
 
 # Restore database
-PGPASSWORD=intg_password psql -h localhost -p 5434 -U postgres -c "DROP DATABASE IF EXISTS intg_db;"
-PGPASSWORD=intg_password psql -h localhost -p 5434 -U postgres -c "CREATE DATABASE intg_db;"
-PGPASSWORD=intg_password psql -h localhost -p 5434 -U postgres -d intg_db < "$BACKUP_FILE"
+PGPASSWORD=intg_password psql -h localhost -p 4434 -U postgres -c "DROP DATABASE IF EXISTS intg_db;"
+PGPASSWORD=intg_password psql -h localhost -p 4434 -U postgres -c "CREATE DATABASE intg_db;"
+PGPASSWORD=intg_password psql -h localhost -p 4434 -U postgres -d intg_db < "$BACKUP_FILE"
 
 # Restart full INTG environment
 docker-compose -f docker-compose.intg-jobs.yml up -d
@@ -660,14 +677,14 @@ docker ps | grep -E "(ats-dev-postgres|postgres-intg)"
 
 # 2. Test database connectivity
 docker exec ats-dev-postgres pg_isready -U postgres
-PGPASSWORD=intg_password pg_isready -h localhost -p 5434 -U postgres -d intg_db
+PGPASSWORD=intg_password pg_isready -h localhost -p 4434 -U postgres -d intg_db
 
 # 3. Test connection from host
 python3 scripts/run_dev.py query --query "SELECT version()"
-PGPASSWORD=intg_password psql -h localhost -p 5434 -U postgres -d intg_db -c "SELECT version()"
+PGPASSWORD=intg_password psql -h localhost -p 4434 -U postgres -d intg_db -c "SELECT version()"
 
 # 4. Check container networking
-netstat -tlnp | grep -E ":5432|:5434"
+netstat -tlnp | grep -E ":3434|:4434"
 docker port ats-dev-postgres
 docker port postgres-intg
 
@@ -728,7 +745,7 @@ docker restart grafana-intg prometheus-intg
 # General Health Checks:
 # 1. Verify container networking
 docker port ats-dev-analytics
-netstat -tlnp | grep -E ":3000|:3002|:9091|:5432|:5434"
+netstat -tlnp | grep -E ":3000|:4002|:4091|:3434|:4434"
 
 # 2. Check container resource usage
 docker stats --no-stream | grep -E "(ats-dev|intg)"
@@ -796,7 +813,7 @@ python3 scripts/run_dev.py query --query "SELECT version()" || echo "ATS-DEV dat
 echo "Checking ATS-INTG services..."
 curl -f http://localhost:3002/login || echo "ATS-INTG Grafana DOWN"
 curl -f http://localhost:9091 || echo "ATS-INTG Prometheus DOWN"
-PGPASSWORD=intg_password pg_isready -h localhost -p 5434 -U postgres -d intg_db || echo "ATS-INTG database DOWN"
+PGPASSWORD=intg_password pg_isready -h localhost -p 4434 -U postgres -d intg_db || echo "ATS-INTG database DOWN"
 
 # 3. Check recent container activity
 docker ps -a | grep -E "(ats-dev|intg)" | head -10

@@ -29,7 +29,7 @@ services:
       # Migration and Job configuration
       - AUTO_MIGRATION_ENABLED=true
       - DEV_DB_HOST=172.17.0.1
-      - DEV_DB_PORT=5433
+      - DEV_DB_PORT=3434  # Updated to reference ATS-DEV on 300x range
       - DEV_DB_USER=postgres
       - DEV_DB_PASSWORD=postgres
       - DEV_DB_NAME=dev_db
@@ -75,7 +75,7 @@ services:
       POSTGRES_INITDB_ARGS: "--auth-host=md5 --auth-local=trust"
     
     ports:
-      - "5434:5432"  # Different port for integration
+      - "4434:5432"  # Updated to 400x range for integration
     
     volumes:
       # Docker-managed volume for data persistence
@@ -124,7 +124,7 @@ services:
       - DB_NAME=intg_db
     
     ports:
-      - "3002:3001"  # Dashboard port
+      - "4002:3001"  # Updated to 400x range for dashboard
     
     volumes:
       - ./:/workspace

@@ -55,14 +55,14 @@ class DevCLI:
         """Configure database settings based on environment"""
         if self.environment == 'intg':
             self.db_host = "localhost"
-            self.db_port = "5433"  # ats-intg-postgres port
+            self.db_port = "4434"  # ats-intg-postgres port (updated to 400x range)
             self.db_user = "postgres"
             self.db_password = "intg_password"  # TimescaleDB might use password
             self.db_name = "intg_db"
             self.table_prefix = "intg_"
         else:  # dev environment
             self.db_host = "localhost"
-            self.db_port = "5432"  # ats-dev-postgres port
+            self.db_port = "3434"  # ats-dev-postgres port (updated to 300x range)
             self.db_user = "postgres"
             self.db_password = ""  # Docker container uses no password
             self.db_name = "dev_db"
@@ -97,16 +97,16 @@ class DevCLI:
         
     def check_database_connection(self):
         """Check which database connection works"""
-        # Try localhost:5432 first (direct PostgreSQL)
-        if self.test_db_connection("localhost", "5432"):
+        # Try localhost:3434 first (ATS-DEV PostgreSQL on 300x range)
+        if self.test_db_connection("localhost", "3434"):
             self.db_host = "localhost"
-            self.db_port = "5432"
+            self.db_port = "3434"
             return
             
-        # Try localhost:5433 (port-forwarded from k8s)
-        if self.test_db_connection("localhost", "5433"):
+        # Try localhost:4434 (ATS-INTG on 400x range)
+        if self.test_db_connection("localhost", "4434"):
             self.db_host = "localhost"
-            self.db_port = "5433"
+            self.db_port = "4434"
             return
             
         print("⚠️  No database connection available. You may need to:")
@@ -234,7 +234,7 @@ class DevCLI:
         services = {
             "postgres": {
                 "image": "postgres:13",
-                "port": "5432:5432", 
+                "port": "3434:5432",  # Updated to 300x range 
                 "env": {
                     "POSTGRES_USER": self.db_user,
                     "POSTGRES_PASSWORD": self.db_password,
@@ -248,7 +248,7 @@ class DevCLI:
             },
             "postgres-intg": {
                 "image": "postgres:13",
-                "port": "5433:5432",  # Different port to avoid conflicts
+                "port": "4434:5432",  # Updated to 400x range
                 "env": {
                     "POSTGRES_USER": self.db_user,
                     "POSTGRES_PASSWORD": self.db_password,
@@ -517,7 +517,7 @@ class DevCLI:
         # Wait for database to be ready
         print("⏳ Waiting for database to be ready...")
         for i in range(30):
-            if self.test_db_connection("localhost", "5432"):
+            if self.test_db_connection("localhost", "3434"):
                 break
             time.sleep(1)
         else:
@@ -525,7 +525,7 @@ class DevCLI:
             return False
         
         print("✅ Development environment ready!")
-        print("🔗 Database: postgresql://postgres:dev_password@localhost:5432/dev_db")
+        print("🔗 Database: postgresql://postgres:dev_password@localhost:3434/dev_db")
         return True
 
 def main():

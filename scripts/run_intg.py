@@ -18,7 +18,7 @@ from pathlib import Path
 class IntgCLI:
     def __init__(self):
         self.db_host = "localhost"
-        self.db_port = "5433"  # Integration PostgreSQL port (different from dev)
+        self.db_port = "4434"  # Integration PostgreSQL port (updated to 400x range)
         self.db_user = "postgres"
         self.db_password = "intg_password"
         self.db_name = "intg_db"
@@ -62,9 +62,9 @@ class IntgCLI:
     def check_database_connection(self):
         """Check which database connection works"""
         # Try localhost:5433 first (integration PostgreSQL)
-        if self.test_db_connection("localhost", "5433"):
+        if self.test_db_connection("localhost", "4434"):
             self.db_host = "localhost"
-            self.db_port = "5433"
+            self.db_port = "4434"
             return
             
         print("⚠️  No integration database connection available. You may need to:")
@@ -394,7 +394,7 @@ class IntgCLI:
         # Wait for database to be ready
         print("⏳ Waiting for integration database to be ready...")
         for i in range(30):
-            if self.test_db_connection("localhost", "5433"):
+            if self.test_db_connection("localhost", "4434"):
                 break
             time.sleep(1)
         else:

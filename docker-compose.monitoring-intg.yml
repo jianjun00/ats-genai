@@ -6,7 +6,7 @@ services:
     image: prom/prometheus:v2.45.0
     container_name: ats-prometheus-intg
     ports:
-      - "9091:9090"  # Different port for INTG
+      - "4091:9090"  # Updated to 400x range for INTG
     volumes:
       - ./monitoring/prometheus/prometheus-intg.yml:/etc/prometheus/prometheus.yml
       - ./monitoring/prometheus/alert_rules-intg.yml:/etc/prometheus/alert_rules.yml
@@ -27,7 +27,7 @@ services:
     image: grafana/grafana:10.0.0
     container_name: ats-grafana-intg
     ports:
-      - "3002:3000"  # Different port for INTG
+      - "4002:3000"  # Updated to 400x range for INTG
     volumes:
       - grafana_intg_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning

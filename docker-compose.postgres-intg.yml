@@ -16,7 +16,7 @@ services:
       POSTGRES_INITDB_ARGS: "--auth-host=md5 --auth-local=trust"
     
     ports:
-      - "5433:5432"  # Integration PostgreSQL port
+      - "4434:5432"  # Updated to 400x range for integration PostgreSQL
     
     volumes:
       # Host-mounted data directory for persistence (CRITICAL for data safety)
