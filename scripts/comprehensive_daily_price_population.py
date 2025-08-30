@@ -256,15 +256,15 @@ class DailyPricePopulator:
         
     def _create_tiingo_population_command(self, symbol: str, start_date: date, end_date: date) -> str:
         """Create Tiingo population command."""
-        return f"python3 scripts/run_dev.py run --script scripts/populate_tiingo_daily_prices.py --env '{{\\"SYMBOLS\\": \\"{symbol}\\", \\"START_DATE\\": \\"{start_date}\\", \\"END_DATE\\": \\"{end_date}\\"}}'"
+        return f"python3 scripts/run_dev.py run --script scripts/tiingo_30_year_daily_backfill.py --env '{{\"SYMBOLS_FILTER\": \"{symbol}\", \"START_DATE\": \"{start_date}\", \"END_DATE\": \"{end_date}\"}}'"
         
     def _create_eodhd_population_command(self, symbol: str, start_date: date, end_date: date) -> str:
         """Create EODHD population command.""" 
-        return f"python3 scripts/run_dev.py run --script scripts/populate_eodhd_daily_prices.py --env '{{\\"SYMBOLS\\": \\"{symbol}\\", \\"START_DATE\\": \\"{start_date}\\", \\"END_DATE\\": \\"{end_date}\\"}}'"
+        return f"python3 scripts/run_dev.py run --script scripts/eodhd_30_year_daily_backfill.py --env '{{\"SYMBOLS_FILTER\": \"{symbol}\", \"START_DATE\": \"{start_date}\", \"END_DATE\": \"{end_date}\"}}'"
         
     def _create_polygon_population_command(self, symbol: str, start_date: date, end_date: date) -> str:
         """Create Polygon population command."""
-        return f"python3 scripts/run_dev.py run --script scripts/populate_polygon_daily_prices.py --env '{{\\"SYMBOLS\\": \\"{symbol}\\", \\"START_DATE\\": \\"{start_date}\\", \\"END_DATE\\": \\"{end_date}\\"}}'"
+        return f"python3 scripts/run_dev.py run --script scripts/run_polygon_backfill_direct.py --env '{{\"SYMBOLS_FILTER\": \"{symbol}\", \"START_DATE\": \"{start_date}\", \"END_DATE\": \"{end_date}\"}}'"
 
 async def main():
     """Main function to run comprehensive daily price population."""
@@ -280,7 +280,7 @@ async def main():
     logger.info("="*80)
     
     # Database connection - use Docker-compatible connection
-    DATABASE_URL = "postgresql://postgres:dev_password@postgres:5432/dev_db"
+    DATABASE_URL = "postgresql://postgres:dev_password@ats-dev-postgres:5432/dev_db"
     
     try:
         # Step 1: Analyze current coverage

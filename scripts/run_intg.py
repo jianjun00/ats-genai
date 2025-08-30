@@ -116,7 +116,7 @@ class IntgCLI:
         
         # Mount directories and set database connection
         volume_mounts = self.get_volume_mounts()
-        cmd = f"""docker run --rm {gpu_flag} \\
+        cmd = f"""docker run --rm --network host {gpu_flag} \\
             {volume_mounts} \\
             -w /workspace \\
             -e DB_HOST={self.db_host} \\

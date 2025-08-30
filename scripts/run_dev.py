@@ -40,10 +40,11 @@ class DevCLI:
             result = subprocess.run("docker ps --format '{{.Names}}'", shell=True, capture_output=True, text=True)
             containers = result.stdout.strip().split('\n')
             
-            if 'ats-intg-postgres' in containers:
-                return 'intg'
-            elif 'ats-dev-postgres' in containers:
+            # run_dev.py should prefer dev environment even if both are running
+            if 'ats-dev-postgres' in containers:
                 return 'dev'
+            elif 'ats-intg-postgres' in containers:
+                return 'intg'
             else:
                 print("⚠️  No ATS database containers found, defaulting to dev")
                 return 'dev'
@@ -62,9 +63,9 @@ class DevCLI:
             self.table_prefix = "intg_"
         else:  # dev environment
             self.db_host = "localhost"
-            self.db_port = "3434"  # ats-dev-postgres port (updated to 300x range)
+            self.db_port = "3432"  # ats-dev-postgres port
             self.db_user = "postgres"
-            self.db_password = ""  # Docker container uses no password
+            self.db_password = "dev_password"  # ATS-DEV PostgreSQL password
             self.db_name = "dev_db"
             self.table_prefix = "dev_"
             
@@ -97,10 +98,10 @@ class DevCLI:
         
     def check_database_connection(self):
         """Check which database connection works"""
-        # Try localhost:3434 first (ATS-DEV PostgreSQL on 300x range)
-        if self.test_db_connection("localhost", "3434"):
+        # Try localhost:3432 first (ATS-DEV PostgreSQL)
+        if self.test_db_connection("localhost", "3432"):
             self.db_host = "localhost"
-            self.db_port = "3434"
+            self.db_port = "3432"
             return
             
         # Try localhost:4434 (ATS-INTG on 400x range)
@@ -234,7 +235,7 @@ class DevCLI:
         services = {
             "postgres": {
                 "image": "postgres:13",
-                "port": "3434:5432",  # Updated to 300x range 
+                "port": "3432:5432",  # ATS-DEV PostgreSQL port 
                 "env": {
                     "POSTGRES_USER": self.db_user,
                     "POSTGRES_PASSWORD": self.db_password,
@@ -517,7 +518,7 @@ class DevCLI:
         # Wait for database to be ready
         print("⏳ Waiting for database to be ready...")
         for i in range(30):
-            if self.test_db_connection("localhost", "3434"):
+            if self.test_db_connection("localhost", "3432"):
                 break
             time.sleep(1)
         else:
@@ -525,7 +526,7 @@ class DevCLI:
             return False
         
         print("✅ Development environment ready!")
-        print("🔗 Database: postgresql://postgres:dev_password@localhost:3434/dev_db")
+        print("🔗 Database: postgresql://postgres:dev_password@localhost:3432/dev_db")
         return True
 
 def main():
