@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # Prometheus for metrics collection (INTG)
+  prometheus-intg:
+    image: prom/prometheus:v2.45.0
+    container_name: ats-prometheus-intg
+    ports:
+      - "9091:9090"  # Different port for INTG
+    volumes:
+      - ./monitoring/prometheus/prometheus-intg.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/alert_rules-intg.yml:/etc/prometheus/alert_rules.yml
+      - prometheus_intg_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - ats-monitoring-intg
+
+  # Grafana for visualization (INTG)
+  grafana-intg:
+    image: grafana/grafana:10.0.0
+    container_name: ats-grafana-intg
+    ports:
+      - "3002:3000"  # Different port for INTG
+    volumes:
+      - grafana_intg_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=ats-intg-monitoring-password
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3002
+    restart: unless-stopped
+    networks:
+      - ats-monitoring-intg
+
+  # AlertManager for alert routing (INTG)
+  alertmanager-intg:
+    image: prom/alertmanager:v0.25.0
+    container_name: ats-alertmanager-intg
+    ports:
+      - "9094:9093"  # Different port for INTG
+    volumes:
+      - ./monitoring/alertmanager/alertmanager-intg.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_intg_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9094'
+    restart: unless-stopped
+    networks:
+      - ats-monitoring-intg
+
+  # Data Quality Exporter (INTG)
+  ats-data-quality-exporter-intg:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ats-data-quality-exporter-intg
+    ports:
+      - "8081:8080"  # Different port for INTG
+    environment:
+      - ATS_ENVIRONMENT=intg
+      - METRICS_PORT=8080
+      - SCRAPE_INTERVAL=30
+      - PYTHONPATH=/app/src
+      - INTG_DB_HOST=postgres-intg
+      - INTG_DB_PORT=5432
+      - INTG_DB_USER=postgres
+      - INTG_DB_PASSWORD=intg_password
+      - INTG_DB_NAME=intg_db
+    command: ["python3", "/app/src/monitoring/data_quality_exporter.py"]
+    restart: unless-stopped
+    networks:
+      - ats-monitoring-intg
+    external_links:
+      - postgres-intg:postgres-intg
+
+  # Node Exporter for system metrics (INTG)
+  node-exporter-intg:
+    image: prom/node-exporter:v1.6.0
+    container_name: ats-node-exporter-intg
+    ports:
+      - "9101:9100"  # Different port for INTG
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: unless-stopped
+    networks:
+      - ats-monitoring-intg
+
+volumes:
+  prometheus_intg_data:
+  grafana_intg_data:
+  alertmanager_intg_data:
+
+networks:
+  ats-monitoring-intg:
+    driver: bridge

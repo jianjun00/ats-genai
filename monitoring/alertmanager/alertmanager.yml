@@ -1,0 +1,52 @@
+global:
+  slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+
+route:
+  group_by: ['alertname']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  receiver: 'ats-alerts'
+  routes:
+    - match:
+        severity: critical
+      receiver: 'ats-critical'
+    - match:
+        service: data-quality
+      receiver: 'ats-data-quality'
+
+receivers:
+  - name: 'ats-alerts'
+    slack_configs:
+      - channel: '#ats-alerts'
+        title: 'ATS Alert - {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        send_resolved: true
+
+  - name: 'ats-critical'
+    slack_configs:
+      - channel: '#ats-critical'
+        title: '🚨 CRITICAL: ATS Alert - {{ .GroupLabels.alertname }}'
+        text: |
+          *Alert:* {{ .GroupLabels.alertname }}
+          *Severity:* {{ .CommonLabels.severity }}
+          *Service:* {{ .CommonLabels.service }}
+          
+          {{ range .Alerts }}
+          *Description:* {{ .Annotations.description }}
+          *Summary:* {{ .Annotations.summary }}
+          {{ end }}
+        send_resolved: true
+
+  - name: 'ats-data-quality'
+    slack_configs:
+      - channel: '#ats-data-quality'
+        title: '📊 Data Quality Alert - {{ .GroupLabels.alertname }}'
+        text: |
+          *Service:* Data Quality
+          
+          {{ range .Alerts }}
+          *Issue:* {{ .Annotations.summary }}
+          *Details:* {{ .Annotations.description }}
+          {{ end }}
+        send_resolved: true

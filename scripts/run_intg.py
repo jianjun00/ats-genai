@@ -150,7 +150,7 @@ class IntgCLI:
         # Integration service configurations
         services = {
             "postgres": {
-                "image": "postgres:13",
+                "image": "timescale/timescaledb:latest-pg13",
                 "port": "5433:5432",  # Integration port
                 "env": {
                     "POSTGRES_USER": self.db_user,
