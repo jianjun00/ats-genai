@@ -352,17 +352,71 @@ docker logs ats-intg-scheduler --tail=50
 
 ## 🔐 Security Operations
 
-### **Environment Security**
+### **API Keys & Authentication**
+
+#### **🔑 Market Data Vendor API Keys**
+
+| Vendor | Environment Variable | Current Key | Purpose | Rate Limits |
+|--------|---------------------|-------------|---------|-------------|
+| **Polygon** | `POLYGON_API_KEY` | `wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD` | Stock prices, fundamentals, news | 5 calls/min |
+| **Tiingo** | `TIINGO_API_KEY` | `5f40b4f36e171405746304ec0e5a6f3aa9ca77e5` | Daily prices, fundamentals | 1000 calls/hr |
+| **FMP** | `FMP_API_KEY` | `Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr` | Fundamentals, earnings | 250 calls/day |
+| **Alpha Vantage** | `ALPHA_VANTAGE_API_KEY` | `9GI0NZ3V4VNFX271` | Economic indicators | 25 calls/day |
+| **EODHD** | `EODHD_API_KEY` | *(Set as needed)* | EOD prices, fundamentals | 20 calls/min |
+| **FirstRate** | `FIRSTRATE_USER_ID` | `fg1LcNsv8kWWMJIt0caCFQ` | Minute-level OHLCV data | Premium data feed |
+
+#### **🔐 API Key Configuration**
+
+**For ATS-DEV Environment:**
+```bash
+# Set keys for development scripts
+export POLYGON_API_KEY=wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD
+export TIINGO_API_KEY=5f40b4f36e171405746304ec0e5a6f3aa9ca77e5
+export FMP_API_KEY=Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr
+export ALPHA_VANTAGE_API_KEY=9GI0NZ3V4VNFX271
+export FIRSTRATE_USER_ID=fg1LcNsv8kWWMJIt0caCFQ
+
+# Use with scripts
+python3 scripts/run_dev.py run --script scripts/tiingo_30_year_daily_backfill.py
+python3 scripts/run_dev.py run --script scripts/run_firstrate_minute_backfill.py
+```
+
+**For ATS-INTG Environment (Docker Compose):**
+Keys are pre-configured in `docker-compose.intg-jobs.yml`:
+```yaml
+environment:
+  - POLYGON_API_KEY=wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD
+  - FMP_API_KEY=Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr
+  - TIINGO_API_KEY=5f40b4f36e171405746304ec0e5a6f3aa9ca77e5
+  - ALPHA_VANTAGE_API_KEY=9GI0NZ3V4VNFX271
+  - FIRSTRATE_USER_ID=fg1LcNsv8kWWMJIt0caCFQ
+```
+
+#### **⚠️ API Key Security**
+
+**🚨 SECURITY WARNING**: These keys are currently hardcoded for development. For production:
+- Store keys in secure environment variables
+- Use container secrets or vault systems
+- Rotate keys regularly
+- Monitor API usage for anomalies
+
+**Validate API Key Access:**
+```bash
+# Test Polygon API
+curl "https://api.polygon.io/v1/meta/symbols/AAPL?apiKey=$POLYGON_API_KEY"
+
+# Test Tiingo API  
+curl -H "Authorization: Token $TIINGO_API_KEY" "https://api.tiingo.com/api/test/"
+
+# Test Alpha Vantage API
+curl "https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=AAPL&interval=1min&apikey=$ALPHA_VANTAGE_API_KEY"
+```
+
+### **Database Security**
 ```bash
 # Database credentials are configured in Docker Compose files:
 # - ATS-DEV: No password (development only)
 # - ATS-INTG: Password 'intg_password' (integration testing)
-
-# API keys are configured via environment variables:
-# - POLYGON_API_KEY=wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD
-# - TIINGO_API_KEY=5f40b4f36e171405746304ec0e5a6f3aa9ca77e5
-# - FMP_API_KEY=Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr
-# - ALPHA_VANTAGE_API_KEY=9GI0NZ3V4VNFX271
 
 # Access control for monitoring:
 # - Prometheus: Open access (localhost:9091)
