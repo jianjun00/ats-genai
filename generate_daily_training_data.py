@@ -25,12 +25,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-async def generate_aapl_daily_training_data():
-    """Generate comprehensive daily training data for AAPL."""
+async def generate_daily_training_data(symbol='AAPL'):
+    """Generate comprehensive daily training data for a given symbol."""
     
     logger.info("="*80)
-    logger.info("AAPL DAILY TRAINING DATA GENERATION")
-    logger.info("Period: 1995-09-05 (AAPL listing) to Present")
+    logger.info(f"{symbol} DAILY TRAINING DATA GENERATION")
+    logger.info(f"Period: Historical data to Present")
     logger.info("="*80)
     
     try:
@@ -63,34 +63,76 @@ async def generate_aapl_daily_training_data():
             database=db_name
         )
         
-        # Get AAPL data from database
-        logger.info("📊 Fetching AAPL daily price data...")
+        # Get data from database - try multiple sources
+        logger.info(f"📊 Fetching {symbol} daily price data...")
         
-        aapl_data = await conn.fetch(f"""
+        # Try EODHD first (more complete data for TSLA)
+        symbol_data = await conn.fetch(f"""
             SELECT 
-                t.date as date,
-                t.open as open,
-                t.high as high,
-                t.low as low,
-                t.close as close,
-                t.adjclose as adjclose,
-                t.volume as volume
+                e.date as date,
+                e.open as open,
+                e.high as high,
+                e.low as low,
+                e.close as close,
+                e.adjusted_close as adjclose,
+                e.volume as volume,
+                'EODHD' as source
             FROM {environment}_instruments i
-            JOIN {environment}_daily_prices_tiingo t ON i.id = t.instrument_id
-            WHERE i.symbol = 'AAPL'
-            ORDER BY t.date
+            JOIN {environment}_daily_prices_eodhd e ON i.id = e.instrument_id
+            WHERE i.symbol = '{symbol}'
+            ORDER BY e.date
         """)
+        
+        # If no EODHD data, try Tiingo
+        if not symbol_data:
+            symbol_data = await conn.fetch(f"""
+                SELECT 
+                    t.date as date,
+                    t.open as open,
+                    t.high as high,
+                    t.low as low,
+                    t.close as close,
+                    t.adjclose as adjclose,
+                    t.volume as volume,
+                    'Tiingo' as source
+                FROM {environment}_instruments i
+                JOIN {environment}_daily_prices_tiingo t ON i.id = t.instrument_id
+                WHERE i.symbol = '{symbol}'
+                ORDER BY t.date
+            """)
+            
+        # If still no data, try Polygon
+        if not symbol_data:
+            symbol_data = await conn.fetch(f"""
+                SELECT 
+                    p.date as date,
+                    p.open as open,
+                    p.high as high,
+                    p.low as low,
+                    p.close as close,
+                    p.close as adjclose,  -- Use close as adjusted close for Polygon
+                    p.volume as volume,
+                    'Polygon' as source
+                FROM {environment}_instruments i
+                JOIN {environment}_daily_prices_polygon p ON i.id = p.instrument_id
+                WHERE i.symbol = '{symbol}'
+                ORDER BY p.date
+            """)
         
         await conn.close()
         
-        if not aapl_data:
-            logger.error("❌ No AAPL data found in database")
+        if not symbol_data:
+            logger.error(f"❌ No {symbol} data found in database")
             return
         
         # Convert asyncpg Records to pandas DataFrame
         df_data = []
-        for record in aapl_data:
-            df_data.append(dict(record))
+        data_source = None
+        for record in symbol_data:
+            record_dict = dict(record)
+            if data_source is None:
+                data_source = record_dict.get('source', 'Unknown')
+            df_data.append(record_dict)
         
         df = pd.DataFrame(df_data)
         logger.info(f"📋 Available columns: {df.columns.tolist()}")
@@ -99,7 +141,13 @@ async def generate_aapl_daily_training_data():
         df['date'] = pd.to_datetime(df['date'])
         df = df.set_index('date').sort_index()
         
-        logger.info(f"✅ Loaded {len(df):,} days of AAPL data")
+        # Convert numeric columns to float (in case they come as Decimal from PostgreSQL)
+        numeric_cols = ['open', 'high', 'low', 'close', 'adjclose', 'volume']
+        for col in numeric_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        logger.info(f"✅ Loaded {len(df):,} days of {symbol} data from {data_source}")
         logger.info(f"📅 Date range: {df.index[0].date()} to {df.index[-1].date()}")
         
         # Generate technical indicators
@@ -223,21 +271,25 @@ async def generate_aapl_daily_training_data():
         ]
         
         # Create training datasets for different time periods
+        # Determine start dates based on available data
+        first_date = df.index[0].strftime('%Y-%m-%d')
+        symbol_lower = symbol.lower()
+        
         datasets = {
-            'aapl_30year_full': {
-                'start_date': '1995-10-01',
+            f'{symbol_lower}_full_history': {
+                'start_date': first_date,
                 'end_date': '2025-08-29',
-                'description': 'AAPL 30-year complete historical training data'
+                'description': f'{symbol} complete historical training data'
             },
-            'aapl_last_10_years': {
+            f'{symbol_lower}_last_10_years': {
                 'start_date': '2015-01-01',
                 'end_date': '2025-08-29',
-                'description': 'AAPL last 10 years training data'
+                'description': f'{symbol} last 10 years training data'
             },
-            'aapl_last_5_years': {
+            f'{symbol_lower}_last_5_years': {
                 'start_date': '2020-01-01',
                 'end_date': '2025-08-29',
-                'description': 'AAPL last 5 years training data'
+                'description': f'{symbol} last 5 years training data'
             }
         }
         
@@ -263,7 +315,7 @@ async def generate_aapl_daily_training_data():
             for idx, (date, row) in enumerate(dataset_df.iterrows()):
                 example = {
                     'date': date.strftime('%Y-%m-%d'),
-                    'symbol': 'AAPL',
+                    'symbol': symbol,
                     'features': row[feature_cols].to_dict(),
                     'targets': row[target_cols].to_dict(),
                     'raw_prices': {
@@ -337,20 +389,21 @@ async def generate_aapl_daily_training_data():
         # Save overall summary
         overall_summary = {
             'generation_timestamp': datetime.now().isoformat(),
-            'symbol': 'AAPL',
+            'symbol': symbol,
+            'data_source': data_source,
             'total_datasets': len(results),
             'successful_generations': len(results),
             'datasets': results
         }
         
-        summary_file = Path("/data/training/aapl_daily_comprehensive_summary.json")
+        summary_file = Path(f"/data/training/{symbol_lower}_daily_comprehensive_summary.json")
         summary_file.parent.mkdir(parents=True, exist_ok=True)
         
         with open(summary_file, 'w') as f:
             json.dump(overall_summary, f, indent=2, default=str)
         
         logger.info("\n" + "="*80)
-        logger.info("AAPL DAILY TRAINING DATA GENERATION COMPLETED")
+        logger.info(f"{symbol} DAILY TRAINING DATA GENERATION COMPLETED")
         logger.info("="*80)
         logger.info(f"Successfully generated: {len(results)} datasets")
         logger.info(f"Overall summary saved to: {summary_file}")
@@ -361,7 +414,7 @@ async def generate_aapl_daily_training_data():
         return overall_summary
         
     except Exception as e:
-        logger.error(f"❌ Error generating AAPL training data: {e}")
+        logger.error(f"❌ Error generating {symbol} training data: {e}")
         import traceback
         traceback.print_exc()
         raise
@@ -376,4 +429,6 @@ def calculate_rsi(prices, period=14):
     return rsi
 
 if __name__ == "__main__":
-    asyncio.run(generate_aapl_daily_training_data())
+    import sys
+    symbol = sys.argv[1] if len(sys.argv) > 1 else 'AAPL'
+    asyncio.run(generate_daily_training_data(symbol))
