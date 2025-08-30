@@ -9,6 +9,7 @@ import logging
 from datetime import date, datetime
 from typing import Dict, List, Optional, Any
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, Query, Path, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -61,14 +62,14 @@ class ForecastDataPoint(BaseModel):
 
 class PortfolioComparisonRequest(BaseModel):
     """Request for comparing multiple portfolio strategies"""
-    backtest_run_ids: List[str] = Field(..., min_items=2, max_items=5)
+    backtest_run_ids: List[str] = Field(..., min_length=2, max_length=5)
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     metrics_to_compare: List[str] = ["total_return", "sharpe_ratio", "max_drawdown"]
 
 class ModelComparisonRequest(BaseModel):
     """Request for comparing model performance"""
-    backtest_run_ids: List[str] = Field(..., min_items=2, max_items=5)
+    backtest_run_ids: List[str] = Field(..., min_length=2, max_length=5)
     start_date: Optional[date] = None
     end_date: Optional[date] = None
 
@@ -120,11 +121,32 @@ class ConnectionManager:
             for connection in disconnected:
                 self.active_connections[backtest_run_id].remove(connection)
 
+# Global dependencies
+analytics_engine = None
+connection_manager = ConnectionManager()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifespan"""
+    # Startup
+    global analytics_engine
+    analytics_engine = PortfolioAnalyticsEngine()
+    await analytics_engine.initialize()
+    logging.info("Backtest Analytics API started")
+    
+    yield
+    
+    # Shutdown
+    if analytics_engine:
+        await analytics_engine.close()
+    logging.info("Backtest Analytics API shutdown")
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Backtest Analytics API",
     description="Advanced portfolio analytics and model performance analysis",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Add CORS middleware
@@ -136,10 +158,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global dependencies
-analytics_engine = None
-connection_manager = ConnectionManager()
-
 async def get_analytics_engine() -> PortfolioAnalyticsEngine:
     """Dependency to get analytics engine instance"""
     global analytics_engine
@@ -147,21 +165,6 @@ async def get_analytics_engine() -> PortfolioAnalyticsEngine:
         analytics_engine = PortfolioAnalyticsEngine()
         await analytics_engine.initialize()
     return analytics_engine
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on startup"""
-    global analytics_engine
-    analytics_engine = PortfolioAnalyticsEngine()
-    await analytics_engine.initialize()
-    logging.info("Backtest Analytics API started")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Clean up on shutdown"""
-    if analytics_engine:
-        await analytics_engine.close()
-    logging.info("Backtest Analytics API shutdown")
 
 # Health check endpoint
 @app.get("/health")
@@ -252,7 +255,7 @@ async def get_portfolio_performance(
     backtest_run_id: str = Path(...),
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
-    granularity: str = Query("daily", regex="^(daily|hourly|minute)$"),
+    granularity: str = Query("daily", pattern="^(daily|hourly|minute)$"),
     engine: PortfolioAnalyticsEngine = Depends(get_analytics_engine)
 ) -> List[PerformanceDataPoint]:
     """Get time-series portfolio performance data"""
@@ -285,7 +288,7 @@ async def get_portfolio_performance(
 @app.get("/api/v1/backtests/{backtest_run_id}/attribution")
 async def get_attribution_analysis(
     backtest_run_id: str = Path(...),
-    attribution_type: str = Query("stock", regex="^(stock|sector|signal)$"),
+    attribution_type: str = Query("stock", pattern="^(stock|sector|signal)$"),
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
     engine: PortfolioAnalyticsEngine = Depends(get_analytics_engine)
@@ -451,7 +454,7 @@ async def drill_down_period(
     backtest_run_id: str = Path(...),
     start_date: date = Query(...),
     end_date: date = Query(...),
-    analysis_type: str = Query("detailed", regex="^(detailed|trades|positions|model)$"),
+    analysis_type: str = Query("detailed", pattern="^(detailed|trades|positions|model)$"),
     engine: PortfolioAnalyticsEngine = Depends(get_analytics_engine)
 ) -> Dict[str, Any]:
     """Get detailed analysis for specific time period"""

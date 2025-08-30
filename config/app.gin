@@ -39,4 +39,4 @@ config.database.Database.base_database = 'test_db'
 config.database.Database.pool_min_size = 1
 config.database.Database.pool_max_size = 10
 config.database.Database.command_timeout = 60
-bind = ['TestDatabaseManager.database_name', 'test_db']
+bind = ['DatabaseTestManager.database_name', 'test_db']

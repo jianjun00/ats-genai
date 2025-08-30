@@ -27,13 +27,11 @@ except ImportError as e:
 
 class TestSystemValidation:
     """Quick validation tests for the enhanced training data system."""
-    
-    def __init__(self):
-        print("🧪 Enhanced Multi-Timeframe Training Data System Validation")
-        print("=" * 60)
         
     def test_enhanced_feature_registry(self):
         """Test enhanced feature registry functionality."""
+        print("🧪 Enhanced Multi-Timeframe Training Data System Validation")
+        print("=" * 60)
         print("📋 Testing Enhanced Feature Registry...")
         
         registry = EnhancedFeatureRegistry()

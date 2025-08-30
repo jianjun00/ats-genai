@@ -27,12 +27,12 @@ import gin
 from config.database import Database
 
 @gin.configurable
-class TestDatabaseManager:
+class DatabaseTestManager:
     """Manages test databases for unit and integration tests."""
 
     
     def __init__(self, test_type: str = "unit", run_migrations: bool = True, database_obj: Database = None):
-        print(f"[GIN DEBUG] TestDatabaseManager __init__: test_type={test_type}, database_obj={database_obj}")
+        print(f"[GIN DEBUG] DatabaseTestManager __init__: test_type={test_type}, database_obj={database_obj}")
         """
         Initialize test database manager.
         
@@ -437,7 +437,7 @@ async def unit_test_db(request):
         pool_max_size=db_pool_max,
         command_timeout=db_cmd_timeout
     )
-    db_manager = gin.get_configurable(TestDatabaseManager)("unit", database_obj=db_obj)
+    db_manager = gin.get_configurable(DatabaseTestManager)("unit", database_obj=db_obj)
     test_db_url = await db_manager.setup_test_database()
 
     # Get the table prefix from the db_manager's env
@@ -533,7 +533,7 @@ async def unit_test_db_clean(request):
         pool_max_size=db_pool_max,
         command_timeout=db_cmd_timeout
     )
-    db_manager = gin.get_configurable(TestDatabaseManager)("unit", database_obj=db_obj)
+    db_manager = gin.get_configurable(DatabaseTestManager)("unit", database_obj=db_obj)
     test_db_url = await db_manager.setup_test_database()
 
     # Drop all tables for a clean DB

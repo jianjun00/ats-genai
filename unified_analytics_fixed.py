@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response
@@ -604,8 +605,23 @@ class UnifiedAnalyticsManager:
         }
 
 
+analytics_manager = UnifiedAnalyticsManager()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifespan"""
+    # Startup
+    await analytics_manager.initialize()
+    yield
+    # Shutdown
+    await analytics_manager.close()
+
 # FastAPI Application
-app = FastAPI(title="Unified Analytics Platform (Fixed)", version="2.0.0")
+app = FastAPI(
+    title="Unified Analytics Platform (Fixed)", 
+    version="2.0.0",
+    lifespan=lifespan
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -613,18 +629,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-analytics_manager = UnifiedAnalyticsManager()
-
-
-@app.on_event("startup")
-async def startup():
-    await analytics_manager.initialize()
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    await analytics_manager.close()
 
 
 # ===== JOB MANAGEMENT APIs (Fixed to use dev_runs) =====
