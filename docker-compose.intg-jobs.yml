@@ -124,7 +124,7 @@ services:
       - DB_NAME=intg_db
     
     ports:
-      - "4002:3001"  # Updated to 400x range for dashboard
+      - "4000:4000"  # Consistent with ATS-DEV analytics on 3000
     
     volumes:
       - ./:/workspace

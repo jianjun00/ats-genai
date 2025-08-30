@@ -165,7 +165,7 @@ class IntgCLI:
             },
             "analytics": {
                 "image": "dragonflyer762/ats-genai:latest",
-                "port": "3002:3001",  # Different port for integration
+                "port": "4000:4000",  # Consistent with ATS-DEV analytics on 3000
                 "command": "python src/analytics/server.py"
             },
             "api": {

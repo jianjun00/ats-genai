@@ -80,7 +80,7 @@ show_status() {
     echo ""
     echo "🌐 Service URLs:"
     echo "  - Dev Analytics:    http://localhost:3000"
-    echo "  - Intg Analytics:   http://localhost:3002"
+    echo "  - Intg Analytics:   http://localhost:4000"
     echo "  - Grafana:          http://localhost:3001"
     echo "  - Prometheus:       http://localhost:9090"
     echo "  - AlertManager:     http://localhost:9093"
@@ -142,7 +142,7 @@ show_intg_status() {
     docker-compose -f docker-compose.ats.yml ps postgres-intg analytics-intg price-collector-intg
     echo ""
     echo "🌐 Integration URLs:"
-    echo "  - Analytics: http://localhost:3002"
+    echo "  - Analytics: http://localhost:4000"
     echo "  - PostgreSQL: localhost:5433"
 }
 

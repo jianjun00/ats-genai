@@ -109,7 +109,7 @@ docker-compose -f docker-compose.ats.yml ps
 
 log "🌐 Service URLs:"
 log "  - Dev Analytics: http://localhost:3000"
-log "  - Intg Analytics: http://localhost:3002"
+log "  - Intg Analytics: http://localhost:4000"
 log "  - Grafana: http://localhost:3001"
 log "  - Prometheus: http://localhost:9090"
 

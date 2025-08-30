@@ -31,8 +31,8 @@ ATS-INTG (Integration Environment) is a production-ready data integration system
 
 ### Prerequisites
 - Docker and Docker Compose
-- ATS-DEV database running on port 5433
-- Available ports: 5434 (PostgreSQL), 3002 (Dashboard)
+- ATS-DEV database running on port 3434
+- Available ports: 4434 (PostgreSQL), 4000 (Dashboard)
 
 ### Deployment Commands
 ```bash

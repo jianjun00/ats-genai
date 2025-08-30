@@ -145,15 +145,15 @@ class MonitorHandler(BaseHTTPRequestHandler):
 
 def main():
     """Start the monitoring dashboard server."""
-    print(f"🎯 Starting ATS-INTG Monitor Dashboard on port 3001...")
+    print(f"🎯 Starting ATS-INTG Monitor Dashboard on port 4000...")
     
-    server_address = ('', 3001)
+    server_address = ('', 4000)
     httpd = HTTPServer(server_address, MonitorHandler)
     
     try:
-        print(f"📊 Dashboard accessible at http://localhost:3001")
-        print(f"🔍 Health endpoint: http://localhost:3001/health")
-        print(f"📈 Status endpoint: http://localhost:3001/status")
+        print(f"📊 Dashboard accessible at http://localhost:4000")
+        print(f"🔍 Health endpoint: http://localhost:4000/health")
+        print(f"📈 Status endpoint: http://localhost:4000/status")
         
         httpd.serve_forever()
         

@@ -92,7 +92,7 @@ services:
       - ATS_LOGS_PATH=/logs
       - PYTHONPATH=/workspace/src
     ports:
-      - "3002:3000"
+      - "4000:3000"
     volumes:
       - .:/workspace
       - /mnt/d/ats-data:/data

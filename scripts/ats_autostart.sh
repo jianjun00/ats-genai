@@ -85,7 +85,7 @@ start_ats_services() {
     # Show service URLs
     log "🌐 Service URLs:"
     log "  - Dev Analytics: http://localhost:3000"
-    log "  - Intg Analytics: http://localhost:3002" 
+    log "  - Intg Analytics: http://localhost:4000" 
     log "  - Grafana: http://localhost:3001"
     log "  - Prometheus: http://localhost:9090"
     log "  - Dev PostgreSQL: localhost:5432"

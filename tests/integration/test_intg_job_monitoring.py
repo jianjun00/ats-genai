@@ -255,7 +255,7 @@ class TestINTGJobMonitoring:
         
         try:
             # Test dashboard health endpoint
-            response = requests.get("http://localhost:3002/health", timeout=5)
+            response = requests.get("http://localhost:4000/health", timeout=5)
             
             if response.status_code == 200:
                 health_data = response.json()

@@ -75,7 +75,7 @@ docker-compose -f docker-compose.intg-jobs.yml down
 
 # Start monitoring stack (separate containers)
 docker run -d --name prometheus-intg -p 9091:9090 prom/prometheus:latest
-docker run -d --name grafana-intg -p 3002:3000 -e "GF_SECURITY_ADMIN_PASSWORD=ats-intg-monitoring" grafana/grafana:latest
+docker run -d --name grafana-intg -p 4002:3000 -e "GF_SECURITY_ADMIN_PASSWORD=ats-intg-monitoring" grafana/grafana:latest
 
 # Check environment status
 docker-compose -f docker-compose.intg-jobs.yml ps
@@ -98,6 +98,7 @@ PGPASSWORD=intg_password psql -h localhost -p 4434 -U postgres -d intg_db -c "SE
 
 **ATS-INTG Service Configuration:**
 - **Scheduler**: Background job processing (container: `ats-intg-scheduler`)
+- **Analytics**: Dashboard at `http://localhost:4000` (integration monitoring)
 - **Monitoring**: Grafana at `http://localhost:4002` (admin/ats-intg-monitoring)
 - **Metrics**: Prometheus at `http://localhost:4091` (no authentication)
 - **Management**: Docker Compose orchestration for multiple services
@@ -179,7 +180,8 @@ Files: backup-intg.log, scheduler.log
 | Service | Port | URL | Purpose |
 |---------|------|-----|---------|
 | PostgreSQL Database | 4434 | `localhost:4434` | Integration testing database |
-| Dashboard Service | 4002 | `http://localhost:4002` | Integration dashboard |
+| Analytics Dashboard | 4000 | `http://localhost:4000` | Integration analytics dashboard |
+| Grafana Monitoring | 4002 | `http://localhost:4002` | Monitoring dashboards and alerts |
 | Prometheus Metrics | 4091 | `http://localhost:4091` | Metrics collection |
 
 ### **Connection Examples**
@@ -195,7 +197,7 @@ PGPASSWORD=intg_password psql -h localhost -p 4434 -U postgres -d intg_db -c "SE
 
 # Service Health Checks
 curl -f http://localhost:3000/health     # ATS-DEV analytics
-curl -f http://localhost:4002/health     # ATS-INTG dashboard
+curl -f http://localhost:4000/health     # ATS-INTG dashboard
 curl -f http://localhost:4091/-/ready    # ATS-INTG Prometheus
 ```
 
@@ -319,7 +321,7 @@ docker stats --no-stream
 
 # Service-specific health checks
 curl -f http://localhost:3000/health  # ATS-DEV analytics
-curl -f http://localhost:4002/health  # ATS-INTG Grafana
+curl -f http://localhost:4000/health  # ATS-INTG Analytics Dashboard
 curl -f http://localhost:4091/-/ready # ATS-INTG Prometheus
 
 # Database connectivity tests
@@ -437,14 +439,14 @@ curl "https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=AAP
 
 # Access control for monitoring:
 # - Prometheus: Open access (localhost:9091)
-# - Grafana: admin/ats-intg-monitoring (localhost:3002)
+# - Grafana: admin/ats-intg-monitoring (localhost:4002)
 
 # Container security
 docker exec ats-dev-postgres whoami     # Check process user
 docker exec postgres-intg whoami        # Check process user
 
 # Network security (containers are on localhost only)
-netstat -tlnp | grep -E ":3000|:4002|:3434|:4434|:4091"
+netstat -tlnp | grep -E ":3000|:4000|:4002|:3434|:4434|:4091"
 ```
 
 ### **Access Control**
@@ -735,7 +737,8 @@ python3 scripts/run_dev.py start --service analytics
 
 # ATS-INTG Service Diagnosis:
 docker-compose -f docker-compose.intg-jobs.yml logs ats-intg-scheduler
-curl -f http://localhost:3002/login     # Grafana
+curl -f http://localhost:4000/health    # Analytics Dashboard
+curl -f http://localhost:4002/login     # Grafana
 curl -f http://localhost:9091/-/ready   # Prometheus
 
 # ATS-INTG Service Recovery:
@@ -745,7 +748,7 @@ docker restart grafana-intg prometheus-intg
 # General Health Checks:
 # 1. Verify container networking
 docker port ats-dev-analytics
-netstat -tlnp | grep -E ":3000|:4002|:4091|:3434|:4434"
+netstat -tlnp | grep -E ":3000|:4000|:4002|:4091|:3434|:4434"
 
 # 2. Check container resource usage
 docker stats --no-stream | grep -E "(ats-dev|intg)"
@@ -811,7 +814,8 @@ curl -f http://localhost:3000/health || echo "ATS-DEV analytics DOWN"
 python3 scripts/run_dev.py query --query "SELECT version()" || echo "ATS-DEV database DOWN"
 
 echo "Checking ATS-INTG services..."
-curl -f http://localhost:3002/login || echo "ATS-INTG Grafana DOWN"
+curl -f http://localhost:4000/health || echo "ATS-INTG Analytics DOWN"
+curl -f http://localhost:4002/login || echo "ATS-INTG Grafana DOWN"
 curl -f http://localhost:9091 || echo "ATS-INTG Prometheus DOWN"
 PGPASSWORD=intg_password pg_isready -h localhost -p 4434 -U postgres -d intg_db || echo "ATS-INTG database DOWN"
 
@@ -828,7 +832,8 @@ if [ "$restart" = "y" ]; then
   # Wait and recheck
   sleep 10
   curl -f http://localhost:3000/health && echo "ATS-DEV recovered"
-  curl -f http://localhost:3002/login && echo "ATS-INTG recovered"
+  curl -f http://localhost:4000/health && echo "ATS-INTG Analytics recovered"
+  curl -f http://localhost:4002/login && echo "ATS-INTG Grafana recovered"
 fi
 
 echo "✅ Initial response complete. Check detailed logs for root cause."
@@ -858,7 +863,8 @@ WHERE datname IN ('dev_db', 'postgres')
 
 # Application response time testing
 time curl -s http://localhost:3000/health
-time curl -s http://localhost:3002/login
+time curl -s http://localhost:4000/health
+time curl -s http://localhost:4002/login
 
 # Storage performance monitoring
 ls -lah /mnt/d/ats-data/     # Data directory usage

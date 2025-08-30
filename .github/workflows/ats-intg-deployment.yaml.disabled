@@ -212,7 +212,7 @@ jobs:
           python3 scripts/run_intg.py status
           
           # Test external access
-          curl -f http://localhost:3002/health || echo "⚠️ Analytics service health check failed"
+          curl -f http://localhost:4000/health || echo "⚠️ Analytics service health check failed"
           curl -f http://localhost:8001/health || echo "⚠️ API service health check failed"
           
           echo "✅ Integration deployment completed successfully"
@@ -251,7 +251,7 @@ jobs:
       env:
         INTEGRATION_HOST: ${{ secrets.INTEGRATION_HOST }}
         INTEGRATION_API_URL: http://${{ secrets.INTEGRATION_HOST }}:8001
-        INTEGRATION_ANALYTICS_URL: http://${{ secrets.INTEGRATION_HOST }}:3002
+        INTEGRATION_ANALYTICS_URL: http://${{ secrets.INTEGRATION_HOST }}:4000
       run: |
         source $HOME/.cargo/env
         

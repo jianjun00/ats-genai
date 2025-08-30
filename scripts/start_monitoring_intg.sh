@@ -36,7 +36,7 @@ docker-compose -f docker-compose.monitoring-intg.yml ps
 echo ""
 echo "🔗 ATS-INTG Monitoring Access URLs:"
 echo "=================================="
-echo "📊 Grafana:              http://localhost:3002"
+echo "📊 Grafana:              http://localhost:4000"
 echo "   Login: admin / ats-intg-monitoring-password"
 echo ""
 echo "📈 Prometheus:           http://localhost:9091"
@@ -61,7 +61,7 @@ test_endpoint() {
     fi
 }
 
-test_endpoint "http://localhost:3002/api/health" "Grafana INTG"
+test_endpoint "http://localhost:4000/api/health" "Grafana INTG"
 test_endpoint "http://localhost:9091/-/ready" "Prometheus INTG"
 test_endpoint "http://localhost:9094/-/ready" "AlertManager INTG"
 test_endpoint "http://localhost:8081/metrics" "Data Quality Exporter INTG"
@@ -69,7 +69,7 @@ test_endpoint "http://localhost:9101/metrics" "Node Exporter INTG"
 
 echo ""
 echo "📋 Next Steps:"
-echo "1. Open Grafana at http://localhost:3002 (admin/ats-intg-monitoring-password)"
+echo "1. Open Grafana at http://localhost:4000 (admin/ats-intg-monitoring-password)"
 echo "2. Configure Slack webhook URL in monitoring/alertmanager/alertmanager-intg.yml"
 echo "3. Create Slack channels: #ats-intg-alerts, #ats-intg-critical, #ats-intg-data-quality"
 echo "4. Monitor the ATS Data Quality Dashboard"

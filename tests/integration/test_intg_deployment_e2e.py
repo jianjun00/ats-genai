@@ -296,7 +296,7 @@ class TestDashboardIntegration:
         max_attempts = 30
         for _ in range(max_attempts):
             try:
-                response = requests.get('http://localhost:3002/health', timeout=5)
+                response = requests.get('http://localhost:4000/health', timeout=5)
                 if response.status_code == 200:
                     break
             except requests.exceptions.RequestException:
@@ -307,7 +307,7 @@ class TestDashboardIntegration:
     
     def test_dashboard_health_endpoint(self):
         """Test dashboard health endpoint."""
-        response = requests.get('http://localhost:3002/health')
+        response = requests.get('http://localhost:4000/health')
         
         assert response.status_code == 200
         
@@ -318,7 +318,7 @@ class TestDashboardIntegration:
     
     def test_dashboard_status_endpoint(self):
         """Test dashboard status endpoint."""
-        response = requests.get('http://localhost:3002/status')
+        response = requests.get('http://localhost:4000/status')
         
         assert response.status_code == 200
         
@@ -334,7 +334,7 @@ class TestDashboardIntegration:
     
     def test_dashboard_html_page(self):
         """Test dashboard HTML page loads."""
-        response = requests.get('http://localhost:3002/')
+        response = requests.get('http://localhost:4000/')
         
         assert response.status_code == 200
         assert 'ATS-INTG Monitor Dashboard' in response.text
@@ -417,7 +417,7 @@ print("SUCCESS" if result == 0 else "FAILED")
         conn.close()
         
         # Test dashboard external access
-        response = requests.get('http://localhost:3002/health')
+        response = requests.get('http://localhost:4000/health')
         assert response.status_code == 200
 
 

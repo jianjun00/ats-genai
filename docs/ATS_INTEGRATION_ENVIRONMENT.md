@@ -69,7 +69,7 @@ docker run --rm --network host -v $(pwd):/workspace -e PYTHONPATH=/workspace/src
 # Start integration PostgreSQL
 python scripts/run_intg.py start --service postgres
 
-# Start analytics service (Port 3002)
+# Start analytics service (Port 4000)
 python scripts/run_intg.py start --service analytics
 
 # Start API service (Port 8001)  
@@ -85,8 +85,8 @@ python scripts/run_intg.py status
 ```
 
 ### Service Ports
-- **PostgreSQL**: `5433`
-- **Analytics Service**: `3002` 
+- **PostgreSQL**: `4434`
+- **Analytics Service**: `4000` 
 - **API Service**: `8001`
 
 ---
@@ -173,7 +173,7 @@ python scripts/run_intg.py test --test tests/integration/test_analytics_platform
 ### Service Health Checks
 ```bash
 # Test service endpoints
-curl -s "http://localhost:3002/health" | jq
+curl -s "http://localhost:4000/health" | jq
 curl -s "http://localhost:8001/health" | jq
 
 # Database connectivity test

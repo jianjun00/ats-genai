@@ -439,7 +439,7 @@ class TestContainerRecoveryAndRestart:
         max_attempts = 10
         for _ in range(max_attempts):
             try:
-                response = requests.get('http://localhost:3002/health', timeout=5)
+                response = requests.get('http://localhost:4000/health', timeout=5)
                 if response.status_code == 200:
                     break
             except requests.exceptions.RequestException:
@@ -449,7 +449,7 @@ class TestContainerRecoveryAndRestart:
             pytest.fail("Dashboard failed to become accessible after restart")
         
         # Verify health endpoint works
-        response = requests.get('http://localhost:3002/health')
+        response = requests.get('http://localhost:4000/health')
         assert response.status_code == 200
         health_data = response.json()
         assert health_data['status'] == 'healthy'
