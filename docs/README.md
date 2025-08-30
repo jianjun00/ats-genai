@@ -9,7 +9,7 @@
 **Get running in 15 minutes:**
 1. **[START_HERE.md](START_HERE.md)** ⭐ **Essential setup and core concepts**
 2. **[DEVELOPMENT.md](DEVELOPMENT.md)** ⭐ **Complete development workflow** 
-3. **[DEPLOYMENT.md](DEPLOYMENT.md)** ⭐ **All deployment strategies**
+3. **[OPERATIONS.md](OPERATIONS.md)** ⭐ **All deployment strategies**
 
 ---
 
@@ -19,7 +19,7 @@
 1. **[README.md](README.md)** - This navigation hub
 2. **[START_HERE.md](START_HERE.md)** - 15-minute setup guide
 3. **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development workflow, TDD, CI/CD
-4. **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment strategies and GitOps
+4. **[OPERATIONS.md](OPERATIONS.md)** - Deployment strategies and operations
 
 ### **🏗️ Technical Architecture**  
 5. **[SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md)** - Complete technical architecture
@@ -54,7 +54,7 @@
 → **[START_HERE.md](START_HERE.md)** → **[ATS_INTEGRATION_ENVIRONMENT.md](ATS_INTEGRATION_ENVIRONMENT.md)** → **[OPERATIONS.md](OPERATIONS.md)**
 
 ### **🚀 CI/CD Engineers**
-→ **[DEPLOYMENT.md](DEPLOYMENT.md)** → **[OPERATIONS.md](OPERATIONS.md)** → **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**
+→ **[OPERATIONS.md](OPERATIONS.md)** → **[DEVELOPMENT.md](DEVELOPMENT.md)** → **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**
 
 ### **👥 Product Managers**
 → **[START_HERE.md](START_HERE.md)** → **[SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md)** → All platform docs

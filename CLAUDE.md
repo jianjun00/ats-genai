@@ -65,7 +65,7 @@ python scripts/run_dev.py test                     # Run tests
   - 15-minute setup, core concepts, role-specific quick actions, troubleshooting
 - **[DEVELOPMENT.md](docs/DEVELOPMENT.md)** ⭐
   - Complete development workflow, TDD, schema validation, CI/CD, GitOps, testing
-- **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** ⭐
+- **[OPERATIONS.md](docs/OPERATIONS.md)** ⭐
   - All deployment strategies, environments, monitoring, troubleshooting, rollback
 
 #### **Component-Specific Documentation**
@@ -84,7 +84,7 @@ python scripts/run_dev.py test                     # Run tests
 2. **[Documentation Hub](docs/README.md)** - Complete navigation for deeper learning
 
 #### **DevOps Engineers**  
-1. **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** - All deployment strategies and troubleshooting
+1. **[OPERATIONS.md](docs/OPERATIONS.md)** - All deployment strategies and troubleshooting
 2. **[DEVELOPMENT.md](docs/DEVELOPMENT.md)** - CI/CD and GitOps workflows
 
 ### 🔧 **OPERATIONAL SCRIPTS** (Ready to Use)
