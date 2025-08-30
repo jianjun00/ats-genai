@@ -28,6 +28,96 @@ from dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
 
 logger = logging.getLogger(__name__)
 
+class TechnicalIndicators:
+    """Technical indicators for enhanced training data generation."""
+    
+    @staticmethod
+    def calculate_elliott_top(high: np.ndarray, low: np.ndarray, close: np.ndarray, window: int = 21) -> np.ndarray:
+        """Calculate Envelope Top indicator - identifies potential reversal tops."""
+        etop = np.zeros_like(close)
+        
+        for i in range(window, len(close)):
+            # Look for local highs within window
+            window_high = high[i-window:i+1]
+            window_idx = np.argmax(window_high)
+            
+            # Check if current bar or recent bar is a significant high
+            if window_idx >= window - 5:  # Recent high
+                strength = (window_high[window_idx] - np.mean(window_high)) / np.std(window_high)
+                etop[i] = max(0, strength)
+            
+        return etop
+    
+    @staticmethod
+    def calculate_elliott_bottom(high: np.ndarray, low: np.ndarray, close: np.ndarray, window: int = 21) -> np.ndarray:
+        """Calculate Envelope Bottom indicator - identifies potential reversal bottoms."""
+        ebot = np.zeros_like(close)
+        
+        for i in range(window, len(close)):
+            # Look for local lows within window
+            window_low = low[i-window:i+1]
+            window_idx = np.argmin(window_low)
+            
+            # Check if current bar or recent bar is a significant low
+            if window_idx >= window - 5:  # Recent low
+                strength = (np.mean(window_low) - window_low[window_idx]) / np.std(window_low)
+                ebot[i] = max(0, strength)
+            
+        return ebot
+    
+    @staticmethod
+    def calculate_pivot_line_dot(high: np.ndarray, low: np.ndarray, close: np.ndarray, window: int = 21) -> np.ndarray:
+        """Calculate Pivot Line Dot indicator - pivot point momentum."""
+        pldot = np.zeros_like(close)
+        
+        for i in range(window, len(close)):
+            # Calculate pivot point as (H + L + C) / 3
+            pivot = (high[i-1] + low[i-1] + close[i-1]) / 3
+            
+            # Calculate momentum relative to pivot
+            current_price = close[i]
+            pivot_momentum = (current_price - pivot) / pivot
+            
+            # Smooth over window
+            window_momentum = []
+            for j in range(max(0, i-window), i):
+                p = (high[j-1] + low[j-1] + close[j-1]) / 3 if j > 0 else pivot
+                m = (close[j] - p) / p if p != 0 else 0
+                window_momentum.append(m)
+            
+            pldot[i] = np.mean(window_momentum) if window_momentum else 0
+            
+        return pldot
+    
+    @staticmethod
+    def calculate_oneonedot(open_: np.ndarray, high: np.ndarray, low: np.ndarray, close: np.ndarray, window: int = 21) -> np.ndarray:
+        """Calculate One-One-Dot indicator - custom momentum oscillator."""
+        oneonedot = np.zeros_like(close)
+        
+        for i in range(window, len(close)):
+            # Calculate various momentum metrics
+            window_data = close[i-window:i+1]
+            
+            # Rate of change
+            roc = (close[i] - close[i-window]) / close[i-window] if close[i-window] != 0 else 0
+            
+            # Relative position within recent range
+            recent_high = np.max(high[i-window:i+1])
+            recent_low = np.min(low[i-window:i+1])
+            position = (close[i] - recent_low) / (recent_high - recent_low) if recent_high != recent_low else 0.5
+            
+            # Trend strength - ensure arrays have same length
+            if len(window_data) == window:
+                slope = np.polyfit(range(window), window_data, 1)[0]
+                trend_strength = slope / np.mean(window_data) if np.mean(window_data) != 0 else 0
+            else:
+                trend_strength = 0
+            
+            # Combine metrics
+            oneonedot[i] = (roc + (position - 0.5) * 2 + trend_strength) / 3
+            
+        return oneonedot
+
 @gin.configurable
 @dataclass
 class TrainingDataJobConfig:
@@ -46,6 +136,7 @@ class TrainingDataJobConfig:
     prediction_horizon: int = 5
     normalize_features: bool = True
     normalize_labels: bool = False
+    use_enhanced_features: bool = True  # Enable enhanced technical indicators
     
     # Feature and label configuration
     feature_configs: List[Dict[str, Any]] = gin.REQUIRED
@@ -175,7 +266,7 @@ class TrainingDataJobRunner:
         
         # Save training data files
         dataset_id = f"dataset_{self.config.job_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        data_files = self._save_training_data_files(features, labels, dataset_id)
+        data_files = self._save_training_data_files(features, labels, dataset_id, metadata)
         
         # Create training dataset record
         dataset_record = await self._create_dataset_record_simple(
@@ -251,45 +342,109 @@ class TrainingDataJobRunner:
         return df
     
     def _create_basic_training_data(self, data: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
-        """Create basic training data from market data."""
+        """Create training data from market data with optional enhanced features."""
         
-        # Create simple features: OHLCV + basic indicators
         features_list = []
         labels_list = []
+        feature_distributions = {}
+        
+        # Initialize technical indicators if enhanced features are enabled
+        indicators = TechnicalIndicators() if self.config.use_enhanced_features else None
         
         for symbol in self.config.symbols:
             symbol_data = data[data['symbol'] == symbol].copy()
-            if len(symbol_data) < self.config.sequence_length + self.config.prediction_horizon:
+            min_length = self.config.sequence_length + self.config.prediction_horizon
+            if self.config.use_enhanced_features:
+                min_length += 50  # Allow indicators to stabilize
+                
+            if len(symbol_data) < min_length:
                 continue
                 
             symbol_data = symbol_data.sort_index()
             
-            # Create features (OHLCV + simple indicators)
+            # Extract OHLCV data
             ohlcv_features = symbol_data[['open', 'high', 'low', 'close', 'volume']].values
+            open_ = symbol_data['open'].values
+            high = symbol_data['high'].values
+            low = symbol_data['low'].values
+            close = symbol_data['close'].values
+            volume = symbol_data['volume'].values
             
-            # Add simple technical indicators
-            close_prices = symbol_data['close'].values
-            returns = np.diff(close_prices, prepend=close_prices[0]) / close_prices
-            
-            # Simple moving average
-            sma_10 = np.convolve(close_prices, np.ones(10)/10, mode='same')
-            
-            # Combine features
-            symbol_features = np.column_stack([
-                ohlcv_features,
-                returns.reshape(-1, 1),
-                sma_10.reshape(-1, 1)
-            ])
+            if self.config.use_enhanced_features and indicators:
+                # Calculate enhanced technical indicators
+                etop = indicators.calculate_elliott_top(high, low, close, 21)
+                ebot = indicators.calculate_elliott_bottom(high, low, close, 21)
+                pldot = indicators.calculate_pivot_line_dot(high, low, close, 21)
+                oneonedot = indicators.calculate_oneonedot(open_, high, low, close, 21)
+                
+                # Store feature distributions for visualization
+                feature_distributions[symbol] = {
+                    'etop': etop.tolist(),
+                    'ebot': ebot.tolist(),
+                    'pldot': pldot.tolist(),
+                    'oneonedot': oneonedot.tolist(),
+                    'close': close.tolist(),
+                    'volume': volume.tolist()
+                }
+                
+                # Combine all features with enhanced indicators
+                symbol_features = np.column_stack([
+                    ohlcv_features,  # OHLCV
+                    etop.reshape(-1, 1),
+                    ebot.reshape(-1, 1),
+                    pldot.reshape(-1, 1),
+                    oneonedot.reshape(-1, 1)
+                ])
+                
+                feature_names = ['open', 'high', 'low', 'close', 'volume', 'etop', 'ebot', 'pldot', 'oneonedot']
+                feature_descriptions = {
+                    'open': 'Opening price',
+                    'high': 'High price', 
+                    'low': 'Low price',
+                    'close': 'Closing price',
+                    'volume': 'Trading volume',
+                    'etop': 'Envelope Top reversal indicator (21 periods)',
+                    'ebot': 'Envelope Bottom reversal indicator (21 periods)',
+                    'pldot': 'Pivot Line Dot momentum indicator (21 periods)',
+                    'oneonedot': 'One-One-Dot custom momentum oscillator (21 periods)'
+                }
+                
+                # Allow indicators to stabilize
+                start_idx = max(50, self.config.sequence_length)
+                
+            else:
+                # Basic features: OHLCV + simple indicators
+                returns = np.diff(close, prepend=close[0]) / close
+                sma_10 = np.convolve(close, np.ones(10)/10, mode='same')
+                
+                symbol_features = np.column_stack([
+                    ohlcv_features,
+                    returns.reshape(-1, 1),
+                    sma_10.reshape(-1, 1)
+                ])
+                
+                feature_names = ['open', 'high', 'low', 'close', 'volume', 'returns_1d', 'sma_10']
+                feature_descriptions = {
+                    'open': 'Opening price',
+                    'high': 'High price',
+                    'low': 'Low price', 
+                    'close': 'Closing price',
+                    'volume': 'Trading volume',
+                    'returns_1d': 'Daily returns',
+                    'sma_10': 'Simple moving average (10 periods)'
+                }
+                
+                start_idx = 0
             
             # Create sequences
-            for i in range(len(symbol_features) - self.config.sequence_length - self.config.prediction_horizon + 1):
+            for i in range(start_idx, len(symbol_features) - self.config.sequence_length - self.config.prediction_horizon + 1):
                 # Feature sequence
                 feature_seq = symbol_features[i:i + self.config.sequence_length]
                 features_list.append(feature_seq)
                 
-                # Label (future returns)
-                future_prices = close_prices[i + self.config.sequence_length:i + self.config.sequence_length + self.config.prediction_horizon]
-                current_price = close_prices[i + self.config.sequence_length - 1]
+                # Labels (future returns)
+                future_prices = close[i + self.config.sequence_length:i + self.config.sequence_length + self.config.prediction_horizon]
+                current_price = close[i + self.config.sequence_length - 1]
                 future_returns = (future_prices - current_price) / current_price
                 labels_list.append(future_returns)
         
@@ -297,15 +452,21 @@ class TrainingDataJobRunner:
         labels = np.array(labels_list, dtype=np.float32)
         
         metadata = {
-            'feature_names': ['open', 'high', 'low', 'close', 'volume', 'returns_1d', 'sma_10'],
+            'feature_names': feature_names,
+            'feature_descriptions': feature_descriptions,
             'label_names': [f'future_return_{i+1}d' for i in range(self.config.prediction_horizon)],
             'sequence_length': self.config.sequence_length,
-            'prediction_horizon': self.config.prediction_horizon
+            'prediction_horizon': self.config.prediction_horizon,
+            'enhanced_features': self.config.use_enhanced_features
         }
+        
+        # Add feature distributions if enhanced features are used
+        if self.config.use_enhanced_features and feature_distributions:
+            metadata['feature_distributions'] = feature_distributions
         
         return features, labels, metadata
     
-    def _save_training_data_files(self, features: np.ndarray, labels: np.ndarray, dataset_id: str) -> Dict[str, str]:
+    def _save_training_data_files(self, features: np.ndarray, labels: np.ndarray, dataset_id: str, metadata: Dict[str, Any] = None) -> Dict[str, str]:
         """Save training data to files."""
         
         features_file = self.output_dir / f"{dataset_id}_features.npy"
@@ -316,21 +477,36 @@ class TrainingDataJobRunner:
         np.save(features_file, features)
         np.save(labels_file, labels)
         
-        # Save metadata
-        metadata = {
+        # Save comprehensive metadata
+        file_metadata = {
             'dataset_id': dataset_id,
             'creation_timestamp': datetime.now().isoformat(),
-            'features_shape': features.shape,
-            'labels_shape': labels.shape,
+            'features_shape': list(features.shape),
+            'labels_shape': list(labels.shape),
             'symbols': self.config.symbols,
             'date_range': {
                 'start': self.config.start_date.isoformat(),
                 'end': self.config.end_date.isoformat()
-            }
+            },
+            'enhanced_features': self.config.use_enhanced_features
         }
         
+        # Add metadata from training data generation if available
+        if metadata:
+            file_metadata.update({
+                'feature_names': metadata.get('feature_names', []),
+                'feature_descriptions': metadata.get('feature_descriptions', {}),
+                'label_names': metadata.get('label_names', []),
+                'sequence_length': metadata.get('sequence_length', self.config.sequence_length),
+                'prediction_horizon': metadata.get('prediction_horizon', self.config.prediction_horizon)
+            })
+            
+            # Add feature distributions if available (for enhanced features)
+            if 'feature_distributions' in metadata:
+                file_metadata['feature_distributions'] = metadata['feature_distributions']
+        
         with open(metadata_file, 'w') as f:
-            json.dump(metadata, f, indent=2)
+            json.dump(file_metadata, f, indent=2)
         
         return {
             'features': str(features_file),
@@ -468,7 +644,8 @@ class TrainingDataJobRunner:
             await conn.close()
 
 def create_sample_job_config(symbols: List[str] = None, 
-                           days_back: int = 365) -> TrainingDataJobConfig:
+                           days_back: int = 365,
+                           use_enhanced_features: bool = False) -> TrainingDataJobConfig:
     """Create a sample training data job configuration."""
     
     if symbols is None:
@@ -497,15 +674,19 @@ def create_sample_job_config(symbols: List[str] = None,
         {"name": "high_low_future_5d", "label_type": "future_high_low", "horizon": 5}
     ]
     
+    # Adjust sequence length for enhanced features (21 bars for technical indicators)
+    sequence_length = 21 if use_enhanced_features else 60
+    
     return TrainingDataJobConfig(
         job_name=f"training_data_gen_{'-'.join(symbols)}",
         symbols=symbols,
         start_date=start_date,
         end_date=end_date,
-        sequence_length=60,
+        sequence_length=sequence_length,
         prediction_horizon=5,
         normalize_features=True,
         normalize_labels=False,
+        use_enhanced_features=use_enhanced_features,
         feature_configs=feature_configs,
         label_configs=label_configs,
         output_dir="training_data_output",
@@ -515,10 +696,25 @@ def create_sample_job_config(symbols: List[str] = None,
     )
 
 async def run_training_data_job_for_symbol(symbol: str, 
-                                         output_dir: Optional[str] = None) -> Dict[str, Any]:
+                                         output_dir: Optional[str] = None,
+                                         use_enhanced_features: bool = False) -> Dict[str, Any]:
     """Convenience function to run training data generation for a single symbol."""
     
-    config = create_sample_job_config(symbols=[symbol])
+    config = create_sample_job_config(symbols=[symbol], use_enhanced_features=use_enhanced_features)
+    runner = TrainingDataJobRunner(config=config, output_dir=output_dir)
+    
+    return await runner.run_training_data_generation()
+
+async def run_enhanced_training_data_job_for_symbol(symbol: str, 
+                                                  output_dir: str = "training_data_output",
+                                                  days_back: int = 365) -> Dict[str, Any]:
+    """Generate enhanced training data with technical indicators for a single symbol."""
+    
+    config = create_sample_job_config(
+        symbols=[symbol], 
+        days_back=days_back,
+        use_enhanced_features=True
+    )
     runner = TrainingDataJobRunner(config=config, output_dir=output_dir)
     
     return await runner.run_training_data_generation()
@@ -528,19 +724,37 @@ if __name__ == "__main__":
     async def main():
         logging.basicConfig(level=logging.INFO)
         
-        # Generate training data for AAPL
-        results = await run_training_data_job_for_symbol('AAPL')
+        # Generate basic training data for AAPL
+        print("=== Generating Basic Training Data ===")
+        basic_results = await run_training_data_job_for_symbol('AAPL')
         
-        print("Training Data Generation Results:")
-        print(f"Status: {results['status']}")
-        print(f"Run ID: {results['run_id']}")
-        print(f"Dataset IDs: {results['dataset_ids']}")
+        print("Basic Training Data Generation Results:")
+        print(f"Status: {basic_results['status']}")
+        print(f"Run ID: {basic_results['run_id']}")
+        print(f"Dataset IDs: {basic_results['dataset_ids']}")
         
-        if results['status'] == 'success':
-            training_results = results['results']['training_results']
+        if basic_results['status'] == 'success':
+            training_results = basic_results['results']['training_results']
             print(f"Features shape: {training_results['features_shape']}")
             print(f"Labels shape: {training_results['labels_shape']}")
             print(f"Feature names: {training_results['feature_names']}")
             print(f"Label names: {training_results['label_names']}")
+        
+        print("\n=== Generating Enhanced Training Data ===")
+        # Generate enhanced training data with technical indicators
+        enhanced_results = await run_enhanced_training_data_job_for_symbol('AAPL', days_back=180)
+        
+        print("Enhanced Training Data Generation Results:")
+        print(f"Status: {enhanced_results['status']}")
+        print(f"Run ID: {enhanced_results['run_id']}")
+        print(f"Dataset IDs: {enhanced_results['dataset_ids']}")
+        
+        if enhanced_results['status'] == 'success':
+            training_results = enhanced_results['results']['training_results']
+            print(f"Features shape: {training_results['features_shape']}")
+            print(f"Labels shape: {training_results['labels_shape']}")
+            print(f"Feature names: {training_results['feature_names']}")
+            print(f"Label names: {training_results['label_names']}")
+            print("Enhanced features include: etop, ebot, pldot, oneonedot technical indicators")
     
     asyncio.run(main())
