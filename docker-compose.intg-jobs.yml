@@ -145,6 +145,13 @@ services:
     
     networks:
       - ats-intg-network
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
 networks:
   ats-intg-network:

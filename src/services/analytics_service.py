@@ -238,6 +238,11 @@ class JobManager:
             
             with get_raw_connection() as conn:
                 with conn.cursor() as cursor:
+                    # Get table prefix based on environment
+                    import os
+                    environment = os.getenv('ENVIRONMENT', 'dev')
+                    table_prefix = f"{environment}_%"
+                    
                     # Get actual table information from database
                     cursor.execute("""
                         SELECT 
@@ -245,9 +250,9 @@ class JobManager:
                             pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
                         FROM pg_tables 
                         WHERE schemaname = 'public' 
-                        AND tablename LIKE 'dev_%'
+                        AND tablename LIKE %s
                         ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
-                    """)
+                    """, (table_prefix,))
                     
                     tables = cursor.fetchall()
                     datasets = []
@@ -778,15 +783,15 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
         logger.info(f"📍 GET request: {self.path}")
         if self.path == '/health':
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             response = {"status": "healthy", "service": "ats-analytics", "timestamp": datetime.now().isoformat()}
-            self.wfile.write(json.dumps(response).encode())
+            self.wfile.write(json.dumps(response).encode('utf-8'))
             
         elif self.path == '/' or self.path == '/dashboard':
             self.send_response(200)
-            self.send_header('Content-type', 'text/html')
+            self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             html = """
             <!DOCTYPE html>
@@ -932,11 +937,11 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             </body>
             </html>
             """
-            self.wfile.write(html.encode())
+            self.wfile.write(html.encode('utf-8'))
             
         elif self.path == '/api/summary':
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             summary = {
@@ -954,11 +959,11 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 "status": "operational",
                 "timestamp": datetime.now().isoformat()
             }
-            self.wfile.write(json.dumps(summary, indent=2).encode())
+            self.wfile.write(json.dumps(summary, indent=2).encode('utf-8'))
             
         elif self.path == '/api/vendors':
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             vendors = {
@@ -988,41 +993,41 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 "total_records": 7953657,
                 "timestamp": datetime.now().isoformat()
             }
-            self.wfile.write(json.dumps(vendors, indent=2).encode())
+            self.wfile.write(json.dumps(vendors, indent=2).encode('utf-8'))
         
         elif self.path == '/api/jobs/stats':
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
             # Need to run async function in sync context
             try:
                 stats = job_manager.get_job_stats()
-                self.wfile.write(json.dumps(stats, indent=2).encode())
+                self.wfile.write(json.dumps(stats, indent=2).encode('utf-8'))
             except Exception as e:
                 logger.error(f"Error getting job stats: {e}")
                 error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode())
+                self.wfile.write(json.dumps(error_response).encode('utf-8'))
         
         elif self.path == '/api/jobs/recent':
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
             try:
                 jobs = job_manager.get_recent_jobs(15)
                 response = {"jobs": jobs, "total": len(jobs), "timestamp": datetime.now().isoformat()}
-                self.wfile.write(json.dumps(response, indent=2).encode())
+                self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
             except Exception as e:
                 logger.error(f"Error getting recent jobs: {e}")
                 error_response = {"jobs": [], "total": 0, "error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode())
+                self.wfile.write(json.dumps(error_response).encode('utf-8'))
         
         elif self.path == '/api/collections/status':
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
@@ -1032,30 +1037,32 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
                 status = loop.run_until_complete(job_manager.get_collection_status())
-                self.wfile.write(json.dumps(status, indent=2).encode())
+                self.wfile.write(json.dumps(status, indent=2).encode('utf-8'))
             except Exception as e:
                 logger.error(f"Error getting collection status: {e}")
                 error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode())
+                self.wfile.write(json.dumps(error_response).encode('utf-8'))
         
         elif self.path == '/api/eda/datasets':
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
-            self.send_header('Cache-Control', 'public, max-age=3600')  # 1 hour browser cache
+            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')  # Disable browser cache
+            self.send_header('Pragma', 'no-cache')
+            self.send_header('Expires', '0')
             self.end_headers()
             
             try:
                 datasets = get_cached_datasets(job_manager)
-                self.wfile.write(json.dumps(datasets, indent=2).encode())
+                self.wfile.write(json.dumps(datasets, indent=2).encode('utf-8'))
             except Exception as e:
                 logger.error(f"Error getting datasets: {e}")
                 error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode())
+                self.wfile.write(json.dumps(error_response).encode('utf-8'))
         
         elif self.path.startswith('/api/eda/datasets/') and self.path.endswith('/schema'):
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
@@ -1065,16 +1072,16 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 dataset_name = parts[4]  # /api/eda/datasets/{name}/schema
                 
                 schema = job_manager.get_dataset_schema(dataset_name)
-                self.wfile.write(json.dumps(schema, indent=2).encode())
+                self.wfile.write(json.dumps(schema, indent=2).encode('utf-8'))
             except Exception as e:
                 logger.error(f"Error getting schema: {e}")
                 error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode())
+                self.wfile.write(json.dumps(error_response).encode('utf-8'))
         
         elif self.path.startswith('/api/eda/datasets/') and '/columns/' in self.path and '/values' in self.path:
             # GET /api/eda/datasets/{table_name}/columns/{column_name}/values
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
@@ -1107,18 +1114,18 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 else:
                     column_values = job_manager.get_column_values(table_name, column_name, limit)
                 
-                self.wfile.write(json.dumps(column_values, indent=2).encode())
+                self.wfile.write(json.dumps(column_values, indent=2).encode('utf-8'))
             except Exception as e:
                 logger.error(f"Error getting column values: {e}")
                 error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode())
+                self.wfile.write(json.dumps(error_response).encode('utf-8'))
         
         elif self.path.startswith('/api/eda/datasets/') and '/precompute' in self.path:
             # GET /api/eda/datasets/{table_name}/precompute - Trigger pre-computation
             # GET /api/eda/datasets/{table_name}/precompute/status - Check status
             logger.info(f"🚀 Pre-compute endpoint accessed: {self.path}")
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
@@ -1140,11 +1147,11 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             'precomputed_tables': []
                         }
                         
-                        self.wfile.write(json.dumps(status_response, indent=2).encode())
+                        self.wfile.write(json.dumps(status_response, indent=2).encode('utf-8'))
                         
                     except Exception as e:
                         error_response = {'error': f'Status check failed: {str(e)}'}
-                        self.wfile.write(json.dumps(error_response).encode())
+                        self.wfile.write(json.dumps(error_response).encode('utf-8'))
                 else:
                     # Trigger pre-computation (synchronous fallback)
                     try:
@@ -1159,23 +1166,23 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             'columns_computed': 'placeholder'
                         }
                         logger.info(f"📋 Pre-computation requested for {table_name}")
-                        self.wfile.write(json.dumps(result, indent=2).encode())
+                        self.wfile.write(json.dumps(result, indent=2).encode('utf-8'))
                             
                     except Exception as e:
                         logger.error(f"Pre-computation failed for {table_name}: {e}")
                         error_response = {'error': f'Pre-computation failed: {str(e)}'}
-                        self.wfile.write(json.dumps(error_response).encode())
+                        self.wfile.write(json.dumps(error_response).encode('utf-8'))
                 
             except Exception as e:
                 logger.error(f"Error in pre-compute endpoint: {e}")
                 error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode())
+                self.wfile.write(json.dumps(error_response).encode('utf-8'))
 
         elif self.path.startswith('/api/eda/datasets/') and '/timeseries/' in self.path:
             # GET /api/eda/datasets/{table_name}/timeseries/{y_column}/{x_column}
             logger.info(f"🎯 Timeseries endpoint accessed: {self.path}")
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
@@ -1193,32 +1200,32 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 
                 # Get time-series data
                 timeseries_data = job_manager.get_timeseries_data(table_name, y_column, x_column)
-                self.wfile.write(json.dumps(timeseries_data, indent=2).encode())
+                self.wfile.write(json.dumps(timeseries_data, indent=2).encode('utf-8'))
                 
             except Exception as e:
                 logger.error(f"Error getting time-series data: {e}")
                 error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode())
+                self.wfile.write(json.dumps(error_response).encode('utf-8'))
         
         elif self.path == '/eda':
             # EDA Dashboard page
             self.send_response(200)
-            self.send_header('Content-type', 'text/html')
+            self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             eda_html = self.get_eda_dashboard_html()
-            self.wfile.write(eda_html.encode())
+            self.wfile.write(eda_html.encode('utf-8'))
             
         else:
             self.send_response(404)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-type', 'application/json; charset=utf-8')
             self.end_headers()
             error = {"error": "Not found", "path": self.path}
-            self.wfile.write(json.dumps(error).encode())
+            self.wfile.write(json.dumps(error).encode('utf-8'))
 
     def do_POST(self):
         if self.path == '/api/eda/analyze':
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
@@ -1234,7 +1241,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 
                 if not dataset_name or not column:
                     error_response = {"error": "Missing dataset_name or column"}
-                    self.wfile.write(json.dumps(error_response).encode())
+                    self.wfile.write(json.dumps(error_response).encode('utf-8'))
                     return
                 
                 # Use Ray EDA for massive dataset analysis if available
@@ -1251,17 +1258,17 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 else:
                     analysis = job_manager.analyze_column_distribution(dataset_name, column, filters)
                 
-                self.wfile.write(json.dumps(analysis, indent=2).encode())
+                self.wfile.write(json.dumps(analysis, indent=2).encode('utf-8'))
                 
             except Exception as e:
                 logger.error(f"Error analyzing distribution: {e}")
                 error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode())
+                self.wfile.write(json.dumps(error_response).encode('utf-8'))
         
         elif self.path.startswith('/api/eda/datasets/') and self.path.endswith('/data'):
             # POST /api/eda/datasets/{table_name}/data
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
@@ -1280,19 +1287,19 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 page_size = data.get('page_size', 50)
                 
                 filtered_data = job_manager.get_filtered_data(table_name, filters, page, page_size)
-                self.wfile.write(json.dumps(filtered_data, indent=2).encode())
+                self.wfile.write(json.dumps(filtered_data, indent=2).encode('utf-8'))
                 
             except Exception as e:
                 logger.error(f"Error getting filtered data: {e}")
                 error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode())
+                self.wfile.write(json.dumps(error_response).encode('utf-8'))
         
         else:
             self.send_response(404)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-type', 'application/json; charset=utf-8')
             self.end_headers()
             error = {"error": "Not found", "path": self.path}
-            self.wfile.write(json.dumps(error).encode())
+            self.wfile.write(json.dumps(error).encode('utf-8'))
 
     def get_eda_dashboard_html(self):
         """Generate the EDA dashboard HTML."""
