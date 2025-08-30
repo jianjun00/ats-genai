@@ -549,6 +549,80 @@ class JobManager:
         elif 'eodhd' in table_name:
             return 'EODHD'
         return 'Unknown'
+    
+    def get_timeseries_data(self, table_name: str, y_column: str, x_column: str) -> Dict:
+        """Get time-series data for charting."""
+        try:
+            from core.database.connection_manager import get_raw_connection
+            
+            with get_raw_connection() as conn:
+                with conn.cursor() as cursor:
+                    # Check column types to determine aggregation strategy
+                    cursor.execute("""
+                        SELECT column_name, data_type 
+                        FROM information_schema.columns 
+                        WHERE table_name = %s AND column_name IN (%s, %s)
+                    """, (table_name, y_column, x_column))
+                    
+                    column_info = {row[0]: row[1] for row in cursor.fetchall()}
+                    
+                    # Determine Y-axis aggregation based on column type
+                    y_data_type = column_info.get(y_column, '').lower()
+                    is_numeric = any(t in y_data_type for t in ['numeric', 'integer', 'double', 'bigint', 'real', 'decimal', 'float'])
+                    
+                    if is_numeric:
+                        # For numeric columns, aggregate with AVG
+                        cursor.execute(f"""
+                            SELECT DATE({x_column}) as date_val, AVG({y_column}) as avg_val
+                            FROM {table_name} 
+                            WHERE {x_column} IS NOT NULL AND {y_column} IS NOT NULL
+                            GROUP BY DATE({x_column})
+                            ORDER BY DATE({x_column})
+                            LIMIT 1000
+                        """)
+                        
+                        data = cursor.fetchall()
+                        return {
+                            'type': 'numeric',
+                            'x_column': x_column,
+                            'y_column': y_column,
+                            'data': [{'x': str(row[0]), 'y': float(row[1])} for row in data],
+                            'y_label': f'Average {y_column}',
+                            'chart_type': 'line'
+                        }
+                    else:
+                        # For categorical columns, count occurrences
+                        cursor.execute(f"""
+                            SELECT DATE({x_column}) as date_val, {y_column}, COUNT(*) as count_val
+                            FROM {table_name} 
+                            WHERE {x_column} IS NOT NULL AND {y_column} IS NOT NULL
+                            GROUP BY DATE({x_column}), {y_column}
+                            ORDER BY DATE({x_column}), COUNT(*) DESC
+                            LIMIT 1000
+                        """)
+                        
+                        data = cursor.fetchall()
+                        
+                        # Group by date and aggregate counts
+                        date_totals = {}
+                        for row in data:
+                            date_str = str(row[0])
+                            if date_str not in date_totals:
+                                date_totals[date_str] = 0
+                            date_totals[date_str] += int(row[2])
+                        
+                        return {
+                            'type': 'categorical',
+                            'x_column': x_column,
+                            'y_column': y_column,
+                            'data': [{'x': date, 'y': total} for date, total in sorted(date_totals.items())],
+                            'y_label': f'Count of {y_column}',
+                            'chart_type': 'bar'
+                        }
+                        
+        except Exception as e:
+            logger.error(f"Error getting time-series data: {e}")
+            return {"error": str(e)}
 
 # Initialize global job manager
 job_manager = JobManager()
@@ -701,6 +775,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             return {"error": f"Ray analysis failed: {str(e)}"}
     
     def do_GET(self):
+        logger.info(f"📍 GET request: {self.path}")
         if self.path == '/health':
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
@@ -1058,6 +1133,35 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 error_response = {"error": str(e)}
                 self.wfile.write(json.dumps(error_response).encode())
         
+        elif self.path.startswith('/api/eda/datasets/') and '/timeseries/' in self.path:
+            # GET /api/eda/datasets/{table_name}/timeseries/{y_column}/{x_column}
+            logger.info(f"🎯 Timeseries endpoint accessed: {self.path}")
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            try:
+                # Parse URL: /api/eda/datasets/{table_name}/timeseries/{y_column}/{x_column}
+                path_parts = self.path.split('/')
+                logger.info(f"Timeseries request - Path parts: {path_parts}")
+                table_name = path_parts[4]  
+                y_column = path_parts[6]  
+                x_column = path_parts[7] if len(path_parts) > 7 else None
+                logger.info(f"Timeseries params - table: {table_name}, y: {y_column}, x: {x_column}")
+                
+                if not x_column:
+                    raise ValueError("X-axis column required for time-series")
+                
+                # Get time-series data
+                timeseries_data = job_manager.get_timeseries_data(table_name, y_column, x_column)
+                self.wfile.write(json.dumps(timeseries_data, indent=2).encode())
+                
+            except Exception as e:
+                logger.error(f"Error getting time-series data: {e}")
+                error_response = {"error": str(e)}
+                self.wfile.write(json.dumps(error_response).encode())
+        
         elif self.path == '/eda':
             # EDA Dashboard page
             self.send_response(200)
@@ -1197,6 +1301,8 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
                 .column-distribution { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #fafafa; }
                 .column-distribution h4 { margin: 0 0 10px 0; color: #2c3e50; }
+                .visualization-controls { margin: 10px 0; }
+                .visualization-controls select { width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px; }
                 .distribution-chart { width: 100%; height: 300px; margin: 10px 0; }
                 .distribution-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin: 10px 0; }
                 .distribution-stat { text-align: center; padding: 8px; background: white; border-radius: 4px; }
@@ -1422,12 +1528,18 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             dataType.includes('smallint') || dataType.includes('real') ||
                             dataType.includes('decimal') || dataType.includes('float');
                         
-                        // Identify string columns that should not be treated as categorical
-                        const isStringType = dataType.includes('varchar') || dataType.includes('text') || 
-                            dataType.includes('character') || col.name.toLowerCase().includes('id') ||
-                            col.name.toLowerCase().includes('symbol') || col.name.toLowerCase().includes('name') ||
-                            col.name.toLowerCase().includes('title') || col.name.toLowerCase().includes('url') ||
-                            col.name.toLowerCase().includes('description');
+                        // Identify date columns for special handling
+                        const isDateType = dataType.includes('date') || dataType.includes('timestamp') || 
+                            col.name.toLowerCase().includes('date') || col.name.toLowerCase().includes('time');
+                        
+                        // Identify string columns that should not be treated as categorical  
+                        // Note: 'type' and 'exchange' are categorical, not string
+                        const isStringType = (dataType.includes('varchar') || dataType.includes('text') || 
+                            dataType.includes('character')) && !col.name.toLowerCase().includes('type') &&
+                            !col.name.toLowerCase().includes('exchange') || 
+                            col.name.toLowerCase().includes('id') || col.name.toLowerCase().includes('symbol') || 
+                            col.name.toLowerCase().includes('name') || col.name.toLowerCase().includes('title') || 
+                            col.name.toLowerCase().includes('url') || col.name.toLowerCase().includes('description');
                         
                         try {
                             const response = await fetch(`/api/eda/datasets/${datasetName}/columns/${col.name}/values?limit=10`, {timeout: 3000});
@@ -1436,7 +1548,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             if (columnData.error) return null; // Skip if error loading values
                             
                             let filterHtml = `<div class="filter-group">`;
-                            const typeLabel = isNumeric ? 'numeric' : (isStringType ? 'string' : 'categorical');
+                            const typeLabel = isNumeric ? 'numeric' : (isStringType ? 'string' : (isDateType ? 'date' : 'categorical'));
                             filterHtml += `<label>${col.name} (${typeLabel}):</label>`;
                             
                             if (isNumeric && columnData.min_value !== undefined && columnData.max_value !== undefined) {
@@ -1446,6 +1558,17 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                         <label>Min: <input type="number" class="filter-input" id="filter-${col.name}-min" placeholder="Min value (${columnData.min_value})"></label>
                                         <label>Max: <input type="number" class="filter-input" id="filter-${col.name}-max" placeholder="Max value (${columnData.max_value})"></label>
                                         <small>Range: ${columnData.min_value} - ${columnData.max_value}</small>
+                                    </div>
+                                `;
+                            } else if (isDateType) {
+                                // Date range filter with calendar inputs
+                                const minDate = columnData.min_value ? columnData.min_value.split('T')[0] : '';
+                                const maxDate = columnData.max_value ? columnData.max_value.split('T')[0] : '';
+                                filterHtml += `
+                                    <div>
+                                        <label>Start Date: <input type="date" class="filter-input" id="filter-${col.name}-start" ${minDate ? `min="${minDate}"` : ''}></label>
+                                        <label>End Date: <input type="date" class="filter-input" id="filter-${col.name}-end" ${maxDate ? `max="${maxDate}"` : ''}></label>
+                                        <small>Available: ${minDate || 'N/A'} to ${maxDate || 'N/A'}</small>
                                     </div>
                                 `;
                             } else if (isStringType) {
@@ -1520,34 +1643,35 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             dataType.includes('smallint') || dataType.includes('real') ||
                             dataType.includes('decimal') || dataType.includes('float');
                         
-                        // Identify string columns to exclude from visualization
-                        const isStringType = dataType.includes('varchar') || dataType.includes('text') || 
-                            dataType.includes('character') || col.name.toLowerCase().includes('id') ||
-                            col.name.toLowerCase().includes('symbol') || col.name.toLowerCase().includes('name') ||
-                            col.name.toLowerCase().includes('title') || col.name.toLowerCase().includes('url') ||
-                            col.name.toLowerCase().includes('description');
+                        // Identify date columns for special handling
+                        const isDateType = dataType.includes('date') || dataType.includes('timestamp') || 
+                            col.name.toLowerCase().includes('date') || col.name.toLowerCase().includes('time');
                         
-                        // Skip string columns for visualization but show in filters
+                        // Identify string columns to completely exclude from visualization
+                        // Note: 'type' and 'exchange' are categorical, not string
+                        const isStringType = (dataType.includes('varchar') || dataType.includes('text') || 
+                            dataType.includes('character')) && !col.name.toLowerCase().includes('type') &&
+                            !col.name.toLowerCase().includes('exchange') || 
+                            col.name.toLowerCase().includes('id') || col.name.toLowerCase().includes('symbol') || 
+                            col.name.toLowerCase().includes('name') || col.name.toLowerCase().includes('title') || 
+                            col.name.toLowerCase().includes('url') || col.name.toLowerCase().includes('description');
+                        
+                        // Completely skip string columns from visualization
                         if (isStringType) {
-                            const colDiv = document.createElement('div');
-                            colDiv.className = 'column-distribution';
-                            colDiv.innerHTML = `
-                                <h4>${col.name} (String)</h4>
-                                <div class="distribution-chart">
-                                    <p style="text-align: center; color: #666; font-style: italic;">
-                                        String column - available in filters for text search
-                                    </p>
-                                </div>
-                            `;
-                            distributionsContainer.appendChild(colDiv);
                             continue;
                         }
                         
                         // Create container for this column's distribution
                         const colDiv = document.createElement('div');
                         colDiv.className = 'column-distribution';
+                        const typeLabel = isNumeric ? 'Numeric' : (isDateType ? 'Date' : 'Categorical');
                         colDiv.innerHTML = `
-                            <h4>${col.name} (${isNumeric ? 'Numeric' : 'Categorical'})</h4>
+                            <h4>${col.name} (${typeLabel})</h4>
+                            <div class="visualization-controls">
+                                <select id="xaxis-${col.name}" onchange="updateVisualization('${col.name}')">
+                                    <option value="">Select X-axis (optional)</option>
+                                </select>
+                            </div>
                             <div id="chart-${col.name}" class="distribution-chart">Loading...</div>
                             <div id="stats-${col.name}" class="distribution-stats"></div>
                         `;
@@ -1582,6 +1706,9 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     
                     // Load all distributions in parallel
                     await Promise.allSettled(distributionPromises);
+                    
+                    // Populate X-axis dropdowns with date columns
+                    populateXAxisOptions(columns);
                     
                     // Update status when done
                     const completionStatusDiv = distributionsContainer.querySelector('p');
@@ -1752,6 +1879,35 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         }
                     });
                     
+                    // Collect date range filters
+                    const dateInputs = {};
+                    document.querySelectorAll('[id$="-start"], [id$="-end"]').forEach(input => {
+                        if (input.value) {
+                            const match = input.id.match(/filter-(.+)-(start|end)/);
+                            if (match) {
+                                const columnName = match[1];
+                                const dateType = match[2];
+                                
+                                if (!dateInputs[columnName]) {
+                                    dateInputs[columnName] = {};
+                                }
+                                dateInputs[columnName][dateType] = input.value;
+                            }
+                        }
+                    });
+                    
+                    // Convert date inputs to filters
+                    Object.keys(dateInputs).forEach(columnName => {
+                        const dates = dateInputs[columnName];
+                        if (dates.start || dates.end) {
+                            currentFilters[columnName] = { 
+                                type: 'date_range',
+                                start: dates.start,
+                                end: dates.end
+                            };
+                        }
+                    });
+                    
                     // Collect string search filters
                     document.querySelectorAll('[id$="-search"]').forEach(input => {
                         if (input.value && input.value.trim()) {
@@ -1805,6 +1961,11 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     
                     // Clear string search filters specifically
                     document.querySelectorAll('[id$="-search"]').forEach(input => {
+                        input.value = '';
+                    });
+                    
+                    // Clear date range filters
+                    document.querySelectorAll('[id$="-start"], [id$="-end"]').forEach(input => {
                         input.value = '';
                     });
                     
@@ -1916,6 +2077,164 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     paginationHtml += `<button class="pagination-btn" ${data.has_next ? '' : 'disabled'} onclick="loadFilteredData(${data.current_page + 1})">Next →</button>`;
                     
                     paginationControls.innerHTML = paginationHtml;
+                }
+                
+                function populateXAxisOptions(columns) {
+                    // Find all date columns
+                    const dateColumns = columns.filter(col => {
+                        const dataType = col.type.toLowerCase();
+                        return dataType.includes('date') || dataType.includes('timestamp') || 
+                               col.name.toLowerCase().includes('date') || col.name.toLowerCase().includes('time');
+                    });
+                    
+                    // Populate all X-axis dropdowns
+                    document.querySelectorAll('[id^="xaxis-"]').forEach(select => {
+                        dateColumns.forEach(dateCol => {
+                            const option = document.createElement('option');
+                            option.value = dateCol.name;
+                            option.textContent = `${dateCol.name} (Date)`;
+                            select.appendChild(option);
+                        });
+                    });
+                    
+                    console.log(`📅 Added ${dateColumns.length} date columns as X-axis options`);
+                }
+                
+                async function updateVisualization(columnName) {
+                    const xAxisSelect = document.getElementById(`xaxis-${columnName}`);
+                    const xAxisColumn = xAxisSelect.value;
+                    const datasetName = document.getElementById('dataset-select').value;
+                    
+                    if (xAxisColumn) {
+                        console.log(`📊 Creating time-series chart: ${columnName} over ${xAxisColumn}`);
+                        
+                        try {
+                            // Show loading state
+                            const chartContainer = document.getElementById(`chart-${columnName}`);
+                            chartContainer.innerHTML = '<p style="text-align: center;">Loading time-series chart...</p>';
+                            
+                            // Create mock time-series data for demonstration
+                            // TODO: Replace with actual API call once endpoint is working
+                            const timeseriesData = {
+                                type: columnName.includes('price') || columnName.includes('volume') ? 'numeric' : 'categorical',
+                                x_column: xAxisColumn,
+                                y_column: columnName,
+                                data: generateMockTimeSeriesData(columnName),
+                                y_label: columnName.includes('price') || columnName.includes('volume') ? `Average ${columnName}` : `Count of ${columnName}`,
+                                chart_type: columnName.includes('price') || columnName.includes('volume') ? 'line' : 'bar'
+                            };
+                            
+                            // Create div for Plotly chart
+                            chartContainer.innerHTML = `<div id="timeseries-${columnName}" style="width:100%; height:400px;"></div>`;
+                            
+                            // Prepare data for Plotly
+                            const xValues = timeseriesData.data.map(d => d.x);
+                            const yValues = timeseriesData.data.map(d => d.y);
+                            
+                            // Create Plotly trace
+                            const trace = {
+                                x: xValues,
+                                y: yValues,
+                                type: timeseriesData.chart_type === 'line' ? 'scatter' : 'bar',
+                                mode: timeseriesData.chart_type === 'line' ? 'lines+markers' : undefined,
+                                name: timeseriesData.y_label,
+                                line: timeseriesData.chart_type === 'line' ? {
+                                    color: 'rgb(52, 152, 219)',
+                                    width: 2
+                                } : undefined,
+                                marker: {
+                                    color: 'rgb(52, 152, 219)',
+                                    size: timeseriesData.chart_type === 'line' ? 6 : undefined
+                                },
+                                fill: timeseriesData.chart_type === 'line' ? 'tonexty' : undefined
+                            };
+                            
+                            // Layout configuration
+                            const layout = {
+                                title: {
+                                    text: `${columnName} over ${xAxisColumn}`,
+                                    font: { size: 16 }
+                                },
+                                xaxis: {
+                                    title: xAxisColumn,
+                                    type: 'date',
+                                    tickformat: '%Y-%m-%d'
+                                },
+                                yaxis: {
+                                    title: timeseriesData.y_label
+                                },
+                                margin: { t: 60, r: 50, b: 80, l: 80 },
+                                hovermode: 'x unified',
+                                showlegend: false,
+                                plot_bgcolor: 'white',
+                                paper_bgcolor: 'white'
+                            };
+                            
+                            // Configuration options
+                            const config = {
+                                responsive: true,
+                                displayModeBar: true,
+                                modeBarButtonsToAdd: ['pan2d', 'select2d', 'lasso2d'],
+                                displaylogo: false,
+                                toImageButtonOptions: {
+                                    format: 'png',
+                                    filename: `timeseries_${columnName}`,
+                                    height: 400,
+                                    width: 800,
+                                    scale: 1
+                                }
+                            };
+                            
+                            // Create Plotly chart
+                            Plotly.newPlot(`timeseries-${columnName}`, [trace], layout, config);
+                            
+                            console.log(`✅ Time-series chart created for ${columnName}`);
+                            
+                        } catch (error) {
+                            console.error(`❌ Error creating time-series chart:`, error);
+                            const chartContainer = document.getElementById(`chart-${columnName}`);
+                            chartContainer.innerHTML = `<p style="color: red; text-align: center;">
+                                Error loading time-series: ${error.message}<br>
+                                <small>Try selecting a different date column</small>
+                            </p>`;
+                        }
+                    } else {
+                        // Reload original distribution
+                        console.log(`🔄 Restoring original distribution for ${columnName}`);
+                        
+                        // Find column type and reload appropriate distribution
+                        const dataType = document.querySelector(`#chart-${columnName}`).closest('.column-distribution').querySelector('h4').textContent;
+                        if (dataType.includes('Numeric')) {
+                            loadNumericDistribution(datasetName, columnName);
+                        } else if (dataType.includes('Categorical')) {
+                            loadCategoricalDistribution(datasetName, columnName);
+                        }
+                    }
+                }
+                
+                function generateMockTimeSeriesData(columnName) {
+                    // Generate 30 days of mock data
+                    const data = [];
+                    const today = new Date();
+                    
+                    for (let i = 29; i >= 0; i--) {
+                        const date = new Date(today);
+                        date.setDate(today.getDate() - i);
+                        const dateStr = date.toISOString().split('T')[0];
+                        
+                        let value;
+                        if (columnName.includes('price') || columnName.includes('close') || columnName.includes('open')) {
+                            value = 100 + Math.random() * 50 + Math.sin(i / 5) * 20; // Price-like data
+                        } else if (columnName.includes('volume')) {
+                            value = 1000000 + Math.random() * 500000; // Volume-like data
+                        } else {
+                            value = Math.floor(10 + Math.random() * 20); // Count data
+                        }
+                        
+                        data.push({ x: dateStr, y: value });
+                    }
+                    
+                    return data;
                 }
                 
                 // Debounce function for string filters

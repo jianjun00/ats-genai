@@ -87,19 +87,30 @@ The ATS EDA Tool is a comprehensive data exploration and visualization platform 
 - **FR-1.4**: Dataset cataloging with searchable metadata
 - **FR-1.5**: Version tracking for dataset changes
 
-### 2. **Data Visualization**
-- **FR-2.1**: Column distribution histograms and box plots
-- **FR-2.2**: Correlation heatmaps and scatter plots
-- **FR-2.3**: Time series line charts with zoom and pan
+### 2. **Data Visualization - Enhanced Type-Aware System**
+- **FR-2.1**: **Intelligent Column Type Handling**:
+  - **Numeric**: Histogram distributions with statistical summaries (mean, std, min, max)
+  - **Categorical**: Bar charts with value counts (excluding `type`, `exchange` - now properly categorical)
+  - **Date**: Time-series ready with calendar-based filtering
+  - **String**: Completely excluded from visualizations (id, symbol, name, title, url, description)
+- **FR-2.2**: **Advanced Time-Series Visualization**:
+  - **X-Axis Selection**: Dropdown with all available date columns for time-based analysis
+  - **Y-Axis Logic**: Numeric values for numeric columns, count aggregation for categorical columns
+  - **Interactive Controls**: Real-time visualization updates based on date column selection
+- **FR-2.3**: **Enhanced Filter Integration**:
+  - **Date Range Pickers**: Calendar inputs with min/max validation for date columns
+  - **Categorical Refinement**: Proper handling of `type` and `exchange` as categorical (not string)
+  - **String Search Exclusion**: String columns available only in filters, not visualizations
 - **FR-2.4**: Financial-specific visualizations (OHLC candlestick charts)
-- **FR-2.5**: Missing data pattern visualizations
+- **FR-2.5**: Missing data pattern visualizations  
 - **FR-2.6**: Outlier detection scatter plots
 
 ### 3. **Data Filtering and Query - Enhanced Type-Aware System**
 - **FR-3.1**: **Type-Specific Filter Controls**:
   - **Numeric**: Range sliders with min/max inputs for precise filtering
-  - **Categorical**: Checkbox selection with value counts for discrete choices
-  - **String**: Real-time text search with partial matching (debounced 500ms)
+  - **Categorical**: Checkbox selection with value counts (`type`, `exchange` now properly categorical)
+  - **Date**: Calendar-based date range pickers with min/max validation and available range display
+  - **String**: Real-time text search with partial matching (debounced 500ms) for identifiers only
 - **FR-3.2**: **String Search Capabilities**: ILIKE-based partial matching for string columns (id, symbol, name, title, url, description)
 - **FR-3.3**: **Intelligent Column Classification**: Automatic detection of string vs categorical vs numeric types
 - **FR-3.4**: Interactive filters for date ranges, symbols, vendors
