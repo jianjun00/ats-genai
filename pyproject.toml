@@ -66,4 +66,5 @@ dependencies = [
 dev-dependencies = [
   "pytest",
   "pytest-asyncio",
+  "pytest-cov>=6.2.1",
 ]

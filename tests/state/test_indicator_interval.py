@@ -1,115 +1,124 @@
 import pytest
 from datetime import datetime
 from state.indicator_interval import IndicatorInterval
-from db.test_db_manager import unit_test_db_clean
 
 
-def test_indicator_interval_init():
-    """Test IndicatorInterval initialization."""
-    start_time = datetime(2023, 1, 1, 9, 30)
-    end_time = datetime(2023, 1, 1, 10, 30)
+class TestIndicatorInterval:
+    """Test cases for IndicatorInterval class."""
     
-    interval = IndicatorInterval(
-        instrument_id=1,
-        start_date_time=start_time,
-        end_date_time=end_time
-    )
+    def create_sample_indicator_interval(self, instrument_id=1, start_time=None, end_time=None):
+        """Create a sample IndicatorInterval for testing."""
+        if start_time is None:
+            start_time = datetime(2023, 1, 1, 9, 30, 0)
+        if end_time is None:
+            end_time = datetime(2023, 1, 1, 9, 35, 0)
+        
+        return IndicatorInterval(
+            instrument_id=instrument_id,
+            start_date_time=start_time,
+            end_date_time=end_time
+        )
     
-    assert interval.instrument_id == 1
-    assert interval.start_date_time == start_time
-    assert interval.end_date_time == end_time
-    assert interval.indicators == {}
-
-
-def test_add_indicator():
-    """Test adding indicators to interval."""
-    interval = IndicatorInterval(
-        instrument_id=1,
-        start_date_time=datetime(2023, 1, 1, 9, 30),
-        end_date_time=datetime(2023, 1, 1, 10, 30)
-    )
+    def test_init_basic(self):
+        """Test basic initialization of IndicatorInterval."""
+        start_time = datetime(2023, 1, 1, 9, 30, 0)
+        end_time = datetime(2023, 1, 1, 9, 35, 0)
+        
+        interval = IndicatorInterval(
+            instrument_id=1,
+            start_date_time=start_time,
+            end_date_time=end_time
+        )
+        
+        assert interval.instrument_id == 1
+        assert interval.start_date_time == start_time
+        assert interval.end_date_time == end_time
+        assert interval.indicators == {}
     
-    update_time = datetime(2023, 1, 1, 10, 35)
+    def test_add_indicator(self):
+        """Test adding indicators to the interval."""
+        interval = self.create_sample_indicator_interval()
+        update_time = datetime(2023, 1, 1, 9, 32, 0)
+        
+        interval.add_indicator('RSI', 65.5, 'ok', update_time)
+        
+        assert interval.has_indicator('RSI')
+        assert interval.get_indicator_value('RSI') == 65.5
+        assert interval.get_indicator_status('RSI') == 'ok'
+        assert interval.indicators['RSI']['update_at'] == update_time
     
-    # Add valid indicator
-    interval.add_indicator('PL', 105.5, 'ok', update_time)
-    assert interval.has_indicator('PL')
-    assert interval.get_indicator_value('PL') == 105.5
-    assert interval.get_indicator_status('PL') == 'ok'
+    def test_add_indicator_without_update_time(self):
+        """Test adding indicator without specifying update_at uses current time."""
+        interval = self.create_sample_indicator_interval()
+        
+        before_add = datetime.now()
+        interval.add_indicator('MACD', -1.2, 'ok')
+        after_add = datetime.now()
+        
+        assert interval.has_indicator('MACD')
+        assert interval.get_indicator_value('MACD') == -1.2
+        assert interval.get_indicator_status('MACD') == 'ok'
+        
+        update_time = interval.indicators['MACD']['update_at']
+        assert before_add <= update_time <= after_add
     
-    # Add invalid indicator
-    interval.add_indicator('OneOneLow', None, 'invalid', update_time)
-    assert interval.has_indicator('OneOneLow')
-    assert interval.get_indicator_value('OneOneLow') is None
-    assert interval.get_indicator_status('OneOneLow') == 'invalid'
-
-
-def test_indicator_queries():
-    """Test querying indicator information."""
-    interval = IndicatorInterval(
-        instrument_id=1,
-        start_date_time=datetime(2023, 1, 1, 9, 30),
-        end_date_time=datetime(2023, 1, 1, 10, 30)
-    )
+    def test_get_indicator_value_missing(self):
+        """Test getting value of non-existent indicator returns None."""
+        interval = self.create_sample_indicator_interval()
+        
+        assert interval.get_indicator_value('NonExistent') is None
     
-    # Add multiple indicators
-    interval.add_indicator('PL', 105.5, 'ok')
-    interval.add_indicator('OneOneLow', None, 'invalid')
-    interval.add_indicator('OneOneHigh', 108.2, 'ok')
+    def test_has_indicator(self):
+        """Test has_indicator method."""
+        interval = self.create_sample_indicator_interval()
+        
+        assert not interval.has_indicator('RSI')
+        
+        interval.add_indicator('RSI', 65.5, 'ok')
+        
+        assert interval.has_indicator('RSI')
+        assert not interval.has_indicator('MACD')
     
-    # Test has_indicator
-    assert interval.has_indicator('PL')
-    assert interval.has_indicator('OneOneLow')
-    assert interval.has_indicator('OneOneHigh')
-    assert not interval.has_indicator('NonExistent')
+    def test_get_indicator_names(self):
+        """Test getting list of all indicator names."""
+        interval = self.create_sample_indicator_interval()
+        
+        assert interval.get_indicator_names() == []
+        
+        interval.add_indicator('RSI', 65.5, 'ok')
+        interval.add_indicator('MACD', -1.2, 'ok')
+        interval.add_indicator('SMA', 150.0, 'ok')
+        
+        names = interval.get_indicator_names()
+        assert set(names) == {'RSI', 'MACD', 'SMA'}
+        assert len(names) == 3
     
-    # Test get_indicator_names
-    names = interval.get_indicator_names()
-    assert len(names) == 3
-    assert 'PL' in names
-    assert 'OneOneLow' in names
-    assert 'OneOneHigh' in names
+    def test_is_indicator_valid(self):
+        """Test checking if indicator is valid (status == 'ok')."""
+        interval = self.create_sample_indicator_interval()
+        
+        # Non-existent indicator should return False
+        assert not interval.is_indicator_valid('NonExistent')
+        
+        # Add valid indicator
+        interval.add_indicator('RSI', 65.5, 'ok')
+        assert interval.is_indicator_valid('RSI')
+        
+        # Add invalid indicator
+        interval.add_indicator('BrokenIndicator', None, 'invalid')
+        assert not interval.is_indicator_valid('BrokenIndicator')
     
-    # Test is_indicator_valid
-    assert interval.is_indicator_valid('PL')
-    assert not interval.is_indicator_valid('OneOneLow')
-    assert interval.is_indicator_valid('OneOneHigh')
-    assert not interval.is_indicator_valid('NonExistent')
-
-
-def test_get_nonexistent_indicator():
-    """Test querying non-existent indicators."""
-    interval = IndicatorInterval(
-        instrument_id=1,
-        start_date_time=datetime(2023, 1, 1, 9, 30),
-        end_date_time=datetime(2023, 1, 1, 10, 30)
-    )
-    
-    assert interval.get_indicator_value('NonExistent') is None
-    assert interval.get_indicator_status('NonExistent') is None
-    assert not interval.has_indicator('NonExistent')
-    assert not interval.is_indicator_valid('NonExistent')
-
-
-def test_indicator_update_time():
-    """Test indicator update time handling."""
-    interval = IndicatorInterval(
-        instrument_id=1,
-        start_date_time=datetime(2023, 1, 1, 9, 30),
-        end_date_time=datetime(2023, 1, 1, 10, 30)
-    )
-    
-    # Add indicator without explicit update time (should use current time)
-    interval.add_indicator('PL', 105.5, 'ok')
-    
-    # Check that update_at was set
-    indicator_data = interval.indicators['PL']
-    assert 'update_at' in indicator_data
-    assert indicator_data['update_at'] is not None
-    
-    # Add indicator with explicit update time
-    explicit_time = datetime(2023, 1, 1, 10, 35)
-    interval.add_indicator('OneOneLow', 102.3, 'ok', explicit_time)
-    
-    indicator_data = interval.indicators['OneOneLow']
-    assert indicator_data['update_at'] == explicit_time
+    def test_overwrite_indicator(self):
+        """Test overwriting an existing indicator."""
+        interval = self.create_sample_indicator_interval()
+        
+        # Add initial indicator
+        interval.add_indicator('RSI', 65.5, 'ok')
+        assert interval.get_indicator_value('RSI') == 65.5
+        assert interval.get_indicator_status('RSI') == 'ok'
+        
+        # Overwrite with new values
+        interval.add_indicator('RSI', 72.3, 'unreliable')
+        assert interval.get_indicator_value('RSI') == 72.3
+        assert interval.get_indicator_status('RSI') == 'unreliable'
+        assert not interval.is_indicator_valid('RSI')
