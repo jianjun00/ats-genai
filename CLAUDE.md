@@ -259,20 +259,28 @@ python scripts/run_dev.py logs --service analytics
 
 **Auto-detection:** run_dev and run_intg automatically detect available connections
 
-**🚨 CRITICAL: Docker Container Database Connection Fix (2025-08-28)**
+**🚨 CRITICAL: Docker Container Database Connection Fix (2025-08-30)**
 
-**Issue:** Scripts running inside Docker containers were failing with database connection errors when trying to connect to port 5433.
+**Issue:** Scripts running inside Docker containers were failing with Docker networking errors: "container not attached to default bridge network".
 
-**Root Cause:** Docker containers should use internal service names and ports, not host-mapped ports:
-- ❌ **Wrong**: `host='localhost', port=5433` (tries to connect outside container)
-- ✅ **Correct**: `host='postgres', port=5432` (connects to Docker service internally)
+**Root Cause:** Docker containers were using deprecated `--link` instead of proper custom network connectivity:
+- ❌ **Wrong**: `--link ats-dev-postgres:postgres` (deprecated, requires same network)
+- ✅ **Correct**: `--network ats-network` (modern Docker networking)
 
-**Solution Applied to All Vendor Backfill Scripts:**
+**Database Connection Pattern for Container Scripts:**
+- ❌ **Wrong**: `host='localhost', port=5432` (tries to connect outside container)
+- ✅ **Correct**: `host='ats-dev-postgres', port=5432` (connects to container via name)
+
+**Solution Applied:**
+1. **Fixed `run_dev.py`**: Updated to use `--network ats-network` instead of deprecated `--link`
+2. **Container Scripts**: Use `host='ats-dev-postgres'` for database connections
+3. **Result**: Docker job containers now properly connect to PostgreSQL on same network
+
 ```python
-# Correct Docker-compatible database connection
+# Correct Docker-compatible database connection for scripts
 conn = await asyncpg.connect(
-    host='postgres',  # Docker service name
-    port=5432,        # Internal Docker port  
+    host='ats-dev-postgres',  # PostgreSQL container name on ats-network
+    port=5432,                # Internal Docker port  
     user='postgres',
     password='dev_password',
     database='dev_db'

@@ -570,6 +570,28 @@ SELECT add_compression_policy('dev_minute_prices', interval '2 days');
 
 ### **Common Issues & Solutions**
 
+#### **🚨 CRITICAL: Docker Networking Issues (FIXED 2025-08-30)**
+```bash
+# Symptom: "container not attached to default bridge network" when running jobs
+# Error: docker: Error response from daemon: container d1420b0d4c95... not attached to default bridge network
+
+# ✅ ROOT CAUSE IDENTIFIED AND FIXED:
+# - run_dev.py was using deprecated --link instead of --network
+# - Job containers couldn't communicate with PostgreSQL on different networks
+# - Fixed by updating run_dev.py line 193:
+#   OLD: network_link = "--link ats-dev-postgres:postgres"
+#   NEW: network_link = "--network ats-network"
+
+# Verify the fix is working:
+python3 scripts/run_dev.py run --script any_script.py   # Should work now
+docker network ls                                       # Show available networks
+docker network inspect ats-network                     # Show containers on ats-network
+
+# If you see networking errors, check these:
+docker ps | grep ats-dev-postgres                      # Ensure postgres is running
+docker network inspect ats-network --format "{{.Containers}}"  # Show network members
+```
+
 #### **Database Connection Issues**
 ```bash
 # Symptom: Applications can't connect to database
@@ -703,6 +725,11 @@ python3 scripts/validate_schema.py --check-all
 
 echo "🚨 ATS PLATFORM INCIDENT RESPONSE INITIATED"
 
+# 0. Check for Docker networking issues (CRITICAL FIX APPLIED 2025-08-30)
+echo "Checking Docker networking (common cause of job failures)..."
+docker network inspect ats-network --format "{{.Containers}}" | grep -q "ats-dev-postgres" || echo "❌ PostgreSQL not on ats-network - networking issue detected"
+python3 scripts/run_dev.py run --script /workspace/scripts/test_simple.py 2>&1 | grep -q "not attached to default bridge network" && echo "❌ Docker networking issue detected - check run_dev.py --network configuration"
+
 # 1. Assess overall system impact
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 free -h && df -h /mnt/d/
@@ -791,6 +818,9 @@ docker ps | grep -E "(ats-dev|intg)"    # Verify containers running
 python3 scripts/run_dev.py status       # Check ATS-DEV health
 python3 scripts/run_intg.py status      # Check ATS-INTG health
 
+# Critical: Verify Docker networking is working (FIXED 2025-08-30)
+docker network inspect ats-network --format "{{.Containers}}" | grep -q "ats-dev-postgres" && echo "✅ Docker networking OK" || echo "❌ Docker networking issue"
+
 # Weekly maintenance
 ./scripts/manage_backups.sh cleanup     # Clean old backups
 docker system prune -f                  # Clean unused containers/images
@@ -800,6 +830,21 @@ du -sh /mnt/d/ats-*                     # Check storage usage
 docker stats --no-stream | head -10     # Container resource usage
 tail -50 /mnt/d/ats-logs/backup-*.log   # Recent backup activity
 ```
+
+---
+
+---
+
+## 🎯 **CRITICAL OPERATIONAL FIX (2025-08-30)**
+
+**✅ RESOLVED: Docker Networking Issue**
+- **Issue**: Job containers failing with "not attached to default bridge network"
+- **Impact**: All script execution via `run_dev.py` was broken
+- **Root Cause**: Deprecated `--link` instead of modern `--network` configuration
+- **Fix**: Updated `run_dev.py` to use `--network ats-network`
+- **Result**: All Docker job execution now works seamlessly
+
+**Critical Lesson**: Modern Docker requires custom bridge networks, not deprecated `--link` patterns. This fix ensures all future development operations execute without networking barriers.
 
 ---
 
