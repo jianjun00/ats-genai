@@ -242,15 +242,15 @@ class OneOneDot(Indicator):
 
 
 @gin.configurable
-class EBot(Indicator):
+class EnvelopeBot(Indicator):
     """
-    EBOT indicator: Bottom level calculated using exact linear regression formula.
-    Formula: ebot ≈ -0.1111*high_sum + 0.2222*(low_sum + close_sum) for past 3 days
+    Envelope Bottom indicator: Bottom level calculated using exact linear regression formula.
+    Formula: envelope_bot ≈ -0.1111*high_sum + 0.2222*(low_sum + close_sum) for past 3 days
     R² = 1.0000000000, Average Error = 0.001397
     """
     def __init__(self):
         super().__init__()
-        self.latest_ebot: Optional[float] = None
+        self.latest_envelope_bot: Optional[float] = None
         
         # Exact coefficients from linear regression
         self.coefficients = [
@@ -268,7 +268,7 @@ class EBot(Indicator):
         if len(intervals) < 3:
             logging.debug('[EBOT] Not enough intervals: need 3, got %d', len(intervals))
             self.status = 'invalid'
-            self.latest_ebot = None
+            self.latest_envelope_bot = None
             return
             
         last_three = intervals[-3:]
@@ -278,7 +278,7 @@ class EBot(Indicator):
             if interval.status != 'ok':
                 logging.debug('[EBOT] Invalid interval status at position %d: %s', i, interval.status)
                 self.status = 'invalid'
-                self.latest_ebot = None
+                self.latest_envelope_bot = None
                 return
                 
             for field in ['open', 'high', 'low', 'close']:
@@ -286,7 +286,7 @@ class EBot(Indicator):
                 if val is None or (isinstance(val, float) and math.isnan(val)):
                     logging.debug('[EBOT] Invalid %s at position %d: %s', field, i, val)
                     self.status = 'invalid'
-                    self.latest_ebot = None
+                    self.latest_envelope_bot = None
                     return
         
         # Build feature vector
@@ -296,28 +296,28 @@ class EBot(Indicator):
         
         # Calculate EBOT using exact linear formula
         try:
-            self.latest_ebot = sum(coef * feat for coef, feat in zip(self.coefficients, features))
+            self.latest_envelope_bot = sum(coef * feat for coef, feat in zip(self.coefficients, features))
             self.status = 'ok'
-            logging.debug('[EBOT] Calculated EBOT: %.6f', self.latest_ebot)
+            logging.debug('[EBOT] Calculated Envelope Bot: %.6f', self.latest_envelope_bot)
         except Exception as e:
             logging.error('[EBOT] Error calculating EBOT: %s', str(e))
             self.status = 'invalid'
-            self.latest_ebot = None
+            self.latest_envelope_bot = None
 
     def get_value(self) -> Optional[float]:
-        return self.latest_ebot
+        return self.latest_envelope_bot
 
 
 @gin.configurable
-class ETop(Indicator):
+class EnvelopeTop(Indicator):
     """
-    ETOP indicator: Top level calculated using exact linear regression formula.
-    Formula: etop ≈ 0.2222*(high_sum + close_sum) - 0.1111*low_sum for past 3 days
+    Envelope Top indicator: Top level calculated using exact linear regression formula.
+    Formula: envelope_top ≈ 0.2222*(high_sum + close_sum) - 0.1111*low_sum for past 3 days
     R² = 0.9999999994, Average Error = 0.003366
     """
     def __init__(self):
         super().__init__()
-        self.latest_etop: Optional[float] = None
+        self.latest_envelope_top: Optional[float] = None
         
         # Exact coefficients from linear regression
         self.coefficients = [
@@ -335,7 +335,7 @@ class ETop(Indicator):
         if len(intervals) < 3:
             logging.debug('[ETOP] Not enough intervals: need 3, got %d', len(intervals))
             self.status = 'invalid'
-            self.latest_etop = None
+            self.latest_envelope_top = None
             return
             
         last_three = intervals[-3:]
@@ -345,7 +345,7 @@ class ETop(Indicator):
             if interval.status != 'ok':
                 logging.debug('[ETOP] Invalid interval status at position %d: %s', i, interval.status)
                 self.status = 'invalid'
-                self.latest_etop = None
+                self.latest_envelope_top = None
                 return
                 
             for field in ['open', 'high', 'low', 'close']:
@@ -353,7 +353,7 @@ class ETop(Indicator):
                 if val is None or (isinstance(val, float) and math.isnan(val)):
                     logging.debug('[ETOP] Invalid %s at position %d: %s', field, i, val)
                     self.status = 'invalid'
-                    self.latest_etop = None
+                    self.latest_envelope_top = None
                     return
         
         # Build feature vector
@@ -363,16 +363,16 @@ class ETop(Indicator):
         
         # Calculate ETOP using exact linear formula
         try:
-            self.latest_etop = sum(coef * feat for coef, feat in zip(self.coefficients, features))
+            self.latest_envelope_top = sum(coef * feat for coef, feat in zip(self.coefficients, features))
             self.status = 'ok'
-            logging.debug('[ETOP] Calculated ETOP: %.6f', self.latest_etop)
+            logging.debug('[ETOP] Calculated Envelope Top: %.6f', self.latest_envelope_top)
         except Exception as e:
             logging.error('[ETOP] Error calculating ETOP: %s', str(e))
             self.status = 'invalid'
-            self.latest_etop = None
+            self.latest_envelope_top = None
 
     def get_value(self) -> Optional[float]:
-        return self.latest_etop
+        return self.latest_envelope_top
 
 
 @gin.configurable  

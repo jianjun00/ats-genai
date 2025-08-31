@@ -957,7 +957,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         metadata_path = dataset_info.get('metadata_file_path')
                         
                         # Load feature and label names from metadata
-                        feature_names = ['open', 'high', 'low', 'close', 'volume', 'etop', 'ebot', 'pldot', 'oneonedot']  # Default
+                        feature_names = ['open', 'high', 'low', 'close', 'volume', 'envelope_top', 'envelope_bot', 'pldot', 'oneonedot']  # Default
                         label_names = ['label_0', 'label_1', 'label_2', 'label_3', 'label_4']  # Default
                         
                         if metadata_path:

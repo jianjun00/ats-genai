@@ -1,5 +1,5 @@
 import pytest
-from signals.indicator import PL, OneOneHigh, Z1B, Z2B, Z5T, Z6T
+from signals.indicator import PL, OneOneHigh, Z1B, Z2B, Z5T, Z6T, EnvelopeTop, EnvelopeBot
 from state.instrument_interval import InstrumentInterval
 from datetime import datetime, timedelta
 import math
@@ -850,3 +850,90 @@ def test_z_series_performance():
     elapsed = end_time - start_time
     # Should complete 4000 updates (1000 * 4 indicators) in reasonable time
     assert elapsed < 1.0, f"Performance test took too long: {elapsed:.3f} seconds"
+
+def test_envelope_top_not_normalized():
+    """Test that EnvelopeTop returns actual price levels, not normalized values between 0-1"""
+    base = datetime(2023, 1, 1)
+    # Use realistic stock price data (around $100)
+    intervals = [
+        InstrumentInterval(1, base, base, 98.5, 101.2, 97.8, 100.1, 100, 1000, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 99.8, 102.5, 99.1, 101.8, 120, 1200, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 101.2, 103.8, 100.5, 102.9, 130, 1300, 'ok'),
+    ]
+    
+    envelope_top = EnvelopeTop()
+    envelope_top.update(intervals)
+    
+    assert envelope_top.status == 'ok'
+    value = envelope_top.get_value()
+    
+    # Envelope Top should return actual price level, not normalized value
+    # With prices around $100-103, envelope_top should be in similar price range
+    assert value is not None, "EnvelopeTop should return a value"
+    assert value > 50.0, f"EnvelopeTop should return price level > 50, got {value}"
+    assert value < 200.0, f"EnvelopeTop should return price level < 200, got {value}"
+    
+    # Most importantly: should NOT be between 0 and 1 (normalized)
+    assert not (0.0 <= value <= 1.0), f"EnvelopeTop should NOT be normalized between 0-1, got {value}"
+
+def test_envelope_bot_not_normalized():
+    """Test that EnvelopeBot returns actual price levels, not normalized values between 0-1"""
+    base = datetime(2023, 1, 1)
+    # Use realistic stock price data (around $100)
+    intervals = [
+        InstrumentInterval(1, base, base, 98.5, 101.2, 97.8, 100.1, 100, 1000, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 99.8, 102.5, 99.1, 101.8, 120, 1200, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 101.2, 103.8, 100.5, 102.9, 130, 1300, 'ok'),
+    ]
+    
+    envelope_bot = EnvelopeBot()
+    envelope_bot.update(intervals)
+    
+    assert envelope_bot.status == 'ok'
+    value = envelope_bot.get_value()
+    
+    # Envelope Bot should return actual price level, not normalized value
+    # With prices around $100-103, envelope_bot should be in similar price range
+    assert value is not None, "EnvelopeBot should return a value"
+    assert value > 50.0, f"EnvelopeBot should return price level > 50, got {value}"
+    assert value < 200.0, f"EnvelopeBot should return price level < 200, got {value}"
+    
+    # Most importantly: should NOT be between 0 and 1 (normalized)
+    assert not (0.0 <= value <= 1.0), f"EnvelopeBot should NOT be normalized between 0-1, got {value}"
+
+def test_price_level_indicators_not_normalized():
+    """Test that all price level indicators (envelope_top, envelope_bot, pldot, z-series) are NOT normalized"""
+    base = datetime(2023, 1, 1)
+    # Use realistic stock price data (around $150)
+    intervals = [
+        InstrumentInterval(1, base, base, 148.5, 151.2, 147.8, 150.1, 100, 1000, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 149.8, 152.5, 149.1, 151.8, 120, 1200, 'ok'),
+        InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 151.2, 153.8, 150.5, 152.9, 130, 1300, 'ok'),
+    ]
+    
+    # Test all price level indicators
+    indicators = [
+        ('EnvelopeTop', EnvelopeTop()),
+        ('EnvelopeBot', EnvelopeBot()),
+        ('Z1B', Z1B()),
+        ('Z2B', Z2B()),
+        ('Z5T', Z5T()),
+        ('Z6T', Z6T())
+    ]
+    
+    for name, indicator in indicators:
+        indicator.update(intervals)
+        assert indicator.status == 'ok', f"{name} should have valid status"
+        
+        value = indicator.get_value()
+        assert value is not None, f"{name} should return a value"
+        
+        # Price level indicators should return actual price levels, not normalized values
+        # With prices around $150, indicators should be in reasonable price range
+        assert abs(value) > 10.0, f"{name} should return significant price level, got {value}"
+        
+        # Most importantly: should NOT be normalized between 0 and 1
+        if value >= 0:
+            assert not (0.0 <= value <= 1.0), f"{name} should NOT be normalized between 0-1, got {value}"
+        else:
+            assert not (-1.0 <= value <= 0.0), f"{name} should NOT be normalized between -1 and 0, got {value}"

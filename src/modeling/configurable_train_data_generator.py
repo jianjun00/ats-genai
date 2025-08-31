@@ -318,8 +318,16 @@ class ConfigurableTrainingDataGenerator:
         
         df_scaled = df.copy()
         
+        # Price level indicators that should NOT be scaled (remain as actual price levels)
+        price_level_indicators = ['envelope_top', 'envelope_bot', 'etop', 'ebot', 'pldot', 'z1b', 'z2b', 'z5t', 'z6t']
+        
         for column in df.columns:
             if df[column].dtype in ['float64', 'float32', 'int64', 'int32']:
+                # Skip scaling for price level indicators
+                if column in price_level_indicators:
+                    print(f"[ConfigurableTrainingDataGenerator] Skipping scaling for price level indicator: {column}")
+                    continue
+                    
                 column_data = df[column].values.reshape(-1, 1)
                 valid_mask = ~np.isnan(column_data.flatten())
                 

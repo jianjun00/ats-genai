@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Type, Optional
-from .indicator import Indicator, PL, OneOneHigh, OneOneLow, OneOneDot, EBot, ETop
+from .indicator import Indicator, PL, OneOneHigh, OneOneLow, OneOneDot, EnvelopeBot, EnvelopeTop
 
 
 @dataclass
@@ -45,8 +45,8 @@ class IndicatorConfig:
         config.add_indicator('OneOneHigh', OneOneHigh)
         config.add_indicator('OneOneLow', OneOneLow)
         config.add_indicator('OneOneDot', OneOneDot)
-        config.add_indicator('EBot', EBot)
-        config.add_indicator('ETop', ETop)
+        config.add_indicator('EnvelopeBot', EnvelopeBot)
+        config.add_indicator('EnvelopeTop', EnvelopeTop)
         return config
     
     @classmethod

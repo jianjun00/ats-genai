@@ -372,15 +372,15 @@ class TrainingDataJobRunner:
             
             if self.config.use_enhanced_features and indicators:
                 # Calculate enhanced technical indicators
-                etop = indicators.calculate_elliott_top(high, low, close, 21)
-                ebot = indicators.calculate_elliott_bottom(high, low, close, 21)
+                envelope_top = indicators.calculate_elliott_top(high, low, close, 21)
+                envelope_bot = indicators.calculate_elliott_bottom(high, low, close, 21)
                 pldot = indicators.calculate_pivot_line_dot(high, low, close, 21)
                 oneonedot = indicators.calculate_oneonedot(open_, high, low, close, 21)
                 
                 # Store feature distributions for visualization
                 feature_distributions[symbol] = {
-                    'etop': etop.tolist(),
-                    'ebot': ebot.tolist(),
+                    'envelope_top': envelope_top.tolist(),
+                    'envelope_bot': envelope_bot.tolist(),
                     'pldot': pldot.tolist(),
                     'oneonedot': oneonedot.tolist(),
                     'close': close.tolist(),
@@ -390,21 +390,21 @@ class TrainingDataJobRunner:
                 # Combine all features with enhanced indicators
                 symbol_features = np.column_stack([
                     ohlcv_features,  # OHLCV
-                    etop.reshape(-1, 1),
-                    ebot.reshape(-1, 1),
+                    envelope_top.reshape(-1, 1),
+                    envelope_bot.reshape(-1, 1),
                     pldot.reshape(-1, 1),
                     oneonedot.reshape(-1, 1)
                 ])
                 
-                feature_names = ['open', 'high', 'low', 'close', 'volume', 'etop', 'ebot', 'pldot', 'oneonedot']
+                feature_names = ['open', 'high', 'low', 'close', 'volume', 'envelope_top', 'envelope_bot', 'pldot', 'oneonedot']
                 feature_descriptions = {
                     'open': 'Opening price',
                     'high': 'High price', 
                     'low': 'Low price',
                     'close': 'Closing price',
                     'volume': 'Trading volume',
-                    'etop': 'Envelope Top reversal indicator (21 periods)',
-                    'ebot': 'Envelope Bottom reversal indicator (21 periods)',
+                    'envelope_top': 'Envelope Top reversal indicator (21 periods)',
+                    'envelope_bot': 'Envelope Bottom reversal indicator (21 periods)',
                     'pldot': 'Pivot Line Dot momentum indicator (21 periods)',
                     'oneonedot': 'One-One-Dot custom momentum oscillator (21 periods)'
                 }
