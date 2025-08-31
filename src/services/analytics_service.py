@@ -784,10 +784,10 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
         try:
             from core.database.connection_manager import get_raw_connection
             
-            # Determine table name based on environment
+            # Determine table name based on environment (plural form)
             import os
             environment = os.getenv('ENVIRONMENT', 'dev')
-            table_name = f"{environment}_training_dataset"
+            table_name = f"{environment}_training_datasets"
             
             with get_raw_connection() as conn:
                 from psycopg2.extras import RealDictCursor
@@ -796,9 +796,9 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         SELECT id, dataset_name, total_sequences, feature_count, label_count,
                                data_quality_score, feature_completeness, label_completeness,
                                file_size_mb, technical_indicators, symbols, 
-                               date_range_start, date_range_end, creation_timestamp as created_at
+                               date_range_start, date_range_end, created_at
                         FROM {table_name} 
-                        ORDER BY creation_timestamp DESC 
+                        ORDER BY created_at DESC 
                         LIMIT 20
                     """)
                     
@@ -817,7 +817,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             'label_completeness': float(row['label_completeness']) if row['label_completeness'] else 0.0,
                             'file_size_mb': float(row['file_size_mb']) if row['file_size_mb'] else 0.0,
                             'technical_indicators': row['technical_indicators'] or "",
-                            'symbols': row['symbols'].split(',') if row['symbols'] else [],
+                            'symbols': list(row['symbols']) if row['symbols'] else [],
                             'date_range_start': row['date_range_start'].isoformat() if row['date_range_start'] else None,
                             'date_range_end': row['date_range_end'].isoformat() if row['date_range_end'] else None,
                             'created_at': row['created_at'].isoformat() if row['created_at'] else None
@@ -835,6 +835,81 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 'datasets': [],
                 'total_count': 0,
                 'error': str(e)
+            }
+    
+    def get_training_dataset_distributions(self, dataset_id):
+        """Get distributions and TFDV data for a specific training dataset"""
+        try:
+            from core.database.connection_manager import get_raw_connection
+            import json
+            
+            # Determine table name based on environment (plural form)
+            import os
+            environment = os.getenv('ENVIRONMENT', 'dev')
+            table_name = f"{environment}_training_datasets"
+            
+            with get_raw_connection() as conn:
+                from psycopg2.extras import RealDictCursor
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute(f"""
+                        SELECT data_quality_score, feature_completeness, label_completeness,
+                               tfdv_statistics, feature_distributions, label_distributions, 
+                               tfdv_anomalies, tfdv_histogram_path
+                        FROM {table_name} 
+                        WHERE id = %s
+                    """, (dataset_id,))
+                    
+                    result = cursor.fetchone()
+                    
+                    if not result:
+                        return {
+                            'error': f'Training dataset {dataset_id} not found',
+                            'data_quality_score': 0.0,
+                            'feature_completeness': 0.0,
+                            'label_completeness': 0.0,
+                            'feature_distributions': {},
+                            'label_distributions': {},
+                            'tfdv_statistics': {},
+                            'tfdv_anomalies': {}
+                        }
+                    
+                    # Parse JSON fields safely
+                    def safe_json_parse(field_value, default=None):
+                        if field_value is None:
+                            return default or {}
+                        if isinstance(field_value, (dict, list)):
+                            return field_value
+                        try:
+                            return json.loads(field_value) if field_value else (default or {})
+                        except (json.JSONDecodeError, TypeError):
+                            logger.warning(f"Failed to parse JSON field: {field_value}")
+                            return default or {}
+                    
+                    distributions = {
+                        'data_quality_score': float(result['data_quality_score']) if result['data_quality_score'] else 0.0,
+                        'feature_completeness': float(result['feature_completeness']) if result['feature_completeness'] else 0.0,
+                        'label_completeness': float(result['label_completeness']) if result['label_completeness'] else 0.0,
+                        'feature_distributions': safe_json_parse(result['feature_distributions']),
+                        'label_distributions': safe_json_parse(result['label_distributions']),
+                        'tfdv_statistics': safe_json_parse(result['tfdv_statistics']),
+                        'tfdv_anomalies': safe_json_parse(result['tfdv_anomalies']),
+                        'tfdv_histogram_path': result['tfdv_histogram_path'] or ""
+                    }
+                    
+                    logger.info(f"Retrieved distributions for dataset {dataset_id}: {len(distributions['feature_distributions'])} features, {len(distributions['label_distributions'])} labels")
+                    return distributions
+                    
+        except Exception as e:
+            logger.error(f"Error getting training dataset distributions for ID {dataset_id}: {e}")
+            return {
+                'error': f'Database error: {str(e)}',
+                'data_quality_score': 0.0,
+                'feature_completeness': 0.0,
+                'label_completeness': 0.0,
+                'feature_distributions': {},
+                'label_distributions': {},
+                'tfdv_statistics': {},
+                'tfdv_anomalies': {}
             }
     
     def do_GET(self):
@@ -897,6 +972,9 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         <h3>Analytics Tools</h3>
                         <a href="/eda" class="btn" style="background: #27ae60; margin-bottom: 10px; display: block; text-align: center;">🔍 Exploratory Data Analysis</a>
                         <p style="font-size: 0.9em; color: #666; margin-bottom: 15px;">Interactive histograms, cross-filtering, and dataset comparison</p>
+                        
+                        <a href="/training-eda" class="btn" style="background: #667eea; margin-bottom: 10px; display: block; text-align: center;">🤖 Training Dataset EDA</a>
+                        <p style="font-size: 0.9em; color: #666; margin-bottom: 15px;">Analyze ML training datasets with TFDV statistics and distributions</p>
                         
                         <h4>API Endpoints</h4>
                         <a href="/health" class="btn">Health Check</a>
@@ -1133,6 +1211,26 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 error_response = {"error": str(e)}
                 self.wfile.write(json.dumps(error_response).encode('utf-8'))
         
+        elif self.path.startswith('/api/v1/training-datasets/') and self.path.endswith('/distributions'):
+            # Training dataset distributions API endpoint: /api/v1/training-datasets/{id}/distributions
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            try:
+                # Extract dataset ID from path: /api/v1/training-datasets/{id}/distributions
+                path_parts = self.path.split('/')
+                dataset_id = path_parts[4]  # Get the ID part
+                
+                logger.info(f"Loading distributions for training dataset ID: {dataset_id}")
+                distributions = self.get_training_dataset_distributions(dataset_id)
+                self.wfile.write(json.dumps(distributions, indent=2).encode('utf-8'))
+            except Exception as e:
+                logger.error(f"Error getting training dataset distributions: {e}")
+                error_response = {"error": str(e), "dataset_id": dataset_id if 'dataset_id' in locals() else 'unknown'}
+                self.wfile.write(json.dumps(error_response).encode('utf-8'))
+        
         elif self.path.startswith('/api/eda/datasets/') and self.path.endswith('/schema'):
             self.send_response(200)
             self.send_header('Content-type', 'application/json; charset=utf-8')
@@ -1280,6 +1378,14 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 error_response = {"error": str(e)}
                 self.wfile.write(json.dumps(error_response).encode('utf-8'))
         
+        elif self.path == '/training-eda':
+            # Training Dataset EDA Dashboard - Separate from table EDA
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.end_headers()
+            training_eda_html = self.get_training_eda_dashboard_html()
+            self.wfile.write(training_eda_html.encode('utf-8'))
+            
         elif self.path == '/eda':
             # EDA Dashboard page
             self.send_response(200)
@@ -1642,6 +1748,14 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         });
                         
                         console.log(`Loaded ${trainingDatasets.length} training datasets`);
+                        
+                        // Force DOM refresh to ensure dropdown options are visible
+                        select.dispatchEvent(new Event('change'));
+                        select.style.display = 'none';
+                        select.offsetHeight; // Force reflow
+                        select.style.display = '';
+                        
+                        console.log(`DOM refresh applied to training dataset dropdown`);
                     } catch (error) {
                         console.error('Error loading training datasets:', error);
                         document.getElementById('training-analysis-content').innerHTML = 
@@ -2842,6 +2956,556 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             </script>
         </body>
         </html>
+        """
+
+    def get_training_eda_dashboard_html(self):
+        """Generate the Training Dataset EDA dashboard HTML."""
+        return """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Training Dataset EDA Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .main-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .dataset-selection {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border-left: 5px solid #667eea;
+        }
+        
+        .dataset-selection h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .controls label {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        select {
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            min-width: 300px;
+            transition: all 0.3s ease;
+        }
+        
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .dataset-info {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .stat-value {
+            font-size: 2.2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .analysis-content {
+            margin-top: 30px;
+        }
+        
+        .features-section, .distributions-section {
+            margin-top: 30px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .features-section h4, .distributions-section h4 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.4em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .feature-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-left: 4px solid #667eea;
+        }
+        
+        .feature-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .feature-stats {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-size: 1.1em;
+        }
+        
+        .error {
+            color: #e74c3c;
+            background: #fdf2f2;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #e74c3c;
+        }
+        
+        .success {
+            color: #27ae60;
+            background: #f0f8f4;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #27ae60;
+        }
+        
+        .nav-links {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            margin: 0 10px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .nav-links a:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Training Dataset EDA Dashboard</h1>
+            <p>Explore and analyze your machine learning training datasets</p>
+        </div>
+        
+        <div class="nav-links">
+            <a href="/eda">📊 Table EDA Dashboard</a>
+            <a href="/health">🏥 System Health</a>
+        </div>
+        
+        <div class="main-card">
+            <div class="dataset-selection">
+                <h3>📂 Select Training Dataset</h3>
+                <div class="controls">
+                    <label for="training-dataset-select">Choose Dataset:</label>
+                    <select id="training-dataset-select" onchange="loadTrainingDatasetAnalysis()">
+                        <option value="">Loading training datasets...</option>
+                    </select>
+                </div>
+                
+                <div id="dataset-info" class="dataset-info">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="total-sequences">0</div>
+                            <div class="stat-label">Total Sequences</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="feature-count">0</div>
+                            <div class="stat-label">Features</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="label-count">0</div>
+                            <div class="stat-label">Labels</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="quality-score">0.0</div>
+                            <div class="stat-label">Quality Score</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="file-size">0 MB</div>
+                            <div class="stat-label">File Size</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="date-range">-</div>
+                            <div class="stat-label">Date Range</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="analysis-content" class="analysis-content">
+                <div class="loading">
+                    👆 Select a training dataset above to view detailed analysis and visualizations
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let trainingDatasets = [];
+        let currentDataset = null;
+        
+        // Load training datasets on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Training Dataset EDA Dashboard loaded');
+            loadTrainingDatasets();
+        });
+        
+        async function loadTrainingDatasets() {
+            console.log('🔄 Loading training datasets...');
+            const select = document.getElementById('training-dataset-select');
+            
+            try {
+                const response = await fetch('/api/v1/training-datasets');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                trainingDatasets = data.datasets || [];
+                
+                console.log(`✅ Loaded ${trainingDatasets.length} training datasets:`, trainingDatasets);
+                
+                // Clear and populate select
+                select.innerHTML = '<option value="">Select a training dataset...</option>';
+                
+                if (trainingDatasets.length === 0) {
+                    select.innerHTML = '<option value="">No training datasets found</option>';
+                    return;
+                }
+                
+                trainingDatasets.forEach(dataset => {
+                    const option = document.createElement('option');
+                    option.value = dataset.id;
+                    option.textContent = `${dataset.dataset_name} (${dataset.total_sequences} sequences)`;
+                    select.appendChild(option);
+                    console.log(`➕ Added option: ${dataset.dataset_name} (ID: ${dataset.id})`);
+                });
+                
+                console.log(`✅ Successfully populated dropdown with ${trainingDatasets.length} datasets`);
+                console.log(`📋 Final dropdown state: ${select.options.length} total options`);
+                
+            } catch (error) {
+                console.error('❌ Error loading training datasets:', error);
+                select.innerHTML = '<option value="">Error loading datasets</option>';
+                
+                document.getElementById('analysis-content').innerHTML = `
+                    <div class="error">
+                        <h4>❌ Failed to Load Training Datasets</h4>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p>Please check that the analytics service is running and the database connection is working.</p>
+                        <p><strong>Debug info:</strong> Trying to load from /api/v1/training-datasets</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function loadTrainingDatasetAnalysis() {
+            const select = document.getElementById('training-dataset-select');
+            const datasetId = select.value;
+            const datasetInfo = document.getElementById('dataset-info');
+            const analysisContent = document.getElementById('analysis-content');
+            
+            console.log(`🔍 Selected dataset ID: ${datasetId}`);
+            
+            if (!datasetId) {
+                datasetInfo.style.display = 'none';
+                analysisContent.innerHTML = '<div class="loading">👆 Select a training dataset above to view detailed analysis and visualizations</div>';
+                return;
+            }
+            
+            currentDataset = trainingDatasets.find(d => d.id == datasetId);
+            if (!currentDataset) {
+                analysisContent.innerHTML = '<div class="error">Dataset not found</div>';
+                return;
+            }
+            
+            console.log('📊 Loading analysis for dataset:', currentDataset);
+            
+            // Update basic stats
+            document.getElementById('total-sequences').textContent = currentDataset.total_sequences.toLocaleString();
+            document.getElementById('feature-count').textContent = currentDataset.feature_count;
+            document.getElementById('label-count').textContent = currentDataset.label_count;
+            document.getElementById('quality-score').textContent = currentDataset.data_quality_score.toFixed(2);
+            document.getElementById('file-size').textContent = `${currentDataset.file_size_mb.toFixed(1)} MB`;
+            
+            const startDate = currentDataset.date_range_start ? new Date(currentDataset.date_range_start).getFullYear() : 'N/A';
+            const endDate = currentDataset.date_range_end ? new Date(currentDataset.date_range_end).getFullYear() : 'N/A';
+            document.getElementById('date-range').textContent = `${startDate} - ${endDate}`;
+            
+            datasetInfo.style.display = 'block';
+            
+            // Load detailed analysis
+            loadDatasetDistributions(datasetId);
+        }
+        
+        async function loadDatasetDistributions(datasetId) {
+            const analysisContent = document.getElementById('analysis-content');
+            
+            analysisContent.innerHTML = '<div class="loading">📊 Loading dataset distributions and TFDV analysis...</div>';
+            
+            try {
+                console.log('📈 Loading distributions for dataset ID:', datasetId);
+                const response = await fetch(`/api/v1/training-datasets/${datasetId}/distributions`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('📊 Received distributions data:', data);
+                
+                // Create analysis content
+                let html = `
+                    <div class="success">
+                        <h4>✅ Dataset Analysis Complete</h4>
+                        <p>Successfully loaded statistical distributions and data validation results.</p>
+                    </div>
+                `;
+                
+                // Feature distributions
+                if (data.feature_distributions && Object.keys(data.feature_distributions).length > 0) {
+                    html += `
+                        <div class="features-section">
+                            <h4>📊 Feature Distributions</h4>
+                            <div class="feature-list">
+                    `;
+                    
+                    Object.entries(data.feature_distributions).forEach(([featureName, stats]) => {
+                        html += `
+                            <div class="feature-item">
+                                <div class="feature-name">${featureName}</div>
+                                <div class="feature-stats">
+                                    ${typeof stats === 'object' ? Object.entries(stats).map(([k,v]) => `${k}: ${v}`).join(', ') : stats}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Label distributions
+                if (data.label_distributions && Object.keys(data.label_distributions).length > 0) {
+                    html += `
+                        <div class="features-section">
+                            <h4>🎯 Label Distributions</h4>
+                            <div class="feature-list">
+                    `;
+                    
+                    Object.entries(data.label_distributions).forEach(([labelName, stats]) => {
+                        html += `
+                            <div class="feature-item">
+                                <div class="feature-name">${labelName}</div>
+                                <div class="feature-stats">
+                                    ${typeof stats === 'object' ? Object.entries(stats).map(([k,v]) => `${k}: ${v}`).join(', ') : stats}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // TFDV Statistics
+                if (data.tfdv_statistics && Object.keys(data.tfdv_statistics).length > 0) {
+                    html += `
+                        <div class="distributions-section">
+                            <h4>🔍 TensorFlow Data Validation Statistics</h4>
+                            <div id="tfdv-charts"></div>
+                        </div>
+                    `;
+                }
+                
+                // TFDV Anomalies
+                if (data.tfdv_anomalies && Object.keys(data.tfdv_anomalies).length > 0) {
+                    html += `
+                        <div class="distributions-section">
+                            <h4>⚠️ Data Anomalies Detected</h4>
+                            <div class="error">
+                                <pre>${JSON.stringify(data.tfdv_anomalies, null, 2)}</pre>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                analysisContent.innerHTML = html;
+                
+                // Create TFDV visualizations if available
+                if (data.tfdv_statistics && Object.keys(data.tfdv_statistics).length > 0) {
+                    createTFDVCharts(data.tfdv_statistics);
+                }
+                
+            } catch (error) {
+                console.error('❌ Error loading distributions:', error);
+                analysisContent.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Failed to Load Dataset Analysis</h4>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p>This could be due to missing TFDV data or database connection issues.</p>
+                        <p><strong>Dataset ID:</strong> ${datasetId}</p>
+                        <p><strong>API Endpoint:</strong> /api/v1/training-datasets/${datasetId}/distributions</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function createTFDVCharts(tfdvStats) {
+            console.log('📈 Creating TFDV charts with data:', tfdvStats);
+            const container = document.getElementById('tfdv-charts');
+            
+            if (!container) {
+                console.error('❌ TFDV charts container not found');
+                return;
+            }
+            
+            let chartsHtml = '';
+            
+            Object.entries(tfdvStats).forEach(([fieldName, stats], index) => {
+                const chartId = `tfdv-chart-${index}`;
+                chartsHtml += `<div id="${chartId}" class="chart-container"></div>`;
+            });
+            
+            container.innerHTML = chartsHtml;
+            
+            // Create individual charts
+            Object.entries(tfdvStats).forEach(([fieldName, stats], index) => {
+                const chartId = `tfdv-chart-${index}`;
+                
+                // Create a simple bar chart for numeric stats
+                if (typeof stats === 'object' && stats.count) {
+                    const trace = {
+                        x: Object.keys(stats),
+                        y: Object.values(stats),
+                        type: 'bar',
+                        marker: { color: '#667eea' }
+                    };
+                    
+                    const layout = {
+                        title: `Distribution: ${fieldName}`,
+                        xaxis: { title: 'Property' },
+                        yaxis: { title: 'Value' }
+                    };
+                    
+                    Plotly.newPlot(chartId, [trace], layout, {responsive: true});
+                }
+            });
+        }
+    </script>
+</body>
+</html>
         """
 
 def initialize_job_manager():

@@ -10,6 +10,7 @@ import asyncpg
 from datetime import datetime, date
 import logging
 import json
+from config.environment import Environment
 
 logger = logging.getLogger(__name__)
 
@@ -46,23 +47,13 @@ class TrainingDatasetDistributions(BaseModel):
     tfdv_anomalies: Dict[str, Any] = {}
 
 async def get_db_connection():
-    """Get database connection"""
+    """Get database connection using environment configuration"""
     try:
-        return await asyncpg.connect(
-            host='ats-dev-postgres',
-            port=5432,
-            user='postgres',
-            password='dev_password',
-            database='dev_db'
-        )
-    except Exception:
-        return await asyncpg.connect(
-            host='localhost',
-            port=3432,
-            user='postgres',
-            password='dev_password',
-            database='dev_db'
-        )
+        env = Environment()
+        return await asyncpg.connect(env.get_database_url())
+    except Exception as e:
+        logger.error(f"Failed to connect to database: {e}")
+        raise
 
 @router.get("/", response_model=TrainingDatasetListResponse)
 async def list_training_datasets():
@@ -70,12 +61,15 @@ async def list_training_datasets():
     try:
         conn = await get_db_connection()
         
-        query = """
+        # Use environment-aware table name
+        env = Environment()
+        table_name = env.get_table_name("training_datasets")
+        query = f"""
         SELECT id, dataset_name, total_sequences, feature_count, label_count,
                data_quality_score, feature_completeness, label_completeness,
                file_size_mb, technical_indicators, symbols,
                date_range_start, date_range_end, created_at
-        FROM dev_training_datasets 
+        FROM {table_name}
         ORDER BY created_at DESC
         """
         
@@ -117,10 +111,13 @@ async def get_training_dataset_distributions(dataset_id: int):
     try:
         conn = await get_db_connection()
         
-        query = """
+        # Use environment-aware table name
+        env = Environment()
+        table_name = env.get_table_name("training_datasets")
+        query = f"""
         SELECT data_quality_score, feature_completeness, label_completeness,
                tfdv_statistics, feature_distributions, label_distributions, tfdv_anomalies
-        FROM dev_training_datasets 
+        FROM {table_name}
         WHERE id = $1
         """
         
