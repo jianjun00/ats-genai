@@ -354,10 +354,13 @@ This infrastructure provides comprehensive multi-vendor price data validation, r
 - **📁 Logs**: `/mnt/d/ats-logs` → `/logs` (in containers)
 - **🔄 Database**: PostgreSQL data persisted to `D:\ats-data\db`
 
-**Vendor-Specific Data Organization:**
-- **📊 Polygon**: `/mnt/d/ats-data/polygon/minute-bars/` (30-year minute OHLCV data)
-- **📊 Tiingo**: `/mnt/d/ats-data/tiingo/minute-bars/` (future implementation)
-- **📊 EODHD**: `/mnt/d/ats-data/eodhd/minute-bars/` (future implementation)
+**Vendor-Specific Data Organization (Parquet Files on Disk):**
+- **📊 Polygon**: `/mnt/d/ats-data/minute-bars/polygon/` (minute OHLCV parquet files)
+- **📊 FirstRate**: `/mnt/d/ats-data/minute-bars/firstrate/` (6,289 parquet files, 2020-2025)  
+- **📊 Tiingo**: `/mnt/d/ats-data/minute-bars/tiingo/` (future implementation)
+- **📊 EODHD**: `/mnt/d/ats-data/minute-bars/eodhd/` (future implementation)
+
+**⚠️ CRITICAL: Minute-bar data is stored as parquet files on disk, NOT in database tables**
 
 **Environment Variables Available in Containers:**
 - `ATS_DATA_PATH=/data`
@@ -665,7 +668,7 @@ PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "SE
 | **FMP** | `FMP_API_KEY` | Fundamentals, earnings | 250 calls/day |
 | **Alpha Vantage** | `ALPHA_VANTAGE_API_KEY` | Economic indicators | 25 calls/day |
 | **EODHD** | `EODHD_API_KEY` | EOD prices, fundamentals | 20 calls/min |
-| **FirstRate** | `FIRSTRATE_USER_ID` | Minute-level OHLCV data | Premium feed |
+| **FirstRate** | `FIRSTRATE_USER_ID` | Minute-level OHLCV (parquet files) | Premium feed |
 
 **API Key Configuration:**
 ```bash
