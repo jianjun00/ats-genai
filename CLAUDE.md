@@ -10,6 +10,8 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 
 **ALWAYS find opportunities to refactor code to remove duplicate functionality and delete unused code:**
 
+**DO NOT CREATE SCRIPTS to run something. YOU SHOULD JUST RUN THE EXISTING CODE:**
+
 ## 🚨 CRITICAL: Docker + GPU Development
 
 **Never use mock or fake data other than unit test:**
@@ -557,6 +559,75 @@ docker exec ats-dev-postgres psql -U postgres -d dev_db -c "\d table_name"
 **📋 Complete Documentation**: See `tests/regression/README.md` for comprehensive regression testing guide
 
 **📋 Detailed Documentation**: [Instrument Population Lessons Learned](docs/development/INSTRUMENT_POPULATION_LESSONS_LEARNED.md)
+
+### 🚀 **CRITICAL: AAPL Training Data Generation Success (2025-08-31)**
+
+**✅ SUCCESSFUL TRAINING DATA GENERATION FROM 1995:**
+- **Output**: `/mnt/d/ats-data/training/{run_id}/` organization pattern established
+- **Environment**: ATS-INTG with proper Docker container networking
+- **Database**: Complete `intg_training_datasets` table schema with TFDV support
+- **Data Shape**: 197 sequences × 60 time steps × 7 features (OHLCV + technical indicators)
+- **Integration**: Full database tracking with run records and dataset metadata
+
+**Critical Lessons Applied:**
+- ✅ **Use existing code instead of creating scripts** - `training_data_job_runner.py` had all functionality
+- ✅ **Use proper environment tools** - `run_intg` for INTG, not `run_dev --environment intg`  
+- ✅ **Docker container execution** - Run within `ats-intg-analytics` container for proper networking
+- ✅ **Complete database schema** - Apply full migration with all required columns (`feature_metadata`, `tfdv_*`)
+- ✅ **Output directory organization** - Files organized by `run_id` in `/mnt/d/ats-data/training/{run_id}/`
+
+**Database Schema Requirements:**
+- **Table Name**: `intg_training_datasets` (plural) as expected by DAO
+- **Required Columns**: All TFDV columns (tfdv_statistics, tfdv_histogram_path, etc.)
+- **Migration**: `src/db/migrations/049_create_training_dataset_table.sql`
+
+**How to Generate Training Data:**
+
+**For ATS-INTG Environment (Production-like):**
+```bash
+# Generate training data using existing infrastructure
+docker exec ats-intg-analytics bash -c "cd /workspace && PYTHONPATH=src python3 src/app/training_data_job_runner.py"
+
+# Files are automatically saved to container and can be copied to host:
+# Output location: /mnt/d/ats-data/training/{run_id}/
+# Database tracking: intg_training_datasets table with run metadata
+```
+
+**For ATS-DEV Environment (Development):**
+```bash
+# Use run_dev for development environment training data generation
+python3 scripts/run_dev.py run --script src/app/training_data_job_runner.py
+
+# Files saved to: training_data_output/ (can be organized by run_id)
+# Database tracking: dev_training_datasets table
+```
+
+**Command Pattern (What Works vs What Doesn't):**
+```bash
+# ✅ CORRECT: Use existing training job runner
+docker exec ats-intg-analytics bash -c "cd /workspace && PYTHONPATH=src python3 src/app/training_data_job_runner.py"
+
+# ✅ CORRECT: Use proper environment tools
+python3 scripts/run_dev.py run --script src/app/training_data_job_runner.py
+
+# ❌ WRONG: Create new scripts when existing code works
+python3 scripts/run_dev.py --environment intg run --script new_training_script.py
+
+# ❌ WRONG: Use wrong environment management
+python3 scripts/run_dev.py --environment intg  # Should use run_intg or direct container
+```
+
+**Training Data Configuration:**
+- Default generates synthetic OHLCV data for AAPL, MSFT, GOOGL
+- Enhanced features include: etop, ebot, pldot, oneonedot technical indicators  
+- Output: 60-day sequences with 5-day prediction horizon
+- Customize symbols, date ranges, and features in `TrainingDataJobConfig`
+
+**Files Generated Successfully:**
+- `dataset_training_data_gen_AAPL_*_features.npy` (41,708 bytes)
+- `dataset_training_data_gen_AAPL_*_labels.npy` (1,228 bytes)
+- `dataset_training_data_gen_AAPL_*_metadata.json` (17,109 bytes)
+- Database record: Run ID 10, Dataset ID 2 in `intg_training_datasets`
 
 ---
 
