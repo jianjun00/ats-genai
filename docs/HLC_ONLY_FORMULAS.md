@@ -306,7 +306,19 @@ These conditional indicators only calculate when momentum conditions are met:
 - FiveOneSell activates when highs are declining (downward pressure on resistance)
 - Returns `None` when conditions are not met (no calculation)
 
-**Total Indicator System**: 13 indicators (9 HLC linear regression + 2 Five Nine arithmetic + 2 Five One conditional)
+### Five Two Indicators
+Conditional momentum-based indicators with opposite conditions from Five One:
+
+- **FiveTwoBuy**: `2 * low(t-1) - low(t-2)` IF `low(t-1) < low(t-2)` - Support levels during declining lows
+- **FiveTwoSell**: `2 * high(t-1) - high(t-2)` IF `high(t-1) > high(t-2)` - Resistance levels during rising highs
+
+These indicators activate under opposite momentum conditions:
+- FiveTwoBuy activates when lows are declining (downward momentum, weakening support)
+- FiveTwoSell activates when highs are rising (upward momentum, strengthening resistance)
+- Complementary to Five One indicators for complete momentum coverage
+- Returns `None` when conditions are not met (no calculation)
+
+**Total Indicator System**: 15 indicators (9 HLC linear regression + 2 Five Nine arithmetic + 2 Five One conditional + 2 Five Two conditional)
 
 ---
 

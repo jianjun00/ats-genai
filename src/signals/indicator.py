@@ -1206,3 +1206,135 @@ class FiveOneSell(Indicator):
 
     def get_value(self) -> Optional[float]:
         return self.latest_five_one_sell
+
+
+@gin.configurable
+class FiveTwoBuy(Indicator):
+    """
+    Five Two Buy Indicator: Calculated as 2 * low(t-1) - low(t-2) with conditions.
+    Formula: five_two_buy = 2 * low(t-1) - low(t-2) 
+             IF low(t-1) < low(t-2) OR indicator not available
+    
+    This indicator provides conditional support levels based on declining lows.
+    Only calculates when the most recent low is lower than the previous low,
+    indicating potential downward momentum where support is weakening.
+    """
+    def __init__(self):
+        super().__init__()
+        self.latest_five_two_buy: Optional[float] = None
+
+    def update(self, intervals: List[InstrumentInterval]):
+        import logging
+        import math
+        
+        self.update_at = datetime.now()
+        
+        if len(intervals) < 2:
+            self.status = 'insufficient_data'
+            self.latest_five_two_buy = None
+            logging.debug('[FiveTwoBuy] Insufficient data: need at least 2 intervals, got %d', len(intervals))
+            return
+
+        try:
+            # Get the last two intervals (most recent first in the list)
+            prior = intervals[-1]  # t-1 (most recent)
+            prior_prior = intervals[-2]  # t-2 (second most recent)
+            
+            # Validate data quality
+            if (prior.status != 'ok' or prior_prior.status != 'ok' or
+                math.isnan(prior.low) or math.isnan(prior_prior.low) or
+                prior.low <= 0 or prior_prior.low <= 0):
+                self.status = 'invalid_data'
+                self.latest_five_two_buy = None
+                logging.warning('[FiveTwoBuy] Invalid data: prior.status=%s, prior_prior.status=%s, prior.low=%.2f, prior_prior.low=%.2f',
+                               prior.status, prior_prior.status, prior.low, prior_prior.low)
+                return
+                
+        except (IndexError, AttributeError, TypeError) as e:
+            self.status = 'calculation_error'
+            self.latest_five_two_buy = None
+            logging.error('[FiveTwoBuy] Error accessing interval data: %s', e)
+            return
+
+        # Apply Five Two Buy conditional logic: low(t-1) < low(t-2)
+        if prior.low < prior_prior.low:
+            # Condition met: calculate 2 * low(t-1) - low(t-2)
+            self.latest_five_two_buy = 2 * prior.low - prior_prior.low
+            self.status = 'ok'
+            logging.debug('[FiveTwoBuy] Calculated: 2 * %.2f - %.2f = %.2f (condition: %.2f < %.2f)',
+                         prior.low, prior_prior.low, self.latest_five_two_buy, prior.low, prior_prior.low)
+        else:
+            # Condition not met: low(t-1) >= low(t-2)
+            self.status = 'ok'
+            self.latest_five_two_buy = None
+            logging.debug('[FiveTwoBuy] Condition not met: %.2f >= %.2f, indicator not available',
+                         prior.low, prior_prior.low)
+
+    def get_value(self) -> Optional[float]:
+        return self.latest_five_two_buy
+
+
+@gin.configurable
+class FiveTwoSell(Indicator):
+    """
+    Five Two Sell Indicator: Calculated as 2 * high(t-1) - high(t-2) with conditions.
+    Formula: five_two_sell = 2 * high(t-1) - high(t-2) 
+             IF high(t-1) > high(t-2) OR indicator not available
+    
+    This indicator provides conditional resistance levels based on rising highs.
+    Only calculates when the most recent high is higher than the previous high,
+    indicating potential upward momentum where resistance is strengthening.
+    """
+    def __init__(self):
+        super().__init__()
+        self.latest_five_two_sell: Optional[float] = None
+
+    def update(self, intervals: List[InstrumentInterval]):
+        import logging
+        import math
+        
+        self.update_at = datetime.now()
+        
+        if len(intervals) < 2:
+            self.status = 'insufficient_data'
+            self.latest_five_two_sell = None
+            logging.debug('[FiveTwoSell] Insufficient data: need at least 2 intervals, got %d', len(intervals))
+            return
+
+        try:
+            # Get the last two intervals (most recent first in the list)
+            prior = intervals[-1]  # t-1 (most recent)
+            prior_prior = intervals[-2]  # t-2 (second most recent)
+            
+            # Validate data quality
+            if (prior.status != 'ok' or prior_prior.status != 'ok' or
+                math.isnan(prior.high) or math.isnan(prior_prior.high) or
+                prior.high <= 0 or prior_prior.high <= 0):
+                self.status = 'invalid_data'
+                self.latest_five_two_sell = None
+                logging.warning('[FiveTwoSell] Invalid data: prior.status=%s, prior_prior.status=%s, prior.high=%.2f, prior_prior.high=%.2f',
+                               prior.status, prior_prior.status, prior.high, prior_prior.high)
+                return
+                
+        except (IndexError, AttributeError, TypeError) as e:
+            self.status = 'calculation_error'
+            self.latest_five_two_sell = None
+            logging.error('[FiveTwoSell] Error accessing interval data: %s', e)
+            return
+
+        # Apply Five Two Sell conditional logic: high(t-1) > high(t-2)
+        if prior.high > prior_prior.high:
+            # Condition met: calculate 2 * high(t-1) - high(t-2)
+            self.latest_five_two_sell = 2 * prior.high - prior_prior.high
+            self.status = 'ok'
+            logging.debug('[FiveTwoSell] Calculated: 2 * %.2f - %.2f = %.2f (condition: %.2f > %.2f)',
+                         prior.high, prior_prior.high, self.latest_five_two_sell, prior.high, prior_prior.high)
+        else:
+            # Condition not met: high(t-1) <= high(t-2)
+            self.status = 'ok'
+            self.latest_five_two_sell = None
+            logging.debug('[FiveTwoSell] Condition not met: %.2f <= %.2f, indicator not available',
+                         prior.high, prior_prior.high)
+
+    def get_value(self) -> Optional[float]:
+        return self.latest_five_two_sell
