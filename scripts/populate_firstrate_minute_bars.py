@@ -210,7 +210,7 @@ class FirstRateBackfillProcessor:
                     )
                     minute_bars.append(bar)
                 
-                await self.minute_manager.store_minute_data(minute_bars)
+                await self.minute_manager.store_minute_data(symbol, minute_bars)
                 records_written = len(minute_bars)
             
             # Mark month as completed
@@ -255,8 +255,14 @@ class FirstRateBackfillProcessor:
         
         total_records = 0
         for year, month, month_start, month_end in monthly_ranges:
+            # Use the first zip file that contains this symbol
+            zip_file = symbol_info['zip_files'][0] if symbol_info['zip_files'] else None
+            if not zip_file:
+                logger.warning(f"⚠️ {symbol}: No zip files available, skipping")
+                continue
+                
             records = await self.process_symbol_month(
-                symbol, year, month, symbol_info['zip_file']
+                symbol, year, month, zip_file
             )
             total_records += records
             
