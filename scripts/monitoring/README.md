@@ -1,53 +1,63 @@
 # WSL System Monitor with Slack Alerts
 
-A comprehensive system monitoring solution for WSL environments with real-time Slack notifications for system stress conditions.
+**✅ UPDATED 2025-08-31**: Simplified monitoring system that works without external dependencies
 
-## 🚀 Features
+## 🚀 Current Implementation
 
-### **System Monitoring**
-- **CPU Usage**: Real-time CPU utilization with configurable thresholds
-- **Memory Usage**: RAM and swap monitoring with available memory tracking
-- **Disk Usage**: Storage monitoring with free space alerts
-- **Network Activity**: Network I/O monitoring
-- **Process Monitoring**: Process count and Docker container health
-- **Database Health**: PostgreSQL connection monitoring
-- **ATS-Specific**: Backfill process monitoring and data directory size tracking
+### **Simple Monitor (simple_wsl_monitor.py)**
+- **No Dependencies**: Works with standard Python 3 and system commands
+- **Hourly Reports**: Regular system health updates to Slack
+- **System Metrics**: CPU, Memory, Disk, Docker, PostgreSQL, ATS processes
+- **Test Alerts**: On-demand testing capability
+- **Background Operation**: Runs continuously or as systemd service
 
-### **Slack Integration**
-- **Rich Notifications**: Formatted messages with system details and color coding
-- **Rate Limiting**: Prevents alert spam (configurable intervals)
-- **Severity Levels**: Info, Warning, Critical, and Recovery alerts
-- **Recovery Alerts**: Automatic notifications when issues resolve
-
-### **Advanced Features**
-- **Intelligent Thresholds**: Configurable warning and critical levels
-- **Historical Data**: Metrics logging for trend analysis
-- **Auto-Recovery**: Service restarts automatically on failure
-- **WSL Optimized**: Designed specifically for WSL environments
+### **Advanced Monitor (wsl_system_monitor.py)**
+- **Full Monitoring**: Comprehensive stress detection and alerting
+- **Requires**: psutil, requests (not currently available)
+- **Threshold Alerts**: CPU/Memory/Disk stress detection
+- **Recovery Notifications**: Automatic issue resolution alerts
+- **Historical Tracking**: Metrics logging for trend analysis
 
 ---
 
-## 📦 Installation
+## 📦 Quick Start (No Setup Required)
 
 ### **Prerequisites**
 ```bash
-# Install required Python packages
-pip3 install --user psutil requests
-
-# Ensure monitoring directories exist
-mkdir -p /mnt/d/ats-logs/monitoring
+# No external packages needed - uses system Python 3 + requests
+# Monitoring directories created automatically
 ```
 
-### **1. Official ATS Slack Integration**
-
-**✅ Pre-configured Slack webhook for ATS alerts:**
+### **1. Test the System**
+```bash
+# Send test alert to Slack
+python3 simple_wsl_monitor.py --test
 ```
-https://hooks.slack.com/services/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
+
+### **2. View Current Status**
+```bash
+# Check detailed system status
+python3 simple_wsl_monitor.py --status
 ```
 
-**Target Channel**: `#ats-alerts` (configured for ATS team notifications)
+### **3. Start Monitoring**
+```bash
+# Option A: Hourly background monitoring
+nohup python3 simple_wsl_monitor.py --hourly > /dev/null 2>&1 &
 
-*Note: This is the official ATS monitoring webhook - no setup required!*
+# Option B: Install as systemd service
+./install_hourly_monitor.sh
+
+# Option C: Frequent monitoring (every 5 minutes for testing)
+./start_frequent_monitoring.sh
+```
+
+## 🔧 Configuration
+
+**Official ATS Slack Integration:**
+- **Webhook**: `https://hooks.slack.com/services/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`
+- **Channel**: `#ats-alerts`
+- **Pre-configured**: No setup required
 
 ### **2. Install as System Service**
 ```bash

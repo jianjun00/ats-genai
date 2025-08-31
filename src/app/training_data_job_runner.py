@@ -138,6 +138,25 @@ class TrainingDataJobConfig:
     normalize_labels: bool = False
     use_enhanced_features: bool = True  # Enable enhanced technical indicators
     
+    # Multi-scale configuration (NEW)
+    enable_multi_scale: bool = False
+    scales: List[str] = None  # ['minute', 'hourly', 'daily', 'weekly']
+    sequence_length_minute: int = 1440  # 1 day of minutes
+    sequence_length_hourly: int = 168   # 1 week of hours
+    sequence_length_daily: int = 60     # ~3 months of days
+    sequence_length_weekly: int = 12    # ~3 months of weeks
+    
+    # Event integration (NEW)
+    enable_events: bool = False
+    enable_llm_events: bool = False  # Feature-gated
+    max_events_per_sequence: int = 50
+    
+    # Agent features (NEW) 
+    enable_agent_features: bool = False  # Feature-gated
+    
+    # Prediction horizons (NEW)
+    prediction_horizons: Dict[str, int] = None  # Multiple prediction targets
+    
     # Feature and label configuration
     feature_configs: List[Dict[str, Any]] = gin.REQUIRED
     label_configs: List[Dict[str, Any]] = gin.REQUIRED
@@ -145,6 +164,7 @@ class TrainingDataJobConfig:
     # Output configuration
     output_dir: str = "training_data_output"
     dataset_name_prefix: str = "dataset"
+    output_format: str = "basic"  # "basic", "multi_scale"
     
     # Quality and validation
     min_sequences_required: int = 1000
@@ -153,6 +173,30 @@ class TrainingDataJobConfig:
     # Processing configuration
     batch_size: int = 10000
     max_memory_mb: int = 8192
+    
+    def __post_init__(self):
+        """Initialize default values and validate configuration."""
+        # Set default scales if multi-scale is enabled
+        if self.enable_multi_scale and self.scales is None:
+            self.scales = ['hourly', 'daily']
+        
+        # Set default prediction horizons
+        if self.prediction_horizons is None:
+            if self.enable_multi_scale:
+                self.prediction_horizons = {
+                    "short_term": 60,    # 1 hour ahead (minutes)
+                    "medium_term": 1440, # 1 day ahead (minutes)  
+                    "long_term": 10080   # 1 week ahead (minutes)
+                }
+            else:
+                self.prediction_horizons = {"default": self.prediction_horizon}
+        
+        # Check feature flag compatibility
+        from config.feature_flags import is_enabled
+        if self.enable_llm_events and not is_enabled("enable_llm_events"):
+            logger.warning("LLM events requested but feature flag disabled - will be ignored")
+        if self.enable_agent_features and not is_enabled("enable_agent_networks"):
+            logger.warning("Agent features requested but feature flag disabled - will be ignored")
 
 class TrainingDataJobRunner:
     """Training data generation job runner with comprehensive tracking."""
@@ -236,10 +280,12 @@ class TrainingDataJobRunner:
         conn = await asyncpg.connect(self.env.get_database_url())
         try:
             runs_table = self.env.get_table_name("runs")
+            
+            # Use the actual schema with parameters field for configuration
             query = f"""
             INSERT INTO {runs_table} (
-                run_type, start_time, status, total_symbols, training_config
-            ) VALUES ($1, $2, $3, $4, $5) RETURNING id
+                run_type, start_time, status, parameters
+            ) VALUES ($1, $2, $3, $4) RETURNING id
             """
             
             run_id = await conn.fetchval(
@@ -247,7 +293,6 @@ class TrainingDataJobRunner:
                 "training_data_generation",
                 self.start_time,
                 "running",
-                len(self.config.symbols),
                 json.dumps(run_config)
             )
             
@@ -256,7 +301,15 @@ class TrainingDataJobRunner:
             await conn.close()
     
     async def _generate_training_data(self) -> Dict[str, Any]:
-        """Generate training data using simplified approach."""
+        """Generate training data using basic or multi-scale approach."""
+        
+        if self.config.enable_multi_scale:
+            return await self._generate_multi_scale_training_data()
+        else:
+            return await self._generate_basic_training_data()
+    
+    async def _generate_basic_training_data(self) -> Dict[str, Any]:
+        """Generate training data using original simplified approach."""
         
         # Load market data
         market_data = await self._load_market_data()
@@ -281,6 +334,83 @@ class TrainingDataJobRunner:
                 "dataset_id": dataset_id,
                 "feature_names": metadata['feature_names'],
                 "label_names": metadata['label_names']
+            }
+        }
+    
+    async def _generate_multi_scale_training_data(self) -> Dict[str, Any]:
+        """Generate multi-scale training data with events and agent features."""
+        
+        logger.info("Generating multi-scale training data")
+        
+        # Convert string scales to TimeScale objects
+        from storage.multi_scale_sequence import TimeScale
+        scale_map = {
+            'minute': TimeScale.MINUTE,
+            'hourly': TimeScale.HOURLY,
+            'daily': TimeScale.DAILY, 
+            'weekly': TimeScale.WEEKLY
+        }
+        scales = [scale_map[s] for s in self.config.scales if s in scale_map]
+        
+        all_sequences = []
+        
+        for symbol in self.config.symbols:
+            logger.info(f"Processing {symbol} for multi-scale generation")
+            
+            # Generate multi-scale sequence for this symbol
+            sequence = await self._generate_multi_scale_sequence(symbol, scales)
+            
+            # Create training sequences from multi-scale data
+            training_sequences = self._create_training_sequences_from_multi_scale(sequence)
+            all_sequences.extend(training_sequences)
+            
+            logger.info(f"Generated {len(training_sequences)} sequences for {symbol}")
+        
+        if not all_sequences:
+            raise ValueError("No training sequences generated")
+        
+        # Convert to arrays
+        features_list = [seq['features'] for seq in all_sequences]
+        features = np.stack(features_list)
+        
+        # Handle multiple prediction horizons
+        label_names = list(self.config.prediction_horizons.keys())
+        labels = np.array([
+            [seq['labels'].get(label_name, 0.0) for label_name in label_names] 
+            for seq in all_sequences
+        ])
+        
+        # Create metadata
+        metadata = {
+            'feature_names': self._get_multi_scale_feature_names(),
+            'label_names': label_names,
+            'scales': self.config.scales,
+            'prediction_horizons': self.config.prediction_horizons,
+            'symbols': self.config.symbols,
+            'events_enabled': self.config.enable_events,
+            'agent_features_enabled': self.config.enable_agent_features,
+            'llm_events_enabled': self.config.enable_llm_events,
+            'total_sequences': len(all_sequences)
+        }
+        
+        # Save training data files
+        dataset_id = f"multi_scale_{self.config.job_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        data_files = self._save_training_data_files(features, labels, dataset_id, metadata)
+        
+        # Create training dataset record
+        dataset_record = await self._create_dataset_record_simple(
+            features, labels, dataset_id, data_files, metadata
+        )
+        
+        return {
+            "dataset_record": dataset_record,
+            "training_results": {
+                "features_shape": features.shape,
+                "labels_shape": labels.shape,
+                "dataset_id": dataset_id,
+                "feature_names": metadata['feature_names'],
+                "label_names": metadata['label_names'],
+                "multi_scale_metadata": metadata
             }
         }
     
@@ -589,27 +719,30 @@ class TrainingDataJobRunner:
         conn = await asyncpg.connect(self.env.get_database_url())
         try:
             runs_table = self.env.get_table_name("runs")
+            # Create summary for parameters field
+            summary = {
+                'end_time': end_time.isoformat(),
+                'status': 'completed',
+                'total_sequences': getattr(dataset_record, 'total_sequences', 0),
+                'duration_seconds': duration,
+                'file_size_mb': getattr(dataset_record, 'file_size_mb', 0),
+                'data_quality_score': getattr(dataset_record, 'data_quality_score', 1.0),
+                'processing_rate': getattr(dataset_record, 'total_sequences', 0) / max(duration, 1)
+            }
+            
             query = f"""
             UPDATE {runs_table} 
             SET end_time = $1,
                 status = $2,
-                successful_unifications = $3,
-                total_dates = $4,
-                processing_rate_per_second = $5,
-                quality_summary = $6,
-                performance_summary = $7
-            WHERE id = $8
+                parameters = $3
+            WHERE id = $4
             """
             
             await conn.execute(
                 query,
                 end_time,
                 'completed',
-                dataset_record.total_sequences,
-                (self.config.end_date - self.config.start_date).days,
-                dataset_record.total_sequences / max(duration, 1),
-                f"Generated {dataset_record.total_sequences} sequences with {dataset_record.data_quality_score:.2%} quality",
-                f"Completed in {duration}s, file size: {dataset_record.file_size_mb:.1f}MB",
+                json.dumps(summary),
                 self.run_id
             )
         finally:
@@ -623,12 +756,21 @@ class TrainingDataJobRunner:
         conn = await asyncpg.connect(self.env.get_database_url())
         try:
             runs_table = self.env.get_table_name("runs")
+            
+            # Create failure summary for parameters field
+            failure_summary = {
+                'end_time': end_time.isoformat(),
+                'status': 'failed',
+                'error_message': error_message,
+                'duration_seconds': (end_time - self.start_time).total_seconds()
+            }
+            
             query = f"""
             UPDATE {runs_table} 
             SET end_time = $1,
                 status = $2,
-                quality_summary = $3,
-                performance_summary = $4
+                error_message = $3,
+                parameters = $4
             WHERE id = $5
             """
             
@@ -636,12 +778,459 @@ class TrainingDataJobRunner:
                 query,
                 end_time,
                 'failed',
-                f"Training data generation failed: {error_message}",
-                f"Failed after {int((end_time - self.start_time).total_seconds())}s",
+                error_message,
+                json.dumps(failure_summary),
                 self.run_id
             )
         finally:
             await conn.close()
+
+    async def _generate_multi_scale_sequence(self, symbol: str, scales: List):
+        """Generate multi-scale sequence for a single symbol."""
+        
+        from storage.multi_scale_sequence import MultiScaleSequence, ScaleFeatures, TimeScale, MarketEvent, EventSequence
+        from config.feature_flags import is_enabled
+        
+        # Generate base minute data (if minute scale is requested)
+        minute_data = None
+        if TimeScale.MINUTE in scales:
+            minute_data = self._generate_synthetic_minute_data(symbol)
+        else:
+            # Generate daily data as base
+            market_data = await self._load_market_data_for_symbol(symbol)
+            minute_data = self._convert_daily_to_minute_data(market_data[market_data['symbol'] == symbol])
+        
+        # Aggregate to all requested timeframes
+        all_timeframes = self._aggregate_to_higher_timeframes(minute_data, scales)
+        
+        # Create ScaleFeatures for each timeframe
+        scale_features = {}
+        for scale, data in all_timeframes.items():
+            if len(data) > 0:
+                enhanced_data = self._calculate_technical_indicators(data, scale)
+                
+                # Add agent features if enabled
+                if self.config.enable_agent_features and is_enabled("enable_agent_networks"):
+                    agent_features = self._generate_agent_features(symbol, enhanced_data)
+                    if agent_features:
+                        # Add agent features to the data
+                        for agent_feature_name, values in agent_features.items():
+                            enhanced_data[agent_feature_name] = values
+                
+                scale_features[scale] = self._create_scale_features(enhanced_data, scale)
+        
+        # Generate events if enabled
+        events = []
+        if self.config.enable_events:
+            timeframe = (datetime.combine(self.config.start_date, datetime.min.time()), 
+                        datetime.combine(self.config.end_date, datetime.min.time()))
+            events = await self._generate_synthetic_events(symbol, timeframe)
+            
+            # Enhance with LLM if enabled
+            if self.config.enable_llm_events and is_enabled("enable_llm_events"):
+                events = await self._enhance_events_with_llm(events)
+        
+        # Create event sequence
+        event_sequence = EventSequence(
+            events=events,
+            time_range=(datetime.combine(self.config.start_date, datetime.min.time()),
+                       datetime.combine(self.config.end_date, datetime.min.time()))
+        ) if events else None
+        
+        # Create multi-scale sequence
+        sequence_kwargs = {
+            'symbol': symbol,
+            'time_range': (datetime.combine(self.config.start_date, datetime.min.time()),
+                          datetime.combine(self.config.end_date, datetime.min.time())),
+            'event_sequence': event_sequence
+        }
+        
+        # Add scale-specific features
+        for scale, features in scale_features.items():
+            if scale == TimeScale.MINUTE:
+                sequence_kwargs['minute_features'] = features
+            elif scale == TimeScale.HOURLY:
+                sequence_kwargs['hourly_features'] = features
+            elif scale == TimeScale.DAILY:
+                sequence_kwargs['daily_features'] = features
+            elif scale == TimeScale.WEEKLY:
+                sequence_kwargs['weekly_features'] = features
+        
+        return MultiScaleSequence(**sequence_kwargs)
+    
+    def _generate_synthetic_minute_data(self, symbol: str) -> pd.DataFrame:
+        """Generate synthetic minute-level data."""
+        
+        # Simplified minute data generation for integration
+        days = (self.config.end_date - self.config.start_date).days
+        base_price = 100.0 + np.random.uniform(-20, 20)
+        
+        timestamps = []
+        data_rows = []
+        
+        current_date = datetime.combine(self.config.start_date, datetime.min.time())
+        end_date = datetime.combine(self.config.end_date, datetime.min.time())
+        
+        while current_date <= end_date:
+            if current_date.weekday() < 5:  # Weekdays only
+                # Generate market hours (9:30 AM to 4:00 PM)
+                for hour in range(10, 16):  # Simplified to 10 AM - 4 PM
+                    for minute in range(0, 60, 5):  # Every 5 minutes
+                        timestamp = current_date.replace(hour=hour, minute=minute)
+                        
+                        # Generate price movement
+                        price_change = np.random.normal(0, 0.01)
+                        base_price *= (1 + price_change)
+                        
+                        # Generate OHLC
+                        minute_range = base_price * 0.005
+                        high = base_price + minute_range * np.random.uniform(0, 1)
+                        low = base_price - minute_range * np.random.uniform(0, 1)
+                        open_price = np.random.uniform(low, high)
+                        volume = int(np.random.lognormal(10, 1))
+                        
+                        data_rows.append({
+                            'timestamp': timestamp,
+                            'symbol': symbol,
+                            'open': round(open_price, 2),
+                            'high': round(high, 2),
+                            'low': round(low, 2),
+                            'close': round(base_price, 2),
+                            'volume': volume
+                        })
+                        
+            current_date += timedelta(days=1)
+        
+        df = pd.DataFrame(data_rows)
+        if len(df) > 0:
+            df = df.set_index('timestamp')
+        
+        logger.info(f"Generated {len(df)} minute bars for {symbol}")
+        return df
+    
+    async def _load_market_data_for_symbol(self, symbol: str) -> pd.DataFrame:
+        """Load market data for a specific symbol."""
+        market_data = await self._load_market_data()
+        return market_data[market_data['symbol'] == symbol] if len(market_data) > 0 else pd.DataFrame()
+    
+    def _convert_daily_to_minute_data(self, daily_data: pd.DataFrame) -> pd.DataFrame:
+        """Convert daily data to synthetic minute data."""
+        if len(daily_data) == 0:
+            return pd.DataFrame()
+        
+        minute_rows = []
+        for date_idx, row in daily_data.iterrows():
+            # Get the date - could be from index or 'date' column
+            if hasattr(date_idx, 'date'):  # It's already a datetime/timestamp
+                date = date_idx
+            elif 'date' in row:
+                date = row['date']
+                if isinstance(date, str):
+                    date = pd.to_datetime(date)
+            else:
+                # Use index as date
+                date = pd.to_datetime(date_idx)
+            
+            # Ensure we have a proper datetime object
+            from datetime import datetime
+            if hasattr(date, 'date') and hasattr(date, 'time'):
+                # It's already a datetime
+                base_date = date.date()
+            else:
+                # It might be just a date
+                base_date = date if hasattr(date, 'year') else pd.to_datetime(date).date()
+            
+            # Create hourly bars from daily data
+            for hour in range(10, 16):
+                timestamp = datetime.combine(base_date, datetime.min.time()).replace(hour=hour, minute=0)
+                minute_rows.append({
+                    'timestamp': timestamp,
+                    'symbol': row['symbol'],
+                    'open': row['open'],
+                    'high': row['high'],
+                    'low': row['low'],
+                    'close': row['close'],
+                    'volume': row['volume'] // 6  # Divide daily volume by 6 hours
+                })
+        
+        df = pd.DataFrame(minute_rows)
+        if len(df) > 0:
+            df = df.set_index('timestamp')
+        return df
+    
+    def _aggregate_to_higher_timeframes(self, minute_data: pd.DataFrame, scales: List) -> Dict:
+        """Aggregate minute data to higher timeframes."""
+        
+        from storage.multi_scale_sequence import TimeScale
+        
+        if len(minute_data) == 0:
+            return {}
+        
+        aggregated = {}
+        
+        if TimeScale.MINUTE in scales:
+            aggregated[TimeScale.MINUTE] = minute_data
+        
+        if TimeScale.HOURLY in scales:
+            hourly = minute_data.resample('1H').agg({
+                'open': 'first',
+                'high': 'max',
+                'low': 'min',
+                'close': 'last',
+                'volume': 'sum',
+                'symbol': 'first'
+            }).dropna()
+            if len(hourly) > 0:
+                aggregated[TimeScale.HOURLY] = hourly
+        
+        if TimeScale.DAILY in scales:
+            daily = minute_data.resample('1D').agg({
+                'open': 'first',
+                'high': 'max',
+                'low': 'min',
+                'close': 'last',
+                'volume': 'sum',
+                'symbol': 'first'
+            }).dropna()
+            if len(daily) > 0:
+                aggregated[TimeScale.DAILY] = daily
+        
+        if TimeScale.WEEKLY in scales:
+            weekly = minute_data.resample('1W').agg({
+                'open': 'first',
+                'high': 'max',
+                'low': 'min',
+                'close': 'last',
+                'volume': 'sum',
+                'symbol': 'first'
+            }).dropna()
+            if len(weekly) > 0:
+                aggregated[TimeScale.WEEKLY] = weekly
+        
+        return aggregated
+    
+    def _calculate_technical_indicators(self, data: pd.DataFrame, scale) -> pd.DataFrame:
+        """Calculate technical indicators for given timeframe."""
+        if len(data) == 0:
+            return data
+        
+        df = data.copy()
+        
+        # Use existing enhanced technical indicators
+        if self.config.use_enhanced_features:
+            if len(df) >= 21:  # Minimum length for indicators
+                try:
+                    etop = TechnicalIndicators.calculate_elliott_top(
+                        df['high'].values, df['low'].values, df['close'].values
+                    )
+                    df['etop'] = etop
+                    
+                    ebot = TechnicalIndicators.calculate_elliott_bottom(
+                        df['high'].values, df['low'].values, df['close'].values
+                    )
+                    df['ebot'] = ebot
+                    
+                    pldot = TechnicalIndicators.calculate_pldot(
+                        df['high'].values, df['low'].values, df['close'].values, df['volume'].values
+                    )
+                    df['pldot'] = pldot
+                    
+                    oneonedot = TechnicalIndicators.calculate_oneonedot(
+                        df['open'].values, df['high'].values, df['low'].values, df['close'].values
+                    )
+                    df['oneonedot'] = oneonedot
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to calculate enhanced technical indicators: {e}")
+        
+        # Basic technical indicators
+        if len(df) >= 14:
+            # RSI
+            delta = df['close'].diff()
+            gain = delta.where(delta > 0, 0).rolling(window=14).mean()
+            loss = (-delta).where(delta < 0, 0).rolling(window=14).mean()
+            rs = gain / loss
+            df['rsi'] = 100 - (100 / (1 + rs))
+        
+        # Fill NaN values
+        df = df.fillna(method='ffill').fillna(0)
+        
+        return df
+    
+    def _generate_agent_features(self, symbol: str, data: pd.DataFrame) -> Dict[str, np.ndarray]:
+        """Generate agent-based features."""
+        
+        if len(data) < 20:  # Need enough data
+            return {}
+        
+        agent_features = {}
+        
+        try:
+            # Trend agent
+            sma_20 = data['close'].rolling(20).mean()
+            sma_50 = data['close'].rolling(50).mean() if len(data) >= 50 else sma_20
+            trend_signal = np.where(sma_20 > sma_50, 1, -1)
+            agent_features['trend_agent'] = trend_signal
+            
+            # Volatility agent
+            returns = data['close'].pct_change()
+            volatility = returns.rolling(20).std()
+            vol_signal = np.where(volatility > volatility.quantile(0.8), -1,
+                                 np.where(volatility < volatility.quantile(0.2), 1, 0))
+            agent_features['vol_agent'] = vol_signal
+            
+            logger.debug(f"Generated agent features for {symbol}")
+            
+        except Exception as e:
+            logger.warning(f"Failed to generate agent features for {symbol}: {e}")
+        
+        return agent_features
+    
+    async def _generate_synthetic_events(self, symbol: str, timeframe: Tuple) -> List:
+        """Generate synthetic market events."""
+        
+        from storage.multi_scale_sequence import MarketEvent
+        
+        start_time, end_time = timeframe
+        events = []
+        
+        # Generate 1-2 events per month on average
+        total_days = (end_time - start_time).days
+        num_events = max(1, int(total_days / 30 * np.random.uniform(1, 2)))
+        
+        event_types = ['news', 'earnings', 'upgrade', 'economic']
+        
+        for i in range(num_events):
+            random_days = np.random.uniform(0, total_days)
+            event_time = start_time + timedelta(days=random_days)
+            
+            event_type = np.random.choice(event_types)
+            content = f"{symbol} {event_type} event - synthetic data for training"
+            
+            sentiment_score = np.random.uniform(-0.5, 0.5)
+            importance_score = np.random.uniform(0.3, 0.8)
+            
+            event = MarketEvent(
+                event_id=f"synthetic_{symbol}_{i}",
+                symbol=symbol,
+                timestamp=event_time,
+                event_type=event_type,
+                content=content,
+                sentiment_score=sentiment_score,
+                importance_score=importance_score
+            )
+            
+            events.append(event)
+        
+        return events
+    
+    async def _enhance_events_with_llm(self, events: List) -> List:
+        """Enhance events with LLM analysis if available."""
+        
+        try:
+            from llm import quick_event_analysis
+            
+            enhanced_events = []
+            for event in events:
+                try:
+                    result = await quick_event_analysis(event.content, event.symbol, event.event_type)
+                    if result:
+                        event.sentiment_score = result.sentiment_score
+                        event.importance_score = result.importance_score
+                        event.metadata = {
+                            'llm_enhanced': True,
+                            'impact_category': result.impact_category,
+                            'confidence': result.confidence_score
+                        }
+                except Exception as e:
+                    logger.debug(f"LLM enhancement failed for event {event.event_id}: {e}")
+                
+                enhanced_events.append(event)
+            
+            return enhanced_events
+            
+        except Exception as e:
+            logger.warning(f"LLM event enhancement not available: {e}")
+            return events
+    
+    def _create_scale_features(self, data: pd.DataFrame, scale):
+        """Create ScaleFeatures object from processed data."""
+        
+        from storage.multi_scale_sequence import ScaleFeatures
+        
+        if len(data) == 0:
+            return None
+        
+        # Extract OHLCV
+        ohlcv_columns = ['open', 'high', 'low', 'close', 'volume']
+        ohlcv_data = data[ohlcv_columns].values
+        
+        # Extract other features (technical indicators, agent features)
+        other_columns = [col for col in data.columns if col not in ohlcv_columns + ['symbol']]
+        technical_data = data[other_columns].values if other_columns else np.zeros((len(data), 0))
+        
+        return ScaleFeatures(
+            timestamps=data.index,
+            ohlcv=ohlcv_data,
+            technical=technical_data
+        )
+    
+    def _create_training_sequences_from_multi_scale(self, sequence) -> List[Dict]:
+        """Create training sequences from multi-scale sequence."""
+        
+        training_sequences = []
+        
+        # Use daily as primary scale for sequence creation
+        from storage.multi_scale_sequence import TimeScale
+        primary_scale = TimeScale.DAILY if TimeScale.DAILY in sequence.scales else list(sequence.scales.keys())[0]
+        
+        primary_features = sequence.get_features(primary_scale, 'all')
+        if primary_features is None or len(primary_features) == 0:
+            return []
+        
+        sequence_length = getattr(self.config, f'sequence_length_{primary_scale.value.lower()}', 60)
+        
+        # Create sequences
+        for i in range(sequence_length, len(primary_features)):
+            feature_sequence = primary_features[i-sequence_length:i]
+            
+            # Create labels for multiple horizons
+            labels = {}
+            for horizon_name, horizon_steps in self.config.prediction_horizons.items():
+                if i + horizon_steps < len(primary_features):
+                    current_price = primary_features[i, 3]  # Close price
+                    future_price = primary_features[i + horizon_steps, 3]
+                    if current_price > 0:
+                        returns = (future_price - current_price) / current_price
+                        labels[horizon_name] = returns
+            
+            if labels:
+                sequence_data = {
+                    'features': feature_sequence,
+                    'labels': labels,
+                    'symbol': sequence.symbol
+                }
+                training_sequences.append(sequence_data)
+        
+        return training_sequences
+    
+    def _get_multi_scale_feature_names(self) -> List[str]:
+        """Get feature names for multi-scale data."""
+        
+        feature_names = ['open', 'high', 'low', 'close', 'volume']
+        
+        # Add enhanced technical indicators
+        if self.config.use_enhanced_features:
+            feature_names.extend(['etop', 'ebot', 'pldot', 'oneonedot'])
+        
+        feature_names.extend(['rsi'])
+        
+        # Add agent features if enabled
+        if self.config.enable_agent_features:
+            feature_names.extend(['trend_agent', 'vol_agent'])
+        
+        return feature_names
+
 
 def create_sample_job_config(symbols: List[str] = None, 
                            days_back: int = 365,
@@ -719,6 +1308,73 @@ async def run_enhanced_training_data_job_for_symbol(symbol: str,
     
     return await runner.run_training_data_generation()
 
+async def run_multi_scale_training_data_job(
+    symbols: List[str], 
+    scales: List[str] = None,
+    days_back: int = 90,
+    enable_events: bool = True,
+    enable_agent_features: bool = False,
+    enable_llm_events: bool = False,
+    output_dir: str = "multi_scale_training_data"
+) -> Dict[str, Any]:
+    """Generate multi-scale training data with advanced features."""
+    
+    if scales is None:
+        scales = ['hourly', 'daily']
+    
+    # Create config
+    end_date = date.today()
+    start_date = end_date - timedelta(days=days_back)
+    
+    config = TrainingDataJobConfig(
+        job_name="multi_scale_training",
+        symbols=symbols,
+        start_date=start_date,
+        end_date=end_date,
+        
+        # Multi-scale settings
+        enable_multi_scale=True,
+        scales=scales,
+        output_format="multi_scale",
+        
+        # Advanced features
+        enable_events=enable_events,
+        enable_agent_features=enable_agent_features,
+        enable_llm_events=enable_llm_events,
+        
+        # Basic settings
+        use_enhanced_features=True,
+        feature_configs=[],  # Will be generated
+        label_configs=[]     # Will be generated
+    )
+    
+    runner = TrainingDataJobRunner(config=config, output_dir=output_dir)
+    return await runner.run_training_data_generation()
+
+async def run_multi_scale_training_data_job_for_symbol(
+    symbol: str,
+    scales: List[str] = None,
+    days_back: int = 90,
+    output_dir: str = "multi_scale_training_data",
+    enable_all_features: bool = False
+) -> Dict[str, Any]:
+    """Convenience function for single symbol multi-scale training data generation."""
+    
+    # Enable advanced features if requested
+    enable_agents = enable_all_features
+    enable_llm = enable_all_features
+    
+    return await run_multi_scale_training_data_job(
+        symbols=[symbol],
+        scales=scales,
+        days_back=days_back,
+        enable_events=True,
+        enable_agent_features=enable_agents,
+        enable_llm_events=enable_llm,
+        output_dir=output_dir
+    )
+
+
 if __name__ == "__main__":
     # Example usage
     async def main():
@@ -756,5 +1412,32 @@ if __name__ == "__main__":
             print(f"Feature names: {training_results['feature_names']}")
             print(f"Label names: {training_results['label_names']}")
             print("Enhanced features include: etop, ebot, pldot, oneonedot technical indicators")
+        
+        print("\n=== Generating Multi-Scale Training Data ===")
+        # Generate multi-scale training data
+        multi_scale_results = await run_multi_scale_training_data_job_for_symbol(
+            'AAPL', 
+            scales=['hourly', 'daily'],
+            days_back=60,
+            enable_all_features=False  # Set to True to enable all advanced features
+        )
+        
+        print("Multi-Scale Training Data Generation Results:")
+        print(f"Status: {multi_scale_results['status']}")
+        print(f"Run ID: {multi_scale_results['run_id']}")
+        print(f"Dataset IDs: {multi_scale_results['dataset_ids']}")
+        
+        if multi_scale_results['status'] == 'success':
+            training_results = multi_scale_results['results']['training_results']
+            print(f"Features shape: {training_results['features_shape']}")
+            print(f"Labels shape: {training_results['labels_shape']}")
+            print(f"Feature names: {training_results['feature_names']}")
+            print(f"Label names: {training_results['label_names']}")
+            if 'multi_scale_metadata' in training_results:
+                metadata = training_results['multi_scale_metadata']
+                print(f"Scales used: {metadata['scales']}")
+                print(f"Events enabled: {metadata['events_enabled']}")
+                print(f"Agent features: {metadata['agent_features_enabled']}")
+                print(f"LLM events: {metadata['llm_events_enabled']}")
     
     asyncio.run(main())
