@@ -129,6 +129,22 @@ app.add_middleware(
 type_aware_router = create_type_aware_analytics_router()
 app.include_router(type_aware_router)
 
+# Include datasets EDA router for table analysis
+try:
+    from api.datasets_api import router as datasets_router
+    app.include_router(datasets_router, prefix="/api/v1/datasets", tags=["datasets"])
+    logger.info("✅ Datasets EDA API routes added")
+except ImportError as e:
+    logger.warning(f"⚠️  Datasets API not available: {e}")
+
+# Include training dataset EDA router
+try:
+    from api.training_dataset_simple_api import router as training_dataset_router
+    app.include_router(training_dataset_router, prefix="/api/v1/training-datasets", tags=["training-datasets"])
+    logger.info("✅ Training dataset EDA API routes added")
+except ImportError as e:
+    logger.warning(f"⚠️  Training dataset API not available: {e}")
+
 class UnifiedAnalyticsService:
     """Main unified analytics service orchestrator"""
     

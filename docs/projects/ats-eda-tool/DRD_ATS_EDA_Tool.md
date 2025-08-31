@@ -146,6 +146,78 @@ graph LR
    - Computed statistics caching
    - Session state management
 
+5. **Training Dataset Service**:
+   - Training dataset metadata management
+   - Integration with training data generation pipeline
+   - Dataset lifecycle tracking and versioning
+
+6. **TFDV Integration Service**:
+   - TensorFlow Data Validation statistics computation
+   - Feature and label distribution analysis
+   - Data quality assessment and anomaly detection
+   - Histogram generation and storage management
+
+---
+
+## 🧠 Training Dataset EDA Architecture
+
+### Enhanced Architecture with Training Dataset Support
+
+```mermaid
+graph TB
+    subgraph "Frontend Components"
+        TopTabs[Top-Level Tab Navigation]
+        TableTab[Table EDA Tab]
+        TrainingTab[Training Dataset EDA Tab]
+        DatasetGrid[Dataset Selection Grid]
+        TFDVDashboard[TFDV Statistics Dashboard]
+        HistogramViewer[Interactive Histograms]
+    end
+    
+    subgraph "API Endpoints"
+        TrainingDatasetAPI[Training Dataset API]
+        TFDVStatsAPI[TFDV Statistics API]
+        HistogramAPI[Histogram Data API]
+        ExistingAPIs[Existing Table APIs]
+    end
+    
+    subgraph "Service Layer"
+        TrainingDatasetService[Training Dataset Service]
+        TFDVIntegrationService[TFDV Integration Service]
+        HistogramService[Histogram Generation]
+    end
+    
+    subgraph "Data Storage"
+        TrainingDatasetTables[(Training Dataset Tables)]
+        TFDVStatistics[(TFDV Statistics JSONB)]
+        HistogramFiles[(Generated Histogram Files)]
+        TrainingFiles[(Training Data Files .npy)]
+    end
+    
+    TopTabs --> TableTab
+    TopTabs --> TrainingTab
+    TrainingTab --> DatasetGrid
+    DatasetGrid --> TrainingDatasetAPI
+    TFDVDashboard --> TFDVStatsAPI
+    HistogramViewer --> HistogramAPI
+    
+    TrainingDatasetAPI --> TrainingDatasetService
+    TFDVStatsAPI --> TFDVIntegrationService
+    HistogramAPI --> HistogramService
+    
+    TrainingDatasetService --> TrainingDatasetTables
+    TFDVIntegrationService --> TFDVStatistics
+    TFDVIntegrationService --> TrainingFiles
+    HistogramService --> HistogramFiles
+```
+
+### Training Dataset Data Flow
+
+1. **Training Data Generation**: training_data_job_runner.py creates training datasets and records metadata
+2. **TFDV Computation**: Automatically compute statistics for features and labels using TensorFlow Data Validation
+3. **Histogram Generation**: Create interactive histogram data for visualization
+4. **EDA Integration**: Display training datasets in dual-tab interface with comprehensive analysis
+
 ---
 
 ## 🗄️ Database Schema Design
@@ -229,6 +301,75 @@ CREATE TABLE eda_data_quality_checks (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+### Training Dataset Tables
+
+```sql
+-- Training dataset metadata with TFDV integration
+CREATE TABLE dev_training_datasets (
+    id SERIAL PRIMARY KEY,
+    dataset_name VARCHAR(255) NOT NULL UNIQUE,
+    dataset_path VARCHAR(500) NOT NULL,
+    features_file VARCHAR(500) NOT NULL,
+    labels_file VARCHAR(500) NOT NULL,
+    metadata_file VARCHAR(500) NOT NULL,
+    total_sequences INTEGER DEFAULT 0,
+    sequence_length INTEGER DEFAULT 0,
+    feature_count INTEGER DEFAULT 0,
+    label_count INTEGER DEFAULT 0,
+    symbols TEXT[] DEFAULT '{}',
+    date_range_start DATE,
+    date_range_end DATE,
+    file_size_mb DECIMAL(10,2) DEFAULT 0.0,
+    data_quality_score DECIMAL(5,4) DEFAULT 0.0000,
+    feature_completeness DECIMAL(5,4) DEFAULT 0.0000,
+    label_completeness DECIMAL(5,4) DEFAULT 0.0000,
+    technical_indicators TEXT,
+    generation_parameters JSONB DEFAULT '{}',
+    training_run_id VARCHAR(255),
+    
+    -- TFDV Integration Fields
+    tfdv_statistics JSONB DEFAULT '{}',
+    tfdv_histogram_path TEXT DEFAULT '',
+    tfdv_anomalies JSONB DEFAULT '{}',
+    feature_distributions JSONB DEFAULT '{}',
+    label_distributions JSONB DEFAULT '{}',
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Mirror tables for integration environment
+CREATE TABLE intg_training_datasets (
+    id SERIAL PRIMARY KEY,
+    dataset_name VARCHAR(255) NOT NULL UNIQUE,
+    dataset_path VARCHAR(500) NOT NULL,
+    features_file VARCHAR(500) NOT NULL,
+    labels_file VARCHAR(500) NOT NULL,
+    metadata_file VARCHAR(500) NOT NULL,
+    total_sequences INTEGER DEFAULT 0,
+    sequence_length INTEGER DEFAULT 0,
+    feature_count INTEGER DEFAULT 0,
+    label_count INTEGER DEFAULT 0,
+    symbols TEXT[] DEFAULT '{}',
+    date_range_start DATE,
+    date_range_end DATE,
+    file_size_mb DECIMAL(10,2) DEFAULT 0.0,
+    data_quality_score DECIMAL(5,4) DEFAULT 0.0000,
+    feature_completeness DECIMAL(5,4) DEFAULT 0.0000,
+    label_completeness DECIMAL(5,4) DEFAULT 0.0000,
+    technical_indicators TEXT,
+    generation_parameters JSONB DEFAULT '{}',
+    training_run_id VARCHAR(255),
+    tfdv_statistics JSONB DEFAULT '{}',
+    tfdv_histogram_path TEXT DEFAULT '',
+    tfdv_anomalies JSONB DEFAULT '{}',
+    feature_distributions JSONB DEFAULT '{}',
+    label_distributions JSONB DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
 -- Indexes for performance
 CREATE INDEX idx_eda_datasets_name ON eda_datasets(name);
 CREATE INDEX idx_eda_datasets_type ON eda_datasets(dataset_type);
@@ -288,6 +429,27 @@ GET    /api/v1/sessions/{session_id}            # Get session details
 PUT    /api/v1/sessions/{session_id}            # Update session
 DELETE /api/v1/sessions/{session_id}            # Delete session
 POST   /api/v1/sessions/{session_id}/share      # Share session
+```
+
+#### Training Dataset Management
+```python
+# Training dataset discovery and metadata
+GET    /api/v1/training-datasets/                    # List all training datasets
+GET    /api/v1/training-datasets/{dataset_id}        # Get training dataset details
+POST   /api/v1/training-datasets/                    # Create new training dataset record
+PUT    /api/v1/training-datasets/{dataset_id}        # Update training dataset metadata
+DELETE /api/v1/training-datasets/{dataset_id}        # Delete training dataset record
+
+# TFDV statistics and analysis
+GET    /api/v1/training-datasets/{dataset_id}/distributions   # Get feature/label distributions
+POST   /api/v1/training-datasets/{dataset_id}/tfdv-stats      # Update TFDV statistics
+GET    /api/v1/training-datasets/{dataset_id}/histogram       # Get histogram data
+GET    /api/v1/training-datasets/{dataset_id}/histogram?feature_name={name}  # Feature-specific histogram
+
+# Training dataset validation
+POST   /api/v1/training-datasets/{dataset_id}/validate        # Validate dataset quality
+GET    /api/v1/training-datasets/{dataset_id}/anomalies       # Get TFDV anomalies
+POST   /api/v1/training-datasets/{dataset_id}/compute-stats   # Recompute TFDV statistics
 ```
 
 ### API Response Formats

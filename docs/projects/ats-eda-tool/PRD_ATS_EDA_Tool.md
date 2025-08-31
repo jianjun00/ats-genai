@@ -118,6 +118,12 @@ The ATS EDA Tool now implements a **unified metadata system** that automatically
 - **FR-1.3**: Automatic schema detection and metadata extraction
 - **FR-1.4**: Dataset cataloging with searchable metadata
 - **FR-1.5**: Version tracking for dataset changes
+- **FR-1.6**: **Training Dataset Integration**: Full lifecycle management for ML training datasets
+  - Training dataset metadata tracking (features, labels, sequences, quality scores)
+  - TFDV (TensorFlow Data Validation) statistics computation and storage
+  - Feature and label distribution analysis with histogram generation
+  - Data quality assessment with anomaly detection
+  - Link training datasets to their originating training runs
 
 ### 2. **Data Visualization - Enhanced Type-Aware System**
 - **FR-2.1**: **Intelligent Column Type Handling**:
@@ -164,25 +170,56 @@ The ATS EDA Tool now implements a **unified metadata system** that automatically
 - **FR-5.4**: Custom formula columns for derived metrics
 - **FR-5.5**: Visualization templates for common financial analysis patterns
 
-### 6. **Data Dashboard - Updated Interface Design**
-- **FR-6.1**: Left navigation panel with dataset selection and filtering controls
-- **FR-6.2**: Right content area with two scrollable sections:
-  - **Top Section**: All column distributions display (no columns hidden)
-  - **Bottom Section**: Paged data table with scrollable rows
-- **FR-6.3**: Dataset size information in dropdown selection (e.g., "EODHD Daily Prices (4.4M rows, 7 cols)")
-- **FR-6.4**: Export capabilities (CSV, Excel, JSON) from data table
-- **FR-6.5**: Statistical summary cards (mean, median, std, min, max) with null-safe display
-- **FR-6.6**: Data quality indicators (null count, unique values, data types)
-- **FR-6.7**: Interactive pagination controls with Previous/Next buttons
-- **FR-6.8**: Responsive layout supporting simultaneous visualization viewing and data browsing
-- **FR-6.9**: **String Type Handling**: Intelligent column type detection and specialized handling:
+### 6. **Data Dashboard - Dual-Tab Interface Design**
+- **FR-6.1**: **Top-Level Tab Navigation**: Primary interface split between two analysis modes:
+  - **"Table" Tab**: Traditional database table EDA for production data
+  - **"Training Dataset" Tab**: ML training dataset analysis with TFDV integration
+- **FR-6.2**: **Table EDA Interface**: 
+  - Left navigation panel with table selection and filtering controls
+  - Right content area with column distributions and paged data table
+  - Dataset size information in dropdown selection (e.g., "EODHD Daily Prices (4.4M rows, 7 cols)")
+  - Export capabilities (CSV, Excel, JSON) from data table
+- **FR-6.3**: **Training Dataset EDA Interface**:
+  - Grid view of available training datasets with key metrics (sequences, features, quality scores)
+  - Clickable dataset cards showing dataset overview (date range, symbols, file size, technical indicators)
+  - Detailed analysis view with TFDV statistics, feature/label distributions, and anomaly detection
+  - Interactive histogram visualizations for features and labels
+- **FR-6.4**: Statistical summary cards (mean, median, std, min, max) with null-safe display
+- **FR-6.5**: Data quality indicators (null count, unique values, data types)
+- **FR-6.6**: Interactive pagination controls with Previous/Next buttons
+- **FR-6.7**: Responsive layout supporting simultaneous visualization viewing and data browsing
+- **FR-6.8**: **String Type Handling**: Intelligent column type detection and specialized handling:
   - **String Detection**: Columns named `id`, `symbol`, `name`, `title`, `url`, `description` or with VARCHAR/TEXT types treated as strings
   - **Visualization Exclusion**: String columns excluded from distribution charts, show "String column - available in filters" message
   - **Partial String Matching**: Text search filters with debounced input (500ms delay) for real-time filtering
   - **Type Labeling**: Clear column type indication (numeric/categorical/string) in both filters and visualizations
 
-### 7. **Analytics and Insights**
-- **FR-7.1**: Automated data quality scoring
+### 7. **Training Dataset Analytics with TFDV Integration**
+- **FR-7.1**: **TensorFlow Data Validation (TFDV) Statistics**:
+  - Automatic computation of comprehensive dataset statistics for training data
+  - Feature distribution analysis with histogram generation and statistical summaries
+  - Label distribution analysis with target variable assessment
+  - Schema inference and validation for feature and label consistency
+  - Data anomaly detection including missing values, outliers, and distribution drift
+- **FR-7.2**: **Training Dataset Quality Assessment**:
+  - Data quality scoring based on completeness, consistency, and statistical properties
+  - Feature completeness percentage calculation and visualization
+  - Label completeness assessment for supervised learning readiness
+  - Technical indicator validation for enhanced feature sets
+- **FR-7.3**: **Training Dataset Visualization**:
+  - Interactive feature distribution histograms with drill-down capabilities
+  - Label distribution charts for target variable analysis
+  - Correlation matrices between features and labels
+  - Time-series visualization for temporal training datasets
+  - Anomaly highlighting with detailed anomaly descriptions
+- **FR-7.4**: **Training Dataset Metadata Management**:
+  - Comprehensive metadata storage including sequences, features, labels, date ranges
+  - File path tracking for features, labels, and metadata files
+  - Generation parameters and technical indicators documentation
+  - Training run linkage for traceability and reproducibility
+
+### 8. **Analytics and Insights**
+- **FR-8.1**: Automated data quality scoring
 - **FR-7.2**: Anomaly detection and alerting
 - **FR-7.3**: Coverage gap analysis across vendors and time periods
 - **FR-7.4**: Data freshness and collection health monitoring

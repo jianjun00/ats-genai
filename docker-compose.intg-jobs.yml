@@ -50,8 +50,7 @@ services:
     # Setup migration and cron jobs for daily data refresh
     command: ["python3", "scripts/intg_startup_manager.py"]
     
-    depends_on:
-      - postgres-intg
+    # Note: Depends on ats-intg-postgres managed by run_intg.py
     
     networks:
       - ats-intg-network
@@ -62,51 +61,7 @@ services:
       timeout: 10s
       retries: 3
 
-  # PostgreSQL Database for Integration Environment
-  postgres-intg:
-    image: postgres:13
-    container_name: postgres-intg
-    restart: unless-stopped
-    
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: intg_password
-      POSTGRES_DB: intg_db
-      POSTGRES_INITDB_ARGS: "--auth-host=md5 --auth-local=trust"
-    
-    ports:
-      - "4434:5432"  # Updated to 400x range for integration
-    
-    volumes:
-      # Docker-managed volume for data persistence
-      - postgres_intg_data:/var/lib/postgresql/data
-      - /mnt/d/ats-backup/intg:/backup
-      - ./sql/init-intg-tables.sql:/docker-entrypoint-initdb.d/01-init-tables.sql
-    
-    networks:
-      - ats-intg-network
-    
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d intg_db"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-    
-    # Optimize PostgreSQL for data processing
-    command: >
-      postgres
-      -c max_connections=200
-      -c shared_buffers=256MB
-      -c effective_cache_size=1GB
-      -c maintenance_work_mem=64MB
-      -c checkpoint_completion_target=0.7
-      -c wal_buffers=16MB
-      -c default_statistics_target=100
-      -c random_page_cost=1.1
-      -c effective_io_concurrency=200
-      -c work_mem=4MB
-      -c min_wal_size=1GB
-      -c max_wal_size=4GB
+  # Note: Using ats-intg-postgres managed by run_intg.py on port 5433
 
   # Analytics Service (Real Analytics Dashboard)
   ats-intg-analytics:
@@ -118,8 +73,8 @@ services:
       - PYTHONPATH=/workspace/src
       - ENVIRONMENT=intg
       - PORT=4000
-      - DB_HOST=172.17.0.1  # Connect to host machine  
-      - DB_PORT=4432        # TimescaleDB port with actual data
+      - DB_HOST=172.17.0.1  # Connect to ats-intg-postgres with data
+      - DB_PORT=5433        # Port where ats-intg-postgres runs
       - DB_USER=postgres
       - DB_PASSWORD=intg_password
       - DB_NAME=intg_db
@@ -140,7 +95,6 @@ services:
       "
     
     depends_on:
-      - postgres-intg
       - ats-intg-scheduler
     
     networks:
@@ -158,6 +112,4 @@ networks:
     driver: bridge
     name: ats-intg-network
 
-volumes:
-  postgres_intg_data:
-    driver: local
+# Note: Database volumes managed by run_intg.py

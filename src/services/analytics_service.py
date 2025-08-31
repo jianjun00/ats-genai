@@ -779,6 +779,64 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             logger.error(f"Ray column values failed for {column_name}: {e}")
             return {"error": f"Ray analysis failed: {str(e)}"}
     
+    def get_training_datasets(self):
+        """Get training datasets from database for dual-tab functionality"""
+        try:
+            from core.database.connection_manager import get_raw_connection
+            
+            # Determine table name based on environment
+            import os
+            environment = os.getenv('ENVIRONMENT', 'dev')
+            table_name = f"{environment}_training_dataset"
+            
+            with get_raw_connection() as conn:
+                from psycopg2.extras import RealDictCursor
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute(f"""
+                        SELECT id, dataset_name, total_sequences, feature_count, label_count,
+                               data_quality_score, feature_completeness, label_completeness,
+                               file_size_mb, technical_indicators, symbols, 
+                               date_range_start, date_range_end, creation_timestamp as created_at
+                        FROM {table_name} 
+                        ORDER BY creation_timestamp DESC 
+                        LIMIT 20
+                    """)
+                    
+                    results = cursor.fetchall()
+                    
+                    datasets = []
+                    for row in results:
+                        dataset = {
+                            'id': row['id'],
+                            'dataset_name': row['dataset_name'],
+                            'total_sequences': row['total_sequences'] or 0,
+                            'feature_count': row['feature_count'] or 0,
+                            'label_count': row['label_count'] or 0,
+                            'data_quality_score': float(row['data_quality_score']) if row['data_quality_score'] else 0.0,
+                            'feature_completeness': float(row['feature_completeness']) if row['feature_completeness'] else 0.0,
+                            'label_completeness': float(row['label_completeness']) if row['label_completeness'] else 0.0,
+                            'file_size_mb': float(row['file_size_mb']) if row['file_size_mb'] else 0.0,
+                            'technical_indicators': row['technical_indicators'] or "",
+                            'symbols': row['symbols'].split(',') if row['symbols'] else [],
+                            'date_range_start': row['date_range_start'].isoformat() if row['date_range_start'] else None,
+                            'date_range_end': row['date_range_end'].isoformat() if row['date_range_end'] else None,
+                            'created_at': row['created_at'].isoformat() if row['created_at'] else None
+                        }
+                        datasets.append(dataset)
+                    
+                    return {
+                        'datasets': datasets,
+                        'total_count': len(datasets)
+                    }
+                    
+        except Exception as e:
+            logger.error(f"Error getting training datasets: {e}")
+            return {
+                'datasets': [],
+                'total_count': 0,
+                'error': str(e)
+            }
+    
     def do_GET(self):
         logger.info(f"📍 GET request: {self.path}")
         if self.path == '/health':
@@ -1057,6 +1115,21 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps(datasets, indent=2).encode('utf-8'))
             except Exception as e:
                 logger.error(f"Error getting datasets: {e}")
+                error_response = {"error": str(e)}
+                self.wfile.write(json.dumps(error_response).encode('utf-8'))
+        
+        elif self.path == '/api/v1/training-datasets':
+            # Training dataset API endpoint for dual-tab functionality
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            try:
+                training_datasets = self.get_training_datasets()
+                self.wfile.write(json.dumps(training_datasets, indent=2).encode('utf-8'))
+            except Exception as e:
+                logger.error(f"Error getting training datasets: {e}")
                 error_response = {"error": str(e)}
                 self.wfile.write(json.dumps(error_response).encode('utf-8'))
         
@@ -1364,8 +1437,33 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 <h1>ATS Exploratory Data Analysis</h1>
                 <p>Comprehensive dataset analysis with automatic column distributions and filtering</p>
                 <a href="/" style="color: #3498db; margin-right: 15px;">&lt; Back to Analytics Dashboard</a>
+                
+                <!-- Dual-Tab Interface -->
+                <div class="tab-container" style="margin-top: 20px;">
+                    <button class="tab-button active" onclick="switchTab('database-tab')">Database Tables</button>
+                    <button class="tab-button" onclick="switchTab('training-tab')">Training Datasets</button>
+                </div>
             </div>
             
+            <style>
+                .tab-container { display: flex; gap: 5px; }
+                .tab-button { 
+                    padding: 10px 20px; 
+                    background: #34495e; 
+                    color: white; 
+                    border: none; 
+                    border-radius: 5px 5px 0 0; 
+                    cursor: pointer; 
+                    font-size: 14px; 
+                }
+                .tab-button.active { background: #3498db; }
+                .tab-button:hover { background: #2980b9; }
+                .tab-content { display: none; }
+                .tab-content.active { display: block; }
+            </style>
+            
+            <!-- Database Tables Tab -->
+            <div id="database-tab" class="tab-content active">
             <div class="main-layout">
                 <!-- Left Navigation Panel -->
                 <div class="nav-panel">
@@ -1434,9 +1532,64 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 </div>
                 <div id="pagination-controls" style="margin-top: 15px; text-align: center;"></div>
             </div>
+            </div>
+            </div>
+            <!-- End Database Tables Tab -->
+            
+            <!-- Training Datasets Tab -->
+            <div id="training-tab" class="tab-content">
+                <div class="main-layout">
+                    <!-- Left Navigation Panel -->
+                    <div class="nav-panel">
+                        <div class="nav-card">
+                            <h3>Training Dataset Selection</h3>
+                            <div class="controls">
+                                <div>
+                                    <label>Choose Training Dataset:</label>
+                                    <select id="training-dataset-select" onchange="loadTrainingDatasetAnalysis()">
+                                        <option value="">Select training dataset...</option>
+                                    </select>
+                                </div>
+                                <div id="training-dataset-info" style="display: none; margin-top: 15px;">
+                                    <div class="stats-grid">
+                                        <div class="stat-item">
+                                            <div class="stat-value" id="training-total-sequences">0</div>
+                                            <div class="stat-label">Total Sequences</div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-value" id="training-feature-count">0</div>
+                                            <div class="stat-label">Features</div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-value" id="training-label-count">0</div>
+                                            <div class="stat-label">Labels</div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-value" id="training-quality-score">0.0</div>
+                                            <div class="stat-label">Quality Score</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Main Content Panel -->
+                    <div class="content-panel">
+                        <div class="content-card">
+                            <h3>Training Dataset Analysis</h3>
+                            <div id="training-analysis-content">
+                                <p style="color: #666; text-align: center; margin-top: 50px;">Select a training dataset to view analysis</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- End Training Datasets Tab -->
             
             <script>
                 let datasets = [];
+                let trainingDatasets = [];
                 let currentAnalysis = null;
                 let currentFilters = {};
                 let currentPage = 1;
@@ -1446,6 +1599,125 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 let currentSortColumn = null;
                 let currentSortDirection = 'asc';
                 let currentTableData = [];
+                
+                // Tab switching functionality
+                function switchTab(tabId) {
+                    // Remove active class from all tabs and buttons
+                    document.querySelectorAll('.tab-content').forEach(tab => {
+                        tab.classList.remove('active');
+                    });
+                    document.querySelectorAll('.tab-button').forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                    
+                    // Activate selected tab
+                    document.getElementById(tabId).classList.add('active');
+                    event.target.classList.add('active');
+                    
+                    // Load appropriate data
+                    if (tabId === 'database-tab') {
+                        loadDatasets();
+                    } else if (tabId === 'training-tab') {
+                        loadTrainingDatasets();
+                    }
+                }
+                
+                // Training dataset functions
+                async function loadTrainingDatasets() {
+                    try {
+                        console.log('Loading training datasets...');
+                        const response = await fetch('/api/v1/training-datasets');
+                        const data = await response.json();
+                        
+                        trainingDatasets = data.datasets || [];
+                        
+                        const select = document.getElementById('training-dataset-select');
+                        select.innerHTML = '<option value="">Select training dataset...</option>';
+                        
+                        trainingDatasets.forEach(dataset => {
+                            const option = document.createElement('option');
+                            option.value = dataset.id;
+                            option.textContent = `${dataset.dataset_name} (${dataset.total_sequences} sequences)`;
+                            select.appendChild(option);
+                        });
+                        
+                        console.log(`Loaded ${trainingDatasets.length} training datasets`);
+                    } catch (error) {
+                        console.error('Error loading training datasets:', error);
+                        document.getElementById('training-analysis-content').innerHTML = 
+                            `<p style="color: #e74c3c;">Error loading training datasets: ${error.message}</p>`;
+                    }
+                }
+                
+                function loadTrainingDatasetAnalysis() {
+                    const select = document.getElementById('training-dataset-select');
+                    const datasetId = select.value;
+                    
+                    if (!datasetId) {
+                        document.getElementById('training-dataset-info').style.display = 'none';
+                        document.getElementById('training-analysis-content').innerHTML = 
+                            '<p style="color: #666; text-align: center; margin-top: 50px;">Select a training dataset to view analysis</p>';
+                        return;
+                    }
+                    
+                    const dataset = trainingDatasets.find(d => d.id == datasetId);
+                    if (!dataset) return;
+                    
+                    // Update dataset info
+                    document.getElementById('training-total-sequences').textContent = dataset.total_sequences;
+                    document.getElementById('training-feature-count').textContent = dataset.feature_count;
+                    document.getElementById('training-label-count').textContent = dataset.label_count;
+                    document.getElementById('training-quality-score').textContent = dataset.data_quality_score.toFixed(2);
+                    
+                    document.getElementById('training-dataset-info').style.display = 'block';
+                    
+                    // Display training dataset analysis
+                    const analysisContent = `
+                        <div style="padding: 20px;">
+                            <h4>Dataset: ${dataset.dataset_name}</h4>
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <div class="stat-value">${dataset.file_size_mb.toFixed(1)} MB</div>
+                                    <div class="stat-label">File Size</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${dataset.feature_completeness.toFixed(1)}%</div>
+                                    <div class="stat-label">Feature Completeness</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${dataset.label_completeness.toFixed(1)}%</div>
+                                    <div class="stat-label">Label Completeness</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${dataset.symbols.length}</div>
+                                    <div class="stat-label">Symbols</div>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 20px;">
+                                <h5>Technical Indicators:</h5>
+                                <p>${dataset.technical_indicators || 'None specified'}</p>
+                            </div>
+                            
+                            <div style="margin-top: 20px;">
+                                <h5>Symbols:</h5>
+                                <p>${dataset.symbols.join(', ') || 'None'}</p>
+                            </div>
+                            
+                            <div style="margin-top: 20px;">
+                                <h5>Date Range:</h5>
+                                <p>${dataset.date_range_start} to ${dataset.date_range_end}</p>
+                            </div>
+                            
+                            <div style="margin-top: 20px;">
+                                <h5>Created:</h5>
+                                <p>${new Date(dataset.created_at).toLocaleString()}</p>
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.getElementById('training-analysis-content').innerHTML = analysisContent;
+                }
                 
                 // Frontend cache for datasets - 1 hour cache
                 let datasetsCache = {

@@ -827,3 +827,25 @@ tail -50 /mnt/d/ats-logs/backup-*.log   # Recent backup activity
 **📖 For comprehensive information, see the complete documentation structure at [docs/README.md](docs/README.md)**
 
 *This is a Docker-first, test-driven development platform. Every change must be validated end-to-end with REAL DATA ONLY.*
+
+---
+
+## 🚨 **CRITICAL LESSONS LEARNED - DATABASE CONFIGURATION**
+
+**Never assume documentation is wrong when systems are working:**
+
+1. **Follow documentation exactly** - If docs say port 4432, use port 4432. Don't "correct" to what seems logical.
+
+2. **Don't make assumptions about "fixing" configurations** - A working system with different ports than documented may be correct for operational reasons.
+
+3. **Check current state before making changes** - Always verify existing data, table counts, and system state before configuration changes.
+
+4. **Understand impact of configuration changes** - Database port changes can disconnect from existing data volumes, causing data loss.
+
+5. **Stop when instructed to stop** - When told to stop creating/changing things, stop immediately and ask for guidance.
+
+6. **Ask for clarification instead of guessing** - When given directions like "check the docs", ask specifically what to look for rather than assuming.
+
+7. **Preserve existing working systems** - A database with 13 tables and data is more valuable than "correct" documentation compliance.
+
+**Core lesson: Listen to instructions, preserve existing working systems, and don't "fix" things that aren't broken.**

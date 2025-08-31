@@ -169,9 +169,21 @@ class DevCLI:
     
     def run_docker_job(self, script_path, job_name=None, gpu=False, environment=None):
         """Run a job using Docker instead of Kubernetes"""
-        if not os.path.exists(script_path):
-            print(f"❌ Script not found: {script_path}")
-            return False
+        # Handle command with arguments (e.g., "python script.py arg1 arg2")
+        if script_path.startswith('python '):
+            # Extract the actual script path for existence check
+            parts = script_path.split()
+            actual_script = parts[1] if len(parts) > 1 else script_path
+            if not os.path.exists(actual_script):
+                print(f"❌ Script not found: {actual_script}")
+                return False
+            command_to_run = script_path
+        else:
+            # Single script path
+            if not os.path.exists(script_path):
+                print(f"❌ Script not found: {script_path}")
+                return False
+            command_to_run = f"python {script_path}"
             
         print(f"🐳 Running Docker job: {script_path}")
         
@@ -228,9 +240,9 @@ class DevCLI:
             -e EXCHANGE_FILTER={os.getenv('EXCHANGE_FILTER', 'all')} \
             {env_vars} \
             {image} \
-            python {script_path}"""
+            {command_to_run}"""
         
-        print(f"🚀 Running: docker run ... python {script_path}")
+        print(f"🚀 Running: docker run ... {command_to_run}")
         result = subprocess.run(cmd, shell=True)
         
         if result.returncode == 0:
