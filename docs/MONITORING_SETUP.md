@@ -1,111 +1,118 @@
 # ATS System Monitoring Setup
 
-Official configuration for ATS WSL system monitoring with Slack alerts.
+**✅ UPDATED 2025-08-31**: Simplified monitoring system with hourly Slack alerts
 
 ## 🚀 Official Slack Integration
 
 **Slack Webhook URL**: `https://hooks.slack.com/services/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`
 
-**Target Channel**: `#ats-alerts` (or configured channel)
+**Target Channel**: `#ats-alerts`
 
-## 📦 Quick Setup
+## 📦 Quick Setup (No Dependencies Required)
 
-### 1. Install Dependencies
+### 1. Test the System
 ```bash
-sudo apt install python3-psutil python3-requests -y
+cd /home/jianjun/ats-genai-model/scripts/monitoring
+
+# Send test alert to Slack
+python3 simple_wsl_monitor.py --test
 ```
 
-### 2. Test the System
+### 2. Check Current System Status
 ```bash
-cd /home/jianjun/ats-genai-admin/scripts/monitoring
-
-# Send test alert
-python3 -c "
-import requests
-import json
-from datetime import datetime
-import socket
-
-webhook_url = 'https://hooks.slack.com/services/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'
-
-payload = {
-    'username': 'ATS System Monitor',
-    'icon_emoji': ':warning:',
-    'text': f'🧪 Test alert from {socket.gethostname()} at {datetime.now().strftime(\"%H:%M:%S\")} - System monitoring is active!'
-}
-
-response = requests.post(webhook_url, json=payload)
-print('✅ Test sent!' if response.status_code == 200 else f'❌ Failed: {response.status_code}')
-"
+# View detailed system status 
+python3 simple_wsl_monitor.py --status
 ```
 
-### 3. Install as Service
+### 3. Start Hourly Monitoring
 ```bash
-cd /home/jianjun/ats-genai-admin/scripts/monitoring
+# Option A: Run in background
+nohup python3 simple_wsl_monitor.py --hourly > /dev/null 2>&1 &
 
-# Set the official webhook URL
-export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/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"
-
-# Install service
-./install_monitor_service.sh
+# Option B: Install as systemd service (requires sudo)
+./install_hourly_monitor.sh
 ```
 
-### 4. Manual Run (Alternative)
+### 4. Frequent Monitoring (Testing/Debugging)
 ```bash
-cd /home/jianjun/ats-genai-admin/scripts/monitoring
-
-python3 wsl_system_monitor.py \
-    --slack-webhook="https://hooks.slack.com/services/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" \
-    --config-file=monitor_config.json \
-    --interval=60
+# Send updates every 5 minutes (for testing system stress)
+./start_frequent_monitoring.sh
 ```
 
-## 📊 Alert Examples
+## 📊 Monitoring Features
 
-With the current system status, you would receive alerts like:
+**System Metrics Tracked:**
+- **CPU Usage & Load Average**: Intel Core Ultra 7 265F utilization
+- **Memory Usage**: 31Gi total RAM monitoring  
+- **Disk Usage**: 1007G storage monitoring
+- **Docker Containers**: ATS container health status
+- **PostgreSQL**: Database connectivity and performance
+- **ATS Processes**: Backfill job monitoring
+- **Network & Process Count**: System resource usage
 
-### Memory Critical Alert (Current: 93% usage)
+### Sample Hourly Status Report
 ```
-🔴 CRITICAL: Critical Memory Usage
-Memory usage at 93.0% with only 301MB available
+🖥️ Host: game
+⏱️ Time: 2025-08-31 15:47:40
+📊 Uptime: 52 min
+📈 Load Average: 1.48, 0.95, 0.58
 
-System: game
-CPU: [current]%
-Memory: 93.0% (301MB available) 
-Disk: 44.0% (537GB free)
-ATS Backfill: ✅ Active
-DB Status: connected
+💾 Memory: Total: 31Gi, Used: 9.5Gi, Available: 21Gi
+💿 Disk: Size: 1007G, Used: 206G (22%), Available: 750G
+⚙️ CPU: Intel(R) Core(TM) Ultra 7 265F
+
+🐳 Docker: 3 containers running
+🗄️ PostgreSQL: ✅ Connected
+📊 ATS Backfill: ✅ Active (1 processes)
+
+Running Containers:
+ats-intg-analytics   Up 54 minutes (unhealthy)
+ats-intg-postgres    Up 54 minutes (healthy)
+ats-dev-postgres     Up 54 minutes (healthy)
 ```
 
 ## 🔧 Service Management
 
+**For systemd service (if installed):**
 ```bash
-# Check if service is running
-sudo systemctl status ats-wsl-monitor
+# Check service status
+sudo systemctl status ats-wsl-hourly-monitor
 
-# View live alerts
-journalctl -u ats-wsl-monitor -f
+# View logs
+journalctl -u ats-wsl-hourly-monitor -f
 
 # Restart service
-sudo systemctl restart ats-wsl-monitor
+sudo systemctl restart ats-wsl-hourly-monitor
 ```
 
-## 📱 Expected Slack Notifications
+**For background process:**
+```bash
+# Check if running
+ps aux | grep simple_wsl_monitor
 
-The system will send alerts for:
-- **CPU Usage** > 75% (warning) / 90% (critical)
-- **Memory Usage** > 80% (warning) / 92% (critical) ⚠️ *Current system would alert*
-- **Disk Usage** > 80% (warning) / 90% (critical)
-- **Process Issues**: Too many processes, database connections
-- **ATS Specific**: Backfill status, data directory size
-- **Recovery Alerts**: When conditions return to normal
+# Stop background monitoring
+pkill -f simple_wsl_monitor
+```
 
-## 🔍 Current System Status
+## 📱 Alert Capabilities
 
-Based on latest check:
-- **✅ Hostname**: `game`
-- **⚠️ Memory**: 93% used (CRITICAL - would trigger alert)
-- **✅ Disk**: 44% used (537GB free)
-- **✅ Monitoring**: Ready and configured
+**Current Implementation:**
+- ✅ **Hourly Status Reports**: System health every hour
+- ✅ **Test Alerts**: On-demand test messages
+- ✅ **System Monitoring**: All critical metrics tracked
+- ⚠️ **Stress Alerts**: Available in advanced monitor (requires psutil)
 
-The monitoring system is now ready to protect your ATS development environment!
+**Future Enhancement** (when psutil is available):
+- CPU/Memory threshold alerts
+- Recovery notifications  
+- Rate-limited alerting
+- Historical trending
+
+## 🔍 Why WSL Crash Wasn't Detected
+
+**Root Cause Analysis:**
+1. ❌ No active monitoring service was running
+2. ❌ Original monitor had dependency issues (psutil unavailable)
+3. ❌ No systemd service configured for automatic startup
+
+**✅ Fixed**: New simplified monitor works without external dependencies and provides reliable hourly updates!
