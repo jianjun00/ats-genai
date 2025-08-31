@@ -597,8 +597,24 @@ class FileBasedMinuteManager:
             # Convert timestamp column
             df['timestamp'] = pd.to_datetime(df['timestamp'])
             
+            # Ensure timezone compatibility for date filtering
+            if df['timestamp'].dt.tz is not None:
+                # Data has timezone, convert filter dates to same timezone
+                if hasattr(start_date, 'tz_localize'):
+                    # If start_date is timezone-naive, localize to UTC
+                    start_date_tz = start_date.tz_localize('UTC') if start_date.tzinfo is None else start_date
+                    end_date_tz = end_date.tz_localize('UTC') if end_date.tzinfo is None else end_date
+                else:
+                    # Convert datetime to pandas timestamp with UTC
+                    start_date_tz = pd.Timestamp(start_date).tz_localize('UTC') if start_date.tzinfo is None else pd.Timestamp(start_date)
+                    end_date_tz = pd.Timestamp(end_date).tz_localize('UTC') if end_date.tzinfo is None else pd.Timestamp(end_date)
+            else:
+                # Data is timezone-naive, use dates as-is
+                start_date_tz = start_date
+                end_date_tz = end_date
+            
             # Filter by date range
-            mask = (df['timestamp'] >= start_date) & (df['timestamp'] <= end_date)
+            mask = (df['timestamp'] >= start_date_tz) & (df['timestamp'] <= end_date_tz)
             filtered_df = df[mask]
             
             # Select specific columns if requested

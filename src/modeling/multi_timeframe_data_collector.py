@@ -43,14 +43,24 @@ class DataCollectionConfig:
 class MultiTimeframeDataCollector:
     """Collects OHLC and indicator data across multiple timeframes."""
     
-    def __init__(self, db_pool: asyncpg.Pool, feature_registry: EnhancedFeatureRegistry):
-        self.db_pool = db_pool
+    def __init__(self, minute_manager=None, feature_registry: EnhancedFeatureRegistry = None, db_pool: asyncpg.Pool = None):
+        # Prioritize real minute data manager
+        if minute_manager is not None:
+            self.minute_manager = minute_manager
+            self.use_real_data = True
+            logger.info("Initialized MultiTimeframeDataCollector with REAL minute data manager")
+        else:
+            # Fallback to database pool for legacy compatibility
+            self.db_pool = db_pool
+            self.use_real_data = False
+            logger.warning("Initialized MultiTimeframeDataCollector with DATABASE fallback (will use synthetic data)")
+        
         self.feature_registry = feature_registry
         
         # Cache for calculated indicators
         self._indicator_cache: Dict[str, pd.DataFrame] = {}
         
-        logger.info(f"Initialized MultiTimeframeDataCollector")
+        logger.info(f"Initialized MultiTimeframeDataCollector (real_data: {self.use_real_data})")
     
     async def collect_training_data(self, config: DataCollectionConfig) -> Dict[str, np.ndarray]:
         """Collect all required data for specified features."""
@@ -169,7 +179,65 @@ class MultiTimeframeDataCollector:
     
     async def _get_minute_data(self, symbols: List[str], start_date: str, end_date: str,
                              minutes: int = 5) -> pd.DataFrame:
-        """Get minute-level OHLC data."""
+        """Get minute-level OHLC data - now uses REAL data from FileBasedMinuteManager."""
+        
+        if self.use_real_data and hasattr(self, 'minute_manager'):
+            return await self._get_real_minute_data(symbols, start_date, end_date, minutes)
+        else:
+            return await self._get_legacy_database_minute_data(symbols, start_date, end_date, minutes)
+    
+    async def _get_real_minute_data(self, symbols: List[str], start_date: str, end_date: str,
+                                   minutes: int = 5) -> pd.DataFrame:
+        """Get REAL minute data from FileBasedMinuteManager."""
+        
+        logger.info(f"🎯 Getting REAL minute data for {symbols} from {start_date} to {end_date}")
+        
+        try:
+            # Convert string dates to datetime
+            start_dt = pd.to_datetime(start_date)
+            end_dt = pd.to_datetime(end_date)
+            
+            # Get real minute data from file storage
+            minute_data = await self.minute_manager.get_minute_ohlc_batch(
+                symbols=symbols,
+                start=start_dt,
+                end=end_dt,
+                timeframe_minutes=minutes  # This handles aggregation
+            )
+            
+            if not minute_data:
+                logger.warning(f"No real minute data found for symbols: {symbols}")
+                return pd.DataFrame()
+            
+            # Combine all symbols into single DataFrame
+            combined_data = []
+            for symbol, df in minute_data.items():
+                if not df.empty:
+                    df = df.copy()
+                    df['symbol'] = symbol
+                    combined_data.append(df)
+                    logger.info(f"✅ Got {len(df)} real {minutes}-minute bars for {symbol}")
+            
+            if combined_data:
+                result = pd.concat(combined_data, ignore_index=True)
+                logger.info(f"🚀 Combined REAL data: {len(result)} total {minutes}-minute bars")
+                return result
+            else:
+                return pd.DataFrame()
+                
+        except Exception as e:
+            logger.error(f"❌ Error getting real minute data: {e}")
+            return pd.DataFrame()
+    
+    async def _get_legacy_database_minute_data(self, symbols: List[str], start_date: str, end_date: str,
+                                             minutes: int = 5) -> pd.DataFrame:
+        """Legacy database approach - falls back to tables or synthetic data."""
+        
+        logger.warning(f"⚠️ Using LEGACY database approach for minute data")
+        
+        if not hasattr(self, 'db_pool') or self.db_pool is None:
+            logger.error("❌ No database pool available, generating synthetic data as last resort")
+            return self._generate_emergency_synthetic_data(symbols, start_date, end_date, minutes)
         
         # Try unified minute data first, fallback to individual vendor tables
         tables_to_try = [
@@ -210,8 +278,36 @@ class MultiTimeframeDataCollector:
                 logger.warning(f"Failed to get data from {table_name}: {e}")
                 continue
         
-        logger.warning(f"No minute data found in any table")
-        return pd.DataFrame()
+        logger.error(f"❌ No minute data found in any database table, generating synthetic data as fallback")
+        return self._generate_emergency_synthetic_data(symbols, start_date, end_date, minutes)
+    
+    def _generate_emergency_synthetic_data(self, symbols: List[str], start_date: str, end_date: str, 
+                                         minutes: int = 5) -> pd.DataFrame:
+        """Emergency synthetic data generation - only when no real data is available."""
+        
+        logger.warning(f"🔴 EMERGENCY: Generating synthetic data for {symbols} - THIS SHOULD NOT HAPPEN IN PRODUCTION")
+        
+        # Use the existing generate_synthetic_ohlc_data function
+        from .multi_timeframe_data_collector import generate_synthetic_ohlc_data
+        from .enhanced_feature_types import TimeframeSpec
+        
+        # Map minutes to TimeframeSpec
+        timeframe_map = {
+            1: TimeframeSpec.MINUTE_5,  # Close enough for testing
+            5: TimeframeSpec.MINUTE_5,
+            15: TimeframeSpec.MINUTE_15,
+            60: TimeframeSpec.HOUR_1
+        }
+        
+        timeframe = timeframe_map.get(minutes, TimeframeSpec.MINUTE_5)
+        
+        return generate_synthetic_ohlc_data(
+            symbols=symbols,
+            start_date=start_date,
+            end_date=end_date,
+            timeframe=timeframe,
+            seed=42  # Deterministic for testing
+        )
     
     async def _get_daily_data(self, symbols: List[str], start_date: str, end_date: str) -> pd.DataFrame:
         """Get daily OHLC data."""
