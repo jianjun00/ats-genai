@@ -43,9 +43,6 @@ python scripts/run_dev.py deploy --file k8s/foundation-model-pretraining-job.yam
 # Deploy LLM-enhanced news processing system
 python scripts/run_dev.py deploy --file k8s/llm-news-processing-job.yaml
 
-# Generate training data for enhanced model
-python scripts/run_dev.py deploy --file k8s/enhanced-training-job.yaml
-
 # Train support/resistance prediction model  
 python scripts/run_dev.py deploy --file k8s/sr-training-job.yaml
 

@@ -123,8 +123,6 @@ curl -s "http://localhost:3001/health" | grep -E "(OK|healthy)"
 
 ### 🤖 Model Developer
 ```bash
-# Generate training data
-python scripts/run_dev.py run --script scripts/enhanced_training.py
 # Verify dataset
 python scripts/run_dev.py query --query "SELECT dataset_name, total_sequences FROM dev_training_dataset ORDER BY id DESC LIMIT 5"
 ```
