@@ -62,3 +62,47 @@ groups:
         annotations:
           summary: "High disk usage in INTG environment"
           description: "Disk usage is above 85% ({{ $value | humanizePercentage }})"
+
+      - alert: HighDiskUsageDriveC_INTG
+        expr: (1 - (node_filesystem_avail_bytes{job="node-exporter-intg",mountpoint="/host/mnt/c"} / node_filesystem_size_bytes{job="node-exporter-intg",mountpoint="/host/mnt/c"})) > 0.70
+        for: 5m
+        labels:
+          severity: warning
+          environment: intg
+          drive: C
+        annotations:
+          summary: "High C: drive usage in INTG environment"
+          description: "C: drive usage is above 70% ({{ $value | humanizePercentage }}) - Current usage: {{ printf \"%.2f\" (mul $value 100) }}%"
+
+      - alert: CriticalDiskUsageDriveC_INTG
+        expr: (1 - (node_filesystem_avail_bytes{job="node-exporter-intg",mountpoint="/host/mnt/c"} / node_filesystem_size_bytes{job="node-exporter-intg",mountpoint="/host/mnt/c"})) > 0.85
+        for: 2m
+        labels:
+          severity: critical
+          environment: intg
+          drive: C
+        annotations:
+          summary: "CRITICAL C: drive usage in INTG environment"
+          description: "C: drive usage is above 85% ({{ $value | humanizePercentage }}) - Immediate action required!"
+
+      - alert: HighDiskUsageDriveD_INTG
+        expr: (1 - (node_filesystem_avail_bytes{job="node-exporter-intg",mountpoint="/host/mnt/d"} / node_filesystem_size_bytes{job="node-exporter-intg",mountpoint="/host/mnt/d"})) > 0.70
+        for: 5m
+        labels:
+          severity: warning
+          environment: intg
+          drive: D
+        annotations:
+          summary: "High D: drive usage in INTG environment"
+          description: "D: drive usage is above 70% ({{ $value | humanizePercentage }}) - Current usage: {{ printf \"%.2f\" (mul $value 100) }}%. D: drive stores ATS data, backups and logs."
+
+      - alert: CriticalDiskUsageDriveD_INTG
+        expr: (1 - (node_filesystem_avail_bytes{job="node-exporter-intg",mountpoint="/host/mnt/d"} / node_filesystem_size_bytes{job="node-exporter-intg",mountpoint="/host/mnt/d"})) > 0.85
+        for: 2m
+        labels:
+          severity: critical
+          environment: intg
+          drive: D
+        annotations:
+          summary: "CRITICAL D: drive usage in INTG environment"
+          description: "D: drive usage is above 85% ({{ $value | humanizePercentage }}) - ATS data storage critically low! Immediate cleanup required!"

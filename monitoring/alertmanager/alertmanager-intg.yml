@@ -23,6 +23,10 @@ route:
       alertname: DailyPricesStaleINTG
       environment: intg
     receiver: 'ats-intg-data-quality'
+  - match_re:
+      alertname: (HighDiskUsageDrive[CD]_INTG|CriticalDiskUsageDrive[CD]_INTG)
+      environment: intg
+    receiver: 'ats-intg-disk-alerts'
 
 receivers:
 - name: 'ats-intg-alerts'
@@ -47,3 +51,23 @@ receivers:
     title: 'ATS INTG Data Quality Alert'
     text: 'Data Quality Issue in INTG: {{ .GroupLabels.alertname }}'
     color: 'warning'
+
+- name: 'ats-intg-disk-alerts'
+  slack_configs:
+  - channel: '#ats-intg-disk-alerts'
+    username: 'ATS-INTG-DiskMonitor'
+    title: '💾 ATS INTG Disk Usage Alert'
+    text: |
+      🚨 **{{ .GroupLabels.alertname }}**
+      
+      **Environment:** {{ .GroupLabels.environment }}
+      **Drive:** {{ .GroupLabels.drive | default "Unknown" }}:
+      **Severity:** {{ .GroupLabels.severity }}
+      
+      {{ range .Alerts }}
+      📊 **{{ .Annotations.summary }}**
+      {{ .Annotations.description }}
+      {{ end }}
+      
+      🔗 [View Dashboard](http://localhost:4002/d/disk-usage-dashboard)
+    color: '{{ if eq .GroupLabels.severity "critical" }}danger{{ else }}warning{{ end }}'

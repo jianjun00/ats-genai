@@ -93,11 +93,14 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
+      - /mnt/c:/host/mnt/c:ro  # Mount C drive for monitoring
+      - /mnt/d:/host/mnt/d:ro  # Mount D drive for monitoring
     command:
       - '--path.procfs=/host/proc'
       - '--path.rootfs=/rootfs'
       - '--path.sysfs=/host/sys'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc|run|var/lib/docker)($$|/)'
+      - '--collector.filesystem'
     restart: unless-stopped
     networks:
       - ats-monitoring-intg
