@@ -928,3 +928,139 @@ class Z6T(Indicator):
 
     def get_value(self) -> Optional[float]:
         return self.latest_z6t
+
+
+@gin.configurable
+class FiveNineSell(Indicator):
+    """
+    Five Nine Sell Indicator: Calculated as 2 * high of prior bar - low of prior prior bar.
+    Formula: five_nine_sell = 2 * high(t-1) - low(t-2)
+    
+    This indicator uses simple arithmetic on High/Low prices from the two most recent intervals.
+    Requires 2 previous intervals for calculation.
+    """
+    def __init__(self):
+        super().__init__()
+        self.latest_five_nine_sell: Optional[float] = None
+
+    def update(self, intervals: List[InstrumentInterval]):
+        import logging
+        import math
+        
+        self.update_at = datetime.now()
+        
+        if len(intervals) < 2:
+            logging.debug('[FiveNineSell] Not enough intervals: need 2, got %d', len(intervals))
+            self.status = 'invalid'
+            self.latest_five_nine_sell = None
+            return
+            
+        # Get last 2 intervals: t-2 (prior prior) and t-1 (prior)
+        prior_prior = intervals[-2]  # t-2
+        prior = intervals[-1]        # t-1
+        
+        # Validate intervals
+        for i, interval in enumerate([prior_prior, prior]):
+            if interval.status != 'ok':
+                logging.debug('[FiveNineSell] Invalid interval status at position %d: %s', i, interval.status)
+                self.status = 'invalid'
+                self.latest_five_nine_sell = None
+                return
+                
+            # Check required fields: high for prior, low for prior_prior
+            if i == 0:  # prior_prior - need low
+                val = getattr(interval, 'low', None)
+                if val is None or (isinstance(val, float) and math.isnan(val)):
+                    logging.debug('[FiveNineSell] Invalid low at prior_prior: %s', val)
+                    self.status = 'invalid'
+                    self.latest_five_nine_sell = None
+                    return
+            else:  # prior - need high
+                val = getattr(interval, 'high', None)
+                if val is None or (isinstance(val, float) and math.isnan(val)):
+                    logging.debug('[FiveNineSell] Invalid high at prior: %s', val)
+                    self.status = 'invalid'
+                    self.latest_five_nine_sell = None
+                    return
+        
+        # Calculate: 2 * high(t-1) - low(t-2)
+        try:
+            self.latest_five_nine_sell = 2 * prior.high - prior_prior.low
+            self.status = 'ok'
+            logging.debug('[FiveNineSell] Calculated: 2*%.2f - %.2f = %.2f', 
+                         prior.high, prior_prior.low, self.latest_five_nine_sell)
+        except Exception as e:
+            logging.error('[FiveNineSell] Error calculating: %s', str(e))
+            self.status = 'invalid'
+            self.latest_five_nine_sell = None
+
+    def get_value(self) -> Optional[float]:
+        return self.latest_five_nine_sell
+
+
+@gin.configurable
+class FiveNineBuy(Indicator):
+    """
+    Five Nine Buy Indicator: Calculated as 2 * low of prior bar - high of prior prior bar.
+    Formula: five_nine_buy = 2 * low(t-1) - high(t-2)
+    
+    This indicator uses simple arithmetic on High/Low prices from the two most recent intervals.
+    Requires 2 previous intervals for calculation.
+    """
+    def __init__(self):
+        super().__init__()
+        self.latest_five_nine_buy: Optional[float] = None
+
+    def update(self, intervals: List[InstrumentInterval]):
+        import logging
+        import math
+        
+        self.update_at = datetime.now()
+        
+        if len(intervals) < 2:
+            logging.debug('[FiveNineBuy] Not enough intervals: need 2, got %d', len(intervals))
+            self.status = 'invalid'
+            self.latest_five_nine_buy = None
+            return
+            
+        # Get last 2 intervals: t-2 (prior prior) and t-1 (prior)
+        prior_prior = intervals[-2]  # t-2
+        prior = intervals[-1]        # t-1
+        
+        # Validate intervals
+        for i, interval in enumerate([prior_prior, prior]):
+            if interval.status != 'ok':
+                logging.debug('[FiveNineBuy] Invalid interval status at position %d: %s', i, interval.status)
+                self.status = 'invalid'
+                self.latest_five_nine_buy = None
+                return
+                
+            # Check required fields: high for prior_prior, low for prior
+            if i == 0:  # prior_prior - need high
+                val = getattr(interval, 'high', None)
+                if val is None or (isinstance(val, float) and math.isnan(val)):
+                    logging.debug('[FiveNineBuy] Invalid high at prior_prior: %s', val)
+                    self.status = 'invalid'
+                    self.latest_five_nine_buy = None
+                    return
+            else:  # prior - need low
+                val = getattr(interval, 'low', None)
+                if val is None or (isinstance(val, float) and math.isnan(val)):
+                    logging.debug('[FiveNineBuy] Invalid low at prior: %s', val)
+                    self.status = 'invalid'
+                    self.latest_five_nine_buy = None
+                    return
+        
+        # Calculate: 2 * low(t-1) - high(t-2)
+        try:
+            self.latest_five_nine_buy = 2 * prior.low - prior_prior.high
+            self.status = 'ok'
+            logging.debug('[FiveNineBuy] Calculated: 2*%.2f - %.2f = %.2f', 
+                         prior.low, prior_prior.high, self.latest_five_nine_buy)
+        except Exception as e:
+            logging.error('[FiveNineBuy] Error calculating: %s', str(e))
+            self.status = 'invalid'
+            self.latest_five_nine_buy = None
+
+    def get_value(self) -> Optional[float]:
+        return self.latest_five_nine_buy

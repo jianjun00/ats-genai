@@ -283,6 +283,20 @@ The HLC-only formulas represent a significant improvement over OHLC-based models
 
 These formulas are **immediately deployable** for live trading systems and provide superior performance with reduced computational requirements.
 
+## Additional Indicators
+
+Beyond the 9 HLC-only linear regression indicators, the system also includes:
+
+### Five Nine Indicators
+Simple arithmetic-based support/resistance indicators:
+
+- **FiveNineSell**: `2 * high(t-1) - low(t-2)` - Provides resistance levels
+- **FiveNineBuy**: `2 * low(t-1) - high(t-2)` - Provides support levels
+
+These indicators require only 2 previous bars and provide adaptive support/resistance levels for trading decisions. See [FIVE_NINE_INDICATORS.md](FIVE_NINE_INDICATORS.md) for complete documentation.
+
+**Total Indicator System**: 11 indicators (9 HLC linear regression + 2 Five Nine arithmetic)
+
 ---
 
 *Formulas derived through cross-validated linear regression analysis*  
