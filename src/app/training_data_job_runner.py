@@ -264,8 +264,8 @@ class TrainingDataJobRunner:
         # For simplified implementation, create basic features and labels
         features, labels, metadata = self._create_basic_training_data(market_data)
         
-        # Save training data files
-        dataset_id = f"dataset_{self.config.job_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        # Save training data files with unique run_id to prevent duplicates
+        dataset_id = f"dataset_{self.config.job_name}_run{self.run_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         data_files = self._save_training_data_files(features, labels, dataset_id, metadata)
         
         # Create training dataset record
@@ -285,61 +285,61 @@ class TrainingDataJobRunner:
         }
     
     async def _load_market_data(self) -> pd.DataFrame:
-        """Load market data for training data generation."""
-        
-        # For this implementation, we'll create synthetic market data
-        # In real implementation, this would query the dev_daily_prices table
+        """Load real market data for training data generation."""
         
         logger.info(f"Loading market data for symbols: {self.config.symbols}")
         logger.info(f"Date range: {self.config.start_date} to {self.config.end_date}")
         
-        # Generate synthetic OHLCV data
-        data_rows = []
+        # Import database connection
+        import asyncpg
         
-        for symbol in self.config.symbols:
-            # Generate date range
-            current_date = self.config.start_date
-            base_price = 100.0 + np.random.uniform(-20, 20)  # Base price around $100
+        # Get database connection
+        conn = await asyncpg.connect(self.env.get_database_url())
+        
+        try:
+            # Query real market data from database
+            data_rows = []
             
-            while current_date <= self.config.end_date:
-                # Skip weekends
-                if current_date.weekday() < 5:  # Monday = 0, Sunday = 6
-                    # Generate realistic OHLCV data
-                    daily_return = np.random.normal(0.001, 0.02)  # ~0.1% daily return, 2% volatility
-                    base_price *= (1 + daily_return)
-                    
-                    # Create intraday high/low
-                    daily_range = base_price * np.random.uniform(0.005, 0.03)  # 0.5-3% daily range
-                    high = base_price + daily_range / 2
-                    low = base_price - daily_range / 2
-                    
-                    # Open and close within range
-                    open_price = np.random.uniform(low, high)
-                    close_price = base_price  # Use base_price as close
-                    
-                    # Volume
-                    volume = int(np.random.lognormal(15, 1))  # Log-normal distribution for volume
-                    
-                    data_rows.append({
-                        'date': current_date,
-                        'symbol': symbol,
-                        'open': round(open_price, 2),
-                        'high': round(high, 2),
-                        'low': round(low, 2),
-                        'close': round(close_price, 2),
-                        'volume': volume
-                    })
+            for symbol in self.config.symbols:
+                # Query daily prices for the symbol and date range
+                table_name = f"{self.env.table_prefix}daily_prices"
                 
-                current_date += timedelta(days=1)
-        
-        df = pd.DataFrame(data_rows)
-        df = df.set_index('date')
-        
-        logger.info(f"Generated {len(df)} market data points")
-        logger.info(f"Date range: {df.index.min()} to {df.index.max()}")
-        logger.info(f"Symbols: {df['symbol'].unique()}")
-        
-        return df
+                query = f"""
+                SELECT date, open, high, low, close, volume
+                FROM {table_name}
+                WHERE symbol = $1 AND date BETWEEN $2 AND $3
+                ORDER BY date
+                """
+                
+                rows = await conn.fetch(query, symbol, self.config.start_date, self.config.end_date)
+                
+                for row in rows:
+                    data_rows.append({
+                        'date': row['date'],
+                        'symbol': symbol,
+                        'open': float(row['open']) if row['open'] is not None else 0.0,
+                        'high': float(row['high']) if row['high'] is not None else 0.0,
+                        'low': float(row['low']) if row['low'] is not None else 0.0,
+                        'close': float(row['close']) if row['close'] is not None else 0.0,
+                        'volume': int(row['volume']) if row['volume'] is not None else 0
+                    })
+            
+            if not data_rows:
+                # If no real data found, log warning and raise error
+                logger.error(f"No real market data found for symbols {self.config.symbols} in date range {self.config.start_date} to {self.config.end_date}")
+                raise ValueError(f"No market data available for symbols: {self.config.symbols}")
+            
+            df = pd.DataFrame(data_rows)
+            df = df.set_index('date')
+            
+            logger.info(f"Loaded {len(df)} real market data points")
+            logger.info(f"Date range: {df.index.min()} to {df.index.max()}")
+            logger.info(f"Symbols: {df['symbol'].unique().tolist()}")
+            
+            return df
+            
+        finally:
+            await conn.close()
     
     def _create_basic_training_data(self, data: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
         """Create training data from market data with optional enhanced features."""
@@ -565,7 +565,7 @@ class TrainingDataJobRunner:
             label_completeness=label_completeness,
             generation_duration_seconds=generation_duration,
             file_size_mb=total_file_size,
-            data_sources=['synthetic'],  # In real implementation, would track actual sources
+            data_sources=['database_daily_prices'],  # Real data from daily prices table
             status="created",
             created_by="training_job_runner"
         )
@@ -649,7 +649,7 @@ def create_sample_job_config(symbols: List[str] = None,
     """Create a sample training data job configuration."""
     
     if symbols is None:
-        symbols = ['AAPL', 'MSFT', 'GOOGL']
+        raise ValueError("symbols parameter is required - no default symbols provided")
     
     end_date = date.today() - timedelta(days=1)  # Yesterday
     start_date = end_date - timedelta(days=days_back)
@@ -722,39 +722,53 @@ async def run_enhanced_training_data_job_for_symbol(symbol: str,
 if __name__ == "__main__":
     # Example usage
     async def main():
+        import argparse
+        
+        parser = argparse.ArgumentParser(description='Generate training data for a symbol')
+        parser.add_argument('--symbol', type=str, required=True, help='Stock symbol to generate training data for')
+        parser.add_argument('--days-back', type=int, default=365, help='Number of days back to generate data for')
+        parser.add_argument('--enhanced-only', action='store_true', help='Generate only enhanced training data')
+        parser.add_argument('--basic-only', action='store_true', help='Generate only basic training data')
+        
+        args = parser.parse_args()
+        
         logging.basicConfig(level=logging.INFO)
         
-        # Generate basic training data for AAPL
-        print("=== Generating Basic Training Data ===")
-        basic_results = await run_training_data_job_for_symbol('AAPL')
+        symbol = args.symbol.upper()
         
-        print("Basic Training Data Generation Results:")
-        print(f"Status: {basic_results['status']}")
-        print(f"Run ID: {basic_results['run_id']}")
-        print(f"Dataset IDs: {basic_results['dataset_ids']}")
+        if not args.enhanced_only:
+            # Generate basic training data
+            print(f"=== Generating Basic Training Data for {symbol} ===")
+            basic_results = await run_training_data_job_for_symbol(symbol)
+            
+            print("Basic Training Data Generation Results:")
+            print(f"Status: {basic_results['status']}")
+            print(f"Run ID: {basic_results['run_id']}")
+            print(f"Dataset IDs: {basic_results['dataset_ids']}")
+            
+            if basic_results['status'] == 'success':
+                training_results = basic_results['results']['training_results']
+                print(f"Features shape: {training_results['features_shape']}")
+                print(f"Labels shape: {training_results['labels_shape']}")
+                print(f"Feature names: {training_results['feature_names']}")
+                print(f"Label names: {training_results['label_names']}")
         
-        if basic_results['status'] == 'success':
-            training_results = basic_results['results']['training_results']
-            print(f"Features shape: {training_results['features_shape']}")
-            print(f"Labels shape: {training_results['labels_shape']}")
-            print(f"Feature names: {training_results['feature_names']}")
-            print(f"Label names: {training_results['label_names']}")
-        
-        print("\n=== Generating Enhanced Training Data ===")
-        # Generate enhanced training data with technical indicators
-        enhanced_results = await run_enhanced_training_data_job_for_symbol('AAPL', days_back=180)
-        
-        print("Enhanced Training Data Generation Results:")
-        print(f"Status: {enhanced_results['status']}")
-        print(f"Run ID: {enhanced_results['run_id']}")
-        print(f"Dataset IDs: {enhanced_results['dataset_ids']}")
-        
-        if enhanced_results['status'] == 'success':
-            training_results = enhanced_results['results']['training_results']
-            print(f"Features shape: {training_results['features_shape']}")
-            print(f"Labels shape: {training_results['labels_shape']}")
-            print(f"Feature names: {training_results['feature_names']}")
-            print(f"Label names: {training_results['label_names']}")
-            print("Enhanced features include: etop, ebot, pldot, oneonedot technical indicators")
+        if not args.basic_only:
+            print(f"\n=== Generating Enhanced Training Data for {symbol} ===")
+            # Generate enhanced training data with technical indicators
+            enhanced_results = await run_enhanced_training_data_job_for_symbol(symbol, days_back=args.days_back)
+            
+            print("Enhanced Training Data Generation Results:")
+            print(f"Status: {enhanced_results['status']}")
+            print(f"Run ID: {enhanced_results['run_id']}")
+            print(f"Dataset IDs: {enhanced_results['dataset_ids']}")
+            
+            if enhanced_results['status'] == 'success':
+                training_results = enhanced_results['results']['training_results']
+                print(f"Features shape: {training_results['features_shape']}")
+                print(f"Labels shape: {training_results['labels_shape']}")
+                print(f"Feature names: {training_results['feature_names']}")
+                print(f"Label names: {training_results['label_names']}")
+                print("Enhanced features include: etop, ebot, pldot, oneonedot technical indicators")
     
     asyncio.run(main())

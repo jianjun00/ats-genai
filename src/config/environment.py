@@ -350,6 +350,28 @@ class Environment:
         return self.get(f"{key_name}")
     
     @property
+    def table_prefix(self) -> str:
+        """
+        Get the table prefix for the current environment.
+        
+        Returns:
+            str: The environment prefix (e.g., 'dev_', 'intg_', 'test_')
+        """
+        env_type = getattr(self, "env_type", None)
+        if env_type is None:
+            prefix = "test"
+        else:
+            # Handle both enum and string environment types
+            prefix = env_type.value if hasattr(env_type, "value") else str(env_type)
+            
+        # Special case: if we're in test environment, always use 'test_' prefix
+        # regardless of the actual env_type value to ensure test isolation
+        if os.getenv('PYTEST_CURRENT_TEST'):
+            prefix = "test"
+            
+        return f"{prefix}_"
+
+    @property
     def indicator_config(self) -> IndicatorConfig:
         """
         Get or set the indicator configuration for this environment.

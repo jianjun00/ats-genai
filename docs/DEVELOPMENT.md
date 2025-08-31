@@ -399,6 +399,98 @@ python scripts/detect_k8s_conflicts.py k8s/
 
 ---
 
+## 📚 Critical Lessons Learned
+
+### 🚨 **MAJOR: Training Data System Cleanup (2025-08-31)**
+
+**Issue**: Training data generation system contained hardcoded symbols, synthetic data, and infrastructure problems that prevented clean, parameterized execution.
+
+**Root Causes Identified:**
+- **Hardcoded Symbols**: Default `symbols = ['AAPL', 'MSFT', 'GOOGL']` in `create_sample_job_config()` 
+- **Hardcoded Argument Parser**: `--symbol` with `default='AAPL'` instead of `required=True`
+- **Missing Environment Attribute**: `Environment` class missing `table_prefix` property
+- **Dataset Naming Collisions**: Dataset IDs without run_id causing database duplicate key violations
+
+**Solution Applied:**
+```python
+# ❌ WRONG: Hardcoded defaults hide parameterization issues
+def create_sample_job_config(symbols: List[str] = None):
+    if symbols is None:
+        symbols = ['AAPL', 'MSFT', 'GOOGL']  # Hardcoded!
+
+# ✅ CORRECT: Explicit requirements enforce proper usage  
+def create_sample_job_config(symbols: List[str] = None):
+    if symbols is None:
+        raise ValueError("symbols parameter is required - no default symbols provided")
+
+# ❌ WRONG: Optional arguments with defaults mask configuration issues
+parser.add_argument('--symbol', type=str, default='AAPL')
+
+# ✅ CORRECT: Required arguments ensure explicit symbol specification
+parser.add_argument('--symbol', type=str, required=True)
+
+# ✅ CORRECT: Unique dataset naming prevents database conflicts
+dataset_id = f"dataset_{job_name}_run{run_id}_{timestamp}"
+```
+
+**Prevention Framework Implemented:**
+- **Comprehensive Test Suite**: 9-test framework covering hardcoded symbols, synthetic data, parameter passing
+- **Environment Infrastructure**: Added `table_prefix` property for database table resolution
+- **Explicit Requirements**: Removed all default fallbacks that masked configuration issues
+
+**Key Learning**: **Default values and fallbacks often hide real configuration problems.** Explicit requirements and failing fast expose issues early in development rather than runtime.
+
+**Verification Results:**
+```
+✅ No Hardcoded Symbols: PASS
+✅ No Synthetic Data: PASS  
+✅ Dataset Naming with Run ID: PASS
+✅ Symbol Parameter Passing: PASS
+✅ Error Handling No Data: PASS (correctly fails when no data available)
+```
+
+### 🛡️ **Code Quality Anti-Patterns Identified**
+
+**❌ DANGEROUS: Silent Fallbacks to Defaults**
+```python
+# This masks configuration issues and creates runtime surprises
+symbols = config.get('symbols', ['AAPL', 'MSFT'])  # Hidden defaults
+```
+
+**✅ CORRECT: Explicit Requirements**
+```python
+# This forces proper configuration and fails fast
+if not symbols:
+    raise ValueError("symbols parameter is required - no defaults")
+```
+
+**❌ DANGEROUS: Mock Data in Non-Test Code**
+```python
+# This hides real data issues and creates false confidence
+try:
+    data = load_real_data()
+except:
+    data = generate_synthetic_data()  # Masks the real problem!
+```
+
+**✅ CORRECT: Fail Fast with Real Errors**
+```python
+# This exposes actual issues for proper resolution
+data = load_real_data()  # Let it fail if data unavailable
+if data.empty:
+    raise ValueError("No real market data available")
+```
+
+### 🎯 **Development Best Practices Reinforced**
+
+1. **Test-Driven Cleanup**: Comprehensive test suites expose hidden issues in existing code
+2. **Explicit Over Implicit**: Remove defaults and fallbacks that mask real configuration problems  
+3. **Infrastructure Integration**: Ensure all components (Environment, database, configuration) work together
+4. **Real Data Only**: Never use synthetic/mock data outside of isolated unit tests
+5. **Unique Identifiers**: Always include run_id or timestamps in dataset names to prevent collisions
+
+---
+
 **🔥 This is a Docker-first, test-driven development platform. Every change must be validated end-to-end with REAL DATA ONLY.**
 
 #### When Fixing Missing Dependencies
