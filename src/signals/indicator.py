@@ -500,3 +500,272 @@ class CumulativeDollars(Indicator):
 
     def get_value(self) -> Optional[float]:
         return self.cumulative_dollars
+
+
+@gin.configurable
+class Z1B(Indicator):
+    """
+    Z1B Indicator: Lower support zone calculated using 3-day OHLC linear regression
+    Formula: z1b = -1.242786*O₁ + 0.772321*H₁ + 1.339376*L₁ + 1.258544*C₁
+                  - 1.963210*O₂ - 0.447455*H₂ + 0.583624*L₂ - 0.534829*C₂
+                  + 0.295301*O₃ + 1.040109*H₃ + 0.470587*L₃ - 0.578177*C₃
+    where subscripts 1,2,3 represent prior 3 days (day 1 = 3 days ago, day 2 = 2 days ago, day 3 = yesterday)
+    """
+    def __init__(self):
+        super().__init__()
+        self.latest_z1b: Optional[float] = None
+        
+        # Coefficients from linear regression analysis (12 coefficients: 3 days × 4 OHLC)
+        self.coefficients = [
+            -1.242786, 0.772321, 1.339376, 1.258544,   # Day 1 (3 days ago): O,H,L,C
+            -1.963210, -0.447455, 0.583624, -0.534829, # Day 2 (2 days ago): O,H,L,C
+            0.295301, 1.040109, 0.470587, -0.578177    # Day 3 (yesterday): O,H,L,C
+        ]
+
+    def update(self, intervals: List[InstrumentInterval]):
+        import logging
+        import math
+        
+        self.update_at = datetime.now()
+        
+        if len(intervals) < 3:
+            logging.debug('[Z1B] Not enough intervals: need 3, got %d', len(intervals))
+            self.status = 'invalid'
+            self.latest_z1b = None
+            return
+            
+        # Get last 3 intervals
+        last_three = intervals[-3:]
+        
+        # Validate all intervals have valid OHLC data
+        for i, interval in enumerate(last_three):
+            if interval.status != 'ok':
+                logging.debug('[Z1B] Invalid interval status at position %d: %s', i, interval.status)
+                self.status = 'invalid'
+                self.latest_z1b = None
+                return
+                
+            for field in ['open', 'high', 'low', 'close']:
+                val = getattr(interval, field, None)
+                if val is None or (isinstance(val, float) and math.isnan(val)):
+                    logging.debug('[Z1B] Invalid %s at position %d: %s', field, i, val)
+                    self.status = 'invalid'
+                    self.latest_z1b = None
+                    return
+        
+        # Build feature vector: 3 days × 4 OHLC = 12 features
+        features = []
+        for interval in last_three:
+            features.extend([interval.open, interval.high, interval.low, interval.close])
+        
+        # Calculate Z1B using dot product of coefficients and features
+        try:
+            self.latest_z1b = sum(coef * feat for coef, feat in zip(self.coefficients, features))
+            self.status = 'ok'
+            logging.debug('[Z1B] Calculated Z1B: %.2f', self.latest_z1b)
+        except Exception as e:
+            logging.error('[Z1B] Error calculating Z1B: %s', str(e))
+            self.status = 'invalid'
+            self.latest_z1b = None
+
+    def get_value(self) -> Optional[float]:
+        return self.latest_z1b
+
+
+@gin.configurable
+class Z2B(Indicator):
+    """
+    Z2B Indicator: Lower resistance zone calculated using 3-day OHLC linear regression
+    Formula: z2b = -0.109183*O₁ - 0.448761*H₁ + 0.180165*L₁ + 0.946454*C₁
+                  - 0.003572*O₂ - 0.436792*H₂ + 0.037945*L₂ + 0.255704*C₂
+                  + 0.052054*O₃ + 0.464655*H₃ + 0.459729*L₃ - 0.403429*C₃
+    where subscripts 1,2,3 represent prior 3 days (day 1 = 3 days ago, day 2 = 2 days ago, day 3 = yesterday)
+    """
+    def __init__(self):
+        super().__init__()
+        self.latest_z2b: Optional[float] = None
+        
+        # Coefficients from linear regression analysis
+        self.coefficients = [
+            -0.109183, -0.448761, 0.180165, 0.946454,   # Day 1: O,H,L,C
+            -0.003572, -0.436792, 0.037945, 0.255704,   # Day 2: O,H,L,C
+            0.052054, 0.464655, 0.459729, -0.403429     # Day 3: O,H,L,C
+        ]
+
+    def update(self, intervals: List[InstrumentInterval]):
+        import logging
+        import math
+        
+        self.update_at = datetime.now()
+        
+        if len(intervals) < 3:
+            logging.debug('[Z2B] Not enough intervals: need 3, got %d', len(intervals))
+            self.status = 'invalid'
+            self.latest_z2b = None
+            return
+            
+        last_three = intervals[-3:]
+        
+        # Validate all intervals
+        for i, interval in enumerate(last_three):
+            if interval.status != 'ok':
+                self.status = 'invalid'
+                self.latest_z2b = None
+                return
+                
+            for field in ['open', 'high', 'low', 'close']:
+                val = getattr(interval, field, None)
+                if val is None or (isinstance(val, float) and math.isnan(val)):
+                    self.status = 'invalid'
+                    self.latest_z2b = None
+                    return
+        
+        # Build feature vector
+        features = []
+        for interval in last_three:
+            features.extend([interval.open, interval.high, interval.low, interval.close])
+        
+        # Calculate Z2B
+        try:
+            self.latest_z2b = sum(coef * feat for coef, feat in zip(self.coefficients, features))
+            self.status = 'ok'
+        except Exception as e:
+            logging.error('[Z2B] Error calculating Z2B: %s', str(e))
+            self.status = 'invalid'
+            self.latest_z2b = None
+
+    def get_value(self) -> Optional[float]:
+        return self.latest_z2b
+
+
+@gin.configurable
+class Z5T(Indicator):
+    """
+    Z5T Indicator: Upper resistance zone calculated using 3-day OHLC linear regression
+    Formula: z5t = 0.572696*O₁ + 0.251544*H₁ - 0.783063*L₁ + 0.865703*C₁
+                  - 1.238945*O₂ + 0.919261*H₂ + 0.665145*L₂ - 0.428645*C₂
+                  - 0.009658*O₃ + 0.046637*H₃ + 0.101678*L₃ + 0.045071*C₃
+    where subscripts 1,2,3 represent prior 3 days (day 1 = 3 days ago, day 2 = 2 days ago, day 3 = yesterday)
+    """
+    def __init__(self):
+        super().__init__()
+        self.latest_z5t: Optional[float] = None
+        
+        # Coefficients from linear regression analysis
+        self.coefficients = [
+            0.572696, 0.251544, -0.783063, 0.865703,    # Day 1: O,H,L,C
+            -1.238945, 0.919261, 0.665145, -0.428645,   # Day 2: O,H,L,C
+            -0.009658, 0.046637, 0.101678, 0.045071     # Day 3: O,H,L,C
+        ]
+
+    def update(self, intervals: List[InstrumentInterval]):
+        import logging
+        import math
+        
+        self.update_at = datetime.now()
+        
+        if len(intervals) < 3:
+            self.status = 'invalid'
+            self.latest_z5t = None
+            return
+            
+        last_three = intervals[-3:]
+        
+        # Validate intervals
+        for interval in last_three:
+            if interval.status != 'ok':
+                self.status = 'invalid'
+                self.latest_z5t = None
+                return
+                
+            for field in ['open', 'high', 'low', 'close']:
+                val = getattr(interval, field, None)
+                if val is None or (isinstance(val, float) and math.isnan(val)):
+                    self.status = 'invalid'
+                    self.latest_z5t = None
+                    return
+        
+        # Build feature vector
+        features = []
+        for interval in last_three:
+            features.extend([interval.open, interval.high, interval.low, interval.close])
+        
+        # Calculate Z5T
+        try:
+            self.latest_z5t = sum(coef * feat for coef, feat in zip(self.coefficients, features))
+            self.status = 'ok'
+        except Exception as e:
+            logging.error('[Z5T] Error calculating Z5T: %s', str(e))
+            self.status = 'invalid'
+            self.latest_z5t = None
+
+    def get_value(self) -> Optional[float]:
+        return self.latest_z5t
+
+
+@gin.configurable
+class Z6T(Indicator):
+    """
+    Z6T Indicator: Upper breakout zone calculated using 3-day OHLC linear regression
+    Formula: z6t = 1.853702*O₁ - 1.198374*H₁ - 2.125780*L₁ - 1.501241*C₁
+                  + 3.287197*O₂ + 1.268150*H₂ + 0.029819*L₂ - 0.751982*C₂
+                  - 0.217435*O₃ + 0.923613*H₃ + 0.847033*L₃ - 1.410876*C₃
+    where subscripts 1,2,3 represent prior 3 days (day 1 = 3 days ago, day 2 = 2 days ago, day 3 = yesterday)
+    
+    Note: Z6T shows strong correlation (0.9985) with Z5T but cannot be simplified to z6t = z5t + constant
+    due to variable offset (std dev = 34.6). The full 12-coefficient formula is required for accuracy.
+    """
+    def __init__(self):
+        super().__init__()
+        self.latest_z6t: Optional[float] = None
+        
+        # Coefficients from linear regression analysis
+        self.coefficients = [
+            1.853702, -1.198374, -2.125780, -1.501241,   # Day 1: O,H,L,C
+            3.287197, 1.268150, 0.029819, -0.751982,     # Day 2: O,H,L,C
+            -0.217435, 0.923613, 0.847033, -1.410876     # Day 3: O,H,L,C
+        ]
+
+    def update(self, intervals: List[InstrumentInterval]):
+        import logging
+        import math
+        
+        self.update_at = datetime.now()
+        
+        if len(intervals) < 3:
+            self.status = 'invalid'
+            self.latest_z6t = None
+            return
+            
+        last_three = intervals[-3:]
+        
+        # Validate intervals
+        for interval in last_three:
+            if interval.status != 'ok':
+                self.status = 'invalid'
+                self.latest_z6t = None
+                return
+                
+            for field in ['open', 'high', 'low', 'close']:
+                val = getattr(interval, field, None)
+                if val is None or (isinstance(val, float) and math.isnan(val)):
+                    self.status = 'invalid'
+                    self.latest_z6t = None
+                    return
+        
+        # Build feature vector
+        features = []
+        for interval in last_three:
+            features.extend([interval.open, interval.high, interval.low, interval.close])
+        
+        # Calculate Z6T
+        try:
+            self.latest_z6t = sum(coef * feat for coef, feat in zip(self.coefficients, features))
+            self.status = 'ok'
+        except Exception as e:
+            logging.error('[Z6T] Error calculating Z6T: %s', str(e))
+            self.status = 'invalid'
+            self.latest_z6t = None
+
+    def get_value(self) -> Optional[float]:
+        return self.latest_z6t
