@@ -10,7 +10,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: dev_password
     ports:
-      - "5432:5432"
+      - "3432:5432"
     volumes:
       - postgres-data-new:/var/lib/postgresql/data
       - /mnt/d/ats-backup/dev:/backup
@@ -32,7 +32,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: intg_password
     ports:
-      - "5433:5432"
+      - "4432:5432"
     volumes:
       - postgres-intg-data:/var/lib/postgresql/data
       - /mnt/d/ats-backup/intg:/backup
@@ -82,7 +82,7 @@ services:
     container_name: ats-intg-analytics
     environment:
       - ENVIRONMENT=intg
-      - DB_HOST=postgres-intg
+      - DB_HOST=ats-intg-postgres
       - DB_PORT=5432
       - DB_USER=postgres
       - DB_PASSWORD=intg_password

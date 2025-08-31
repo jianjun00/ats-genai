@@ -348,13 +348,143 @@ This infrastructure provides comprehensive multi-vendor price data validation, r
 
 ---
 
+## 🚀 **CRITICAL: ATS Complete Startup Process (2025-08-31)**
+
+**Single Command for Complete Environment Setup:**
+```bash
+# Start both ATS-DEV and ATS-INTG environments
+./scripts/ats_startup.sh
+```
+
+### **✅ What the Startup Script Does**
+
+**1. Clean Environment Setup:**
+- Stops all existing ATS services cleanly
+- Removes old containers to ensure fresh start
+- Creates proper Docker network connections
+
+**2. Database Initialization:**
+- **ATS-DEV PostgreSQL**: Starts on `localhost:3432` using `postgres-data-new` volume
+- **ATS-INTG PostgreSQL**: Starts on `localhost:4432` using `postgres-intg-data` volume
+- Waits for both databases to be healthy before proceeding
+- **NO automatic backup restoration** (manual initialization required)
+
+**3. Service Health Validation:**
+- Checks database table counts (DEV: 62 tables, INTG: 37 tables expected)
+- Starts all ATS-DEV services (analytics, monitoring, data collection)
+- Starts all ATS-INTG services (analytics, job scheduler, monitoring)
+- Validates service health endpoints
+
+**4. Complete Service URLs:**
+```bash
+# ATS-DEV Environment (Development)
+- Analytics Service: http://localhost:3000
+- EDA Dashboard: http://localhost:3000/eda  
+- Health Check: http://localhost:3000/health
+- Database: postgresql://postgres:dev_password@localhost:3432/dev_db
+
+# ATS-INTG Environment (Integration Testing)
+- Analytics Service: http://localhost:4000
+- EDA Dashboard: http://localhost:4000/eda
+- Health Check: http://localhost:4000/health  
+- Database: postgresql://postgres:intg_password@localhost:4432/intg_db
+```
+
+### **🔧 Environment-Specific Operations**
+
+**ATS-DEV (Development) - Use `run_dev.py`:**
+```bash
+# Individual service management
+python3 scripts/run_dev.py start --service postgres    # Start PostgreSQL only
+python3 scripts/run_dev.py start --service analytics   # Start analytics service
+python3 scripts/run_dev.py status                      # Check running services
+python3 scripts/run_dev.py query --query "SELECT version()"
+
+# Database operations
+PGPASSWORD=dev_password psql -h localhost -p 3432 -U postgres -d dev_db
+```
+
+**ATS-INTG (Integration) - Use Docker Compose:**
+```bash
+# Service management
+docker-compose -f docker-compose.ats.yml up -d postgres-intg analytics-intg
+docker-compose -f docker-compose.intg-jobs.yml up -d  # Job scheduler services
+docker-compose -f docker-compose.ats.yml ps           # Check service status
+
+# Database operations  
+PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db
+```
+
+### **⚡ Quick Health Check**
+```bash
+# Verify both environments are operational
+curl -f http://localhost:3000/health  # ATS-DEV analytics
+curl -f http://localhost:4000/health  # ATS-INTG analytics
+docker ps | grep -E "(ats-dev|intg)"  # Container status
+```
+
+### **🛡️ Critical Startup Requirements**
+
+**Volume Configuration (MANDATORY):**
+- **ATS-DEV**: MUST use `postgres-data-new` volume for data persistence
+- **ATS-INTG**: MUST use `postgres-intg-data` volume for data persistence  
+- **Port Mapping**: DEV=3432, INTG=4432 (no conflicts)
+
+**Database Initialization:**
+- **No automatic backup restoration** - prevents accidental data overwrites
+- Manual schema migration and data population required
+- Empty databases are acceptable - populate via proper migration scripts
+
+**Docker Networking (FIXED 2025-08-30):**
+- All containers use `ats-network` for proper inter-service communication
+- Database connections use container names (`ats-dev-postgres`, `ats-intg-postgres`)
+- **No more `--link` deprecation warnings** - modern Docker networking implemented
+
+### **🚨 Known Issues & Solutions**
+
+**Docker Credential Warnings (Non-Fatal):**
+```
+docker-credential-desktop.exe not installed or not available in PATH
+```
+- **Impact**: None - services start successfully despite warnings
+- **Cause**: WSL2 Docker Desktop credential helper configuration  
+- **Solution**: Warnings can be ignored - all functionality works properly
+
+**Service Health Status:**
+- Analytics services may show `(unhealthy)` initially during startup
+- Health endpoints become available within 30-60 seconds
+- **Always verify with** `curl http://localhost:3000/health` for actual status
+
+### **📊 Expected Startup Results**
+```bash
+# Successful startup shows:
+✅ ATS-DEV PostgreSQL is ready (localhost:3432, 62 tables)
+✅ ATS-INTG PostgreSQL is ready (localhost:4432, 37 tables)  
+✅ ATS-DEV analytics service is ready (localhost:3000)
+✅ ATS-INTG analytics service is ready (localhost:4000)
+
+# Container status should show:
+ats-dev-postgres    Up (healthy)    0.0.0.0:3432->5432/tcp
+ats-intg-postgres   Up (healthy)    0.0.0.0:4432->5432/tcp
+ats-dev-analytics   Up              0.0.0.0:3000->3000/tcp  
+ats-intg-analytics  Up              0.0.0.0:4000->3000/tcp
+```
+
+**⚠️ CRITICAL: This startup process provides clean, reproducible environment initialization without dangerous automatic backup restoration. Manual data population is required but safer.**
+
+---
+
 ## 💾 **ATS Persistent Storage (D: Drive)**
 
-**Automatic Volume Mounting:**
+**Docker Volume Configuration:**
 - **📁 Data**: `/mnt/d/ats-data` → `/data` (in containers)
 - **📁 Backup**: `/mnt/d/ats-backup` → `/backup` (in containers)  
 - **📁 Logs**: `/mnt/d/ats-logs` → `/logs` (in containers)
-- **🔄 Database**: PostgreSQL data persisted to `D:\ats-data\db`
+
+**PostgreSQL Database Storage:**
+- **🗄️ ATS-DEV**: Docker volume `postgres-data-new` 
+- **🗄️ ATS-INTG**: Docker volume `postgres-intg-data`
+- **📍 Location**: Managed by Docker in `/var/snap/docker/common/var-lib-docker/volumes/`
 
 **Vendor-Specific Data Organization (Parquet Files on Disk):**
 - **📊 Polygon**: `/mnt/d/ats-data/minute-bars/polygon/` (minute OHLCV parquet files)
@@ -699,7 +829,7 @@ PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "SE
 # Complete environment setup
 python3 scripts/run_dev.py setup
 
-# Individual service management
+# Individual service management (uses postgres-data-new volume)
 python3 scripts/run_dev.py start --service postgres    # PostgreSQL database
 python3 scripts/run_dev.py start --service analytics   # Analytics service
 python3 scripts/run_dev.py stop --service analytics
@@ -712,9 +842,11 @@ python3 scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_prices"
 
 **ATS-INTG Environment:**
 ```bash
-# Complete environment (Docker Compose)
+# Start PostgreSQL database first (uses postgres-intg-data volume)
+docker-compose -f docker-compose.ats.yml up -d postgres-intg
+
+# Start INTG services
 docker-compose -f docker-compose.intg-jobs.yml up -d
-docker-compose -f docker-compose.intg-jobs.yml down
 
 # Database operations (direct connection)
 PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db
@@ -752,29 +884,25 @@ export FMP_API_KEY=your_fmp_key
 python3 scripts/run_dev.py run --script scripts/tiingo_30_year_daily_backfill.py
 ```
 
-### **💾 Backup & Recovery**
+### **💾 Database Management**
 
-**Automated Daily Backup System:**
+**🚨 CRITICAL: No Automatic Backup Restoration**
+- ❌ **NEVER automatically restore from backup** - can cause data loss
+- ❌ **NEVER assume backup files are current or valid**
+- ✅ **Manual database initialization only** - use proper migration scripts
+- ✅ **Fresh database creation** - start with clean schema and populate data as needed
+
+**Proper Database Initialization:**
 ```bash
-# ✅ AUTOMATED SYSTEM IS CONFIGURED AND RUNNING
-# Daily backups run automatically via cron:
-# - ATS-DEV: Daily at 2:00 AM
-# - ATS-INTG: Daily at 2:15 AM  
-# - Retention: 7 days automatic cleanup
+# 1. Start fresh PostgreSQL container
+python3 scripts/run_dev.py start --service postgres
 
-# Check backup status
-./scripts/manage_backups.sh status
+# 2. Run database migrations to create schema
+PYTHONPATH=src python3 -m src.db.create_all_tables
 
-# Manual backup operations
-./scripts/manage_backups.sh run-dev     # Backup ATS-DEV now
-./scripts/manage_backups.sh run-intg    # Backup ATS-INTG now
-./scripts/manage_backups.sh run-all     # Backup both environments
-./scripts/manage_backups.sh cleanup     # Clean old backups
-./scripts/manage_backups.sh logs        # View recent logs
-
-# Backup locations
-# ATS-DEV: /mnt/d/ats-backup/dev/daily_backup_YYYYMMDD_HHMMSS.sql
-# ATS-INTG: /mnt/d/ats-backup/intg/daily_backup_YYYYMMDD_HHMMSS.sql
+# 3. Populate data using proper scripts (not backups)
+python3 scripts/run_dev.py run --script scripts/run_tiingo_bulk.py
+python3 scripts/run_dev.py run --script scripts/tiingo_30_year_daily_backfill.py
 ```
 
 ### **📊 Monitoring & Health Checks**
@@ -831,6 +959,56 @@ ls -lah /mnt/d/ats-logs/     # Log directory usage
 python3 scripts/run_dev.py run --script any_script.py   # Should work now
 docker network inspect ats-network                     # Show containers on network
 ```
+
+### **🚨 CRITICAL: Docker Network Connectivity Patterns (2025-08-31)**
+
+**Docker Container Communication Requirements:**
+- ✅ **Containers must be on same network** to communicate via container names
+- ✅ **Database host references** must match actual container names
+- ✅ **Network connections** must be established for multi-container services
+- ❌ **Different networks** prevent container-to-container communication
+
+**ATS Network Architecture:**
+- **`ats-network`**: ATS-DEV services (ats-dev-postgres, ats-dev-analytics)  
+- **`ats-intg-network`**: ATS-INTG services (ats-intg-scheduler, ats-intg-analytics)
+- **Cross-network**: ats-intg-postgres connected to both networks for compatibility
+
+**Critical Connection Pattern:**
+```bash
+# ✅ CORRECT: Connect database to service network
+docker network connect ats-intg-network ats-intg-postgres
+
+# ✅ CORRECT: Use container name as hostname
+DB_HOST=ats-intg-postgres  # Not localhost in container configs
+
+# ❌ WRONG: Missing network connection causes "host not found"
+# ❌ WRONG: Using localhost:4432 inside containers (use container:5432)
+```
+
+**Database Connectivity Checklist:**
+1. **Container on correct network**: `docker network inspect network-name`
+2. **Database host matches container name**: `DB_HOST=ats-intg-postgres`
+3. **Use internal port (5432)** not external port (4432) in containers  
+4. **Test connectivity**: `docker exec container psycopg2.connect()` test
+
+**Troubleshooting Network Issues:**
+```bash
+# Check container networks
+docker network ls | grep ats
+docker network inspect ats-intg-network --format "{{range .Containers}}{{.Name}} {{end}}"
+
+# Connect missing containers to networks
+docker network connect ats-intg-network container-name
+
+# Verify database reachability from container
+docker exec scheduler-container python3 -c "import psycopg2; psycopg2.connect(host='db-container', port=5432, user='postgres')"
+```
+
+**Service Startup Dependencies:**
+- **Database first**: Start PostgreSQL before dependent services
+- **Network connectivity**: Ensure containers can resolve each other's hostnames
+- **Health checks**: Wait for database readiness before application startup
+- **Missing files**: Create required startup scripts when containers expect them
 
 **Service Recovery:**
 ```bash
@@ -892,6 +1070,9 @@ tail -50 /mnt/d/ats-logs/backup-*.log   # Recent backup activity
 - ❌ **DO NOT** use `docker run` for ATS-INTG services (use Docker Compose)
 - ❌ **DO NOT** use Docker Compose for ATS-DEV services (use `run_dev.py`)
 - ❌ **DO NOT** mix `run_dev.py` commands with `docker-compose` commands
+- ❌ **DO NOT** start containers without ensuring network connectivity
+- ❌ **DO NOT** use localhost:port in container DB_HOST configs (use container-name:5432)
+- ❌ **DO NOT** assume containers can communicate across different networks
 
 ---
 
@@ -901,22 +1082,10 @@ tail -50 /mnt/d/ats-logs/backup-*.log   # Recent backup activity
 
 ---
 
-## 🚨 **CRITICAL LESSONS LEARNED - DATABASE CONFIGURATION**
-
-**Never assume documentation is wrong when systems are working:**
-
-1. **Follow documentation exactly** - If docs say port 4432, use port 4432. Don't "correct" to what seems logical.
-
-2. **Don't make assumptions about "fixing" configurations** - A working system with different ports than documented may be correct for operational reasons.
-
-3. **Check current state before making changes** - Always verify existing data, table counts, and system state before configuration changes.
-
-4. **Understand impact of configuration changes** - Database port changes can disconnect from existing data volumes, causing data loss.
-
-5. **Stop when instructed to stop** - When told to stop creating/changing things, stop immediately and ask for guidance.
-
-6. **Ask for clarification instead of guessing** - When given directions like "check the docs", ask specifically what to look for rather than assuming.
-
-7. **Preserve existing working systems** - A database with 13 tables and data is more valuable than "correct" documentation compliance.
-
-**Core lesson: Listen to instructions, preserve existing working systems, and don't "fix" things that aren't broken.**
+**🎯 Success Checklist for Service Deployment:**
+- [ ] Database containers started first with correct ports (3432 for DEV, 4432 for INTG)
+- [ ] Containers connected to appropriate networks (ats-network, ats-intg-network) 
+- [ ] DB_HOST configured with container names (ats-dev-postgres, ats-intg-postgres)
+- [ ] Required startup scripts created when containers expect them
+- [ ] Network connectivity verified between dependent containers
+- [ ] Health checks confirm database readiness before application startup

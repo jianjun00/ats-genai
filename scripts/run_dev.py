@@ -267,10 +267,10 @@ class DevCLI:
                     "POSTGRES_DB": self.db_name
                 },
                 "volumes": [
-                    "postgres-data:/var/lib/postgresql/data",
+                    "postgres-data-new:/var/lib/postgresql/data",
                     f"{self.ats_backup_path}:/backup"
                 ],
-                "backup_restore": True  # Enable automatic backup/restore to D: drive
+                "backup_only": True  # Enable backup only (no automatic restore)
             },
             "postgres-intg": {
                 "image": "postgres:13",
@@ -284,13 +284,21 @@ class DevCLI:
                     "postgres-intg-data:/var/lib/postgresql/data",
                     f"{self.ats_backup_path}/intg:/backup"
                 ],
-                "backup_restore": True,
+                "backup_only": True,
                 "environment": "intg"
             },
             "analytics": {
                 "image": "dragonflyer762/ats-genai:latest",
                 "port": "3000:3000",
-                "command": "python src/services/analytics_service.py"
+                "command": "python src/services/analytics_service.py",
+                "env": {
+                    "DB_HOST": "ats-dev-postgres",
+                    "DB_PORT": "5432",
+                    "DB_USER": self.db_user,
+                    "DB_PASSWORD": self.db_password,
+                    "DB_NAME": self.db_name,
+                    "ENVIRONMENT": "dev"
+                }
             },
             "api": {
                 "image": "dragonflyer762/ats-genai:latest", 
@@ -367,58 +375,20 @@ class DevCLI:
             if 'port' in config:
                 print(f"🔗 Access at: http://localhost:{config['port'].split(':')[0]}")
             
-            # Handle backup/restore for PostgreSQL services
-            if ("postgres" in service_name) and config.get("backup_restore"):
-                db_name = config["env"]["POSTGRES_DB"]
-                backup_dir = f"{self.ats_backup_path}/intg" if "intg" in service_name else self.ats_backup_path
-                self._handle_postgres_backup_restore(container_name, db_name, backup_dir)
+            # Note: Automatic backup/restore removed - use manual initialization only
             
             return True
         else:
             print(f"❌ Failed to start service: {result.stderr}")
             return False
     
-    def _handle_postgres_backup_restore(self, container_name, db_name, backup_dir):
-        """Handle PostgreSQL backup/restore to D: drive"""
-        import time
-        
-        print("💾 Setting up D: drive backup/restore...")
-        
-        # Ensure backup directory exists
-        os.makedirs(backup_dir, exist_ok=True)
-        
-        # Wait for PostgreSQL to be ready
-        print("⏳ Waiting for PostgreSQL to be ready...")
-        for i in range(30):
-            try:
-                result = subprocess.run(
-                    f"docker exec {container_name} pg_isready -U postgres", 
-                    shell=True, capture_output=True
-                )
-                if result.returncode == 0:
-                    break
-            except:
-                pass
-            time.sleep(1)
-        else:
-            print("⚠️  PostgreSQL not ready for backup/restore")
-            return
-        
-        # Check for existing backup on D: drive
-        backup_file = f"{backup_dir}/latest_backup.sql"
-        if os.path.exists(backup_file):
-            print(f"📤 Restoring from D: drive backup: {backup_file}")
-            try:
-                # Restore from backup
-                restore_cmd = f"cat '{backup_file}' | docker exec -i {container_name} psql -U postgres -d {db_name}"
-                subprocess.run(restore_cmd, shell=True, check=True)
-                print("✅ Database restored from D: drive backup")
-            except Exception as e:
-                print(f"⚠️  Restore failed: {e}")
-        else:
-            print("ℹ️  No backup found on D: drive")
-        
-        print("🔄 D: drive persistence configured - database will auto-backup on shutdown")
+    def _removed_backup_restore_function(self):
+        """
+        REMOVED: Automatic backup/restore functionality
+        Reason: Can cause data loss and unpredictable behavior
+        Use manual database initialization instead
+        """
+        pass
     
     def stop_service(self, service_name):
         """Stop a Docker service"""
