@@ -1064,3 +1064,145 @@ class FiveNineBuy(Indicator):
 
     def get_value(self) -> Optional[float]:
         return self.latest_five_nine_buy
+
+
+@gin.configurable
+class FiveOneBuy(Indicator):
+    """
+    Five One Buy Indicator: Calculated as 2 * low(t-1) - low(t-2) with conditions.
+    Formula: five_one_buy = 2 * low(t-1) - low(t-2) 
+             IF low(t-1) > low(t-2) OR indicator not available
+    
+    This indicator provides conditional support levels based on improving lows.
+    Only calculates when the most recent low is higher than the previous low,
+    indicating potential upward momentum in support levels.
+    """
+    def __init__(self):
+        super().__init__()
+        self.latest_five_one_buy: Optional[float] = None
+
+    def update(self, intervals: List[InstrumentInterval]):
+        import logging
+        import math
+        
+        self.update_at = datetime.now()
+        
+        if len(intervals) < 2:
+            logging.debug('[FiveOneBuy] Not enough intervals: need 2, got %d', len(intervals))
+            self.status = 'invalid'
+            self.latest_five_one_buy = None
+            return
+            
+        # Get last 2 intervals: t-2 (prior prior) and t-1 (prior)
+        prior_prior = intervals[-2]  # t-2
+        prior = intervals[-1]        # t-1
+        
+        # Validate intervals
+        for i, interval in enumerate([prior_prior, prior]):
+            if interval.status != 'ok':
+                logging.debug('[FiveOneBuy] Invalid interval status at position %d: %s', i, interval.status)
+                self.status = 'invalid'
+                self.latest_five_one_buy = None
+                return
+                
+            # Check required field: low for both intervals
+            val = getattr(interval, 'low', None)
+            if val is None or (isinstance(val, float) and math.isnan(val)):
+                logging.debug('[FiveOneBuy] Invalid low at position %d: %s', i, val)
+                self.status = 'invalid'
+                self.latest_five_one_buy = None
+                return
+        
+        # Check condition: low(t-1) > low(t-2)
+        if prior.low > prior_prior.low:
+            # Calculate: 2 * low(t-1) - low(t-2)
+            try:
+                self.latest_five_one_buy = 2 * prior.low - prior_prior.low
+                self.status = 'ok'
+                logging.debug('[FiveOneBuy] Calculated: 2*%.2f - %.2f = %.2f (condition: %.2f > %.2f)', 
+                             prior.low, prior_prior.low, self.latest_five_one_buy,
+                             prior.low, prior_prior.low)
+            except Exception as e:
+                logging.error('[FiveOneBuy] Error calculating: %s', str(e))
+                self.status = 'invalid'
+                self.latest_five_one_buy = None
+        else:
+            # Condition not met: low(t-1) <= low(t-2)
+            self.status = 'ok'
+            self.latest_five_one_buy = None
+            logging.debug('[FiveOneBuy] Condition not met: %.2f <= %.2f, indicator not available',
+                         prior.low, prior_prior.low)
+
+    def get_value(self) -> Optional[float]:
+        return self.latest_five_one_buy
+
+
+@gin.configurable
+class FiveOneSell(Indicator):
+    """
+    Five One Sell Indicator: Calculated as 2 * high(t-1) - high(t-2) with conditions.
+    Formula: five_one_sell = 2 * high(t-1) - high(t-2) 
+             IF high(t-1) < high(t-2)
+    
+    This indicator provides conditional resistance levels based on declining highs.
+    Only calculates when the most recent high is lower than the previous high,
+    indicating potential downward momentum in resistance levels.
+    """
+    def __init__(self):
+        super().__init__()
+        self.latest_five_one_sell: Optional[float] = None
+
+    def update(self, intervals: List[InstrumentInterval]):
+        import logging
+        import math
+        
+        self.update_at = datetime.now()
+        
+        if len(intervals) < 2:
+            logging.debug('[FiveOneSell] Not enough intervals: need 2, got %d', len(intervals))
+            self.status = 'invalid'
+            self.latest_five_one_sell = None
+            return
+            
+        # Get last 2 intervals: t-2 (prior prior) and t-1 (prior)
+        prior_prior = intervals[-2]  # t-2
+        prior = intervals[-1]        # t-1
+        
+        # Validate intervals
+        for i, interval in enumerate([prior_prior, prior]):
+            if interval.status != 'ok':
+                logging.debug('[FiveOneSell] Invalid interval status at position %d: %s', i, interval.status)
+                self.status = 'invalid'
+                self.latest_five_one_sell = None
+                return
+                
+            # Check required field: high for both intervals
+            val = getattr(interval, 'high', None)
+            if val is None or (isinstance(val, float) and math.isnan(val)):
+                logging.debug('[FiveOneSell] Invalid high at position %d: %s', i, val)
+                self.status = 'invalid'
+                self.latest_five_one_sell = None
+                return
+        
+        # Check condition: high(t-1) < high(t-2)
+        if prior.high < prior_prior.high:
+            # Calculate: 2 * high(t-1) - high(t-2)
+            try:
+                self.latest_five_one_sell = 2 * prior.high - prior_prior.high
+                self.status = 'ok'
+                logging.debug('[FiveOneSell] Calculated: 2*%.2f - %.2f = %.2f (condition: %.2f < %.2f)', 
+                             prior.high, prior_prior.high, self.latest_five_one_sell,
+                             prior.high, prior_prior.high)
+            except Exception as e:
+                logging.error('[FiveOneSell] Error calculating: %s', str(e))
+                self.status = 'invalid'
+                self.latest_five_one_sell = None
+        else:
+            # Condition not met: high(t-1) >= high(t-2)
+            self.status = 'ok'
+            self.latest_five_one_sell = None
+            logging.debug('[FiveOneSell] Condition not met: %.2f >= %.2f, indicator not available',
+                         prior.high, prior_prior.high)
+
+    def get_value(self) -> Optional[float]:
+        return self.latest_five_one_sell

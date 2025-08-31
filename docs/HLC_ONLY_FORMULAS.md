@@ -293,9 +293,20 @@ Simple arithmetic-based support/resistance indicators:
 - **FiveNineSell**: `2 * high(t-1) - low(t-2)` - Provides resistance levels
 - **FiveNineBuy**: `2 * low(t-1) - high(t-2)` - Provides support levels
 
-These indicators require only 2 previous bars and provide adaptive support/resistance levels for trading decisions. See [FIVE_NINE_INDICATORS.md](FIVE_NINE_INDICATORS.md) for complete documentation.
+These indicators require only 2 previous bars and provide adaptive support/resistance levels for trading decisions.
 
-**Total Indicator System**: 11 indicators (9 HLC linear regression + 2 Five Nine arithmetic)
+### Five One Indicators
+Conditional momentum-based indicators with selective calculation:
+
+- **FiveOneBuy**: `2 * low(t-1) - low(t-2)` IF `low(t-1) > low(t-2)` - Support levels during improving lows
+- **FiveOneSell**: `2 * high(t-1) - high(t-2)` IF `high(t-1) < high(t-2)` - Resistance levels during declining highs
+
+These conditional indicators only calculate when momentum conditions are met:
+- FiveOneBuy activates when lows are improving (upward momentum in support)
+- FiveOneSell activates when highs are declining (downward pressure on resistance)
+- Returns `None` when conditions are not met (no calculation)
+
+**Total Indicator System**: 13 indicators (9 HLC linear regression + 2 Five Nine arithmetic + 2 Five One conditional)
 
 ---
 
