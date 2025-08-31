@@ -912,6 +912,191 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 'tfdv_anomalies': {}
             }
     
+    def get_training_dataset_data(self, dataset_id, page=1, limit=50, use_ray=False):
+        """Get paginated training data for a specific dataset with optional Ray parallelization"""
+        try:
+            from core.database.connection_manager import get_raw_connection
+            import numpy as np
+            import json
+            import os
+            
+            # Determine table name based on environment
+            environment = os.getenv('ENVIRONMENT', 'dev')
+            table_name = f"{environment}_training_datasets"
+            
+            offset = (page - 1) * limit
+            
+            with get_raw_connection() as conn:
+                from psycopg2.extras import RealDictCursor
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    # Get dataset info and file paths
+                    cursor.execute(f"""
+                        SELECT features_file_path, labels_file_path, metadata_file_path,
+                               date_range_start, date_range_end, total_sequences
+                        FROM {table_name} 
+                        WHERE id = %s
+                    """, (dataset_id,))
+                    
+                    dataset_info = cursor.fetchone()
+                    
+                    if not dataset_info:
+                        return {
+                            'data': [],
+                            'total_count': 0,
+                            'date_range': None
+                        }
+                    
+                    # Load numpy arrays from files with optimizations
+                    feature_data = []
+                    label_data = []
+                    
+                    try:
+                        # Use column names that exist in the database
+                        feature_path = dataset_info.get('features_file_path') or dataset_info.get('feature_file_path')
+                        label_path = dataset_info.get('labels_file_path') or dataset_info.get('label_file_path')
+                        metadata_path = dataset_info.get('metadata_file_path')
+                        
+                        # Load feature and label names from metadata
+                        feature_names = ['open', 'high', 'low', 'close', 'volume', 'etop', 'ebot', 'pldot', 'oneonedot']  # Default
+                        label_names = ['label_0', 'label_1', 'label_2', 'label_3', 'label_4']  # Default
+                        
+                        if metadata_path:
+                            try:
+                                import json
+                                with open(metadata_path, 'r') as f:
+                                    metadata = json.load(f)
+                                    feature_names = metadata.get('feature_names', feature_names)
+                                    label_names = metadata.get('label_names', label_names)
+                                    logger.info(f"Loaded feature names: {feature_names}")
+                            except Exception as e:
+                                logger.warning(f"Could not load metadata: {e}")
+                        
+                        # OPTIMIZATION 1: Memory-mapped loading (don't load entire file)
+                        if feature_path:
+                            logger.info(f"Loading features from: {feature_path}")
+                            with np.load(feature_path, mmap_mode='r') as features_mmap:
+                                feature_data = features_mmap[offset:offset+limit].copy()
+                            
+                        if label_path:
+                            logger.info(f"Loading labels from: {label_path}")  
+                            with np.load(label_path, mmap_mode='r') as labels_mmap:
+                                label_data = labels_mmap[offset:offset+limit].copy()
+                                
+                    except Exception as e:
+                        logger.warning(f"Error loading numpy files: {e}")
+                        # Fallback to traditional loading if mmap fails
+                        try:
+                            if feature_path:
+                                features = np.load(feature_path)
+                                feature_data = features[offset:offset+limit]
+                                del features  # Free memory immediately
+                                
+                            if label_path:
+                                labels = np.load(label_path)
+                                label_data = labels[offset:offset+limit]
+                                del labels  # Free memory immediately
+                        except Exception as e2:
+                            logger.error(f"Both optimized and fallback loading failed: {e2}")
+                    
+                    # OPTIMIZATION 2: Parallel processing with Ray if enabled
+                    total_count = dataset_info['total_sequences'] or 0
+                    num_rows = min(limit, len(feature_data) if len(feature_data) > 0 else len(label_data))
+                    
+                    if use_ray and num_rows > 20:  # Use Ray for larger datasets
+                        try:
+                            import ray
+                            if not ray.is_initialized():
+                                ray.init(ignore_reinit_error=True, num_cpus=min(4, os.cpu_count()))
+                            
+                            # Ray remote function for parallel processing
+                            @ray.remote
+                            def process_data_row(i, feature_row, label_row, offset, feat_names, lbl_names):
+                                row = {'sequence_id': offset + i + 1}
+                                
+                                # Process features with real names
+                                if feature_row is not None and len(feature_row) > 0:
+                                    features = feature_row
+                                    if features.ndim == 2:  # (timesteps, features) - take last timestep
+                                        features = features[-1]
+                                    # Use actual feature names
+                                    for j in range(min(len(feat_names), len(features))):
+                                        row[feat_names[j]] = float(features[j])
+                                
+                                # Process labels with real names
+                                if label_row is not None and len(label_row) > 0:
+                                    labels = label_row
+                                    if labels.ndim == 1 and len(labels) > 1:
+                                        for j in range(min(len(lbl_names), len(labels))):
+                                            row[lbl_names[j] if j < len(lbl_names) else f'label_{j}'] = float(labels[j])
+                                    else:
+                                        row['label'] = float(labels.item() if hasattr(labels, 'item') else labels)
+                                
+                                return row
+                            
+                            # Submit parallel tasks
+                            tasks = []
+                            for i in range(num_rows):
+                                feature_row = feature_data[i] if i < len(feature_data) and len(feature_data) > 0 else None
+                                label_row = label_data[i] if i < len(label_data) and len(label_data) > 0 else None
+                                tasks.append(process_data_row.remote(i, feature_row, label_row, offset, feature_names, label_names))
+                            
+                            # Get results
+                            data_rows = ray.get(tasks)
+                            logger.info(f"✅ Ray parallel processing completed for {num_rows} rows")
+                            
+                        except Exception as ray_error:
+                            logger.warning(f"Ray processing failed, falling back to sequential: {ray_error}")
+                            use_ray = False
+                    
+                    if not use_ray:
+                        # OPTIMIZATION 2 (Fallback): Sequential processing
+                        data_rows = []
+                        
+                        for i in range(num_rows):
+                            row = {'sequence_id': offset + i + 1}
+                            
+                            # OPTIMIZATION 3: Vectorized feature processing with real names
+                            if i < len(feature_data) and len(feature_data) > 0:
+                                features = feature_data[i]
+                                if features.ndim == 2:  # (timesteps, features) - take last timestep
+                                    features = features[-1]
+                                # Use actual feature names
+                                for j in range(min(len(feature_names), len(features))):
+                                    row[feature_names[j]] = float(features[j])
+                            
+                            # OPTIMIZATION 4: Vectorized label processing with real names
+                            if i < len(label_data) and len(label_data) > 0:
+                                labels = label_data[i]
+                                if labels.ndim == 1 and len(labels) > 1:
+                                    for j in range(min(len(label_names), len(labels))):
+                                        row[label_names[j] if j < len(label_names) else f'label_{j}'] = float(labels[j])
+                                else:
+                                    row['label'] = float(labels.item() if hasattr(labels, 'item') else labels)
+                            
+                            data_rows.append(row)
+                    
+                    date_range = None
+                    if dataset_info['date_range_start'] and dataset_info['date_range_end']:
+                        date_range = {
+                            'start': dataset_info['date_range_start'].isoformat() if dataset_info['date_range_start'] else None,
+                            'end': dataset_info['date_range_end'].isoformat() if dataset_info['date_range_end'] else None
+                        }
+                    
+                    return {
+                        'data': data_rows,
+                        'total_count': total_count,
+                        'date_range': date_range
+                    }
+                    
+        except Exception as e:
+            logger.error(f"Error loading training dataset data: {e}")
+            return {
+                'data': [],
+                'total_count': 0,
+                'date_range': None,
+                'error': str(e)
+            }
+    
     def do_GET(self):
         logger.info(f"📍 GET request: {self.path}")
         if self.path == '/health':
@@ -1211,6 +1396,48 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 error_response = {"error": str(e)}
                 self.wfile.write(json.dumps(error_response).encode('utf-8'))
         
+        elif self.path.startswith('/api/v1/training-datasets/') and '/data' in self.path and '/distributions' not in self.path:
+            # Training dataset data API endpoint: /api/v1/training-datasets/{id}/data
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            try:
+                # Extract dataset ID from path: /api/v1/training-datasets/{id}/data
+                path_parts = self.path.split('/')
+                dataset_id = path_parts[4]  # Get the ID part
+                
+                # Parse query parameters
+                from urllib.parse import urlparse, parse_qs
+                parsed = urlparse(self.path)
+                query_params = parse_qs(parsed.query)
+                
+                page = int(query_params.get('page', ['1'])[0])
+                limit = int(query_params.get('limit', ['50'])[0])
+                use_ray = query_params.get('ray', ['false'])[0].lower() == 'true'
+                
+                logger.info(f"Loading training data for dataset ID: {dataset_id}, page: {page}, limit: {limit}, ray: {use_ray}")
+                
+                # Get training data from database
+                training_data = self.get_training_dataset_data(dataset_id, page, limit, use_ray)
+                
+                response_data = {
+                    "data": training_data.get("data", []),
+                    "total_count": training_data.get("total_count", 0),
+                    "current_page": page,
+                    "total_pages": (training_data.get("total_count", 0) + limit - 1) // limit,
+                    "dataset_id": dataset_id,
+                    "date_range": training_data.get("date_range")
+                }
+                
+                self.wfile.write(json.dumps(response_data).encode('utf-8'))
+                
+            except Exception as e:
+                logger.error(f"Error loading training dataset data: {e}")
+                error_response = {"error": str(e)}
+                self.wfile.write(json.dumps(error_response).encode('utf-8'))
+                
         elif self.path.startswith('/api/v1/training-datasets/') and self.path.endswith('/distributions'):
             # Training dataset distributions API endpoint: /api/v1/training-datasets/{id}/distributions
             self.send_response(200)
@@ -3158,6 +3385,76 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             border-left: 4px solid #e74c3c;
         }
         
+        /* Table Styles */
+        .table-scroll {
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        
+        .table-pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .table-pagination button {
+            padding: 8px 16px;
+            border: 1px solid #dee2e6;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .table-pagination button:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .table-pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        #training-data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        #training-data-table th,
+        #training-data-table td {
+            padding: 12px 8px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px;
+        }
+        
+        #training-data-table th {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        #training-data-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        #training-data-table tbody tr:nth-child(even) {
+            background: #fdfdfd;
+        }
+        
         .success {
             color: #27ae60;
             background: #f0f8f4;
@@ -3244,12 +3541,37 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     👆 Select a training dataset above to view detailed analysis and visualizations
                 </div>
             </div>
+            
+            <!-- Training Data Table Section -->
+            <div id="training-data-table-section" class="main-card" style="display: none;">
+                <h3>🗂️ Training Data Preview</h3>
+                <div id="training-table-info" style="margin-bottom: 15px; color: #666;"></div>
+                <div class="table-pagination">
+                    <button id="training-prev-page" onclick="previousTrainingPage()" disabled>← Previous</button>
+                    <span id="training-page-info">Page 1</span>
+                    <button id="training-next-page" onclick="nextTrainingPage()">Next →</button>
+                    <label style="margin-left: 20px;">
+                        <input type="checkbox" id="use-ray-processing" style="margin-right: 5px;"> 
+                        ⚡ Use Ray Parallel Processing
+                    </label>
+                </div>
+                <div id="training-data-table-container" class="table-scroll">
+                    <table id="training-data-table">
+                        <thead id="training-table-head"></thead>
+                        <tbody id="training-table-body"></tbody>
+                    </table>
+                </div>
+                <div id="training-pagination-controls" style="margin-top: 15px; text-align: center;"></div>
+            </div>
         </div>
     </div>
 
     <script>
         let trainingDatasets = [];
         let currentDataset = null;
+        let trainingCurrentPage = 1;
+        let trainingTotalPages = 1;
+        let trainingTableData = [];
         
         // Load training datasets on page load
         document.addEventListener('DOMContentLoaded', function() {
@@ -3343,6 +3665,9 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             
             // Load detailed analysis
             loadDatasetDistributions(datasetId);
+            
+            // Load training data table
+            loadTrainingDataTable(datasetId);
         }
         
         async function loadDatasetDistributions(datasetId) {
@@ -3502,6 +3827,103 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     Plotly.newPlot(chartId, [trace], layout, {responsive: true});
                 }
             });
+        }
+        
+        // Training Data Table Functions
+        async function loadTrainingDataTable(datasetId, page = 1) {
+            console.log(`📊 Loading training data table for dataset ${datasetId}, page ${page}`);
+            
+            const tableSection = document.getElementById('training-data-table-section');
+            const tableInfo = document.getElementById('training-table-info');
+            const tableHead = document.getElementById('training-table-head');
+            const tableBody = document.getElementById('training-table-body');
+            
+            try {
+                // Show loading state
+                tableInfo.innerHTML = '🔄 Loading training data...';
+                tableSection.style.display = 'block';
+                
+                // Check if Ray processing is enabled
+                const useRay = document.getElementById('use-ray-processing').checked;
+                const rayParam = useRay ? '&ray=true' : '';
+                
+                // Fetch training data from API
+                const response = await fetch(`/api/v1/training-datasets/${datasetId}/data?page=${page}&limit=50${rayParam}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('📊 Training data loaded:', data);
+                
+                if (!data.data || data.data.length === 0) {
+                    tableInfo.innerHTML = '📄 No training data available for this dataset';
+                    tableBody.innerHTML = '<tr><td colspan="100%">No data available</td></tr>';
+                    return;
+                }
+                
+                // Store data for reference
+                trainingTableData = data.data;
+                trainingCurrentPage = page;
+                trainingTotalPages = data.total_pages || 1;
+                
+                // Update pagination info
+                document.getElementById('training-page-info').textContent = `Page ${trainingCurrentPage} of ${trainingTotalPages}`;
+                document.getElementById('training-prev-page').disabled = trainingCurrentPage <= 1;
+                document.getElementById('training-next-page').disabled = trainingCurrentPage >= trainingTotalPages;
+                
+                // Update table info
+                tableInfo.innerHTML = `
+                    📊 Showing ${data.data.length} of ${data.total_count || 0} training sequences
+                    ${data.date_range ? `| Date range: ${data.date_range.start} to ${data.date_range.end}` : ''}
+                `;
+                
+                // Build table headers
+                if (data.data.length > 0) {
+                    const headers = Object.keys(data.data[0]);
+                    tableHead.innerHTML = `
+                        <tr>
+                            ${headers.map(header => `<th title="${header}">${header}</th>`).join('')}
+                        </tr>
+                    `;
+                    
+                    // Build table rows
+                    const rows = data.data.map((row, index) => `
+                        <tr>
+                            ${headers.map(header => {
+                                let cellValue = row[header];
+                                if (cellValue === null || cellValue === undefined) {
+                                    cellValue = '-';
+                                } else if (typeof cellValue === 'number') {
+                                    cellValue = cellValue.toFixed(4);
+                                } else if (typeof cellValue === 'string' && cellValue.length > 20) {
+                                    cellValue = cellValue.substring(0, 20) + '...';
+                                }
+                                return `<td title="${row[header]}">${cellValue}</td>`;
+                            }).join('')}
+                        </tr>
+                    `).join('');
+                    
+                    tableBody.innerHTML = rows;
+                }
+                
+            } catch (error) {
+                console.error('❌ Error loading training data table:', error);
+                tableInfo.innerHTML = `❌ Error loading data: ${error.message}`;
+                tableBody.innerHTML = '<tr><td colspan="100%">Failed to load training data</td></tr>';
+            }
+        }
+        
+        function previousTrainingPage() {
+            if (trainingCurrentPage > 1 && currentDataset) {
+                loadTrainingDataTable(currentDataset.id, trainingCurrentPage - 1);
+            }
+        }
+        
+        function nextTrainingPage() {
+            if (trainingCurrentPage < trainingTotalPages && currentDataset) {
+                loadTrainingDataTable(currentDataset.id, trainingCurrentPage + 1);
+            }
         }
     </script>
 </body>
