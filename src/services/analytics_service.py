@@ -2332,9 +2332,9 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                            oninput="filterSymbolList('${searchId}', '${listId}')">
                                 </div>`;
                                 
-                                // Show more symbols (up to 50 instead of 8) and make them searchable
+                                // Show more symbols (up to 100 to ensure TSLA is visible) and make them searchable
                                 filterHtml += `<div class="checkbox-list" id="${listId}" style="max-height: 200px; overflow-y: auto;">`;
-                                columnData.values.slice(0, 50).forEach(valueData => { // Show up to 50 values
+                                columnData.values.slice(0, 100).forEach(valueData => { // Show up to 100 values
                                     const value = typeof valueData === 'object' ? valueData.value : valueData;
                                     const count = typeof valueData === 'object' ? valueData.count : '';
                                     const countText = count ? ` (${count})` : '';
@@ -2344,8 +2344,8 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                         </label>
                                     `;
                                 });
-                                if (columnData.values.length > 50) {
-                                    filterHtml += `<small style="color: #666; display: block; margin-top: 4px;">(${columnData.values.length - 50} more symbols in dataset)</small>`;
+                                if (columnData.values.length > 100) {
+                                    filterHtml += `<small style="color: #666; display: block; margin-top: 4px;">(${columnData.values.length - 100} more symbols in dataset)</small>`;
                                 }
                                 filterHtml += `</div>`;
                             } else if (isNumeric && columnData.min_value !== undefined && columnData.max_value !== undefined) {
