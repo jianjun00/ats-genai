@@ -137,6 +137,107 @@ When aggregating 1-minute bars into higher timeframes:
 
 Technical indicators (etop, ebot, pldot) are computed by the universe state builder on the aggregated OHLCV data for each timeframe.
 
+## Minute-Level Data Access
+
+### File Structure and Location
+
+**Actual minute-level data exists in the correct structure for FileBasedMinuteManager:**
+
+```
+/mnt/d/ats-data/minute-bars/       # Host path
+/data/minute-bars/                  # Container path (Docker volume mount)
+├── AAPL/
+│   ├── 2024/
+│   │   ├── 01/
+│   │   │   └── AAPL_2024_01.parquet
+│   │   ├── 02/
+│   │   │   └── AAPL_2024_02.parquet
+│   │   └── 08/
+│   │       └── AAPL_2024_08.parquet
+├── TSLA/
+│   ├── 2010/ (Tesla started trading in June 2010)
+│   │   ├── 06/
+│   │   ├── 07/
+│   │   └── ...
+│   ├── 2024/
+│   │   └── ...
+└── [Other symbols...]
+```
+
+### Data Availability
+
+**AAPL minute data coverage:**
+- ✅ **Historical data**: Available from 1995 onwards
+- ✅ **Recent data**: 2024/01, 2024/02, 2024/08 confirmed with parquet files
+- ✅ **File structure**: Perfectly compatible with FileBasedMinuteManager expectations
+
+**TSLA minute data coverage:**
+- ✅ **IPO date**: Tesla started trading June 2010
+- ✅ **Historical data**: Available from 2010/06 onwards  
+- ✅ **File structure**: Same SYMBOL/YEAR/MONTH/SYMBOL_YEAR_MONTH.parquet pattern
+
+### FileBasedMinuteManager Integration
+
+**Correct configuration in training_data_job_runner.py:**
+
+```python
+# Use the actual minute data location - correctly configured
+minute_data_path = "/data/minute-bars"  # Container path to /mnt/d/ats-data/minute-bars
+minute_manager = FileBasedMinuteManager(base_path=minute_data_path)
+```
+
+**Key points:**
+- ✅ **Base path is correct**: `/data/minute-bars` maps to actual data location
+- ✅ **File structure matches**: FileBasedMinuteManager expects `{base_path}/SYMBOL/YEAR/MONTH/SYMBOL_YEAR_MONTH.parquet`
+- ✅ **Data exists**: AAPL and TSLA files confirmed in expected locations
+- ✅ **Volume mount**: Container `/data` directory properly maps to `/mnt/d/ats-data/`
+
+### Verification Commands
+
+**Check minute data availability:**
+```bash
+# Verify AAPL data exists
+ls -la /mnt/d/ats-data/minute-bars/AAPL/2024/01/AAPL_2024_01.parquet
+
+# Check TSLA data exists  
+ls -la /mnt/d/ats-data/minute-bars/TSLA/2010/06/
+
+# Verify file structure
+find /mnt/d/ats-data/minute-bars -name "*.parquet" | head -10
+```
+
+**Container environment check:**
+```bash
+# Inside training container, verify volume mount
+ls -la /data/minute-bars/AAPL/2024/01/
+
+# Test FileBasedMinuteManager can access files
+docker exec ats-intg-analytics python3 -c "
+import asyncio
+from storage.file_based_minute_manager import FileBasedMinuteManager
+manager = FileBasedMinuteManager(base_path='/data/minute-bars')
+print('FileBasedMinuteManager initialized successfully')
+"
+```
+
+### Expected Training Data Generation Results
+
+**When FileBasedMinuteManager successfully accesses minute data:**
+
+1. **Query Phase**: `await minute_manager.query_minute_data('AAPL', start_date, end_date)` returns DataFrame with columns: `['timestamp', 'open', 'high', 'low', 'close', 'volume', ...]`
+
+2. **Aggregation Phase**: Minute bars aggregated to hourly OHLCV using correct semantics
+
+3. **Multi-timeframe Feature Extraction**: Universe state manager uses minute data to build 5m, 15m, 1h, 1d features via `get_lag_prices(time_interval='5m')` calls
+
+4. **Expected Output**: 1000+ features per hourly training row as specified in gin configuration
+
+**Troubleshooting minute data access:**
+- ✅ **File exists**: Verify parquet files exist in expected locations
+- ✅ **Volume mount**: Confirm `/data` volume properly mounted in container
+- ✅ **FileBasedMinuteManager**: Initialize with correct `base_path="/data/minute-bars"`
+- ✅ **Date range**: Ensure query dates match available data timespan
+
 ## Testing Coverage
 
 ### Test Files

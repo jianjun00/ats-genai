@@ -1042,16 +1042,26 @@
       "2008-03",
       "2008-04",
       "2008-05",
-      "2008-06"
+      "2008-06",
+      "2008-07",
+      "2008-08",
+      "2008-09",
+      "2008-10",
+      "2008-11",
+      "2008-12",
+      "2009-01",
+      "2009-02",
+      "2009-03",
+      "2009-04"
     ]
   },
   "failed_months": {},
-  "last_processed": "2025-09-01T15:29:51.848692",
+  "last_processed": "2025-09-01T15:30:18.912219",
   "total_symbols": 250,
   "processing_stats": {
     "symbols_processed": 6,
-    "months_processed": 1030,
-    "records_written": 6056568,
+    "months_processed": 1040,
+    "records_written": 6058379,
     "errors": 0
   },
   "symbol_inventory": {

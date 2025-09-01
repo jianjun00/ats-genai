@@ -1200,16 +1200,26 @@
       "2004-09",
       "2004-10",
       "2004-11",
-      "2004-12"
+      "2004-12",
+      "2005-01",
+      "2005-02",
+      "2005-03",
+      "2005-04",
+      "2005-05",
+      "2005-06",
+      "2005-07",
+      "2005-08",
+      "2005-09",
+      "2005-10"
     ]
   },
   "failed_months": {},
-  "last_processed": "2025-09-01T15:29:28.623712",
+  "last_processed": "2025-09-01T15:30:22.353602",
   "total_symbols": 250,
   "processing_stats": {
     "symbols_processed": 5,
-    "months_processed": 1190,
-    "records_written": 6335552,
+    "months_processed": 1200,
+    "records_written": 6341694,
     "errors": 0
   },
   "symbol_inventory": {
