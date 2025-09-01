@@ -14,7 +14,7 @@ import os
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.modeling.training_data_generator import (
+from src.ml.training_data.generators.training_data_generator import (
     ResidualReturnTrainingDataGenerator,
     TrainingConfig,
     TrainingDatasetResult,

@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 async def main():
     """Run training data generation test."""
     
-    from app.training_data_job_runner import run_training_data_job_for_symbol
+    from ml.training_data.runners.training_data_callback_runner import run_training_data_job_for_symbol
     
     print("🚀 Testing Training Data Generation")
     print("=" * 40)

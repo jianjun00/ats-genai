@@ -10,7 +10,7 @@ import os
 # Add src to path
 sys.path.append('src')
 
-from app.training_data_job_runner import run_hourly_training_data_job_for_symbol
+from ml.training_data.runners.training_data_callback_runner import run_hourly_training_data_job_for_symbol
 
 async def main():
     """Generate multi-timeframe training data for AAPL."""

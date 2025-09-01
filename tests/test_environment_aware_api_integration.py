@@ -22,7 +22,7 @@ class TestEnvironmentAwareAPIs:
     @pytest.mark.asyncio
     async def test_training_datasets_api_uses_environment_config(self):
         """Test that training datasets API uses environment-specific database config"""
-        from src.api.training_dataset_simple_api import get_db_connection, list_training_datasets
+        from src.ml.training_data.apis.training_dataset_simple_api import get_db_connection, list_training_datasets
         from src.config.environment import Environment
         
         # Test DEV environment

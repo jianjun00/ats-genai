@@ -17,7 +17,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from training.multimodal_dataset_generator import (
+from ml.training_data.generators.multimodal_dataset_generator import (
     MultiModalDatasetGenerator,
     MultiModalSample
 )

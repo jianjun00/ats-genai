@@ -25,10 +25,10 @@ from typing import List, Optional
 
 from app.runner import Runner
 from config.environment import Environment, EnvironmentType
-from state.training_data_callback import DateBasedTrainingDataCallback
+from ml.training_data.callbacks.training_data_callback import DateBasedTrainingDataCallback
 from ml.training_data.timeseries_sequence_training_generator import TrainingDataConfig
 from ml.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
-from dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
+from ml.training_data.dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
 
 
 def parse_args():

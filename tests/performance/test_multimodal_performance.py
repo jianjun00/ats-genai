@@ -21,7 +21,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from events.economic_events_classifier import EconomicEventsClassifier, EconomicEventsProcessor
-from training.multimodal_dataset_generator import MultiModalDatasetGenerator, MultiModalSample
+from ml.training_data.generators.multimodal_dataset_generator import MultiModalDatasetGenerator, MultiModalSample
 
 
 class TestPerformanceBenchmarks:

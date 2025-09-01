@@ -17,7 +17,7 @@ from unittest.mock import Mock, patch, AsyncMock
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-from app.training_data_job_runner import (
+from ml.training_data.runners.training_data_callback_runner import (
     TrainingDataJobRunner, 
     TrainingDataJobConfig,
     create_sample_job_config,

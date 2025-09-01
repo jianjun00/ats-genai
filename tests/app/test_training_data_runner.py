@@ -335,7 +335,7 @@ def test_no_training_data_runner_class():
     """Test that TrainingDataRunner class no longer exists (pure callback approach)."""
     # ✅ CORRECT: TrainingDataRunner class should not exist
     try:
-        from app.training_data_runner import TrainingDataRunner
+        from ml.training_data.runners.training_data_callback_runner import TrainingDataRunner
         # If we get here, the class still exists - that's wrong
         assert False, "TrainingDataRunner class should not exist in pure callback approach"
     except (ImportError, ModuleNotFoundError):

@@ -26,7 +26,7 @@ except ImportError:
     TFDV_AVAILABLE = False
     logging.warning("TensorFlow Data Validation not available. Using mock implementation.")
 
-from dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
+from ml.training_data.dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
 
 logger = logging.getLogger(__name__)
 

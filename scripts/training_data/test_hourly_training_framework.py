@@ -20,7 +20,7 @@ async def test_hourly_training_framework():
     print("=" * 70)
     
     try:
-        from app.training_data_job_runner import TrainingDataJobRunner, TrainingDataJobConfig
+        from ml.training_data.runners.training_data_callback_runner import TrainingDataJobRunner, TrainingDataJobConfig
         from config.environment import Environment
         
         # Create configuration for hourly row generation
