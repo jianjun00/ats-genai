@@ -238,6 +238,44 @@ print('FileBasedMinuteManager initialized successfully')
 - ✅ **FileBasedMinuteManager**: Initialize with correct `base_path="/data/minute-bars"`
 - ✅ **Date range**: Ensure query dates match available data timespan
 
+## RESOLVED: Minute-Level Data Access Working (2025-09-01)
+
+**✅ STATUS: FileBasedMinuteManager Integration Successfully Fixed**
+
+The minute-level data access issue has been resolved. The FileBasedMinuteManager is now correctly accessing existing AAPL minute data:
+
+**Success Metrics:**
+- ✅ **Data Found**: 16,418 minute bars for AAPL successfully loaded from `/data/minute-bars/AAPL/2024/08/`
+- ✅ **File Structure**: Parquet files accessed correctly using expected `SYMBOL/YEAR/MONTH/` pattern  
+- ✅ **Date Range**: August 2024 data properly identified and processed
+- ✅ **Volume Mount**: Container `/data` path correctly mapped to host `/mnt/d/ats-data/`
+- ✅ **Hourly Processing**: Minute bars successfully aggregated to hourly rows
+
+**Log Evidence:**
+```
+✅ Found 16418 minute bars for AAPL
+📊 Processing AAPL for hourly training data...
+```
+
+**Next Phase: UniverseStateManager Integration**
+
+The next step is ensuring UniverseStateManager has access to instrument definitions in the database. The multi-timeframe feature extraction is correctly calling:
+
+```
+universe_manager.get_lag_prices(instrument_id, timestamp.date(), lag_days, time_interval='5m')
+```
+
+But returns "No data found for instrument_id=8558" because the instrument hasn't been processed by universe state builder yet.
+
+**Implementation Status:**
+- ✅ **FileBasedMinuteManager**: Minute data access working correctly
+- ✅ **Multi-timeframe Framework**: Feature extraction logic implemented  
+- ✅ **Gin Configuration**: Sequence lengths and timeframes properly configured
+- ⏳ **UniverseStateManager**: Requires instrument database setup for full functionality
+- ⏳ **Indicator Computation**: Universe state builder needs to process AAPL
+
+The foundation is solid - minute-level data access is working as expected. The remaining work is ensuring the universe state management system has the required instrument definitions and historical indicators computed.
+
 ## Testing Coverage
 
 ### Test Files

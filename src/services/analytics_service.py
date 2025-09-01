@@ -997,27 +997,70 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         # OPTIMIZATION 1: Memory-mapped loading (don't load entire file)
                         if feature_path:
                             logger.info(f"Loading features from: {feature_path}")
-                            with np.load(feature_path, mmap_mode='r') as features_mmap:
-                                feature_data = features_mmap[offset:offset+limit].copy()
+                            if feature_path.endswith('.parquet'):
+                                # Load parquet files
+                                import pandas as pd
+                                df = pd.read_parquet(feature_path)
+                                
+                                # Convert string/object columns to numeric where possible
+                                for col in df.columns:
+                                    if df[col].dtype == 'object':
+                                        # Try to convert strings to categorical numeric codes
+                                        if df[col].dtype == 'object':
+                                            df[col] = pd.Categorical(df[col]).codes
+                                
+                                # Skip offset rows and take limit rows  
+                                df_subset = df.iloc[offset:offset+limit]
+                                feature_data = df_subset.values.astype(float)
+                            else:
+                                # Load numpy files
+                                with np.load(feature_path, mmap_mode='r') as features_mmap:
+                                    feature_data = features_mmap[offset:offset+limit].copy()
                             
                         if label_path:
-                            logger.info(f"Loading labels from: {label_path}")  
-                            with np.load(label_path, mmap_mode='r') as labels_mmap:
-                                label_data = labels_mmap[offset:offset+limit].copy()
+                            logger.info(f"Loading labels from: {label_path}")
+                            if label_path.endswith('.parquet'):
+                                # Load parquet files  
+                                import pandas as pd
+                                df = pd.read_parquet(label_path)
+                                df_subset = df.iloc[offset:offset+limit]
+                                label_data = df_subset.values
+                            else:
+                                # Load numpy files
+                                with np.load(label_path, mmap_mode='r') as labels_mmap:
+                                    label_data = labels_mmap[offset:offset+limit].copy()
                                 
                     except Exception as e:
                         logger.warning(f"Error loading numpy files: {e}")
                         # Fallback to traditional loading if mmap fails
                         try:
                             if feature_path:
-                                features = np.load(feature_path)
-                                feature_data = features[offset:offset+limit]
-                                del features  # Free memory immediately
+                                if feature_path.endswith('.parquet'):
+                                    import pandas as pd
+                                    df = pd.read_parquet(feature_path)
+                                    
+                                    # Convert string/object columns to numeric codes
+                                    for col in df.columns:
+                                        if df[col].dtype == 'object':
+                                            df[col] = pd.Categorical(df[col]).codes
+                                    
+                                    df_subset = df.iloc[offset:offset+limit]
+                                    feature_data = df_subset.values.astype(float)
+                                else:
+                                    features = np.load(feature_path)
+                                    feature_data = features[offset:offset+limit]
+                                    del features  # Free memory immediately
                                 
                             if label_path:
-                                labels = np.load(label_path)
-                                label_data = labels[offset:offset+limit]
-                                del labels  # Free memory immediately
+                                if label_path.endswith('.parquet'):
+                                    import pandas as pd
+                                    df = pd.read_parquet(label_path)
+                                    df_subset = df.iloc[offset:offset+limit]
+                                    label_data = df_subset.values
+                                else:
+                                    labels = np.load(label_path)
+                                    label_data = labels[offset:offset+limit]
+                                    del labels  # Free memory immediately
                         except Exception as e2:
                             logger.error(f"Both optimized and fallback loading failed: {e2}")
                     
@@ -1442,7 +1485,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 error_response = {"error": str(e)}
                 self.wfile.write(json.dumps(error_response).encode('utf-8'))
         
-        elif self.path == '/api/v1/training-datasets':
+        elif self.path == '/api/v1/training-datasets' or self.path == '/api/v1/training-datasets/':
             # Training dataset API endpoint for dual-tab functionality
             self.send_response(200)
             self.send_header('Content-type', 'application/json; charset=utf-8')

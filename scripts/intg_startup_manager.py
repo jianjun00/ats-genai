@@ -78,11 +78,25 @@ class IntgStartupManager:
                 # Install cron if not present
                 subprocess.run("apt-get update && apt-get install -y cron", shell=True, capture_output=True)
                 
-                # Create crontab for data refresh (example - adjust as needed)
+                # Create crontab for data refresh with proper scheduling
                 crontab_content = """
-# ATS-INTG Daily Data Refresh Jobs
-0 2 * * * cd /workspace && PYTHONPATH=/workspace/src python3 scripts/daily_data_refresh.py >> /logs/daily_refresh.log 2>&1
-0 6 * * * cd /workspace && PYTHONPATH=/workspace/src python3 scripts/weekly_maintenance.py >> /logs/weekly_maintenance.log 2>&1
+# ATS-INTG Daily Data Refresh Jobs - Multi-vendor price collection with overlap validation
+0 3 * * * cd /workspace && PYTHONPATH=/workspace/src python3 scripts/daily_data_refresh.py --vendors tiingo,polygon,eodhd --max-symbols 1000 >> /logs/daily_refresh.log 2>&1
+
+# ATS-INTG Daily Price Coverage Validation - 90-day lookback with Prometheus metrics and Slack alerts
+30 3 * * * cd /workspace && PYTHONPATH=/workspace/src python3 scripts/daily_price_coverage_validator.py --vendors tiingo,polygon,eodhd --days 90 --export-prometheus --alert-threshold 0.95 >> /logs/coverage_validation.log 2>&1
+
+# ATS-INTG Weekly Maintenance - Data quality checks and cleanup
+0 4 * * 0 cd /workspace && PYTHONPATH=/workspace/src python3 scripts/weekly_maintenance.py --deep-clean >> /logs/weekly_maintenance.log 2>&1
+
+# ATS-INTG Priority Symbols Daily Collection - High-priority symbols every 6 hours
+0 9,15,21 * * * cd /workspace && PYTHONPATH=/workspace/src python3 scripts/daily_data_refresh.py --symbols AAPL,TSLA,MSFT,GOOGL,AMZN,META,NVDA,SPY,QQQ,VTI --vendors tiingo,polygon >> /logs/priority_refresh.log 2>&1
+
+# ATS-INTG Health Check - Every 4 hours to ensure data pipeline is working
+0 */4 * * * cd /workspace && PYTHONPATH=/workspace/src python3 scripts/daily_data_refresh.py --symbols AAPL --vendors tiingo --debug >> /logs/health_check.log 2>&1
+
+# ATS-INTG Coverage Validation - Every 6 hours for real-time monitoring
+0 6,12,18 * * * cd /workspace && PYTHONPATH=/workspace/src python3 scripts/daily_price_coverage_validator.py --vendors tiingo,polygon,eodhd --days 7 --export-prometheus --alert-threshold 0.90 >> /logs/coverage_monitoring.log 2>&1
 """
                 with open('/tmp/ats-crontab', 'w') as f:
                     f.write(crontab_content.strip())

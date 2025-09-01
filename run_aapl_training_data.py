@@ -20,10 +20,11 @@ async def main():
     
     try:
         # Generate hourly training data with multi-timeframe features
+        # Use August 2024 data since that's when we have AAPL minute data available
         results = await run_hourly_training_data_job_for_symbol(
             symbol='AAPL',
             output_dir="auto",  # Auto-generate based on environment
-            days_back=30
+            days_back=500  # Go back to August 2024 timeframe
         )
         
         print("\n" + "=" * 60)

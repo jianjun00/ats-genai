@@ -139,8 +139,9 @@ except ImportError as e:
 
 # Include training dataset EDA router
 try:
-    from api.training_dataset_simple_api import router as training_dataset_router
-    app.include_router(training_dataset_router, prefix="/api/v1/training-datasets", tags=["training-datasets"])
+    from api.training_dataset_api import create_training_dataset_router
+    training_dataset_router = create_training_dataset_router()
+    app.include_router(training_dataset_router, tags=["training-datasets"])
     logger.info("✅ Training dataset EDA API routes added")
 except ImportError as e:
     logger.warning(f"⚠️  Training dataset API not available: {e}")
