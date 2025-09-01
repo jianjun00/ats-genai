@@ -22,9 +22,18 @@ bind = ['strict_validation', True]
 #bind = ['callbacks', 'state.universe_state_builder.UniverseStateBuilder']
 #bind = ['saved_dir', '/tmp/intg_universe_states']
 
-# Durations for UniverseStateBuilder
-state.universe_state_builder.UniverseStateIntervalBuilder.base_duration = '5m'
-state.universe_state_builder.UniverseStateIntervalBuilder.target_durations = '5m,15m,60m'
+# Durations for UniverseStateBuilder (commented out due to Gin config issues)
+# state.universe_state_builder.UniverseStateIntervalBuilder.base_duration = '5m'
+# state.universe_state_builder.UniverseStateIntervalBuilder.target_durations = '5m,15m,60m'
+
+# Training Data Job Configuration
+TrainingDataJobConfig.base_interval_minutes = 1
+TrainingDataJobConfig.training_interval_minutes = 60
+TrainingDataJobConfig.output_structure = "hourly_rows"
+TrainingDataJobConfig.normalize_features = False
+TrainingDataJobConfig.normalize_labels = False
+TrainingDataJobConfig.use_enhanced_features = True
+TrainingDataJobConfig.use_universe_state_indicators = True
 
 # Database (match integration DB settings)
 Database.host = 'localhost'

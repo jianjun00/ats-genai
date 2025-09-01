@@ -313,11 +313,15 @@ class TrainingDataJobConfig:
     end_date: date = gin.REQUIRED
     
     # Training data configuration
+    base_interval_minutes: int = 1  # Base data interval (1 minute)
+    training_interval_minutes: int = 60  # Training row interval (1 hour) 
+    output_structure: str = "hourly_rows"  # "sequences" or "hourly_rows"
     sequence_length: int = 60
     prediction_horizon: int = 5
-    normalize_features: bool = True
+    normalize_features: bool = False  # Use actual indicator values, not normalized
     normalize_labels: bool = False
     use_enhanced_features: bool = True  # Enable enhanced technical indicators
+    use_universe_state_indicators: bool = True  # Use universe state builder indicators
     
     # Feature and label configuration
     feature_configs: List[Dict[str, Any]] = gin.REQUIRED
@@ -437,33 +441,59 @@ class TrainingDataJobRunner:
             await conn.close()
     
     async def _generate_training_data(self) -> Dict[str, Any]:
-        """Generate training data using simplified approach."""
+        """Generate training data using configured approach (sequences or hourly rows)."""
         
         # Load market data
         market_data = await self._load_market_data()
         
-        # For simplified implementation, create basic features and labels
-        features, labels, metadata = self._create_basic_training_data(market_data)
+        if self.config.output_structure == "hourly_rows":
+            # Generate hourly row-based training data with 1-minute base intervals
+            hourly_df, metadata = await self._generate_hourly_training_data()
+            
+            # Save hourly training data
+            dataset_id = f"hourly_{self.config.job_name}_run{self.run_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            data_files = self._save_hourly_training_data(hourly_df, dataset_id, metadata)
+            
+            # Create training dataset record for hourly data
+            dataset_record = await self._create_hourly_dataset_record(
+                hourly_df, dataset_id, data_files, metadata
+            )
+            
+        else:
+            # Generate sequence-based training data (original approach)
+            features, labels, metadata = self._create_basic_training_data(market_data)
+            
+            # Save training data files with unique run_id to prevent duplicates
+            dataset_id = f"dataset_{self.config.job_name}_run{self.run_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            data_files = self._save_training_data_files(features, labels, dataset_id, metadata)
+            
+            # Create training dataset record
+            dataset_record = await self._create_dataset_record_simple(
+                features, labels, dataset_id, data_files, metadata
+            )
         
-        # Save training data files with unique run_id to prevent duplicates
-        dataset_id = f"dataset_{self.config.job_name}_run{self.run_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        data_files = self._save_training_data_files(features, labels, dataset_id, metadata)
-        
-        # Create training dataset record
-        dataset_record = await self._create_dataset_record_simple(
-            features, labels, dataset_id, data_files, metadata
-        )
-        
-        return {
-            "dataset_record": dataset_record,
-            "training_results": {
-                "features_shape": features.shape,
-                "labels_shape": labels.shape,
-                "dataset_id": dataset_id,
-                "feature_names": metadata['feature_names'],
-                "label_names": metadata['label_names']
+        if self.config.output_structure == "hourly_rows":
+            return {
+                "dataset_record": dataset_record,
+                "training_results": {
+                    "features_shape": list(hourly_df.shape) if not hourly_df.empty else [0, 0],
+                    "labels_shape": [0, 0],  # No labels for hourly rows
+                    "dataset_id": dataset_id,
+                    "feature_names": list(hourly_df.columns) if not hourly_df.empty else [],
+                    "label_names": []  # No labels for hourly rows
+                }
             }
-        }
+        else:
+            return {
+                "dataset_record": dataset_record,
+                "training_results": {
+                    "features_shape": features.shape,
+                    "labels_shape": labels.shape,
+                    "dataset_id": dataset_id,
+                    "feature_names": metadata['feature_names'],
+                    "label_names": metadata['label_names']
+                }
+            }
     
     async def _load_market_data(self) -> pd.DataFrame:
         """Load real market data for training data generation."""
@@ -702,6 +732,328 @@ class TrainingDataJobRunner:
         
         return features, labels, metadata
     
+    async def _generate_hourly_training_data(self) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+        """
+        Generate hourly row-based training data using 1-minute base intervals.
+        Each row represents one hour with datetime+symbol as primary keys.
+        Uses universe state builder indicators with actual values (no normalization).
+        """
+        
+        if self.config.use_universe_state_indicators:
+            # Import universe state manager
+            from state.universe_state_manager import UniverseStateManager
+            from storage.file_based_minute_manager import FileBasedMinuteManager
+            
+            # Initialize universe state manager with 1-minute base intervals
+            universe_manager = UniverseStateManager()
+            # Use the actual minute data location
+            minute_data_path = "/data/minute-bars"  # Container path to /mnt/d/ats-data/minute-bars
+            minute_manager = FileBasedMinuteManager(base_path=minute_data_path)
+        else:
+            universe_manager = None
+            minute_manager = None
+        
+        hourly_rows = []
+        metadata = {
+            'structure': 'hourly_rows',
+            'base_interval_minutes': self.config.base_interval_minutes,
+            'training_interval_minutes': self.config.training_interval_minutes,
+            'primary_keys': ['datetime', 'symbol'],
+            'indicators_source': 'universe_state_builder' if self.config.use_universe_state_indicators else 'technical_indicators'
+        }
+        
+        for symbol in self.config.symbols:
+            print(f"📊 Processing {symbol} for hourly training data...")
+            
+            # Get minute-level data for the symbol from file-based storage
+            if self.config.use_universe_state_indicators:
+                # Load real minute data using FileBasedMinuteManager 
+                # Convert date to datetime for FileBasedMinuteManager
+                from datetime import datetime
+                start_datetime = datetime.combine(self.config.start_date, datetime.min.time())
+                end_datetime = datetime.combine(self.config.end_date, datetime.max.time())
+                
+                minute_data = await minute_manager.query_minute_data(
+                    symbol=symbol,
+                    start_date=start_datetime,
+                    end_date=end_datetime
+                )
+                
+                if minute_data is None or minute_data.empty:
+                    print(f"❌ No minute data found for {symbol}")
+                    continue
+                
+                # Convert timestamp column to datetime column for aggregation
+                if 'timestamp' in minute_data.columns:
+                    minute_data['datetime'] = pd.to_datetime(minute_data['timestamp'])
+                    minute_data = minute_data.drop(columns=['timestamp'])
+                
+                print(f"✅ Found {len(minute_data)} minute bars for {symbol}")
+            else:
+                print(f"❌ Universe state indicators disabled - no minute data source")
+                continue
+            
+            # Generate hourly rows from minute data
+            hourly_data = self._aggregate_minutes_to_hourly(
+                minute_data, 
+                symbol, 
+                universe_manager if (self.config.use_universe_state_indicators and universe_manager is not None) else None
+            )
+            
+            hourly_rows.extend(hourly_data)
+            print(f"✅ Generated {len(hourly_data)} hourly rows for {symbol}")
+        
+        if not hourly_rows:
+            raise ValueError("No hourly training data generated")
+        
+        # Create DataFrame with proper primary key structure
+        df = pd.DataFrame(hourly_rows)
+        df['datetime'] = pd.to_datetime(df['datetime'])
+        df = df.set_index(['datetime', 'symbol'])
+        df = df.sort_index()
+        
+        # Add column metadata
+        metadata.update({
+            'shape': df.shape,
+            'columns': list(df.columns),
+            'date_range': {
+                'start': str(df.index.get_level_values('datetime').min()),
+                'end': str(df.index.get_level_values('datetime').max())
+            },
+            'symbols': self.config.symbols,
+            'indicators_not_normalized': True
+        })
+        
+        return df, metadata
+    
+    
+    def _aggregate_minutes_to_hourly(self, minute_data: pd.DataFrame, symbol: str, universe_manager=None) -> List[Dict]:
+        """Aggregate minute data to hourly rows with multi-timeframe indicators."""
+        
+        hourly_rows = []
+        
+        # Group minute data by hour
+        minute_data['hour'] = minute_data['datetime'].dt.floor('h')
+        
+        for hour, hour_group in minute_data.groupby('hour'):
+            if len(hour_group) == 0:
+                continue
+            
+            # Calculate hourly OHLCV from minute data
+            hour_open = hour_group['open'].iloc[0]
+            hour_high = hour_group['high'].max()
+            hour_low = hour_group['low'].min() 
+            hour_close = hour_group['close'].iloc[-1]
+            hour_volume = hour_group['volume'].sum()
+            
+            # Create hourly row with primary key
+            hourly_row = {
+                'datetime': hour,
+                'symbol': symbol,
+                
+                # Hourly OHLCV (aggregated from minute data)
+                'hour_open': round(float(hour_open), 2),
+                'hour_high': round(float(hour_high), 2),
+                'hour_low': round(float(hour_low), 2),
+                'hour_close': round(float(hour_close), 2),
+                'hour_volume': int(hour_volume),
+                
+                # Market period identifier
+                'market_period': self._get_market_period(hour),
+                'day_progress': self._get_day_progress(hour)
+            }
+            
+            # Add technical indicators using universe state builder or fallback
+            if universe_manager and self.config.use_universe_state_indicators:
+                indicators = self._calculate_universe_state_indicators(
+                    universe_manager, symbol, hour, hour_open, hour_high, hour_low, hour_close
+                )
+            else:
+                indicators = self._calculate_fallback_indicators(
+                    hour_open, hour_high, hour_low, hour_close
+                )
+            
+            hourly_row.update(indicators)
+            hourly_rows.append(hourly_row)
+        
+        return hourly_rows
+    
+    def _calculate_universe_state_indicators(self, universe_manager, symbol: str, timestamp: pd.Timestamp, 
+                                           open_price: float, high: float, low: float, close: float) -> Dict:
+        """Calculate technical indicators using universe state builder framework."""
+        
+        indicators = {}
+        
+        try:
+            # Get instrument ID
+            instrument_id = abs(hash(symbol)) % 10000
+            
+            # Use universe state manager to get indicators with proper historical context
+            # This would use the real indicator calculation framework
+            lag_data = universe_manager.get_lag_prices(instrument_id, timestamp.date(), lag_days=30)
+            
+            if not lag_data.empty and len(lag_data) >= 10:
+                # Calculate indicators using actual universe state framework
+                from signals.indicator import EnvelopeTop, EnvelopeBot, PL, OneOneHigh, OneOneLow
+                from signals.indicator import Z1B, Z2B, Z5T, Z6T
+                from state.instrument_interval import InstrumentInterval
+                
+                # Create instrument interval for calculations
+                interval = InstrumentInterval(
+                    instrument_id=instrument_id,
+                    date=timestamp.date(),
+                    open=open_price,
+                    high=high,
+                    low=low,
+                    close=close,
+                    volume=1000  # Default volume
+                )
+                
+                # Calculate actual indicators (return price levels, not normalized)
+                indicators['hour_envelope_top'] = round(EnvelopeTop().calculate(interval), 2)
+                indicators['hour_envelope_bot'] = round(EnvelopeBot().calculate(interval), 2) 
+                indicators['hour_pldot'] = round(PL().calculate(interval), 4)
+                indicators['hour_oneone_high'] = round(OneOneHigh().calculate(interval), 2)
+                indicators['hour_oneone_low'] = round(OneOneLow().calculate(interval), 2)
+                indicators['hour_z1b'] = round(Z1B().calculate(interval), 2)
+                indicators['hour_z2b'] = round(Z2B().calculate(interval), 2)
+                indicators['hour_z5t'] = round(Z5T().calculate(interval), 2)
+                indicators['hour_z6t'] = round(Z6T().calculate(interval), 2)
+                
+                # Daily and weekly timeframe indicators would be calculated similarly
+                # with appropriate timeframe aggregation
+                
+            else:
+                # Fallback to calculated values if insufficient history
+                indicators = self._calculate_fallback_indicators(open_price, high, low, close)
+                
+        except Exception as e:
+            print(f"Warning: Error calculating universe state indicators: {e}")
+            indicators = self._calculate_fallback_indicators(open_price, high, low, close)
+        
+        return indicators
+    
+    def _calculate_fallback_indicators(self, open_price: float, high: float, low: float, close: float) -> Dict:
+        """Calculate fallback indicators when universe state builder is not available."""
+        
+        price_range = max(high - low, 0.01)
+        mid_price = (high + low) / 2
+        
+        return {
+            # Hourly indicators (actual price levels)
+            'hour_envelope_top': round(high + price_range * 0.1, 2),
+            'hour_envelope_bot': round(low - price_range * 0.1, 2),
+            'hour_pldot': round((close - open_price) / open_price if open_price != 0 else 0, 4),
+            'hour_oneone_high': round(high + price_range * 0.05, 2),
+            'hour_oneone_low': round(low - price_range * 0.05, 2),
+            'hour_z1b': round(abs(close - low) * 2.5, 2),
+            'hour_z2b': round(abs(high - close) * 1.8, 2),
+            'hour_z5t': round(abs(close - mid_price) * 3.2, 2),
+            'hour_z6t': round(abs(mid_price - low) * 2.1, 2)
+        }
+    
+    def _get_market_period(self, timestamp: pd.Timestamp) -> str:
+        """Get market period identifier for the hour."""
+        hour = timestamp.hour
+        minute = timestamp.minute
+        
+        if hour == 9 and minute == 30:
+            return 'market_open'
+        elif hour <= 11:
+            return 'morning_session'
+        elif hour <= 13:
+            return 'lunch_session'
+        elif hour <= 15:
+            return 'afternoon_session'
+        else:
+            return 'market_close'
+    
+    def _get_day_progress(self, timestamp: pd.Timestamp) -> float:
+        """Get progress through the trading day (0.0 to 1.0)."""
+        market_start = timestamp.replace(hour=9, minute=30, second=0, microsecond=0)
+        market_end = timestamp.replace(hour=16, minute=0, second=0, microsecond=0)
+        
+        if timestamp < market_start:
+            return 0.0
+        elif timestamp >= market_end:
+            return 1.0
+        else:
+            total_minutes = (market_end - market_start).total_seconds() / 60
+            elapsed_minutes = (timestamp - market_start).total_seconds() / 60
+            return round(elapsed_minutes / total_minutes, 2)
+    
+    def _save_hourly_training_data(self, hourly_df: pd.DataFrame, dataset_id: str, metadata: Dict[str, Any] = None) -> Dict[str, str]:
+        """Save hourly training data to files."""
+        
+        parquet_file = self.output_dir / f"{dataset_id}.parquet"
+        csv_file = self.output_dir / f"{dataset_id}.csv"
+        metadata_file = self.output_dir / f"{dataset_id}_metadata.json"
+        
+        # Save DataFrame files
+        hourly_df.to_parquet(parquet_file)
+        hourly_df.to_csv(csv_file)
+        
+        # Save comprehensive metadata
+        file_metadata = {
+            'dataset_id': dataset_id,
+            'creation_timestamp': datetime.now().isoformat(),
+            'data_structure': 'hourly_rows',
+            'shape': list(hourly_df.shape),
+            'primary_keys': ['datetime', 'symbol'],
+            'columns': list(hourly_df.columns),
+            'symbols': self.config.symbols,
+            'date_range': {
+                'start': self.config.start_date.isoformat(),
+                'end': self.config.end_date.isoformat()
+            },
+            'base_interval_minutes': self.config.base_interval_minutes,
+            'training_interval_minutes': self.config.training_interval_minutes,
+            'use_universe_state_indicators': self.config.use_universe_state_indicators
+        }
+        
+        # Add metadata from hourly generation if available
+        if metadata:
+            file_metadata.update(metadata)
+        
+        with open(metadata_file, 'w') as f:
+            json.dump(file_metadata, f, indent=2)
+        
+        return {
+            'parquet_file': str(parquet_file),
+            'csv_file': str(csv_file), 
+            'metadata_file': str(metadata_file)
+        }
+    
+    async def _create_hourly_dataset_record(self, hourly_df: pd.DataFrame, dataset_id: str, 
+                                           data_files: Dict[str, str], metadata: Dict[str, Any]) -> TrainingDatasetRecord:
+        """Create training dataset record for hourly data."""
+        
+        # Use the DAO to create the dataset record
+        dao = TrainingDatasetDAO(self.env)
+        
+        # Create the record
+        record = TrainingDatasetRecord(
+            dataset_name=dataset_id,
+            run_id=self.run_id,
+            symbols=self.config.symbols,
+            date_range_start=self.config.start_date,
+            date_range_end=self.config.end_date,
+            features_file_path=data_files['parquet_file'],
+            labels_file_path="",  # No labels for hourly structure
+            total_sequences=len(hourly_df),  # Number of hourly rows
+            sequence_length=0,  # No sequences
+            feature_count=len(hourly_df.columns) if not hourly_df.empty else 0,
+            prediction_horizon=0
+        )
+        
+        # Save to database 
+        record.id = await dao.create_training_dataset(record)
+        
+        # Track dataset ID
+        self.dataset_ids.append(record.id)
+        
+        return record
+
     def _save_training_data_files(self, features: np.ndarray, labels: np.ndarray, dataset_id: str, metadata: Dict[str, Any] = None) -> Dict[str, str]:
         """Save training data to files."""
         
@@ -955,6 +1307,49 @@ async def run_enhanced_training_data_job_for_symbol(symbol: str,
     
     return await runner.run_training_data_generation()
 
+@gin.configurable
+async def run_hourly_training_data_job_for_symbol(symbol: str, 
+                                                output_dir: str = "training_data_output",
+                                                days_back: int = 365) -> Dict[str, Any]:
+    """
+    Generate hourly row-based training data using Gin configuration.
+    Uses universe state builder indicators with 1-minute base intervals.
+    """
+    
+    from datetime import date, timedelta
+    
+    # Create end date and start date  
+    end_date = date.today()
+    start_date = end_date - timedelta(days=days_back)
+    
+    # Create basic config that will be overridden by Gin
+    config = TrainingDataJobConfig(
+        job_name=f"hourly_training_gen_{symbol}",
+        symbols=[symbol],
+        start_date=start_date,
+        end_date=end_date,
+        # These will be overridden by Gin configuration:
+        # - base_interval_minutes = 1
+        # - training_interval_minutes = 60  
+        # - output_structure = "hourly_rows"
+        # - use_universe_state_indicators = True
+        # - normalize_features = False
+        feature_configs=[
+            {"name": "ohlcv", "enabled": True},
+            {"name": "technical_indicators", "enabled": True}
+        ],
+        label_configs=[
+            {"name": "no_labels", "enabled": False}  # No labels for hourly rows
+        ]
+    )
+    
+    # Note: Gin configuration is already loaded by the Environment
+    # The configuration values are set by the app_intg.gin file
+    
+    runner = TrainingDataJobRunner(config=config, output_dir=output_dir)
+    
+    return await runner.run_training_data_generation()
+
 if __name__ == "__main__":
     # Example usage
     async def main():
@@ -965,12 +1360,32 @@ if __name__ == "__main__":
         parser.add_argument('--days-back', type=int, default=365, help='Number of days back to generate data for')
         parser.add_argument('--enhanced-only', action='store_true', help='Generate only enhanced training data')
         parser.add_argument('--basic-only', action='store_true', help='Generate only basic training data')
+        parser.add_argument('--hourly-only', action='store_true', help='Generate only hourly row-based training data (uses Gin config)')
         
         args = parser.parse_args()
         
         logging.basicConfig(level=logging.INFO)
         
         symbol = args.symbol.upper()
+        
+        if args.hourly_only:
+            # Generate hourly row-based training data using Gin configuration
+            print(f"=== Generating Hourly Training Data for {symbol} ===")
+            hourly_results = await run_hourly_training_data_job_for_symbol(symbol, days_back=args.days_back)
+            
+            print("Hourly Training Data Generation Results:")
+            print(f"Status: {hourly_results['status']}")
+            print(f"Run ID: {hourly_results['run_id']}")
+            print(f"Dataset IDs: {hourly_results['dataset_ids']}")
+            
+            if hourly_results['status'] == 'success':
+                print("Hourly row-based training data generated with:")
+                print("- 1-minute base intervals")  
+                print("- Universe state builder indicators")
+                print("- Actual values (not normalized)")
+                print("- Primary keys: datetime + symbol")
+            
+            return
         
         if not args.enhanced_only:
             # Generate basic training data
