@@ -327,8 +327,8 @@ class TrainingDataJobConfig:
     feature_configs: List[Dict[str, Any]] = gin.REQUIRED
     label_configs: List[Dict[str, Any]] = gin.REQUIRED
     
-    # Output configuration
-    output_dir: str = "training_data_output"
+    # Output configuration (will be auto-generated based on environment and run_id)
+    output_dir: str = "auto"  # Special value to trigger auto-generation
     dataset_name_prefix: str = "dataset"
     
     # Quality and validation
@@ -348,8 +348,10 @@ class TrainingDataJobRunner:
                  output_dir: Optional[str] = None):
         self.config = config
         self.env = env or Environment()
-        self.output_dir = Path(output_dir or config.output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Defer output_dir creation until we have run_id
+        self._base_output_dir = output_dir or config.output_dir
+        self.output_dir = None  # Will be set in _set_output_directory()
         
         # Initialize DAOs
         self.training_dataset_dao = TrainingDatasetDAO(env=self.env)
@@ -358,6 +360,34 @@ class TrainingDataJobRunner:
         self.run_id: Optional[int] = None
         self.start_time: Optional[datetime] = None
         self.dataset_ids: List[int] = []
+    
+    def _set_output_directory(self) -> None:
+        """Set the output directory based on environment and run_id."""
+        if self.run_id is None:
+            raise ValueError("Cannot set output directory without run_id")
+        
+        # Check if a custom absolute path was provided
+        if self._base_output_dir and self._base_output_dir != "auto" and ('/' in self._base_output_dir or self._base_output_dir.startswith('/mnt')):
+            # Use the provided path as-is
+            self.output_dir = Path(self._base_output_dir)
+        else:
+            # Generate environment-based path structure
+            from config.environment import EnvironmentType
+            
+            if self.env.env_type == EnvironmentType.DEV:
+                env_name = "ats-dev"
+            elif self.env.env_type == EnvironmentType.INTG:
+                env_name = "ats-intg"
+            else:
+                env_name = "ats-prod"
+            
+            # Create path: /data/ats-data/training_data/{env}/{run_id}
+            # The container has /data mounted to D:\ drive
+            self.output_dir = Path(f"/data/ats-data/training_data/{env_name}/{self.run_id}")
+        
+        # Create the directory
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"📁 Training data output directory: {self.output_dir}")
         
     async def run_training_data_generation(self) -> Dict[str, Any]:
         """Run complete training data generation with tracking."""
@@ -368,6 +398,9 @@ class TrainingDataJobRunner:
             # Create run record
             self.run_id = await self._create_run_record()
             logger.info(f"Started training data generation run {self.run_id}")
+            
+            # Set output directory based on environment and run_id
+            self._set_output_directory()
             
             # Generate training data
             results = await self._generate_training_data()
