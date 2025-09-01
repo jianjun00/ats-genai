@@ -982,6 +982,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         # Load feature and label names from metadata
                         feature_names = ['open', 'high', 'low', 'close', 'volume', 'envelope_top', 'envelope_bot', 'pldot', 'oneonedot']  # Default
                         label_names = ['label_0', 'label_1', 'label_2', 'label_3', 'label_4']  # Default
+                        datetime_index = None  # For parquet files with datetime index
                         
                         if metadata_path:
                             try:
@@ -1002,12 +1003,23 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                 import pandas as pd
                                 df = pd.read_parquet(feature_path)
                                 
-                                # Convert string/object columns to numeric where possible
-                                for col in df.columns:
-                                    if df[col].dtype == 'object':
-                                        # Try to convert strings to categorical numeric codes
-                                        if df[col].dtype == 'object':
-                                            df[col] = pd.Categorical(df[col]).codes
+                                # Extract feature names from parquet columns (excluding datetime index)
+                                feature_names = [col for col in df.columns if col not in ['symbol']]
+                                logger.info(f"Extracted feature names from parquet: {feature_names}")
+                                
+                                # Capture datetime information from index
+                                if hasattr(df.index, 'get_level_values') and 'datetime' in str(df.index.names):
+                                    datetime_index = df.index.get_level_values('datetime')[offset:offset+limit]
+                                elif isinstance(df.index, pd.DatetimeIndex):
+                                    datetime_index = df.index[offset:offset+limit]
+                                
+                                # Convert only specific string columns to numeric codes
+                                string_columns = df.select_dtypes(include=['object']).columns
+                                for col in string_columns:
+                                    if col in ['market_period', 'session_type', 'market_state']:
+                                        # Convert categorical market info to codes
+                                        df[col] = pd.Categorical(df[col]).codes
+                                        logger.info(f"Converted {col} to categorical codes")
                                 
                                 # Skip offset rows and take limit rows  
                                 df_subset = df.iloc[offset:offset+limit]
@@ -1039,9 +1051,10 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                     import pandas as pd
                                     df = pd.read_parquet(feature_path)
                                     
-                                    # Convert string/object columns to numeric codes
-                                    for col in df.columns:
-                                        if df[col].dtype == 'object':
+                                    # Convert only specific string columns to numeric codes
+                                    string_columns = df.select_dtypes(include=['object']).columns
+                                    for col in string_columns:
+                                        if col in ['market_period', 'session_type', 'market_state']:
                                             df[col] = pd.Categorical(df[col]).codes
                                     
                                     df_subset = df.iloc[offset:offset+limit]
@@ -1076,8 +1089,12 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             
                             # Ray remote function for parallel processing
                             @ray.remote
-                            def process_data_row(i, feature_row, label_row, offset, feat_names, lbl_names):
+                            def process_data_row(i, feature_row, label_row, offset, feat_names, lbl_names, dt_index=None):
                                 row = {'sequence_id': offset + i + 1}
+                                
+                                # Add datetime metadata if available
+                                if dt_index is not None and i < len(dt_index):
+                                    row['datetime'] = dt_index[i].isoformat() if hasattr(dt_index[i], 'isoformat') else str(dt_index[i])
                                 
                                 # Process features with real names
                                 if feature_row is not None and len(feature_row) > 0:
@@ -1104,7 +1121,8 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             for i in range(num_rows):
                                 feature_row = feature_data[i] if i < len(feature_data) and len(feature_data) > 0 else None
                                 label_row = label_data[i] if i < len(label_data) and len(label_data) > 0 else None
-                                tasks.append(process_data_row.remote(i, feature_row, label_row, offset, feature_names, label_names))
+                                dt_index = datetime_index.tolist() if datetime_index is not None else None
+                                tasks.append(process_data_row.remote(i, feature_row, label_row, offset, feature_names, label_names, dt_index))
                             
                             # Get results
                             data_rows = ray.get(tasks)
@@ -1120,6 +1138,10 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         
                         for i in range(num_rows):
                             row = {'sequence_id': offset + i + 1}
+                            
+                            # Add datetime metadata if available
+                            if datetime_index is not None and i < len(datetime_index):
+                                row['datetime'] = datetime_index[i].isoformat() if hasattr(datetime_index[i], 'isoformat') else str(datetime_index[i])
                             
                             # OPTIMIZATION 3: Vectorized feature processing with real names
                             if i < len(feature_data) and len(feature_data) > 0:

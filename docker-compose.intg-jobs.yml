@@ -141,8 +141,8 @@ services:
       - TIINGO_API_KEY=${TIINGO_API_KEY:-5f40b4f36e171405746304ec0e5a6f3aa9ca77e5}
       - EODHD_API_KEY=${EODHD_API_KEY:-68aa0c7d2fe831.67386369}
       
-      # Slack webhook for alerts
-      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      # Slack webhook for alerts (ATS official webhook)
+      - SLACK_WEBHOOK_URL=https://hooks.slack.com/services/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
     
     ports:
       - "4080:8080"  # ATS-INTG Prometheus Metrics Server
