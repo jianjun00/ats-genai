@@ -387,6 +387,8 @@ This infrastructure provides comprehensive multi-vendor price data validation, r
 - EDA Dashboard: http://localhost:4000/eda
 - Health Check: http://localhost:4000/health  
 - Database: postgresql://postgres:intg_password@localhost:4432/intg_db
+- Prometheus Metrics: http://localhost:4080
+- Daily Minute Bars: /mnt/d/ats-data/firstrate-data/daily/
 ```
 
 ### **🔧 Environment-Specific Operations**
@@ -408,10 +410,16 @@ PGPASSWORD=dev_password psql -h localhost -p 3432 -U postgres -d dev_db
 # Service management
 docker-compose -f docker-compose.ats.yml up -d postgres-intg analytics-intg
 docker-compose -f docker-compose.intg-jobs.yml up -d  # Job scheduler services
+docker-compose -f docker-compose.minute-bars-jobs.yml up -d  # Daily minute bars system
 docker-compose -f docker-compose.ats.yml ps           # Check service status
 
 # Database operations  
 PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db
+
+# Daily minute bars operations
+docker exec ats-intg-minute-bars-scheduler python3 scripts/daily_minute_bars_backfill.py --test
+docker logs ats-intg-minute-bars-scheduler  # Check processing logs
+curl -f http://localhost:4080/metrics       # View Prometheus metrics
 ```
 
 ### **⚡ Quick Health Check**
@@ -419,7 +427,13 @@ PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db
 # Verify both environments are operational
 curl -f http://localhost:3000/health  # ATS-DEV analytics
 curl -f http://localhost:4000/health  # ATS-INTG analytics
+curl -f http://localhost:4080/health  # ATS-INTG prometheus metrics
 docker ps | grep -E "(ats-dev|intg)"  # Container status
+
+# Daily minute bars system health
+curl -s http://localhost:4080/metrics | grep "ats_daily_minute_backfill"  # Minute bars metrics
+ls -la /mnt/d/ats-data/firstrate-data/daily/$(date +%Y/%m/%d)/  # Today's files
+tail -50 /mnt/d/ats-logs/minute-bars-backfill.log  # Recent processing activity
 ```
 
 ### **🛡️ Critical Startup Requirements**
@@ -968,6 +982,231 @@ ls -lah /mnt/d/ats-backup/   # Backup directory usage
 ls -lah /mnt/d/ats-logs/     # Log directory usage
 ```
 
+## 🚀 **CRITICAL: Daily 1-Minute Bar Backfill System (2025-09-01)**
+
+**Complete ATS-INTG 1-Minute Bar Processing Infrastructure**
+
+### **📊 System Overview**
+
+The Daily 1-Minute Bar Backfill System provides comprehensive intraday market data processing for all stocks and critical ETFs with automated scheduling, monitoring, and notifications.
+
+**Key Features:**
+- **18,331+ Instrument Coverage**: All US exchange stocks and critical ETFs
+- **7-Day Rolling Backfill**: Processes last 7 trading days with overwrite capability
+- **Organized File Storage**: `/mnt/d/ats-data/firstrate-data/daily/yyyy/mm/dd/<first_letter>/<symbol>_YYYYMMDD.parquet`
+- **Prometheus Metrics**: Real-time tracking of symbols per instrument type and minute bars per day
+- **Slack Notifications**: Daily and weekly processing summary reports
+- **Container Orchestration**: Three-service Docker architecture with health monitoring
+
+### **🔧 Service Management**
+
+**Start Complete System:**
+```bash
+# Start all three services (scheduler, metrics, notifications)
+docker-compose -f docker-compose.minute-bars-jobs.yml up -d
+
+# Verify services are running
+docker ps | grep "ats-intg.*minute"
+# Expected: ats-intg-minute-bars-scheduler, ats-intg-prometheus-metrics, ats-intg-slack-notifier
+```
+
+**Individual Service Management:**
+```bash
+# Minute bars scheduler (main processing)
+docker logs ats-intg-minute-bars-scheduler --tail 50
+docker restart ats-intg-minute-bars-scheduler
+
+# Prometheus metrics server
+curl -f http://localhost:4080/health
+curl -s http://localhost:4080/metrics | grep "ats_daily_minute_backfill"
+docker logs ats-intg-prometheus-metrics --tail 20
+
+# Slack notification service  
+docker logs ats-intg-slack-notifier --tail 20
+docker exec ats-intg-slack-notifier cat /etc/cron.d/ats-slack-notifications
+```
+
+### **⏰ Processing Schedule**
+
+**Automated Cron Jobs:**
+- **📅 Daily Backfill**: 4:00 AM EST - Process last 7 days for all instruments
+- **🎯 Critical ETFs Priority**: 4:30 AM EST - Priority run for SPY, QQQ, VTI, IWM, etc. (last 3 days)
+- **🔄 Weekend Catch-up**: Saturday 6:00 AM EST - Extended 10-day lookback
+- **🔍 Health Check**: Every 6 hours - Test run with AAPL, SPY (1 day only)
+
+**Manual Processing:**
+```bash
+# Test run with specific symbols
+docker exec ats-intg-minute-bars-scheduler python3 scripts/daily_minute_bars_backfill.py --test --symbols AAPL,SPY --days 1
+
+# Production run (all instruments, 7 days)
+docker exec ats-intg-minute-bars-scheduler python3 scripts/daily_minute_bars_backfill.py --production
+
+# Critical ETFs only (3 days)
+docker exec ats-intg-minute-bars-scheduler python3 scripts/daily_minute_bars_backfill.py --instrument-types critical_etf --days 3
+
+# Development run with logging
+docker exec ats-intg-minute-bars-scheduler python3 scripts/daily_minute_bars_backfill.py --test --symbols TSLA --days 2 --debug
+```
+
+### **📈 Monitoring & Metrics**
+
+**Prometheus Metrics (http://localhost:4080/metrics):**
+```bash
+# Key metrics to monitor
+curl -s http://localhost:4080/metrics | grep -E "(ats_daily_minute_backfill|minute_bars)"
+
+# Specific metric examples:
+# ats_daily_minute_backfill_instruments_processed_total{instrument_type="stock"} 15234
+# ats_daily_minute_backfill_total_minute_bars 45678901  
+# ats_daily_minute_backfill_symbols_by_type{instrument_type="critical_etf"} 25
+# ats_daily_minute_backfill_processing_duration_seconds 1247.5
+```
+
+**File System Monitoring:**
+```bash
+# Check today's processed files
+ls -la /mnt/d/ats-data/firstrate-data/daily/$(date +%Y/%m/%d)/
+
+# Count files by first letter (should be organized A-Z)
+find /mnt/d/ats-data/firstrate-data/daily/$(date +%Y/%m/%d)/ -name "*.parquet" | cut -d'/' -f10 | sort | uniq -c
+
+# Check file sizes and recent updates
+find /mnt/d/ats-data/firstrate-data/daily/ -name "*.parquet" -mtime -1 -exec ls -lah {} + | head -20
+
+# Total storage usage
+du -sh /mnt/d/ats-data/firstrate-data/daily/
+```
+
+**Log File Monitoring:**
+```bash
+# Main processing logs
+tail -f /mnt/d/ats-logs/minute-bars-backfill.log      # Daily backfill activity
+tail -f /mnt/d/ats-logs/minute-bars-critical-etf.log  # Critical ETF priority runs
+tail -f /mnt/d/ats-logs/minute-bars-weekend.log       # Weekend catch-up runs
+tail -f /mnt/d/ats-logs/minute-bars-health.log        # Health check runs
+
+# Service logs
+tail -f /mnt/d/ats-logs/prometheus-metrics.log        # Metrics server activity
+tail -f /mnt/d/ats-logs/slack-notifications.log       # Notification service logs
+tail -f /mnt/d/ats-logs/scheduler-status.log          # Scheduler health status
+```
+
+### **💬 Slack Notifications**
+
+**Notification Schedule:**
+- **📊 Daily Summary**: 8:00 AM EST - Files processed, symbols covered, storage stats
+- **📈 Weekly Report**: Monday 9:00 AM EST - Comprehensive weekly overview with trends
+
+**Manual Slack Notifications:**
+```bash
+# Send immediate daily summary
+docker exec ats-intg-slack-notifier python3 scripts/slack_minute_bars_summary.py --daily
+
+# Send comprehensive weekly summary
+docker exec ats-intg-slack-notifier python3 scripts/slack_minute_bars_summary.py --weekly
+
+# Test notification (development)
+docker exec ats-intg-slack-notifier python3 scripts/slack_minute_bars_summary.py --test
+```
+
+**Slack Message Content:**
+- **File Processing Stats**: Total files, unique symbols, instrument type breakdown
+- **Storage Metrics**: Directory sizes, file counts, compression ratios  
+- **Performance Data**: Processing duration, throughput rates
+- **Health Indicators**: Success/failure rates, error summaries
+- **Trend Analysis**: Day-over-day comparisons, weekly aggregations
+
+### **🔧 Maintenance & Troubleshooting**
+
+**Health Check Routine:**
+```bash
+# Complete system health verification
+curl -f http://localhost:4080/health                                    # Metrics server
+docker ps | grep "ats-intg.*minute" | grep -c "Up"                     # Count running services (expect 3)
+ls /mnt/d/ats-data/firstrate-data/daily/$(date +%Y/%m/%d)/ &>/dev/null && echo "✅ Today's directory exists" || echo "❌ Today's directory missing"
+```
+
+**Common Issues & Solutions:**
+
+**1. FirstRate API Issues:**
+```bash
+# Check API key configuration
+docker exec ats-intg-minute-bars-scheduler env | grep FIRSTRATE_API_KEY
+
+# Test FirstRate connectivity
+docker exec ats-intg-minute-bars-scheduler python3 -c "from src.data_providers.firstrate.firstrate_adapter import FirstRateAdapter; print('✅ FirstRate connection OK')"
+
+# Review API error logs
+grep -i "firstrate\|api.*error" /mnt/d/ats-logs/minute-bars-backfill.log | tail -10
+```
+
+**2. File Organization Issues:**
+```bash
+# Recreate directory structure if missing
+docker exec ats-intg-minute-bars-scheduler python3 scripts/setup_daily_minute_bars_structure.py --base-path /data/firstrate-data/daily
+
+# Validate structure for current month
+docker exec ats-intg-minute-bars-scheduler python3 scripts/setup_daily_minute_bars_structure.py --validate
+
+# Check for corrupted parquet files
+find /mnt/d/ats-data/firstrate-data/daily/ -name "*.parquet" -size 0 -delete  # Remove empty files
+```
+
+**3. Processing Performance Issues:**
+```bash
+# Check container resource usage
+docker stats --no-stream | grep "ats-intg.*minute"
+
+# Monitor processing in real-time
+docker exec ats-intg-minute-bars-scheduler tail -f /logs/minute-bars-backfill.log
+
+# Identify slow processing
+grep -i "processing.*took\|duration" /mnt/d/ats-logs/minute-bars-backfill.log | tail -10
+```
+
+**4. Prometheus Metrics Issues:**
+```bash
+# Reset metrics if stale
+docker restart ats-intg-prometheus-metrics
+
+# Verify metrics endpoint
+curl -v http://localhost:4080/metrics | head -20
+
+# Check metrics server logs for errors
+docker logs ats-intg-prometheus-metrics --tail 50 | grep -i error
+```
+
+**Emergency Recovery:**
+```bash
+# Restart entire minute bars system
+docker-compose -f docker-compose.minute-bars-jobs.yml down
+docker-compose -f docker-compose.minute-bars-jobs.yml up -d
+
+# Force immediate processing run
+docker exec ats-intg-minute-bars-scheduler python3 scripts/daily_minute_bars_backfill.py --production --force
+
+# Clean restart with fresh containers
+docker-compose -f docker-compose.minute-bars-jobs.yml down --volumes
+docker-compose -f docker-compose.minute-bars-jobs.yml up -d --force-recreate
+```
+
+**Data Validation:**
+```bash
+# Verify file completeness for recent trading days  
+python3 -c "
+import pandas as pd
+from datetime import date, timedelta
+for i in range(7):
+    d = date.today() - timedelta(days=i)
+    files = len(list(Path('/mnt/d/ats-data/firstrate-data/daily').glob(f'{d.strftime(\"%Y/%m/%d\")}/*/*.parquet')))
+    print(f'{d}: {files} files')
+"
+
+# Sample file validation
+find /mnt/d/ats-data/firstrate-data/daily/ -name "*.parquet" -exec python3 -c "import pandas as pd; df=pd.read_parquet('{}'); print('✅' if len(df)>0 else '❌', '{}')" \; | head -10
+```
+
 ### **🚨 WSL MONITORING & CRON TROUBLESHOOTING**
 
 **WSL Monitoring Issues (CRITICAL - Fixed 2025-09-01):**
@@ -1227,6 +1466,15 @@ crontab -l
 
 # ATS-INTG Slack Daily Coverage Summary - 7PM EST daily notification with 90-day coverage table
 0 19 * * * cd /workspace && PYTHONPATH=/workspace/src python3 scripts/slack_daily_coverage_summary.py --days 90 >> /logs/slack_daily_summary.log 2>&1
+
+# ATS-INTG Daily 1-Minute Bar Backfill System (docker-compose.minute-bars-jobs.yml)
+# - Daily backfill: 4:00 AM EST (last 7 days, all instruments)
+# - Critical ETFs: 4:30 AM EST (last 3 days, priority symbols) 
+# - Weekend catch-up: Saturday 6:00 AM EST (last 10 days)
+# - Health check: Every 6 hours (AAPL, SPY test run)
+# - Daily summary: 8:00 AM EST Slack notification
+# - Weekly report: Monday 9:00 AM EST Slack notification
+# Note: Runs in containerized scheduler, not host cron
 ```
 
 **WSL System Monitoring Setup (CRITICAL):**
@@ -1339,6 +1587,11 @@ docker network inspect ats-network --format "{{.Containers}}" | grep -q "ats-dev
 # Verify WSL monitoring is active (CRITICAL - Added 2025-09-01)
 ps aux | grep simple_wsl_monitor | grep -v grep && echo "✅ WSL monitoring active" || echo "❌ WSL monitoring DOWN - run restart_monitoring.sh"
 
+# Daily minute bars health check (ATS-INTG)
+curl -s http://localhost:4080/metrics | grep "ats_daily_minute_backfill"  # Processing stats
+docker logs ats-intg-minute-bars-scheduler --tail 20  # Recent processing
+ls -la /mnt/d/ats-data/firstrate-data/daily/$(date +%Y/%m/%d)/ | wc -l  # Files count today
+
 # Weekly maintenance
 ./scripts/manage_backups.sh cleanup     # Clean old backups
 docker system prune -f                  # Clean unused containers/images
@@ -1348,6 +1601,7 @@ du -sh /mnt/d/ats-*                     # Check storage usage
 docker stats --no-stream | head -10     # Container resource usage
 tail -50 /mnt/d/ats-logs/backup-*.log   # Recent backup activity
 tail -20 /mnt/d/ats-logs/wsl_monitor.log  # WSL monitoring activity
+tail -50 /mnt/d/ats-logs/minute-bars-backfill.log  # Daily minute bars processing
 ```
 
 **🚨 CRITICAL ANTI-PATTERNS:**
