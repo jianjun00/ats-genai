@@ -946,6 +946,111 @@ ls -lah /mnt/d/ats-backup/   # Backup directory usage
 ls -lah /mnt/d/ats-logs/     # Log directory usage
 ```
 
+### **🚨 WSL MONITORING & CRON TROUBLESHOOTING**
+
+**WSL Monitoring Issues (CRITICAL - Fixed 2025-09-01):**
+```bash
+# Problem: No Slack notifications received
+# Root Cause: Monitoring process stopped, no auto-restart configured
+# Solution: Active monitoring + cron backup + auto-restart
+
+# Check monitoring status
+ps aux | grep simple_wsl_monitor | grep -v grep
+# Expected: Should show python3 simple_wsl_monitor.py --hourly process
+
+# If monitoring is DOWN:
+/home/jianjun/ats-genai-data/restart_monitoring.sh
+
+# Verify Slack webhook works
+cd /home/jianjun/ats-genai-data/scripts/monitoring
+python3 simple_wsl_monitor.py --test
+# Expected: "✅ Test alert sent successfully!" + Slack notification
+
+# Check monitoring log for errors
+tail -50 /mnt/d/ats-logs/wsl_monitor.log
+
+# Emergency: Temporary hourly alerts via cron
+(crontab -l; echo "*/15 * * * * python3 simple_wsl_monitor.py --test") | crontab -
+```
+
+**Cron Job Troubleshooting:**
+```bash
+# Check if cron daemon is running
+systemctl status cron
+sudo systemctl start cron  # If stopped
+
+# View recent cron execution logs
+grep CRON /var/log/syslog | tail -20
+journalctl -u cron --since "1 hour ago"
+
+# Test cron job manually
+# Extract command from crontab -l and run it directly
+/home/jianjun/ats-genai-data/scripts/daily_backup_ats_dev.sh
+
+# Common cron issues and fixes:
+# 1. Environment variables missing
+env > /tmp/cron_env.txt  # Compare with your shell environment
+
+# 2. Path issues - always use absolute paths
+which python3  # Use full path in cron jobs
+
+# 3. Permission issues
+ls -la /home/jianjun/ats-genai-data/scripts/  # Check execute permissions
+
+# 4. Output redirection missing
+# ❌ BAD: 0 * * * * some_command
+# ✅ GOOD: 0 * * * * some_command >> /var/log/command.log 2>&1
+```
+
+**FirstRate Download Issues:**
+```bash
+# Check if daily FirstRate download is working
+tail -100 /mnt/d/ats-logs/firstrate-daily.log
+tail -50 /mnt/d/ats-logs/firstrate-daily-error.log
+
+# Verify data was downloaded today
+ls -la /mnt/d/ats-data/firstrate-data/ | head -10
+find /mnt/d/ats-data/firstrate-data/ -name "*.zip" -mtime -1  # Files modified in last 24h
+
+# Manual test of FirstRate download
+cd /home/jianjun/ats-genai-data
+PYTHONPATH=src uv run python scripts/firstrate_daily_download.py --test
+```
+
+**Backup Job Monitoring:**
+```bash
+# Check if daily backups completed successfully  
+ls -la /mnt/d/ats-backup/ | grep $(date +%Y-%m-%d)
+./scripts/manage_backups.sh status
+
+# Check backup logs
+tail -50 /mnt/d/ats-logs/backup_monitor.log
+
+# Manual backup test
+/home/jianjun/ats-genai-data/scripts/daily_backup_ats_dev.sh
+```
+
+**WSL System Monitoring Configuration:**
+```bash
+# Monitoring script location
+/home/jianjun/ats-genai-data/scripts/monitoring/simple_wsl_monitor.py
+
+# Configuration file
+/home/jianjun/ats-genai-data/scripts/monitoring/monitor_config.json
+
+# Restart script  
+/home/jianjun/ats-genai-data/restart_monitoring.sh
+
+# Log locations
+/mnt/d/ats-logs/wsl_monitor.log           # Main monitoring log
+/mnt/d/ats-logs/monitoring/               # Historical metrics
+
+# Slack webhook (configured in script)
+# Channel: #ats-alerts
+# Frequency: Hourly status updates
+# Auto-restart: @reboot cron job
+```
+
 ### **🆘 Emergency Response**
 
 **Docker Networking Issues (FIXED 2025-08-30):**
@@ -1044,6 +1149,104 @@ GROUP BY vendor
 "
 ```
 
+### **📅 CRON JOB MANAGEMENT**
+
+**Current Production Cron Jobs:**
+```bash
+# View all cron jobs
+crontab -l
+
+# Current active jobs:
+# ┌─────────────────── Minute (0-59)
+# │ ┌───────────────── Hour (0-23)
+# │ │ ┌─────────────── Day of month (1-31)
+# │ │ │ ┌───────────── Month (1-12)
+# │ │ │ │ ┌─────────── Day of week (0-7, Sunday=0 or 7)
+# │ │ │ │ │
+# * * * * * command
+```
+
+**Production Cron Schedule:**
+```bash
+# FirstRate Daily Download - 2:30 AM EST/EDT daily
+30 2 * * * PYTHONPATH=src uv run python scripts/firstrate_daily_download.py --all >> /mnt/d/ats-logs/firstrate-daily.log 2>> /mnt/d/ats-logs/firstrate-daily-error.log
+
+# ATS Platform Daily Backups
+0 2 * * * /home/jianjun/ats-genai-data/scripts/daily_backup_ats_dev.sh        # ATS-DEV backup at 2:00 AM
+15 2 * * * /home/jianjun/ats-genai-data/scripts/daily_backup_ats_intg.sh      # ATS-INTG backup at 2:15 AM
+
+# Backup Monitoring  
+0 3 * * * /home/jianjun/ats-genai-data/scripts/backup_monitor.sh              # Monitor at 3:00 AM
+0 18 * * * /home/jianjun/ats-genai-data/scripts/backup_monitor.sh             # Monitor at 6:00 PM
+
+# WSL System Monitoring (CRITICAL - Added 2025-09-01)
+0 * * * * python3 simple_wsl_monitor.py --test >/dev/null 2>&1                # Hourly system status to Slack
+@reboot sleep 30 && /home/jianjun/ats-genai-data/restart_monitoring.sh >/dev/null 2>&1  # Auto-restart monitoring on boot
+```
+
+**WSL System Monitoring Setup (CRITICAL):**
+```bash
+# Check monitoring status
+ps aux | grep simple_wsl_monitor | grep -v grep
+
+# Restart monitoring manually
+/home/jianjun/ats-genai-data/restart_monitoring.sh
+
+# Monitor logs
+tail -f /mnt/d/ats-logs/wsl_monitor.log
+
+# Test Slack notifications
+cd /home/jianjun/ats-genai-data/scripts/monitoring
+python3 simple_wsl_monitor.py --test
+```
+
+**Cron Job Management Commands:**
+```bash
+# Edit cron jobs
+crontab -e
+
+# List all cron jobs
+crontab -l
+
+# Remove all cron jobs (DANGEROUS)
+crontab -r
+
+# Add new cron job
+(crontab -l 2>/dev/null; echo "0 * * * * /path/to/command") | crontab -
+
+# Check cron service status
+systemctl status cron
+sudo systemctl restart cron
+
+# View cron logs
+grep CRON /var/log/syslog | tail -20
+journalctl -u cron | tail -20
+```
+
+**Cron Job Best Practices:**
+- ✅ **Always use absolute paths** for commands and scripts
+- ✅ **Redirect output** to log files (`>> /path/to/log 2>&1`)
+- ✅ **Set environment variables** when needed (`PYTHONPATH=src`)
+- ✅ **Use `/dev/null`** to suppress output for monitoring jobs
+- ✅ **Stagger timing** to avoid resource conflicts (2:00, 2:15, 2:30)
+- ✅ **Include error handling** and logging in scripts
+- ❌ **NEVER use relative paths** or assume working directory
+- ❌ **NEVER run without output redirection** (fills up mail spool)
+
+**Monitoring Critical Jobs:**
+```bash
+# Check if FirstRate download ran successfully
+tail -50 /mnt/d/ats-logs/firstrate-daily.log
+ls -la /mnt/d/ats-data/firstrate-data/
+
+# Verify backup completion
+ls -la /mnt/d/ats-backup/ | grep $(date +%Y-%m-%d)
+./scripts/manage_backups.sh status
+
+# Confirm WSL monitoring is sending alerts
+# (Check Slack #ats-alerts channel for hourly updates)
+```
+
 ### **🎯 Daily Operations Checklist**
 
 ```bash
@@ -1055,6 +1258,9 @@ python3 scripts/run_dev.py status       # Check ATS-DEV health
 # Critical: Verify Docker networking is working (FIXED 2025-08-30)
 docker network inspect ats-network --format "{{.Containers}}" | grep -q "ats-dev-postgres" && echo "✅ Docker networking OK" || echo "❌ Docker networking issue"
 
+# Verify WSL monitoring is active (CRITICAL - Added 2025-09-01)
+ps aux | grep simple_wsl_monitor | grep -v grep && echo "✅ WSL monitoring active" || echo "❌ WSL monitoring DOWN - run restart_monitoring.sh"
+
 # Weekly maintenance
 ./scripts/manage_backups.sh cleanup     # Clean old backups
 docker system prune -f                  # Clean unused containers/images
@@ -1063,6 +1269,7 @@ du -sh /mnt/d/ats-*                     # Check storage usage
 # Performance monitoring
 docker stats --no-stream | head -10     # Container resource usage
 tail -50 /mnt/d/ats-logs/backup-*.log   # Recent backup activity
+tail -20 /mnt/d/ats-logs/wsl_monitor.log  # WSL monitoring activity
 ```
 
 **🚨 CRITICAL ANTI-PATTERNS:**
