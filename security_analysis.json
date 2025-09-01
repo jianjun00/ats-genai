@@ -1,0 +1,486 @@
+{
+  "summary": {
+    "total_vulnerabilities": 64,
+    "critical": 36,
+    "high": 26,
+    "medium": 0,
+    "low": 2,
+    "api_keys_found": 6,
+    "files_scanned": 6
+  },
+  "vulnerabilities_by_severity": {
+    "CRITICAL": [
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 64,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded Polygon API Key found: wfrcZNX3...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 65,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded Tiingo API Key found: 5f40b4f3...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 66,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded EODHD API Key found: 675b5a33...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 67,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded FMP API Key found: Qf5MGG5H...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 68,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded Alpha Vantage API Key found: 9GI0NZ3V...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 69,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded FirstRate User ID found: FIRSTRAT...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 104,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded Polygon API Key found: wfrcZNX3...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 105,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded Tiingo API Key found: 5f40b4f3...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 106,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded EODHD API Key found: 675b5a33...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 107,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded FMP API Key found: Qf5MGG5H...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 108,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded Alpha Vantage API Key found: 9GI0NZ3V...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 109,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded FirstRate User ID found: FIRSTRAT...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 199,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded Polygon API Key found: wfrcZNX3...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 200,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded Tiingo API Key found: 5f40b4f3...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 201,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded EODHD API Key found: 675b5a33...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 202,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded FMP API Key found: Qf5MGG5H...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 203,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded Alpha Vantage API Key found: 9GI0NZ3V...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 204,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded FirstRate User ID found: FIRSTRAT...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 234,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded Polygon API Key found: wfrcZNX3...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 235,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded Tiingo API Key found: 5f40b4f3...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 236,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded EODHD API Key found: 675b5a33...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 237,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded FMP API Key found: Qf5MGG5H...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 238,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded Alpha Vantage API Key found: 9GI0NZ3V...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 239,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded FirstRate User ID found: FIRSTRAT...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 24,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded Polygon API Key found: wfrcZNX3...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 25,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded Tiingo API Key found: 5f40b4f3...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 26,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded EODHD API Key found: 675b5a33...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 27,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded FMP API Key found: Qf5MGG5H...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 28,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded Alpha Vantage API Key found: 9GI0NZ3V...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 29,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded FirstRate User ID found: FIRSTRAT...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 86,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded Polygon API Key found: wfrcZNX3...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 87,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded Tiingo API Key found: 5f40b4f3...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 88,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded EODHD API Key found: 675b5a33...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 89,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded FMP API Key found: Qf5MGG5H...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 90,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded Alpha Vantage API Key found: 9GI0NZ3V...",
+        "fix": "Use environment variables without defaults"
+      },
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 91,
+        "type": "Hardcoded API Key",
+        "description": "Hardcoded FirstRate User ID found: FIRSTRAT...",
+        "fix": "Use environment variables without defaults"
+      }
+    ],
+    "HIGH": [
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 9,
+        "type": "Privileged container",
+        "description": "Container runs with privileged access",
+        "fix": "Use specific capabilities instead"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 11,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Generic Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 33,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Generic Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 57,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Database Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 57,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Generic Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 97,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Database Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 97,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Generic Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 156,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Generic Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 194,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Database Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 194,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Generic Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 229,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Database Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.ats.yml",
+        "line": 229,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Generic Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.yml",
+        "line": 26,
+        "type": "Exposed Credential",
+        "description": "Hardcoded MinIO Secret Key found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.monitoring.yml",
+        "line": 36,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Generic Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.monitoring.yml",
+        "line": 76,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Database Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.monitoring.yml",
+        "line": 76,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Generic Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.postgres-intg.yml",
+        "line": 14,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Generic Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 20,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Database Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 20,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Generic Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 38,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Database Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 38,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Generic Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 83,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Database Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.intg-jobs.yml",
+        "line": 83,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Generic Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.monitoring-intg.yml",
+        "line": 36,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Generic Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.monitoring-intg.yml",
+        "line": 77,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Database Password found",
+        "fix": "Use Docker secrets or environment variables"
+      },
+      {
+        "file": "docker-compose.monitoring-intg.yml",
+        "line": 77,
+        "type": "Exposed Credential",
+        "description": "Hardcoded Generic Password found",
+        "fix": "Use Docker secrets or environment variables"
+      }
+    ],
+    "MEDIUM": [],
+    "LOW": [
+      {
+        "file": "docker-compose.monitoring.yml",
+        "line": 82,
+        "type": "External links",
+        "description": "Using deprecated external links",
+        "fix": "Use networks instead"
+      },
+      {
+        "file": "docker-compose.monitoring-intg.yml",
+        "line": 83,
+        "type": "External links",
+        "description": "Using deprecated external links",
+        "fix": "Use networks instead"
+      }
+    ]
+  },
+  "exposed_api_keys": [
+    "wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD",
+    "9GI0NZ3V4VNFX271",
+    "5f40b4f36e171405746304ec0e5a6f3aa9ca77e5",
+    "FIRSTRATE_USER_ID",
+    "Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr",
+    "675b5a33b36f43.67825763"
+  ],
+  "recommendations": [
+    "\ud83d\udea8 CRITICAL: Remove all hardcoded API keys from Docker Compose files",
+    "\ud83d\udd10 Use .env files or Docker secrets for sensitive credentials",
+    "\u26a0\ufe0f  Remove privileged: true from containers - use specific capabilities",
+    "\ud83d\udd12 Move database passwords to environment variables or secrets",
+    "\ud83d\udcdd Create .env.example with placeholder values",
+    "\ud83d\udd0d Add pre-commit hooks to scan for credentials",
+    "\ud83d\udee1\ufe0f  Implement secret scanning in CI/CD pipeline",
+    "\ud83d\udccb Regular security audits and penetration testing"
+  ]
+}
