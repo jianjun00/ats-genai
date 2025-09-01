@@ -2286,7 +2286,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     
                     document.getElementById('training-dataset-info').style.display = 'block';
                     
-                    // Display training dataset analysis
+                    // Display training dataset analysis with OHLC visualization
                     const analysisContent = `
                         <div style="padding: 20px;">
                             <h4>Dataset: ${dataset.dataset_name}</h4>
@@ -2327,6 +2327,25 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             <div style="margin-top: 20px;">
                                 <h5>Created:</h5>
                                 <p>${new Date(dataset.created_at).toLocaleString()}</p>
+                            </div>
+                            
+                            <!-- OHLC Visualization Controls -->
+                            <div style="margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px;">
+                                <h5>OHLC Data Visualization</h5>
+                                <div class="controls" style="margin-bottom: 15px;">
+                                    <label for="sequence-slider">Sequence Navigation:</label>
+                                    <input type="range" id="sequence-slider-${datasetId}" min="0" max="${dataset.total_sequences - 1}" value="100" 
+                                           oninput="updateOHLCVisualization(${datasetId}, this.value)" style="width: 60%; margin: 0 10px;">
+                                    <span id="sequence-info-${datasetId}">Sequence: 100 / ${dataset.total_sequences}</span>
+                                    <br><br>
+                                    <button onclick="updateOHLCVisualization(${datasetId}, document.getElementById('sequence-slider-${datasetId}').value)" 
+                                            style="margin-right: 10px;">Refresh Visualization</button>
+                                    <button onclick="randomOHLCVisualization(${datasetId})" 
+                                            style="margin-right: 10px;">Random Sample</button>
+                                </div>
+                                <div id="ohlc-chart-${datasetId}" style="width: 100%; height: 500px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <p style="text-align: center; margin-top: 200px; color: #666;">Click "Refresh Visualization" to load OHLC chart with technical indicators</p>
+                                </div>
                             </div>
                         </div>
                     `;
@@ -3453,6 +3472,197 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         loadDatasets();
                     }
                 }, 1000);
+                
+                // OHLC Visualization Functions
+                async function updateOHLCVisualization(datasetId, sequenceIndex) {
+                    try {
+                        console.log(`Updating OHLC visualization for dataset ${datasetId}, sequence ${sequenceIndex}`);
+                        
+                        // Update sequence info display
+                        const sequenceInfo = document.getElementById(`sequence-info-${datasetId}`);
+                        if (sequenceInfo) {
+                            const slider = document.getElementById(`sequence-slider-${datasetId}`);
+                            const maxSequences = slider ? slider.max : 0;
+                            sequenceInfo.textContent = `Sequence: ${parseInt(sequenceIndex) + 1} / ${parseInt(maxSequences) + 1}`;
+                        }
+                        
+                        // Show loading message
+                        const chartContainer = document.getElementById(`ohlc-chart-${datasetId}`);
+                        if (chartContainer) {
+                            chartContainer.innerHTML = '<p style="text-align: center; margin-top: 200px; color: #666;">Loading OHLC chart...</p>';
+                        }
+                        
+                        // Fetch visualization data
+                        const response = await fetch(`/api/v1/training-datasets/${datasetId}/visualization-data?sequence_index=${sequenceIndex}`);
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        
+                        const data = await response.json();
+                        console.log('Visualization data received:', data);
+                        
+                        // Create OHLC chart with technical indicators
+                        if (data.data && data.data.length > 0) {
+                            createOHLCChart(datasetId, data);
+                        } else {
+                            if (chartContainer) {
+                                chartContainer.innerHTML = '<p style="text-align: center; margin-top: 200px; color: #ff6b6b;">No training data available for this sequence</p>';
+                            }
+                        }
+                        
+                    } catch (error) {
+                        console.error('Error updating OHLC visualization:', error);
+                        const chartContainer = document.getElementById(`ohlc-chart-${datasetId}`);
+                        if (chartContainer) {
+                            chartContainer.innerHTML = `<p style="text-align: center; margin-top: 200px; color: #ff6b6b;">Error loading chart: ${error.message}</p>`;
+                        }
+                    }
+                }
+                
+                function randomOHLCVisualization(datasetId) {
+                    const slider = document.getElementById(`sequence-slider-${datasetId}`);
+                    if (slider) {
+                        const randomIndex = Math.floor(Math.random() * (parseInt(slider.max) + 1));
+                        slider.value = randomIndex;
+                        updateOHLCVisualization(datasetId, randomIndex);
+                    }
+                }
+                
+                function createOHLCChart(datasetId, data) {
+                    const chartContainer = document.getElementById(`ohlc-chart-${datasetId}`);
+                    if (!chartContainer) return;
+                    
+                    // Generate x-axis values (time steps for the sequence)
+                    const xValues = data.data.map((_, idx) => `Step ${idx + 1}`);
+                    
+                    // Create OHLC candlestick chart using 1-hour timeframe data
+                    const ohlcTrace = {
+                        x: xValues,
+                        open: data.data.map(d => d['1h_close'] || d.close || 0),  // Use previous close as open
+                        high: data.data.map(d => d['1h_high'] || d.high || 0),
+                        low: data.data.map(d => d['1h_low'] || d.low || 0),
+                        close: data.data.map(d => d['1h_close'] || d.close || 0),
+                        type: 'candlestick',
+                        name: 'Price (1H)',
+                        increasing: {line: {color: '#00ff00'}},
+                        decreasing: {line: {color: '#ff0000'}}
+                    };
+                    
+                    const traces = [ohlcTrace];
+                    
+                    // Add technical indicators
+                    if (data.data.length > 0) {
+                        // Add envelope top (etop)
+                        if (data.data[0].etop !== undefined) {
+                            traces.push({
+                                x: xValues,
+                                y: data.data.map(d => d.etop),
+                                type: 'scatter',
+                                mode: 'lines',
+                                name: 'Envelope Top',
+                                line: {color: '#ff9999', width: 2, dash: 'dot'}
+                            });
+                        }
+                        
+                        // Add envelope bottom (ebot)
+                        if (data.data[0].ebot !== undefined) {
+                            traces.push({
+                                x: xValues,
+                                y: data.data.map(d => d.ebot),
+                                type: 'scatter',
+                                mode: 'lines',
+                                name: 'Envelope Bottom',
+                                line: {color: '#99ff99', width: 2, dash: 'dot'}
+                            });
+                        }
+                        
+                        // Add pldot indicator
+                        if (data.data[0].pldot !== undefined) {
+                            const pldotValues = data.data.map(d => d.pldot);
+                            // Only show pldot if there are non-zero values
+                            if (pldotValues.some(v => v !== 0)) {
+                                traces.push({
+                                    x: xValues,
+                                    y: pldotValues,
+                                    type: 'scatter',
+                                    mode: 'lines',
+                                    name: 'PL Dot',
+                                    line: {color: '#9999ff', width: 2}
+                                });
+                            }
+                        }
+                        
+                        // Add SMA 20
+                        if (data.data[0].sma_20 !== undefined) {
+                            traces.push({
+                                x: xValues,
+                                y: data.data.map(d => d.sma_20),
+                                type: 'scatter',
+                                mode: 'lines',
+                                name: 'SMA 20',
+                                line: {color: '#ff8c00', width: 2}
+                            });
+                        }
+                        
+                        // Add EMA 12
+                        if (data.data[0].ema_12 !== undefined) {
+                            traces.push({
+                                x: xValues,
+                                y: data.data.map(d => d.ema_12),
+                                type: 'scatter',
+                                mode: 'lines',
+                                name: 'EMA 12',
+                                line: {color: '#00bfff', width: 1}
+                            });
+                        }
+                        
+                        // Add EMA 26
+                        if (data.data[0].ema_26 !== undefined) {
+                            traces.push({
+                                x: xValues,
+                                y: data.data.map(d => d.ema_26),
+                                type: 'scatter',
+                                mode: 'lines',
+                                name: 'EMA 26',
+                                line: {color: '#ff69b4', width: 1}
+                            });
+                        }
+                    }
+                    
+                    const layout = {
+                        title: `Training Data Sequence ${data.sequence_idx + 1} - OHLC with Technical Indicators`,
+                        xaxis: {
+                            title: 'Time Steps',
+                            tickangle: -45
+                        },
+                        yaxis: {
+                            title: 'Price ($)'
+                        },
+                        showlegend: true,
+                        legend: {
+                            x: 1.02,
+                            y: 1,
+                            bgcolor: 'rgba(255, 255, 255, 0.8)',
+                            bordercolor: 'rgba(0,0,0,0.2)',
+                            borderwidth: 1
+                        },
+                        margin: {
+                            l: 60, r: 120, t: 60, b: 80
+                        },
+                        height: 500,
+                        hovermode: 'x unified'
+                    };
+                    
+                    const config = {
+                        responsive: true,
+                        displayModeBar: true,
+                        modeBarButtonsToAdd: ['pan2d', 'select2d', 'lasso2d', 'zoom2d', 'autoScale2d', 'resetScale2d']
+                    };
+                    
+                    // Clear container and create plot
+                    chartContainer.innerHTML = '';
+                    Plotly.newPlot(chartContainer, traces, layout, config);
+                }
             </script>
         </body>
         </html>
