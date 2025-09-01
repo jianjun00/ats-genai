@@ -433,14 +433,38 @@ class JobManager:
                     else:
                         # Get unique values for categorical columns  
                         # Handle ENUM types by only checking for NOT NULL
-                        cursor.execute(f"""
-                            SELECT {column} as value, COUNT(*) as count
-                            FROM {table_name}
-                            WHERE {column} IS NOT NULL
-                            GROUP BY {column}
-                            ORDER BY count DESC
-                            LIMIT %s
-                        """, (limit,))
+                        
+                        # For symbol columns, ensure we include popular symbols like TSLA
+                        if column.lower() == 'symbol':
+                            # Prioritize popular symbols and use higher limit
+                            popular_symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NFLX', 'NVDA', 'UBER', 'SPOT']
+                            
+                            # Get popular symbols first
+                            popular_placeholders = ', '.join(['%s'] * len(popular_symbols))
+                            cursor.execute(f"""
+                                (SELECT {column} as value, COUNT(*) as count
+                                 FROM {table_name}
+                                 WHERE {column} IN ({popular_placeholders}) AND {column} IS NOT NULL
+                                 GROUP BY {column}
+                                 ORDER BY count DESC)
+                                UNION ALL
+                                (SELECT {column} as value, COUNT(*) as count
+                                 FROM {table_name}
+                                 WHERE {column} NOT IN ({popular_placeholders}) AND {column} IS NOT NULL
+                                 GROUP BY {column}
+                                 ORDER BY count DESC
+                                 LIMIT %s)
+                                ORDER BY count DESC
+                            """, popular_symbols + popular_symbols + [limit])
+                        else:
+                            cursor.execute(f"""
+                                SELECT {column} as value, COUNT(*) as count
+                                FROM {table_name}
+                                WHERE {column} IS NOT NULL
+                                GROUP BY {column}
+                                ORDER BY count DESC
+                                LIMIT %s
+                            """, (limit,))
                         
                         results = cursor.fetchall()
                         values = [{"value": row['value'], "count": row['count']} for row in results]
