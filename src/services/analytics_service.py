@@ -2284,7 +2284,9 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                                  col.name.toLowerCase().includes('exchange');
                         
                         try {
-                            const response = await fetch(`/api/eda/datasets/${datasetName}/columns/${col.name}/values?limit=10`, {timeout: 3000});
+                            // Use higher limit for symbol-like columns to ensure we get TSLA and other symbols
+                            const symbolLimit = preferCategorical ? 1000 : 10;
+                            const response = await fetch(`/api/eda/datasets/${datasetName}/columns/${col.name}/values?limit=${symbolLimit}`, {timeout: 3000});
                             const columnData = await response.json();
                             
                             if (columnData.error) return null; // Skip if error loading values
@@ -2295,20 +2297,31 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             
                             // Prioritize categorical checkboxes for symbol-like columns
                             if (preferCategorical && columnData.values && Array.isArray(columnData.values)) {
-                                // Categorical checkbox filter (prioritized)
-                                filterHtml += `<div class="checkbox-list">`;
-                                columnData.values.slice(0, 8).forEach(valueData => { // Show only first 8 values for speed
+                                // Categorical checkbox filter (prioritized) with search
+                                const searchId = `search-${col.name}`;
+                                const listId = `list-${col.name}`;
+                                
+                                // Add search box for symbols
+                                filterHtml += `<div style="margin-bottom: 8px;">
+                                    <input type="text" id="${searchId}" placeholder="Search symbols..." 
+                                           style="width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;"
+                                           oninput="filterSymbolList('${searchId}', '${listId}')">
+                                </div>`;
+                                
+                                // Show more symbols (up to 50 instead of 8) and make them searchable
+                                filterHtml += `<div class="checkbox-list" id="${listId}" style="max-height: 200px; overflow-y: auto;">`;
+                                columnData.values.slice(0, 50).forEach(valueData => { // Show up to 50 values
                                     const value = typeof valueData === 'object' ? valueData.value : valueData;
                                     const count = typeof valueData === 'object' ? valueData.count : '';
                                     const countText = count ? ` (${count})` : '';
                                     filterHtml += `
-                                        <label>
+                                        <label style="display: block;">
                                             <input type="checkbox" name="filter-${col.name}" value="${value}"> ${value}${countText}
-                                        </label><br>
+                                        </label>
                                     `;
                                 });
-                                if (columnData.values.length > 8) {
-                                    filterHtml += `<small>... and ${columnData.values.length - 8} more values</small>`;
+                                if (columnData.values.length > 50) {
+                                    filterHtml += `<small style="color: #666; display: block; margin-top: 4px;">(${columnData.values.length - 50} more symbols in dataset)</small>`;
                                 }
                                 filterHtml += `</div>`;
                             } else if (isNumeric && columnData.min_value !== undefined && columnData.max_value !== undefined) {
@@ -2341,20 +2354,32 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                     </div>
                                 `;
                             } else if (columnData.values && Array.isArray(columnData.values)) {
-                                // Categorical checkbox filter
-                                filterHtml += `<div class="checkbox-list">`;
-                                columnData.values.slice(0, 8).forEach(valueData => { // Show only first 8 values for speed
+                                // Categorical checkbox filter with search (fallback for non-symbol columns)
+                                const searchId = `search-${col.name}`;
+                                const listId = `list-${col.name}`;
+                                
+                                // Add search box for categorical values (if more than 10 values)
+                                if (columnData.values.length > 10) {
+                                    filterHtml += `<div style="margin-bottom: 8px;">
+                                        <input type="text" id="${searchId}" placeholder="Search values..." 
+                                               style="width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;"
+                                               oninput="filterSymbolList('${searchId}', '${listId}')">
+                                    </div>`;
+                                }
+                                
+                                filterHtml += `<div class="checkbox-list" id="${listId}" style="max-height: 200px; overflow-y: auto;">`;
+                                columnData.values.slice(0, 30).forEach(valueData => { // Show up to 30 values for non-symbol columns
                                     const value = typeof valueData === 'object' ? valueData.value : valueData;
                                     const count = typeof valueData === 'object' ? valueData.count : '';
                                     const countText = count ? ` (${count})` : '';
                                     filterHtml += `
-                                        <label>
+                                        <label style="display: block;">
                                             <input type="checkbox" name="filter-${col.name}" value="${value}"> ${value}${countText}
-                                        </label><br>
+                                        </label>
                                     `;
                                 });
-                                if (columnData.values.length > 8) {
-                                    filterHtml += `<small>... and ${columnData.values.length - 8} more values</small>`;
+                                if (columnData.values.length > 30) {
+                                    filterHtml += `<small style="color: #666; display: block; margin-top: 4px;">(${columnData.values.length - 30} more values in dataset)</small>`;
                                 }
                                 filterHtml += `</div>`;
                             }
@@ -2971,6 +2996,39 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                 }
                             }
                         });
+                    }
+                }
+                
+                // Symbol search filter function
+                function filterSymbolList(searchInputId, listId) {
+                    const searchInput = document.getElementById(searchInputId);
+                    const symbolList = document.getElementById(listId);
+                    const searchTerm = searchInput.value.toLowerCase();
+                    
+                    const labels = symbolList.querySelectorAll('label');
+                    let visibleCount = 0;
+                    
+                    labels.forEach(label => {
+                        const symbolText = label.textContent.toLowerCase();
+                        const shouldShow = symbolText.includes(searchTerm);
+                        label.style.display = shouldShow ? 'block' : 'none';
+                        if (shouldShow) visibleCount++;
+                    });
+                    
+                    // Show message if no results
+                    let noResultsMsg = symbolList.querySelector('.no-results');
+                    if (visibleCount === 0 && searchTerm.length > 0) {
+                        if (!noResultsMsg) {
+                            noResultsMsg = document.createElement('div');
+                            noResultsMsg.className = 'no-results';
+                            noResultsMsg.style.cssText = 'color: #666; font-style: italic; padding: 8px; text-align: center;';
+                            noResultsMsg.textContent = 'No symbols found matching "' + searchTerm + '"';
+                            symbolList.appendChild(noResultsMsg);
+                        } else {
+                            noResultsMsg.textContent = 'No symbols found matching "' + searchTerm + '"';
+                        }
+                    } else if (noResultsMsg) {
+                        noResultsMsg.remove();
                     }
                 }
                 
