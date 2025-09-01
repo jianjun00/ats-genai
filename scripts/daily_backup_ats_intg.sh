@@ -13,7 +13,7 @@ DB_NAME="intg_db"
 DB_USER="postgres"
 DB_PASSWORD="intg_password"
 DB_HOST="localhost"
-DB_PORT="5433"
+DB_PORT="4432"
 CONTAINER_NAME="ats-intg-postgres"
 
 # Logging
