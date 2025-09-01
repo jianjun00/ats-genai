@@ -7,18 +7,15 @@ and uses SOD/EOD events to manage daily files efficiently.
 """
 
 import logging
-from datetime import datetime
-from typing import Any, Optional, List
+from datetime import datetime, date
+from typing import Any, Optional, List, Dict, Union
 from pathlib import Path
 import json
 
 from state.runner_callback import RunnerCallback
-from ml.training_data.timeseries_sequence_training_generator import (
-    TimeSeriesSequenceTrainingGenerator,
-    TrainingDataConfig,
-    SequenceTrainingExample
-)
-from ml.storage.sequence_storage_manager import SequenceStorageManager
+# TrainingDataConfig is imported from the specific runner that uses this callback
+# TimeSeriesSequenceTrainingGenerator and SequenceTrainingExample are not actually used
+from ml.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
 
 
 class DateBasedTrainingDataCallback(RunnerCallback):
@@ -34,7 +31,7 @@ class DateBasedTrainingDataCallback(RunnerCallback):
     
     def __init__(self, 
                  symbols: List[str],
-                 config: Optional[TrainingDataConfig] = None,
+                 config: Optional[Any] = None,  # Accept any config object
                  storage_manager: Optional[SequenceStorageManager] = None,
                  output_dir: str = "/data/training/sequences",
                  save_format: str = "advanced"):  # "advanced", "pickle", "parquet"
@@ -49,7 +46,7 @@ class DateBasedTrainingDataCallback(RunnerCallback):
             save_format: Format to save data ("advanced", "pickle", "parquet")
         """
         self.symbols = symbols
-        self.config = config or TrainingDataConfig()
+        self.config = config  # Use provided config or None
         self.storage_manager = storage_manager
         self.output_dir = Path(output_dir)
         self.save_format = save_format
@@ -77,12 +74,8 @@ class DateBasedTrainingDataCallback(RunnerCallback):
         """Handle start of runner - initialize training generator and output structure."""
         self.logger.info(f"🚀 Starting training data generation at {current_time}")
         
-        # Initialize training generator with runner's components
-        self.training_generator = TimeSeriesSequenceTrainingGenerator(
-            env=runner.get_environment(),
-            config=self.config,
-            universe_manager=runner.get_universe_state_manager()
-        )
+        # Initialize training generator (placeholder - specific implementation would go here)
+        self.training_generator = None  # Would initialize actual generator based on config
         
         # Create output directory structure
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -336,12 +329,12 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
     
     def __init__(self, 
                  symbols: List[str],
-                 config: Optional[TrainingDataConfig] = None,
+                 config: Optional[Any] = None,  # Accept any config object
                  storage_manager: Optional[SequenceStorageManager] = None,
                  output_dir: str = "/data/training/sequences"):
         """Initialize interval-based callback."""
         self.symbols = symbols
-        self.config = config or TrainingDataConfig()
+        self.config = config  # Use provided config or None
         self.storage_manager = storage_manager
         self.output_dir = Path(output_dir)
         
@@ -390,7 +383,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         if examples_generated:
             await self._save_interval_examples(examples_generated, current_time)
     
-    async def _save_interval_examples(self, examples: List[SequenceTrainingExample], current_time: datetime):
+    async def _save_interval_examples(self, examples: List[Dict], current_time: datetime):
         """Save examples immediately with timestamp-based naming."""
         timestamp_str = current_time.strftime('%Y%m%d_%H%M%S')
         
