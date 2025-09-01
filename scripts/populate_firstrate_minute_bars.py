@@ -45,8 +45,8 @@ class FirstRateBackfillProcessor:
     
     def __init__(
         self, 
-        data_path: str = "/data/firstrate-data",  # Docker mount point
-        output_path: str = "/data/minute-bars/firstrate",  # Docker mount point
+        data_path: str = "/mnt/d/ats-data/firstrate-data",  # Host mount point
+        output_path: str = "/mnt/d/ats-data/minute-bars/firstrate",  # Host mount point
         checkpoint_file: str = "firstrate_monthly_production.json"
     ):
         self.adapter = FirstRateAdapter(data_path)
@@ -286,6 +286,7 @@ class FirstRateBackfillProcessor:
         """Run the complete backfill process"""
         logger.info("🚀 Starting FirstRate minute bar backfill")
         logger.info(f"📊 Asset type: {asset_type}")
+        logger.info(f"📂 Data path: {self.adapter.data_path}")
         logger.info(f"💾 Output path: {self.output_path}")
         logger.info(f"📝 Checkpoint file: {self.checkpoint_file}")
         
@@ -357,9 +358,9 @@ def main():
     parser.add_argument("--asset-type", default="stock", 
                         choices=['stock', 'etf', 'fx', 'index'],
                         help="Asset type to process")
-    parser.add_argument("--data-path", default="/data/firstrate-data",
+    parser.add_argument("--data-path", default="/mnt/d/ats-data/firstrate-data",
                         help="Path to FirstRate data directory")
-    parser.add_argument("--output-path", default="/data/minute-bars/firstrate",
+    parser.add_argument("--output-path", default="/mnt/d/ats-data/minute-bars/firstrate",
                         help="Output directory for processed files")
     parser.add_argument("--checkpoint-file", default="firstrate_monthly_production.json",
                         help="Checkpoint file for resumable processing")
