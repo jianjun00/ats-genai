@@ -570,7 +570,7 @@
         // Load dataset overview information
         async function loadDatasetOverview() {
             try {
-                const response = await fetch(`/api/v1/datasets`);
+                const response = await fetch(`/api/v1/training-datasets`);
                 const data = await response.json();
                 const dataset = data.datasets.find(d => d.dataset_id == currentDatasetId);
                 
@@ -644,7 +644,7 @@
                 
                 console.log('Final API URL:', `/api/v1/datasets/${currentDatasetId}/sequences?${params}`);
                 
-                const response = await fetch(`/api/v1/datasets/${currentDatasetId}/sequences?${params}`);
+                const response = await fetch(`/api/v1/training-datasets/${currentDatasetId}/data?${params}`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -681,7 +681,7 @@
         // Load filter options
         async function loadFilterOptions() {
             try {
-                const response = await fetch(`/api/v1/datasets/${currentDatasetId}/sequences?limit=1`);
+                const response = await fetch(`/api/v1/training-datasets/${currentDatasetId}/data?limit=1`);
                 const data = await response.json();
                 
                 // Populate symbol filter
@@ -846,7 +846,7 @@
                     sequence_ids: filteredSequenceIds.join(',')
                 });
                 
-                const response = await fetch(`/api/v1/datasets/${currentDatasetId}/filtered-distributions?${params}`);
+                const response = await fetch(`/api/v1/training-datasets/${currentDatasetId}/distributions?${params}`);
                 const data = await response.json();
                 
                 renderDistributions(data.distributions);
