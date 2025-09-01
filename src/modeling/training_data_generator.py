@@ -1,21 +1,62 @@
 """
-Training Data Generator for Residual Return Prediction.
-Integrates with UniverseStateManager to generate comprehensive training datasets.
+Training Data Generator for Residual Return Prediction with Schema Management.
+
+This module provides comprehensive training data generation capabilities for the ATS platform,
+with integrated schema management, validation, and EDA preparation. The generator creates
+financial ML datasets with automatic feature type classification, validation, and metadata
+tracking for optimal model training and analysis workflows.
+
+Key Features:
+- Schema-aware training data generation with automatic feature classification
+- Financial-specific feature types (OHLC, technical indicators, returns, volatility)
+- Comprehensive data validation with confidence scoring  
+- Database integration for schema versioning and tracking
+- EDA integration with visualization recommendations
+- Backwards compatibility with existing DataFrame-based workflows
+
+Classes:
+    TrainingConfig: Configuration for training data generation parameters
+    TrainingSample: Individual training sample with features and targets
+    TrainingDatasetResult: Schema-aware training dataset result with validation
+    ResidualReturnTrainingDataGenerator: Main generator class with schema management
+
+Functions:
+    generate_residual_return_training_data: Convenience function for schema-aware generation
+    generate_residual_return_training_data_legacy: Legacy DataFrame compatibility function
+
+Example:
+    # Schema-aware training data generation
+    result = await generate_residual_return_training_data(
+        connection_pool=pool, env=environment, universe_state_manager=manager,
+        start_date=datetime(2023, 1, 1), end_date=datetime(2023, 12, 31),
+        instrument_ids=[1, 2, 3], include_schema=True,
+        output_path="/data/training/residual_returns_2023"
+    )
+    
+    # Access schema-aware results
+    features_array = result.features_array     # NumPy array with features
+    labels_array = result.labels_array         # NumPy array with labels
+    schema = result.schema                     # TrainingDatasetSchema object
+    validation = result.validation_result     # ValidationResult object
 """
 
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional, Tuple, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from dataclasses import dataclass
 import logging
 import asyncio
 import asyncpg
+import json
+import os
 
 from state.universe_state_manager import UniverseStateManager
 from signals.enhanced_indicators import calculate_all_technical_indicators, ResidualReturnIndicatorConfig
 from modeling.factor_models import ResidualReturnCalculator
 from modeling.event_features import EventSequenceExtractor, EventCalendar, flatten_event_features_for_model
+from src.schema.training_schema import TrainingDatasetSchema, FeatureSchema, LabelSchema, DatasetMetadata, FeatureType, DataType, ValidationResult
+from src.dao.training_schema_dao import TrainingSchemaDAO
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +90,19 @@ class TrainingSample:
     metadata: Dict[str, Any]
 
 
+@dataclass
+class TrainingDatasetResult:
+    """Result of training data generation with schema."""
+    dataset_path: str
+    features_array: np.ndarray
+    labels_array: np.ndarray
+    schema: TrainingDatasetSchema
+    validation_result: ValidationResult
+    metadata: Dict[str, Any]
+
+
 class ResidualReturnTrainingDataGenerator:
-    """Generate training data for residual return prediction models."""
+    """Generate training data for residual return prediction models with schema management."""
     
     def __init__(self, 
                  connection_pool: asyncpg.Pool,
@@ -75,15 +127,21 @@ class ResidualReturnTrainingDataGenerator:
         # Technical indicators configuration
         self.indicator_config = ResidualReturnIndicatorConfig.comprehensive_config()
         
+        # Schema management
+        self.schema_dao = TrainingSchemaDAO(env)
+        
         # Cache for performance
         self._sector_cache = {}
         self._market_cap_cache = {}
+        self._feature_schema_cache = None
     
     async def generate_training_dataset(self, 
                                       start_date: datetime,
                                       end_date: datetime,
                                       instrument_ids: Optional[List[int]] = None,
-                                      batch_size: int = 100) -> pd.DataFrame:
+                                      batch_size: int = 100,
+                                      include_schema: bool = True,
+                                      output_path: Optional[str] = None) -> TrainingDatasetResult:
         """
         Generate comprehensive training dataset.
         
@@ -134,7 +192,21 @@ class ResidualReturnTrainingDataGenerator:
         
         logger.info(f"Generated training dataset with {len(training_df)} samples and {len(training_df.columns)} features")
         
-        return training_df
+        # Generate schema and validation if requested
+        if include_schema:
+            return await self._create_schema_aware_result(
+                training_df, start_date, end_date, instrument_ids, output_path
+            )
+        else:
+            # Return legacy DataFrame format for backwards compatibility
+            return TrainingDatasetResult(
+                dataset_path='',
+                features_array=np.array([]),
+                labels_array=np.array([]),
+                schema=None,
+                validation_result=None,
+                metadata={'dataframe': training_df}
+            )
     
     async def _get_active_instruments(self) -> List[int]:
         """Get list of active instruments."""
@@ -659,6 +731,401 @@ class ResidualReturnTrainingDataGenerator:
         logger.info(f"Final training data: {len(df)} samples with {len(df.columns)} columns")
         
         return df
+    
+    async def _create_schema_aware_result(
+        self,
+        training_df: pd.DataFrame,
+        start_date: datetime,
+        end_date: datetime,
+        instrument_ids: Optional[List[int]],
+        output_path: Optional[str]
+    ) -> TrainingDatasetResult:
+        """
+        Create schema-aware training dataset result with comprehensive validation.
+        
+        This method transforms a standard training DataFrame into a schema-aware
+        TrainingDatasetResult with automatic feature classification, validation,
+        and file output preparation for ML pipelines and EDA integration.
+        
+        Args:
+            training_df: Generated training DataFrame with features and targets
+            start_date: Start date of training data generation
+            end_date: End date of training data generation  
+            instrument_ids: List of instrument IDs used in generation
+            output_path: Directory path for saving training dataset files
+            
+        Returns:
+            TrainingDatasetResult containing:
+            - features_array: NumPy array of features (samples x features)
+            - labels_array: NumPy array of labels/targets (samples x targets)
+            - schema: TrainingDatasetSchema with feature metadata
+            - validation_result: ValidationResult with quality assessment
+            - metadata: Additional generation metadata
+            
+        Process:
+            1. Creates comprehensive schema from DataFrame analysis
+            2. Separates features and targets into NumPy arrays
+            3. Validates data against schema constraints
+            4. Saves dataset files with metadata
+            5. Registers schema in database registry
+            
+        Example:
+            result = await self._create_schema_aware_result(
+                training_df, start_date, end_date, [1, 2, 3], "/data/train"
+            )
+            # result.schema contains feature type classifications
+            # result.validation_result.confidence_score indicates data quality
+        """
+        
+        # Create schema from training data
+        schema = await self._create_training_schema(training_df, start_date, end_date, instrument_ids)
+        
+        # Separate features and labels
+        feature_cols = [col for col in training_df.columns 
+                       if not col.startswith(('residual_return_', 'positive_return_', 
+                                             'strong_positive_', 'strong_negative_', 
+                                             'return_magnitude_', 'instrument_id', 'date'))]
+        
+        target_cols = [col for col in training_df.columns 
+                      if col.startswith(('residual_return_', 'positive_return_', 
+                                        'strong_positive_', 'strong_negative_', 
+                                        'return_magnitude_'))]
+        
+        # Convert to arrays
+        features_array = training_df[feature_cols].values.astype(np.float32)
+        labels_array = training_df[target_cols].values.astype(np.float32) if target_cols else np.array([])
+        
+        # Validate data against schema
+        validation_result = self._validate_training_data(schema, features_array, labels_array)
+        
+        # Save to output path if specified
+        dataset_path = output_path or self._generate_output_path()
+        await self._save_training_dataset(
+            dataset_path, features_array, labels_array, schema, validation_result, training_df
+        )
+        
+        return TrainingDatasetResult(
+            dataset_path=dataset_path,
+            features_array=features_array,
+            labels_array=labels_array,
+            schema=schema,
+            validation_result=validation_result,
+            metadata={
+                'num_samples': len(training_df),
+                'num_features': len(feature_cols),
+                'num_targets': len(target_cols),
+                'date_range': (start_date, end_date),
+                'instruments': instrument_ids or []
+            }
+        )
+    
+    async def _create_training_schema(
+        self,
+        training_df: pd.DataFrame,
+        start_date: datetime,
+        end_date: datetime,
+        instrument_ids: Optional[List[int]]
+    ) -> TrainingDatasetSchema:
+        """Create comprehensive schema for training dataset."""
+        
+        # Get instrument symbols for metadata
+        symbols = await self._get_instrument_symbols(instrument_ids) if instrument_ids else ['MULTI']
+        
+        # Analyze feature columns to determine types
+        feature_schemas = []
+        
+        for col in training_df.columns:
+            if col in ['instrument_id', 'date']:
+                continue
+            
+            # Determine feature type based on column name
+            feature_type = self._infer_feature_type(col)
+            
+            # Calculate statistics
+            data = training_df[col]
+            if pd.api.types.is_numeric_dtype(data):
+                stats = {
+                    'min': float(data.min()) if not data.empty else 0.0,
+                    'max': float(data.max()) if not data.empty else 0.0,
+                    'mean': float(data.mean()) if not data.empty else 0.0,
+                    'std': float(data.std()) if not data.empty else 0.0,
+                    'null_count': int(data.isnull().sum())
+                }
+            else:
+                stats = {'null_count': int(data.isnull().sum())}
+            
+            feature_schema = FeatureSchema(
+                name=col,
+                type=feature_type,
+                data_type=DataType.FLOAT32 if pd.api.types.is_numeric_dtype(data) else DataType.STRING,
+                shape=[len(training_df)] if not data.empty else [0],
+                description=self._generate_feature_description(col, feature_type),
+                metadata={'statistics': stats}
+            )
+            
+            feature_schemas.append(feature_schema)
+        
+        # Create label schemas for targets
+        label_schemas = []
+        target_cols = [col for col in training_df.columns 
+                      if col.startswith(('residual_return_', 'positive_return_', 
+                                        'strong_positive_', 'strong_negative_', 
+                                        'return_magnitude_'))]
+        
+        for col in target_cols:
+            data = training_df[col]
+            # Determine label type
+            if col.startswith('residual_return_') or col.startswith('return_magnitude_'):
+                label_type = FeatureType.REGRESSION_LABEL
+            else:
+                label_type = FeatureType.CLASSIFICATION_LABEL
+            
+            label_schema = LabelSchema(
+                name=col,
+                type=label_type,
+                data_type=DataType.FLOAT32,
+                shape=[len(training_df)] if not data.empty else [0],
+                description=self._generate_label_description(col),
+                metadata={
+                    'statistics': {
+                        'min': float(data.min()) if not data.empty else 0.0,
+                        'max': float(data.max()) if not data.empty else 0.0,
+                        'mean': float(data.mean()) if not data.empty else 0.0,
+                        'std': float(data.std()) if not data.empty else 0.0,
+                        'null_count': int(data.isnull().sum())
+                    },
+                    'class_mapping': {} if label_type == FeatureType.REGRESSION_LABEL else {'negative': 0.0, 'positive': 1.0}
+                }
+            )
+            label_schemas.append(label_schema)
+        
+        # Create metadata
+        metadata = DatasetMetadata(
+            symbol=symbols[0] if len(symbols) == 1 else 'MULTI',
+            additional_symbols=symbols[1:] if len(symbols) > 1 else [],
+            base_timeframe='daily',
+            sequence_length=self.config.lookback_days,
+            total_features=len(feature_schemas),
+            total_samples=len(training_df),
+            start_date=start_date.strftime('%Y-%m-%d'),
+            end_date=end_date.strftime('%Y-%m-%d'),
+            generation_params={
+                'prediction_horizon': max(self.config.prediction_horizons),
+                'model_type': 'residual_return_prediction',
+                'feature_engineering_version': '1.0.0',
+                'lookback_days': self.config.lookback_days
+            }
+        )
+        
+        # Create complete schema
+        schema = TrainingDatasetSchema(
+            schema_version='1.0.0',
+            dataset_name=f"residual_return_{symbols[0]}_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}",
+            features=feature_schemas,
+            labels=label_schemas,
+            metadata=metadata
+        )
+        
+        return schema
+    
+    def _infer_feature_type(self, column_name: str) -> FeatureType:
+        """
+        Automatically infer feature type from column name patterns.
+        
+        Uses pattern matching on column names to classify features into appropriate
+        financial ML feature types. This classification enables proper handling
+        in ML models, validation rules, and EDA visualizations.
+        
+        Args:
+            column_name: Name of the feature column to classify
+            
+        Returns:
+            FeatureType: Appropriate financial ML feature type
+            
+        Classification Rules:
+            - RETURN_SERIES: return, pct_change, momentum patterns
+            - TECHNICAL_INDICATOR: sma, ema, bb, macd, rsi, technical patterns  
+            - VOLUME_SERIES: volume, shares, turnover patterns
+            - VOLATILITY_SERIES: volatility, std, var patterns
+            - MARKET_REGIME_INDICATORS: sector, industry, market patterns
+            - SEASONAL_INDICATORS: day, month, quarter, time, seasonal patterns
+            - Default: TECHNICAL_INDICATOR (safe fallback)
+            
+        Example:
+            feature_type = self._infer_feature_type("sma_20")
+            # Returns: FeatureType.TECHNICAL_INDICATOR
+            
+            feature_type = self._infer_feature_type("return_1d")
+            # Returns: FeatureType.RETURN_SERIES
+        """
+        col_lower = column_name.lower()
+        
+        if any(x in col_lower for x in ['return', 'pct_change', 'momentum']):
+            return FeatureType.RETURN_SERIES
+        elif any(x in col_lower for x in ['sma', 'ema', 'bb', 'macd', 'rsi', 'technical']):
+            return FeatureType.TECHNICAL_INDICATOR
+        elif any(x in col_lower for x in ['volume', 'shares', 'turnover']):
+            return FeatureType.VOLUME_SERIES
+        elif any(x in col_lower for x in ['volatility', 'std', 'var']):
+            return FeatureType.VOLATILITY_SERIES
+        elif any(x in col_lower for x in ['sector', 'industry', 'market']):
+            return FeatureType.MARKET_REGIME_INDICATORS
+        elif any(x in col_lower for x in ['day', 'month', 'quarter', 'time', 'seasonal']):
+            return FeatureType.SEASONAL_INDICATORS
+        else:
+            return FeatureType.TECHNICAL_INDICATOR  # Default fallback
+    
+    def _generate_feature_description(self, column_name: str, feature_type: FeatureType) -> str:
+        """Generate description for feature."""
+        descriptions = {
+            FeatureType.RETURN_SERIES: f"Return-based feature: {column_name}",
+            FeatureType.TECHNICAL_INDICATOR: f"Technical indicator: {column_name}",
+            FeatureType.VOLUME_SERIES: f"Volume-related feature: {column_name}",
+            FeatureType.VOLATILITY_SERIES: f"Volatility metric: {column_name}",
+            FeatureType.MARKET_REGIME_INDICATORS: f"Market/sector feature: {column_name}",
+            FeatureType.SEASONAL_INDICATORS: f"Time-based feature: {column_name}",
+        }
+        return descriptions.get(feature_type, f"Feature: {column_name}")
+    
+    def _generate_label_description(self, column_name: str) -> str:
+        """Generate description for label."""
+        if column_name.startswith('residual_return_'):
+            return f"Residual return prediction target: {column_name}"
+        elif column_name.startswith('positive_return_'):
+            return f"Binary positive return indicator: {column_name}"
+        elif column_name.startswith('strong_positive_'):
+            return f"Strong positive return indicator (>2%): {column_name}"
+        elif column_name.startswith('strong_negative_'):
+            return f"Strong negative return indicator (<-2%): {column_name}"
+        elif column_name.startswith('return_magnitude_'):
+            return f"Return magnitude (absolute value): {column_name}"
+        else:
+            return f"Target variable: {column_name}"
+    
+    def _validate_training_data(
+        self, 
+        schema: TrainingDatasetSchema, 
+        features: np.ndarray, 
+        labels: np.ndarray
+    ) -> ValidationResult:
+        """Validate training data against schema."""
+        errors = []
+        warnings = []
+        
+        # Check feature array shape
+        expected_features = len(schema.features)
+        if features.shape[1] != expected_features:
+            errors.append(f"Feature count mismatch: expected {expected_features}, got {features.shape[1]}")
+        
+        # Check label array shape
+        expected_labels = len(schema.labels)
+        if labels.size > 0 and labels.shape[1] != expected_labels:
+            errors.append(f"Label count mismatch: expected {expected_labels}, got {labels.shape[1]}")
+        
+        # Check for NaN/Inf values
+        if np.isnan(features).any():
+            warnings.append("Features contain NaN values")
+        if np.isinf(features).any():
+            errors.append("Features contain infinite values")
+        
+        if labels.size > 0:
+            if np.isnan(labels).any():
+                warnings.append("Labels contain NaN values")
+            if np.isinf(labels).any():
+                errors.append("Labels contain infinite values")
+        
+        # Calculate confidence score
+        confidence_score = 1.0
+        if errors:
+            confidence_score *= 0.5  # Reduce confidence for errors
+        if warnings:
+            confidence_score *= 0.8  # Slightly reduce for warnings
+        
+        return ValidationResult(
+            is_valid=len(errors) == 0,
+            errors=errors,
+            warnings=warnings,
+            confidence_score=confidence_score,
+            validation_timestamp=datetime.now()
+        )
+    
+    def _generate_output_path(self) -> str:
+        """Generate output path for training dataset."""
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        return f"training_data_residual_return_{timestamp}"
+    
+    async def _save_training_dataset(
+        self,
+        dataset_path: str,
+        features_array: np.ndarray,
+        labels_array: np.ndarray,
+        schema: TrainingDatasetSchema,
+        validation_result: ValidationResult,
+        training_df: pd.DataFrame
+    ):
+        """Save training dataset with schema."""
+        
+        # Create output directory
+        os.makedirs(dataset_path, exist_ok=True)
+        
+        # Save arrays
+        np.save(os.path.join(dataset_path, 'features.npy'), features_array)
+        if labels_array.size > 0:
+            np.save(os.path.join(dataset_path, 'labels.npy'), labels_array)
+        
+        # Save schema
+        schema_dict = schema.to_dict()
+        with open(os.path.join(dataset_path, 'schema.json'), 'w') as f:
+            json.dump(schema_dict, f, indent=2, default=str)
+        
+        # Save validation results
+        validation_dict = {
+            'is_valid': validation_result.is_valid,
+            'errors': validation_result.errors,
+            'warnings': validation_result.warnings,
+            'confidence_score': validation_result.confidence_score,
+            'validation_timestamp': validation_result.validation_timestamp.isoformat()
+        }
+        with open(os.path.join(dataset_path, 'validation.json'), 'w') as f:
+            json.dump(validation_dict, f, indent=2)
+        
+        # Save raw dataframe for analysis
+        training_df.to_parquet(os.path.join(dataset_path, 'raw_data.parquet'))
+        
+        # Register schema in database
+        try:
+            schema_hash = await self.schema_dao.register_schema(
+                schema,
+                created_by="ResidualReturnTrainingDataGenerator",
+                tags=[schema.metadata.symbol, 'residual_return', 'daily'],
+                description=f"Residual return training schema for {schema.metadata.symbol}"
+            )
+            
+            # Save schema hash reference
+            with open(os.path.join(dataset_path, 'schema_hash.txt'), 'w') as f:
+                f.write(schema_hash)
+                
+            logger.info(f"Registered schema with hash: {schema_hash}")
+            
+        except Exception as e:
+            logger.warning(f"Failed to register schema in database: {e}")
+    
+    async def _get_instrument_symbols(self, instrument_ids: List[int]) -> List[str]:
+        """Get instrument symbols from IDs."""
+        if not instrument_ids:
+            return []
+        
+        instruments_table = self.env.get_table_name('instruments')
+        
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(f"""
+                SELECT symbol
+                FROM {instruments_table}
+                WHERE id = ANY($1)
+                ORDER BY id
+            """, instrument_ids)
+            
+            return [row['symbol'] for row in rows if row['symbol']]
 
 
 # Convenience function for generating training data
@@ -669,17 +1136,55 @@ async def generate_residual_return_training_data(
     start_date: datetime,
     end_date: datetime,
     instrument_ids: Optional[List[int]] = None,
-    config: Optional[TrainingConfig] = None
-) -> pd.DataFrame:
+    config: Optional[TrainingConfig] = None,
+    include_schema: bool = True,
+    output_path: Optional[str] = None
+) -> TrainingDatasetResult:
     """
-    Convenience function to generate training data.
+    Convenience function to generate training data with schema management.
     
-    Returns DataFrame with comprehensive features and residual return targets.
+    Args:
+        connection_pool: Database connection pool
+        env: Environment configuration
+        universe_state_manager: Universe state manager
+        start_date: Start date for data generation
+        end_date: End date for data generation  
+        instrument_ids: List of instrument IDs (None = all available)
+        config: Training configuration
+        include_schema: Whether to include schema generation and validation
+        output_path: Path to save training dataset files
+        
+    Returns:
+        TrainingDatasetResult with schema-aware training data
     """
     generator = ResidualReturnTrainingDataGenerator(
         connection_pool, env, universe_state_manager, config
     )
     
     return await generator.generate_training_dataset(
-        start_date, end_date, instrument_ids
+        start_date, end_date, instrument_ids, include_schema=include_schema, output_path=output_path
     )
+
+
+# Legacy function for backwards compatibility
+async def generate_residual_return_training_data_legacy(
+    connection_pool: asyncpg.Pool,
+    env,
+    universe_state_manager: UniverseStateManager,
+    start_date: datetime,
+    end_date: datetime,
+    instrument_ids: Optional[List[int]] = None,
+    config: Optional[TrainingConfig] = None
+) -> pd.DataFrame:
+    """
+    Legacy convenience function that returns DataFrame (backwards compatibility).
+    
+    Returns DataFrame with comprehensive features and residual return targets.
+    """
+    result = await generate_residual_return_training_data(
+        connection_pool, env, universe_state_manager, start_date, end_date, 
+        instrument_ids, config, include_schema=False
+    )
+    
+    # Return the DataFrame from metadata
+    return result.metadata.get('dataframe', pd.DataFrame())
