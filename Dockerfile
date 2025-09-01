@@ -68,15 +68,12 @@ RUN find /app -name "__pycache__" -type d -exec rm -rf {} +; exit 0 && \
 # Create non-root user and set permissions
 RUN groupadd --gid 1000 ats && \
     useradd --uid 1000 --gid ats --shell /bin/bash --create-home ats && \
-    chown -R ats:ats /app && \
-    # Make Playwright browsers accessible to ats user
-    chmod -R 755 /root/.cache/ms-playwright || true
+    chown -R ats:ats /app
 
-# Switch to non-root user
+# Install Playwright browsers for the ats user and set proper permissions
 USER ats
-
-# Set Playwright browser path for non-root user
-ENV PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/ats/.cache/ms-playwright
+RUN playwright install chromium firefox webkit
 
 # Expose the port the app runs on
 EXPOSE 8080

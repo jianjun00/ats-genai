@@ -9,7 +9,16 @@ def test_playwright():
     
     try:
         import playwright
-        print(f"✅ Playwright imported successfully (version: {playwright.__version__})")
+        try:
+            version = playwright.__version__
+        except AttributeError:
+            # Try alternative version detection
+            try:
+                import pkg_resources
+                version = pkg_resources.get_distribution("playwright").version
+            except:
+                version = "unknown"
+        print(f"✅ Playwright imported successfully (version: {version})")
         
         from playwright.sync_api import sync_playwright
         print("✅ Playwright sync API imported")
