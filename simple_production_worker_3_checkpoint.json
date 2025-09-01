@@ -11446,16 +11446,26 @@
       "2021-03",
       "2021-04",
       "2021-05",
-      "2021-06"
+      "2021-06",
+      "2021-07",
+      "2021-08",
+      "2021-09",
+      "2021-10",
+      "2021-11",
+      "2021-12",
+      "2022-01",
+      "2022-02",
+      "2022-03",
+      "2022-04"
     ]
   },
   "failed_months": {},
-  "last_processed": "2025-09-01T23:53:20.939316",
+  "last_processed": "2025-09-01T23:54:07.265987",
   "total_symbols": 250,
   "processing_stats": {
     "symbols_processed": 118,
-    "months_processed": 11210,
-    "records_written": 42094672,
+    "months_processed": 11220,
+    "records_written": 42161636,
     "errors": 0
   },
   "symbol_inventory": {

@@ -6368,16 +6368,26 @@
       "2023-07"
     ],
     "BBBY": [
-      "2005-01"
+      "2005-01",
+      "2005-02",
+      "2005-03",
+      "2005-04",
+      "2005-05",
+      "2005-06",
+      "2005-07",
+      "2005-08",
+      "2005-09",
+      "2005-10",
+      "2005-11"
     ]
   },
   "failed_months": {},
-  "last_processed": "2025-09-01T23:52:27.614935",
+  "last_processed": "2025-09-01T23:54:14.143554",
   "total_symbols": 250,
   "processing_stats": {
     "symbols_processed": 44,
-    "months_processed": 6280,
-    "records_written": 30729112,
+    "months_processed": 6290,
+    "records_written": 30812679,
     "errors": 0
   },
   "symbol_inventory": {
