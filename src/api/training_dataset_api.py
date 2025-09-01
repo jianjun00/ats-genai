@@ -7,6 +7,7 @@ and integration with the EDA dashboard.
 """
 
 import logging
+import json
 from typing import Dict, List, Optional, Any
 from datetime import datetime, date
 from fastapi import APIRouter, HTTPException, Depends, Query
@@ -298,5 +299,79 @@ def create_training_dataset_router():
         except Exception as e:
             logger.error(f"Error getting histogram for dataset {dataset_id}: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to get dataset histogram: {str(e)}")
+
+    @router.get("/{dataset_id}/visualization-data")
+    async def get_dataset_visualization_data(
+        dataset_id: int,
+        start_idx: int = Query(0, description="Starting row index"),
+        count: int = Query(21, description="Number of rows to return (for 10 before + 1 selected + 10 after)"),
+        dao: TrainingDatasetDAO = Depends(get_training_dataset_dao)
+    ):
+        """Get training dataset data rows for interactive OHLC visualization (with technical indicators)."""
+        try:
+            dataset = await dao.get_training_dataset(dataset_id)
+            
+            if not dataset:
+                raise HTTPException(status_code=404, detail="Training dataset not found")
+            
+            # Load the features data from the numpy file
+            import numpy as np
+            import os
+            
+            if not os.path.exists(dataset.features_file_path):
+                raise HTTPException(status_code=404, detail="Features file not found")
+            
+            # Load features array [sequences, time_steps, features]
+            features_data = np.load(dataset.features_file_path)
+            
+            # Calculate the selected sequence index and time step within sequence
+            sequence_idx = start_idx // dataset.sequence_length
+            time_step_in_sequence = start_idx % dataset.sequence_length
+            
+            # Ensure we don't go out of bounds
+            if sequence_idx >= features_data.shape[0]:
+                raise HTTPException(status_code=400, detail="Start index out of bounds")
+            
+            # Extract data around the selected point (10 before, current, 10 after)
+            half_window = count // 2
+            start_time_step = max(0, time_step_in_sequence - half_window)
+            end_time_step = min(dataset.sequence_length, time_step_in_sequence + half_window + 1)
+            
+            # Get the data slice
+            data_slice = features_data[sequence_idx, start_time_step:end_time_step, :]
+            
+            # Parse feature names from metadata to understand column mapping
+            feature_metadata = json.loads(dataset.feature_metadata) if dataset.feature_metadata else {}
+            feature_names = feature_metadata.get('feature_names', [
+                'open', 'high', 'low', 'close', 'volume', 'etop', 'ebot', 'pldot', 'z1b', 'z2b', 'z5t', 'z6t'
+            ])
+            
+            # Create visualization data structure
+            visualization_data = []
+            for i, row in enumerate(data_slice):
+                row_data = {
+                    'index': start_time_step + i,
+                    'is_selected': (start_time_step + i) == time_step_in_sequence
+                }
+                
+                # Map features to their names
+                for j, feature_name in enumerate(feature_names):
+                    if j < len(row):
+                        row_data[feature_name] = float(row[j])
+                
+                visualization_data.append(row_data)
+            
+            return {
+                'data': visualization_data,
+                'sequence_idx': sequence_idx,
+                'selected_time_step': time_step_in_sequence,
+                'total_sequences': features_data.shape[0],
+                'sequence_length': dataset.sequence_length,
+                'feature_names': feature_names
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting dataset data rows: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to get dataset data rows: {str(e)}")
     
     return router

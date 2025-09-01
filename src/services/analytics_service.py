@@ -1185,6 +1185,108 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 'error': str(e)
             }
     
+    def get_training_dataset_visualization_data(self, dataset_id, start_idx=0, count=21):
+        """Get training dataset data for interactive OHLC visualization."""
+        try:
+            from core.database.connection_manager import get_raw_connection
+            import numpy as np
+            import json
+            import os
+            
+            # Determine table name based on environment
+            environment = os.getenv('ENVIRONMENT', 'dev')
+            table_name = f"{environment}_training_datasets"
+            
+            with get_raw_connection() as conn:
+                from psycopg2.extras import RealDictCursor
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    # Get dataset info and file paths
+                    cursor.execute(f"""
+                        SELECT features_file_path, labels_file_path, metadata_file_path,
+                               sequence_length, total_sequences
+                        FROM {table_name} 
+                        WHERE id = %s
+                    """, (dataset_id,))
+                    
+                    dataset_info = cursor.fetchone()
+                    
+                    if not dataset_info:
+                        return {"error": "Dataset not found", "data": []}
+            
+            # Get file paths
+            features_file_path = dataset_info.get('features_file_path')
+            metadata_file_path = dataset_info.get('metadata_file_path')
+            
+            if not features_file_path:
+                return {"error": "Features file path not found", "data": []}
+            
+            # Load feature data
+            import numpy as np
+            import os
+            
+            if not os.path.exists(features_file_path):
+                return {"error": f"Features file not found: {features_file_path}", "data": []}
+            
+            # Load features array [sequences, time_steps, features]
+            features_data = np.load(features_file_path)
+            
+            # Calculate the selected sequence index and time step within sequence
+            sequence_length = dataset_info.get('sequence_length', 60)
+            sequence_idx = start_idx // sequence_length
+            time_step_in_sequence = start_idx % sequence_length
+            
+            # Ensure we don't go out of bounds
+            if sequence_idx >= features_data.shape[0]:
+                return {"error": "Start index out of bounds", "data": []}
+            
+            # Extract data around the selected point (10 before, current, 10 after)
+            half_window = count // 2
+            start_time_step = max(0, time_step_in_sequence - half_window)
+            end_time_step = min(sequence_length, time_step_in_sequence + half_window + 1)
+            
+            # Get the data slice
+            data_slice = features_data[sequence_idx, start_time_step:end_time_step, :]
+            
+            # Load feature names from metadata
+            feature_names = ['open', 'high', 'low', 'close', 'volume', 'etop', 'ebot', 'pldot', 'z1b', 'z2b', 'z5t', 'z6t']
+            
+            if metadata_file_path and os.path.exists(metadata_file_path):
+                try:
+                    import json
+                    with open(metadata_file_path, 'r') as f:
+                        metadata = json.load(f)
+                        feature_names = metadata.get('feature_names', feature_names)
+                except Exception as e:
+                    logger.warning(f"Could not load feature names from metadata: {e}")
+            
+            # Create visualization data structure
+            visualization_data = []
+            for i, row in enumerate(data_slice):
+                row_data = {
+                    'index': start_time_step + i,
+                    'is_selected': (start_time_step + i) == time_step_in_sequence
+                }
+                
+                # Map features to their names
+                for j, feature_name in enumerate(feature_names):
+                    if j < len(row):
+                        row_data[feature_name] = float(row[j])
+                
+                visualization_data.append(row_data)
+            
+            return {
+                'data': visualization_data,
+                'sequence_idx': sequence_idx,
+                'selected_time_step': time_step_in_sequence,
+                'total_sequences': features_data.shape[0],
+                'sequence_length': sequence_length,
+                'feature_names': feature_names
+            }
+            
+        except Exception as e:
+            logger.error(f"Error loading visualization data: {e}")
+            return {"error": str(e), "data": []}
+    
     def do_GET(self):
         logger.info(f"📍 GET request: {self.path}")
         if self.path == '/health':
@@ -1581,6 +1683,37 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps(distributions, indent=2).encode('utf-8'))
             except Exception as e:
                 logger.error(f"Error getting training dataset distributions: {e}")
+                error_response = {"error": str(e), "dataset_id": dataset_id if 'dataset_id' in locals() else 'unknown'}
+                self.wfile.write(json.dumps(error_response).encode('utf-8'))
+                
+        elif self.path.startswith('/api/v1/training-datasets/') and '/visualization-data' in self.path:
+            # Training dataset visualization data API endpoint: /api/v1/training-datasets/{id}/visualization-data
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            try:
+                # Extract dataset ID from path: /api/v1/training-datasets/{id}/visualization-data
+                path_parts = self.path.split('/')
+                dataset_id = path_parts[4]  # Get the ID part
+                
+                # Parse query parameters
+                from urllib.parse import urlparse, parse_qs
+                parsed = urlparse(self.path)
+                query_params = parse_qs(parsed.query)
+                
+                start_idx = int(query_params.get('start_idx', ['0'])[0])
+                count = int(query_params.get('count', ['21'])[0])
+                
+                logger.info(f"Loading visualization data for dataset ID: {dataset_id}, start_idx: {start_idx}, count: {count}")
+                
+                # Get training data for visualization
+                visualization_data = self.get_training_dataset_visualization_data(dataset_id, start_idx, count)
+                self.wfile.write(json.dumps(visualization_data).encode('utf-8'))
+                
+            except Exception as e:
+                logger.error(f"Error loading training dataset visualization data: {e}")
                 error_response = {"error": str(e), "dataset_id": dataset_id if 'dataset_id' in locals() else 'unknown'}
                 self.wfile.write(json.dumps(error_response).encode('utf-8'))
         

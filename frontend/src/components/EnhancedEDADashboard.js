@@ -4,6 +4,7 @@ import {
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, ScatterPlot, Histogram 
 } from 'recharts';
 import './EnhancedEDADashboard.css';
+import InteractiveTrainingDataTable from './InteractiveTrainingDataTable';
 
 const EnhancedEDADashboard = () => {
   const [activeTopTab, setActiveTopTab] = useState('table'); // 'table' or 'training-dataset'
@@ -339,6 +340,13 @@ const EnhancedEDADashboard = () => {
               </div>
             </div>
           )}
+
+          {/* Interactive Training Data Table with OHLC Visualization */}
+          <div className="interactive-visualization">
+            <h4>📊 Interactive OHLC Visualization</h4>
+            <p>Explore training data with interactive charts showing OHLC prices and technical indicators</p>
+            <InteractiveTrainingDataTable dataset={selectedDataset} />
+          </div>
         </div>
       )}
     </div>

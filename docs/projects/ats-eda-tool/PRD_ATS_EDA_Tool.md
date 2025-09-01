@@ -212,6 +212,15 @@ The ATS EDA Tool now implements a **unified metadata system** that automatically
   - Correlation matrices between features and labels
   - Time-series visualization for temporal training datasets
   - Anomaly highlighting with detailed anomaly descriptions
+  - **🆕 Interactive OHLC Visualization with Row Selection**:
+    - Clickable data table showing training dataset rows with sequence and time step information
+    - Dynamic Plotly candlestick charts displaying OHLC data for selected rows
+    - Technical indicators visualization: envelope top/bottom, pldot, z1b, z2b, z5t, z6t
+    - Context-aware chart display showing 10 bars before and 10 bars after selected row
+    - Multi-axis chart layout with price data, technical indicators, and volume
+    - Real-time chart updates based on row selection with visual selection highlighting
+    - Support for all feature types defined in Protocol Buffer schema (OHLC_INTERVALS, TECHNICAL_INDICATOR, etc.)
+    - Responsive design with mobile-friendly table scrolling and chart interaction
 - **FR-7.4**: **Training Dataset Metadata Management**:
   - Comprehensive metadata storage including sequences, features, labels, date ranges
   - File path tracking for features, labels, and metadata files

@@ -55,11 +55,18 @@ graph TB
 
 ### Frontend  
 - **Framework**: React 18+ with TypeScript
-- **Visualization**: D3.js, Plotly.js, Chart.js
+- **Visualization**: D3.js, Plotly.js, Chart.js, react-plotly.js
 - **State Management**: Redux Toolkit
 - **UI Components**: Material-UI or Ant Design
 - **Build Tool**: Vite
 - **Styling**: TailwindCSS
+- **🆕 Interactive Components**:
+  - InteractiveTrainingDataTable: React component for row selection and OHLC visualization
+  - Plotly.js integration for candlestick charts with technical indicators
+  - Multi-axis chart layout (price, indicators, volume) with synchronized interaction
+  - Real-time chart updates with 21-point moving window (±10 bars from selection)
+  - Feature type-aware rendering based on Protocol Buffer schema definitions
+  - Responsive table design with sticky headers and smooth scrolling
 
 ### Infrastructure
 - **Containerization**: Docker (follows ATS patterns)
@@ -418,6 +425,42 @@ POST   /api/v1/analysis/summary                 # Statistical summaries
 POST   /api/v1/visualizations/ohlc              # OHLC candlestick charts
 POST   /api/v1/visualizations/timeseries        # Time series analysis
 POST   /api/v1/visualizations/custom            # Custom visualization logic
+
+#### 🆕 Training Dataset Interactive Visualization
+```python
+# Training dataset data access for interactive visualization
+GET    /api/v1/training-datasets/{dataset_id}/data
+    # Query parameters:
+    #   - start_idx: Starting row index (default: 0)
+    #   - count: Number of rows to return (default: 21 for 10+1+10)
+    # Response: OHLC data with technical indicators for selected time window
+    
+# Response format for interactive visualization:
+{
+  "data": [
+    {
+      "index": 25,
+      "is_selected": true,
+      "open": 150.25,
+      "high": 152.80,
+      "low": 149.90,
+      "close": 151.45,
+      "volume": 1234567,
+      "etop": 153.20,    # Envelope top
+      "ebot": 148.70,    # Envelope bottom  
+      "pldot": 0.65,     # PLDot indicator
+      "z1b": -0.23,      # Z1B indicator
+      "z2b": 0.84,       # Z2B indicator
+      "z5t": 1.12,       # Z5T indicator
+      "z6t": -0.45       # Z6T indicator
+    }
+  ],
+  "sequence_idx": 5,
+  "selected_time_step": 25,
+  "total_sequences": 197,
+  "sequence_length": 60,
+  "feature_names": ["open", "high", "low", "close", "volume", "etop", "ebot", "pldot", "z1b", "z2b", "z5t", "z6t"]
+}
 ```
 
 #### Session Management
