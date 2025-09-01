@@ -313,8 +313,7 @@ nohup python3 scripts/run_dev.py run --script scripts/polygon_30_year_daily_back
 **Database Tables:**
 - `dev_daily_prices_tiingo` - Tiingo 30-year daily prices (1995-2025)
 - `dev_daily_prices_eodhd` - EODHD 30-year daily prices (1995-2025)  
-- `dev_daily_prices_polygon_30year` - Polygon 30-year daily prices (1995-2025)
-- `dev_daily_prices_polygon` - Original minute-derived data (2015-2025, 1,575,276 records)
+- `dev_daily_prices_polygon` - Polygon daily prices (combined 30-year + minute-derived data)
 
 **Scale and Coverage:**
 - **Instruments**: 18,296 active US exchange symbols
@@ -334,7 +333,7 @@ tail -f /tmp/eodhd_30year_backfill.log
 tail -f /tmp/polygon_30year_daily_backfill.log
 
 # Check record counts
-python3 scripts/run_dev.py query --query "SELECT 'Tiingo' as vendor, COUNT(*) as records FROM dev_daily_prices_tiingo UNION SELECT 'EODHD', COUNT(*) FROM dev_daily_prices_eodhd UNION SELECT 'Polygon_30yr', COUNT(*) FROM dev_daily_prices_polygon_30year"
+python3 scripts/run_dev.py query --query "SELECT 'Tiingo' as vendor, COUNT(*) as records FROM dev_daily_prices_tiingo UNION SELECT 'EODHD', COUNT(*) FROM dev_daily_prices_eodhd UNION SELECT 'Polygon', COUNT(*) FROM dev_daily_prices_polygon"
 ```
 
 **Files Created:**

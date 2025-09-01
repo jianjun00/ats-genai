@@ -207,7 +207,7 @@ class TestTypeAwareIntelligentFilters:
             print("⏭️  Skipping service test - TypeAwareAnalyticsService not available") 
             return
         
-        filters = await self.service.get_intelligent_filters("dev_daily_prices_polygon_30year")
+        filters = await self.service.get_intelligent_filters("dev_daily_prices_polygon")
         
         assert len(filters) > 0
         
@@ -328,7 +328,7 @@ class TestTypeAwareColumnAnalysis:
             print("⏭️  Skipping service test - TypeAwareAnalyticsService not available")
             return
         
-        analysis = await self.service.analyze_column_intelligent("dev_daily_prices_polygon_30year", "close")
+        analysis = await self.service.analyze_column_intelligent("dev_daily_prices_polygon", "close")
         
         # Should use type-aware analysis  
         assert analysis["column"] == "close"
@@ -353,7 +353,7 @@ class TestTypeAwareColumnAnalysis:
             print("⏭️  Skipping service test - TypeAwareAnalyticsService not available")
             return
         
-        analysis = await self.service.analyze_column_intelligent("dev_daily_prices_polygon_30year", "date")
+        analysis = await self.service.analyze_column_intelligent("dev_daily_prices_polygon", "date")
         
         # Should use type-aware analysis
         assert analysis["column"] == "date"
@@ -462,9 +462,9 @@ class TestTypeAwareQueryOptimization:
         self.mock_db.clear_log()
         
         # Generate filter for close field (numeric range)
-        close_field = schema_registry.get_field_definition("dev_daily_prices_polygon_30year", "close")
+        close_field = schema_registry.get_field_definition("dev_daily_prices_polygon", "close")
         filter_config = await self.service._generate_typed_filter(
-            "dev_daily_prices_polygon_30year", "close", close_field
+            "dev_daily_prices_polygon", "close", close_field
         )
         
         # Should generate numeric range slider
@@ -520,7 +520,7 @@ class TestTypeSystemIntegrationBehavior:
         # Test field type detection
         assert schema_registry.is_field_searchable("dev_instruments", "symbol") == True
         assert schema_registry.is_field_categorical("dev_instruments", "exchange") == True
-        assert schema_registry.is_field_numeric_range("dev_daily_prices_polygon_30year", "close") == True
+        assert schema_registry.is_field_numeric_range("dev_daily_prices_polygon", "close") == True
         
         # Test enum value retrieval
         exchange_values = schema_registry.get_enum_values("dev_instruments", "exchange")

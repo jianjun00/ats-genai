@@ -34,7 +34,7 @@ class TestTypeSystemTransformation:
         tables = schema_registry.list_tables()
         expected_tables = [
             "dev_instruments",
-            "dev_daily_prices_polygon_30year",
+            "dev_daily_prices_polygon",
             "dev_daily_prices_tiingo",
             "dev_daily_prices_eodhd",
             "instrument_xrefs"
@@ -119,7 +119,7 @@ class TestTypeSystemTransformation:
         assert "id" not in instrument_priorities  # Readonly excluded
         
         # Test price data priorities
-        price_priorities = schema_registry.get_eda_priority_fields("dev_daily_prices_polygon_30year", limit=6)
+        price_priorities = schema_registry.get_eda_priority_fields("dev_daily_prices_polygon", limit=6)
         
         # Symbol and date should be high priority
         assert "symbol" in price_priorities[:2]
@@ -189,7 +189,7 @@ class TestTypeSystemTransformation:
         assert "symbol" not in categorical  # Searchable, not just categorical
         
         # Test numeric fields
-        numeric = schema_registry.get_table_numeric_fields("dev_daily_prices_polygon_30year")
+        numeric = schema_registry.get_table_numeric_fields("dev_daily_prices_polygon")
         price_fields = ["open", "high", "low", "close", "volume"]
         for field in price_fields:
             assert field in numeric
@@ -226,12 +226,12 @@ class TestTypeSystemUIGeneration:
             },
             
             # Price fields
-            ("dev_daily_prices_polygon_30year", "close"): {
+            ("dev_daily_prices_polygon", "close"): {
                 "expected_ui": "range_slider_with_currency",
                 "semantics": FieldSemantics.NUMERIC_RANGE,
                 "features": ["min_max_range", "currency_format"]
             },
-            ("dev_daily_prices_polygon_30year", "date"): {
+            ("dev_daily_prices_polygon", "date"): {
                 "expected_ui": "date_range_picker",
                 "semantics": FieldSemantics.DATE_RANGE,
                 "features": ["date_range_selection"]
@@ -280,7 +280,7 @@ class TestTypeSystemUIGeneration:
         
         # All price tables should have similar field semantics
         price_tables = [
-            "dev_daily_prices_polygon_30year",
+            "dev_daily_prices_polygon",
             "dev_daily_prices_tiingo", 
             "dev_daily_prices_eodhd"
         ]
@@ -321,8 +321,8 @@ class TestTypeSystemIntegrationBenefits:
         test_cases = [
             ("dev_instruments", "symbol", "should generate text search"),
             ("dev_instruments", "exchange", "should generate dropdown with predefined options"),
-            ("dev_daily_prices_polygon_30year", "close", "should generate range slider"),
-            ("dev_daily_prices_polygon_30year", "date", "should generate date picker"),
+            ("dev_daily_prices_polygon", "close", "should generate range slider"),
+            ("dev_daily_prices_polygon", "date", "should generate date picker"),
             ("dev_instruments", "active", "should generate boolean checkbox")
         ]
         
@@ -383,7 +383,7 @@ class TestTypeSystemIntegrationBenefits:
             "symbol_searchable": schema_registry.is_field_searchable("dev_instruments", "symbol"),
             "exchange_categorical": schema_registry.is_field_categorical("dev_instruments", "exchange"),
             "exchange_predefined": schema_registry.get_enum_values("dev_instruments", "exchange") is not None,
-            "prices_numeric": schema_registry.is_field_numeric_range("dev_daily_prices_polygon_30year", "close"),
+            "prices_numeric": schema_registry.is_field_numeric_range("dev_daily_prices_polygon", "close"),
             "dates_rangeable": schema_registry.get_date_fields("daily_price") != [],
             "booleans_handled": schema_registry.get_boolean_fields("instrument") != [],
             "priorities_set": len(schema_registry.get_eda_priority_fields("dev_instruments", 4)) == 4,

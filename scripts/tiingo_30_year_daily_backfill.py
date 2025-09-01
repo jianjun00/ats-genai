@@ -58,21 +58,37 @@ class Tiingo30YearBackfiller:
 
     async def get_database_connection(self):
         """Get database connection (Docker-compatible)."""
-        return await asyncpg.connect(
-            host='ats-dev-postgres',  # PostgreSQL container name
-            port=5432,                # Internal Docker port
-            user='postgres',
-            password='dev_password',
-            database='dev_db'
-        )
+        # Auto-detect environment based on available databases
+        env = os.getenv('ENV_TYPE', 'intg').lower()
+        
+        if env == 'intg':
+            return await asyncpg.connect(
+                host='ats-intg-postgres',  # INTG PostgreSQL container name
+                port=5432,                 # Internal Docker port
+                user='postgres',
+                password='intg_password',
+                database='intg_db'
+            )
+        else:
+            return await asyncpg.connect(
+                host='ats-dev-postgres',   # DEV PostgreSQL container name
+                port=5432,                 # Internal Docker port
+                user='postgres',
+                password='dev_password',
+                database='dev_db'
+            )
 
     async def get_instruments_for_backfill(self, conn, limit=None):
-        """Get active instruments from dev_instruments table."""
+        """Get active instruments from instruments table."""
         limit_clause = f"LIMIT {limit}" if limit else ""
+        
+        # Auto-detect table prefix based on environment
+        env = os.getenv('ENV_TYPE', 'intg').lower()
+        table_prefix = 'intg_' if env == 'intg' else 'dev_'
         
         instruments = await conn.fetch(f"""
             SELECT id, symbol, name, exchange, active
-            FROM dev_instruments 
+            FROM {table_prefix}instruments 
             WHERE active = true 
               AND symbol IS NOT NULL 
               AND symbol != ''
@@ -153,9 +169,12 @@ class Tiingo30YearBackfiller:
             return 0
         
         # Insert with idempotent UPSERT (using existing Tiingo table schema)
+        env = os.getenv('ENV_TYPE', 'intg').lower()
+        table_name = 'intg_daily_prices_tiingo' if env == 'intg' else 'dev_daily_prices_tiingo'
+        
         try:
-            result = await conn.executemany("""
-                INSERT INTO dev_daily_prices_tiingo 
+            result = await conn.executemany(f"""
+                INSERT INTO {table_name} 
                 (date, symbol, open, high, low, close, volume, instrument_id)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 ON CONFLICT (date, instrument_id) DO UPDATE SET
@@ -178,8 +197,11 @@ class Tiingo30YearBackfiller:
 
     async def check_existing_data(self, conn, instrument_id, start_date, end_date):
         """Check if instrument already has data in the date range."""
-        count = await conn.fetchval("""
-            SELECT COUNT(*) FROM dev_daily_prices_tiingo
+        env = os.getenv('ENV_TYPE', 'intg').lower()
+        table_name = 'intg_daily_prices_tiingo' if env == 'intg' else 'dev_daily_prices_tiingo'
+        
+        count = await conn.fetchval(f"""
+            SELECT COUNT(*) FROM {table_name}
             WHERE instrument_id = $1 AND date BETWEEN $2 AND $3
         """, instrument_id, start_date, end_date)
         
@@ -238,6 +260,13 @@ class Tiingo30YearBackfiller:
             if not instruments:
                 logger.warning("❌ No instruments found for backfill")
                 return
+            
+            # Filter for specific symbols if TARGET_SYMBOLS is provided
+            target_symbols = os.getenv('TARGET_SYMBOLS')
+            if target_symbols:
+                target_list = [s.strip().upper() for s in target_symbols.split(',')]
+                instruments = [inst for inst in instruments if inst['symbol'].upper() in target_list]
+                logger.info(f"🎯 Filtering to target symbols: {target_list}")
             
             logger.info(f"📊 Processing {len(instruments)} instruments")
             

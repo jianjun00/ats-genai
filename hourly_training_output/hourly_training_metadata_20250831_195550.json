@@ -1,0 +1,41 @@
+{
+  "generation_timestamp": "20250831_195550",
+  "symbols": [
+    "AAPL"
+  ],
+  "date_range": {
+    "start": "2025-08-01 09:30:00",
+    "end": "2025-08-27 16:00:00"
+  },
+  "shape": [
+    114,
+    19
+  ],
+  "columns": [
+    "hour_open",
+    "hour_high",
+    "hour_low",
+    "hour_close",
+    "hour_volume",
+    "day_open",
+    "day_high",
+    "day_low",
+    "day_close",
+    "day_volume",
+    "hour_envelope_top",
+    "hour_envelope_bot",
+    "hour_pldot",
+    "hour_oneone_high",
+    "hour_oneone_low",
+    "hour_z1b",
+    "hour_z2b",
+    "hour_z5t",
+    "hour_z6t"
+  ],
+  "primary_keys": [
+    "datetime",
+    "symbol"
+  ],
+  "data_structure": "hourly_rows",
+  "indicator_scaling": "actual_values_not_normalized"
+}

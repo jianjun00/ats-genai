@@ -168,7 +168,7 @@ class DatasetService:
     def __init__(self):
         self.supported_tables = [
             'dev_daily_prices_tiingo_30year',
-            'dev_daily_prices_polygon_30year', 
+            'dev_daily_prices_polygon', 
             'dev_daily_prices_eodhd_30year',
             'dev_instruments_tiingo',
             'dev_instruments_polygon',

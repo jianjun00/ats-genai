@@ -263,7 +263,7 @@ The ATS EDA Tool now implements a **unified metadata system** that automatically
 
 ### Phase 1: Core Financial Data
 1. **Daily Prices Tables**
-   - `dev_daily_prices_polygon_30year` (666K records, 849 symbols)
+   - `dev_daily_prices_polygon` (666K records, 849 symbols)
    - `dev_daily_prices_tiingo_30year` (6.56M records, 2,355 symbols)
    - `dev_daily_prices_eodhd_30year` (728K records, 268 symbols)
 

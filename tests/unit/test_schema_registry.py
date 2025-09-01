@@ -88,7 +88,7 @@ class TestSchemaRegistry:
         
         tables = registry.list_tables()
         assert "dev_instruments" in tables
-        assert "dev_daily_prices_polygon_30year" in tables
+        assert "dev_daily_prices_polygon" in tables
         assert "instrument_xrefs" in tables
     
     def test_schema_registration(self):
@@ -357,7 +357,7 @@ class TestSchemaRegistryFieldDetails:
         assert registry.is_field_categorical("dev_instruments", "symbol") == False
         
         # Test numeric range field
-        assert registry.is_field_numeric_range("dev_daily_prices_polygon_30year", "close") == True
+        assert registry.is_field_numeric_range("dev_daily_prices_polygon", "close") == True
         assert registry.is_field_numeric_range("dev_instruments", "symbol") == False
         
         # Test nonexistent fields

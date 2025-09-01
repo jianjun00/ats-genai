@@ -58,46 +58,73 @@ class Polygon30YearBackfiller:
 
     async def get_database_connection(self):
         """Get database connection (Docker-compatible)."""
-        return await asyncpg.connect(
-            host='ats-dev-postgres',  # PostgreSQL container name
-            port=5432,                # Internal Docker port
-            user='postgres',
-            password='dev_password',
-            database='dev_db'
-        )
+        # Auto-detect environment based on available databases
+        env = os.getenv('ENV_TYPE', 'intg').lower()
+        
+        if env == 'intg':
+            return await asyncpg.connect(
+                host='ats-intg-postgres',  # INTG PostgreSQL container name
+                port=5432,                 # Internal Docker port
+                user='postgres',
+                password='intg_password',
+                database='intg_db'
+            )
+        else:
+            return await asyncpg.connect(
+                host='ats-dev-postgres',   # DEV PostgreSQL container name
+                port=5432,                 # Internal Docker port
+                user='postgres',
+                password='dev_password',
+                database='dev_db'
+            )
 
     async def ensure_table_exists(self, conn):
-        """Ensure Polygon daily table exists with separate naming."""
+        """Ensure Polygon daily table exists - using existing table structure."""
+        env = os.getenv('ENV_TYPE', 'intg').lower()
+        table_name = 'intg_daily_prices_polygon' if env == 'intg' else 'dev_daily_prices_polygon'
+        
         try:
-            await conn.execute("""
-                CREATE TABLE IF NOT EXISTS dev_daily_prices_polygon_30year (
-                    id SERIAL PRIMARY KEY,
-                    date DATE NOT NULL,
-                    symbol VARCHAR(20) NOT NULL,
-                    open NUMERIC(12,4),
-                    high NUMERIC(12,4),
-                    low NUMERIC(12,4),
-                    close NUMERIC(12,4),
-                    volume BIGINT,
-                    vwap NUMERIC(12,4),
-                    transactions INTEGER,
-                    instrument_id INTEGER,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(date, instrument_id)
-                )
+            # Check if table already exists (it should for intg environment)
+            result = await conn.fetchrow(f"""
+                SELECT to_regclass('{table_name}')
             """)
-            logger.info("✅ Polygon 30-year table ready")
+            
+            if result[0] is None:
+                # Create table only if it doesn't exist (mainly for dev environment)
+                await conn.execute(f"""
+                    CREATE TABLE IF NOT EXISTS {table_name} (
+                        date DATE NOT NULL,
+                        symbol TEXT,
+                        open DOUBLE PRECISION,
+                        high DOUBLE PRECISION,
+                        low DOUBLE PRECISION,
+                        close DOUBLE PRECISION,
+                        volume BIGINT,
+                        market_cap DOUBLE PRECISION,
+                        instrument_id INTEGER NOT NULL,
+                        created_at TIMESTAMP WITH TIME ZONE,
+                        updated_at TIMESTAMP WITH TIME ZONE,
+                        PRIMARY KEY(date, instrument_id)
+                    )
+                """)
+                logger.info(f"✅ Created Polygon daily price table: {table_name}")
+            else:
+                logger.info(f"✅ Polygon daily price table exists: {table_name}")
         except Exception as e:
             logger.error(f"❌ Failed to ensure table exists: {e}")
             raise
 
     async def get_instruments_for_backfill(self, conn, limit=None):
-        """Get active instruments from dev_instruments table."""
+        """Get active instruments from instruments table."""
         limit_clause = f"LIMIT {limit}" if limit else ""
+        
+        # Auto-detect table prefix based on environment
+        env = os.getenv('ENV_TYPE', 'intg').lower()
+        table_prefix = 'intg_' if env == 'intg' else 'dev_'
         
         instruments = await conn.fetch(f"""
             SELECT id, symbol, name, exchange, active
-            FROM dev_instruments 
+            FROM {table_prefix}instruments 
             WHERE active = true 
               AND symbol IS NOT NULL 
               AND symbol != ''
@@ -126,15 +153,17 @@ class Polygon30YearBackfiller:
             
             if response.status_code == 200:
                 data = response.json()
-                if data.get('status') == 'OK' and 'results' in data:
+                logger.info(f"🔍 Polygon API response for {symbol}: status={data.get('status')}, results_count={len(data.get('results', []))}")
+                
+                if data.get('status') in ['OK', 'DELAYED'] and 'results' in data:
                     results = data['results']
-                    logger.debug(f"✅ Downloaded {len(results)} records for {symbol}")
+                    logger.info(f"✅ Downloaded {len(results)} records for {symbol}")
                     return results
                 elif data.get('status') == 'ERROR':
-                    logger.debug(f"⚠️ API error for {symbol}: {data.get('error', 'Unknown error')}")
+                    logger.info(f"⚠️ API error for {symbol}: {data.get('error', 'Unknown error')}")
                     return []
                 else:
-                    logger.debug(f"⚠️ No data available for {symbol}")
+                    logger.info(f"⚠️ No data available for {symbol}, full response: {data}")
                     return []
             elif response.status_code == 429:
                 logger.warning(f"⚠️ Rate limit hit for {symbol}, waiting...")
@@ -173,8 +202,6 @@ class Polygon30YearBackfiller:
                     price.get('l'),  # low
                     price.get('c'),  # close
                     price.get('v', 0),  # volume
-                    price.get('vw'),  # vwap
-                    price.get('n'),  # transactions
                     instrument_id
                 ))
             except Exception as e:
@@ -185,11 +212,14 @@ class Polygon30YearBackfiller:
             return 0
         
         # Insert with idempotent UPSERT
+        env = os.getenv('ENV_TYPE', 'intg').lower()
+        table_name = 'intg_daily_prices_polygon' if env == 'intg' else 'dev_daily_prices_polygon'
+        
         try:
-            result = await conn.executemany("""
-                INSERT INTO dev_daily_prices_polygon_30year
-                (date, symbol, open, high, low, close, volume, vwap, transactions, instrument_id)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            result = await conn.executemany(f"""
+                INSERT INTO {table_name}
+                (date, symbol, open, high, low, close, volume, market_cap, instrument_id, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, $8, NOW(), NOW())
                 ON CONFLICT (date, instrument_id) DO UPDATE SET
                     symbol = EXCLUDED.symbol,
                     open = EXCLUDED.open,
@@ -197,8 +227,7 @@ class Polygon30YearBackfiller:
                     low = EXCLUDED.low,
                     close = EXCLUDED.close,
                     volume = EXCLUDED.volume,
-                    vwap = EXCLUDED.vwap,
-                    transactions = EXCLUDED.transactions
+                    updated_at = NOW()
             """, rows)
             
             logger.info(f"💾 Inserted {len(rows)} price records for {symbol}")
@@ -212,8 +241,11 @@ class Polygon30YearBackfiller:
 
     async def check_existing_data(self, conn, instrument_id, start_date, end_date):
         """Check if instrument already has data in the date range."""
-        count = await conn.fetchval("""
-            SELECT COUNT(*) FROM dev_daily_prices_polygon_30year
+        env = os.getenv('ENV_TYPE', 'intg').lower()
+        table_name = 'intg_daily_prices_polygon' if env == 'intg' else 'dev_daily_prices_polygon'
+        
+        count = await conn.fetchval(f"""
+            SELECT COUNT(*) FROM {table_name}
             WHERE instrument_id = $1 AND date BETWEEN $2 AND $3
         """, instrument_id, start_date, end_date)
         
@@ -275,6 +307,13 @@ class Polygon30YearBackfiller:
             if not instruments:
                 logger.warning("❌ No instruments found for backfill")
                 return
+            
+            # Filter for specific symbols if TARGET_SYMBOLS is provided
+            target_symbols = os.getenv('TARGET_SYMBOLS')
+            if target_symbols:
+                target_list = [s.strip().upper() for s in target_symbols.split(',')]
+                instruments = [inst for inst in instruments if inst['symbol'].upper() in target_list]
+                logger.info(f"🎯 Filtering to target symbols: {target_list}")
             
             logger.info(f"📊 Processing {len(instruments)} instruments")
             

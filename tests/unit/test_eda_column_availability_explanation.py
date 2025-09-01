@@ -92,7 +92,7 @@ def test_eda_dataset_organization_explanation():
     # Simulate the dataset organization with updated display names
     datasets = [
         {
-            'name': 'dev_daily_prices_polygon_30year',
+            'name': 'dev_daily_prices_polygon',
             'display_name': '📊 Polygon Daily Prices 30 Year (Best for Analysis)',
             'data_type': 'prices',
             'numeric_columns': 5
@@ -140,7 +140,7 @@ def test_why_only_one_column_shows_explanation():
        - Only has 1 numeric column: 'id' (primary key)
     
     2. FINANCIAL METRICS (prices, volumes, market data) are stored in separate PRICE tables:
-       - dev_daily_prices_polygon_30year (666K+ records, 5 numeric columns)  
+       - dev_daily_prices_polygon (666K+ records, 5 numeric columns)  
        - dev_daily_prices_tiingo (6.5M+ records, 5 numeric columns)
        - dev_daily_prices_eodhd (727K+ records, 5 numeric columns)
     

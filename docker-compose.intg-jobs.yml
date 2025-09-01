@@ -77,8 +77,8 @@ services:
       - PYTHONPATH=/workspace/src
       - ENVIRONMENT=intg
       - PORT=4000
-      - DB_HOST=172.17.0.1  # Connect to ats-intg-postgres with data
-      - DB_PORT=5433        # Port where ats-intg-postgres runs
+      - DB_HOST=ats-intg-postgres  # Connect to ats-intg-postgres container by name
+      - DB_PORT=5432               # Internal PostgreSQL port in container
       - DB_USER=postgres
       - DB_PASSWORD=intg_password
       - DB_NAME=intg_db
@@ -98,6 +98,7 @@ services:
     volumes:
       - ./:/workspace
       - /mnt/d/ats-logs/intg:/logs
+      - /mnt/d/ats-data:/data
     
     working_dir: /workspace
     

@@ -304,7 +304,7 @@ def main():
     
     # Test intelligent filter generation
     async def test_filters():
-        for table_name in ["dev_instruments", "dev_daily_prices_polygon_30year", "instrument_xrefs"]:
+        for table_name in ["dev_instruments", "dev_daily_prices_polygon", "instrument_xrefs"]:
             try:
                 filters = await service.get_intelligent_filters(table_name)
                 print(f"✅ {table_name}: Generated {filters['total_filterable_fields']} intelligent filters")
