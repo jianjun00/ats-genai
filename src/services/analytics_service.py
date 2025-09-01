@@ -436,26 +436,26 @@ class JobManager:
                         
                         # For symbol columns, ensure we include popular symbols like TSLA
                         if column.lower() == 'symbol':
-                            # Prioritize popular symbols and use higher limit
+                            # Prioritize popular symbols using priority field
                             popular_symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NFLX', 'NVDA', 'UBER', 'SPOT']
                             
-                            # Get popular symbols first
+                            # Get symbols with priority indicator
                             popular_placeholders = ', '.join(['%s'] * len(popular_symbols))
                             cursor.execute(f"""
-                                (SELECT {column} as value, COUNT(*) as count
-                                 FROM {table_name}
-                                 WHERE {column} IN ({popular_placeholders}) AND {column} IS NOT NULL
-                                 GROUP BY {column}
-                                 ORDER BY count DESC)
-                                UNION ALL
-                                (SELECT {column} as value, COUNT(*) as count
-                                 FROM {table_name}
-                                 WHERE {column} NOT IN ({popular_placeholders}) AND {column} IS NOT NULL
-                                 GROUP BY {column}
-                                 ORDER BY count DESC
-                                 LIMIT %s)
-                                ORDER BY count DESC
-                            """, popular_symbols + popular_symbols + [limit])
+                                WITH prioritized_symbols AS (
+                                    SELECT 
+                                        {column} as value, 
+                                        COUNT(*) as count,
+                                        CASE WHEN {column} IN ({popular_placeholders}) THEN 1 ELSE 0 END as priority
+                                    FROM {table_name}
+                                    WHERE {column} IS NOT NULL
+                                    GROUP BY {column}
+                                )
+                                SELECT value, count
+                                FROM prioritized_symbols
+                                ORDER BY priority DESC, count DESC
+                                LIMIT %s
+                            """, popular_symbols + [limit])
                         else:
                             cursor.execute(f"""
                                 SELECT {column} as value, COUNT(*) as count
