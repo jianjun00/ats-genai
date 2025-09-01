@@ -1,0 +1,202 @@
+version: '3.8'
+
+services:
+  # ATS-INTG Daily 1-Minute Bar Backfill Scheduler
+  ats-intg-minute-bars-scheduler:
+    image: dragonflyer762/ats-genai:latest
+    container_name: ats-intg-minute-bars-scheduler
+    restart: unless-stopped
+    networks:
+      - ats-intg-network
+    volumes:
+      - /mnt/d/ats-data:/data
+      - /mnt/d/ats-logs:/logs  
+      - /mnt/d/ats-backup:/backup
+    environment:
+      - PYTHONPATH=/workspace/src
+      - DB_HOST=ats-intg-postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=intg_password
+      - DB_NAME=intg_db
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+      - PROMETHEUS_PUSHGATEWAY_URL=http://ats-intg-prometheus-metrics:8080
+      - FIRSTRATE_API_KEY=${FIRSTRATE_API_KEY:-}
+      - ENVIRONMENT=intg
+      - TZ=America/New_York
+    working_dir: /workspace
+    command: >
+      bash -c "
+      echo 'Starting ATS-INTG Daily 1-Minute Bar Backfill Scheduler...' &&
+      
+      # Setup directory structure first
+      python3 scripts/setup_daily_minute_bars_structure.py --base-path /data/firstrate-data/daily &&
+      
+      # Install cron if not present
+      apt-get update -qq && apt-get install -y -qq cron &&
+      
+      # Create cron job for daily minute bars backfill
+      echo '# ATS-INTG Daily 1-Minute Bar Backfill Jobs' > /etc/cron.d/ats-minute-bars &&
+      echo 'SHELL=/bin/bash' >> /etc/cron.d/ats-minute-bars &&
+      echo 'PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin' >> /etc/cron.d/ats-minute-bars &&
+      echo 'PYTHONPATH=/workspace/src' >> /etc/cron.d/ats-minute-bars &&
+      echo '' >> /etc/cron.d/ats-minute-bars &&
+      echo '# Daily 1-minute bar backfill - 4:00 AM EST daily (after daily price collection)' >> /etc/cron.d/ats-minute-bars &&
+      echo '0 4 * * * root cd /workspace && python3 scripts/daily_minute_bars_backfill.py --production >> /logs/minute-bars-backfill.log 2>&1' >> /etc/cron.d/ats-minute-bars &&
+      echo '' >> /etc/cron.d/ats-minute-bars &&
+      echo '# Critical ETFs priority run - 4:30 AM EST daily' >> /etc/cron.d/ats-minute-bars &&
+      echo '30 4 * * * root cd /workspace && python3 scripts/daily_minute_bars_backfill.py --instrument-types critical_etf --days 3 >> /logs/minute-bars-critical-etf.log 2>&1' >> /etc/cron.d/ats-minute-bars &&
+      echo '' >> /etc/cron.d/ats-minute-bars &&
+      echo '# Weekend catch-up run - Saturday 6:00 AM EST (10 days lookback)' >> /etc/cron.d/ats-minute-bars &&
+      echo '0 6 * * 6 root cd /workspace && python3 scripts/daily_minute_bars_backfill.py --production --days 10 >> /logs/minute-bars-weekend.log 2>&1' >> /etc/cron.d/ats-minute-bars &&
+      echo '' >> /etc/cron.d/ats-minute-bars &&
+      echo '# Health check - Every 6 hours with small symbol set' >> /etc/cron.d/ats-minute-bars &&
+      echo '0 */6 * * * root cd /workspace && python3 scripts/daily_minute_bars_backfill.py --test --symbols AAPL,SPY --days 1 >> /logs/minute-bars-health.log 2>&1' >> /etc/cron.d/ats-minute-bars &&
+      echo '' >> /etc/cron.d/ats-minute-bars &&
+      
+      # Set proper permissions
+      chmod 0644 /etc/cron.d/ats-minute-bars &&
+      
+      # Create log files
+      touch /logs/minute-bars-backfill.log /logs/minute-bars-critical-etf.log /logs/minute-bars-weekend.log /logs/minute-bars-health.log &&
+      chmod 666 /logs/minute-bars-*.log &&
+      
+      # Start cron daemon
+      echo 'Starting cron daemon...' &&
+      cron &&
+      
+      # Show scheduled jobs
+      echo 'Scheduled cron jobs:' &&
+      cat /etc/cron.d/ats-minute-bars &&
+      
+      # Keep container running with monitoring loop
+      echo 'ATS-INTG Daily 1-Minute Bar Scheduler is running...' &&
+      echo 'Monitoring cron jobs and system health...' &&
+      
+      while true; do
+        # Check if cron is still running
+        if ! pgrep cron > /dev/null; then
+          echo '⚠️  Cron daemon stopped, restarting...' &&
+          cron
+        fi
+        
+        # Log current status every hour
+        if [ $$(( $$(date +%s) % 3600 )) -lt 60 ]; then
+          echo \"$$(date): ATS-INTG Minute Bars Scheduler - Healthy\" >> /logs/scheduler-status.log
+        fi
+        
+        sleep 60
+      done
+      "
+    external_links:
+      - ats-intg-postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep cron && curl -f http://ats-intg-prometheus-metrics:8080/health || exit 1"]
+      interval: 5m
+      timeout: 30s
+      retries: 3
+      start_period: 2m
+
+  # Enhanced Prometheus Metrics Server for Minute Bars
+  ats-intg-prometheus-metrics:
+    image: dragonflyer762/ats-genai:latest
+    container_name: ats-intg-prometheus-metrics
+    restart: unless-stopped
+    networks:
+      - ats-intg-network
+    ports:
+      - "4080:8080"
+    volumes:
+      - /mnt/d/ats-logs:/logs
+    environment:
+      - PYTHONPATH=/workspace/src
+      - DB_HOST=ats-intg-postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=intg_password
+      - DB_NAME=intg_db
+      - ENVIRONMENT=intg
+    working_dir: /workspace
+    command: >
+      bash -c "
+      echo 'Starting ATS-INTG Prometheus Metrics Server...' &&
+      python3 scripts/prometheus_metrics_server.py --port 8080 --refresh-interval 300 >> /logs/prometheus-metrics.log 2>&1
+      "
+    external_links:
+      - ats-intg-postgres
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 2m
+      timeout: 30s
+      retries: 3
+      start_period: 1m
+
+  # Slack Notification Service for Daily Summary
+  ats-intg-slack-notifier:
+    image: dragonflyer762/ats-genai:latest
+    container_name: ats-intg-slack-notifier
+    restart: unless-stopped
+    networks:
+      - ats-intg-network
+    volumes:
+      - /mnt/d/ats-logs:/logs
+    environment:
+      - PYTHONPATH=/workspace/src
+      - DB_HOST=ats-intg-postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=intg_password
+      - DB_NAME=intg_db
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+      - PROMETHEUS_PUSHGATEWAY_URL=http://ats-intg-prometheus-metrics:8080
+      - ENVIRONMENT=intg
+      - TZ=America/New_York
+    working_dir: /workspace
+    command: >
+      bash -c "
+      echo 'Starting ATS-INTG Slack Notification Service...' &&
+      
+      # Install cron if not present
+      apt-get update -qq && apt-get install -y -qq cron &&
+      
+      # Create Slack notification cron jobs
+      echo '# ATS-INTG Slack Notifications for Minute Bars' > /etc/cron.d/ats-slack-notifications &&
+      echo 'SHELL=/bin/bash' >> /etc/cron.d/ats-slack-notifications &&
+      echo 'PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin' >> /etc/cron.d/ats-slack-notifications &&
+      echo 'PYTHONPATH=/workspace/src' >> /etc/cron.d/ats-slack-notifications &&
+      echo '' >> /etc/cron.d/ats-slack-notifications &&
+      echo '# Daily minute bars summary - 8:00 AM EST' >> /etc/cron.d/ats-slack-notifications &&
+      echo '0 8 * * * root cd /workspace && python3 scripts/slack_minute_bars_summary.py --daily >> /logs/slack-notifications.log 2>&1' >> /etc/cron.d/ats-slack-notifications &&
+      echo '' >> /etc/cron.d/ats-slack-notifications &&
+      echo '# Weekly comprehensive summary - Monday 9:00 AM EST' >> /etc/cron.d/ats-slack-notifications &&
+      echo '0 9 * * 1 root cd /workspace && python3 scripts/slack_minute_bars_summary.py --weekly >> /logs/slack-notifications.log 2>&1' >> /etc/cron.d/ats-slack-notifications &&
+      echo '' >> /etc/cron.d/ats-slack-notifications &&
+      
+      # Set permissions and start cron
+      chmod 0644 /etc/cron.d/ats-slack-notifications &&
+      touch /logs/slack-notifications.log &&
+      chmod 666 /logs/slack-notifications.log &&
+      cron &&
+      
+      # Keep container running
+      echo 'ATS-INTG Slack Notifier is running...' &&
+      
+      while true; do
+        if ! pgrep cron > /dev/null; then
+          echo '⚠️  Cron daemon stopped, restarting...' &&
+          cron
+        fi
+        sleep 300
+      done
+      "
+    external_links:
+      - ats-intg-postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep cron || exit 1"]
+      interval: 5m
+      timeout: 30s
+      retries: 3
+
+networks:
+  ats-intg-network:
+    external: true

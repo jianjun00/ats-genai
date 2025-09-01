@@ -257,12 +257,32 @@ class PrometheusMetricsServer:
                     "# TYPE ats_price_coverage_percentage gauge"
                 ]
                 
+                # Add minute bars metrics
+                minute_bars_help = [
+                    "",
+                    "# HELP ats_daily_minute_backfill_instruments_processed Number of instruments processed in daily minute bar backfill",
+                    "# TYPE ats_daily_minute_backfill_instruments_processed gauge",
+                    "",
+                    "# HELP ats_daily_minute_backfill_total_minute_bars Total number of minute bars processed",
+                    "# TYPE ats_daily_minute_backfill_total_minute_bars gauge",
+                    "",
+                    "# HELP ats_daily_minute_backfill_symbols_by_type Number of symbols by instrument type",
+                    "# TYPE ats_daily_minute_backfill_symbols_by_type gauge",
+                    "",
+                    "# HELP ats_daily_minute_backfill_bars_by_type Number of minute bars by instrument type",
+                    "# TYPE ats_daily_minute_backfill_bars_by_type gauge",
+                    "",
+                    "# HELP ats_daily_minute_backfill_symbols_by_letter Number of symbols by first letter",
+                    "# TYPE ats_daily_minute_backfill_symbols_by_letter gauge"
+                ]
+                
                 # Insert help text after total instruments
                 final_metrics = metrics_lines[:3]  # Total instruments
                 final_metrics.extend(coverage_help)
                 final_metrics.extend(missing_help)  
                 final_metrics.extend(freshness_help)
                 final_metrics.extend(coverage_pct_help)
+                final_metrics.extend(minute_bars_help)
                 final_metrics.append("")
                 final_metrics.extend(metrics_lines[3:])  # All vendor metrics
                 

@@ -61,9 +61,9 @@ RUN apt-get update && \
 # Copy application code after installing dependencies  
 COPY . /app/
 
-# Copy K8s extracted scripts to /scripts directory in the image
-COPY k8s/scripts/ /scripts/
-RUN chmod +x /scripts/*
+# Copy K8s extracted scripts to /scripts directory in the image (if any exist)
+# COPY k8s/scripts/ /scripts/
+# RUN chmod +x /scripts/*
 
 # Clear any Python cache files to ensure fresh code is used
 RUN find /app -name "__pycache__" -type d -exec rm -rf {} +; exit 0 && \
