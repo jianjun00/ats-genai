@@ -238,6 +238,13 @@ class DevCLI:
             -e IDEMPOTENT_MODE={os.getenv('IDEMPOTENT_MODE', 'false')} \
             -e FORCE_REBUILD={os.getenv('FORCE_REBUILD', 'false')} \
             -e EXCHANGE_FILTER={os.getenv('EXCHANGE_FILTER', 'all')} \
+            -e POLYGON_API_KEY={os.getenv('POLYGON_API_KEY', 'wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD')} \
+            -e TIINGO_API_KEY={os.getenv('TIINGO_API_KEY', '5f40b4f36e171405746304ec0e5a6f3aa9ca77e5')} \
+            -e EODHD_API_KEY={os.getenv('EODHD_API_KEY', '675b5a33b36f43.67825763')} \
+            -e FMP_API_KEY={os.getenv('FMP_API_KEY', 'Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr')} \
+            -e ALPHA_VANTAGE_API_KEY={os.getenv('ALPHA_VANTAGE_API_KEY', '9GI0NZ3V4VNFX271')} \
+            -e FIRSTRATE_USER_ID={os.getenv('FIRSTRATE_USER_ID', 'ats-genai-user')} \
+            -e OPENAI_API_KEY={os.getenv('OPENAI_API_KEY', '')} \
             {env_vars} \
             {image} \
             {command_to_run}"""
@@ -297,7 +304,14 @@ class DevCLI:
                     "DB_USER": self.db_user,
                     "DB_PASSWORD": self.db_password,
                     "DB_NAME": self.db_name,
-                    "ENVIRONMENT": "dev"
+                    "ENVIRONMENT": "dev",
+                    "POLYGON_API_KEY": os.getenv('POLYGON_API_KEY', 'wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD'),
+                    "TIINGO_API_KEY": os.getenv('TIINGO_API_KEY', '5f40b4f36e171405746304ec0e5a6f3aa9ca77e5'),
+                    "EODHD_API_KEY": os.getenv('EODHD_API_KEY', '675b5a33b36f43.67825763'),
+                    "FMP_API_KEY": os.getenv('FMP_API_KEY', 'Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr'),
+                    "ALPHA_VANTAGE_API_KEY": os.getenv('ALPHA_VANTAGE_API_KEY', '9GI0NZ3V4VNFX271'),
+                    "FIRSTRATE_USER_ID": os.getenv('FIRSTRATE_USER_ID', 'ats-genai-user'),
+                    "OPENAI_API_KEY": os.getenv('OPENAI_API_KEY', '')
                 }
             },
             "api": {

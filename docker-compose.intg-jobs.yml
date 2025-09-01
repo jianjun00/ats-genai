@@ -20,11 +20,15 @@ services:
       - DB_PASSWORD=intg_password
       - DB_NAME=intg_db
       
-      # API Keys for all vendors
-      - POLYGON_API_KEY=wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD
-      - FMP_API_KEY=Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr
-      - TIINGO_API_KEY=5f40b4f36e171405746304ec0e5a6f3aa9ca77e5
-      - ALPHA_VANTAGE_API_KEY=9GI0NZ3V4VNFX271
+      # Market Data API Keys for all vendors
+      - POLYGON_API_KEY=${POLYGON_API_KEY:-wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD}
+      - TIINGO_API_KEY=${TIINGO_API_KEY:-5f40b4f36e171405746304ec0e5a6f3aa9ca77e5}
+      - EODHD_API_KEY=${EODHD_API_KEY:-675b5a33b36f43.67825763}
+      - FMP_API_KEY=${FMP_API_KEY:-Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr}
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-9GI0NZ3V4VNFX271}
+      - FIRSTRATE_USER_ID=${FIRSTRATE_USER_ID:-ats-genai-user}
+      # AI/LLM API Keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
       
       # Migration and Job configuration
       - AUTO_MIGRATION_ENABLED=true
@@ -78,6 +82,15 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=intg_password
       - DB_NAME=intg_db
+      # Market Data API Keys
+      - POLYGON_API_KEY=${POLYGON_API_KEY:-wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD}
+      - TIINGO_API_KEY=${TIINGO_API_KEY:-5f40b4f36e171405746304ec0e5a6f3aa9ca77e5}
+      - EODHD_API_KEY=${EODHD_API_KEY:-675b5a33b36f43.67825763}
+      - FMP_API_KEY=${FMP_API_KEY:-Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr}
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-9GI0NZ3V4VNFX271}
+      - FIRSTRATE_USER_ID=${FIRSTRATE_USER_ID:-ats-genai-user}
+      # AI/LLM API Keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     
     ports:
       - "4000:4000"  # ATS-INTG Analytics Service

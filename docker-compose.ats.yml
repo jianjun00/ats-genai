@@ -60,6 +60,15 @@ services:
       - ATS_BACKUP_PATH=/backup
       - ATS_LOGS_PATH=/logs
       - PYTHONPATH=/workspace/src
+      # Market Data API Keys
+      - POLYGON_API_KEY=${POLYGON_API_KEY:-wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD}
+      - TIINGO_API_KEY=${TIINGO_API_KEY:-5f40b4f36e171405746304ec0e5a6f3aa9ca77e5}
+      - EODHD_API_KEY=${EODHD_API_KEY:-675b5a33b36f43.67825763}
+      - FMP_API_KEY=${FMP_API_KEY:-Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr}
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-9GI0NZ3V4VNFX271}
+      - FIRSTRATE_USER_ID=${FIRSTRATE_USER_ID:-ats-genai-user}
+      # AI/LLM API Keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     ports:
       - "3000:3000"
     volumes:
@@ -91,6 +100,15 @@ services:
       - ATS_BACKUP_PATH=/backup
       - ATS_LOGS_PATH=/logs
       - PYTHONPATH=/workspace/src
+      # Market Data API Keys
+      - POLYGON_API_KEY=${POLYGON_API_KEY:-wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD}
+      - TIINGO_API_KEY=${TIINGO_API_KEY:-5f40b4f36e171405746304ec0e5a6f3aa9ca77e5}
+      - EODHD_API_KEY=${EODHD_API_KEY:-675b5a33b36f43.67825763}
+      - FMP_API_KEY=${FMP_API_KEY:-Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr}
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-9GI0NZ3V4VNFX271}
+      - FIRSTRATE_USER_ID=${FIRSTRATE_USER_ID:-ats-genai-user}
+      # AI/LLM API Keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     ports:
       - "4000:3000"
     volumes:
@@ -177,9 +195,15 @@ services:
       - DB_NAME=dev_db
       - ATS_DATA_PATH=/data
       - ATS_LOGS_PATH=/logs
-      - POLYGON_API_KEY=${POLYGON_API_KEY}
-      - TIINGO_API_KEY=${TIINGO_API_KEY}
-      - EODHD_API_KEY=${EODHD_API_KEY}
+      # Market Data API Keys
+      - POLYGON_API_KEY=${POLYGON_API_KEY:-wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD}
+      - TIINGO_API_KEY=${TIINGO_API_KEY:-5f40b4f36e171405746304ec0e5a6f3aa9ca77e5}
+      - EODHD_API_KEY=${EODHD_API_KEY:-675b5a33b36f43.67825763}
+      - FMP_API_KEY=${FMP_API_KEY:-Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr}
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-9GI0NZ3V4VNFX271}
+      - FIRSTRATE_USER_ID=${FIRSTRATE_USER_ID:-ats-genai-user}
+      # AI/LLM API Keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
       - .:/workspace
       - /mnt/d/ats-data:/data
@@ -206,9 +230,15 @@ services:
       - DB_NAME=intg_db
       - ATS_DATA_PATH=/data
       - ATS_LOGS_PATH=/logs
-      - POLYGON_API_KEY=${POLYGON_API_KEY}
-      - TIINGO_API_KEY=${TIINGO_API_KEY}
-      - EODHD_API_KEY=${EODHD_API_KEY}
+      # Market Data API Keys
+      - POLYGON_API_KEY=${POLYGON_API_KEY:-wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD}
+      - TIINGO_API_KEY=${TIINGO_API_KEY:-5f40b4f36e171405746304ec0e5a6f3aa9ca77e5}
+      - EODHD_API_KEY=${EODHD_API_KEY:-675b5a33b36f43.67825763}
+      - FMP_API_KEY=${FMP_API_KEY:-Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr}
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-9GI0NZ3V4VNFX271}
+      - FIRSTRATE_USER_ID=${FIRSTRATE_USER_ID:-ats-genai-user}
+      # AI/LLM API Keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
       - .:/workspace
       - /mnt/d/ats-data:/data

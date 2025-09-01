@@ -59,8 +59,8 @@ class Polygon30YearBackfiller:
     async def get_database_connection(self):
         """Get database connection (Docker-compatible)."""
         return await asyncpg.connect(
-            host='postgres',  # Docker service name
-            port=5432,        # Internal Docker port
+            host='ats-dev-postgres',  # PostgreSQL container name
+            port=5432,                # Internal Docker port
             user='postgres',
             password='dev_password',
             database='dev_db'
