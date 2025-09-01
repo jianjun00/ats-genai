@@ -1,0 +1,30 @@
+{
+  "summary": {
+    "total_files": 328,
+    "total_tests": 2535,
+    "total_lines": 123887,
+    "avg_tests_per_file": 7.73,
+    "avg_lines_per_file": 377.7
+  },
+  "optimization_opportunities": {
+    "large_files": 104,
+    "test_heavy_files": 32,
+    "slow_test_files": 2,
+    "files_with_db_usage": 53,
+    "files_with_api_usage": 72,
+    "files_with_large_data_gen": 25
+  },
+  "common_patterns": {
+    "assert equality pattern": 5836,
+    "async test function pattern": 1255,
+    "pytest.fixture pattern": 5,
+    "pytest.raises pattern": 47
+  },
+  "recommendations": [
+    "\ud83d\udcdd 104 files have >500 lines. Consider splitting into smaller modules.",
+    "\ud83e\uddea 32 files have >20 tests. Consider using parameterized tests.",
+    "\u23f1\ufe0f  2 files have slow tests. Consider mocking or test data factories.",
+    "\ud83d\uddc4\ufe0f  Many tests use database. Consider mock database helpers or test database.",
+    "\ud83d\udcca Large data generation detected. Consider using test data factories."
+  ]
+}

@@ -1,0 +1,44 @@
+[Unit]
+Description=FirstRate Daily Data Download
+Documentation=https://firstratedata.com/about/api-docs
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=jianjun
+Group=jianjun
+WorkingDirectory=/home/jianjun/ats-genai-pm
+
+# Environment variables
+Environment="PYTHONPATH=/home/jianjun/ats-genai-pm/src"
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin"
+
+# Command to run
+ExecStart=/usr/bin/bash -c "cd /home/jianjun/ats-genai-pm && PYTHONPATH=src uv run python scripts/firstrate_daily_download.py --all"
+
+# Logging
+StandardOutput=append:/mnt/d/ats-logs/firstrate-daily.log
+StandardError=append:/mnt/d/ats-logs/firstrate-daily-error.log
+
+# Restart policy
+Restart=on-failure
+RestartSec=300
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/mnt/d/ats-data /mnt/d/ats-logs
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+
+# Resource limits
+MemoryMax=2G
+CPUQuota=50%
+TimeoutStartSec=1800
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

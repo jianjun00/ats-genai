@@ -1,0 +1,40 @@
+{
+  "start_date": "2024-01-01",
+  "end_date": "2024-01-31",
+  "total_symbols": 10,
+  "processed_symbols": 10,
+  "current_symbol": "ABAT",
+  "current_date": "2024-01-01",
+  "symbols_completed": [
+    "AA",
+    "AAAU",
+    "AACBU",
+    "AACG",
+    "AAPG",
+    "AAPL",
+    "AAPR",
+    "AAT",
+    "AAVM",
+    "ABAT"
+  ],
+  "symbols_failed": [],
+  "total_bars_stored": 42801,
+  "total_files_created": 8,
+  "total_api_calls": 10,
+  "last_update_timestamp": "2025-08-27T06:08:17.790051",
+  "rate_limit_delays": 0,
+  "quality_scores": {
+    "AA": 0.5,
+    "AAAU": 0.5,
+    "AACBU": 0.0,
+    "AACG": 0.5,
+    "AAPG": 0.0,
+    "AAPL": 0.5,
+    "AAPR": 0.0,
+    "AAT": 0.5,
+    "AAVM": 0.0,
+    "ABAT": 0.5
+  },
+  "errors": [],
+  "processing_stats": {}
+}

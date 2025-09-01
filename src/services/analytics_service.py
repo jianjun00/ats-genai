@@ -20,7 +20,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Add the src directory to the path for imports
-sys.path.insert(0, '/workspace/src')
 from core.database.connection_manager import get_connection_manager
 from core.config.settings import get_settings
 

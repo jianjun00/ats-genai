@@ -1,0 +1,40 @@
+# Test Environment Configuration
+# Extends base.gin with test-specific overrides
+
+include 'config/base.gin'
+
+# === Environment ===
+bind = ['env_type', 'test']
+
+# === Logging ===
+LoggingConfig.log_level = 'ERROR'  # Minimal logging for tests
+LoggingConfig.enable_file_logging = False
+
+# === Database (In-memory/Mock) ===
+bind = ['database.host', 'localhost']
+bind = ['database.port', 5432]
+bind = ['database.user', 'test_user']
+bind = ['database.password', 'test_password']
+bind = ['database.database', 'test_db']
+bind = ['database.pool_max_size', 2]  # Minimal for tests
+bind = ['database.connection_timeout', 5]
+
+# === Feature Flags ===
+bind = ['enable_caching', False]  # No caching in tests
+bind = ['enable_metrics', False]
+bind = ['strict_validation', False]  # Relaxed for testing
+bind = ['use_test_data', True]
+
+# === API Configuration ===
+bind = ['api.timeout', 5]  # Fast timeouts
+bind = ['api.retry_attempts', 1]
+bind = ['api.rate_limit_enabled', False]
+
+# === Test Data ===
+bind = ['test_data_size', 100]
+bind = ['mock_external_apis', True]
+
+# === Performance (Fast) ===
+bind = ['training.batch_size', 8]
+bind = ['training.max_epochs', 5]
+bind = ['market_data.chunk_size', 10]

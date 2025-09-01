@@ -6,13 +6,10 @@ Simplified FastAPI app focused on type system functionality.
 
 import asyncio
 import logging
-import sys
 import os
 from typing import Dict, List, Optional, Any
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-
 try:
     from fastapi import FastAPI, HTTPException, Depends
     from fastapi.middleware.cors import CORSMiddleware

@@ -1,0 +1,20 @@
+[Unit]
+Description=Run FirstRate Daily Download at 2:30 AM
+Documentation=https://firstratedata.com/about/api-docs
+Requires=firstrate-daily.service
+
+[Timer]
+# Run at 2:30 AM every day (after FirstRate updates at 2:00 AM)
+OnCalendar=*-*-* 02:30:00
+
+# Run immediately if system was down during scheduled time
+Persistent=yes
+
+# Add random delay up to 5 minutes to avoid load spikes
+RandomizedDelaySec=300
+
+# Accuracy - how close to the scheduled time (1 minute is fine)
+AccuracySec=1m
+
+[Install]
+WantedBy=timers.target

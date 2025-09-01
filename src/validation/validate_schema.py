@@ -22,11 +22,9 @@ from pathlib import Path
 from typing import List, Dict, Set, Tuple
 import subprocess
 
-# Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
+# Use proper relative imports
 try:
-    from config.environment import Environment
+    from ..config.environment import Environment
 except ImportError:
     # Fallback environment configuration
     class Environment:

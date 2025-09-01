@@ -1,0 +1,47 @@
+# Base Configuration for ATS Platform
+# This file contains common settings shared across all environments
+# Environment-specific files override these defaults
+
+# === Core Application Settings ===
+bind = ['app_name', 'ats-platform']
+bind = ['app_version', '1.0.0']
+
+# === Logging Configuration ===
+LoggingConfig.log_format = '%(asctime)s - %(name)s - %(levelname)s - [%(run_id)s] - %(message)s'
+LoggingConfig.json_logs = False
+LoggingConfig.enable_file_logging = True
+
+# === Feature Flags (Default) ===
+bind = ['enable_caching', False]
+bind = ['enable_metrics', False] 
+bind = ['strict_validation', True]
+bind = ['enable_ray', False]
+bind = ['enable_gpu', False]
+
+# === Database Connection Defaults ===
+bind = ['database.pool_min_size', 1]
+bind = ['database.pool_max_size', 10]
+bind = ['database.command_timeout', 30]
+bind = ['database.connection_timeout', 10]
+bind = ['database.retry_attempts', 3]
+
+# === API Configuration Defaults ===
+bind = ['api.timeout', 30]
+bind = ['api.retry_attempts', 3]
+bind = ['api.rate_limit_enabled', True]
+
+# === Training Configuration ===
+bind = ['training.batch_size', 32]
+bind = ['training.max_epochs', 100]
+bind = ['training.patience', 10]
+bind = ['training.learning_rate', 0.001]
+
+# === Market Data Settings ===
+bind = ['market_data.chunk_size', 1000]
+bind = ['market_data.parallel_workers', 4]
+bind = ['market_data.cache_ttl', 3600]
+
+# === File Storage ===
+bind = ['storage.base_path', '/tmp/ats-data']
+bind = ['storage.backup_path', '/tmp/ats-backup']
+bind = ['storage.log_path', '/tmp/ats-logs']

@@ -1,0 +1,51 @@
+# Production Environment Configuration
+# Extends base.gin with production-specific overrides
+
+include 'config/base.gin'
+
+# === Environment ===
+bind = ['env_type', 'prod']
+
+# === Logging ===
+LoggingConfig.log_level = 'WARNING'
+LoggingConfig.json_logs = True
+LoggingConfig.enable_file_logging = True
+
+# === Database ===
+bind = ['database.host', 'prod-db-host']
+bind = ['database.port', 5432]
+bind = ['database.user', 'prod_user']
+bind = ['database.password', 'SET_VIA_ENVIRONMENT']
+bind = ['database.database', 'prod_trading_db']
+bind = ['database.pool_min_size', 2]
+bind = ['database.pool_max_size', 20]
+bind = ['database.command_timeout', 60]
+bind = ['database.connection_timeout', 30]
+
+# === Feature Flags ===
+bind = ['enable_caching', True]
+bind = ['enable_metrics', True]
+bind = ['strict_validation', True]
+bind = ['enable_monitoring', True]
+
+# === API Keys (Set via environment) ===
+finnhub_api_key = 'SET_VIA_ENVIRONMENT'
+iex_api_key = 'SET_VIA_ENVIRONMENT'
+quandl_api_key = 'SET_VIA_ENVIRONMENT'
+fmp_api_key = 'SET_VIA_ENVIRONMENT'
+polygon_api_key = 'SET_VIA_ENVIRONMENT'
+tiingo_api_key = 'SET_VIA_ENVIRONMENT'
+
+# === Production Settings ===
+bind = ['saved_dir', '/var/universe_states']
+bind = ['storage.base_path', '/opt/ats-data']
+bind = ['storage.backup_path', '/opt/ats-backup']
+bind = ['storage.log_path', '/var/log/ats']
+
+# === Performance ===
+bind = ['market_data.parallel_workers', 8]
+bind = ['training.batch_size', 64]
+
+# === Security ===
+bind = ['enable_ssl', True]
+bind = ['enable_auth', True]

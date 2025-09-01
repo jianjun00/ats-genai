@@ -665,13 +665,10 @@ class SupportResistanceEnsemble:
 
 async def main():
     """Example usage of the support/resistance model"""
-    import sys
     from pathlib import Path
     
-    # Add src to path for imports
-    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-    
-    from ml.training_data.support_resistance_generator import SupportResistanceTrainingGenerator
+    # Use relative import
+    from ..training_data.support_resistance_generator import SupportResistanceTrainingGenerator
     
     logging.basicConfig(level=logging.INFO)
     

@@ -9,17 +9,12 @@ NO FALLBACKS - If centralized connection manager fails, the script should fail.
 This prevents hiding real issues and ensures consistent connection management.
 """
 
-import sys
 import os
 from typing import Dict, List, Any, Optional
 
-# Add src to path for imports
-if '/workspace/src' not in sys.path:
-    sys.path.insert(0, '/workspace/src')
-
-# Import centralized connection manager - NO FALLBACKS
-from core.database.connection_manager import get_connection_manager
-from core.config.settings import get_settings
+# Use proper relative imports instead of sys.path manipulation
+from ..core.database.connection_manager import get_connection_manager
+from ..core.config.settings import get_settings
 
 
 def get_db_connection():

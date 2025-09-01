@@ -1,0 +1,39 @@
+# Development Environment Configuration
+# Extends base.gin with dev-specific overrides
+
+include 'config/base.gin'
+
+# === Environment ===
+bind = ['env_type', 'dev']
+
+# === Logging ===
+LoggingConfig.log_level = 'DEBUG'
+LoggingConfig.enable_file_logging = False  # Use console for dev
+
+# === Database ===
+bind = ['database.host', 'localhost']
+bind = ['database.port', 3432]
+bind = ['database.user', 'postgres']
+bind = ['database.password', 'dev_password']
+bind = ['database.database', 'dev_db']
+bind = ['database.pool_max_size', 5]  # Lower for dev
+
+# === Feature Flags ===
+bind = ['strict_validation', True]
+bind = ['enable_metrics', False]  # Disable for faster dev
+bind = ['enable_caching', False]  # Fresh data for dev
+
+# === API Keys (Placeholders - set via environment) ===
+polygon_api_key = 'SET_VIA_ENVIRONMENT'
+tiingo_api_key = 'SET_VIA_ENVIRONMENT'
+fmp_api_key = 'SET_VIA_ENVIRONMENT'
+eodhd_api_key = 'SET_VIA_ENVIRONMENT'
+
+# === File Storage ===
+bind = ['storage.base_path', '/tmp/ats-data']
+bind = ['storage.backup_path', '/tmp/ats-backup']
+
+# === Development Specific ===
+bind = ['debug_mode', True]
+bind = ['auto_reload', True]
+bind = ['use_test_data', False]

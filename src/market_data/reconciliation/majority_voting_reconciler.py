@@ -23,12 +23,9 @@ from typing import Dict, List, Optional, Tuple, Any, NamedTuple
 from dataclasses import dataclass
 from statistics import median, stdev
 from enum import Enum
-import sys
 import os
 
 # Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
-
 from config.environment import Environment
 
 class ReconciliationDecision(Enum):

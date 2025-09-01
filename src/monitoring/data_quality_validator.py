@@ -24,13 +24,10 @@ from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any, NamedTuple
 from dataclasses import dataclass, field
 from enum import Enum
-import sys
 import os
 from statistics import mean, median, stdev
 
 # Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
 from config.environment import Environment
 
 class ValidationSeverity(Enum):

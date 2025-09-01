@@ -1,0 +1,8 @@
+# FirstRate Daily Download - Cron Job Configuration
+# Runs at 2:30 AM EST/EDT daily (after FirstRate updates at 2:00 AM)
+# 
+# Format: MIN HOUR DOM MON DOW COMMAND
+30 2 * * * PYTHONPATH=src uv run python scripts/firstrate_daily_download.py --all >> /mnt/d/ats-logs/firstrate-daily.log 2>> /mnt/d/ats-logs/firstrate-daily-error.log
+
+# Backup job at 8:00 AM if 2:30 AM job failed
+0 8 * * * [ ! -f /tmp/firstrate_download_success_$(date +\%Y\%m\%d) ] && cd /home/jianjun/ats-genai-pm && PYTHONPATH=src uv run python scripts/firstrate_daily_download.py --all >> /mnt/d/ats-logs/firstrate-daily.log 2>> /mnt/d/ats-logs/firstrate-daily-error.log && touch /tmp/firstrate_download_success_$(date +\%Y\%m\%d)
