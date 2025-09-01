@@ -26,7 +26,7 @@ from typing import List, Optional
 from app.runner import Runner
 from config.environment import Environment, EnvironmentType
 from ml.training_data.callbacks.training_data_callback import DateBasedTrainingDataCallback
-from ml.training_data.timeseries_sequence_training_generator import TrainingDataConfig
+from ml.training_data.timeseries_sequence_training_generator import TrainingDataConfig, get_technical_indicators
 from ml.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
 from ml.training_data.dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
 
@@ -145,7 +145,7 @@ async def register_training_dataset(environment: Environment, symbols: List[str]
             "storage_format": storage_format,
             "output_directory": output_dir
         },
-        technical_indicators="etop,ebot,pldot,multi_timeframe",
+        technical_indicators=get_technical_indicators(),
         feature_metadata=json.dumps({
             "timeframes": list(config.sequence_lengths.keys()),
             "features_per_timeframe": {tf: length * 7 for tf, length in config.sequence_lengths.items()},

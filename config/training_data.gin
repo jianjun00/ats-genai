@@ -1,5 +1,10 @@
 # Gin configuration for multi-timeframe sequence training data generation
 
+# Import necessary modules
+import ml.training_data.timeseries_sequence_training_generator
+import state.universe_state_manager
+import ml.training_data.dao.training_dataset_dao
+
 # Training Data Configuration
 TrainingDataConfig.base_interval_minutes = 1
 TrainingDataConfig.training_interval_minutes = 60
@@ -23,15 +28,9 @@ TrainingDataConfig.feature_types = [
     'market_structure'
 ]
 
-# Feature Extractor Configuration
-MultiTimeframeFeatureExtractor.config = @TrainingDataConfig()
-
-# Sequence Window Builder Configuration  
-SequenceWindowBuilder.config = @TrainingDataConfig()
-
-# Training Generator Configuration
-TimeSeriesSequenceTrainingGenerator.config = @TrainingDataConfig()
-
 # Universe State Manager Configuration
 UniverseStateManager.base_path = "data/universe_state"
 UniverseStateManager.write_metadata = True
+
+# Technical Indicators Configuration
+get_technical_indicators.indicators = ["etop", "ebot", "pldot", "multi_timeframe"]

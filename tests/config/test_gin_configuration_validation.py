@@ -555,8 +555,8 @@ class TestConfigurationIntegration:
         os.chdir(project_root)
         
         try:
-            # Use the simple working configuration
-            gin.parse_config_file('config/configurable_training_simple.gin')
+            # Use the consolidated training configuration
+            gin.parse_config_file('config/training_data.gin')
             
             # Create test data
             dates = pd.date_range('2023-01-01', periods=30, freq='D')
@@ -617,11 +617,10 @@ class TestConfigurationIntegration:
                 'volume': np.random.lognormal(14, 0.5, 100)
             }, index=dates)
             
-            # Test each provided configuration
+            # Test consolidated configuration
             config_files = [
-                'config/configurable_training_simple.gin',
-                'config/configurable_training_basic.gin',
-                # Skip advanced config as it may have indicator issues
+                'config/training_data.gin',
+                # Using single consolidated config file
             ]
             
             for config_file in config_files:
@@ -659,7 +658,7 @@ class TestConfigurationIntegration:
         os.chdir(project_root)
         
         try:
-            gin.parse_config_file('config/configurable_training_simple.gin')
+            gin.parse_config_file('config/training_data.gin')
         
             # Create deterministic test data
             np.random.seed(42)
