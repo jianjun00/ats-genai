@@ -626,7 +626,7 @@
                 
                 // Add symbol filter if specified
                 if (symbolFilter && symbolFilter.trim() !== '') {
-                    params.append('symbol_filter', symbolFilter.trim());
+                    params.append('symbol', symbolFilter.trim());
                     console.log('Added symbol filter:', symbolFilter.trim());
                 }
                 
@@ -865,7 +865,21 @@
                 return;
             }
             
-            grid.innerHTML = Object.entries(distributions).map(([featureName, dist]) => `
+            // Filter out date-type columns from distributions
+            const dateColumns = ['date', 'timestamp', 'created_at', 'updated_at', 'time', 'datetime'];
+            const filteredDistributions = Object.fromEntries(
+                Object.entries(distributions).filter(([featureName, dist]) => {
+                    const lowerName = featureName.toLowerCase();
+                    return !dateColumns.some(dateCol => lowerName.includes(dateCol));
+                })
+            );
+            
+            if (Object.keys(filteredDistributions).length === 0) {
+                grid.innerHTML = '<div style="text-align:center; color:#666;">No distribution data available (date columns filtered out)</div>';
+                return;
+            }
+            
+            grid.innerHTML = Object.entries(filteredDistributions).map(([featureName, dist]) => `
                 <div class="distribution-item">
                     <div class="distribution-title">${featureName}</div>
                     <canvas class="distribution-chart" id="dist-${featureName.replace(/[^a-zA-Z0-9]/g, '_')}"></canvas>
@@ -876,7 +890,7 @@
             `).join('');
             
             // Render individual distribution charts
-            Object.entries(distributions).forEach(([featureName, dist]) => {
+            Object.entries(filteredDistributions).forEach(([featureName, dist]) => {
                 const chartId = `dist-${featureName.replace(/[^a-zA-Z0-9]/g, '_')}`;
                 const ctx = document.getElementById(chartId).getContext('2d');
                 
