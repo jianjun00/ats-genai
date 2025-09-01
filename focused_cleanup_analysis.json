@@ -4817,6 +4817,18 @@
       "reason": "'RealDictCursor' imported but never used"
     },
     {
+      "file": "/home/jianjun/ats-genai-admin/src/services/analytics_service.py",
+      "import": {
+        "type": "from_import",
+        "module": "psycopg2.extras",
+        "name": "RealDictCursor",
+        "alias": null,
+        "local_name": "RealDictCursor",
+        "line": 1201
+      },
+      "reason": "'RealDictCursor' imported but never used"
+    },
+    {
       "file": "/home/jianjun/ats-genai-admin/src/services/type_aware_analytics_service.py",
       "import": {
         "type": "from_import",
@@ -13875,89 +13887,6 @@
       "reason": "'dataclass' imported but never used"
     },
     {
-      "file": "/home/jianjun/ats-genai-admin/src/app/training_data_job_runner.py",
-      "import": {
-        "type": "from_import",
-        "module": "typing",
-        "name": "List",
-        "alias": null,
-        "local_name": "List",
-        "line": 15
-      },
-      "reason": "'List' imported but never used"
-    },
-    {
-      "file": "/home/jianjun/ats-genai-admin/src/app/training_data_job_runner.py",
-      "import": {
-        "type": "from_import",
-        "module": "typing",
-        "name": "Optional",
-        "alias": null,
-        "local_name": "Optional",
-        "line": 15
-      },
-      "reason": "'Optional' imported but never used"
-    },
-    {
-      "file": "/home/jianjun/ats-genai-admin/src/app/training_data_job_runner.py",
-      "import": {
-        "type": "from_import",
-        "module": "typing",
-        "name": "Dict",
-        "alias": null,
-        "local_name": "Dict",
-        "line": 15
-      },
-      "reason": "'Dict' imported but never used"
-    },
-    {
-      "file": "/home/jianjun/ats-genai-admin/src/app/training_data_job_runner.py",
-      "import": {
-        "type": "from_import",
-        "module": "typing",
-        "name": "Any",
-        "alias": null,
-        "local_name": "Any",
-        "line": 15
-      },
-      "reason": "'Any' imported but never used"
-    },
-    {
-      "file": "/home/jianjun/ats-genai-admin/src/app/training_data_job_runner.py",
-      "import": {
-        "type": "from_import",
-        "module": "typing",
-        "name": "Tuple",
-        "alias": null,
-        "local_name": "Tuple",
-        "line": 15
-      },
-      "reason": "'Tuple' imported but never used"
-    },
-    {
-      "file": "/home/jianjun/ats-genai-admin/src/app/training_data_job_runner.py",
-      "import": {
-        "type": "import",
-        "name": "os",
-        "alias": null,
-        "local_name": "os",
-        "line": 21
-      },
-      "reason": "'os' imported but never used"
-    },
-    {
-      "file": "/home/jianjun/ats-genai-admin/src/app/training_data_job_runner.py",
-      "import": {
-        "type": "from_import",
-        "module": "dataclasses",
-        "name": "dataclass",
-        "alias": null,
-        "local_name": "dataclass",
-        "line": 24
-      },
-      "reason": "'dataclass' imported but never used"
-    },
-    {
       "file": "/home/jianjun/ats-genai-admin/src/app/runner.py",
       "import": {
         "type": "import",
@@ -14194,6 +14123,30 @@
         "line": 76
       },
       "reason": "'datetime' imported but never used"
+    },
+    {
+      "file": "/home/jianjun/ats-genai-admin/src/app/training_data_callback_runner.py",
+      "import": {
+        "type": "from_import",
+        "module": "typing",
+        "name": "List",
+        "alias": null,
+        "local_name": "List",
+        "line": 24
+      },
+      "reason": "'List' imported but never used"
+    },
+    {
+      "file": "/home/jianjun/ats-genai-admin/src/app/training_data_callback_runner.py",
+      "import": {
+        "type": "from_import",
+        "module": "typing",
+        "name": "Optional",
+        "alias": null,
+        "local_name": "Optional",
+        "line": 24
+      },
+      "reason": "'Optional' imported but never used"
     },
     {
       "file": "/home/jianjun/ats-genai-admin/src/app/indicator_runner.py",
@@ -28045,7 +27998,7 @@
         "is_test": false,
         "is_special": false,
         "decorators": [
-          "<ast.Call object at 0x736a68fb8490>"
+          "<ast.Call object at 0x7f297dd247d0>"
         ]
       },
       "reason": "Function 'create_adaptive_analyzer' defined but never called"
@@ -28604,7 +28557,7 @@
       "file": "/home/jianjun/ats-genai-admin/src/services/analytics_service.py",
       "function": {
         "name": "do_GET",
-        "line": 1248,
+        "line": 1290,
         "args": [
           "self"
         ],
@@ -28619,7 +28572,7 @@
       "file": "/home/jianjun/ats-genai-admin/src/services/analytics_service.py",
       "function": {
         "name": "do_POST",
-        "line": 1848,
+        "line": 1890,
         "args": [
           "self"
         ],
@@ -28634,14 +28587,15 @@
       "file": "/home/jianjun/ats-genai-admin/src/services/analytics_service.py",
       "function": {
         "name": "process_data_row",
-        "line": 1079,
+        "line": 1092,
         "args": [
           "i",
           "feature_row",
           "label_row",
           "offset",
           "feat_names",
-          "lbl_names"
+          "lbl_names",
+          "dt_index"
         ],
         "is_private": false,
         "is_test": false,
@@ -28777,7 +28731,7 @@
         "is_test": false,
         "is_special": false,
         "decorators": [
-          "<ast.Call object at 0x736a68d7b1d0>"
+          "<ast.Call object at 0x7f297d8fc6d0>"
         ]
       },
       "reason": "Function 'create_agent_network' defined but never called"
@@ -28808,7 +28762,7 @@
         "is_test": false,
         "is_special": false,
         "decorators": [
-          "<ast.Call object at 0x736a68cfd150>"
+          "<ast.Call object at 0x7f297da0ce50>"
         ]
       },
       "reason": "Function 'create_portfolio_system' defined but never called"
@@ -31176,28 +31130,6 @@
         "decorators": []
       },
       "reason": "Function 'retry_sync' defined but never called"
-    },
-    {
-      "file": "/home/jianjun/ats-genai-admin/src/app/training_data_job_runner.py",
-      "function": {
-        "name": "_calculate_universe_state_indicators",
-        "line": 1033,
-        "args": [
-          "self",
-          "universe_manager",
-          "symbol",
-          "timestamp",
-          "open_price",
-          "high",
-          "low",
-          "close"
-        ],
-        "is_private": true,
-        "is_test": false,
-        "is_special": false,
-        "decorators": []
-      },
-      "reason": "Function '_calculate_universe_state_indicators' defined but never called"
     },
     {
       "file": "/home/jianjun/ats-genai-admin/src/app/runner.py",
@@ -34890,7 +34822,7 @@
         "is_test": false,
         "is_special": false,
         "decorators": [
-          "<ast.Call object at 0x736a68072e50>"
+          "<ast.Call object at 0x7f297ce64210>"
         ]
       },
       "reason": "Function 'sync_wrapper' defined but never called"
@@ -34905,7 +34837,7 @@
         "is_test": false,
         "is_special": false,
         "decorators": [
-          "<ast.Call object at 0x736a682fde50>"
+          "<ast.Call object at 0x7f297d0c3150>"
         ]
       },
       "reason": "Function 'sync_wrapper' defined but never called"
@@ -36618,20 +36550,6 @@
           }
         },
         {
-          "file": "/home/jianjun/ats-genai-admin/src/app/training_data_job_runner.py",
-          "function": {
-            "name": "__init__",
-            "line": 37,
-            "args": [
-              "self"
-            ],
-            "is_private": true,
-            "is_test": false,
-            "is_special": true,
-            "decorators": []
-          }
-        },
-        {
           "file": "/home/jianjun/ats-genai-admin/src/api/backtest_analytics_api.py",
           "function": {
             "name": "__init__",
@@ -37178,7 +37096,7 @@
           }
         }
       ],
-      "count": 95
+      "count": 94
     },
     {
       "signature": "register_schema(self,schema)",
@@ -39457,7 +39375,7 @@
           "file": "/home/jianjun/ats-genai-admin/src/services/analytics_service.py",
           "function": {
             "name": "main",
-            "line": 4172,
+            "line": 4214,
             "args": [],
             "is_private": false,
             "is_test": false,
@@ -39977,7 +39895,7 @@
             "is_test": false,
             "is_special": false,
             "decorators": [
-              "<ast.Call object at 0x736a68fb8490>"
+              "<ast.Call object at 0x7f297dd247d0>"
             ]
           }
         }
@@ -45851,7 +45769,7 @@
           "file": "/home/jianjun/ats-genai-admin/src/app/training_data_callback_runner.py",
           "function": {
             "name": "parse_args",
-            "line": 23,
+            "line": 34,
             "args": [],
             "is_private": false,
             "is_test": false,
@@ -48879,7 +48797,7 @@
             "is_test": false,
             "is_special": false,
             "decorators": [
-              "<ast.Call object at 0x736a68072e50>"
+              "<ast.Call object at 0x7f297ce64210>"
             ]
           }
         },
@@ -48893,7 +48811,7 @@
             "is_test": false,
             "is_special": false,
             "decorators": [
-              "<ast.Call object at 0x736a682fde50>"
+              "<ast.Call object at 0x7f297d0c3150>"
             ]
           }
         }
@@ -49527,11 +49445,6 @@
       "reason": "File never imported by other modules"
     },
     {
-      "file": "/home/jianjun/ats-genai-admin/src/app/training_data_job_runner.py",
-      "module_path": "src.app.training_data_job_runner",
-      "reason": "File never imported by other modules"
-    },
-    {
       "file": "/home/jianjun/ats-genai-admin/src/app/training_data_callback_runner.py",
       "module_path": "src.app.training_data_callback_runner",
       "reason": "File never imported by other modules"
@@ -49926,8 +49839,8 @@
       "file": "/home/jianjun/ats-genai-admin/src/secmaster/range_splits_polygon.py"
     },
     {
-      "start_line": 1963,
-      "end_line": 1970,
+      "start_line": 2005,
+      "end_line": 2012,
       "line_count": 8,
       "preview": "#data-table { border: 1px solid #ddd; }",
       "file": "/home/jianjun/ats-genai-admin/src/services/analytics_service.py"
@@ -49938,13 +49851,6 @@
       "line_count": 5,
       "preview": "# For now, return empty as instruments don't change frequently",
       "file": "/home/jianjun/ats-genai-admin/src/frontfill/economic_events_frontfill.py"
-    },
-    {
-      "start_line": 1483,
-      "end_line": 1488,
-      "line_count": 6,
-      "preview": "# These will be overridden by Gin configuration:",
-      "file": "/home/jianjun/ats-genai-admin/src/app/training_data_job_runner.py"
     },
     {
       "start_line": 37,
@@ -49976,12 +49882,12 @@
     }
   ],
   "statistics": {
-    "files_analyzed": 426,
+    "files_analyzed": 425,
     "files_with_errors": 0,
-    "unused_imports_count": 2296,
-    "dead_functions_count": 470,
+    "unused_imports_count": 2292,
+    "dead_functions_count": 469,
     "duplicate_functions_count": 169,
-    "orphaned_files_count": 157,
-    "large_comment_blocks_count": 8
+    "orphaned_files_count": 156,
+    "large_comment_blocks_count": 7
   }
 }

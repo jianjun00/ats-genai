@@ -8,8 +8,7 @@ import os
 import asyncio
 import argparse
 import logging
-from datetime import datetime, date, timedelta
-import gin
+from datetime import datetime, timedelta
 
 # Configure Ray with optimizations
 import ray
@@ -30,9 +29,7 @@ class PolygonWorker:
     async def fetch_symbol_data(self, symbol: str, start_date: str, end_date: str, instrument_id: int) -> List[Dict[str, Any]]:
         """Fetch 5-year data for a single symbol with optimized batching."""
         import aiohttp
-        import asyncpg
         from config.environment import Environment
-        from dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
         
         # Recreate environment in worker
         env = Environment()
@@ -137,7 +134,6 @@ class DatabaseInserter:
     async def batch_insert_polygon(self, data: List[Dict[str, Any]]) -> int:
         """Batch insert Polygon data with optimized performance."""
         import asyncpg
-        from config.environment import Environment
         
         if not data:
             return 0
@@ -241,7 +237,7 @@ async def main():
         )
     
     # Setup environment
-    from config.environment import Environment, EnvironmentType
+    from config.environment import Environment
     env = Environment(gin_config_path=args.gin_config)
     
     # Get API keys

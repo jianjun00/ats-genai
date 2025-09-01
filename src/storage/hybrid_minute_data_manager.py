@@ -11,13 +11,11 @@ ENHANCED with integration for existing data structure at /home/jianjun/ats/data:
 - Resume capability with fine-grained checkpoints
 """
 
-import os
 import asyncio
 import asyncpg
 import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta, date
-from typing import List, Dict, Optional, Any, Union, Tuple
+from typing import List, Dict, Optional, Any, Tuple
 from pathlib import Path
 import logging
 from dataclasses import dataclass
@@ -31,7 +29,6 @@ except ImportError:
     pq = None
     PYARROW_AVAILABLE = False
 from concurrent.futures import ThreadPoolExecutor
-import gc
 
 from config.environment import env
 
@@ -917,7 +914,6 @@ class HybridMinuteDataManager:
     def _merge_gaps(self, parquet_gaps: List[Tuple[date, date, str]], 
                    database_gaps: List[Tuple[date, date, str]], symbol: str) -> List[DataGap]:
         """Merge and prioritize gaps from different sources."""
-        merged_gaps = []
         
         # Convert to DataGap objects and merge overlapping periods
         all_gaps = []

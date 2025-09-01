@@ -7,7 +7,7 @@ Fetches economic data from St. Louis Federal Reserve FRED API.
 import asyncio
 import aiohttp
 import logging
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from typing import List, Dict, Any, Optional
 from decimal import Decimal
 

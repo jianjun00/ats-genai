@@ -11,10 +11,6 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-import factor_interval_pb2 as factor__interval__pb2
-import instrument_interval_pb2 as instrument__interval__pb2
-import indicator_interval_pb2 as indicator__interval__pb2
-import time_duration_pb2 as time__duration__pb2
 
 
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1duniverse_state_interval.proto\x12\x05state\x1a\x15\x66\x61\x63tor_interval.proto\x1a\x19instrument_interval.proto\x1a\x18indicator_interval.proto\x1a\x13time_duration.proto\"\x95\x04\n\x15UniverseStateInterval\x12%\n\x08\x64uration\x18\x01 \x01(\x0b\x32\x13.state.TimeDuration\x12\x17\n\x0fstart_date_time\x18\x02 \x01(\t\x12\x15\n\rend_date_time\x18\x03 \x01(\t\x12/\n\x10\x66\x61\x63tor_intervals\x18\x04 \x03(\x0b\x32\x15.state.FactorInterval\x12S\n\x14instrument_intervals\x18\x05 \x03(\x0b\x32\x35.state.UniverseStateInterval.InstrumentIntervalsEntry\x12\x66\n\x1einstrument_indicator_intervals\x18\x06 \x03(\x0b\x32>.state.UniverseStateInterval.InstrumentIndicatorIntervalsEntry\x1aU\n\x18InstrumentIntervalsEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12(\n\x05value\x18\x02 \x01(\x0b\x32\x19.state.InstrumentInterval:\x02\x38\x01\x1a`\n!InstrumentIndicatorIntervalsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x1b.state.IndicatorIntervalMap:\x02\x38\x01\"\x95\x01\n\x14IndicatorIntervalMap\x12\x35\n\x05value\x18\x01 \x03(\x0b\x32&.state.IndicatorIntervalMap.ValueEntry\x1a\x46\n\nValueEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\'\n\x05value\x18\x02 \x01(\x0b\x32\x18.state.IndicatorInterval:\x02\x38\x01\x62\x06proto3')

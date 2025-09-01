@@ -4,18 +4,13 @@ Type-aware analytics service for dataset analysis and intelligent EDA.
 Fixed version with proper syntax and imports.
 """
 
-import asyncio
-import json
 import logging
-from typing import Dict, List, Optional, Any
-from fastapi import HTTPException, Request
-from fastapi.responses import HTMLResponse
-from urllib.parse import urlparse, parse_qs
-from decimal import Decimal
+from typing import Dict, Any
+from fastapi import HTTPException
 
 # Import type system components
 from schema.registry import schema_registry
-from schema.types import FieldSemantics, FieldType
+from schema.types import FieldSemantics
 
 logger = logging.getLogger(__name__)
 

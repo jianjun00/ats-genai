@@ -5,8 +5,7 @@ Uses DeepSeek/OpenAI to identify technical patterns, generate features, and crea
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Any, Union
-from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 import logging
 import json

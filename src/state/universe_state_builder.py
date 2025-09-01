@@ -14,15 +14,10 @@ except Exception:
     # Fallback minimal base when runner_callback is not available in test context
     class RunnerCallback:
         pass
-import asyncpg
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, List
 import logging
-from datetime import datetime, date
-from dataclasses import dataclass
-from enum import Enum
-import numpy as np
+from datetime import datetime
 from config.environment import Environment
-from calendars.time_duration import TimeDuration
 from state.instrument_interval import InstrumentInterval
 from .factor_interval import FactorInterval
 from state.indicator_interval import IndicatorInterval
@@ -35,11 +30,9 @@ from signals.indicator_config import IndicatorConfig
 class UniverseStateIntervalBuilder(RunnerCallback):
     def handleStartOfDay(self, runner, current_time):
         self.logger.debug(f"UniverseStateIntervalBuilder.handleStartOfDay called at {current_time}")
-        pass
 
     def handleEndOfDay(self, runner, current_time):
         self.logger.debug(f"UniverseStateIntervalBuilder.handleEndOfDay called at {current_time}")
-        pass
 
     async def handleInterval(self, runner, current_time):
         self.logger.debug(f"[handleInterval] handleInterval CALLED at {current_time}")
@@ -116,7 +109,6 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         for duration in self.target_durations:
             d_end_time = duration.get_end_time(current_time)
             interval_map = {}
-            from calendars.time_duration import TimeDuration
             base_duration = self.base_duration
             for inst_id in instrument_ids:
                 history = self.instrument_history.get(inst_id, [])

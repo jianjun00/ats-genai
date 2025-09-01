@@ -8,13 +8,13 @@ gin configuration. Provides a unified interface for indicator creation.
 import gin
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, List, Optional, Union, Type
+from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 
 from .indicator import Indicator
 from .enhanced_indicators import EMAIndicator, ATRIndicator
-from .feature_registry import FeatureRegistry, FeatureConfig, create_feature_config
-from .label_registry import LabelRegistry, LabelConfig, create_label_config
+from .feature_registry import FeatureRegistry, FeatureConfig
+from .label_registry import LabelRegistry, LabelConfig
 
 @dataclass
 class IndicatorFactoryConfig:

@@ -1,5 +1,5 @@
 from typing import List, Dict, Optional
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, date, time
 
 from market_data.market_data_manager import MarketDataManager
 from dao.daily_prices_dao import DailyPricesDAO
@@ -86,13 +86,13 @@ class DailyPriceMarketDataManager(MarketDataManager):
         # If called from Runner, runner and current_time are provided
         # If called directly, cur_date may be passed as runner
         if current_time is not None:
-            cur_date = current_time.date()
+            current_time.date()
         elif runner is not None:
             # runner is actually cur_date in legacy calls
-            cur_date = runner
+            pass
         else:
             from datetime import date as _date
-            cur_date = _date.today()
+            _date.today()
         # Can be used to flush, persist, or clear intervals if needed
         self._intervals.clear()
 

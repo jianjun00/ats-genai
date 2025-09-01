@@ -5,7 +5,6 @@ Converts AlertManager webhook calls to Slack notifications
 """
 
 import os
-import json
 import logging
 from datetime import datetime
 from typing import Dict, List, Any
@@ -58,7 +57,7 @@ def format_alert_for_slack(alert_data: AlertManagerWebhook, alert_type: str = "d
             severity = alert["labels"]["severity"]
             break
     
-    color = color_map.get(severity, "warning")
+    color_map.get(severity, "warning")
     
     # Build message blocks
     blocks = []

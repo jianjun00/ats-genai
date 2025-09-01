@@ -5,18 +5,15 @@ This module provides a standalone analytics API that can be dynamically deployed
 via Flyte without requiring Docker image rebuilds.
 """
 
-import asyncio
 import logging
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Any
-import json
 import pandas as pd
 import numpy as np
 
 from fastapi import FastAPI, Depends, Query, Path, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from config.environment import Environment
 from config.database import Database

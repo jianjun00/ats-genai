@@ -42,11 +42,10 @@ Example:
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
-from datetime import datetime, timedelta, date
+from typing import Dict, List, Optional, Any
+from datetime import datetime, timedelta
 from dataclasses import dataclass
 import logging
-import asyncio
 import asyncpg
 import json
 import os

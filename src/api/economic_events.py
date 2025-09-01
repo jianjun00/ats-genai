@@ -7,7 +7,7 @@ REST API for querying economic events data.
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Dict, Any, Optional
 from datetime import date, datetime, timedelta
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from config.environment import Environment
 from config.database import get_connection_pool

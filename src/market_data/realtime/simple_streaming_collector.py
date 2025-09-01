@@ -7,11 +7,9 @@ Simplified version for initial deployment testing
 import asyncio
 import logging
 import os
-import json
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional
+from typing import Optional
 from dataclasses import dataclass
-import aiohttp
 from aiohttp import web
 import asyncpg
 

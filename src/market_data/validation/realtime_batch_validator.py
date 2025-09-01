@@ -12,7 +12,7 @@ import logging
 import os
 import json
 from datetime import datetime, date, timedelta, timezone
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 import statistics
 import aiohttp
@@ -371,7 +371,7 @@ class RealtimeBatchValidator:
                     
         # Check for missing batch bars
         realtime_timestamps = {bar['timestamp'] for bar in realtime_data}
-        missing_batch = sum(1 for bar in batch_data if bar['timestamp'] not in realtime_timestamps)
+        sum(1 for bar in batch_data if bar['timestamp'] not in realtime_timestamps)
         
         # Calculate quality scores
         realtime_quality = statistics.mean([bar.get('quality_score', 0.8) for bar in realtime_data]) if realtime_data else 0.0

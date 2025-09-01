@@ -1,5 +1,4 @@
 import asyncpg
-from config.environment import Environment, EnvironmentType
 
 
 # NOTE: Do not instantiate Environment globally; always pass db_url explicitly in tests.

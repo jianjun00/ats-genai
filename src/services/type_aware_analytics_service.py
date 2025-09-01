@@ -8,7 +8,6 @@ generation to automatic, schema-driven UI generation.
 
 import logging
 from typing import Dict, List, Any, Optional
-from fastapi import HTTPException
 from ..schema.registry import schema_registry
 from ..schema.types import FieldSemantics, FieldDefinition
 

@@ -4,10 +4,9 @@ Instrument Data Agent MCP Integration
 This module integrates the Instrument Data Agent with the MCP server.
 """
 
-import asyncio
 import logging
-from datetime import datetime, date
-from typing import Dict, Any, Optional, List
+from datetime import datetime
+from typing import Dict, Any
 
 from config.environment import Environment
 from market_data.agent.instrument_data_agent import InstrumentDataAgent

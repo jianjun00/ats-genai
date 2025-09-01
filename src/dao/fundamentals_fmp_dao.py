@@ -5,7 +5,7 @@ Handles fundamental data operations for FMP vendor data in the comprehensive
 fundamentals table with vendor-specific filtering and validation.
 """
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 from datetime import date, datetime
 from dataclasses import dataclass
 import asyncpg

@@ -7,12 +7,10 @@ Fetches daily stock prices from Financial Modeling Prep API and stores in databa
 import os
 import asyncio
 import aiohttp
-import asyncpg
 import datetime as dt
-import pandas as pd
 import argparse
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 from config.environment import Environment, EnvironmentType
 from dao.daily_prices_fmp_dao import DailyPricesFmpDAO

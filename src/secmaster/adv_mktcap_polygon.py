@@ -1,7 +1,5 @@
 import os
-import asyncio
 import asyncpg
-import httpx
 from datetime import datetime, timedelta
 
 TSDB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")

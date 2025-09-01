@@ -7,14 +7,12 @@ to construct optimal long-short portfolios with risk management.
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-from datetime import datetime
 import warnings
 from scipy.optimize import minimize
-from scipy import linalg
 
-from .factor_framework import FactorRiskModel, FactorUniverse
+from .factor_framework import FactorRiskModel
 from .signal_generation import TradingSignal, SignalDirection
 
 
@@ -157,7 +155,7 @@ class LongShortOptimizer:
         factor_exposures = self._build_factor_exposure_matrix(asset_list, factor_returns)
         
         # Set up optimization problem
-        n_assets = len(asset_list)
+        len(asset_list)
         
         # Objective function: maximize Sharpe ratio with transaction costs
         def objective(weights):
@@ -211,7 +209,7 @@ class LongShortOptimizer:
         # Factor exposure constraints
         if factor_exposures is not None:
             for i, factor in enumerate(self.factor_risk_model.factor_universe.factor_symbols):
-                factor_weight = self.factor_risk_model.factor_universe.factor_weights.get(factor, 1.0)
+                self.factor_risk_model.factor_universe.factor_weights.get(factor, 1.0)
                 
                 # Get appropriate limit based on factor type
                 if factor in ['SPY', 'QQQ', 'IWM']:

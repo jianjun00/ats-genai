@@ -13,9 +13,6 @@ while enabling unified queries through views.
 import asyncio
 import asyncpg
 import logging
-from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Union
-import json
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

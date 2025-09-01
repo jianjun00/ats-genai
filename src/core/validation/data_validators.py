@@ -14,7 +14,6 @@ from typing import Any, List, Dict, Optional, Union, Callable, Type
 import pandas as pd
 import numpy as np
 
-from core.exceptions.custom_exceptions import DataValidationError, create_error_context
 
 
 @dataclass
@@ -55,7 +54,6 @@ class BaseValidator(ABC):
     @abstractmethod
     def validate(self, data: Any) -> ValidationResult:
         """Validate data and return result."""
-        pass
     
     def __call__(self, data: Any) -> ValidationResult:
         """Allow validator to be called directly."""

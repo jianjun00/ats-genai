@@ -1,7 +1,7 @@
 from config.environment import Environment
 from dao.secmaster_dao import SecMasterDAO
 from datetime import date
-from typing import List, Optional, Dict
+from typing import List
 
 class SecMaster:
     """

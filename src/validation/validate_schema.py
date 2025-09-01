@@ -17,10 +17,8 @@ import asyncio
 import asyncpg
 import argparse
 import re
-import ast
 from pathlib import Path
-from typing import List, Dict, Set, Tuple
-import subprocess
+from typing import List, Tuple
 
 # Use proper relative imports
 try:

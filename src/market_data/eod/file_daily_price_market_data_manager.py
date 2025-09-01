@@ -1,10 +1,9 @@
 import os
 import json
 print(f"[IMPORT_DEBUG] Loaded file_daily_price_market_data_manager.py from {__file__}")
-from datetime import datetime, date, time
-from typing import List, Dict, Optional, Any
+from datetime import datetime, date
+from typing import List, Dict, Optional
 from .base_daily_price_market_data_manager import BaseDailyPriceMarketDataManager
-from state.instrument_interval import InstrumentInterval
 from .unify_daily_prices import FileDailyPricesUnifier
 
 from dao.instrument_xrefs_dao import InstrumentXrefsDAO

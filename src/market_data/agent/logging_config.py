@@ -8,7 +8,6 @@ allowing users to adjust logging levels and formats based on their needs.
 import logging
 import logging.config
 import os
-import sys
 import json
 from typing import Dict, Any, Optional, Union
 from pathlib import Path
@@ -126,7 +125,7 @@ def setup_logging(
     if json_format:
         try:
             # Check if python-json-logger is installed
-            from pythonjsonlogger import jsonlogger
+            pass
             # Add JSON formatter dynamically
             config['formatters']['json'] = {
                 "format": "%(asctime)s %(name)s %(levelname)s %(message)s",

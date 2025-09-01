@@ -16,9 +16,8 @@ Key Features:
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any, Union
+from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
-from pathlib import Path
 import logging
 from enum import Enum
 import warnings
@@ -381,7 +380,7 @@ class MultiScaleSequence:
         for scale in scale_hierarchy[primary_idx + 1:]:
             if scale in self.scales:
                 features = self.get_features(scale, 'all')
-                timestamps = self.scales[scale].timestamps
+                self.scales[scale].timestamps
                 
                 # Calculate context length for this scale
                 if scale == TimeScale.HOURLY:
@@ -533,7 +532,6 @@ def create_multi_scale_sequence(
 
 # Example usage
 if __name__ == "__main__":
-    import random
     from datetime import datetime, timedelta
     
     # Create sample data

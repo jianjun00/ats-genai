@@ -5,14 +5,13 @@ Provides intelligent filter generation and schema-driven EDA capabilities.
 """
 
 import logging
-from typing import Dict, List, Optional, Any
-from fastapi import FastAPI, HTTPException, Depends, Query
+from typing import Any
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
 # Import type system components
 from schema.registry import schema_registry
-from schema.types import FieldSemantics, FieldType
+from schema.types import FieldSemantics
 from services.analytics_service import AnalyticsService
 
 logger = logging.getLogger(__name__)

@@ -18,7 +18,7 @@ except ImportError:
     pq = None
     PYARROW_AVAILABLE = False
 from pathlib import Path
-from typing import Dict, List, Optional, Iterator, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any
 import logging
 from datetime import datetime
 import hashlib

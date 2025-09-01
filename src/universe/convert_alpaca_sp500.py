@@ -1,7 +1,5 @@
 # moved from project root
 import pandas as pd
-from datetime import datetime
-import os
 
 # Path to Alpaca changes CSV (download from https://github.com/alpacahq/alpaca-labs/tree/master/sp500-history)
 ALPACA_CSV = 'sp500_changes.csv'  # Update this path to your downloaded file

@@ -14,15 +14,13 @@ import os
 import pytest
 import pytest_asyncio
 import uuid
-import hashlib
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 from contextlib import asynccontextmanager
 from src.config.environment import Environment, EnvironmentType
 from src.db.migration_manager import MigrationManager
 import logging
 logger = logging.getLogger(__name__)
 from dateutil import parser as date_parser
-import datetime
 import gin
 from config.database import Database
 
@@ -351,7 +349,7 @@ def integration_test_db():
 @pytest.fixture
 def clean_integration_db(integration_test_db):
     """Fixture that cleans integration database before each test."""
-    session = IntegrationTestSession.get_instance()
+    IntegrationTestSession.get_instance()
     db_manager = TestDatabaseManager("integration")
     asyncio.run(db_manager.cleanup_test_data())
     yield integration_test_db

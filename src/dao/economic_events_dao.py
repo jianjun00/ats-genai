@@ -4,7 +4,6 @@ Data Access Object for Economic Events.
 Handles database operations for economic events from multiple vendors.
 """
 
-import asyncio
 import asyncpg
 from datetime import datetime, date
 from typing import List, Optional, Dict, Any

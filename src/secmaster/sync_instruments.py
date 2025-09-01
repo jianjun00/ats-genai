@@ -6,13 +6,11 @@ This script creates the linkage needed for daily price backfill.
 
 import os
 import asyncio
-import asyncpg
 import argparse
 import gin
 import sys
 import logging
 from config.environment import Environment, EnvironmentType
-from config.database import Database
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

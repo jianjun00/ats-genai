@@ -5,12 +5,10 @@ Provides comprehensive metadata tracking for generated training data including
 feature types, dimensions, primary keys, and visualization hints.
 """
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Union, Any
+from typing import Dict, List, Optional, Any
 from enum import Enum
 import json
-import os
 from pathlib import Path
-import pandas as pd
 import numpy as np
 
 

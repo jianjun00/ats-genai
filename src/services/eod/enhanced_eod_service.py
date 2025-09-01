@@ -6,18 +6,17 @@ Consolidates and enhances existing daily price collection from Tiingo, Polygon, 
 
 import gin
 import asyncio
-import logging
 import os
 from datetime import datetime, date, timedelta
-from typing import List, Dict, Optional, Set
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from typing import List, Dict, Optional
+from fastapi import FastAPI, BackgroundTasks
 from dataclasses import dataclass
 from enum import Enum
 import aiohttp
 import pandas as pd
 
 # Reuse existing ATS framework
-from config.environment import Environment, EnvironmentType
+from config.environment import Environment
 from dao.base.base_dao import BaseDAO
 from dao.market_data.daily_prices_dao import DailyPricesDAO
 from dao.instrument_xrefs_dao import InstrumentXrefsDAO

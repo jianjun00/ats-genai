@@ -1,6 +1,4 @@
 # WARNING: Investing.com does not have an official API. This is a stub for future web scraping or paid API integration.
-from events.schemas import EventIn
-from datetime import datetime
 
 def fetch_investing_earnings(symbol: str, start: str, end: str):
     # TODO: Implement real scraping or API integration

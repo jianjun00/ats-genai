@@ -7,8 +7,8 @@ and uses SOD/EOD events to manage daily files efficiently.
 """
 
 import logging
-from datetime import datetime, date
-from typing import Any, Optional, List, Dict
+from datetime import datetime
+from typing import Any, Optional, List
 from pathlib import Path
 import json
 
@@ -18,7 +18,7 @@ from ml.training_data.timeseries_sequence_training_generator import (
     TrainingDataConfig,
     SequenceTrainingExample
 )
-from ml.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
+from ml.storage.sequence_storage_manager import SequenceStorageManager
 
 
 class DateBasedTrainingDataCallback(RunnerCallback):

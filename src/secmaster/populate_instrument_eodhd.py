@@ -1,12 +1,10 @@
 import os
 import requests
-import asyncpg
 from dotenv import load_dotenv
 from datetime import datetime
 from config.environment import Environment, EnvironmentType
-from config.eodhd import set_eodhd_api_key, EODHD_API_KEY
+from config.eodhd import EODHD_API_KEY
 import time
-from requests.exceptions import ConnectionError
 import json
 import logging
 import argparse
@@ -347,7 +345,6 @@ if __name__ == "__main__":
         sys.exit(1)
     
     # Import Database before parsing Gin config so Gin can bind its parameters
-    from config.database import Database
     
     try:
         gin.parse_config_file(gin_config_path)

@@ -7,8 +7,8 @@ Supports alignment of higher timeframe data to lower timeframe intervals.
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional, Tuple, Any
-from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any
+from datetime import datetime
 import logging
 from dataclasses import dataclass
 from enum import Enum
@@ -16,12 +16,12 @@ from enum import Enum
 try:
     from .enhanced_feature_types import (
         FeatureSpecification, FeatureType, TimeframeSpec, 
-        TechnicalIndicator, EnhancedFeatureRegistry
+        TechnicalIndicator
     )
 except ImportError:
     from enhanced_feature_types import (
         FeatureSpecification, FeatureType, TimeframeSpec, 
-        TechnicalIndicator, EnhancedFeatureRegistry
+        TechnicalIndicator
     )
 
 logger = logging.getLogger(__name__)

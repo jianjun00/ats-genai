@@ -171,7 +171,7 @@ async def update_training_dataset_completion(environment: Environment, dataset_i
                                            file_size_mb: float = 0.0, data_quality_score: float = 1.0) -> None:
     """Update training dataset with completion details."""
     
-    dao = TrainingDatasetDAO(environment)
+    TrainingDatasetDAO(environment)
     conn = await asyncpg.connect(environment.get_database_url())
     
     try:

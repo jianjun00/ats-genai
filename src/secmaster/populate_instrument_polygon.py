@@ -1,10 +1,9 @@
 import os
 import requests
-import asyncpg
 from dotenv import load_dotenv
 from datetime import datetime
 from config.environment import Environment, EnvironmentType
-from config.polygon import set_polygon_api_key, POLYGON_API_KEY
+from config.polygon import POLYGON_API_KEY
 import time
 from requests.exceptions import ConnectionError
 import ray
@@ -75,7 +74,6 @@ async def fetch_and_upsert_direct(symbols, env_type, table_name, polygon_api_key
     
     # Use the centralized database connection logic
     from config.database import Database
-    from config.environment import Environment, EnvironmentType
     if details:
         try:
             # Set environment type in os.environ for Database class to use
@@ -182,7 +180,6 @@ def fetch_and_upsert_ray(symbols, env_type, table_name, polygon_api_key):
     import asyncio
     async def process_details():
         from config.database import Database
-        from config.environment import Environment, EnvironmentType
         if details:
             try:
                 # Set environment type in os.environ for Database class to use
@@ -246,7 +243,6 @@ def fetch_and_upsert_ray(symbols, env_type, table_name, polygon_api_key):
     return results
 
 async def fetch_and_store_instruments(start_ticker='', ticker=None):
-    import ray
     from config.database import Database
     
     # Use centralized database connection logic
@@ -478,7 +474,6 @@ if __name__ == "__main__":
         sys.exit(1)
     
     # Import Database before parsing Gin config so Gin can bind its parameters
-    from config.database import Database
     
     try:
         gin.parse_config_file(gin_config_path)

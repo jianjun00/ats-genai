@@ -10,11 +10,8 @@ This service exports Prometheus metrics for data quality monitoring including:
 """
 
 import os
-import time
 import asyncio
-import asyncpg
 import logging
-from datetime import datetime, timezone
 from prometheus_client import start_http_server, Gauge, Counter, Histogram
 from config.environment import Environment, EnvironmentType
 import gin

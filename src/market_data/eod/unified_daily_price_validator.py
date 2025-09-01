@@ -6,19 +6,16 @@ multiple data vendors (Polygon, Tiingo, FMP, AlphaVantage, yfinance) to produce
 a single unified daily price with confidence scoring and validation metadata.
 """
 
-import asyncio
 import asyncpg
 import logging
 import numpy as np
 import pandas as pd
-from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Tuple, NamedTuple
+from datetime import date, timedelta
+from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 import statistics
 import yfinance as yf
-import aiohttp
-import os
 
 from config.environment import Environment
 

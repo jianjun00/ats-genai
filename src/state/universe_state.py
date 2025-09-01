@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, Any
+from typing import Dict
 from datetime import datetime
 from typing import List
 from calendars.time_duration import TimeDuration
@@ -9,10 +9,6 @@ from .indicator_interval import IndicatorInterval
 from .forecast_interval import ForecastInterval
 
 from .proto import universe_state_interval_pb2
-from .proto import factor_interval_pb2
-from .proto import instrument_interval_pb2
-from .proto import indicator_interval_pb2
-from .proto import time_duration_pb2
 
 @dataclass
 class UniverseStateInterval:

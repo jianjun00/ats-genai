@@ -10,7 +10,7 @@ import asyncpg
 import logging
 import random
 from datetime import date, datetime
-from typing import List, Dict, Set, Optional
+from typing import List, Optional
 from dataclasses import dataclass
 from config.environment import Environment
 import gin

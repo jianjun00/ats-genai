@@ -10,7 +10,7 @@ import asyncpg
 import logging
 import argparse
 import sys
-from datetime import datetime, date, timedelta
+from datetime import date, timedelta
 from typing import List, Optional, Dict
 import json
 import os

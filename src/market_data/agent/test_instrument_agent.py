@@ -8,7 +8,6 @@ import asyncio
 import json
 import os
 from datetime import datetime
-from pathlib import Path
 
 from config.environment import Environment
 from src.market_data.agent.instrument_data_agent import InstrumentDataAgent

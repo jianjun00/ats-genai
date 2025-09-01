@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 import logging
 from datetime import date, datetime, timedelta
-from typing import Dict, List, Tuple, Optional, NamedTuple
+from typing import Dict, List, Tuple, NamedTuple
 from dataclasses import dataclass
 from config.environment import Environment
 # import matplotlib.pyplot as plt
@@ -19,7 +19,6 @@ from config.environment import Environment
 # from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import gin
 import json
-import os
 from pathlib import Path
 
 @dataclass
@@ -518,7 +517,7 @@ class SRBacktester:
             equity_curve.append(equity_curve[-1] * (1 + trade_return * self.position_size_pct))
         
         # Calculate metrics
-        returns_array = np.array(returns)
+        np.array(returns)
         
         total_trades = len(returns)
         winning_trades = len([r for r in returns if r > 0])

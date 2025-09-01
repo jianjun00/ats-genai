@@ -6,7 +6,6 @@ including forecast visualization, signal interpretation, and performance attribu
 """
 
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 import seaborn as sns
 import numpy as np
 import pandas as pd
@@ -15,7 +14,6 @@ from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import plotly.express as px
 
 from .experiment_framework import TradeExplanation
 

@@ -10,13 +10,13 @@ import asyncpg
 import psutil
 import time
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional
 from datetime import datetime
 from dataclasses import dataclass
 import threading
 
 try:
-    from prometheus_client import Counter, Gauge, Histogram, Summary, start_http_server, REGISTRY
+    from prometheus_client import Gauge, start_http_server
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False

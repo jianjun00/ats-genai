@@ -1,7 +1,6 @@
 import os
 import asyncpg
 import aiohttp
-import argparse
 from bs4 import BeautifulSoup
 import datetime
 import re
@@ -81,7 +80,7 @@ async def fetch_spy_events(tickers=None):
             date_str = cols[0].text.strip()
             added = cols[added_idx].text.strip() if len(cols) > added_idx else ''
             removed = cols[removed_idx].text.strip() if len(cols) > removed_idx else ''
-            reason = cols[4].text.strip() if len(cols) > 4 else ''
+            cols[4].text.strip() if len(cols) > 4 else ''
         else:
             continue
         try:

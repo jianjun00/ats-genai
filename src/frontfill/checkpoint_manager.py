@@ -4,12 +4,11 @@ Checkpoint Management System for Frontfill Operations.
 Handles checkpointing, duplicate detection, and recovery for data ingestion jobs.
 """
 
-import asyncio
 import asyncpg
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List, Set
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from enum import Enum
 import json
 

@@ -1,8 +1,6 @@
-from src.db.test_db_manager import unit_test_db, unit_test_db_clean
 import pytest
 import os
 import gin
-from config.logging_config import LoggingConfig
 
 @pytest.fixture(autouse=True, scope="function")
 def gin_test_setup(request):

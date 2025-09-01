@@ -5,10 +5,8 @@ Provides data access layer for exchange entities following the established BaseD
 """
 
 from typing import Dict, Any, List, Optional, Union
-from datetime import date, datetime
 
 from dao.base.base_dao import BaseDAO
-from core.exceptions.custom_exceptions import DataValidationError
 from core.validation.data_validators import ValidationResult
 
 

@@ -9,7 +9,6 @@ from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 import logging
-import asyncio
 import asyncpg
 
 from state.universe_state_manager import UniverseStateManager

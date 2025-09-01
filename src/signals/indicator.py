@@ -39,7 +39,6 @@ class UniverseState:
 
 
 
-import logging
 import math
 
 class Indicator:

@@ -6,7 +6,6 @@ to allow external systems to monitor the health and performance of the agent.
 """
 
 import logging
-import json
 import asyncio
 from datetime import datetime
 from typing import Dict, Any, Optional, List, Callable
@@ -256,7 +255,7 @@ class DataAgentHealthChecks:
             
         try:
             # Get metrics report to check if metrics are working
-            report = metrics.get_metrics_report()
+            metrics.get_metrics_report()
             return {
                 "name": "metrics",
                 "healthy": True,

@@ -16,7 +16,7 @@ import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 
 class MigrationManager:
     def __init__(self, db_url: str = None):
@@ -130,7 +130,6 @@ class MigrationManager:
             import psycopg2
             from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
             from urllib.parse import urlparse
-            import re
             
             # Parse db_url for psycopg2
             parsed = urlparse(self.db_url)
@@ -530,12 +529,6 @@ class MigrationManager:
             return sql_statement
         
         # Split into individual statements while preserving the original structure
-        statements = []
-        current_statement = []
-        in_quotes = False
-        quote_char = None
-        in_comment = False
-        in_line_comment = False
         
         # First, process all CREATE TABLE statements to identify table names
         table_names = set()
@@ -706,7 +699,7 @@ class MigrationManager:
             # Handle SELECT statements separately with more robust pattern matching
             # Use a direct string replacement for SELECT statements to avoid regex escape issues
             select_str = f"SELECT * FROM {table}"
-            prefixed_select_str = f"SELECT * FROM {prefixed_table}"
+            f"SELECT * FROM {prefixed_table}"
             if select_str.lower() in processed_sql.lower():
                 print(f"[DEBUG] Prefixing table in SELECT: {table} -> {prefixed_table}")
                 processed_sql = re.sub(
@@ -892,7 +885,7 @@ class MigrationManager:
             try:
                 if not await self.apply_migration(version, description, file_path):
                     raise Exception(f"Migration {version} failed")
-            except Exception as migration_exc:
+            except Exception:
                 print(f"[ERROR] Migration failed. Fix the migration SQL and re-run migrations.")
                 success = False
                 break
@@ -941,9 +934,7 @@ class MigrationManager:
 
 async def main():
     """CLI interface for migration management."""
-    import sys
     import argparse
-    from config.environment import EnvironmentType
 
     parser = argparse.ArgumentParser(description="Migration Manager CLI")
     parser.add_argument("command", choices=["migrate", "validate", "version"], help="Migration command to run")

@@ -1,8 +1,5 @@
 import os
-import asyncio
-import asyncpg
 import pandas as pd
-from datetime import datetime
 
 TSDB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")
 
@@ -43,7 +40,6 @@ async def fetch_prices(pool, symbol=None, instrument_id=None):
         return pd.DataFrame([dict(row) for row in rows])
 
 # Use InstrumentXrefsDAO for instrument_id resolution
-from dao.instrument_xrefs_dao import InstrumentXrefsDAO
 
 # Remove the local resolve_instrument_id function; use the DAO instead.
 

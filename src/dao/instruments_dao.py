@@ -1,6 +1,6 @@
 from config.environment import Environment
 import asyncpg
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 class InstrumentsDAO:
     def __init__(self, env: Environment):

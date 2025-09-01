@@ -13,7 +13,7 @@ import argparse
 import pandas as pd
 import numpy as np
 from datetime import datetime, date, timedelta
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 import json
 from dataclasses import dataclass
 
@@ -262,8 +262,8 @@ class MultiModalFeatureGenerator:
         """Calculate price-based technical indicators"""
         try:
             close = df['close'].astype(float)
-            high = df['high'].astype(float)
-            low = df['low'].astype(float)
+            df['high'].astype(float)
+            df['low'].astype(float)
             
             # Moving averages
             sma_10 = close.rolling(10).mean().iloc[-1] if len(close) >= 10 else close.iloc[-1]

@@ -16,39 +16,27 @@ Key Features:
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
-import pandas as pd
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any, Union
+from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 import logging
-import math
 
 # Import existing TFT components
 from .temporal_fusion_transformer import (
     TFTConfig,
     TemporalFusionTransformer,
-    TFTTrainer,
-    GatedLinearUnit,
-    GatedResidualNetwork,
-    VariableSelectionNetwork,
-    InterpretableMultiHeadAttention
+    TFTTrainer
 )
 
 # Import event integration components
 from ..events.event_integration import (
     EventIntegrationLayer,
-    MarketEvent,
-    EventSequence,
-    EventType
+    EventSequence
 )
 
 # Import multi-scale components
 from ..storage.multi_scale_sequence import (
     MultiScaleSequence,
-    TimeScale,
-    ScaleFeatures
+    TimeScale
 )
 
 logger = logging.getLogger(__name__)
@@ -399,9 +387,9 @@ class EnhancedTemporalFusionTransformer(nn.Module):
         Returns:
             Dictionary containing predictions and interpretability information
         """
-        batch_size = encoder_input.size(0)
+        encoder_input.size(0)
         encoder_length = encoder_input.size(1)
-        decoder_length = decoder_input.size(1)
+        decoder_input.size(1)
         
         # Process multi-scale features if available
         if self.config.enable_multi_scale and multi_scale_features is not None:

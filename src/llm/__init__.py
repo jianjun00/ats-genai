@@ -19,13 +19,6 @@ from config.feature_flags import is_enabled
 # Conditionally import based on feature flags
 if is_enabled("enable_llm_events"):
     from .event_analysis import (
-        LLMEventAnalyzer,
-        EventAnalysisRequest,
-        EventAnalysisResult,
-        LLMInterface,
-        MockLLMInterface,
-        OpenAIInterface,
-        EventAnalysisCache,
         create_event_analyzer,
         quick_event_analysis,
         deep_event_analysis
@@ -46,7 +39,6 @@ if is_enabled("enable_llm_events"):
     
     if is_enabled("enable_adaptive_selection"):
         from .event_analysis import (
-            AdaptiveModelSelector,
             create_adaptive_analyzer
         )
         __all__.extend([

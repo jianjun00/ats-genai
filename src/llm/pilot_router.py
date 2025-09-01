@@ -8,9 +8,8 @@ based on content complexity, importance, and cost optimization considerations.
 import logging
 import re
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional
 from dataclasses import dataclass
-from collections import defaultdict
 
 from sentiment.news_sentiment_analyzer import NewsArticle
 

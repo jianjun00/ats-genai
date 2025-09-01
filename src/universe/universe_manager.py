@@ -1,12 +1,10 @@
 import asyncpg
-from calendars.time_duration import TimeDuration
 import gin
-from typing import List, Dict, Any, Optional
+from typing import List
 from datetime import date
 from config.environment import Environment
 from .universe_db import UniverseDB
 from dataclasses import dataclass
-from typing import Dict, Any
 
 @dataclass
 class UniverseMembershipChange:

@@ -4,12 +4,11 @@ Tracks query times, cache hit rates, and identifies performance bottlenecks.
 """
 import time
 import asyncio
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime
+from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 from collections import deque, defaultdict
 import logging
-from config.environment import Environment
 
 
 @dataclass

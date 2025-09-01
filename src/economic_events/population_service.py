@@ -4,15 +4,12 @@ Economic Events Population Service.
 Coordinates fetching and storing economic events from multiple vendors.
 """
 
-import asyncio
 import asyncpg
 import logging
-from datetime import datetime, date, timedelta
+from datetime import date
 from typing import List, Dict, Any, Optional
-from dataclasses import asdict
 
 from config.environment import Environment
-from config.database import get_connection_pool
 from dao.economic_events_dao import EconomicEventsDAO, EconomicEvent, EconomicEventType, EconomicEventVendorData
 from economic_events.polygon_client import PolygonEconomicEventsClient
 from economic_events.tiingo_client import TiingoEconomicEventsClient

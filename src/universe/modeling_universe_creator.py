@@ -12,7 +12,7 @@ import asyncio
 import asyncpg
 import logging
 from datetime import date, datetime, timedelta
-from typing import List, Dict, Optional
+from typing import List, Optional
 from dataclasses import dataclass
 from config.environment import Environment
 import gin

@@ -9,7 +9,7 @@ import os
 import asyncio
 import argparse
 import logging
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 import aiohttp
 import asyncpg
 from typing import List, Dict, Any
@@ -365,7 +365,6 @@ async def main():
     args = parser.parse_args()
     
     # Setup environment
-    import gin
     from config.environment import Environment
     env = Environment(gin_config_path=args.gin_config)
     

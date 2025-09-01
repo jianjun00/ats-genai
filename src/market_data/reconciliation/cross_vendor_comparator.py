@@ -10,10 +10,9 @@ calculate consensus prices using majority voting logic.
 import asyncio
 import asyncpg
 import numpy as np
-from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional
+from datetime import date, timedelta
+from typing import Dict, List
 from dataclasses import dataclass
-import os
 
 # Add src to path for imports
 from config.environment import Environment

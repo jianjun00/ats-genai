@@ -8,10 +8,9 @@ and features from market data. Features are configurable via gin.
 import gin
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, List, Callable, Optional, Union
+from typing import Dict, Any, List, Callable
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from .indicator import Indicator
 from .enhanced_indicators import EMAIndicator, ATRIndicator
 
 @dataclass
@@ -29,12 +28,10 @@ class FeatureGenerator(ABC):
     @abstractmethod
     def generate(self, data: pd.DataFrame, config: FeatureConfig) -> pd.Series:
         """Generate feature values from input data."""
-        pass
     
     @abstractmethod
     def get_feature_names(self, config: FeatureConfig) -> List[str]:
         """Get the names of features this generator produces."""
-        pass
 
 class IndicatorFeatureGenerator(FeatureGenerator):
     """Generates features from technical indicators."""

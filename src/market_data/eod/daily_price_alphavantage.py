@@ -7,12 +7,10 @@ Fetches daily stock prices from Alpha Vantage API and stores in database.
 import os
 import asyncio
 import aiohttp
-import asyncpg
 import datetime as dt
-import pandas as pd
 import argparse
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 from config.environment import Environment, EnvironmentType
 from dao.daily_prices_alphavantage_dao import DailyPricesAlphaVantageDAO

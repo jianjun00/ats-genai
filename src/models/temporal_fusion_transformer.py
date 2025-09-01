@@ -18,12 +18,9 @@ https://arxiv.org/pdf/1912.09363.pdf
 
 import math
 import logging
-from typing import Dict, List, Tuple, Union, Optional
+from typing import Dict, List
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 
-import numpy as np
-import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -437,7 +434,7 @@ class TemporalFusionTransformer(nn.Module):
         Returns:
             Dictionary containing predictions and attention weights
         """
-        batch_size = encoder_input.size(0)
+        encoder_input.size(0)
         encoder_length = encoder_input.size(1)
         decoder_length = decoder_input.size(1)
         

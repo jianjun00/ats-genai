@@ -1,8 +1,8 @@
 import os
 import requests
 import asyncio
-from datetime import datetime, date, timedelta
-from typing import List, Optional, Dict, Any
+from datetime import datetime, date
+from typing import List, Optional, Dict
 from dataclasses import dataclass
 from .base_adapter import VendorAdapter
 import logging

@@ -34,7 +34,7 @@ async def run_backfill(env, start_date, end_date, limit=None, tickers=None):
     
     # Initialize DAOs
     prices_dao = DailyPricesPolygonDAO(env)
-    xrefs_dao = InstrumentXrefsDAO(env)
+    InstrumentXrefsDAO(env)
     
     # Get Polygon API key
     polygon_api_key = os.environ.get("POLYGON_API_KEY") or env.get_api_key('polygon')
@@ -200,7 +200,7 @@ async def main():
     
     try:
         # Import Database before parsing Gin config
-        from config.database import Database
+        pass
         
         gin.parse_config_file(gin_config_path)
         logger.info(f"Successfully parsed Gin config: {gin_config_path}")

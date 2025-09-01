@@ -17,12 +17,11 @@ except ImportError:
     pq = None
     PYARROW_AVAILABLE = False
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional
 import logging
 import json
 import hashlib
 from datetime import datetime, timedelta
-import shutil
 import os
 from dataclasses import dataclass, asdict
 
@@ -41,16 +40,12 @@ class UniverseStateMetadata:
     version: str = "1.0"
 
 
-from state.universe_state import UniverseStateInterval
-from state.instrument_interval import InstrumentInterval
-from state.indicator_interval import IndicatorInterval
 
 import gin
 from dao.universe_state_interval_dao import UniverseStateIntervalDAO
 from dao.instrument_interval_dao import InstrumentIntervalDAO
 from dao.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
 from dao.factor_interval_dao import FactorIntervalDAO
-from core.run_context import RunContext
 
 @gin.configurable
 class UniverseStateManager:
@@ -1109,7 +1104,7 @@ if __name__ == "__main__":
             try:
                 # Build and save universe state for this date
                 # Support async build_universe_state if present
-                import inspect, asyncio
+                import asyncio
                 # Use handleInterval with a real DailyPriceMarketDataManager
                 from market_data.eod.daily_price_market_data_manager import DailyPriceMarketDataManager
                 from market_data.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager

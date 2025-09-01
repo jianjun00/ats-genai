@@ -147,7 +147,7 @@ class DailyPricesDAO(BaseDAO):
                 updated_at = NOW()
         """)
         
-        result = session.execute(query, records)
+        session.execute(query, records)
         return len(records)  # Return number of records processed
     
     # Specialized methods for daily prices

@@ -7,7 +7,7 @@ preparation for multi-horizon forecasting.
 """
 
 import logging
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -17,7 +17,6 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import asyncpg
 
-from config.environment import env
 from sentiment.sentiment_integrator import SentimentIntegrator, analyze_unified_sentiment
 
 logger = logging.getLogger(__name__)

@@ -100,8 +100,8 @@ class TiingoIntradayAdapter(VendorAdapter):
             raise RuntimeError("Must use async context manager")
         
         # Tiingo uses different date format
-        start_str = start_date.strftime("%Y-%m-%d")
-        end_str = end_date.strftime("%Y-%m-%d")
+        start_date.strftime("%Y-%m-%d")
+        end_date.strftime("%Y-%m-%d")
         
         # Split into daily chunks for large date ranges
         bars = []

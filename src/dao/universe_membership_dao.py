@@ -1,4 +1,3 @@
-from config.environment import Environment, EnvironmentType
 import asyncpg
 
 from datetime import datetime

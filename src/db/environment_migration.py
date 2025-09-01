@@ -7,7 +7,7 @@ tables with proper prefixes (test_, intg_, prod_).
 
 import asyncio
 import asyncpg
-from typing import List, Dict, Any
+from typing import Dict
 from config.environment import EnvironmentType, Environment
 # Fallback: hardcode the integration DB URL if import fails
 try:

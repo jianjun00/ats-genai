@@ -20,7 +20,6 @@ from pathlib import Path
 import hashlib
 import ray
 import asyncpg
-from concurrent.futures import ThreadPoolExecutor
 import time
 
 # Configure logging

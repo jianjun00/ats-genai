@@ -13,8 +13,6 @@ Features:
 - Checksum verification of downloaded files
 """
 
-import os
-import requests
 import logging
 import asyncio
 import aiohttp

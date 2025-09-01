@@ -1,4 +1,3 @@
-import asyncpg
 from typing import List, Dict, Any
 from src.config.environment import Environment
 

@@ -14,16 +14,13 @@ Key Features:
 - Comprehensive error handling
 """
 
-import os
 import asyncio
 import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta, date
-from typing import List, Dict, Optional, Any, Union, Tuple, Set
+from datetime import datetime, timedelta
+from typing import List, Dict, Optional, Any, Tuple, Set
 from pathlib import Path
 import logging
 from dataclasses import dataclass, field
-import tempfile
 import shutil
 from concurrent.futures import ThreadPoolExecutor
 import json

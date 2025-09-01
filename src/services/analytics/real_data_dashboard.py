@@ -8,10 +8,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 import uvicorn
 import os
-import asyncio
 import asyncpg
 from datetime import datetime
-from typing import Dict, List, Any
 
 app = FastAPI(title='ATS Real Data Analytics Dashboard')
 

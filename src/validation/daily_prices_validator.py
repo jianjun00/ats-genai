@@ -4,11 +4,10 @@ Daily Prices Data Validation System.
 Comprehensive validation for missing, bad, and anomalous daily price data.
 """
 
-import asyncio
 import asyncpg
 import logging
 from datetime import datetime, date, timedelta
-from typing import Dict, Any, List, Optional, Tuple, Set
+from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 import statistics

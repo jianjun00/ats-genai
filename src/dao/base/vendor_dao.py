@@ -51,7 +51,6 @@ class BaseVendorDAO(BaseDAO, ABC):
     @abstractmethod
     def get_vendor_config(self) -> Dict[str, Any]:
         """Get vendor-specific configuration."""
-        pass
     
     def validate_vendor_data(self, data: Dict[str, Any]) -> bool:
         """
@@ -76,7 +75,6 @@ class BaseVendorDAO(BaseDAO, ABC):
     @abstractmethod
     def get_required_fields(self) -> List[str]:
         """Get list of required fields for this vendor."""
-        pass
     
     def transform_vendor_data(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """

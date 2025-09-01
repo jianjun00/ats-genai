@@ -10,7 +10,7 @@ import logging
 import os
 import json
 from datetime import datetime, date, timedelta
-from typing import Dict, Any
+from typing import Dict
 
 from config.environment import Environment, EnvironmentType
 from config.database import get_connection_pool
@@ -284,7 +284,7 @@ def main():
                 env, api_keys, args.start_date, args.end_date, args.output
             ))
         elif args.command == "status":
-            status = asyncio.run(get_system_status(env, api_keys))
+            asyncio.run(get_system_status(env, api_keys))
             success = True
         else:
             parser.error(f"Unknown command: {args.command}")

@@ -8,7 +8,7 @@ import asyncio
 import asyncpg
 import logging
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, Any, List, Optional, Set, Tuple
 from dataclasses import dataclass
 
@@ -270,7 +270,6 @@ class BaseFrontfillJob(ABC):
     @abstractmethod
     async def get_default_starting_checkpoint(self) -> str:
         """Get the default starting checkpoint for this job type."""
-        pass
     
     @abstractmethod
     async def fetch_data_batch(self, checkpoint: str, batch_size: int) -> Tuple[List[Dict[str, Any]], str]:
@@ -280,7 +279,6 @@ class BaseFrontfillJob(ABC):
         Returns:
             Tuple of (batch_data, next_checkpoint)
         """
-        pass
     
     @abstractmethod
     async def process_data_batch(self, batch_data: List[Dict[str, Any]]) -> Tuple[int, int]:
@@ -290,7 +288,6 @@ class BaseFrontfillJob(ABC):
         Returns:
             Tuple of (inserted_count, updated_count)
         """
-        pass
     
     # Utility methods for subclasses
     

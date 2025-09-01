@@ -14,7 +14,6 @@ from sqlalchemy import create_engine, Engine, text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, AsyncSession
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import QueuePool
-from sqlalchemy.exc import SQLAlchemyError, DisconnectionError, OperationalError
 import psycopg2
 from psycopg2.extras import RealDictCursor
 

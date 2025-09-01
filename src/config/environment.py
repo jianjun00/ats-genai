@@ -130,7 +130,6 @@ class Environment:
             # Use absolute path for fallback as well
             config_dir = Path(__file__).parent.parent.parent / "config"
             config_path = os.getenv("GIN_CONFIG", str(config_dir / "app.gin"))
-        import logging
         print(f"[GIN DEBUG] Using Gin config: {config_path}, env_type={getattr(self, 'env_type', None)}")
         self.gin_config_path = config_path
         # Import Database before parsing Gin config to register it as a configurable

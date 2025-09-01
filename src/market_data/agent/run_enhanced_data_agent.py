@@ -22,8 +22,6 @@ import asyncio
 import logging
 import argparse
 import signal
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List
 
 # Import data agent components
 from market_data.agent.data_agent_orchestrator import DataAgentOrchestrator

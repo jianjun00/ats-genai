@@ -16,27 +16,20 @@ Market cap can be calculated via:
 - Cross-vendor validation and consensus building
 """
 
-from typing import Dict, List, Optional, Any, Union, Tuple
-from datetime import date, datetime, timedelta
-from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Any
+from datetime import date, timedelta
+from dataclasses import dataclass
 from enum import Enum
-import asyncio
 import asyncpg
 import logging
 import statistics
-import numpy as np
-from decimal import Decimal, ROUND_HALF_UP
 
 from config.environment import Environment
 from market_data.fundamentals.unified_fundamental_provider import (
-    UnifiedFundamentalProvider, 
-    VendorFundamental,
-    ValidationStatus as FundamentalValidationStatus
+    UnifiedFundamentalProvider
 )
 from market_data.eod.unified_daily_price_validator import (
-    UnifiedDailyPriceValidator, 
-    UnifiedPrice,
-    ValidationStatus as PriceValidationStatus
+    UnifiedDailyPriceValidator
 )
 
 

@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Dict, Any
 from enum import Enum
-import json
 
 
 class SubscriptionTier(str, Enum):

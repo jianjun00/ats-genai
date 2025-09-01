@@ -3,14 +3,12 @@ Interpretability Framework for Residual Return Prediction Models.
 Provides comprehensive explanations for model predictions using multiple interpretation methods.
 """
 
-import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Any, Union
-from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any
+from datetime import datetime
 from dataclasses import dataclass
 from enum import Enum
 import logging
-import json
 
 from modeling.llm_pattern_recognition import LLMPatternRecognizer, LLMProvider
 from modeling.multi_timeframe_analyzer import MultiTimeFrameFeatures

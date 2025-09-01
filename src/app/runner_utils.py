@@ -1,8 +1,4 @@
-import os
 from typing import List, Optional
-import pandas as pd
-from pathlib import Path
-from config.environment import Environment, EnvironmentType
 from state.universe_state_manager import UniverseStateManager
 from state.universe_state_builder import UniverseStateIntervalBuilder
 from market_data.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
@@ -51,7 +47,6 @@ async def run_file_daily_price_ohlcv(
 
     # Fetch universe state intervals from DB using DAO
     from dao.universe_state_interval_dao import UniverseStateIntervalDAO
-    from datetime import datetime
     dao = UniverseStateIntervalDAO(env)
     universe_id = env.get_universe_id()
     
@@ -73,7 +68,6 @@ async def run_file_daily_price_ohlcv(
         print(f"[DEBUG][run_file_daily_price_ohlcv] No intervals found, creating default DataFrame")
         # Create a synthetic DataFrame with the necessary structure
         import pandas as pd
-        from datetime import datetime
         
         # Create date range
         all_dates = pd.date_range(start=start_date, end=end_date).date
@@ -196,7 +190,6 @@ async def run_file_daily_price_ohlcv(
             return base_df
 
     # Guarantee all requested dates are present for each instrument_id
-    from datetime import datetime, timedelta
     all_dates = pd.date_range(start=start_date, end=end_date).date
     instrument_ids_unique = df['instrument_id'].unique()
     

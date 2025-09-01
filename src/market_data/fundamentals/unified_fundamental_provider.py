@@ -14,16 +14,11 @@ This provider:
 """
 
 from typing import Dict, List, Optional, Any, Union, Tuple
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from dataclasses import dataclass, field
 from enum import Enum
-import asyncio
-import asyncpg
 import logging
 import statistics
-import numpy as np
-from decimal import Decimal, ROUND_HALF_UP
-import json
 
 from config.environment import Environment
 from dao.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental

@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 import pytz
 from datetime import time, datetime, timedelta
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Optional
 from .indicator import Indicator
 
 

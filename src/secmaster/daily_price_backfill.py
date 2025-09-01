@@ -6,7 +6,6 @@ Fetches 5 years of daily price data for instruments using Polygon API.
 
 import os
 import asyncio
-import asyncpg
 import argparse
 import gin
 import sys
@@ -15,7 +14,6 @@ import datetime as dt
 import time
 import requests
 from config.environment import Environment, EnvironmentType
-from config.database import Database
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

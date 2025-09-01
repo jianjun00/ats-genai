@@ -9,7 +9,6 @@ NO FALLBACKS - If centralized connection manager fails, the script should fail.
 This prevents hiding real issues and ensures consistent connection management.
 """
 
-import os
 from typing import Dict, List, Any, Optional
 
 # Use proper relative imports instead of sys.path manipulation

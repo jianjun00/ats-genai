@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import date, datetime
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional
 from market_data.market_data_manager import MarketDataManager
 from state.instrument_interval import InstrumentInterval
 

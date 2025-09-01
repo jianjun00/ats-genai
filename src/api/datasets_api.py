@@ -8,9 +8,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import asyncpg
-from datetime import datetime
 import logging
-import os
 
 logger = logging.getLogger(__name__)
 

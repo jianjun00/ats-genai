@@ -9,7 +9,7 @@ logic layer (UniverseStateIntervalBuilder).
 import pandas as pd
 from typing import Dict, Any, List, Optional
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from config.environment import Environment
 from state.universe_state_manager import UniverseStateManager
 from state.universe_state_builder import (

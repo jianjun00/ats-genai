@@ -4,7 +4,6 @@ News Frontfill Job.
 Continuously updates news data every 5 minutes from multiple sources.
 """
 
-import asyncio
 import aiohttp
 import logging
 from datetime import datetime, timedelta

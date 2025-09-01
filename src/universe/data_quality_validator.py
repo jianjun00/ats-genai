@@ -9,7 +9,7 @@ import asyncio
 import asyncpg
 import logging
 from datetime import date, datetime, timedelta
-from typing import List, Dict, Set, Optional, Tuple, NamedTuple
+from typing import List, Dict, Optional, NamedTuple
 from dataclasses import dataclass
 from enum import Enum
 from config.environment import Environment

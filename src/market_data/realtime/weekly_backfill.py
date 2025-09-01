@@ -12,7 +12,7 @@ import aiohttp
 import logging
 import os
 from datetime import datetime, timedelta, date
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
 import pytz

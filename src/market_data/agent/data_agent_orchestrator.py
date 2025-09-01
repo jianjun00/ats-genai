@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import os
 import time
@@ -6,13 +5,13 @@ from datetime import datetime, date, timedelta
 from typing import List, Dict, Any, Optional, Set, Union
 import asyncpg
 from .base_adapter import VendorAdapter
-from .models import EODPrice, ReconciledRecord
+from .models import EODPrice
 from .reconciliation import ReconciliationEngine
 from .reconciled_record_dao import ReconciledRecordDAO
-from .monitoring import DataAgentMetrics, DataAgentMonitor, timed_operation
+from .monitoring import DataAgentMetrics, DataAgentMonitor
 from .alert_handlers import AlertHandler
 from .resilience import with_resilience, CircuitBreakerError
-from .health_api import setup_health_api, HealthAPI
+from .health_api import setup_health_api
 from .logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -413,7 +412,6 @@ class DataAgentOrchestrator:
             
             # Fetch from all adapters
             all_prices = []
-            had_errors = False
             
             for vendor_name, adapter in self.adapters.items():
                 try:
@@ -424,7 +422,6 @@ class DataAgentOrchestrator:
                     all_prices.extend(prices)
                         
                 except Exception as e:
-                    had_errors = True
                     logger.error(f"Error fetching {symbol} data from {vendor_name}: {e}")
                     
                     # Record source failure

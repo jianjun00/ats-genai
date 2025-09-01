@@ -10,8 +10,8 @@ import logging
 import time
 import asyncio
 import random
-from datetime import datetime, timedelta
-from typing import Callable, Any, Dict, Optional, TypeVar, Union, List
+from datetime import datetime
+from typing import Dict, Optional, TypeVar, Union, List
 from functools import wraps
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,6 @@ T = TypeVar('T')
 
 class CircuitBreakerError(Exception):
     """Exception raised when a circuit breaker is open."""
-    pass
 
 class CircuitBreaker:
     """
@@ -220,7 +219,7 @@ def with_circuit_breaker(circuit_breaker_name: str):
                 result = await func(*args, **kwargs)
                 circuit_breaker.record_success()
                 return result
-            except Exception as e:
+            except Exception:
                 circuit_breaker.record_failure()
                 raise
                 
@@ -236,7 +235,7 @@ def with_circuit_breaker(circuit_breaker_name: str):
                 result = func(*args, **kwargs)
                 circuit_breaker.record_success()
                 return result
-            except Exception as e:
+            except Exception:
                 circuit_breaker.record_failure()
                 raise
         
@@ -302,7 +301,7 @@ def with_retry(
                     backoff = retry_logic.calculate_backoff(retries)
                     logger.info(f"Retry {retries}/{max_retries} for {func.__name__} after {backoff:.2f}s: {str(e)}")
                     await asyncio.sleep(backoff)
-                except Exception as e:
+                except Exception:
                     # Don't retry on exceptions not in retry_exceptions
                     raise
             
@@ -330,7 +329,7 @@ def with_retry(
                     backoff = retry_logic.calculate_backoff(retries)
                     logger.info(f"Retry {retries}/{max_retries} for {func.__name__} after {backoff:.2f}s: {str(e)}")
                     time.sleep(backoff)
-                except Exception as e:
+                except Exception:
                     # Don't retry on exceptions not in retry_exceptions
                     raise
             

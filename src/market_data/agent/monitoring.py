@@ -8,8 +8,8 @@ for the data agent orchestrator to track performance and reliability.
 import logging
 import time
 import os
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional, Callable, Union
+from datetime import datetime
+from typing import Dict, Any, List, Optional, Union
 import asyncio
 import json
 
@@ -20,7 +20,7 @@ from src.market_data.agent.alert_handlers import (
 
 try:
     from src.market_data.agent.prometheus_metrics import (
-        PrometheusMetricsExporter, PrometheusMonitor, setup_prometheus_monitoring
+        setup_prometheus_monitoring
     )
     PROMETHEUS_AVAILABLE = True
 except ImportError:

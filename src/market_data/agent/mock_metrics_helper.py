@@ -2,9 +2,8 @@
 Helper module for recording metrics in mock testing scenarios.
 """
 import logging
-import time
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 

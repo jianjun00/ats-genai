@@ -1,4 +1,3 @@
-import os
 import asyncio
 import logging
 from typing import List, AsyncGenerator, Callable, Any
@@ -13,16 +12,14 @@ except ImportError:
     Contract = None
     MarketOrder = None
     IB_INSYNC_AVAILABLE = False
-import asyncpg
 from datetime import datetime
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from collections import deque, defaultdict
+from collections import deque
 from calendars.market_calendar_utils import get_market_calendar, get_last_open_close
-from datetime import timedelta
 import pandas as pd
 
 class MarketDataStreamer:

@@ -17,20 +17,16 @@ except ImportError:
     pq = None
     PYARROW_AVAILABLE = False
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional
 import logging
 import json
 import hashlib
 from datetime import datetime, timedelta
 import shutil
-import os
-from dataclasses import dataclass, asdict
+from dataclasses import asdict
 
 from .universe_state_manager import UniverseStateManager, UniverseStateMetadata
 from core.run_context import RunContext, get_current_run_context
-from state.universe_state import UniverseStateInterval
-from state.instrument_interval import InstrumentInterval
-from state.indicator_interval import IndicatorInterval
 
 import gin
 from dao.universe_state_interval_dao import UniverseStateIntervalDAO

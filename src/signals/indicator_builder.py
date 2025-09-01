@@ -1,4 +1,4 @@
-from typing import Dict, List, Any
+from typing import Dict, List
 from datetime import datetime
 from state.indicator_interval import IndicatorInterval
 from state.instrument_interval import InstrumentInterval

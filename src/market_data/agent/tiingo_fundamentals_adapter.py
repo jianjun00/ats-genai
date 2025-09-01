@@ -1,8 +1,8 @@
 import os
 import requests
 import asyncio
-from datetime import datetime, date, timedelta
-from typing import List, Optional, Dict, Any
+from datetime import datetime, date
+from typing import List, Optional, Dict
 from .polygon_fundamentals_adapter import FundamentalData
 from .base_adapter import VendorAdapter
 import logging

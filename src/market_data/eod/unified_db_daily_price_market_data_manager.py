@@ -79,12 +79,10 @@ class UnifiedDBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
         Optimized batch OHLC fetching using parallel execution and bulk database queries.
         Performance improvement: ~10x faster for large instrument lists (100+ instruments).
         """
-        import asyncio
         
         # Performance monitoring (optional - gracefully handle import failures)
         try:
             from monitoring.data_pipeline_performance_monitor import time_operation
-            performance_monitor = True
         except ImportError:
             # Fallback context manager for when monitoring is not available
             class DummyTimer:
@@ -94,7 +92,6 @@ class UnifiedDBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                 def record_cache_miss(self): pass
                 def record_database_query(self): pass
             def time_operation(operation, instrument_count=0): return DummyTimer()
-            performance_monitor = False
         
         with time_operation("get_ohlc_batch", instrument_count=len(instrument_ids)) as timer:
             # Get all symbols for batch processing

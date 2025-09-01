@@ -8,7 +8,7 @@ from market data. Labels are configurable via gin.
 import gin
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, List, Callable, Optional, Union
+from typing import Dict, Any, List, Callable
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
@@ -27,12 +27,10 @@ class LabelGenerator(ABC):
     @abstractmethod
     def generate(self, data: pd.DataFrame, config: LabelConfig) -> pd.Series:
         """Generate label values from input data."""
-        pass
     
     @abstractmethod
     def get_label_names(self, config: LabelConfig) -> List[str]:
         """Get the names of labels this generator produces."""
-        pass
 
 class PriceLabelGenerator(LabelGenerator):
     """Generates price-based labels (future prices, price changes)."""

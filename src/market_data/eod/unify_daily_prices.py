@@ -1,4 +1,3 @@
-import os
 import asyncpg
 import numpy as np
 from datetime import datetime, date, timedelta
@@ -340,7 +339,7 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
     def unify_daily_prices_sync(self, symbol, asof, current_date):
         import asyncio
         import logging
-        logger = logging.getLogger(__name__)
+        logging.getLogger(__name__)
         
         # Debug: Log input parameters
         print(f"[DEBUG][unify_daily_prices_sync] ENTER: symbol={symbol}, asof={asof}, current_date={current_date}")
@@ -402,7 +401,7 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
     async def unify_daily_prices(self, symbol, asof, current_date):
         import logging
         from datetime import timedelta
-        logger = logging.getLogger(__name__)
+        logging.getLogger(__name__)
         
         # Debug: Log input parameters
         print(f"[DEBUG][unify_daily_prices] ENTER: symbol={symbol}, asof={asof}, current_date={current_date}")
@@ -472,7 +471,6 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
         num_days = (end_date - start_date).days + 1
         all_days = [start_date + timedelta(days=i) for i in range(num_days)]
         results = []
-        seen_dates = set()
         for d in all_days:
             t = tiingo.get(d)
             p = polygon.get(d)

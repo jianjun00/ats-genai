@@ -13,27 +13,21 @@ Key Features:
 - Transparent caching with fallback to Parquet files
 """
 
-import os
 import asyncio
 import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any, Union
-from pathlib import Path
+from typing import Dict, List, Optional, Any
 import logging
 from dataclasses import dataclass
 
 from .file_based_minute_manager import (
     FileBasedMinuteManager, 
-    MinuteBar, 
-    FileMetadata,
-    OverlapInfo
+    MinuteBar
 )
 from .hdf5_multi_scale_cache import HDF5MultiScaleCache, CacheConfig
 from .multi_scale_sequence import (
     MultiScaleSequence, 
     TimeScale, 
-    ScaleFeatures,
     create_multi_scale_sequence
 )
 

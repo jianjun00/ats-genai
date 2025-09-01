@@ -1,7 +1,4 @@
 import os
-import httpx
-from datetime import datetime
-from events.schemas import EventIn
 
 QUANDL_API_KEY = os.getenv("QUANDL_API_KEY")
 

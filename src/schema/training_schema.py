@@ -6,12 +6,12 @@ for ATS training datasets with financial-specific feature types.
 """
 
 from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import List, Dict, Any, Optional, Union, Tuple
+from enum import Enum
+from typing import List, Dict, Any, Optional
 import json
 import hashlib
 import numpy as np
-from datetime import datetime, date
+from datetime import datetime
 import logging
 from pathlib import Path
 

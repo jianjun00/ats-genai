@@ -7,11 +7,10 @@ Provides fine-grained checkpointing and parallel processing for large-scale
 
 import asyncio
 import asyncpg
-from datetime import datetime, timedelta, date
-from typing import List, Dict, Optional, Any, Set, Tuple, NamedTuple
+from datetime import datetime, timedelta
+from typing import List, Dict, Optional, Any, Tuple
 from dataclasses import dataclass, field
 import logging
-from concurrent.futures import ThreadPoolExecutor
 import json
 from pathlib import Path
 import hashlib
@@ -26,7 +25,6 @@ from market_data.reconciliation.cross_vendor_reconciler import (
     ReconciliationMethod
 )
 from storage.hybrid_minute_data_manager import HybridMinuteDataManager, StorageConfig
-from config.environment import env
 
 logger = logging.getLogger(__name__)
 
@@ -537,7 +535,7 @@ class EnhancedMinuteBackfillOrchestrator:
                 return await self.polygon_adapter.fetch_minute_bars_async(
                     segment.symbol, segment.start_date, segment.end_date
                 )
-            except Exception as e:
+            except Exception:
                 if attempt < self.config.max_retries_per_segment - 1:
                     await asyncio.sleep(self.config.retry_delay_seconds)
                 else:
@@ -550,7 +548,7 @@ class EnhancedMinuteBackfillOrchestrator:
                 return await self.tiingo_adapter.fetch_minute_bars_async(
                     segment.symbol, segment.start_date, segment.end_date
                 )
-            except Exception as e:
+            except Exception:
                 if attempt < self.config.max_retries_per_segment - 1:
                     await asyncio.sleep(self.config.retry_delay_seconds)
                 else:

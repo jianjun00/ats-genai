@@ -3,7 +3,6 @@ import asyncio
 from config.environment import Environment, EnvironmentType
 from dao.instrument_polygon_dao import InstrumentPolygonDAO
 from dao.instruments_dao import InstrumentsDAO
-from dao.universe_membership_dao import UniverseMembershipDAO
 from dao.instrument_xrefs_dao import InstrumentXrefsDAO
 from dao.vendors_dao import VendorsDAO
 from datetime import datetime, date
@@ -92,7 +91,7 @@ async def populate_unified_instruments(polygon_dao, instruments_dao, xrefs_dao, 
     ticker_vendor = await vendors_dao.get_vendor_by_name('ticker')
     if not ticker_vendor:
         raise RuntimeError("Ticker vendor not found in vendors table.")
-    ticker_vendor_id = ticker_vendor['id']
+    ticker_vendor['id']
 
     # Determine which tickers to copy
     tickers_to_copy = set()
@@ -125,7 +124,6 @@ async def populate_unified_instruments(polygon_dao, instruments_dao, xrefs_dao, 
         from dao.instruments_dao import InstrumentsDAO
         from dao.instrument_xrefs_dao import InstrumentXrefsDAO
         from dao.vendors_dao import VendorsDAO
-        from datetime import date
         # Recreate DAOs in Ray worker
         env = Environment(*env_args)
         polygon_dao = InstrumentPolygonDAO(env)
@@ -135,7 +133,6 @@ async def populate_unified_instruments(polygon_dao, instruments_dao, xrefs_dao, 
         async def batch_logic():
             ticker_vendor = await vendors_dao.get_vendor_by_name('ticker')
             ticker_vendor_id = ticker_vendor['id']
-            results = []
             # Fetch all polygon instruments for batch
             polygon_instruments = {}
             for symbol in batch:
@@ -205,11 +202,9 @@ async def populate_unified_instruments(polygon_dao, instruments_dao, xrefs_dao, 
         ray.init(ignore_reinit_error=True, num_cpus=RAY_NUM_WORKERS)
     env_args = (polygon_dao.env.gin_config_path, polygon_dao.env.env_type)
     # Only RAY_NUM_WORKERS batches in flight at once
-    from tqdm import tqdm
     import time
     results = []
     i = 0
-    import asyncpg
     import time
     while i < len(batches):
         batch_futures = []

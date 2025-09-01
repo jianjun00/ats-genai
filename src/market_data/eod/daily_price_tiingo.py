@@ -6,7 +6,6 @@ except Exception as e:
     print(f'[WARN] Could not parse gin config: {e}')
 
 import asyncio
-import aiohttp
 import asyncpg
 import datetime as dt
 import pandas as pd
@@ -127,8 +126,6 @@ async def fetch_and_insert_symbol(dao: DailyPricesTiingoDAO, session, instrument
         # After successful response, process as before
         # Log request/response for AAPL/TSLA in date range
         
-        import json, os
-        log_tickers = {"AAPL", "TSLA"}
         log_start = dt.datetime(2020, 1, 10)
         log_end = dt.datetime(2024, 12, 31)
         def in_log_range(s, e):

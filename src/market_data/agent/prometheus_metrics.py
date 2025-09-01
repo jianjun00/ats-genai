@@ -8,10 +8,10 @@ allowing integration with Prometheus monitoring system and Grafana dashboards.
 import logging
 import time
 import threading
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any
 
 try:
-    from prometheus_client import Counter, Gauge, Histogram, Summary, start_http_server
+    from prometheus_client import Counter, Gauge, Histogram, start_http_server
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False

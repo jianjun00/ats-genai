@@ -4,15 +4,14 @@ Validation Integration for Frontfill System.
 Integrates daily prices validation into the automated frontfill workflow.
 """
 
-import asyncio
 import asyncpg
 import logging
 from datetime import datetime, date, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from dataclasses import dataclass
 
 from config.environment import Environment
-from validation.daily_prices_validator import DailyPricesValidator, ValidationSeverity
+from validation.daily_prices_validator import DailyPricesValidator
 from validation.missing_data_handler import MissingDataHandler
 from frontfill.checkpoint_manager import CheckpointManager
 

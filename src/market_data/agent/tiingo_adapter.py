@@ -1,6 +1,5 @@
 import os
 import requests
-from datetime import datetime
 from typing import List, Optional
 from .base_adapter import VendorAdapter
 from .models import InstrumentMetadata, EODPrice
@@ -48,7 +47,6 @@ class TiingoAdapter(VendorAdapter):
             
             # Handle rate limiting (429 errors)
             if resp.status_code == 429:
-                import time
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.warning(f"Rate limited for {ticker}, skipping")

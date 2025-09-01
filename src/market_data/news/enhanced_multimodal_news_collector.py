@@ -10,13 +10,12 @@ import asyncio
 import aiohttp
 import asyncpg
 import logging
-from datetime import datetime, timedelta, date
-from typing import List, Dict, Any, Optional, Tuple
+from datetime import datetime, timedelta
+from typing import List, Dict, Any
 import json
 import argparse
 from dataclasses import dataclass
 import time
-import re
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

@@ -8,8 +8,7 @@ import asyncio
 import aiohttp
 import logging
 from datetime import datetime, date
-from typing import List, Dict, Any, Optional
-from decimal import Decimal
+from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -191,7 +190,7 @@ class TiingoEconomicEventsClient:
             event_name = article_data.get("title", "").strip()
             
             # Categorize the event based on title/description
-            category = self._categorize_event(article_data)
+            self._categorize_event(article_data)
             
             return {
                 "event_name": event_name,

@@ -6,21 +6,18 @@ production backtest infrastructure, providing realistic performance comparisons
 using actual market data and trading logic.
 """
 
-import asyncio
 import logging
 import uuid
 from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Any
 from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from ml.evaluation.model_config_comparison import ModelConfigComparison, ModelConfigDefinition
+from ml.evaluation.model_config_comparison import ModelConfigDefinition
 from scripts.analytics.production_backtest_runner import ProductionBacktestRunner
 from ml.models.support_resistance_model import SupportResistanceEnsemble, SRModelConfig
 from ml.dynamic_training.adaptive_sr_model import AdaptiveSupportResistanceModel, AdaptiveModelConfig
-from dao.daily_price_dao import DailyPriceDAO
-from dao.universe_dao import UniverseDAO
 
 
 @dataclass 
@@ -488,7 +485,7 @@ class ProductionModelComparison(ProductionBacktestRunner):
         # Find best performers
         best_return = -float('inf')
         best_sharpe = -float('inf')
-        best_risk_adjusted = -float('inf')
+        -float('inf')
         
         for name, results in all_results.items():
             metrics = self._calculate_metrics(results)

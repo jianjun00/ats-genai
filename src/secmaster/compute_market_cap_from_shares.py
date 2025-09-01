@@ -8,8 +8,8 @@ import os
 import asyncio
 import argparse
 import logging
-from datetime import datetime, date, timedelta
-from typing import Optional, List, Dict, Any
+from datetime import date, timedelta
+from typing import Optional, List
 
 from config.environment import Environment, EnvironmentType
 

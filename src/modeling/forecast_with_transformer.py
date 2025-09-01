@@ -3,11 +3,9 @@ Example: Time Series Forecasting with Transformer (darts)
 - Predicts next n days price movement using past lag_days price/indicator features.
 - Uses UniverseStateManager APIs for feature/label extraction.
 """
-import pandas as pd
 from darts import TimeSeries
 from darts.models import TransformerModel
 from state.universe_state_manager import UniverseStateManager
-from datetime import datetime, timedelta
 
 # --- Config ---
 INSTRUMENT_ID = 1  # Example instrument

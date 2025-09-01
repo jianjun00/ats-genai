@@ -5,11 +5,10 @@ Integrates multiple sentiment analysis approaches for financial news and social 
 Based on MathTypes ATS sentiment analysis framework.
 """
 
-import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional
 import re
 import time
 
@@ -25,8 +24,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import feedparser
 import aiohttp
-import requests
-from bs4 import BeautifulSoup
 
 
 @dataclass

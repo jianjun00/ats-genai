@@ -7,11 +7,11 @@ Provides web-based analytics dashboard for 30-year price database
 import asyncio
 import json
 import logging
-from datetime import datetime, timedelta
-from http.server import HTTPServer, BaseHTTPRequestHandler, ThreadingHTTPServer
+from datetime import datetime
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import sys
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List
 import numpy as np
 import time
 
@@ -25,7 +25,7 @@ from core.config.settings import get_settings
 
 # Ray EDA integration for massive dataset analysis
 try:
-    from services.ray_eda_engine import get_ray_eda_service, RayEDAService
+    from services.ray_eda_engine import get_ray_eda_service
     RAY_AVAILABLE = True
     logger.info("✅ Ray EDA engine loaded - distributed computing enabled")
 except ImportError as e:

@@ -8,8 +8,7 @@ import asyncio
 import logging
 import argparse
 import os
-from datetime import date, datetime
-from typing import Dict, Optional
+from typing import Dict
 
 from config.environment import Environment, EnvironmentType
 from frontfill.frontfill_orchestrator import run_frontfill_orchestrator

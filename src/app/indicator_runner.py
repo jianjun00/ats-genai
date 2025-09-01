@@ -1,6 +1,5 @@
 print('[DEBUG_TOP] indicator_runner.py top of file')
 print('[DEBUG_IMPORT] about to import os')
-import os
 print('[DEBUG_IMPORT] imported os')
 print('[DEBUG_IMPORT] about to import argparse')
 import argparse
@@ -12,7 +11,6 @@ print('[DEBUG_IMPORT] about to import asyncio (again)')
 import asyncio
 print('[DEBUG_IMPORT] imported asyncio (again)')
 print('[DEBUG_IMPORT] about to import pathlib')
-from pathlib import Path
 print('[DEBUG_IMPORT] imported pathlib')
 print('[DEBUG_IMPORT] about to import signals.indicator_config')
 from signals.indicator_config import IndicatorConfig
@@ -21,10 +19,8 @@ print('[DEBUG_IMPORT] about to import signals.indicator')
 from signals.indicator import ETop, EBot, PL
 print('[DEBUG_IMPORT] imported signals.indicator')
 print('[DEBUG_IMPORT] about to import datetime/date/timedelta')
-from datetime import datetime, timedelta
 print('[DEBUG_IMPORT] imported datetime/date/timedelta')
 print('[DEBUG_IMPORT] about to import app.runner_utils')
-from app.runner_utils import run_file_daily_price_ohlcv
 print('[DEBUG_IMPORT] imported app.runner_utils')
 
 
@@ -53,7 +49,7 @@ class IndicatorRunner(Runner):
     def __init__(self, start_date, end_date, environment, universe_id=None, symbols=None, vendor='polygon', indicator_config=None, callbacks=None, base_duration='1d', market_data_manager=None):
         print(f"[DEBUG_INIT] IndicatorRunner.__init__ called with start_date={start_date}, end_date={end_date}, environment={environment}, universe_id={universe_id}, symbols={symbols}, vendor={vendor}, indicator_config={indicator_config}, callbacks={callbacks}, base_duration={base_duration}")
         # Parse dates
-        from datetime import datetime, date
+        from datetime import datetime
         if isinstance(start_date, str):
             start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
         if isinstance(end_date, str):

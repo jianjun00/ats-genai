@@ -8,7 +8,6 @@ Handles rate limits, sentiment analysis, and historical data retrieval.
 import asyncio
 import aiohttp
 import logging
-import json
 import os
 from datetime import datetime, date, timedelta
 from typing import List, Dict, Any, Optional

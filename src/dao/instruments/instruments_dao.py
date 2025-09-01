@@ -6,7 +6,7 @@ unified interface supporting multi-vendor instrument data.
 """
 
 from typing import Any, Dict, List, Optional, Union
-from datetime import datetime, date
+from datetime import datetime
 from sqlalchemy import text
 
 from dao.base.base_dao import BaseDAO
@@ -156,7 +156,7 @@ class InstrumentsDAO(BaseDAO):
                 updated_at = NOW()
         """)
         
-        result = session.execute(query, records)
+        session.execute(query, records)
         return len(records)
     
     # Specialized instrument methods
@@ -436,7 +436,7 @@ class InstrumentsDAO(BaseDAO):
             params["exchange"] = exchange
         
         try:
-            result = self.execute_query(query_str, params)
+            self.execute_query(query_str, params)
             return True
         except Exception as e:
             self.logger.error(f"Failed to deactivate instrument {symbol}: {e}")

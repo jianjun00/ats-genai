@@ -4,7 +4,6 @@ Economic Events Frontfill Job.
 Continuously updates economic events data every 5 minutes.
 """
 
-import asyncio
 import logging
 from datetime import datetime, date, timedelta
 from typing import Dict, Any, List, Tuple, Optional

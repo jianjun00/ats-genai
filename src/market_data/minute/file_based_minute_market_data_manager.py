@@ -5,11 +5,9 @@ Provides minute-level OHLC data from file-based storage system, following the
 MarketDataManager interface pattern used by daily price managers.
 """
 
-import asyncio
 import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional
 from pathlib import Path
 import logging
 

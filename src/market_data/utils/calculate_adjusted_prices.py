@@ -1,7 +1,5 @@
 import os
-import asyncio
 import asyncpg
-from datetime import datetime
 
 TSDB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")
 
@@ -45,17 +43,12 @@ def compute_adjusted_prices(prices, splits, dividends):
     splits = sorted(splits, key=lambda x: x['split_date'])
     dividends = sorted(dividends, key=lambda x: x['ex_date'])
     # Precompute cumulative adjustment factors for each date
-    split_factors = {}
-    div_factors = {}
-    factor = 1.0
-    split_idx = 0
-    div_idx = 0
     # Traverse forward, so we can accumulate all future splits/dividends
     split_events = [(s['split_date'], s['numerator'], s['denominator']) for s in splits]
     div_events = [(d['ex_date'], d['amount']) for d in dividends]
     # Prepare lists of event dates
-    split_dates = [s[0] for s in split_events]
-    div_dates = [d[0] for d in div_events]
+    [s[0] for s in split_events]
+    [d[0] for d in div_events]
     # For each date, compute the cumulative factor from all splits/dividends after that date
     adj = {}
     # Precompute split-adjusted close for all dates for use in dividend adjustment

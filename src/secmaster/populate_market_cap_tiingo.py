@@ -9,8 +9,7 @@ import asyncio
 import argparse
 import logging
 import aiohttp
-import time
-from datetime import datetime, date
+from datetime import date
 from typing import Optional, List, Dict, Any
 
 from config.environment import Environment, EnvironmentType
@@ -128,7 +127,7 @@ async def populate_market_cap_from_tiingo(
         symbols: Optional list of specific symbols to process
     """
     market_cap_dao = DailyMarketCapDAO(env)
-    xrefs_dao = InstrumentXrefsDAO(env)
+    InstrumentXrefsDAO(env)
     fetcher = TiingoMarketCapFetcher(api_key)
     
     # Get instruments to process

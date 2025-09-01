@@ -2,7 +2,7 @@ from .instrument_interval_dao import InstrumentIntervalDAO
 from .instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
 from .factor_interval_dao import FactorIntervalDAO
 import asyncpg
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict
 from state.universe_state import UniverseStateInterval
 from config.environment import Environment
 from datetime import datetime

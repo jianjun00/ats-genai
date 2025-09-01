@@ -7,16 +7,13 @@ Collects 1-minute OHLCV data from Tiingo, Polygon, and FMP
 import asyncio
 import logging
 import os
-import json
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any
 import aiohttp
 import asyncpg
 from fastapi import FastAPI, HTTPException, BackgroundTasks
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-import websockets
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 
 # Configure logging
 logging.basicConfig(

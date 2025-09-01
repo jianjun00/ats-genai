@@ -9,8 +9,7 @@ import asyncio
 import asyncpg
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
-from datetime import datetime, timedelta
+from typing import Dict, List, Optional
 import logging
 from dataclasses import dataclass
 
@@ -452,7 +451,7 @@ class MultiTimeframeDataCollector:
         prices = data['close'].values
         high_prices = data['high'].values
         low_prices = data['low'].values
-        volumes = data['volume'].values
+        data['volume'].values
         
         try:
             if indicator == TechnicalIndicator.ETOP:
@@ -666,13 +665,10 @@ def generate_synthetic_ohlc_data(symbols: List[str],
         periods_per_day = 288  # 5-min intervals in a day
     elif timeframe == TimeframeSpec.MINUTE_15:
         freq = '15min'  
-        periods_per_day = 96
     elif timeframe == TimeframeSpec.HOUR_1:
         freq = '1H'
-        periods_per_day = 24
     else:
         freq = '1D'
-        periods_per_day = 1
     
     # Generate timestamps
     timestamps = pd.date_range(start=start, end=end, freq=freq)
@@ -683,7 +679,6 @@ def generate_synthetic_ohlc_data(symbols: List[str],
         # Generate realistic price data
         base_price = 100 + np.random.normal(0, 20)  # Starting price
         
-        prices = []
         current_price = base_price
         
         for i in range(len(timestamps)):

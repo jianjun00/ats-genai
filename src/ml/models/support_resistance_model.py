@@ -6,17 +6,15 @@ with confidence scores and uncertainty quantification.
 """
 
 import numpy as np
-import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import StandardScaler, RobustScaler
-from sklearn.model_selection import TimeSeriesSplit
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.metrics import mean_absolute_error
 import logging
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Dict, List
 from dataclasses import dataclass
 import gin
 
@@ -665,7 +663,6 @@ class SupportResistanceEnsemble:
 
 async def main():
     """Example usage of the support/resistance model"""
-    from pathlib import Path
     
     # Use relative import
     from ..training_data.support_resistance_generator import SupportResistanceTrainingGenerator
@@ -674,7 +671,7 @@ async def main():
     
     # Generate sample training data
     print("Generating sample training data...")
-    generator = SupportResistanceTrainingGenerator()
+    SupportResistanceTrainingGenerator()
     
     # This would normally load from your unbiased training data
     # training_examples = generator.generate_training_data(...)
@@ -690,7 +687,7 @@ async def main():
     )
     
     # Create and demonstrate model
-    model = SupportResistanceEnsemble(config)
+    SupportResistanceEnsemble(config)
     
     print("Support/Resistance model ready for training!")
     print(f"Model configuration: {config}")

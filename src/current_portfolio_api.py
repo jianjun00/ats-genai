@@ -4,16 +4,14 @@ Current Portfolio API - Real-time portfolio management and tracking
 Runs on port 8001 to complement the backtest analytics API on port 8000
 """
 
-import asyncio
 import logging
-from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
+from datetime import datetime
+from typing import List, Dict, Any
 import uvicorn
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import random
-import math
 
 # Configure logging
 logging.basicConfig(

@@ -18,11 +18,10 @@ Core Philosophy from Chinese Market Wisdom:
 
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
-from typing import Dict, List, Tuple, Optional, Union
+from datetime import datetime
+from typing import Dict, List, Optional
 from enum import Enum
 import asyncio
-import asyncpg
 from dataclasses import dataclass
 
 class TrendDirection(Enum):

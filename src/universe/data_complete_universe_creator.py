@@ -9,7 +9,7 @@ import asyncio
 import asyncpg
 import logging
 from datetime import date, datetime, timedelta
-from typing import List, Dict, Set, Optional, Tuple
+from typing import List, Dict, Set, Optional
 from dataclasses import dataclass
 from config.environment import Environment
 import gin
@@ -212,7 +212,7 @@ class DataCompleteUniverseCreator:
                         'end_date': row['end_date'],
                         'count': row['count']
                     }
-            except Exception as e:
+            except Exception:
                 continue
         
         return best_result

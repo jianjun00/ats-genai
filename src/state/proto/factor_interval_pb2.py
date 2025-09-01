@@ -11,7 +11,6 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-import instrument_interval_pb2 as instrument__interval__pb2
 
 
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x15\x66\x61\x63tor_interval.proto\x12\x05state\x1a\x19instrument_interval.proto\"\xff\x01\n\x0e\x46\x61\x63torInterval\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x17\n\x0fstart_date_time\x18\x03 \x01(\t\x12\x15\n\rend_date_time\x18\x04 \x01(\t\x12L\n\x14instrument_intervals\x18\x05 \x03(\x0b\x32..state.FactorInterval.InstrumentIntervalsEntry\x1aU\n\x18InstrumentIntervalsEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12(\n\x05value\x18\x02 \x01(\x0b\x32\x19.state.InstrumentInterval:\x02\x38\x01\x62\x06proto3')

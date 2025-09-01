@@ -5,12 +5,11 @@ Implements various factor models to decompose returns into market, factor, and r
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
-from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any
+from datetime import datetime
 from dataclasses import dataclass
 import logging
 from sklearn.linear_model import LinearRegression
-from sklearn.decomposition import PCA
 import asyncpg
 
 logger = logging.getLogger(__name__)

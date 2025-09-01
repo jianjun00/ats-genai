@@ -1,6 +1,5 @@
 # Database setup script
 import os
-import sys
 import psycopg2
 from psycopg2 import OperationalError
 
@@ -77,7 +76,7 @@ def create_database(force=False):
         conn.close()
         return True
         
-    except OperationalError as e:
+    except OperationalError:
         print(f"Warning: Could not connect to database at {PG_SUPER_URL}")
         print("Database setup will be skipped. Set SKIP_DB_SETUP=true to suppress this warning.")
         return False
@@ -116,7 +115,7 @@ def setup_tables():
         print("Created tables: daily_prices, fundamentals")
         return True
         
-    except OperationalError as e:
+    except OperationalError:
         print(f"Warning: Could not connect to database at {db_url} to set up tables")
         print("Table setup will be skipped. Set SKIP_DB_SETUP=true to suppress this warning.")
         return False
@@ -147,7 +146,7 @@ def setup_tables():
         cur.close()
         conn.close()
         print("All tables created and hypertables set up (if TimescaleDB is enabled).")
-    except OperationalError as e:
+    except OperationalError:
         print(f"Warning: Could not connect to database at {db_url} to set up hypertables")
         print("Hypertable setup will be skipped. Set SKIP_DB_SETUP=true to suppress this warning.")
         return False

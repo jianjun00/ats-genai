@@ -7,10 +7,8 @@ Calmar Ratio, Sortino Ratio, Maximum Drawdown, and factor attribution analysis.
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, Optional, Any
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-import warnings
 from scipy import stats
 
 from .factor_framework import FactorRiskModel
@@ -113,7 +111,7 @@ class PerformanceAnalyzer:
         annualized_volatility = returns.std() * np.sqrt(periods_per_year)
         
         # Risk-adjusted metrics
-        excess_returns = returns - self.risk_free_rate / periods_per_year
+        returns - self.risk_free_rate / periods_per_year
         sharpe_ratio = self._calculate_sharpe_ratio(returns, periods_per_year)
         
         # Information ratio (vs benchmark)

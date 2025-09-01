@@ -1,8 +1,7 @@
 import logging
-from datetime import datetime, date, time
-from typing import List, Dict, Optional, Any
+from datetime import datetime, date
+from typing import List, Dict, Optional
 from .base_daily_price_market_data_manager import BaseDailyPriceMarketDataManager
-from state.instrument_interval import InstrumentInterval
 from dao.instrument_xrefs_dao import InstrumentXrefsDAO
 from dao.daily_prices_dao import DailyPricesDAO
 from config.environment import Environment

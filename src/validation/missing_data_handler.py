@@ -7,13 +7,12 @@ Identifies gaps in daily price data and automatically backfills from available s
 import asyncio
 import asyncpg
 import logging
-from datetime import datetime, date, timedelta
-from typing import Dict, Any, List, Optional, Set, Tuple
+from datetime import date, timedelta
+from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 import aiohttp
 
 from config.environment import Environment
-from validation.daily_prices_validator import ValidationIssue, ValidationRule, ValidationSeverity
 
 logger = logging.getLogger(__name__)
 

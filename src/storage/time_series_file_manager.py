@@ -18,17 +18,15 @@ Benefits:
 ✅ Parallel processing (multiple files simultaneously)
 """
 
-import os
 import struct
 import gzip
-import json
 import asyncio
 import aiofiles
 import logging
 from datetime import datetime, date, timedelta
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple, Iterator, Union, BinaryIO
-from dataclasses import dataclass, asdict
+from typing import List, Dict, Optional, Tuple
+from dataclasses import dataclass
 import calendar
 
 @dataclass
@@ -404,7 +402,7 @@ async def main():
     
     # Initialize file manager
     file_manager = TimeSeriesFileManager("/data/monthly/interval")
-    query_engine = TimeSeriesQueryEngine(file_manager)
+    TimeSeriesQueryEngine(file_manager)
     
     # Example: Write sample data
     instrument_id = 12345

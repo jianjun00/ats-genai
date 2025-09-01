@@ -8,13 +8,11 @@ This backtester simulates realistic production conditions by:
 4. Comparing adaptive vs static model performance
 """
 
-import asyncio
 import logging
 import numpy as np
-import pandas as pd
 from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass, asdict
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
 import pickle
 from pathlib import Path
 
@@ -25,9 +23,7 @@ from ml.dynamic_training.adaptive_sr_model import (
 from ml.models.support_resistance_model import SupportResistanceEnsemble, SRModelConfig
 from ml.evaluation.sr_backtester import (
     SRBacktester, 
-    PredictionResult, 
-    TradingSignal, 
-    BacktestMetrics
+    PredictionResult
 )
 from ml.training_data.support_resistance_generator import SupportResistanceTrainingGenerator
 

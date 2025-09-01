@@ -1,7 +1,6 @@
 import os
 import asyncpg
 import aiohttp
-import argparse
 from bs4 import BeautifulSoup
 import datetime
 import re
@@ -245,7 +244,6 @@ async def populate_spy_universe_events(universe_name, tickers=None):
 async def main(universe_name=None, tickers=None, environment=None):  # environment is now required by CLI
 
     import argparse
-    import sys
     from config.environment import set_environment, EnvironmentType
     if universe_name is None or tickers is None or environment is None:
         parser = argparse.ArgumentParser()

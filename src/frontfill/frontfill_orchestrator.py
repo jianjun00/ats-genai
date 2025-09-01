@@ -7,7 +7,7 @@ Manages and schedules all frontfill jobs with proper timing and coordination.
 import asyncio
 import logging
 from datetime import datetime, time, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 from dataclasses import dataclass
 import signal
 

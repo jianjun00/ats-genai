@@ -6,9 +6,8 @@ Ensures consistent signal computation and proper timeframe aggregation.
 """
 
 import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Any, Tuple
+from datetime import datetime
+from typing import List, Dict, Optional, Any
 import logging
 from dataclasses import dataclass
 from enum import Enum

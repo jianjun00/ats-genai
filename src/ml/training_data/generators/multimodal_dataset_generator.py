@@ -10,10 +10,9 @@ import asyncpg
 import logging
 import json
 import numpy as np
-import pandas as pd
-from datetime import datetime, date, timedelta
-from typing import List, Dict, Any, Optional, Tuple
-from dataclasses import dataclass, asdict
+from datetime import date, timedelta
+from typing import List, Dict, Any, Optional
+from dataclasses import dataclass
 import time
 
 logger = logging.getLogger(__name__)

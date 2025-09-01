@@ -10,8 +10,7 @@ import asyncio
 import asyncpg
 import logging
 import os
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from datetime import datetime
 from prometheus_client import start_http_server, Gauge, Counter, Histogram, Info
 import time
 
@@ -273,7 +272,7 @@ class RealTimeMetricsExporter:
                 vendor = row['vendor']
                 bar_count = row['bar_count'] or 0
                 avg_latency = row['avg_latency_seconds'] or 0
-                avg_quality = row['avg_quality_score'] or 0
+                row['avg_quality_score'] or 0
                 
                 # Update metrics
                 self.bars_per_hour.labels(vendor=vendor).set(bar_count)
@@ -360,7 +359,7 @@ class RealTimeMetricsExporter:
                 vendor = row['vendor']
                 symbol = row['symbol']
                 severity = row['gap_severity']
-                gap_type = row['gap_type']
+                row['gap_type']
                 gap_count = row['gap_count']
                 missing_bars = row['total_missing_bars']
                 

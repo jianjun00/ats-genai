@@ -11,13 +11,12 @@ import asyncpg
 import aiohttp
 import logging
 import os
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime
+from typing import Dict, List
 from dataclasses import dataclass
 import pytz
 
 from config.environment import Environment
-from calendars.market_calendar_utils import is_market_open, get_market_hours
 
 logger = logging.getLogger(__name__)
 

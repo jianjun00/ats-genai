@@ -5,24 +5,19 @@ Combines news sentiment and social media sentiment into unified trading signals.
 Integrates with existing residual return prediction and portfolio evaluation systems.
 """
 
-import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 import json
 
 import asyncpg
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report
 
 from sentiment.news_sentiment_analyzer import NewsSentimentAnalyzer, SentimentSignal
 from sentiment.social_media_analyzer import SocialSentimentAnalyzer, SocialTradingSignal
 from modeling.factor_models import ResidualReturnCalculator
-from modeling.training_data_generator import ResidualReturnTrainingDataGenerator
 
 
 @dataclass

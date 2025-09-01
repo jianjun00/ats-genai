@@ -1,4 +1,3 @@
-import os
 import asyncio
 import requests
 from datetime import datetime, date
@@ -47,7 +46,6 @@ async def insert_splits_polygon(splits, ticker, dao=None):
             await dao.insert_split(split_row)
 
 from dao.instrument_polygon_dao import InstrumentPolygonDAO
-from config.environment import EnvironmentType
 import argparse
 
 async def main():

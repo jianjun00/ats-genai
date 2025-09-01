@@ -16,9 +16,7 @@ Performance target: Interactive filtering in <100ms using pre-computed stats
 import ray
 import asyncio
 import asyncpg
-import pandas as pd
-import numpy as np
-from typing import List, Dict, Any, Optional, Union, Tuple
+from typing import List, Dict, Any, Optional, Union
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
 import logging

@@ -1,4 +1,3 @@
-import asyncio
 from typing import List, Dict
 from datetime import datetime
 from events.schemas import EventIn

@@ -14,7 +14,6 @@ import sys
 import traceback
 from datetime import datetime, date, time, timedelta
 from pathlib import Path
-import pytz
 
 from config.environment import Environment, EnvironmentType
 from dao.instrument_polygon_dao import InstrumentPolygonDAO

@@ -7,7 +7,6 @@ PyTorch Example: Multi-Instrument, Multi-Step Time Series Forecasting
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
-import numpy as np
 
 # --- Dummy Data Preparation ---
 batch_size = 16

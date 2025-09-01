@@ -8,9 +8,8 @@ Posts reports to Slack #ats-dev channel for monitoring and alerts.
 import asyncio
 import asyncpg
 import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta, date
-from typing import List, Dict, Optional, Any, Tuple
+from datetime import timedelta, date
+from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
 import logging
 import requests

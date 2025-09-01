@@ -93,7 +93,6 @@ async def check_db_connection() -> bool:
             return False
             
         # Parse the database URL to get connection parameters
-        import urllib.parse
         from urllib.parse import urlparse
         
         parsed = urlparse(db_url)

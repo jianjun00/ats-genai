@@ -15,7 +15,7 @@ import asyncio
 import asyncpg
 import logging
 from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Tuple, Set
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 import argparse
 import json

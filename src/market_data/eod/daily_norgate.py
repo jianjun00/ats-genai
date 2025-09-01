@@ -3,7 +3,6 @@ import asyncio
 import asyncpg
 import norgatedata
 import pandas as pd
-from datetime import datetime
 import argparse
 
 TSDB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")

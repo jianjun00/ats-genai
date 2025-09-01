@@ -14,13 +14,12 @@ Key Features:
 - Efficient time-range queries with indexing
 """
 
-import os
 import asyncio
 import numpy as np
 import pandas as pd
 import h5py
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any, Union
+from typing import Dict, List, Optional, Tuple, Any
 from pathlib import Path
 import logging
 from dataclasses import dataclass, field
@@ -694,7 +693,7 @@ async def create_hdf5_cache(
 
 # Example usage
 if __name__ == "__main__":
-    import random
+    pass
     
     async def example_usage():
         """Example usage of HDF5 multi-scale cache."""

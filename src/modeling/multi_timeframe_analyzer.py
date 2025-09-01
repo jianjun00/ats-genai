@@ -5,12 +5,11 @@ Analyzes quarterly, monthly, weekly, and daily patterns to provide contextual fe
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Any, Union
-from datetime import datetime, timedelta
+from typing import Dict, Optional, Tuple, Any
+from datetime import datetime
 from dataclasses import dataclass
 from enum import Enum
 import logging
-import asyncio
 
 from state.universe_state_manager import UniverseStateManager
 from signals.enhanced_indicators import calculate_all_technical_indicators, ResidualReturnIndicatorConfig

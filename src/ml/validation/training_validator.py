@@ -6,17 +6,14 @@ and prevents fake/mock training from being used in production.
 """
 
 import os
-import sys
-import asyncio
 import logging
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List
 from datetime import date, datetime
 import asyncpg
 from pathlib import Path
 
 class TrainingValidationError(Exception):
     """Raised when training validation fails"""
-    pass
 
 class ProductionTrainingValidator:
     """

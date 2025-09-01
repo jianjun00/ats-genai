@@ -3,9 +3,8 @@ Event Sequence Feature Extractor for Residual Return Prediction.
 Extracts dynamic price sequences around events as model input features.
 """
 
-import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 import logging

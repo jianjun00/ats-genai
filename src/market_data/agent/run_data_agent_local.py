@@ -5,11 +5,9 @@ This script sets up and runs the data agent locally for testing purposes.
 """
 
 import os
-import sys
 import asyncio
 import logging
 import argparse
-import json
 from datetime import datetime, date, timedelta
 
 import asyncpg

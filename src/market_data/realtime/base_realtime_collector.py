@@ -542,7 +542,6 @@ class BaseRealtimeCollector(ABC):
     @abstractmethod
     async def collect_realtime_data(self) -> AsyncGenerator[MinuteBar, None]:
         """Collect real-time data from vendor. Must be implemented by subclasses."""
-        pass
     
     async def start_collection(self):
         """Start real-time data collection."""

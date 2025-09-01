@@ -13,14 +13,11 @@ import zipfile
 import csv
 import io
 from datetime import datetime, timezone
-from typing import List, Dict, Optional, Any, NamedTuple, AsyncIterator
+from typing import List, Dict, Optional, Any, AsyncIterator
 from pathlib import Path
 import logging
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
-import aiofiles
-import tempfile
-import os
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +103,6 @@ class FirstRateMinuteAdapter:
         
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
-        pass
     
     async def get_available_symbols(self) -> Dict[str, List[str]]:
         """

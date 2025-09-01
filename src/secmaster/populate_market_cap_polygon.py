@@ -9,13 +9,11 @@ import asyncio
 import argparse
 import logging
 import requests
-import time
-from datetime import datetime, date
+from datetime import date
 from typing import Optional, List, Dict, Any
 
 from config.environment import Environment, EnvironmentType
 from dao.daily_market_cap_dao import DailyMarketCapDAO
-from dao.instrument_xrefs_dao import InstrumentXrefsDAO
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("populate_market_cap_polygon")
@@ -119,7 +117,7 @@ async def populate_market_cap_from_polygon(
         # Create connection pool for this batch
         from config.database import Database
         pool = await Database.create_connection_pool(max_retries=3, initial_delay=1.0, timeout=30.0)
-        market_cap_dao = DailyMarketCapDAO(env)
+        DailyMarketCapDAO(env)
         batch_records = []
         
         try:

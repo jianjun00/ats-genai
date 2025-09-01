@@ -17,15 +17,12 @@ Key Features:
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-import pandas as pd
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any, Union
+from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
 import logging
 from enum import Enum
 import math
-from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
 
@@ -268,7 +265,7 @@ class TemporalEventAttention(nn.Module):
             attention_weights: (batch, seq_len, max_events)
         """
         batch_size, seq_len, d_model = sequence_features.shape
-        max_events = event_features.shape[2]
+        event_features.shape[2]
         
         # Project events to model dimension
         event_projected = self.event_projection(event_features)  # (batch, seq_len, max_events, d_model)

@@ -72,7 +72,6 @@ async def create_universe_membership(
     symbols = list(symbols_dict.keys())
     universe = set()
     today = start_date
-    adv_cache = {}
 
     # Prepare output table (not used in test, but kept for compatibility)
     async with pool.acquire() as conn:

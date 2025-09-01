@@ -1,16 +1,12 @@
 import os
 from venv import logger
-import gin
-from config.polygon import set_polygon_api_key, POLYGON_API_KEY
 
 import asyncio
 import requests
 import datetime as dt
 import time
 
-from config.environment import EnvironmentType
 from dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
-import asyncpg
 import argparse
 
 # POLYGON_API_KEY is now managed via Gin and set_polygon_api_key
@@ -69,7 +65,7 @@ async def insert_prices(prices, instrument_id, shares_outstanding, dao: DailyPri
         parser.add_argument('--gin_config', type=str, default='config/app.gin')
         known_args, _ = parser.parse_known_args()
         env = Environment(gin_config_path=getattr(known_args, 'gin_config', 'config/app.gin'))
-    table_name = env.get_table_name('daily_prices_polygon')
+    env.get_table_name('daily_prices_polygon')
     if not prices:
         return
     # Batch version for efficiency
@@ -159,7 +155,6 @@ async def run_ingestion(tickers, start_date, end_date, environment=None, instrum
         ray_tasks.append(ray_ingest_polygon_instrument.remote(
             env_dict, ticker, instrument_id, shares_outstanding, start_date, end_date, polygon_api_key, logging, log_tickers, log_dir
         ))
-    import asyncio
     results = ray.get(ray_tasks)
     print(f"[INFO] Ray Polygon ingestion complete. Results: {results}")
     ray.shutdown()
@@ -272,7 +267,6 @@ async def main():
     parser.add_argument('--gin_config', type=str, default='config/app.gin', help='Path to Gin config file (default: config/app.gin)')
     args = parser.parse_args()
 
-    import gin
     print(f"[DEBUG] CLI arg --gin_config: {args.gin_config}")
     from config.environment import Environment
     env = Environment(gin_config_path=args.gin_config)

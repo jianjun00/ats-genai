@@ -8,7 +8,7 @@ import asyncio
 import aiohttp
 import logging
 from datetime import datetime, date, timedelta
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, Any, List, Tuple
 import pandas as pd
 
 from frontfill.base_frontfill_job import BaseFrontfillJob, FrontfillConfig, CheckpointType

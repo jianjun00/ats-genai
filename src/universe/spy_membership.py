@@ -1,10 +1,9 @@
 import os
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime, date
+from datetime import datetime
 import asyncio
 import asyncpg
-import re
 
 TSDB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")
 

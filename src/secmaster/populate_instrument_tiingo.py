@@ -1,10 +1,9 @@
 import os
 import requests
-import asyncpg
 from dotenv import load_dotenv
 from datetime import datetime
 from config.environment import Environment, EnvironmentType
-from config.tiingo import set_tiingo_api_key, TIINGO_API_KEY
+from config.tiingo import TIINGO_API_KEY
 import time
 from requests.exceptions import ConnectionError
 import json
@@ -193,7 +192,6 @@ if __name__ == "__main__":
         sys.exit(1)
     
     # Import Database before parsing Gin config so Gin can bind its parameters
-    from config.database import Database
     
     try:
         gin.parse_config_file(gin_config_path)

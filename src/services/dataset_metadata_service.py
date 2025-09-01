@@ -8,9 +8,8 @@ import asyncpg
 import json
 import logging
 import time
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Dict, List, Optional, Any, Union
+from datetime import datetime
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
 
@@ -395,19 +394,16 @@ class DatasetMetadataService:
         """Compute statistics for single file dataset"""
         logger.info(f"📁 Computing file statistics: {file_path}")
         # Implementation for file-based datasets
-        pass
     
     async def _compute_sharded_files_stats(self, conn: asyncpg.Connection, dataset_name: str, directory_path: str):
         """Compute statistics for sharded files dataset"""
         logger.info(f"📁 Computing sharded files statistics: {directory_path}")
         # Implementation for sharded files
-        pass
     
     async def _compute_training_dataset_stats(self, conn: asyncpg.Connection, dataset_name: str, training_config: dict):
         """Compute statistics for training dataset"""
         logger.info(f"🎯 Computing training dataset statistics: {training_config}")
         # Implementation for training datasets
-        pass
     
     async def get_dataset_list(self, include_training: bool = False) -> List[Dict[str, Any]]:
         """Get list of all datasets with their metadata"""

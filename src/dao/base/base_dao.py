@@ -7,15 +7,14 @@ by centralizing common database operations, connection management, and error han
 
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Union, Tuple
-from datetime import datetime, date
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from core.database.connection_manager import get_session, get_async_session, get_raw_connection
 from core.config.settings import get_settings
 from core.logging.logger_config import get_logger
 from core.exceptions.custom_exceptions import (
-    DatabaseError, DataValidationError, handle_database_error
+    DataValidationError, handle_database_error
 )
 from core.validation.data_validators import ValidationResult
 
@@ -46,7 +45,6 @@ class BaseDAO(ABC):
     @abstractmethod
     def get_schema(self) -> Dict[str, Any]:
         """Get table schema definition."""
-        pass
     
     def validate_data(self, data: Dict[str, Any]) -> ValidationResult:
         """
@@ -294,37 +292,30 @@ class BaseDAO(ABC):
     @abstractmethod
     def _create_impl(self, session, data: Dict[str, Any]) -> Optional[int]:
         """Implementation of create operation."""
-        pass
     
     @abstractmethod
     def _read_impl(self, session, record_id: Union[int, str]) -> Optional[Dict[str, Any]]:
         """Implementation of read operation."""
-        pass
     
     @abstractmethod
     def _update_impl(self, session, record_id: Union[int, str], data: Dict[str, Any]) -> bool:
         """Implementation of update operation."""
-        pass
     
     @abstractmethod
     def _delete_impl(self, session, record_id: Union[int, str]) -> bool:
         """Implementation of delete operation."""
-        pass
     
     @abstractmethod
     def _list_all_impl(self, session, limit: Optional[int], offset: int) -> List[Dict[str, Any]]:
         """Implementation of list all operation."""
-        pass
     
     @abstractmethod
     def _count_impl(self, session, where_clause: Optional[str], params: Optional[Dict[str, Any]]) -> int:
         """Implementation of count operation."""
-        pass
     
     @abstractmethod
     def _bulk_insert_impl(self, session, records: List[Dict[str, Any]]) -> int:
         """Implementation of bulk insert operation."""
-        pass
     
     # Async abstract methods (default implementations that call sync versions)
     async def _create_async_impl(self, session, data: Dict[str, Any]) -> Optional[int]:

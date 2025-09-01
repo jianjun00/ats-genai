@@ -14,13 +14,11 @@ Provides unified analyst event schema with complete historical tracking.
 import asyncio
 import aiohttp
 import asyncpg
-import pandas as pd
 import logging
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
-import json
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -271,7 +269,7 @@ class PolygonAnalystAdapter:
             
             async with self.session.get(url, params=params) as response:
                 if response.status == 200:
-                    data = await response.json()
+                    await response.json()
                     # Polygon's analyst data would be in financial details
                     # This is a placeholder - Polygon's analyst data structure varies
                     return []

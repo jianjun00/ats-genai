@@ -10,11 +10,9 @@ This module provides a comprehensive type system for training features including
 
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Optional, Any, Union
+from typing import Dict, List, Tuple, Optional, Any
 import json
 import logging
-import numpy as np
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 

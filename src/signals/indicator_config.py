@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Type, Optional
+from typing import Dict, List, Type
 from .indicator import Indicator, PL, OneOneHigh, OneOneLow, OneOneDot, EnvelopeBot, EnvelopeTop
 
 

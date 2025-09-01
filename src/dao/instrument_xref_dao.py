@@ -5,11 +5,10 @@ Provides data access layer for instrument_xrefs table, tracking instrument excha
 history with temporal data for migration analysis.
 """
 
-from typing import Dict, Any, List, Optional, Union, Tuple
-from datetime import date, datetime
+from typing import Dict, Any, List, Optional, Union
+from datetime import date
 
 from dao.base.base_dao import BaseDAO
-from core.exceptions.custom_exceptions import DataValidationError
 from core.validation.data_validators import ValidationResult
 
 
@@ -333,7 +332,6 @@ class InstrumentXrefDAO(BaseDAO):
         """Close an active exchange entry by setting end_date."""
         try:
             # Use raw connection for UPDATE operations
-            import psycopg2
             from core.database.connection_manager import get_raw_connection
             
             with get_raw_connection() as conn:

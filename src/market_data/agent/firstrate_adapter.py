@@ -1,14 +1,10 @@
-import os
 import zipfile
-import asyncio
-from datetime import datetime, date, timedelta
-from typing import List, Optional, Dict, Any, Generator
+from datetime import datetime, date
+from typing import List, Optional, Dict, Generator
 from zoneinfo import ZoneInfo
-import pandas as pd
 from pathlib import Path
 import logging
 from .base_adapter import VendorAdapter
-from .models import IntervalData
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)

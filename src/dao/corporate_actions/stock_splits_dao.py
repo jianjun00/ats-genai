@@ -141,7 +141,7 @@ class StockSplitsDAO(BaseDAO):
                 updated_at = NOW()
         """)
         
-        result = session.execute(query, records)
+        session.execute(query, records)
         return len(records)
     
     # Specialized stock split methods

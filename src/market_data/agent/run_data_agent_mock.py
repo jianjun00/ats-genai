@@ -4,17 +4,12 @@ Mock test runner for the data agent.
 This script sets up and runs the data agent locally with mock adapters for testing purposes.
 """
 
-import os
 import asyncio
 import argparse
 import json
 import logging
-import os
-import sys
 import time
 from datetime import date, datetime, timedelta
-from typing import Dict, List, Any, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.market_data.agent.mock_metrics_helper import MockMetricsHelper
 from config.environment import Environment
@@ -23,7 +18,6 @@ from src.market_data.agent.data_agent_orchestrator import DataAgentOrchestrator
 from src.market_data.agent.base_adapter import VendorAdapter
 from src.market_data.agent.models import EODPrice
 from src.market_data.agent.reconciliation import ReconciliationEngine
-from src.market_data.agent.llm_assistant import LLMAssistant
 
 # Configure logging
 logging.basicConfig(
@@ -661,7 +655,7 @@ async def main():
         logger.info("Initialized mock adapters")
         
         # Initialize mock LLM assistant
-        llm_assistant = MockLLMAssistant()
+        MockLLMAssistant()
         logger.info("Initialized mock LLM assistant")
         
         # Patch json.dumps to handle date/datetime objects

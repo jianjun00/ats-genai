@@ -29,8 +29,8 @@ import numpy as np
 import pandas as pd
 import json
 import pickle
-from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any, Union
+from datetime import date, datetime
+from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from enum import Enum
@@ -43,7 +43,7 @@ from ml.evaluation.adaptive_backtester import (
     AdaptiveBacktester, AdaptiveBacktestConfig, DailyBacktestResult
 )
 from ml.dynamic_training.adaptive_sr_model import AdaptiveModelConfig
-from portfolio.recommendation_engine import HourlyRecommendationEngine, TradingUniverse
+from portfolio.recommendation_engine import TradingUniverse
 from portfolio.performance_metrics import PerformanceAnalyzer
 
 

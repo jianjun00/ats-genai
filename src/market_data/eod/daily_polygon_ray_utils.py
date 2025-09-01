@@ -1,10 +1,5 @@
 import ray
-import asyncio
 from dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
-from dao.instrument_polygon_dao import InstrumentPolygonDAO
-import asyncpg
-import datetime as dt
-import requests
 
 @ray.remote
 def ray_ingest_polygon_instrument(gin_config_path, ticker, instrument_id, shares_outstanding, start_date, end_date, api_key, logging, log_tickers, log_dir):

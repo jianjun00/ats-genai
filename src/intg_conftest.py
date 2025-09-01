@@ -4,8 +4,6 @@ import os
 def pytest_configure(config):
     os.environ['ENVIRONMENT'] = 'intg'
 
-from src.db.fixture_backup_restore_all_intg_tables import auto_backup_restore_all_intg_tables
-import asyncpg
 import asyncio
 from src.config.environment import Environment
 
@@ -25,7 +23,7 @@ def backup_and_restore_tables():
     """
     backups = {}
     async def _backup_and_restore(pool, table_names):
-        env = Environment()
+        Environment()
         async with pool.acquire() as conn:
             # Backup
             for table in table_names:

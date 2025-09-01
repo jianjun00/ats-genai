@@ -5,29 +5,19 @@ Integrates Twitter sentiment analysis and social media monitoring for financial 
 Based on MathTypes ATS social intelligence framework with enhanced features.
 """
 
-import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Tuple
 import re
-import json
-import time
-from collections import defaultdict, Counter
+from collections import Counter
 
 import asyncpg
 import pandas as pd
 import numpy as np
-import aiohttp
 from transformers import pipeline
 import nltk
 from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from textblob import TextBlob
-import yfinance as yf
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.cluster import KMeans
-import networkx as nx
 
 
 @dataclass

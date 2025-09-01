@@ -7,8 +7,7 @@ connection management.
 """
 
 import logging
-from typing import Dict, List, Any, Optional, Union
-from contextlib import contextmanager, asynccontextmanager
+from typing import Dict, List, Any, Optional
 
 from .connection_manager import get_connection_manager, get_raw_connection
 from ..config.settings import get_settings

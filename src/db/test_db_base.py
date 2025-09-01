@@ -1,5 +1,4 @@
 import os
-import tempfile
 import asyncpg
 import pytest
 import asyncio

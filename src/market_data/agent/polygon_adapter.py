@@ -1,6 +1,5 @@
 import os
 import requests
-from datetime import datetime
 from typing import List, Optional
 from .base_adapter import VendorAdapter
 from .models import InstrumentMetadata, EODPrice

@@ -12,12 +12,12 @@ import aiohttp
 import logging
 import os
 from datetime import datetime, timedelta, date
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 from dataclasses import dataclass
 import pytz
 
 from config.environment import Environment
-from calendars.market_calendar_utils import is_trading_day, get_previous_trading_day
+from calendars.market_calendar_utils import get_previous_trading_day
 
 logger = logging.getLogger(__name__)
 

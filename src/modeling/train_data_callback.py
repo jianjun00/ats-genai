@@ -2,7 +2,6 @@ import torch
 import numpy as np
 import pandas as pd
 from state.runner_callback import RunnerCallback
-from state.universe_state_manager import UniverseStateManager
 
 class TrainDataCallback(RunnerCallback):
     def __init__(self, lag_steps, lead_steps, feature_cols, target_col, output_path):

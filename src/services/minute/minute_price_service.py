@@ -6,18 +6,16 @@ Extends existing framework for 1-minute intraday data collection
 
 import gin
 import asyncio
-import logging
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional
+from datetime import datetime
+from typing import List
 from fastapi import FastAPI, BackgroundTasks
 from dataclasses import dataclass
 
 # Reuse existing ATS framework
-from config.environment import Environment, EnvironmentType
+from config.environment import Environment
 from dao.base.base_dao import BaseDAO
 from core.logging.logger_config import get_logger
-from market_data.eod.daily_price_polygon import download_prices_polygon
-from market_data.eod.daily_price_tiingo import tiingo_url, TIINGO_API_KEY
+from market_data.eod.daily_price_tiingo import TIINGO_API_KEY
 from market_data.eod.daily_price_fmp import *  # Reuse FMP patterns
 
 # Configure Gin

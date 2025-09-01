@@ -571,7 +571,7 @@ async def model_websocket(websocket: WebSocket, backtest_run_id: str):
         
         # Keep connection alive
         while True:
-            _data = await websocket.receive_text()
+            await websocket.receive_text()
             # Handle model-specific requests - data processing not yet implemented
             
     except WebSocketDisconnect:

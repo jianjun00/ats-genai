@@ -1,5 +1,3 @@
-from copy import deepcopy
-from datetime import date
 
 class Universe:
     def __init__(self, current_date=None, instrument_ids=None):

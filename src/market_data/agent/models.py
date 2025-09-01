@@ -1,6 +1,6 @@
 from typing import Optional, List, Dict, Any
 from datetime import date, datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 # Instrument Metadata
 class InstrumentMetadata(BaseModel):

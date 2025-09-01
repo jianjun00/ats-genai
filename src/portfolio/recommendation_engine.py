@@ -7,17 +7,16 @@ Integrates signal generation, factor hedging, portfolio optimization, and perfor
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
 import logging
 from pathlib import Path
 import json
 
-from .factor_framework import FactorRiskModel, FactorUniverse
+from .factor_framework import FactorRiskModel
 from .signal_generation import (
-    PortfolioSignalManager, TradingSignal, SignalDirection, 
-    CompositeSignalGenerator
+    PortfolioSignalManager, TradingSignal
 )
 from .optimization import (
     PortfolioConstructor, OptimizationConstraints, OptimizationResult
@@ -335,8 +334,8 @@ class HourlyRecommendationEngine:
             # Extract returns from portfolio history
             returns = []
             for i in range(1, len(self.portfolio_history)):
-                prev_weights = self.portfolio_history[i-1]['weights']
-                curr_weights = self.portfolio_history[i]['weights']
+                self.portfolio_history[i-1]['weights']
+                self.portfolio_history[i]['weights']
                 
                 # Simplified return calculation (would use actual price changes in real implementation)
                 expected_return = self.portfolio_history[i]['expected_return']
