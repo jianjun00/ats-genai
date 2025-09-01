@@ -1,0 +1,206 @@
+{
+  "datasets": [
+    {
+      "id": "15",
+      "name": "AAPL Hourly Training Dataset (numpy format)",
+      "description": "Apple stock training data with technical indicators",
+      "format": "numpy",
+      "file_path": "/data/training/dataset_15.npy",
+      "total_sequences": 197,
+      "sequence_length": 60,
+      "features": ["etop", "ebot", "pldot", "sma_20", "ema_12", "ema_26"],
+      "timeframes": ["5m"],
+      "technical_indicators": true,
+      "has_ohlc_data": true,
+      "sample_data": [
+        {
+          "sequence_id": 1,
+          "datetime": "2024-01-15T09:30:00",
+          "etop": 151.2500,
+          "ebot": 148.5000,
+          "pldot": 149.7500,
+          "sma_20": 149.8000,
+          "ema_12": 150.1000,
+          "ema_26": 149.9000,
+          "5m_high": 150.2500,
+          "5m_low": 148.7500,
+          "5m_close": 149.5000,
+          "5m_volume": 1250000,
+          "target_return": 0.0125
+        },
+        {
+          "sequence_id": 2,
+          "datetime": "2024-01-15T09:35:00",
+          "etop": 152.0000,
+          "ebot": 149.2500,
+          "pldot": 150.5000,
+          "sma_20": 150.0000,
+          "ema_12": 150.3500,
+          "ema_26": 150.1500,
+          "5m_high": 151.0000,
+          "5m_low": 149.2500,
+          "5m_close": 150.7500,
+          "5m_volume": 1180000,
+          "target_return": 0.0083
+        },
+        {
+          "sequence_id": 3,
+          "datetime": "2024-01-15T09:40:00",
+          "etop": 152.7500,
+          "ebot": 149.7500,
+          "pldot": 151.2500,
+          "sma_20": 150.2500,
+          "ema_12": 150.6000,
+          "ema_26": 150.3000,
+          "5m_high": 152.5000,
+          "5m_low": 150.5000,
+          "5m_close": 151.2500,
+          "5m_volume": 990000,
+          "target_return": 0.0066
+        }
+      ]
+    },
+    {
+      "id": "16", 
+      "name": "MSFT Hourly Training Dataset (CSV format)",
+      "description": "Microsoft stock training data from CSV file",
+      "format": "csv",
+      "file_path": "/data/training/dataset_16.csv",
+      "total_sequences": 145,
+      "sequence_length": 60,
+      "features": ["etop", "ebot", "pldot", "sma_20", "ema_12"],
+      "timeframes": ["1h"],
+      "technical_indicators": true,
+      "has_ohlc_data": true,
+      "sample_data": [
+        {
+          "sequence_id": 1,
+          "datetime": "2024-01-15T10:00:00",
+          "etop": 149.8000,
+          "ebot": 147.2000,
+          "pldot": 148.5000,
+          "sma_20": 148.4000,
+          "ema_12": 148.7000,
+          "ema_26": 148.6000,
+          "1h_high": 148.9000,
+          "1h_low": 147.2500,
+          "1h_close": 148.1000,
+          "1h_volume": 2100000,
+          "target_return": 0.0056
+        },
+        {
+          "sequence_id": 2,
+          "datetime": "2024-01-15T11:00:00",
+          "etop": 150.2000,
+          "ebot": 147.8000,
+          "pldot": 149.0000,
+          "sma_20": 148.6000,
+          "ema_12": 148.9500,
+          "ema_26": 148.7500,
+          "1h_high": 149.7500,
+          "1h_low": 148.0000,
+          "1h_close": 149.2000,
+          "1h_volume": 1850000,
+          "target_return": 0.0074
+        }
+      ]
+    },
+    {
+      "id": "17",
+      "name": "GOOGL Training Dataset (CSV format)",
+      "description": "Google stock training data with 15m timeframe",
+      "format": "csv", 
+      "file_path": "/data/training/dataset_17.csv",
+      "total_sequences": 89,
+      "sequence_length": 60,
+      "features": ["etop", "ebot", "pldot", "sma_20"],
+      "timeframes": ["15m"],
+      "technical_indicators": true,
+      "has_ohlc_data": true,
+      "sample_data": [
+        {
+          "sequence_id": 1,
+          "datetime": "2024-01-15T10:15:00",
+          "etop": 148.0000,
+          "ebot": 146.0000,
+          "pldot": 147.0000,
+          "sma_20": 147.0000,
+          "ema_12": 147.1000,
+          "ema_26": 147.0500,
+          "15m_high": 147.8000,
+          "15m_low": 146.5000,
+          "15m_close": 147.2500,
+          "15m_volume": 850000,
+          "target_return": 0.0017
+        }
+      ]
+    }
+  ],
+  "api_responses": {
+    "datasets_list": {
+      "datasets": [
+        {
+          "id": "15",
+          "name": "AAPL Hourly Training Dataset",
+          "total_sequences": 197,
+          "technical_indicators": ["etop", "ebot", "pldot", "sma_20", "ema_12", "ema_26"],
+          "created_at": "2024-01-15T10:30:00Z"
+        },
+        {
+          "id": "16", 
+          "name": "MSFT Hourly Training Dataset",
+          "total_sequences": 145,
+          "technical_indicators": ["etop", "ebot", "pldot", "sma_20", "ema_12"],
+          "created_at": "2024-01-16T09:15:00Z"
+        },
+        {
+          "id": "17",
+          "name": "GOOGL Training Dataset",
+          "total_sequences": 89,
+          "technical_indicators": ["etop", "ebot", "pldot", "sma_20"],
+          "created_at": "2024-01-17T11:45:00Z"
+        }
+      ]
+    },
+    "table_data_response": {
+      "data": "{{SAMPLE_DATA}}",
+      "total_count": "{{TOTAL_COUNT}}",
+      "page": 1,
+      "limit": 10,
+      "has_more": false
+    },
+    "visualization_data_response": {
+      "data": "{{SAMPLE_DATA}}",
+      "sequence_length": 60,
+      "features": "{{FEATURES}}",
+      "technical_indicators": "{{TECHNICAL_INDICATORS}}"
+    }
+  },
+  "test_scenarios": {
+    "successful_ohlc_rendering": {
+      "dataset_id": "15",
+      "expected_elements": ["plotly-chart-container", "candlestick", "envelope_top", "envelope_bot", "pldot"],
+      "expected_traces": ["OHLC", "Envelope Top (etop)", "Envelope Bottom (ebot)", "PL Dot", "SMA 20", "EMA 12"]
+    },
+    "successful_table_rendering": {
+      "dataset_id": "15", 
+      "expected_columns": ["Sequence ID", "Technical Indicators", "OHLC Data", "Labels"],
+      "expected_indicators": ["etop", "ebot", "pldot", "sma_20"],
+      "expected_ohlc_fields": ["5m_high", "5m_low", "5m_close"]
+    },
+    "csv_format_support": {
+      "dataset_ids": ["16", "17"],
+      "expected_behavior": "Should load and display CSV data correctly",
+      "expected_timeframes": ["1h", "15m"]
+    },
+    "empty_dataset_handling": {
+      "dataset_id": "999",
+      "expected_response": {
+        "data": [],
+        "total_count": 0,
+        "error": "Dataset not found"
+      },
+      "expected_ui": "Should show 'No data available' message"
+    }
+  }
+}

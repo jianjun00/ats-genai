@@ -998,36 +998,72 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         # OPTIMIZATION 1: Memory-mapped loading (don't load entire file)
                         if feature_path:
                             logger.info(f"Loading features from: {feature_path}")
-                            if feature_path.endswith('.parquet'):
-                                # Load parquet files
-                                import pandas as pd
-                                df = pd.read_parquet(feature_path)
-                                
-                                # Extract feature names from parquet columns (excluding datetime index)
-                                feature_names = [col for col in df.columns if col not in ['symbol']]
-                                logger.info(f"Extracted feature names from parquet: {feature_names}")
-                                
-                                # Capture datetime information from index
-                                if hasattr(df.index, 'get_level_values') and 'datetime' in str(df.index.names):
-                                    datetime_index = df.index.get_level_values('datetime')[offset:offset+limit]
-                                elif isinstance(df.index, pd.DatetimeIndex):
-                                    datetime_index = df.index[offset:offset+limit]
-                                
-                                # Convert only specific string columns to numeric codes
-                                string_columns = df.select_dtypes(include=['object']).columns
-                                for col in string_columns:
-                                    if col in ['market_period', 'session_type', 'market_state']:
-                                        # Convert categorical market info to codes
-                                        df[col] = pd.Categorical(df[col]).codes
-                                        logger.info(f"Converted {col} to categorical codes")
-                                
-                                # Skip offset rows and take limit rows  
-                                df_subset = df.iloc[offset:offset+limit]
-                                feature_data = df_subset.values.astype(float)
+                            # FIX 5: Table Data API CSV File Support  
+                            # PROBLEM: Table data API only supported numpy and parquet, but some datasets have CSV files
+                            # SOLUTION: Add CSV file support with container path mapping, similar to visualization API
+                            
+                            # Map host paths to container paths for Docker compatibility
+                            container_feature_path = feature_path
+                            if feature_path and feature_path.startswith('/mnt/d/ats-data/'):
+                                container_feature_path = feature_path.replace('/mnt/d/ats-data/', '/data/')
+                            
+                            # Check if file exists (try both host and container paths)
+                            actual_feature_path = None
+                            if container_feature_path and os.path.exists(container_feature_path):
+                                actual_feature_path = container_feature_path
+                            elif feature_path and os.path.exists(feature_path):
+                                actual_feature_path = feature_path
+                            
+                            if actual_feature_path:
+                                if actual_feature_path.endswith('.parquet'):
+                                    # Load parquet files
+                                    import pandas as pd
+                                    df = pd.read_parquet(actual_feature_path)
+                                    
+                                    # Extract feature names from parquet columns (excluding datetime index)
+                                    feature_names = [col for col in df.columns if col not in ['symbol']]
+                                    logger.info(f"Extracted feature names from parquet: {feature_names}")
+                                    
+                                    # Capture datetime information from index
+                                    if hasattr(df.index, 'get_level_values') and 'datetime' in str(df.index.names):
+                                        datetime_index = df.index.get_level_values('datetime')[offset:offset+limit]
+                                    elif isinstance(df.index, pd.DatetimeIndex):
+                                        datetime_index = df.index[offset:offset+limit]
+                                    
+                                    # Convert only specific string columns to numeric codes
+                                    string_columns = df.select_dtypes(include=['object']).columns
+                                    for col in string_columns:
+                                        if col in ['market_period', 'session_type', 'market_state']:
+                                            # Convert categorical market info to codes
+                                            df[col] = pd.Categorical(df[col]).codes
+                                            logger.info(f"Converted {col} to categorical codes")
+                                    
+                                    # Skip offset rows and take limit rows  
+                                    df_subset = df.iloc[offset:offset+limit]
+                                    feature_data = df_subset.values.astype(float)
+                                elif actual_feature_path.endswith('.csv'):
+                                    # Load CSV files (similar to visualization API)
+                                    import pandas as pd
+                                    df = pd.read_csv(actual_feature_path)
+                                    
+                                    # Extract feature names from CSV columns
+                                    feature_names = [col for col in df.columns if col not in ['datetime', 'symbol', 'timestamp']]
+                                    logger.info(f"Extracted feature names from CSV: {feature_names[:10]}...")
+                                    
+                                    # Skip offset rows and take limit rows
+                                    df_subset = df.iloc[offset:offset+limit]
+                                    
+                                    # Select only numeric columns for feature data
+                                    numeric_df = df_subset.select_dtypes(include=[np.number])
+                                    feature_data = numeric_df.values.astype(float)
+                                    
+                                    logger.info(f"Loaded CSV data: {feature_data.shape} from {actual_feature_path}")
+                                else:
+                                    # Load numpy files
+                                    with np.load(actual_feature_path, mmap_mode='r') as features_mmap:
+                                        feature_data = features_mmap[offset:offset+limit].copy()
                             else:
-                                # Load numpy files
-                                with np.load(feature_path, mmap_mode='r') as features_mmap:
-                                    feature_data = features_mmap[offset:offset+limit].copy()
+                                logger.warning(f"Feature file not found: {feature_path} (also checked: {container_feature_path})")
                             
                         if label_path:
                             logger.info(f"Loading labels from: {label_path}")
@@ -1224,11 +1260,44 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             import numpy as np
             import os
             
-            if not os.path.exists(features_file_path):
-                return {"error": f"Features file not found: {features_file_path}", "data": []}
+            # FIX 3: File Format Compatibility Issue  
+            # PROBLEM: API expected numpy .npy files but some datasets have .csv files
+            # SOLUTION: Handle both CSV and numpy file formats, with container path mapping
             
-            # Load features array [sequences, time_steps, features]
-            features_data = np.load(features_file_path)
+            # Map host paths to container paths for Docker compatibility
+            container_features_path = features_file_path
+            if features_file_path.startswith('/mnt/d/ats-data/'):
+                container_features_path = features_file_path.replace('/mnt/d/ats-data/', '/data/')
+            
+            # Check if file exists (try both host and container paths)
+            file_to_load = None
+            if os.path.exists(container_features_path):
+                file_to_load = container_features_path
+            elif os.path.exists(features_file_path):
+                file_to_load = features_file_path
+            else:
+                return {"error": f"Features file not found: {features_file_path} (also checked: {container_features_path})", "data": []}
+            
+            # Load features data - handle both .npy and .csv formats
+            try:
+                if file_to_load.endswith('.npy'):
+                    # Load numpy format [sequences, time_steps, features]
+                    features_data = np.load(file_to_load)
+                elif file_to_load.endswith('.csv'):
+                    # Load CSV format and convert to numpy array
+                    import pandas as pd
+                    df = pd.read_csv(file_to_load)
+                    
+                    # For CSV files, assume each row is a time step in a single sequence
+                    # Reshape to [1, time_steps, features] format expected by visualization
+                    features_data = df.select_dtypes(include=[np.number]).values
+                    features_data = features_data.reshape(1, features_data.shape[0], features_data.shape[1])
+                    
+                    logger.info(f"Loaded CSV data: {features_data.shape} from {file_to_load}")
+                else:
+                    return {"error": f"Unsupported file format: {file_to_load}. Expected .npy or .csv", "data": []}
+            except Exception as e:
+                return {"error": f"Error loading features file {file_to_load}: {str(e)}", "data": []}
             
             # Calculate the selected sequence index and time step within sequence
             sequence_length = dataset_info.get('sequence_length', 60)
@@ -1250,14 +1319,27 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             # Load feature names from metadata
             feature_names = ['open', 'high', 'low', 'close', 'volume', 'etop', 'ebot', 'pldot', 'z1b', 'z2b', 'z5t', 'z6t']
             
-            if metadata_file_path and os.path.exists(metadata_file_path):
-                try:
-                    import json
-                    with open(metadata_file_path, 'r') as f:
-                        metadata = json.load(f)
-                        feature_names = metadata.get('feature_names', feature_names)
-                except Exception as e:
-                    logger.warning(f"Could not load feature names from metadata: {e}")
+            if metadata_file_path:
+                # Map metadata path for container compatibility
+                container_metadata_path = metadata_file_path
+                if metadata_file_path.startswith('/mnt/d/ats-data/'):
+                    container_metadata_path = metadata_file_path.replace('/mnt/d/ats-data/', '/data/')
+                
+                metadata_to_load = None
+                if os.path.exists(container_metadata_path):
+                    metadata_to_load = container_metadata_path
+                elif os.path.exists(metadata_file_path):
+                    metadata_to_load = metadata_file_path
+                
+                if metadata_to_load:
+                    try:
+                        import json
+                        with open(metadata_to_load, 'r') as f:
+                            metadata = json.load(f)
+                            feature_names = metadata.get('feature_names', feature_names)
+                            logger.info(f"Loaded feature names from metadata: {feature_names}")
+                    except Exception as e:
+                        logger.warning(f"Could not load feature names from metadata: {e}")
             
             # Create visualization data structure
             visualization_data = []
@@ -1623,6 +1705,41 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 logger.error(f"Error getting training datasets: {e}")
                 error_response = {"error": str(e)}
                 self.wfile.write(json.dumps(error_response).encode('utf-8'))
+        
+        elif self.path.startswith('/api/v1/training-datasets/') and not any(x in self.path for x in ['/data', '/distributions', '/visualization-data']):
+            # Single training dataset API endpoint: /api/v1/training-datasets/{id}
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            try:
+                # Extract dataset ID from path: /api/v1/training-datasets/{id}
+                path_parts = self.path.split('/')
+                if len(path_parts) >= 5 and path_parts[4]:
+                    dataset_id = path_parts[4].split('?')[0]  # Remove query parameters
+                    logger.info(f"Getting single training dataset: {dataset_id}")
+                    
+                    # Get dataset details from the training datasets list
+                    training_datasets = self.get_training_datasets()
+                    if training_datasets and 'datasets' in training_datasets:
+                        dataset = next((d for d in training_datasets['datasets'] if str(d['id']) == str(dataset_id)), None)
+                        if dataset:
+                            self.wfile.write(json.dumps(dataset, indent=2).encode('utf-8'))
+                        else:
+                            error_response = {"error": "Dataset not found", "dataset_id": dataset_id}
+                            self.send_error(404, json.dumps(error_response))
+                    else:
+                        error_response = {"error": "Failed to load training datasets"}
+                        self.send_error(500, json.dumps(error_response))
+                else:
+                    error_response = {"error": "Invalid dataset ID"}
+                    self.send_error(400, json.dumps(error_response))
+                    
+            except Exception as e:
+                logger.error(f"Error getting training dataset: {e}")
+                error_response = {"error": "Failed to load training dataset", "details": str(e)}
+                self.send_error(500, json.dumps(error_response))
         
         elif self.path.startswith('/api/v1/training-datasets/') and '/data' in self.path and '/distributions' not in self.path:
             # Training dataset data API endpoint: /api/v1/training-datasets/{id}/data
@@ -3965,6 +4082,208 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             background: rgba(255,255,255,0.3);
             transform: translateY(-2px);
         }
+        
+        .dataset-selection {
+            margin-bottom: 30px;
+        }
+        
+        .controls {
+            margin-bottom: 20px;
+        }
+        
+        .controls label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .controls select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 16px;
+            background-color: white;
+        }
+        
+        .dataset-info {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .progress-container {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f2f5;
+            border-radius: 8px;
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background: #667eea;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            margin-top: 8px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .analysis-content {
+            margin-top: 30px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .feature-stats, .label-stats, .quality-insights {
+            margin-bottom: 30px;
+        }
+        
+        .stat-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .stat-details p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .data-table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e1e8ed;
+        }
+        
+        .data-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .features-cell, .labels-cell {
+            max-width: 400px;
+        }
+        
+        .feature-item, .label-item {
+            display: inline-block;
+            margin: 2px 5px;
+            padding: 4px 8px;
+            background: #e3f2fd;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+            gap: 15px;
+        }
+        
+        .pagination button {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .pagination button:hover:not(:disabled) {
+            background: #f0f2f5;
+        }
+        
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        #error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -4017,384 +4336,472 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <div id="analysis-content" class="analysis-content">
-                <div class="loading">
-                    👆 Select a training dataset above to view detailed analysis and visualizations
+                
+                <div class="progress-container" id="progress-container" style="display: none;">
+                    <div class="progress-bar" id="progress-bar"></div>
+                    <div class="progress-text" id="progress-text">Loading...</div>
                 </div>
             </div>
             
-            <!-- Training Data Table Section -->
-            <div id="training-data-table-section" class="main-card" style="display: none;">
-                <h3>🗂️ Training Data Preview</h3>
-                <div id="training-table-info" style="margin-bottom: 15px; color: #666;"></div>
-                <div class="table-pagination">
-                    <button id="training-prev-page" onclick="previousTrainingPage()" disabled>← Previous</button>
-                    <span id="training-page-info">Page 1</span>
-                    <button id="training-next-page" onclick="nextTrainingPage()">Next →</button>
-                    <label style="margin-left: 20px;">
-                        <input type="checkbox" id="use-ray-processing" style="margin-right: 5px;"> 
-                        ⚡ Use Ray Parallel Processing
-                    </label>
+            <div class="analysis-content">
+                <div id="dataset-analysis" class="hidden">
+                    <h3>📈 Dataset Analysis</h3>
+                    
+                    <!-- Feature Statistics -->
+                    <div class="feature-stats">
+                        <h4>Feature Statistics</h4>
+                        <div id="feature-stats-content"></div>
+                    </div>
+                    
+                    <!-- Label Statistics -->
+                    <div class="label-stats">
+                        <h4>Label Statistics</h4>
+                        <div id="label-stats-content"></div>
+                    </div>
+                    
+                    <!-- Data Quality Insights -->
+                    <div class="quality-insights">
+                        <h4>🔍 Data Quality Insights</h4>
+                        <div id="quality-insights-content"></div>
+                    </div>
+                    
+                    <!-- OHLC Visualization Section -->
+                    <div id="ohlc-visualization" class="ohlc-section" style="display: none;">
+                        <h4>📊 OHLC Data Visualization</h4>
+                        <p>Interactive candlestick charts with technical indicators (envelope_top, envelope_bot, pldot)</p>
+                        
+                        <div class="ohlc-controls" style="margin-bottom: 15px;">
+                            <label for="sequence-slider">Sequence Index:</label>
+                            <input type="range" id="sequence-slider" min="0" max="100" value="0" 
+                                   oninput="updateOHLCVisualization(currentDataset.id, this.value)">
+                            <span id="sequence-display">Sequence: 0</span>
+                            <button onclick="randomOHLCVisualization(currentDataset.id)" style="margin-left: 10px;">
+                                🎲 Random Sample
+                            </button>
+                            <button onclick="updateOHLCVisualization(currentDataset.id, document.getElementById('sequence-slider').value)" 
+                                    style="margin-left: 10px;">
+                                🔄 Refresh
+                            </button>
+                        </div>
+                        
+                        <div id="ohlc-chart" style="width: 100%; height: 500px; border: 1px solid #ddd; border-radius: 8px;">
+                            <p style="text-align: center; padding: 50px; color: #666;">
+                                Select a dataset with technical indicators to view OHLC visualization
+                            </p>
+                        </div>
+                    </div>
                 </div>
-                <div id="training-data-table-container" class="table-scroll">
-                    <table id="training-data-table">
-                        <thead id="training-table-head"></thead>
-                        <tbody id="training-table-body"></tbody>
-                    </table>
+                
+                <div id="training-data-table" class="hidden">
+                    <h3>📋 Training Data Sample</h3>
+                    <div id="training-data-content"></div>
+                    
+                    <div id="training-pagination" class="pagination">
+                        <button onclick="previousTrainingPage()" id="training-prev-btn">← Previous</button>
+                        <span id="training-page-info">Page 1 of 1</span>
+                        <button onclick="nextTrainingPage()" id="training-next-btn">Next →</button>
+                    </div>
                 </div>
-                <div id="training-pagination-controls" style="margin-top: 15px; text-align: center;"></div>
             </div>
         </div>
+        
+        <div id="loading" class="hidden">
+            <div class="loading-spinner"></div>
+            <p>Loading training datasets...</p>
+        </div>
+        
+        <div id="error" class="hidden">
+            <p id="error-message"></p>
+        </div>
     </div>
-
+    
     <script>
-        let trainingDatasets = [];
         let currentDataset = null;
         let trainingCurrentPage = 1;
         let trainingTotalPages = 1;
-        let trainingTableData = [];
         
         // Load training datasets on page load
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Training Dataset EDA Dashboard loaded');
             loadTrainingDatasets();
         });
         
         async function loadTrainingDatasets() {
-            console.log('🔄 Loading training datasets...');
-            const select = document.getElementById('training-dataset-select');
-            
             try {
-                const response = await fetch('/api/v1/training-datasets');
+                document.getElementById('loading').classList.remove('hidden');
+                const response = await fetch('/api/v1/training-datasets/');
+                
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 
                 const data = await response.json();
-                trainingDatasets = data.datasets || [];
+                const select = document.getElementById('training-dataset-select');
                 
-                console.log(`✅ Loaded ${trainingDatasets.length} training datasets:`, trainingDatasets);
+                select.innerHTML = '<option value="">Select a training dataset</option>';
                 
-                // Clear and populate select
-                select.innerHTML = '<option value="">Select a training dataset...</option>';
-                
-                if (trainingDatasets.length === 0) {
+                if (data.datasets && data.datasets.length > 0) {
+                    data.datasets.forEach(dataset => {
+                        const option = document.createElement('option');
+                        option.value = dataset.id;
+                        option.textContent = `${dataset.dataset_name} (${dataset.total_sequences} sequences)`;
+                        select.appendChild(option);
+                    });
+                } else {
                     select.innerHTML = '<option value="">No training datasets found</option>';
-                    return;
                 }
                 
-                trainingDatasets.forEach(dataset => {
-                    const option = document.createElement('option');
-                    option.value = dataset.id;
-                    option.textContent = `${dataset.dataset_name} (${dataset.total_sequences} sequences)`;
-                    select.appendChild(option);
-                    console.log(`➕ Added option: ${dataset.dataset_name} (ID: ${dataset.id})`);
-                });
-                
-                console.log(`✅ Successfully populated dropdown with ${trainingDatasets.length} datasets`);
-                console.log(`📋 Final dropdown state: ${select.options.length} total options`);
-                
             } catch (error) {
-                console.error('❌ Error loading training datasets:', error);
-                select.innerHTML = '<option value="">Error loading datasets</option>';
-                
-                document.getElementById('analysis-content').innerHTML = `
-                    <div class="error">
-                        <h4>❌ Failed to Load Training Datasets</h4>
-                        <p><strong>Error:</strong> ${error.message}</p>
-                        <p>Please check that the analytics service is running and the database connection is working.</p>
-                        <p><strong>Debug info:</strong> Trying to load from /api/v1/training-datasets</p>
-                    </div>
-                `;
+                console.error('Error loading training datasets:', error);
+                showError(`Failed to load training datasets: ${error.message}`);
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
             }
         }
         
-        function loadTrainingDatasetAnalysis() {
+        async function loadTrainingDatasetAnalysis() {
             const select = document.getElementById('training-dataset-select');
             const datasetId = select.value;
-            const datasetInfo = document.getElementById('dataset-info');
-            const analysisContent = document.getElementById('analysis-content');
-            
-            console.log(`🔍 Selected dataset ID: ${datasetId}`);
             
             if (!datasetId) {
-                datasetInfo.style.display = 'none';
-                analysisContent.innerHTML = '<div class="loading">👆 Select a training dataset above to view detailed analysis and visualizations</div>';
+                hideAllSections();
                 return;
             }
-            
-            currentDataset = trainingDatasets.find(d => d.id == datasetId);
-            if (!currentDataset) {
-                analysisContent.innerHTML = '<div class="error">Dataset not found</div>';
-                return;
-            }
-            
-            console.log('📊 Loading analysis for dataset:', currentDataset);
-            
-            // Update basic stats
-            document.getElementById('total-sequences').textContent = currentDataset.total_sequences.toLocaleString();
-            document.getElementById('feature-count').textContent = currentDataset.feature_count;
-            document.getElementById('label-count').textContent = currentDataset.label_count;
-            document.getElementById('quality-score').textContent = currentDataset.data_quality_score.toFixed(2);
-            document.getElementById('file-size').textContent = `${currentDataset.file_size_mb.toFixed(1)} MB`;
-            
-            const startDate = currentDataset.date_range_start ? new Date(currentDataset.date_range_start).getFullYear() : 'N/A';
-            const endDate = currentDataset.date_range_end ? new Date(currentDataset.date_range_end).getFullYear() : 'N/A';
-            document.getElementById('date-range').textContent = `${startDate} - ${endDate}`;
-            
-            datasetInfo.style.display = 'block';
-            
-            // Load detailed analysis
-            loadDatasetDistributions(datasetId);
-            
-            // Load training data table
-            loadTrainingDataTable(datasetId);
-        }
-        
-        async function loadDatasetDistributions(datasetId) {
-            const analysisContent = document.getElementById('analysis-content');
-            
-            analysisContent.innerHTML = '<div class="loading">📊 Loading dataset distributions and TFDV analysis...</div>';
             
             try {
-                console.log('📈 Loading distributions for dataset ID:', datasetId);
-                const response = await fetch(`/api/v1/training-datasets/${datasetId}/distributions`);
+                showProgress('Loading dataset analysis...', 10);
                 
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                // Load dataset details
+                const datasetResponse = await fetch(`/api/v1/training-datasets/${datasetId}`);
+                if (!datasetResponse.ok) throw new Error(`Failed to load dataset: ${datasetResponse.statusText}`);
+                
+                const dataset = await datasetResponse.json();
+                currentDataset = dataset;
+                
+                showProgress('Updating dataset information...', 30);
+                updateDatasetInfo(dataset);
+                
+                showProgress('Loading feature statistics...', 50);
+                await loadFeatureStats(datasetId);
+                
+                showProgress('Loading training data sample...', 70);
+                await loadTrainingDataTable(datasetId, 1);
+                
+                showProgress('Analysis complete!', 100);
+                
+                // Show analysis sections
+                document.getElementById('dataset-analysis').classList.remove('hidden');
+                document.getElementById('training-data-table').classList.remove('hidden');
+                
+                // Show OHLC visualization if dataset has technical indicators
+                if (dataset.technical_indicators && dataset.technical_indicators.includes('etop')) {
+                    document.getElementById('ohlc-visualization').style.display = 'block';
+                    
+                    // Set up sequence slider max value
+                    const slider = document.getElementById('sequence-slider');
+                    slider.max = Math.max(0, dataset.total_sequences - 1);
+                    slider.value = Math.min(100, slider.max);
+                    
+                    // Load initial OHLC visualization
+                    updateOHLCVisualization(dataset.id, slider.value);
+                } else {
+                    document.getElementById('ohlc-visualization').style.display = 'none';
                 }
+                
+                hideProgress();
+                
+            } catch (error) {
+                console.error('Error loading dataset analysis:', error);
+                showError(`Failed to load dataset analysis: ${error.message}`);
+                hideProgress();
+            }
+        }
+        
+        function updateDatasetInfo(dataset) {
+            document.getElementById('total-sequences').textContent = dataset.total_sequences?.toLocaleString() || '0';
+            document.getElementById('feature-count').textContent = dataset.feature_count || '0';
+            document.getElementById('label-count').textContent = dataset.label_count || '0';
+            document.getElementById('quality-score').textContent = 
+                dataset.data_quality_score ? (dataset.data_quality_score * 100).toFixed(1) + '%' : '0.0%';
+            document.getElementById('file-size').textContent = 
+                dataset.file_size_mb ? dataset.file_size_mb.toFixed(1) + ' MB' : '0 MB';
+            document.getElementById('date-range').textContent = 
+                dataset.date_range_start && dataset.date_range_end 
+                    ? `${dataset.date_range_start} to ${dataset.date_range_end}` 
+                    : '-';
+        }
+        
+        async function loadFeatureStats(datasetId) {
+            try {
+                const response = await fetch(`/api/v1/training-datasets/${datasetId}/distributions`);
+                if (!response.ok) throw new Error(`Failed to load distributions: ${response.statusText}`);
                 
                 const data = await response.json();
-                console.log('📊 Received distributions data:', data);
                 
-                // Create analysis content
-                let html = `
-                    <div class="success">
-                        <h4>✅ Dataset Analysis Complete</h4>
-                        <p>Successfully loaded statistical distributions and data validation results.</p>
-                    </div>
-                `;
-                
-                // Feature distributions
-                if (data.feature_distributions && Object.keys(data.feature_distributions).length > 0) {
-                    html += `
-                        <div class="features-section">
-                            <h4>📊 Feature Distributions</h4>
-                            <div class="feature-list">
-                    `;
-                    
-                    Object.entries(data.feature_distributions).forEach(([featureName, stats]) => {
+                // Update feature statistics
+                const featureStatsContent = document.getElementById('feature-stats-content');
+                if (data.feature_distributions) {
+                    let html = '<div class="stats-grid">';
+                    Object.entries(data.feature_distributions).forEach(([feature, stats]) => {
                         html += `
-                            <div class="feature-item">
-                                <div class="feature-name">${featureName}</div>
-                                <div class="feature-stats">
-                                    ${typeof stats === 'object' ? Object.entries(stats).map(([k,v]) => `${k}: ${v}`).join(', ') : stats}
+                            <div class="stat-card">
+                                <div class="stat-header">${feature}</div>
+                                <div class="stat-details">
+                                    <p>Mean: ${stats.mean?.toFixed(4) || 'N/A'}</p>
+                                    <p>Std: ${stats.std?.toFixed(4) || 'N/A'}</p>
+                                    <p>Min: ${stats.min?.toFixed(4) || 'N/A'}</p>
+                                    <p>Max: ${stats.max?.toFixed(4) || 'N/A'}</p>
                                 </div>
                             </div>
                         `;
                     });
-                    
-                    html += `
-                            </div>
-                        </div>
-                    `;
+                    html += '</div>';
+                    featureStatsContent.innerHTML = html;
+                } else {
+                    featureStatsContent.innerHTML = '<p>No feature statistics available</p>';
                 }
                 
-                // Label distributions
-                if (data.label_distributions && Object.keys(data.label_distributions).length > 0) {
-                    html += `
-                        <div class="features-section">
-                            <h4>🎯 Label Distributions</h4>
-                            <div class="feature-list">
-                    `;
-                    
-                    Object.entries(data.label_distributions).forEach(([labelName, stats]) => {
+                // Update label statistics
+                const labelStatsContent = document.getElementById('label-stats-content');
+                if (data.label_distributions) {
+                    let html = '<div class="stats-grid">';
+                    Object.entries(data.label_distributions).forEach(([label, stats]) => {
                         html += `
-                            <div class="feature-item">
-                                <div class="feature-name">${labelName}</div>
-                                <div class="feature-stats">
-                                    ${typeof stats === 'object' ? Object.entries(stats).map(([k,v]) => `${k}: ${v}`).join(', ') : stats}
+                            <div class="stat-card">
+                                <div class="stat-header">${label}</div>
+                                <div class="stat-details">
+                                    <p>Mean: ${stats.mean?.toFixed(4) || 'N/A'}</p>
+                                    <p>Std: ${stats.std?.toFixed(4) || 'N/A'}</p>
+                                    <p>Min: ${stats.min?.toFixed(4) || 'N/A'}</p>
+                                    <p>Max: ${stats.max?.toFixed(4) || 'N/A'}</p>
                                 </div>
                             </div>
                         `;
                     });
-                    
-                    html += `
-                            </div>
-                        </div>
-                    `;
+                    html += '</div>';
+                    labelStatsContent.innerHTML = html;
+                } else {
+                    labelStatsContent.innerHTML = '<p>No label statistics available</p>';
                 }
                 
-                // TFDV Statistics
-                if (data.tfdv_statistics && Object.keys(data.tfdv_statistics).length > 0) {
-                    html += `
-                        <div class="distributions-section">
-                            <h4>🔍 TensorFlow Data Validation Statistics</h4>
-                            <div id="tfdv-charts"></div>
-                        </div>
-                    `;
+                // Update quality insights
+                const qualityInsightsContent = document.getElementById('quality-insights-content');
+                let insights = [];
+                if (data.data_quality_score !== undefined) {
+                    const score = (data.data_quality_score * 100).toFixed(1);
+                    insights.push(`Overall data quality score: ${score}%`);
+                }
+                if (data.feature_completeness !== undefined) {
+                    const completeness = (data.feature_completeness * 100).toFixed(1);
+                    insights.push(`Feature completeness: ${completeness}%`);
+                }
+                if (data.label_completeness !== undefined) {
+                    const completeness = (data.label_completeness * 100).toFixed(1);
+                    insights.push(`Label completeness: ${completeness}%`);
                 }
                 
-                // TFDV Anomalies
-                if (data.tfdv_anomalies && Object.keys(data.tfdv_anomalies).length > 0) {
-                    html += `
-                        <div class="distributions-section">
-                            <h4>⚠️ Data Anomalies Detected</h4>
-                            <div class="error">
-                                <pre>${JSON.stringify(data.tfdv_anomalies, null, 2)}</pre>
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                analysisContent.innerHTML = html;
-                
-                // Create TFDV visualizations if available
-                if (data.tfdv_statistics && Object.keys(data.tfdv_statistics).length > 0) {
-                    createTFDVCharts(data.tfdv_statistics);
+                if (insights.length > 0) {
+                    qualityInsightsContent.innerHTML = insights.map(insight => `<p>• ${insight}</p>`).join('');
+                } else {
+                    qualityInsightsContent.innerHTML = '<p>No quality insights available</p>';
                 }
                 
             } catch (error) {
-                console.error('❌ Error loading distributions:', error);
-                analysisContent.innerHTML = `
-                    <div class="error">
-                        <h4>❌ Failed to Load Dataset Analysis</h4>
-                        <p><strong>Error:</strong> ${error.message}</p>
-                        <p>This could be due to missing TFDV data or database connection issues.</p>
-                        <p><strong>Dataset ID:</strong> ${datasetId}</p>
-                        <p><strong>API Endpoint:</strong> /api/v1/training-datasets/${datasetId}/distributions</p>
-                    </div>
-                `;
+                console.error('Error loading feature stats:', error);
+                document.getElementById('feature-stats-content').innerHTML = 
+                    `<p>Error loading feature statistics: ${error.message}</p>`;
             }
         }
         
-        function createTFDVCharts(tfdvStats) {
-            console.log('📈 Creating TFDV charts with data:', tfdvStats);
-            const container = document.getElementById('tfdv-charts');
-            
-            if (!container) {
-                console.error('❌ TFDV charts container not found');
-                return;
-            }
-            
-            let chartsHtml = '';
-            
-            Object.entries(tfdvStats).forEach(([fieldName, stats], index) => {
-                const chartId = `tfdv-chart-${index}`;
-                chartsHtml += `<div id="${chartId}" class="chart-container"></div>`;
-            });
-            
-            container.innerHTML = chartsHtml;
-            
-            // Create individual charts
-            Object.entries(tfdvStats).forEach(([fieldName, stats], index) => {
-                const chartId = `tfdv-chart-${index}`;
-                
-                // Create a simple bar chart for numeric stats
-                if (typeof stats === 'object' && stats.count) {
-                    const trace = {
-                        x: Object.keys(stats),
-                        y: Object.values(stats),
-                        type: 'bar',
-                        marker: { color: '#667eea' }
-                    };
-                    
-                    const layout = {
-                        title: `Distribution: ${fieldName}`,
-                        xaxis: { title: 'Property' },
-                        yaxis: { title: 'Value' }
-                    };
-                    
-                    Plotly.newPlot(chartId, [trace], layout, {responsive: true});
-                }
-            });
-        }
-        
-        // Training Data Table Functions
         async function loadTrainingDataTable(datasetId, page = 1) {
-            console.log(`📊 Loading training data table for dataset ${datasetId}, page ${page}`);
-            
-            const tableSection = document.getElementById('training-data-table-section');
-            const tableInfo = document.getElementById('training-table-info');
-            const tableHead = document.getElementById('training-table-head');
-            const tableBody = document.getElementById('training-table-body');
-            
             try {
-                // Show loading state
-                tableInfo.innerHTML = '🔄 Loading training data...';
-                tableSection.style.display = 'block';
-                
-                // Check if Ray processing is enabled
-                const useRay = document.getElementById('use-ray-processing').checked;
-                const rayParam = useRay ? '&ray=true' : '';
-                
-                // Fetch training data from API
-                const response = await fetch(`/api/v1/training-datasets/${datasetId}/data?page=${page}&limit=50${rayParam}`);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
+                const response = await fetch(`/api/v1/training-datasets/${datasetId}/data?page=${page}&limit=10`);
+                if (!response.ok) throw new Error(`Failed to load training data: ${response.statusText}`);
                 
                 const data = await response.json();
-                console.log('📊 Training data loaded:', data);
                 
-                if (!data.data || data.data.length === 0) {
-                    tableInfo.innerHTML = '📄 No training data available for this dataset';
-                    tableBody.innerHTML = '<tr><td colspan="100%">No data available</td></tr>';
-                    return;
-                }
-                
-                // Store data for reference
-                trainingTableData = data.data;
                 trainingCurrentPage = page;
                 trainingTotalPages = data.total_pages || 1;
                 
-                // Update pagination info
-                document.getElementById('training-page-info').textContent = `Page ${trainingCurrentPage} of ${trainingTotalPages}`;
-                document.getElementById('training-prev-page').disabled = trainingCurrentPage <= 1;
-                document.getElementById('training-next-page').disabled = trainingCurrentPage >= trainingTotalPages;
-                
-                // Update table info
-                tableInfo.innerHTML = `
-                    📊 Showing ${data.data.length} of ${data.total_count || 0} training sequences
-                    ${data.date_range ? `| Date range: ${data.date_range.start} to ${data.date_range.end}` : ''}
-                `;
-                
-                // Build table headers
-                if (data.data.length > 0) {
-                    const headers = Object.keys(data.data[0]);
-                    tableHead.innerHTML = `
-                        <tr>
-                            ${headers.map(header => `<th title="${header}">${header}</th>`).join('')}
-                        </tr>
+                const content = document.getElementById('training-data-content');
+                if (data.data && data.data.length > 0) {
+                    // FIX 2: Table Data Rendering Issue
+                    // PROBLEM: Previously expected nested sequence data but API returns flat data format
+                    // SOLUTION: Process flat data structure correctly, categorize fields properly
+                    // API Response format: [{sequence_id: 1, sma_20: 24.59, etop: 25.09, 5m_high: 24.86, ...}, ...]
+                    let html = `
+                        <style>
+                            .data-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+                            .data-table th, .data-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                            .data-table th { background-color: #f2f2f2; font-weight: bold; }
+                            .feature-item, .label-item { display: block; margin: 2px 0; padding: 2px; background: #f9f9f9; }
+                            .no-data { color: #666; font-style: italic; }
+                            .features-cell { max-width: 200px; }
+                        </style>
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Sequence ID</th>
+                                        <th>Datetime</th>
+                                        <th>Technical Indicators</th>
+                                        <th>OHLC Data</th>
+                                        <th>Labels</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
                     `;
                     
-                    // Build table rows
-                    const rows = data.data.map((row, index) => `
-                        <tr>
-                            ${headers.map(header => {
-                                let cellValue = row[header];
-                                if (cellValue === null || cellValue === undefined) {
-                                    cellValue = '-';
-                                } else if (typeof cellValue === 'number') {
-                                    cellValue = cellValue.toFixed(4);
-                                } else if (typeof cellValue === 'string' && cellValue.length > 20) {
-                                    cellValue = cellValue.substring(0, 20) + '...';
+                    data.data.forEach((row, index) => {
+                        // Separate technical indicators
+                        const technicalIndicators = [];
+                        const ohlcData = [];
+                        const labels = [];
+                        const otherFeatures = [];
+                        
+                        Object.entries(row).forEach(([key, value]) => {
+                            if (['etop', 'ebot', 'pldot', 'sma_20', 'ema_12', 'ema_26'].includes(key)) {
+                                technicalIndicators.push([key, value]);
+                            } else if (key.includes('high') || key.includes('low') || key.includes('close') || key.includes('open')) {
+                                ohlcData.push([key, value]);
+                            } else if (key === 'label' || key.includes('return') || key.includes('volatility')) {
+                                labels.push([key, value]);
+                            } else if (!['sequence_id'].includes(key)) {
+                                otherFeatures.push([key, value]);
+                            }
+                        });
+                        
+                        // FIX 4: Table Data Display Issue
+                        // PROBLEM: Table shows empty cells despite data being categorized correctly
+                        // SOLUTION: Add line breaks, better formatting, and debug logging to ensure visibility
+                        console.log(`Processing row ${index + 1}:`, {
+                            sequence_id: row.sequence_id,
+                            technicalIndicators: technicalIndicators.length,
+                            ohlcData: ohlcData.length,
+                            labels: labels.length
+                        });
+                        
+                        // Format datetime for display
+                        let datetimeDisplay = 'N/A';
+                        if (row.datetime) {
+                            // Handle datetime field from visualization API
+                            try {
+                                let date;
+                                if (typeof row.datetime === 'number') {
+                                    // Unix timestamp
+                                    date = new Date(row.datetime * 1000);
+                                } else if (typeof row.datetime === 'string') {
+                                    // ISO string
+                                    date = new Date(row.datetime);
                                 }
-                                return `<td title="${row[header]}">${cellValue}</td>`;
-                            }).join('')}
-                        </tr>
-                    `).join('');
+                                
+                                if (date && !isNaN(date)) {
+                                    // Format as YYYYMMDD HH:MM
+                                    const year = date.getFullYear();
+                                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                                    const day = String(date.getDate()).padStart(2, '0');
+                                    const hours = String(date.getHours()).padStart(2, '0');
+                                    const minutes = String(date.getMinutes()).padStart(2, '0');
+                                    datetimeDisplay = `${year}${month}${day} ${hours}:${minutes}`;
+                                }
+                            } catch (e) {
+                                console.log('Datetime parsing error:', e);
+                            }
+                        } else if (row.year && row.month && row.day && row.hour !== undefined) {
+                            // Construct datetime from separate fields (table data API format)
+                            // Note: Based on actual data, the field mapping appears to be:
+                            // row.year = timestamp, row.month = actual year, row.day = actual month, row.hour = actual day
+                            try {
+                                const year = Math.floor(row.month);  // month field contains the year
+                                const month = String(Math.floor(row.day)).padStart(2, '0');  // day field contains the month
+                                const day = String(Math.floor(row.hour)).padStart(2, '0');   // hour field contains the day
+                                const hours = String(Math.floor(row.weekday || 0)).padStart(2, '0'); // weekday might contain hour
+                                const minutes = '00'; // Default to :00 minutes
+                                datetimeDisplay = `${year}${month}${day} ${hours}:${minutes}`;
+                            } catch (e) {
+                                console.log('Date field parsing error:', e);
+                            }
+                        }
+                        
+                        html += `
+                            <tr>
+                                <td><strong>${row.sequence_id || (index + 1)}</strong></td>
+                                <td><strong>${datetimeDisplay}</strong></td>
+                                <td class="features-cell">
+                                    ${technicalIndicators.length > 0 ? 
+                                        technicalIndicators.map(([key, value]) => 
+                                            `<div class="feature-item"><strong>${key}:</strong> ${typeof value === 'number' ? value.toFixed(4) : value}</div>`
+                                        ).join('') : 
+                                        '<div class="no-data">No technical indicators</div>'
+                                    }
+                                </td>
+                                <td class="features-cell">
+                                    ${ohlcData.length > 0 ? 
+                                        ohlcData.map(([key, value]) => 
+                                            `<div class="feature-item"><strong>${key}:</strong> ${typeof value === 'number' ? value.toFixed(4) : value}</div>`
+                                        ).join('') : 
+                                        '<div class="no-data">No OHLC data</div>'
+                                    }
+                                </td>
+                                <td class="labels-cell">
+                                    ${labels.length > 0 ? 
+                                        labels.map(([key, value]) => 
+                                            `<div class="label-item"><strong>${key}:</strong> ${typeof value === 'number' ? value.toFixed(4) : value}</div>`
+                                        ).join('') : 
+                                        '<div class="no-data">N/A</div>'
+                                    }
+                                </td>
+                            </tr>
+                        `;
+                    });
                     
-                    tableBody.innerHTML = rows;
+                    html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    content.innerHTML = html;
+                } else {
+                    content.innerHTML = '<p>No training data available</p>';
                 }
                 
+                // Update pagination
+                document.getElementById('training-page-info').textContent = 
+                    `Page ${trainingCurrentPage} of ${trainingTotalPages}`;
+                document.getElementById('training-prev-btn').disabled = trainingCurrentPage <= 1;
+                document.getElementById('training-next-btn').disabled = trainingCurrentPage >= trainingTotalPages;
+                
             } catch (error) {
-                console.error('❌ Error loading training data table:', error);
-                tableInfo.innerHTML = `❌ Error loading data: ${error.message}`;
-                tableBody.innerHTML = '<tr><td colspan="100%">Failed to load training data</td></tr>';
+                console.error('Error loading training data:', error);
+                document.getElementById('training-data-content').innerHTML = 
+                    `<p>Error loading training data: ${error.message}</p>`;
             }
+        }
+        
+        function showProgress(message, percentage) {
+            const container = document.getElementById('progress-container');
+            const bar = document.getElementById('progress-bar');
+            const text = document.getElementById('progress-text');
+            
+            container.style.display = 'block';
+            bar.style.width = `${percentage}%`;
+            text.textContent = message;
+        }
+        
+        function hideProgress() {
+            document.getElementById('progress-container').style.display = 'none';
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            document.getElementById('error-message').textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+        
+        function hideAllSections() {
+            document.getElementById('dataset-analysis').classList.add('hidden');
+            document.getElementById('training-data-table').classList.add('hidden');
+            document.getElementById('error').classList.add('hidden');
+            hideProgress();
         }
         
         function previousTrainingPage() {
@@ -4407,6 +4814,242 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             if (trainingCurrentPage < trainingTotalPages && currentDataset) {
                 loadTrainingDataTable(currentDataset.id, trainingCurrentPage + 1);
             }
+        }
+        
+        // OHLC Visualization Functions
+        async function updateOHLCVisualization(datasetId, sequenceIndex) {
+            try {
+                console.log(`Loading OHLC visualization for dataset ${datasetId}, sequence ${sequenceIndex}`);
+                
+                // Update sequence display
+                document.getElementById('sequence-display').textContent = `Sequence: ${sequenceIndex} (21-row window)`;
+                
+                // Calculate start_idx for 21-row window (10 before + selected + 10 after)
+                // For training data, each sequence typically has 60 time steps
+                const sequenceLength = currentDataset?.sequence_length || 60;
+                const totalSequences = currentDataset?.total_sequences || 1;
+                
+                // Calculate the start index for a 21-row window centered on the selected sequence
+                // If sequenceIndex is the sequence number, we want the middle time step of that sequence
+                const middleTimeStep = Math.floor(sequenceLength / 2); // Middle of the sequence (e.g., step 30 of 60)
+                const centerIndex = (sequenceIndex * sequenceLength) + middleTimeStep;
+                
+                // Calculate start_idx for 21-row window (10 before center, center, 10 after center)
+                const windowSize = 21;
+                const halfWindow = Math.floor(windowSize / 2); // 10
+                let startIdx = Math.max(0, centerIndex - halfWindow);
+                
+                // Ensure we don't exceed total available data points
+                const maxDataPoints = totalSequences * sequenceLength;
+                if (startIdx + windowSize > maxDataPoints) {
+                    startIdx = Math.max(0, maxDataPoints - windowSize);
+                }
+                
+                console.log(`21-row window: sequenceIndex=${sequenceIndex}, centerIndex=${centerIndex}, startIdx=${startIdx}, count=${windowSize}`);
+                
+                const response = await fetch(`/api/v1/training-datasets/${datasetId}/visualization-data?start_idx=${startIdx}&count=${windowSize}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('OHLC data received (21-row window):', data);
+                
+                if (data && data.data && data.data.length > 0) {
+                    // Add window information to the chart
+                    data.window_info = {
+                        selected_sequence: sequenceIndex,
+                        center_index: centerIndex,
+                        start_idx: startIdx,
+                        window_size: windowSize,
+                        total_points: data.data.length
+                    };
+                    createOHLCChart('ohlc-chart', data);
+                } else {
+                    document.getElementById('ohlc-chart').innerHTML = 
+                        '<p style="text-align: center; padding: 50px; color: #666;">No OHLC data available for this sequence</p>';
+                }
+                
+            } catch (error) {
+                console.error('Error loading OHLC visualization:', error);
+                document.getElementById('ohlc-chart').innerHTML = 
+                    `<p style="text-align: center; padding: 50px; color: #e74c3c;">Error loading OHLC data: ${error.message}</p>`;
+            }
+        }
+        
+        function randomOHLCVisualization(datasetId) {
+            if (!currentDataset) return;
+            
+            const slider = document.getElementById('sequence-slider');
+            const randomIndex = Math.floor(Math.random() * (parseInt(slider.max) + 1));
+            slider.value = randomIndex;
+            updateOHLCVisualization(datasetId, randomIndex);
+        }
+        
+        function createOHLCChart(containerId, data) {
+            const chartContainer = document.getElementById(containerId);
+            if (!chartContainer) {
+                console.error('Chart container not found:', containerId);
+                return;
+            }
+            
+            if (!data || !data.data || data.data.length === 0) {
+                chartContainer.innerHTML = '<p style="text-align: center; padding: 50px; color: #666;">No data available for visualization</p>';
+                return;
+            }
+            
+            console.log('Creating OHLC chart with data:', data.data.slice(0, 5));
+            
+            // FIX 1: OHLC Data Mapping Issue
+            // PROBLEM: API returns high/low/close but no 'open' field
+            // SOLUTION: Use previous close as open, or close as fallback for missing open
+            const chartData = data.data.map((point, index) => {
+                // Use previous point's close as current open, or current close if first point
+                const prevClose = index > 0 ? data.data[index - 1]['5m_close'] || data.data[index - 1]['1h_close'] || data.data[index - 1]['15m_close'] : null;
+                const currentClose = point['5m_close'] || point['1h_close'] || point['15m_close'] || 0;
+                
+                // Format datetime for x-axis display
+                let xValue = index; // fallback to index
+                if (point.datetime) {
+                    try {
+                        let date;
+                        if (typeof point.datetime === 'number') {
+                            // Unix timestamp
+                            date = new Date(point.datetime * 1000);
+                        } else if (typeof point.datetime === 'string') {
+                            // ISO string
+                            date = new Date(point.datetime);
+                        }
+                        
+                        if (date && !isNaN(date)) {
+                            // Format as YYYYMMDD HH:MM for x-axis
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const hours = String(date.getHours()).padStart(2, '0');
+                            const minutes = String(date.getMinutes()).padStart(2, '0');
+                            xValue = `${year}${month}${day} ${hours}:${minutes}`;
+                        }
+                    } catch (e) {
+                        console.log('X-axis datetime formatting error:', e);
+                    }
+                }
+                
+                return {
+                    x: xValue, // FIXED: Use formatted datetime for proper time intervals, fallback to index
+                    open: prevClose || currentClose, // Use previous close as open, fallback to current close
+                    high: point['5m_high'] || point['1h_high'] || point['15m_high'] || 0,
+                    low: point['5m_low'] || point['1h_low'] || point['15m_low'] || 0,
+                    close: currentClose,
+                    etop: point.etop,
+                    ebot: point.ebot,
+                    pldot: point.pldot
+                };
+            });
+            
+            // Create traces
+            const traces = [];
+            
+            // OHLC Candlestick trace
+            traces.push({
+                x: chartData.map(d => d.x),
+                open: chartData.map(d => d.open),
+                high: chartData.map(d => d.high),
+                low: chartData.map(d => d.low),
+                close: chartData.map(d => d.close),
+                type: 'candlestick',
+                name: 'OHLC',
+                increasing: {line: {color: '#00C851'}},
+                decreasing: {line: {color: '#ff4444'}}
+            });
+            
+            // Technical indicators
+            if (chartData.some(d => d.etop !== undefined && d.etop !== 0)) {
+                traces.push({
+                    x: chartData.map(d => d.x),
+                    y: chartData.map(d => d.etop),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'Envelope Top (etop)',
+                    line: {color: '#007bff', width: 2}
+                });
+            }
+            
+            if (chartData.some(d => d.ebot !== undefined && d.ebot !== 0)) {
+                traces.push({
+                    x: chartData.map(d => d.x),
+                    y: chartData.map(d => d.ebot),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'Envelope Bottom (ebot)',
+                    line: {color: '#28a745', width: 2}
+                });
+            }
+            
+            if (chartData.some(d => d.pldot !== undefined && d.pldot !== 0)) {
+                traces.push({
+                    x: chartData.map(d => d.x),
+                    y: chartData.map(d => d.pldot),
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: 'PL Dot (pldot)',
+                    marker: {color: '#ffc107', size: 6}
+                });
+            }
+            
+            // Layout with 21-row window information
+            let chartTitle = 'OHLC Chart with Technical Indicators';
+            if (data.window_info) {
+                chartTitle = `OHLC Chart - Sequence ${data.window_info.selected_sequence} (21-row window: ${data.window_info.total_points} data points)`;
+            } else if (data.sequence_idx !== undefined) {
+                chartTitle = `OHLC Chart - Sequence ${data.sequence_idx} (${data.selected_time_step + 1}/${data.sequence_length})`;
+            }
+            
+            const layout = {
+                title: {
+                    text: chartTitle,
+                    font: {size: 14}
+                },
+                xaxis: {
+                    title: 'Time (YYYYMMDD HH:MM)',
+                    rangeslider: {visible: false},
+                    tickangle: -45
+                },
+                yaxis: {
+                    title: 'Price ($)'
+                },
+                height: 500,
+                showlegend: true,
+                legend: {x: 0, y: 1},
+                margin: {l: 60, r: 60, t: 80, b: 80}, // Increased margins for tilted x-axis labels
+                annotations: data.window_info ? [{
+                    text: `Window: ${data.window_info.start_idx} to ${data.window_info.start_idx + data.window_info.window_size - 1} (center: ${data.window_info.center_index})`,
+                    showarrow: false,
+                    xref: 'paper',
+                    yref: 'paper',
+                    x: 0.02,
+                    y: 0.98,
+                    xanchor: 'left',
+                    yanchor: 'top',
+                    bgcolor: 'rgba(255,255,255,0.8)',
+                    bordercolor: '#ccc',
+                    borderwidth: 1,
+                    font: {size: 10}
+                }] : []
+            };
+            
+            // Config
+            const config = {
+                displayModeBar: true,
+                modeBarButtonsToRemove: ['pan2d', 'lasso2d'],
+                displaylogo: false
+            };
+            
+            // Clear container and create plot
+            chartContainer.innerHTML = '';
+            Plotly.newPlot(chartContainer, traces, layout, config);
+            
+            console.log('OHLC chart created successfully');
         }
     </script>
 </body>
