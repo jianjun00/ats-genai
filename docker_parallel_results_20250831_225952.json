@@ -1,0 +1,97 @@
+{
+  "started_at": "2025-08-31T22:59:47.008487",
+  "num_workers": 4,
+  "total_symbols": 40,
+  "total_completed": 0,
+  "total_failed": 0,
+  "worker_stats": {
+    "0": {
+      "worker_id": 0,
+      "symbols_assigned": 10,
+      "symbols_completed": 0,
+      "status": "failed",
+      "start_time": "2025-08-31T22:59:47.006340",
+      "end_time": "2025-08-31T22:59:52.008680",
+      "processing_time": 5.002337217330933,
+      "error_message": null,
+      "pid": 505816,
+      "exit_code": 2,
+      "progress_percentage": 0.0,
+      "recent_log_lines": [
+        "usage: run_dev.py [-h] [--environment {dev,intg}] [--script SCRIPT]",
+        "[--service SERVICE] [--query QUERY] [--test TEST] [--gpu]",
+        "[--port PORT] [--env ENV]",
+        "{run,start,stop,status,test,query,setup,logs}",
+        "run_dev.py: error: unrecognized arguments: --asset-type stock --symbols A,AACB,AACBR,AACBU,AACI,AACIU,AAGRW,AAM,AAMI,AAPG --checkpoint-file docker_worker_0_checkpoint.json --debug"
+      ]
+    },
+    "1": {
+      "worker_id": 1,
+      "symbols_assigned": 10,
+      "symbols_completed": 0,
+      "status": "failed",
+      "start_time": "2025-08-31T22:59:47.006820",
+      "end_time": "2025-08-31T22:59:52.009029",
+      "processing_time": 5.002208948135376,
+      "error_message": null,
+      "pid": 505817,
+      "exit_code": 2,
+      "progress_percentage": 0.0,
+      "recent_log_lines": [
+        "usage: run_dev.py [-h] [--environment {dev,intg}] [--script SCRIPT]",
+        "[--service SERVICE] [--query QUERY] [--test TEST] [--gpu]",
+        "[--port PORT] [--env ENV]",
+        "{run,start,stop,status,test,query,setup,logs}",
+        "run_dev.py: error: unrecognized arguments: --asset-type stock --symbols AARD,AAUC,ABAT,ABI,ABL,ABLLL,ABLLW,ABLV,ABLVW,ABP --checkpoint-file docker_worker_1_checkpoint.json --debug"
+      ]
+    },
+    "2": {
+      "worker_id": 2,
+      "symbols_assigned": 10,
+      "symbols_completed": 0,
+      "status": "failed",
+      "start_time": "2025-08-31T22:59:47.007567",
+      "end_time": "2025-08-31T22:59:52.009134",
+      "processing_time": 5.00156831741333,
+      "error_message": null,
+      "pid": 505818,
+      "exit_code": 2,
+      "progress_percentage": 0.0,
+      "recent_log_lines": [
+        "usage: run_dev.py [-h] [--environment {dev,intg}] [--script SCRIPT]",
+        "[--service SERVICE] [--query QUERY] [--test TEST] [--gpu]",
+        "[--port PORT] [--env ENV]",
+        "{run,start,stop,status,test,query,setup,logs}",
+        "run_dev.py: error: unrecognized arguments: --asset-type stock --symbols ABPWW,ABTS,ABVE,ABVEW,ABVX,AC,ACCS,ACFN,ACGLN,ACGLO --checkpoint-file docker_worker_2_checkpoint.json --debug"
+      ]
+    },
+    "3": {
+      "worker_id": 3,
+      "symbols_assigned": 10,
+      "symbols_completed": 0,
+      "status": "failed",
+      "start_time": "2025-08-31T22:59:47.008435",
+      "end_time": "2025-08-31T22:59:52.009222",
+      "processing_time": 5.000787973403931,
+      "error_message": null,
+      "pid": 505819,
+      "exit_code": 2,
+      "progress_percentage": 0.0,
+      "recent_log_lines": [
+        "usage: run_dev.py [-h] [--environment {dev,intg}] [--script SCRIPT]",
+        "[--service SERVICE] [--query QUERY] [--test TEST] [--gpu]",
+        "[--port PORT] [--env ENV]",
+        "{run,start,stop,status,test,query,setup,logs}",
+        "run_dev.py: error: unrecognized arguments: --asset-type stock --symbols ACHR,ACHV,ACI,ACIC,ACIU,ACIW,ACLS,ACLX,ACM,ACMR --checkpoint-file docker_worker_3_checkpoint.json --debug"
+      ]
+    }
+  },
+  "overall_progress": 0.0,
+  "estimated_completion": null,
+  "workers_started": 4,
+  "running_workers": 0,
+  "completed_workers": 0,
+  "failed_workers": 4,
+  "completed_at": "2025-08-31T22:59:52.009302",
+  "total_processing_time": 5.000770092010498
+}

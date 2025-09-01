@@ -1,0 +1,37 @@
+# Gin configuration for hourly training data generation
+# Uses 1-minute base intervals with universe state builder indicators
+
+# Training Data Job Configuration - Hourly Row Structure
+TrainingDataJobConfig.base_interval_minutes = 1                    # 1-minute base data collection
+TrainingDataJobConfig.training_interval_minutes = 60              # 1-hour training rows
+TrainingDataJobConfig.output_structure = "hourly_rows"            # Row-based structure (not sequences)
+TrainingDataJobConfig.sequence_length = 60                        # Not used for hourly rows
+TrainingDataJobConfig.prediction_horizon = 5                      # Not used for hourly rows
+TrainingDataJobConfig.normalize_features = False                  # Use actual indicator values
+TrainingDataJobConfig.normalize_labels = False                    # No normalization
+TrainingDataJobConfig.use_enhanced_features = True               # Enable all 9 technical indicators
+TrainingDataJobConfig.use_universe_state_indicators = True       # Use proper indicator framework
+
+# Output Configuration
+TrainingDataJobConfig.output_dir = "training_data_output"
+TrainingDataJobConfig.dataset_name_prefix = "hourly_dataset"
+
+# Quality and Processing
+TrainingDataJobConfig.min_sequences_required = 100               # Minimum hourly rows required
+TrainingDataJobConfig.min_quality_score = 0.8
+TrainingDataJobConfig.batch_size = 10000
+TrainingDataJobConfig.max_memory_mb = 8192
+
+# Feature and Label Configurations (required by Gin)
+TrainingDataJobConfig.feature_configs = [
+    {"name": "ohlcv", "enabled": True, "timeframes": ["hourly", "daily", "weekly"]},
+    {"name": "envelope_indicators", "enabled": True, "components": ["envelope_top", "envelope_bot"]},
+    {"name": "momentum_indicators", "enabled": True, "components": ["pldot"]}, 
+    {"name": "oneone_indicators", "enabled": True, "components": ["oneone_high", "oneone_low"]},
+    {"name": "zone_indicators", "enabled": True, "components": ["z1b", "z2b", "z5t", "z6t"]},
+    {"name": "market_context", "enabled": True, "components": ["market_period", "day_progress"]}
+]
+
+TrainingDataJobConfig.label_configs = [
+    {"name": "no_labels", "enabled": False, "note": "Hourly rows do not use prediction labels"}
+]

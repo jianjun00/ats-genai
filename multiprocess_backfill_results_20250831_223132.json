@@ -1,0 +1,258 @@
+{
+  "successful_results": [],
+  "failed_results": [
+    {
+      "symbol": "AACIU",
+      "success": false,
+      "processing_time": 0.11542034149169922,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 5
+    },
+    {
+      "symbol": "AACBU",
+      "success": false,
+      "processing_time": 0.12161898612976074,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 3
+    },
+    {
+      "symbol": "AACB",
+      "success": false,
+      "processing_time": 0.13068628311157227,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 1
+    },
+    {
+      "symbol": "AACBR",
+      "success": false,
+      "processing_time": 0.13242721557617188,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 2
+    },
+    {
+      "symbol": "AACI",
+      "success": false,
+      "processing_time": 0.13176488876342773,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 4
+    },
+    {
+      "symbol": "A",
+      "success": false,
+      "processing_time": 0.1365208625793457,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 0
+    },
+    {
+      "symbol": "AAPG",
+      "success": false,
+      "processing_time": 0.1356201171875,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 9
+    },
+    {
+      "symbol": "AAM",
+      "success": false,
+      "processing_time": 0.13637709617614746,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 7
+    },
+    {
+      "symbol": "AAGRW",
+      "success": false,
+      "processing_time": 0.13787198066711426,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 6
+    },
+    {
+      "symbol": "ABLLL",
+      "success": false,
+      "processing_time": 0.1383521556854248,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 15
+    },
+    {
+      "symbol": "ABAT",
+      "success": false,
+      "processing_time": 0.13868498802185059,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 12
+    },
+    {
+      "symbol": "AAUC",
+      "success": false,
+      "processing_time": 0.13970327377319336,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 11
+    },
+    {
+      "symbol": "ABI",
+      "success": false,
+      "processing_time": 0.1412811279296875,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 13
+    },
+    {
+      "symbol": "AAMI",
+      "success": false,
+      "processing_time": 0.14444708824157715,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 8
+    },
+    {
+      "symbol": "ABL",
+      "success": false,
+      "processing_time": 0.14534425735473633,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 14
+    },
+    {
+      "symbol": "AARD",
+      "success": false,
+      "processing_time": 0.14942121505737305,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 10
+    },
+    {
+      "symbol": "ABLV",
+      "success": false,
+      "processing_time": 0.08710289001464844,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 1
+    },
+    {
+      "symbol": "ABLLW",
+      "success": false,
+      "processing_time": 0.0961151123046875,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 0
+    },
+    {
+      "symbol": "ABLVW",
+      "success": false,
+      "processing_time": 0.09001827239990234,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 2
+    },
+    {
+      "symbol": "ABP",
+      "success": false,
+      "processing_time": 0.08835625648498535,
+      "records_written": 0,
+      "error_message": "Traceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/scripts/populate_firstrate_minute_bars.py\", line 37, in <module>\n    from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick\n  File \"/home/jianjun/ats-genai-data/src/market_data/__init__.py\", line 1, in <module>\n    from .market_data import MarketDataStreamer\n  File \"/home/jianjun/ats-genai-data/src/market_data/market_data.py\", line 16, in <module>\n    import asyncpg\nModuleNotFoundError: No module named 'async",
+      "worker_id": 3
+    }
+  ],
+  "processing_stats": {
+    "started_at": "2025-08-31T22:31:31.825690",
+    "total_symbols": 20,
+    "completed_symbols": 0,
+    "failed_symbols": 20,
+    "total_processing_time": 0.23618769645690918,
+    "worker_stats": {
+      "5": {
+        "processed": 0,
+        "failed": 1,
+        "total_time": 0.11542034149169922
+      },
+      "3": {
+        "processed": 0,
+        "failed": 2,
+        "total_time": 0.2099752426147461
+      },
+      "1": {
+        "processed": 0,
+        "failed": 2,
+        "total_time": 0.2177891731262207
+      },
+      "2": {
+        "processed": 0,
+        "failed": 2,
+        "total_time": 0.22244548797607422
+      },
+      "4": {
+        "processed": 0,
+        "failed": 1,
+        "total_time": 0.13176488876342773
+      },
+      "0": {
+        "processed": 0,
+        "failed": 2,
+        "total_time": 0.2326359748840332
+      },
+      "9": {
+        "processed": 0,
+        "failed": 1,
+        "total_time": 0.1356201171875
+      },
+      "7": {
+        "processed": 0,
+        "failed": 1,
+        "total_time": 0.13637709617614746
+      },
+      "6": {
+        "processed": 0,
+        "failed": 1,
+        "total_time": 0.13787198066711426
+      },
+      "15": {
+        "processed": 0,
+        "failed": 1,
+        "total_time": 0.1383521556854248
+      },
+      "12": {
+        "processed": 0,
+        "failed": 1,
+        "total_time": 0.13868498802185059
+      },
+      "11": {
+        "processed": 0,
+        "failed": 1,
+        "total_time": 0.13970327377319336
+      },
+      "13": {
+        "processed": 0,
+        "failed": 1,
+        "total_time": 0.1412811279296875
+      },
+      "8": {
+        "processed": 0,
+        "failed": 1,
+        "total_time": 0.14444708824157715
+      },
+      "14": {
+        "processed": 0,
+        "failed": 1,
+        "total_time": 0.14534425735473633
+      },
+      "10": {
+        "processed": 0,
+        "failed": 1,
+        "total_time": 0.14942121505737305
+      }
+    },
+    "processing_rate": 308397.7770107289,
+    "eta_completion": "2025-08-31T22:31:32.059300",
+    "completed_at": "2025-08-31T22:31:32.062026"
+  },
+  "total_processing_time": 0.23618769645690918
+}

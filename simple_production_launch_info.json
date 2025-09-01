@@ -1,0 +1,42 @@
+{
+  "launched_at": "2025-09-01T05:14:16.291959",
+  "launch_type": "simple_production",
+  "system_load": 2.22,
+  "num_workers": 4,
+  "total_symbols": 1000,
+  "estimated_completion": "2025-09-01T13:34:16.291959",
+  "workers": [
+    {
+      "worker_id": 0,
+      "pid": 785446,
+      "symbols_count": 250,
+      "symbols_range": "AEIS \u2192 AORT",
+      "checkpoint_file": "simple_production_worker_0_checkpoint.json",
+      "log_file": "/tmp/simple_production_worker_0.log"
+    },
+    {
+      "worker_id": 1,
+      "pid": 785832,
+      "symbols_count": 250,
+      "symbols_range": "AOS \u2192 AXON",
+      "checkpoint_file": "simple_production_worker_1_checkpoint.json",
+      "log_file": "/tmp/simple_production_worker_1.log"
+    },
+    {
+      "worker_id": 2,
+      "pid": 786186,
+      "symbols_count": 250,
+      "symbols_range": "AXP \u2192 BNED",
+      "checkpoint_file": "simple_production_worker_2_checkpoint.json",
+      "log_file": "/tmp/simple_production_worker_2.log"
+    },
+    {
+      "worker_id": 3,
+      "pid": 786551,
+      "symbols_count": 250,
+      "symbols_range": "BNGO \u2192 CCO",
+      "checkpoint_file": "simple_production_worker_3_checkpoint.json",
+      "log_file": "/tmp/simple_production_worker_3.log"
+    }
+  ]
+}

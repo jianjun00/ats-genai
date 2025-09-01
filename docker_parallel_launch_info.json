@@ -1,0 +1,83 @@
+{
+  "launched_at": "2025-08-31T23:04:10.959221",
+  "num_workers": 4,
+  "total_symbols": 40,
+  "workers": [
+    {
+      "worker_id": 0,
+      "pid": 514387,
+      "symbols_count": 10,
+      "symbols": [
+        "A",
+        "AACB",
+        "AACBR",
+        "AACBU",
+        "AACI",
+        "AACIU",
+        "AAGRW",
+        "AAM",
+        "AAMI",
+        "AAPG"
+      ],
+      "checkpoint_file": "docker_parallel_worker_0_checkpoint.json",
+      "log_file": "/tmp/docker_parallel_worker_0.log"
+    },
+    {
+      "worker_id": 1,
+      "pid": 514772,
+      "symbols_count": 10,
+      "symbols": [
+        "AARD",
+        "AAUC",
+        "ABAT",
+        "ABI",
+        "ABL",
+        "ABLLL",
+        "ABLLW",
+        "ABLV",
+        "ABLVW",
+        "ABP"
+      ],
+      "checkpoint_file": "docker_parallel_worker_1_checkpoint.json",
+      "log_file": "/tmp/docker_parallel_worker_1.log"
+    },
+    {
+      "worker_id": 2,
+      "pid": 515096,
+      "symbols_count": 10,
+      "symbols": [
+        "ABPWW",
+        "ABTS",
+        "ABVE",
+        "ABVEW",
+        "ABVX",
+        "AC",
+        "ACCS",
+        "ACFN",
+        "ACGLN",
+        "ACGLO"
+      ],
+      "checkpoint_file": "docker_parallel_worker_2_checkpoint.json",
+      "log_file": "/tmp/docker_parallel_worker_2.log"
+    },
+    {
+      "worker_id": 3,
+      "pid": 515381,
+      "symbols_count": 10,
+      "symbols": [
+        "ACHR",
+        "ACHV",
+        "ACI",
+        "ACIC",
+        "ACIU",
+        "ACIW",
+        "ACLS",
+        "ACLX",
+        "ACM",
+        "ACMR"
+      ],
+      "checkpoint_file": "docker_parallel_worker_3_checkpoint.json",
+      "log_file": "/tmp/docker_parallel_worker_3.log"
+    }
+  ]
+}
