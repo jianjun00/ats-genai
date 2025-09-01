@@ -1864,6 +1864,21 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             </div>
                         </div>
                         
+                        <!-- Global X-Axis Control -->
+                        <div id="global-axis-section" class="controls" style="display: none;">
+                            <h4>📊 Chart Configuration</h4>
+                            <div style="margin: 10px 0;">
+                                <label for="global-x-axis" style="display: block; margin-bottom: 5px; font-weight: bold;">X-Axis for All Charts:</label>
+                                <select id="global-x-axis" onchange="updateGlobalXAxis()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="">Default (Value-based)</option>
+                                    <option value="date">Date</option>
+                                    <option value="sequence_step">Sequence Step</option>
+                                    <option value="trading_day">Trading Day</option>
+                                    <option value="relative_time">Relative Time</option>
+                                </select>
+                            </div>
+                        </div>
+                        
                         <!-- Filters Section -->
                         <div id="filters-section" class="controls" style="display: none;">
                             <h4>Data Filters</h4>
@@ -2188,6 +2203,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 async function loadDatasetAnalysis() {
                     const datasetName = document.getElementById('dataset-select').value;
                     if (!datasetName) {
+                        document.getElementById('global-axis-section').style.display = 'none';
                         document.getElementById('filters-section').style.display = 'none';
                         document.getElementById('distribution-analysis').style.display = 'none';
                         document.getElementById('dataset-info').style.display = 'none';
@@ -2217,7 +2233,8 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             document.getElementById('dataset-info').style.display = 'block';
                         }
                         
-                        // Show filters section and load filters for all columns
+                        // Show global axis and filters sections
+                        document.getElementById('global-axis-section').style.display = 'block';
                         document.getElementById('filters-section').style.display = 'block';
                         
                         // Load filters, distributions, and data table in parallel for speed
@@ -2388,11 +2405,6 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         const typeLabel = isNumeric ? 'Numeric' : (isDateType ? 'Date' : 'Categorical');
                         colDiv.innerHTML = `
                             <h4>${col.name} (${typeLabel})</h4>
-                            <div class="visualization-controls">
-                                <select id="xaxis-${col.name}" onchange="updateVisualization('${col.name}')">
-                                    <option value="">Select X-axis (optional)</option>
-                                </select>
-                            </div>
                             <div id="chart-${col.name}" class="distribution-chart">Loading...</div>
                             <div id="stats-${col.name}" class="distribution-stats"></div>
                         `;
@@ -2912,29 +2924,39 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     console.log(`📅 Added ${dateColumns.length} date columns as X-axis options`);
                 }
                 
-                async function updateVisualization(columnName) {
-                    const xAxisSelect = document.getElementById(`xaxis-${columnName}`);
-                    const xAxisColumn = xAxisSelect.value;
-                    const datasetName = document.getElementById('dataset-select').value;
+                function updateGlobalXAxis() {
+                    const globalXAxis = document.getElementById('global-x-axis').value;
+                    console.log('Global X-axis updated to:', globalXAxis);
                     
-                    if (xAxisColumn) {
-                        console.log(`📊 Creating time-series chart: ${columnName} over ${xAxisColumn}`);
+                    // Re-render all column distributions with new x-axis setting
+                    const datasetName = document.getElementById('dataset-select').value;
+                    if (datasetName) {
+                        // Get current schema columns
+                        const distributionsContainer = document.getElementById('distributions-container');
+                        const columnDivs = distributionsContainer.querySelectorAll('.column-distribution');
                         
-                        try {
-                            // Show loading state
-                            const chartContainer = document.getElementById(`chart-${columnName}`);
-                            chartContainer.innerHTML = '<p style="text-align: center;">Loading time-series chart...</p>';
-                            
-                            // Create mock time-series data for demonstration
-                            // TODO: Replace with actual API call once endpoint is working
-                            const timeseriesData = {
-                                type: columnName.includes('price') || columnName.includes('volume') ? 'numeric' : 'categorical',
-                                x_column: xAxisColumn,
-                                y_column: columnName,
-                                data: generateMockTimeSeriesData(columnName),
-                                y_label: columnName.includes('price') || columnName.includes('volume') ? `Average ${columnName}` : `Count of ${columnName}`,
-                                chart_type: columnName.includes('price') || columnName.includes('volume') ? 'line' : 'bar'
-                            };
+                        columnDivs.forEach(colDiv => {
+                            const h4 = colDiv.querySelector('h4');
+                            if (h4) {
+                                const columnName = h4.textContent.split(' (')[0]; // Extract column name from "name (type)"
+                                const isNumeric = h4.textContent.includes('(Numeric)');
+                                
+                                // Reload distribution with global x-axis
+                                if (isNumeric) {
+                                    loadNumericDistribution(datasetName, columnName, globalXAxis);
+                                } else {
+                                    loadCategoricalDistribution(datasetName, columnName, globalXAxis);
+                                }
+                            }
+                        });
+                    }
+                }
+                
+                // Legacy function - now using global x-axis control instead
+                async function updateVisualization(columnName) {
+                    console.log('updateVisualization called but deprecated - using updateGlobalXAxis() instead');
+                    updateGlobalXAxis(); // Use the new global function instead
+                }
                             
                             // Create div for Plotly chart
                             chartContainer.innerHTML = `<div id="timeseries-${columnName}" style="width:100%; height:400px;"></div>`;
