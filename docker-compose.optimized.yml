@@ -1,0 +1,180 @@
+version: '3.8'
+name: ats-platform
+
+# Reusable configuration anchors
+x-common-variables: &common-env
+  PYTHONPATH: /workspace/src
+  ATS_DATA_PATH: /data
+  ATS_BACKUP_PATH: /backup
+  ATS_LOGS_PATH: /logs
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  ENVIRONMENT: ${ENVIRONMENT:-dev}
+
+x-database-config: &db-config
+  DB_HOST: ${DB_HOST:-ats-postgres}
+  DB_PORT: ${DB_PORT:-5432}
+  DB_USER: ${DB_USER:-postgres}
+  DB_PASSWORD: ${DB_PASSWORD}
+  DB_NAME: ${DB_NAME:-ats_db}
+
+x-api-keys: &api-keys
+  POLYGON_API_KEY: ${POLYGON_API_KEY}
+  TIINGO_API_KEY: ${TIINGO_API_KEY}
+  EODHD_API_KEY: ${EODHD_API_KEY}
+  FMP_API_KEY: ${FMP_API_KEY}
+  ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY}
+  FIRSTRATE_USER_ID: ${FIRSTRATE_USER_ID}
+
+x-common-config: &common-config
+  restart: unless-stopped
+  networks:
+    - ats-network
+  volumes:
+    - ./:/workspace:ro
+    - ats-data:/data
+    - ats-logs:/logs
+  healthcheck:
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 40s
+  deploy:
+    resources:
+      limits:
+        memory: 1G
+        cpus: '1.0'
+      reservations:
+        memory: 512M
+        cpus: '0.5'
+
+  ats-postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: ats-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-ats_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    networks:
+      - ats-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
+
+  ats-analytics:
+    <<: *common-config
+    image: dragonflyer762/ats-genai:latest
+    container_name: ats-analytics
+    command: ["python3", "src/services/analytics_service.py"]
+    environment:
+      <<: *common-env
+      <<: *db-config
+      <<: *api-keys
+    ports:
+      - "${ANALYTICS_PORT:-3000}:3000"
+    depends_on:
+      ats-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ats-data-collector:
+    <<: *common-config
+    image: dragonflyer762/ats-genai:latest
+    container_name: ats-data-collector
+    command: ["python3", "scripts/data_collection_scheduler.py"]
+    environment:
+      <<: *common-env
+      <<: *db-config
+      <<: *api-keys
+    depends_on:
+      ats-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "ps", "aux", "|", "grep", "data_collection_scheduler"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+  ats-redis:
+    image: redis:7-alpine
+    container_name: ats-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - ats-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  ats-nginx:
+    image: nginx:alpine
+    container_name: ats-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    networks:
+      - ats-network
+    depends_on:
+      - ats-analytics
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  ats-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  ats-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${ATS_DATA_PATH:-/mnt/d/ats-data}
+  ats-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${ATS_LOGS_PATH:-/mnt/d/ats-logs}
