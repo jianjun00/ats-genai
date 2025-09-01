@@ -1182,6 +1182,29 @@ crontab -l
 # WSL System Monitoring (CRITICAL - Added 2025-09-01)
 0 * * * * python3 simple_wsl_monitor.py --test >/dev/null 2>&1                # Hourly system status to Slack
 @reboot sleep 30 && /home/jianjun/ats-genai-data/restart_monitoring.sh >/dev/null 2>&1  # Auto-restart monitoring on boot
+
+# ATS-INTG Daily Data and Monitoring Jobs (Configured in intg_startup_manager.py)
+# ================================================================================
+# ATS-INTG Daily Data Refresh - Multi-vendor price collection with overlap validation
+0 3 * * * cd /workspace && PYTHONPATH=/workspace/src python3 scripts/daily_data_refresh.py --vendors tiingo,polygon,eodhd --max-symbols 1000 >> /logs/daily_refresh.log 2>&1
+
+# ATS-INTG Daily Price Coverage Validation - 90-day lookback with Prometheus metrics and Slack alerts
+30 3 * * * cd /workspace && PYTHONPATH=/workspace/src python3 scripts/daily_price_coverage_validator.py --vendors tiingo,polygon,eodhd --days 90 --export-prometheus --alert-threshold 0.95 >> /logs/coverage_validation.log 2>&1
+
+# ATS-INTG Weekly Maintenance - Data quality checks and cleanup
+0 4 * * 0 cd /workspace && PYTHONPATH=/workspace/src python3 scripts/weekly_maintenance.py --deep-clean >> /logs/weekly_maintenance.log 2>&1
+
+# ATS-INTG Priority Symbols Daily Collection - High-priority symbols every 6 hours
+0 9,15,21 * * * cd /workspace && PYTHONPATH=/workspace/src python3 scripts/daily_data_refresh.py --symbols AAPL,TSLA,MSFT,GOOGL,AMZN,META,NVDA,SPY,QQQ,VTI --vendors tiingo,polygon >> /logs/priority_refresh.log 2>&1
+
+# ATS-INTG Health Check - Every 4 hours to ensure data pipeline is working
+0 */4 * * * cd /workspace && PYTHONPATH=/workspace/src python3 scripts/daily_data_refresh.py --symbols AAPL --vendors tiingo --debug >> /logs/health_check.log 2>&1
+
+# ATS-INTG Coverage Validation - Every 6 hours for real-time monitoring
+0 6,12,18 * * * cd /workspace && PYTHONPATH=/workspace/src python3 scripts/daily_price_coverage_validator.py --vendors tiingo,polygon,eodhd --days 7 --export-prometheus --alert-threshold 0.90 >> /logs/coverage_monitoring.log 2>&1
+
+# ATS-INTG Slack Daily Coverage Summary - 7PM EST daily notification with 90-day coverage table
+0 19 * * * cd /workspace && PYTHONPATH=/workspace/src python3 scripts/slack_daily_coverage_summary.py --days 90 >> /logs/slack_daily_summary.log 2>&1
 ```
 
 **WSL System Monitoring Setup (CRITICAL):**
@@ -1246,6 +1269,39 @@ ls -la /mnt/d/ats-backup/ | grep $(date +%Y-%m-%d)
 # Confirm WSL monitoring is sending alerts
 # (Check Slack #ats-alerts channel for hourly updates)
 ```
+
+**ATS-INTG Monitoring Services (NEW - Added 2025-09-01):**
+```bash
+# Check ATS-INTG monitoring service status
+docker ps | grep -E "(intg|prometheus|scheduler)"
+
+# Test Prometheus metrics server
+curl -s http://localhost:4080/metrics | head -10
+curl -s http://localhost:4080/health
+
+# Test Slack daily coverage summary manually
+docker exec ats-intg-scheduler bash -c "cd /workspace && PYTHONPATH=/workspace/src python3 scripts/slack_daily_coverage_summary.py --test --days 90"
+
+# Test daily price coverage validation
+docker exec ats-intg-scheduler bash -c "cd /workspace && PYTHONPATH=/workspace/src python3 scripts/daily_price_coverage_validator.py --vendors tiingo --days 7 --debug"
+
+# Check monitoring logs
+docker logs ats-intg-scheduler --tail 20
+docker logs ats-intg-prometheus-metrics --tail 10
+
+# Monitor service endpoints
+curl -f http://localhost:4000/health  # ATS-INTG Analytics
+curl -f http://localhost:4080/health  # Prometheus Metrics Server
+```
+
+**ATS-INTG Monitoring Features:**
+- **📊 Real-time Prometheus Metrics**: `http://localhost:4080/metrics` - Coverage stats for 18,331+ instruments
+- **🔔 Slack Alerts**: Daily 7PM coverage summary with 90-day lookback table
+- **🚨 Threshold Monitoring**: Automatic alerts when coverage drops below 50%
+- **📈 Multi-vendor Tracking**: Tiingo, Polygon, EODHD coverage analysis
+- **⏱️ Data Freshness**: Hours since last data update per vendor
+- **📋 Trading Day Calculation**: Excludes weekends and US holidays
+- **🎯 Trend Analysis**: Coverage improvement/decline indicators (↑↓→)
 
 ### **🎯 Daily Operations Checklist**
 
