@@ -468,7 +468,7 @@ class JobManager:
                     params = []
                     
                     for column, filter_config in filters.items():
-                        if filter_config.get('type') == 'categorical' and filter_config.get('values'):
+                        if filter_config.get('type') in ['categorical', 'values'] and filter_config.get('values'):
                             # Categorical filter - IN clause
                             placeholders = ', '.join(['%s'] * len(filter_config['values']))
                             where_conditions.append(f"{column} IN ({placeholders})")
@@ -2270,14 +2270,18 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         const isDateType = dataType.includes('date') || dataType.includes('timestamp') || 
                             col.name.toLowerCase().includes('date') || col.name.toLowerCase().includes('time');
                         
-                        // Identify string columns that should not be treated as categorical  
-                        // Note: 'type' and 'exchange' are categorical, not string
+                        // Identify string columns that should use text search (not categorical checkboxes)
+                        // Categorical columns like symbol, type, exchange should use checkboxes if they have distinct values
                         const isStringType = (dataType.includes('varchar') || dataType.includes('text') || 
-                            dataType.includes('character')) && !col.name.toLowerCase().includes('type') &&
-                            !col.name.toLowerCase().includes('exchange') || 
-                            col.name.toLowerCase().includes('id') || col.name.toLowerCase().includes('symbol') || 
-                            col.name.toLowerCase().includes('name') || col.name.toLowerCase().includes('title') || 
-                            col.name.toLowerCase().includes('url') || col.name.toLowerCase().includes('description');
+                            dataType.includes('character')) && 
+                            (col.name.toLowerCase().includes('name') || col.name.toLowerCase().includes('title') || 
+                             col.name.toLowerCase().includes('url') || col.name.toLowerCase().includes('description') ||
+                             col.name.toLowerCase().includes('id'));
+                        
+                        // Prefer categorical checkboxes for columns like symbol, type, exchange
+                        const preferCategorical = col.name.toLowerCase().includes('symbol') || 
+                                                 col.name.toLowerCase().includes('type') ||
+                                                 col.name.toLowerCase().includes('exchange');
                         
                         try {
                             const response = await fetch(`/api/eda/datasets/${datasetName}/columns/${col.name}/values?limit=10`, {timeout: 3000});
@@ -2289,7 +2293,25 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             const typeLabel = isNumeric ? 'numeric' : (isStringType ? 'string' : (isDateType ? 'date' : 'categorical'));
                             filterHtml += `<label>${col.name} (${typeLabel}):</label>`;
                             
-                            if (isNumeric && columnData.min_value !== undefined && columnData.max_value !== undefined) {
+                            // Prioritize categorical checkboxes for symbol-like columns
+                            if (preferCategorical && columnData.values && Array.isArray(columnData.values)) {
+                                // Categorical checkbox filter (prioritized)
+                                filterHtml += `<div class="checkbox-list">`;
+                                columnData.values.slice(0, 8).forEach(valueData => { // Show only first 8 values for speed
+                                    const value = typeof valueData === 'object' ? valueData.value : valueData;
+                                    const count = typeof valueData === 'object' ? valueData.count : '';
+                                    const countText = count ? ` (${count})` : '';
+                                    filterHtml += `
+                                        <label>
+                                            <input type="checkbox" name="filter-${col.name}" value="${value}"> ${value}${countText}
+                                        </label><br>
+                                    `;
+                                });
+                                if (columnData.values.length > 8) {
+                                    filterHtml += `<small>... and ${columnData.values.length - 8} more values</small>`;
+                                }
+                                filterHtml += `</div>`;
+                            } else if (isNumeric && columnData.min_value !== undefined && columnData.max_value !== undefined) {
                                 // Numeric range filter
                                 filterHtml += `
                                     <div>
@@ -2730,8 +2752,8 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         }
                         
                         displayDataTable(data);
-                        currentPage = data.current_page || 1;
-                        totalPages = data.total_pages || 1;
+                        currentPage = data.pagination?.current_page || 1;
+                        totalPages = data.pagination?.total_pages || 1;
                         
                     } catch (error) {
                         console.error('Error loading filtered data:', error);
@@ -2833,8 +2855,8 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     // Update info with sorting hint
                     const filterCount = Object.keys(currentFilters).length;
                     tableInfo.innerHTML = `
-                        Showing ${data.data.length} of ${data.total_count} records 
-                        (Page ${data.current_page} of ${data.total_pages})
+                        Showing ${data.data.length} of ${data.pagination.total_count} records 
+                        (Page ${data.pagination.current_page} of ${data.pagination.total_pages})
                         ${filterCount > 0 ? `with ${filterCount} filter(s) applied` : ''}
                         <span style="color: #666; margin-left: 15px; font-style: italic;">📊 Click column headers to sort</span>
                     `;
@@ -2957,94 +2979,6 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     console.log('updateVisualization called but deprecated - using updateGlobalXAxis() instead');
                     updateGlobalXAxis(); // Use the new global function instead
                 }
-                            
-                            // Create div for Plotly chart
-                            chartContainer.innerHTML = `<div id="timeseries-${columnName}" style="width:100%; height:400px;"></div>`;
-                            
-                            // Prepare data for Plotly
-                            const xValues = timeseriesData.data.map(d => d.x);
-                            const yValues = timeseriesData.data.map(d => d.y);
-                            
-                            // Create Plotly trace
-                            const trace = {
-                                x: xValues,
-                                y: yValues,
-                                type: timeseriesData.chart_type === 'line' ? 'scatter' : 'bar',
-                                mode: timeseriesData.chart_type === 'line' ? 'lines+markers' : undefined,
-                                name: timeseriesData.y_label,
-                                line: timeseriesData.chart_type === 'line' ? {
-                                    color: 'rgb(52, 152, 219)',
-                                    width: 2
-                                } : undefined,
-                                marker: {
-                                    color: 'rgb(52, 152, 219)',
-                                    size: timeseriesData.chart_type === 'line' ? 6 : undefined
-                                },
-                                fill: timeseriesData.chart_type === 'line' ? 'tonexty' : undefined
-                            };
-                            
-                            // Layout configuration
-                            const layout = {
-                                title: {
-                                    text: `${columnName} over ${xAxisColumn}`,
-                                    font: { size: 16 }
-                                },
-                                xaxis: {
-                                    title: xAxisColumn,
-                                    type: 'date',
-                                    tickformat: '%Y-%m-%d'
-                                },
-                                yaxis: {
-                                    title: timeseriesData.y_label
-                                },
-                                margin: { t: 60, r: 50, b: 80, l: 80 },
-                                hovermode: 'x unified',
-                                showlegend: false,
-                                plot_bgcolor: 'white',
-                                paper_bgcolor: 'white'
-                            };
-                            
-                            // Configuration options
-                            const config = {
-                                responsive: true,
-                                displayModeBar: true,
-                                modeBarButtonsToAdd: ['pan2d', 'select2d', 'lasso2d'],
-                                displaylogo: false,
-                                toImageButtonOptions: {
-                                    format: 'png',
-                                    filename: `timeseries_${columnName}`,
-                                    height: 400,
-                                    width: 800,
-                                    scale: 1
-                                }
-                            };
-                            
-                            // Create Plotly chart
-                            Plotly.newPlot(`timeseries-${columnName}`, [trace], layout, config);
-                            
-                            console.log(`✅ Time-series chart created for ${columnName}`);
-                            
-                        } catch (error) {
-                            console.error(`❌ Error creating time-series chart:`, error);
-                            const chartContainer = document.getElementById(`chart-${columnName}`);
-                            chartContainer.innerHTML = `<p style="color: red; text-align: center;">
-                                Error loading time-series: ${error.message}<br>
-                                <small>Try selecting a different date column</small>
-                            </p>`;
-                        }
-                    } else {
-                        // Reload original distribution
-                        console.log(`🔄 Restoring original distribution for ${columnName}`);
-                        
-                        // Find column type and reload appropriate distribution
-                        const dataType = document.querySelector(`#chart-${columnName}`).closest('.column-distribution').querySelector('h4').textContent;
-                        if (dataType.includes('Numeric')) {
-                            loadNumericDistribution(datasetName, columnName);
-                        } else if (dataType.includes('Categorical')) {
-                            loadCategoricalDistribution(datasetName, columnName);
-                        }
-                    }
-                }
                 
                 function generateMockTimeSeriesData(columnName) {
                     // Generate 30 days of mock data
@@ -3106,8 +3040,8 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         }
                         
                         displayDataTable(data);
-                        currentPage = data.current_page || 1;
-                        totalPages = data.total_pages || 1;
+                        currentPage = data.pagination?.current_page || 1;
+                        totalPages = data.pagination?.total_pages || 1;
                         
                         // Show data table section
                         document.getElementById('data-table-section').style.display = 'block';
