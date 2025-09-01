@@ -792,7 +792,24 @@ class TrainingDataJobRunner:
             'base_interval_minutes': self.config.base_interval_minutes,
             'training_interval_minutes': self.config.training_interval_minutes,
             'primary_keys': ['datetime', 'symbol'],
-            'indicators_source': 'universe_state_builder' if self.config.use_universe_state_indicators else 'technical_indicators'
+            'indicators_source': 'universe_state_builder' if self.config.use_universe_state_indicators else 'technical_indicators',
+            'multi_timeframe_config': {
+                'timeframes': ['5m', '15m', '1h', '1d'],
+                'sequence_lengths': {
+                    '5m': 52,   # Past 52 x 5-minute intervals (4.3 hours)
+                    '15m': 52,  # Past 52 x 15-minute intervals (13 hours)
+                    '1h': 24,   # Past 24 x 1-hour intervals (1 day)
+                    '1d': 20,   # Past 20 x daily intervals (4 weeks)
+                },
+                'feature_types': ['open', 'high', 'low', 'close', 'etop', 'ebot', 'pldot'],
+                'expected_features_per_timeframe': {
+                    '5m': 52 * 7,   # 364 features
+                    '15m': 52 * 7,  # 364 features  
+                    '1h': 24 * 7,   # 168 features
+                    '1d': 20 * 7,   # 140 features
+                },
+                'total_expected_features': 52*7 + 52*7 + 24*7 + 20*7  # 1036 multi-timeframe features
+            }
         }
         
         for symbol in self.config.symbols:
@@ -896,21 +913,123 @@ class TrainingDataJobRunner:
                 'day_progress': self._get_day_progress(hour)
             }
             
-            # Add technical indicators using universe state builder or fallback
+            # Get multi-timeframe features from universe state builder
             if universe_manager and self.config.use_universe_state_indicators:
-                indicators = self._calculate_universe_state_indicators(
-                    universe_manager, symbol, hour, hour_open, hour_high, hour_low, hour_close
+                # Universe state builder already has all the indicators computed
+                # for different timeframes - just extract them
+                multi_timeframe_features = self._get_multi_timeframe_features_from_universe_state(
+                    universe_manager, symbol, hour
                 )
+                hourly_row.update(multi_timeframe_features)
             else:
+                # Fallback to basic indicators only
                 indicators = self._calculate_fallback_indicators(
                     hour_open, hour_high, hour_low, hour_close
                 )
+                hourly_row.update(indicators)
             
-            hourly_row.update(indicators)
             hourly_rows.append(hourly_row)
         
         return hourly_rows
     
+    def _get_multi_timeframe_features_from_universe_state(self, universe_manager, symbol: str, timestamp: pd.Timestamp) -> Dict:
+        """
+        Extract multi-timeframe features from universe state builder using market_data_manager integration.
+        
+        This method implements the multi-timeframe feature extraction as specified in training_data.gin:
+        - Leverages market_data_manager's ability to aggregate 1-minute bars into different timeframes
+        - Uses universe_state_manager.get_lag_prices() with time_interval parameter
+        - Extracts features for each timeframe according to gin configuration sequence lengths
+        
+        Multi-timeframe Configuration (from training_data.gin):
+        - 5m: 52 intervals (4.3 hours of 5-minute bars)
+        - 15m: 52 intervals (13 hours of 15-minute bars)  
+        - 1h: 24 intervals (1 day of hourly bars)
+        - 1d: 20 intervals (4 weeks of daily bars)
+        
+        Feature Extraction Process:
+        1. For each timeframe (5m, 15m, 1h, 1d):
+           - Call universe_manager.get_lag_prices(time_interval=timeframe)
+           - Extract OHLCV + technical indicators (etop, ebot, pldot)
+           - Create lag features: {timeframe}_{feature}_lag_{N}
+           
+        Args:
+            universe_manager: UniverseStateManager instance with market_data_manager access
+            symbol: Stock symbol (e.g., 'AAPL', 'TSLA')
+            timestamp: Current timestamp for the training row
+            
+        Returns:
+            Dict of multi-timeframe features with naming pattern:
+            - '5m_open_lag_0': Most recent 5-minute open price
+            - '5m_close_lag_51': 52nd 5-minute close price back (4.3 hours ago)
+            - '15m_etop_lag_0': Most recent 15-minute envelope top indicator
+            - '1h_pldot_lag_23': 24th hourly PLDOT indicator back (1 day ago)
+            - '1d_high_lag_19': 20th daily high price back (4 weeks ago)
+            
+        Expected Output:
+            - Total features: ~1000+ per hourly training row
+            - Feature breakdown: 5m(364) + 15m(364) + 1h(168) + 1d(140) = 1036 features
+            - Each timeframe provides: 7 features × N intervals (OHLCV + etop + ebot + pldot)
+            
+        Example:
+            features = self._get_multi_timeframe_features_from_universe_state(
+                universe_manager, 'AAPL', pd.Timestamp('2023-12-01 14:30:00')
+            )
+            # Returns: {'5m_open_lag_0': 150.25, '5m_close_lag_0': 150.30, ...}
+        """
+        
+        features = {}
+        
+        try:
+            # Get instrument ID
+            instrument_id = abs(hash(symbol)) % 10000
+            
+            # Use universe state manager to get multi-timeframe features
+            # Universe state builder has already processed all intervals with indicators
+            
+            # Extract multi-timeframe features using market_data_manager through universe_state_manager
+            timeframe_configs = {
+                '5m': {'lag_periods': 52, 'description': '4.3 hours'},
+                '15m': {'lag_periods': 52, 'description': '13 hours'},
+                '1h': {'lag_periods': 24, 'description': '1 day'},
+                '1d': {'lag_periods': 20, 'description': '4 weeks'}
+            }
+            
+            for timeframe, config in timeframe_configs.items():
+                try:
+                    # Use updated get_lag_prices with time_interval parameter
+                    lag_data = universe_manager.get_lag_prices(
+                        instrument_id, 
+                        timestamp.date(), 
+                        lag_days=config['lag_periods'],
+                        time_interval=timeframe
+                    )
+                    
+                    if not lag_data.empty and len(lag_data) > 0:
+                        recent_data = lag_data.tail(min(config['lag_periods'], len(lag_data)))
+                        for i, (_, row) in enumerate(recent_data.iterrows()):
+                            lag_idx = len(recent_data) - i - 1  # 0 = most recent
+                            for col in ['open', 'high', 'low', 'close', 'etop', 'ebot', 'pldot']:
+                                if col in row and pd.notna(row[col]):
+                                    features[f'{timeframe}_{col}_lag_{lag_idx}'] = round(float(row[col]), 4)
+                        
+                        print(f"✅ {timeframe}: {len(recent_data)} intervals ({config['description']})")
+                    else:
+                        print(f"⚠️ {timeframe}: No data available")
+                        
+                except Exception as e:
+                    print(f"❌ {timeframe}: Error extracting features: {e}")
+            
+            print(f"✅ Extracted {len(features)} multi-timeframe features for {symbol} at {timestamp}")
+            
+        except Exception as e:
+            print(f"⚠️ Warning: Error extracting multi-timeframe features for {symbol}: {e}")
+            # Return empty features if extraction fails
+            features = {}
+        
+        return features
+    
+
     def _calculate_universe_state_indicators(self, universe_manager, symbol: str, timestamp: pd.Timestamp, 
                                            open_price: float, high: float, low: float, close: float) -> Dict:
         """Calculate technical indicators using universe state builder framework."""

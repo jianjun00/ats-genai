@@ -54,10 +54,57 @@ from core.run_context import RunContext
 
 @gin.configurable
 class UniverseStateManager:
-    def get_lag_prices(self, instrument_id: int, cur_date, lag_days: int) -> pd.DataFrame:
+    def get_lag_prices(self, instrument_id: int, cur_date, lag_days: int, time_interval: str = '1d') -> pd.DataFrame:
         """
         Return a DataFrame of features (open, high, low, close, etop, ebot, pldot) for the previous lag_days up to (not including) cur_date.
-        Assumes self._cache or load_universe_state provides all data for the instrument.
+        
+        This method integrates with market_data_manager to provide multi-timeframe data aggregation:
+        - Uses 1-minute bars as the base data source
+        - Aggregates into the specified time interval using market_data_manager
+        - Falls back to cached universe state data if market_data_manager is unavailable
+        
+        Args:
+            instrument_id: The instrument ID to retrieve data for
+            cur_date: Current date reference point (exclusive upper bound)
+            lag_days: Number of periods to look back. The meaning depends on time_interval:
+                     - For '5m': number of 5-minute periods
+                     - For '15m': number of 15-minute periods  
+                     - For '1h': number of hourly periods
+                     - For '1d': number of daily periods
+                     - For '1w': number of weekly periods
+            time_interval: Time interval for aggregation. Supported values:
+                          - '1m': 1-minute bars (raw data)
+                          - '5m': 5-minute aggregated OHLCV
+                          - '15m': 15-minute aggregated OHLCV
+                          - '1h': 1-hour aggregated OHLCV
+                          - '1d': Daily aggregated OHLCV (default)
+                          - '1w': Weekly aggregated OHLCV
+        
+        Returns:
+            DataFrame with columns:
+            - OHLCV data: ['open', 'high', 'low', 'close', 'volume'] (if available)
+            - Technical indicators: ['etop', 'ebot', 'pldot'] (if computed by universe state builder)
+            - Date columns: varies by data source ('date', 'as_of_date', etc.)
+            
+            Returns empty DataFrame if no data is available for the specified criteria.
+            
+        Example:
+            # Get last 52 five-minute intervals (4.3 hours of 5m data)
+            lag_5m = universe_manager.get_lag_prices(1001, date(2023, 12, 1), 52, '5m')
+            
+            # Get last 20 daily intervals (4 weeks of daily data) 
+            lag_daily = universe_manager.get_lag_prices(1001, date(2023, 12, 1), 20, '1d')
+        
+        Notes:
+            - market_data_manager aggregation preserves OHLCV semantics:
+              * open: first minute's open in the interval
+              * high: highest high in the interval
+              * low: lowest low in the interval  
+              * close: last minute's close in the interval
+              * volume: sum of volume in the interval
+            - Technical indicators (etop, ebot, pldot) are computed by universe state builder
+              on the aggregated OHLCV data
+            - If market_data_manager is not available, falls back to cached universe state data
         """
         # Normalize cur_date to a date to avoid datetime vs date comparison issues
         try:
@@ -66,9 +113,33 @@ class UniverseStateManager:
                 cur_date = cur_date.date()
         except Exception:
             pass
+        
+        # Use market_data_manager to get data for specified time interval
+        if hasattr(self, 'market_data_manager') and self.market_data_manager:
+            try:
+                # Get aggregated data from market_data_manager for the specified interval
+                df = self.market_data_manager.get_ohlcv_data(
+                    instrument_id=instrument_id,
+                    end_date=cur_date,
+                    periods=lag_days,
+                    time_interval=time_interval
+                )
+                if not df.empty:
+                    try:
+                        self.logger.debug(f"[get_lag_prices] market_data_manager: instrument_id={instrument_id} cur_date={cur_date} lag_days={lag_days} interval={time_interval} df.shape={df.shape}")
+                    except Exception:
+                        pass
+                    return df
+            except Exception as e:
+                try:
+                    self.logger.debug(f"[get_lag_prices] market_data_manager failed: {e}, falling back to cached data")
+                except Exception:
+                    pass
+        
+        # Fallback to existing cached data approach
         df = self._get_instrument_history(instrument_id)
         try:
-            self.logger.debug(f"[get_lag_prices] instrument_id={instrument_id} cur_date={cur_date} lag_days={lag_days} df.shape={df.shape} cols={list(df.columns)}")
+            self.logger.debug(f"[get_lag_prices] fallback cache: instrument_id={instrument_id} cur_date={cur_date} lag_days={lag_days} interval={time_interval} df.shape={df.shape} cols={list(df.columns)}")
         except Exception:
             pass
         # Determine date column

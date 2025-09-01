@@ -1,0 +1,44 @@
+{
+  "dataset_id": "hourly_historical_training_data_AAPL_run13_20250901_134228",
+  "creation_timestamp": "2025-09-01T13:42:28.516310",
+  "data_structure": "hourly_rows",
+  "shape": [
+    688,
+    16
+  ],
+  "primary_keys": [
+    "datetime",
+    "symbol"
+  ],
+  "columns": [
+    "hour_open",
+    "hour_high",
+    "hour_low",
+    "hour_close",
+    "hour_volume",
+    "market_period",
+    "day_progress",
+    "hour_envelope_top",
+    "hour_envelope_bot",
+    "hour_pldot",
+    "hour_oneone_high",
+    "hour_oneone_low",
+    "hour_z1b",
+    "hour_z2b",
+    "hour_z5t",
+    "hour_z6t"
+  ],
+  "symbols": [
+    "AAPL"
+  ],
+  "date_range": {
+    "start": "2024-01-02 09:00:00",
+    "end": "2024-08-30 23:00:00"
+  },
+  "base_interval_minutes": 1,
+  "training_interval_minutes": 60,
+  "use_universe_state_indicators": true,
+  "structure": "hourly_rows",
+  "indicators_source": "universe_state_builder",
+  "indicators_not_normalized": true
+}
