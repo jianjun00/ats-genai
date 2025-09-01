@@ -1,0 +1,91 @@
+{
+  "data_availability": {
+    "2024-Jan": {
+      "available": true,
+      "sample_records": 390,
+      "start_date": "2024-01-01"
+    },
+    "2024-Feb": {
+      "available": true,
+      "sample_records": 390,
+      "start_date": "2024-02-01"
+    },
+    "2024-Aug": {
+      "available": true,
+      "sample_records": 390,
+      "start_date": "2024-08-01"
+    }
+  },
+  "aggregation_accuracy": {
+    "5min": {
+      "is_valid": false,
+      "errors": [
+        "OHLC consistency violation"
+      ],
+      "base_bars": 91,
+      "aggregated_bars": 19,
+      "expected_bars": 18
+    },
+    "15min": {
+      "is_valid": true,
+      "errors": [],
+      "base_bars": 91,
+      "aggregated_bars": 7,
+      "expected_bars": 6
+    },
+    "60min": {
+      "is_valid": true,
+      "errors": [],
+      "base_bars": 91,
+      "aggregated_bars": 3,
+      "expected_bars": 1
+    }
+  },
+  "signal_computation": {
+    "computation_time_seconds": 0.013335704803466797,
+    "data_bars_processed": 1950,
+    "timeframes_computed": 4,
+    "performance_bars_per_second": 146223.99256266313,
+    "5min_indicators_computed": 13,
+    "5min_total_indicators": 15,
+    "15min_indicators_computed": 13,
+    "15min_total_indicators": 15,
+    "1hour_indicators_computed": 13,
+    "1hour_total_indicators": 15,
+    "1day_indicators_computed": 0,
+    "1day_total_indicators": 0
+  },
+  "data_collector_integration": {
+    "1min": {
+      "bars_retrieved": 0,
+      "retrieval_time_seconds": 0.001256704330444336,
+      "uses_real_data": true,
+      "data_quality_ok": false
+    },
+    "5min": {
+      "bars_retrieved": 0,
+      "retrieval_time_seconds": 0.0009675025939941406,
+      "uses_real_data": true,
+      "data_quality_ok": false
+    },
+    "15min": {
+      "bars_retrieved": 0,
+      "retrieval_time_seconds": 0.0009903907775878906,
+      "uses_real_data": true,
+      "data_quality_ok": false
+    },
+    "60min": {
+      "bars_retrieved": 0,
+      "retrieval_time_seconds": 0.0007460117340087891,
+      "uses_real_data": true,
+      "data_quality_ok": false
+    }
+  },
+  "overall": {
+    "total_test_time_seconds": 0.168042,
+    "start_time": "2025-08-31T22:56:14.186092",
+    "end_time": "2025-08-31T22:56:14.354134",
+    "available_data_periods": 3,
+    "all_tests_completed": true
+  }
+}

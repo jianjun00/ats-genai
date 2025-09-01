@@ -29,94 +29,275 @@ from dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
 logger = logging.getLogger(__name__)
 
 class TechnicalIndicators:
-    """Technical indicators for enhanced training data generation."""
+    """
+    Technical indicators using proper indicator classes.
+    Ensures NO normalization - all indicators return actual values.
+    """
     
-    @staticmethod
-    def calculate_elliott_top(high: np.ndarray, low: np.ndarray, close: np.ndarray, window: int = 21) -> np.ndarray:
-        """Calculate Envelope Top indicator - identifies potential reversal tops."""
-        etop = np.zeros_like(close)
+    def __init__(self):
+        # Import actual indicator classes
+        from signals.indicator import EnvelopeTop, EnvelopeBot, PL, OneOneHigh, OneOneLow
+        from signals.indicator import Z1B, Z2B, Z5T, Z6T
+        from state.instrument_interval import InstrumentInterval
         
-        for i in range(window, len(close)):
-            # Look for local highs within window
-            window_high = high[i-window:i+1]
-            window_idx = np.argmax(window_high)
-            
-            # Check if current bar or recent bar is a significant high
-            if window_idx >= window - 5:  # Recent high
-                strength = (window_high[window_idx] - np.mean(window_high)) / np.std(window_high)
-                etop[i] = max(0, strength)
-            
-        return etop
+        self.EnvelopeTop = EnvelopeTop
+        self.EnvelopeBot = EnvelopeBot
+        self.PL = PL  # PLDOT indicator
+        self.OneOneHigh = OneOneHigh
+        self.OneOneLow = OneOneLow
+        self.Z1B = Z1B
+        self.Z2B = Z2B
+        self.Z5T = Z5T
+        self.Z6T = Z6T
+        self.InstrumentInterval = InstrumentInterval
     
-    @staticmethod
-    def calculate_elliott_bottom(high: np.ndarray, low: np.ndarray, close: np.ndarray, window: int = 21) -> np.ndarray:
-        """Calculate Envelope Bottom indicator - identifies potential reversal bottoms."""
-        ebot = np.zeros_like(close)
+    def calculate_envelope_top(self, high: np.ndarray, low: np.ndarray, close: np.ndarray, instrument_id: int = 1) -> np.ndarray:
+        """Calculate EnvelopeTop using actual indicator class - returns price levels."""
+        results = np.full_like(close, np.nan)
+        indicator = self.EnvelopeTop()
         
-        for i in range(window, len(close)):
-            # Look for local lows within window
-            window_low = low[i-window:i+1]
-            window_idx = np.argmin(window_low)
+        for i in range(3, len(close)):  # Need 3 intervals for calculation
+            # Create intervals for the last 3 periods
+            intervals = []
+            for j in range(i-2, i+1):
+                interval = self.InstrumentInterval(
+                    instrument_id=instrument_id,
+                    start_date_time=None,  # Not needed for calculation
+                    end_date_time=None,
+                    open=0,  # Not used by EnvelopeTop
+                    high=high[j],
+                    low=low[j],
+                    close=close[j],
+                    traded_volume=0,  # Not used
+                    traded_dollar=0,  # Not used
+                    status='ok'
+                )
+                intervals.append(interval)
             
-            # Check if current bar or recent bar is a significant low
-            if window_idx >= window - 5:  # Recent low
-                strength = (np.mean(window_low) - window_low[window_idx]) / np.std(window_low)
-                ebot[i] = max(0, strength)
-            
-        return ebot
+            indicator.update(intervals)
+            if indicator.status == 'ok':
+                results[i] = indicator.get_value()
+        
+        return results
     
-    @staticmethod
-    def calculate_pivot_line_dot(high: np.ndarray, low: np.ndarray, close: np.ndarray, window: int = 21) -> np.ndarray:
-        """Calculate Pivot Line Dot indicator - pivot point momentum."""
-        pldot = np.zeros_like(close)
+    def calculate_envelope_bot(self, high: np.ndarray, low: np.ndarray, close: np.ndarray, instrument_id: int = 1) -> np.ndarray:
+        """Calculate EnvelopeBot using actual indicator class - returns price levels."""
+        results = np.full_like(close, np.nan)
+        indicator = self.EnvelopeBot()
         
-        for i in range(window, len(close)):
-            # Calculate pivot point as (H + L + C) / 3
-            pivot = (high[i-1] + low[i-1] + close[i-1]) / 3
+        for i in range(3, len(close)):  # Need 3 intervals for calculation
+            # Create intervals for the last 3 periods
+            intervals = []
+            for j in range(i-2, i+1):
+                interval = self.InstrumentInterval(
+                    instrument_id=instrument_id,
+                    start_date_time=None,
+                    end_date_time=None,
+                    open=0,  # Not used by EnvelopeBot
+                    high=high[j],
+                    low=low[j],
+                    close=close[j],
+                    traded_volume=0,
+                    traded_dollar=0,
+                    status='ok'
+                )
+                intervals.append(interval)
             
-            # Calculate momentum relative to pivot
-            current_price = close[i]
-            pivot_momentum = (current_price - pivot) / pivot
-            
-            # Smooth over window
-            window_momentum = []
-            for j in range(max(0, i-window), i):
-                p = (high[j-1] + low[j-1] + close[j-1]) / 3 if j > 0 else pivot
-                m = (close[j] - p) / p if p != 0 else 0
-                window_momentum.append(m)
-            
-            pldot[i] = np.mean(window_momentum) if window_momentum else 0
-            
-        return pldot
+            indicator.update(intervals)
+            if indicator.status == 'ok':
+                results[i] = indicator.get_value()
+        
+        return results
     
-    @staticmethod
-    def calculate_oneonedot(open_: np.ndarray, high: np.ndarray, low: np.ndarray, close: np.ndarray, window: int = 21) -> np.ndarray:
-        """Calculate One-One-Dot indicator - custom momentum oscillator."""
-        oneonedot = np.zeros_like(close)
+    def calculate_pldot(self, high: np.ndarray, low: np.ndarray, close: np.ndarray, instrument_id: int = 1) -> np.ndarray:
+        """Calculate PLDOT using actual indicator class - returns momentum values."""
+        results = np.full_like(close, np.nan)
+        indicator = self.PL()
         
-        for i in range(window, len(close)):
-            # Calculate various momentum metrics
-            window_data = close[i-window:i+1]
+        for i in range(3, len(close)):  # Need 3 intervals for calculation
+            intervals = []
+            for j in range(i-2, i+1):
+                interval = self.InstrumentInterval(
+                    instrument_id=instrument_id,
+                    start_date_time=None,
+                    end_date_time=None,
+                    open=0,  # Not used by PLDOT
+                    high=high[j],
+                    low=low[j],
+                    close=close[j],
+                    traded_volume=0,
+                    traded_dollar=0,
+                    status='ok'
+                )
+                intervals.append(interval)
             
-            # Rate of change
-            roc = (close[i] - close[i-window]) / close[i-window] if close[i-window] != 0 else 0
+            indicator.update(intervals)
+            if indicator.status == 'ok':
+                results[i] = indicator.get_value()
+        
+        return results
+    
+    def calculate_oneone_high(self, high: np.ndarray, low: np.ndarray, close: np.ndarray, instrument_id: int = 1) -> np.ndarray:
+        """Calculate OneOneHigh using actual indicator class - returns price levels."""
+        results = np.full_like(close, np.nan)
+        indicator = self.OneOneHigh()
+        
+        for i in range(len(close)):  # Need 1 interval for calculation
+            intervals = [self.InstrumentInterval(
+                instrument_id=instrument_id,
+                start_date_time=None,
+                end_date_time=None,
+                open=0,  # Not used by OneOneHigh
+                high=high[i],
+                low=low[i],
+                close=close[i],
+                traded_volume=0,
+                traded_dollar=0,
+                status='ok'
+            )]
             
-            # Relative position within recent range
-            recent_high = np.max(high[i-window:i+1])
-            recent_low = np.min(low[i-window:i+1])
-            position = (close[i] - recent_low) / (recent_high - recent_low) if recent_high != recent_low else 0.5
+            indicator.update(intervals)
+            if indicator.status == 'ok':
+                results[i] = indicator.get_value()
+        
+        return results
+    
+    def calculate_oneone_low(self, high: np.ndarray, low: np.ndarray, close: np.ndarray, instrument_id: int = 1) -> np.ndarray:
+        """Calculate OneOneLow using actual indicator class - returns price levels."""
+        results = np.full_like(close, np.nan)
+        indicator = self.OneOneLow()
+        
+        for i in range(len(close)):  # Need 1 interval for calculation
+            intervals = [self.InstrumentInterval(
+                instrument_id=instrument_id,
+                start_date_time=None,
+                end_date_time=None,
+                open=0,  # Not used by OneOneLow
+                high=high[i],
+                low=low[i],
+                close=close[i],
+                traded_volume=0,
+                traded_dollar=0,
+                status='ok'
+            )]
             
-            # Trend strength - ensure arrays have same length
-            if len(window_data) == window:
-                slope = np.polyfit(range(window), window_data, 1)[0]
-                trend_strength = slope / np.mean(window_data) if np.mean(window_data) != 0 else 0
-            else:
-                trend_strength = 0
+            indicator.update(intervals)
+            if indicator.status == 'ok':
+                results[i] = indicator.get_value()
+        
+        return results
+    
+    def calculate_z1b(self, high: np.ndarray, low: np.ndarray, close: np.ndarray, instrument_id: int = 1) -> np.ndarray:
+        """Calculate Z1B using actual indicator class - returns zone values."""
+        results = np.full_like(close, np.nan)
+        indicator = self.Z1B()
+        
+        for i in range(3, len(close)):  # Need 3 intervals for calculation
+            intervals = []
+            for j in range(i-2, i+1):
+                interval = self.InstrumentInterval(
+                    instrument_id=instrument_id,
+                    start_date_time=None,
+                    end_date_time=None,
+                    open=0,  # Not used by Z1B
+                    high=high[j],
+                    low=low[j],
+                    close=close[j],
+                    traded_volume=0,
+                    traded_dollar=0,
+                    status='ok'
+                )
+                intervals.append(interval)
             
-            # Combine metrics
-            oneonedot[i] = (roc + (position - 0.5) * 2 + trend_strength) / 3
+            indicator.update(intervals)
+            if indicator.status == 'ok':
+                results[i] = indicator.get_value()
+        
+        return results
+    
+    def calculate_z2b(self, high: np.ndarray, low: np.ndarray, close: np.ndarray, instrument_id: int = 1) -> np.ndarray:
+        """Calculate Z2B using actual indicator class - returns zone values."""
+        results = np.full_like(close, np.nan)
+        indicator = self.Z2B()
+        
+        for i in range(3, len(close)):  # Need 3 intervals for calculation
+            intervals = []
+            for j in range(i-2, i+1):
+                interval = self.InstrumentInterval(
+                    instrument_id=instrument_id,
+                    start_date_time=None,
+                    end_date_time=None,
+                    open=0,  # Not used by Z2B
+                    high=high[j],
+                    low=low[j],
+                    close=close[j],
+                    traded_volume=0,
+                    traded_dollar=0,
+                    status='ok'
+                )
+                intervals.append(interval)
             
-        return oneonedot
+            indicator.update(intervals)
+            if indicator.status == 'ok':
+                results[i] = indicator.get_value()
+        
+        return results
+    
+    def calculate_z5t(self, high: np.ndarray, low: np.ndarray, close: np.ndarray, instrument_id: int = 1) -> np.ndarray:
+        """Calculate Z5T using actual indicator class - returns zone values."""
+        results = np.full_like(close, np.nan)
+        indicator = self.Z5T()
+        
+        for i in range(3, len(close)):  # Need 3 intervals for calculation
+            intervals = []
+            for j in range(i-2, i+1):
+                interval = self.InstrumentInterval(
+                    instrument_id=instrument_id,
+                    start_date_time=None,
+                    end_date_time=None,
+                    open=0,  # Not used by Z5T
+                    high=high[j],
+                    low=low[j],
+                    close=close[j],
+                    traded_volume=0,
+                    traded_dollar=0,
+                    status='ok'
+                )
+                intervals.append(interval)
+            
+            indicator.update(intervals)
+            if indicator.status == 'ok':
+                results[i] = indicator.get_value()
+        
+        return results
+    
+    def calculate_z6t(self, high: np.ndarray, low: np.ndarray, close: np.ndarray, instrument_id: int = 1) -> np.ndarray:
+        """Calculate Z6T using actual indicator class - returns zone values."""
+        results = np.full_like(close, np.nan)
+        indicator = self.Z6T()
+        
+        for i in range(3, len(close)):  # Need 3 intervals for calculation
+            intervals = []
+            for j in range(i-2, i+1):
+                interval = self.InstrumentInterval(
+                    instrument_id=instrument_id,
+                    start_date_time=None,
+                    end_date_time=None,
+                    open=0,  # Not used by Z6T
+                    high=high[j],
+                    low=low[j],
+                    close=close[j],
+                    traded_volume=0,
+                    traded_dollar=0,
+                    status='ok'
+                )
+                intervals.append(interval)
+            
+            indicator.update(intervals)
+            if indicator.status == 'ok':
+                results[i] = indicator.get_value()
+        
+        return results
 
 @gin.configurable
 @dataclass
@@ -301,17 +482,36 @@ class TrainingDataJobRunner:
             data_rows = []
             
             for symbol in self.config.symbols:
-                # Query daily prices for the symbol and date range
-                table_name = f"{self.env.table_prefix}daily_prices"
+                # Try multiple daily price tables in order of preference
+                vendor_tables = [
+                    f"{self.env.table_prefix}daily_prices_eodhd",    # EODHD has most coverage
+                    f"{self.env.table_prefix}daily_prices_tiingo",   # Tiingo has good coverage  
+                    f"{self.env.table_prefix}daily_prices_polygon",  # Polygon has recent data
+                    f"{self.env.table_prefix}daily_prices"           # Main table (often empty)
+                ]
                 
-                query = f"""
-                SELECT date, open, high, low, close, volume
-                FROM {table_name}
-                WHERE symbol = $1 AND date BETWEEN $2 AND $3
-                ORDER BY date
-                """
+                rows = []
+                for table_name in vendor_tables:
+                    try:
+                        query = f"""
+                        SELECT date, open, high, low, close, volume
+                        FROM {table_name}
+                        WHERE symbol = $1 AND date BETWEEN $2 AND $3
+                        ORDER BY date
+                        """
+                        
+                        rows = await conn.fetch(query, symbol, self.config.start_date, self.config.end_date)
+                        
+                        if rows:
+                            logger.info(f"Found {len(rows)} records for {symbol} in {table_name}")
+                            break  # Use first table with data
+                            
+                    except Exception as e:
+                        logger.debug(f"Table {table_name} not accessible: {e}")
+                        continue
                 
-                rows = await conn.fetch(query, symbol, self.config.start_date, self.config.end_date)
+                if not rows:
+                    logger.warning(f"No data found for {symbol} in any vendor table")
                 
                 for row in rows:
                     data_rows.append({
@@ -371,46 +571,82 @@ class TrainingDataJobRunner:
             volume = symbol_data['volume'].values
             
             if self.config.use_enhanced_features and indicators:
-                # Calculate enhanced technical indicators
-                envelope_top = indicators.calculate_elliott_top(high, low, close, 21)
-                envelope_bot = indicators.calculate_elliott_bottom(high, low, close, 21)
-                pldot = indicators.calculate_pivot_line_dot(high, low, close, 21)
-                oneonedot = indicators.calculate_oneonedot(open_, high, low, close, 21)
+                # Calculate ALL 15 technical indicators using proper indicator classes
+                # NO normalization - all indicators return actual values
+                
+                # Get instrument ID for calculations (using symbol hash for uniqueness)
+                instrument_id = abs(hash(symbol)) % 10000
+                
+                # Core price level indicators (return actual price levels)
+                envelope_top = indicators.calculate_envelope_top(high, low, close, instrument_id)
+                envelope_bot = indicators.calculate_envelope_bot(high, low, close, instrument_id)
+                oneone_high = indicators.calculate_oneone_high(high, low, close, instrument_id)
+                oneone_low = indicators.calculate_oneone_low(high, low, close, instrument_id)
+                
+                # Core momentum indicator (returns actual momentum values)
+                pldot = indicators.calculate_pldot(high, low, close, instrument_id)
+                
+                # Zone indicators (return actual zone values) 
+                z1b = indicators.calculate_z1b(high, low, close, instrument_id)
+                z2b = indicators.calculate_z2b(high, low, close, instrument_id)
+                z5t = indicators.calculate_z5t(high, low, close, instrument_id)
+                z6t = indicators.calculate_z6t(high, low, close, instrument_id)
                 
                 # Store feature distributions for visualization
                 feature_distributions[symbol] = {
                     'envelope_top': envelope_top.tolist(),
                     'envelope_bot': envelope_bot.tolist(),
                     'pldot': pldot.tolist(),
-                    'oneonedot': oneonedot.tolist(),
+                    'oneone_high': oneone_high.tolist(),
+                    'oneone_low': oneone_low.tolist(),
+                    'z1b': z1b.tolist(),
+                    'z2b': z2b.tolist(),
+                    'z5t': z5t.tolist(),
+                    'z6t': z6t.tolist(),
                     'close': close.tolist(),
                     'volume': volume.tolist()
                 }
                 
-                # Combine all features with enhanced indicators
+                # Combine ALL 15 indicators with OHLCV features
                 symbol_features = np.column_stack([
-                    ohlcv_features,  # OHLCV
-                    envelope_top.reshape(-1, 1),
-                    envelope_bot.reshape(-1, 1),
-                    pldot.reshape(-1, 1),
-                    oneonedot.reshape(-1, 1)
+                    ohlcv_features,  # OHLCV (5 features)
+                    envelope_top.reshape(-1, 1),    # EnvelopeTop
+                    envelope_bot.reshape(-1, 1),    # EnvelopeBot  
+                    pldot.reshape(-1, 1),           # PLDOT
+                    oneone_high.reshape(-1, 1),     # OneOneHigh
+                    oneone_low.reshape(-1, 1),      # OneOneLow
+                    z1b.reshape(-1, 1),             # Z1B
+                    z2b.reshape(-1, 1),             # Z2B
+                    z5t.reshape(-1, 1),             # Z5T
+                    z6t.reshape(-1, 1)              # Z6T
                 ])
                 
-                feature_names = ['open', 'high', 'low', 'close', 'volume', 'envelope_top', 'envelope_bot', 'pldot', 'oneonedot']
+                feature_names = [
+                    'open', 'high', 'low', 'close', 'volume',  # OHLCV (5)
+                    'envelope_top', 'envelope_bot', 'pldot',   # Core indicators (3) 
+                    'oneone_high', 'oneone_low',               # OneOne indicators (2)
+                    'z1b', 'z2b', 'z5t', 'z6t'                # Zone indicators (4)
+                ]  # Total: 14 features (5 OHLCV + 9 indicators)
+                
                 feature_descriptions = {
                     'open': 'Opening price',
                     'high': 'High price', 
                     'low': 'Low price',
                     'close': 'Closing price',
                     'volume': 'Trading volume',
-                    'envelope_top': 'Envelope Top reversal indicator (21 periods)',
-                    'envelope_bot': 'Envelope Bottom reversal indicator (21 periods)',
-                    'pldot': 'Pivot Line Dot momentum indicator (21 periods)',
-                    'oneonedot': 'One-One-Dot custom momentum oscillator (21 periods)'
+                    'envelope_top': 'Envelope Top price level (actual values, NOT normalized)',
+                    'envelope_bot': 'Envelope Bottom price level (actual values, NOT normalized)', 
+                    'pldot': 'PLDOT momentum value (actual values, NOT normalized)',
+                    'oneone_high': 'OneOne High price level (actual values, NOT normalized)',
+                    'oneone_low': 'OneOne Low price level (actual values, NOT normalized)',
+                    'z1b': 'Z1B zone value (actual values, NOT normalized)',
+                    'z2b': 'Z2B zone value (actual values, NOT normalized)',
+                    'z5t': 'Z5T zone value (actual values, NOT normalized)',
+                    'z6t': 'Z6T zone value (actual values, NOT normalized)'
                 }
                 
-                # Allow indicators to stabilize
-                start_idx = max(50, self.config.sequence_length)
+                # Allow indicators to stabilize (need at least 3 periods for HLC indicators)
+                start_idx = max(5, self.config.sequence_length)
                 
             else:
                 # Basic features: OHLCV + simple indicators

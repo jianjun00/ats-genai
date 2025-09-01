@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 try:
     from signals.indicator import (
         FiveTwoBuy, FiveTwoSell, FiveOneBuy, FiveOneSell,
-        FiveNineBuy, FiveNineSell, H11, L11, EBot, ETop
+        FiveNineBuy, FiveNineSell, H11, L11, EnvelopeBot, EnvelopeTop
     )
 except ImportError as e:
     print(f"❌ Cannot import indicators: {e}")
@@ -240,7 +240,9 @@ class FiveTwoIntegrationTests:
                 'FiveOneBuy': FiveOneBuy(),
                 'FiveOneSell': FiveOneSell(),
                 'H11': H11(),
-                'L11': L11()
+                'L11': L11(),
+                'EnvelopeBot': EnvelopeBot(),
+                'EnvelopeTop': EnvelopeTop()
             }
             
             # Update all indicators

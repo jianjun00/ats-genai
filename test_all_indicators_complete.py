@@ -36,7 +36,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 try:
     from signals.indicator import (
         # HLC Linear Regression Indicators (9)
-        PL, L11, H11, Z1B, Z2B, EBot, ETop, Z5T, Z6T,
+        PL, L11, H11, Z1B, Z2B, EnvelopeBot, EnvelopeTop, Z5T, Z6T,
         # Five Nine Arithmetic Indicators (2) 
         FiveNineSell, FiveNineBuy,
         # Five One Conditional Indicators (2)
@@ -77,7 +77,7 @@ class ComprehensiveIndicatorTests:
         # All indicator classes organized by category
         self.hlc_indicators = {
             'PL': PL, 'L11': L11, 'H11': H11, 'Z1B': Z1B, 'Z2B': Z2B,
-            'EBot': EBot, 'ETop': ETop, 'Z5T': Z5T, 'Z6T': Z6T
+            'EnvelopeBot': EnvelopeBot, 'EnvelopeTop': EnvelopeTop, 'Z5T': Z5T, 'Z6T': Z6T
         }
         
         self.five_nine_indicators = {
