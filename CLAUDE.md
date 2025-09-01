@@ -699,7 +699,7 @@ docker exec ats-dev-postgres psql -U postgres -d dev_db -c "\d table_name"
 - **Integration**: Full database tracking with run records and dataset metadata
 
 **Critical Lessons Applied:**
-- ✅ **Use existing code instead of creating scripts** - `training_data_job_runner.py` had all functionality
+- ✅ **Use existing code instead of creating scripts** - training data generators are under `src/ml/training_data/`
 - ✅ **Use proper environment tools** - `run_intg` for INTG, not `run_dev --environment intg`  
 - ✅ **Docker container execution** - Run within `ats-intg-analytics` container for proper networking
 - ✅ **Complete database schema** - Apply full migration with all required columns (`feature_metadata`, `tfdv_*`)
@@ -715,7 +715,7 @@ docker exec ats-dev-postgres psql -U postgres -d dev_db -c "\d table_name"
 **For ATS-INTG Environment (Production-like):**
 ```bash
 # Generate training data using existing infrastructure
-docker exec ats-intg-analytics bash -c "cd /workspace && PYTHONPATH=src python3 src/app/training_data_job_runner.py"
+docker exec ats-intg-analytics bash -c "cd /workspace && PYTHONPATH=src python3 src/ml/training_data/runners/training_data_callback_runner.py --symbols AAPL --start-date 2020-01-01 --end-date 2023-01-01 --environment intg"
 
 # Files are automatically saved to container and can be copied to host:
 # Output location: /mnt/d/ats-data/training/{run_id}/
@@ -725,7 +725,7 @@ docker exec ats-intg-analytics bash -c "cd /workspace && PYTHONPATH=src python3 
 **For ATS-DEV Environment (Development):**
 ```bash
 # Use run_dev for development environment training data generation
-python3 scripts/run_dev.py run --script src/app/training_data_job_runner.py
+python3 scripts/run_dev.py run --script src/ml/training_data/runners/training_data_callback_runner.py
 
 # Files saved to: training_data_output/ (can be organized by run_id)
 # Database tracking: dev_training_datasets table
@@ -733,24 +733,46 @@ python3 scripts/run_dev.py run --script src/app/training_data_job_runner.py
 
 **Command Pattern (What Works vs What Doesn't):**
 ```bash
-# ✅ CORRECT: Use existing training job runner
-docker exec ats-intg-analytics bash -c "cd /workspace && PYTHONPATH=src python3 src/app/training_data_job_runner.py"
+# ✅ CORRECT: Use existing training data runners under ml/training_data/
+docker exec ats-intg-analytics bash -c "cd /workspace && PYTHONPATH=src python3 src/ml/training_data/runners/training_data_callback_runner.py --symbols AAPL --start-date 2020-01-01 --end-date 2023-01-01"
 
 # ✅ CORRECT: Use proper environment tools
-python3 scripts/run_dev.py run --script src/app/training_data_job_runner.py
+python3 scripts/run_dev.py run --script src/ml/training_data/runners/training_data_callback_runner.py
 
 # ❌ WRONG: Create new scripts when existing code works
 python3 scripts/run_dev.py --environment intg run --script new_training_script.py
 
 # ❌ WRONG: Use wrong environment management
 python3 scripts/run_dev.py --environment intg  # Should use run_intg or direct container
+
+# ❌ WRONG: Reference old paths
+python3 src/app/training_data_job_runner.py  # This file doesn't exist anymore
 ```
 
-**Training Data Configuration:**
-- Default generates synthetic OHLCV data for AAPL, MSFT, GOOGL
-- Enhanced features include: etop, ebot, pldot, oneonedot technical indicators  
-- Output: 60-day sequences with 5-day prediction horizon
-- Customize symbols, date ranges, and features in `TrainingDataJobConfig`
+**✅ TRAINING DATA ARCHITECTURE:**
+
+**All training data functionality is located under `src/ml/training_data/`:**
+```
+src/ml/training_data/
+├── runners/                    # Main entry points
+│   └── training_data_callback_runner.py  # Primary training data generator
+├── callbacks/                  # Runner framework integration
+│   └── training_data_callback.py        # Date-based and interval-based callbacks
+├── generators/                 # Data generation engines
+│   ├── training_data_generator.py       # Residual return training data
+│   └── configurable_train_data_generator.py  # Configurable feature generation
+├── dao/                       # Database access layer
+│   └── training_dataset_dao.py          # Training dataset database operations
+└── storage/                   # Storage management
+    └── sequence_storage_manager.py      # Advanced storage formats
+```
+
+**Configuration:**
+- Gin configuration: `config/training_data.gin` (consolidated single config)
+- Technical indicators: configurable via gin (`["etop", "ebot", "pldot", "multi_timeframe"]`)
+- Multi-timeframe sequences: 5m, 15m, 1h, 1d intervals
+- Output formats: pickle, parquet, riegeli, tfrecord
+- Database tracking: Full metadata and validation support
 
 **Files Generated Successfully:**
 - `dataset_training_data_gen_AAPL_*_features.npy` (41,708 bytes)
