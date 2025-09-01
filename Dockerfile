@@ -24,6 +24,14 @@ RUN apt-get update && \
         curl \
         git \
         build-essential \
+        # Playwright browser dependencies
+        libnss3-dev \
+        libatk-bridge2.0-dev \
+        libdrm2 \
+        libxkbcommon0 \
+        libgtk-3-dev \
+        libgbm-dev \
+        libasound2-dev \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt \
@@ -45,7 +53,10 @@ RUN apt-get update && \
         jupyter \
         ipython \
         feedparser \
-    && pip install --no-cache-dir -e .
+        playwright \
+    && pip install --no-cache-dir -e . \
+    && playwright install chromium firefox webkit \
+    && playwright install-deps
 
 # Copy application code after installing dependencies
 COPY . /app/
@@ -57,10 +68,15 @@ RUN find /app -name "__pycache__" -type d -exec rm -rf {} +; exit 0 && \
 # Create non-root user and set permissions
 RUN groupadd --gid 1000 ats && \
     useradd --uid 1000 --gid ats --shell /bin/bash --create-home ats && \
-    chown -R ats:ats /app
+    chown -R ats:ats /app && \
+    # Make Playwright browsers accessible to ats user
+    chmod -R 755 /root/.cache/ms-playwright || true
 
 # Switch to non-root user
 USER ats
+
+# Set Playwright browser path for non-root user
+ENV PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
 
 # Expose the port the app runs on
 EXPOSE 8080

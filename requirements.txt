@@ -38,3 +38,6 @@ uvicorn[standard]==0.35.0
 # Additional utilities
 attrs==25.3.0
 typing-extensions==4.14.1
+
+# Browser automation and testing
+playwright==1.55.0
