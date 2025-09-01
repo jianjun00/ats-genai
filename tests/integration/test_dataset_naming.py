@@ -12,7 +12,7 @@ from datetime import datetime
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-from app.training_data_job_runner import TrainingDataJobRunner, create_sample_job_config
+from ml.training_data.runners.training_data_callback_runner import TrainingDataJobRunner, create_sample_job_config
 
 def test_dataset_name_generation_with_run_id():
     """Test that dataset names include unique run_id to prevent duplicates."""

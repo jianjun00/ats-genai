@@ -20,7 +20,7 @@ from unittest.mock import Mock, patch
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
 
-from app.training_data_job_runner import TrainingDataJobRunner, TrainingDataJobConfig
+from ml.training_data.runners.training_data_callback_runner import TrainingDataJobRunner, TrainingDataJobConfig
 from storage.file_based_minute_manager import FileBasedMinuteManager
 
 

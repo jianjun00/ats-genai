@@ -16,7 +16,7 @@ async def test_training_data_with_fixed_indicators():
     """Test that training data generation works with all fixed indicators."""
     
     # Import required modules
-    from app.training_data_job_runner import TrainingDataJobConfig, TrainingDataJobRunner
+    from ml.training_data.runners.training_data_callback_runner import TrainingDataJobConfig, TrainingDataJobRunner
     from config.environment import Environment
     
     print("🧪 Testing Training Data Generation with Fixed Indicators")

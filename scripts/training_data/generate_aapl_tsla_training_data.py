@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Import the training data infrastructure
-from src.app.training_data_job_runner import TrainingDataJobRunner, TrainingDataJobConfig
+from src.ml.training_data.runners.training_data_callback_runner import TrainingDataJobRunner, TrainingDataJobConfig
 from config.environment import Environment
 
 async def generate_aapl_tsla_training_data():

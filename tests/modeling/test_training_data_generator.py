@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, AsyncMock
 import asyncpg
 
-from modeling.training_data_generator import (
+from ml.training_data.generators.training_data_generator import (
     TrainingConfig,
     TrainingSample,
     ResidualReturnTrainingDataGenerator,
