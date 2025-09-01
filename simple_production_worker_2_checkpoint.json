@@ -2360,16 +2360,26 @@
       "2023-10",
       "2023-11",
       "2023-12",
-      "2024-01"
+      "2024-01",
+      "2024-02",
+      "2024-03",
+      "2024-04",
+      "2024-05",
+      "2024-06",
+      "2024-07",
+      "2024-08",
+      "2024-09",
+      "2024-10",
+      "2024-11"
     ]
   },
   "failed_months": {},
-  "last_processed": "2025-09-01T17:51:55.411524",
+  "last_processed": "2025-09-01T17:54:07.393531",
   "total_symbols": 250,
   "processing_stats": {
     "symbols_processed": 10,
-    "months_processed": 2340,
-    "records_written": 11457915,
+    "months_processed": 2350,
+    "records_written": 11552300,
     "errors": 0
   },
   "symbol_inventory": {
