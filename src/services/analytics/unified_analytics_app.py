@@ -13,7 +13,7 @@ from datetime import datetime, date, timedelta
 from typing import Dict, List, Optional, Any, Union
 from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from dataclasses import dataclass, asdict
 import json
 import redis.asyncio as redis
@@ -741,6 +741,35 @@ async def root():
         "integrated_services": list(service.service_endpoints.keys()),
         "uptime_seconds": (datetime.now() - service.system_metrics["startup_time"]).total_seconds()
     }
+
+# Dataset detail page for enhanced EDA
+@app.get("/dataset-detail", response_class=HTMLResponse)
+async def dataset_detail_page():
+    """Serve the enhanced dataset detail page"""
+    try:
+        # Read the HTML file
+        html_file_path = Path(__file__).parent.parent.parent.parent / "dataset_detail_page_frontend.html"
+        if html_file_path.exists():
+            with open(html_file_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        else:
+            return HTMLResponse(content="<h1>Dataset Detail Page Not Found</h1><p>HTML file not found at expected location.</p>", status_code=404)
+    except Exception as e:
+        logger.error(f"Error serving dataset detail page: {e}")
+        return HTMLResponse(content=f"<h1>Error</h1><p>Error loading dataset detail page: {e}</p>", status_code=500)
+
+@app.get("/dual_axis_ohlc_chart.js")
+async def serve_chart_js():
+    """Serve the dual axis OHLC chart JavaScript file"""
+    try:
+        js_file_path = Path(__file__).parent.parent.parent.parent / "dual_axis_ohlc_chart.js"
+        if js_file_path.exists():
+            return FileResponse(js_file_path, media_type='application/javascript')
+        else:
+            raise HTTPException(status_code=404, detail="Chart JavaScript file not found")
+    except Exception as e:
+        logger.error(f"Error serving chart JS file: {e}")
+        raise HTTPException(status_code=500, detail=f"Error loading chart JS file: {e}")
 
 # Simple HTML dashboard for development
 @app.get("/dashboard", response_class=HTMLResponse)

@@ -443,9 +443,25 @@
             </div>
         </div>
 
+        <!-- Global X-Axis Selection -->
+        <div class="filter-section">
+            <h2>📊 Chart Configuration</h2>
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label for="global-x-axis">X-Axis for All Charts</label>
+                    <select id="global-x-axis" onchange="updateGlobalXAxis()">
+                        <option value="date">Date</option>
+                        <option value="sequence_step">Sequence Step</option>
+                        <option value="trading_day">Trading Day</option>
+                        <option value="relative_time">Relative Time</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
         <!-- Filter Controls -->
         <div class="filter-section">
-            <h2>🔍 Filter Sequences</h2>
+            <h2>🔍 Data Filter</h2>
             <div class="filter-grid">
                 <div class="filter-group">
                     <label for="symbol-filter">Symbol</label>
@@ -538,6 +554,7 @@
         let filteredSequenceIds = [];
         let currentPage = 1;
         const pageSize = 20;
+        let globalXAxis = 'date'; // Global x-axis setting for all charts
         
         // Page initialization
         document.addEventListener('DOMContentLoaded', function() {
@@ -587,41 +604,77 @@
             }
         }
         
-        // Load sequences with current filters
+        // Load sequences with current filters - Enhanced with better error handling
         async function loadSequences() {
             try {
+                console.log('Loading sequences with filters...');
+                
                 const params = new URLSearchParams({
                     limit: pageSize,
                     offset: (currentPage - 1) * pageSize
                 });
                 
-                // Add filter parameters
+                // Add filter parameters with validation
                 const symbolFilter = document.getElementById('symbol-filter')?.value;
                 const featureFilter = document.getElementById('feature-filter')?.value;
                 const valueMin = document.getElementById('value-min')?.value;
                 const valueMax = document.getElementById('value-max')?.value;
                 
-                if (symbolFilter) params.append('symbol_filter', symbolFilter);
-                if (featureFilter && valueMin && valueMax) {
-                    params.append('feature_filter', featureFilter);
-                    params.append('value_min', valueMin);
-                    params.append('value_max', valueMax);
+                console.log('Building API params:', {
+                    symbolFilter, featureFilter, valueMin, valueMax
+                });
+                
+                // Add symbol filter if specified
+                if (symbolFilter && symbolFilter.trim() !== '') {
+                    params.append('symbol_filter', symbolFilter.trim());
+                    console.log('Added symbol filter:', symbolFilter.trim());
                 }
                 
+                // Add feature range filter if all values specified
+                if (featureFilter && featureFilter.trim() !== '' && valueMin !== '' && valueMax !== '') {
+                    params.append('feature_filter', featureFilter.trim());
+                    params.append('value_min', parseFloat(valueMin));
+                    params.append('value_max', parseFloat(valueMax));
+                    console.log('Added feature range filter:', {
+                        feature: featureFilter.trim(),
+                        min: parseFloat(valueMin),
+                        max: parseFloat(valueMax)
+                    });
+                }
+                
+                console.log('Final API URL:', `/api/v1/datasets/${currentDatasetId}/sequences?${params}`);
+                
                 const response = await fetch(`/api/v1/datasets/${currentDatasetId}/sequences?${params}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const data = await response.json();
+                console.log('Received data:', {
+                    sequenceCount: data.sequences?.length || 0,
+                    totalSequences: data.total_sequences
+                });
                 
-                currentSequences = data.sequences;
-                filteredSequenceIds = data.sequences.map(s => s.sequence_id);
+                // Update global state
+                currentSequences = data.sequences || [];
+                filteredSequenceIds = currentSequences.map(s => s.sequence_id);
                 
-                renderSequencesTable(data.sequences);
-                renderPagination(data.total_sequences);
-                updateSequenceCount(data.sequences.length, data.total_sequences);
+                // Render results
+                renderSequencesTable(currentSequences);
+                renderPagination(data.total_sequences || 0);
+                updateSequenceCount(currentSequences.length, data.total_sequences || 0);
+                
+                console.log('Sequences loaded successfully');
                 
             } catch (error) {
                 console.error('Error loading sequences:', error);
                 document.getElementById('sequences-table-body').innerHTML = 
-                    '<tr><td colspan="6" class="error-message">Error loading sequences</td></tr>';
+                    `<tr><td colspan="6" class="error-message">❌ Error loading sequences: ${error.message}</td></tr>`;
+                
+                // Reset pagination on error
+                document.getElementById('sequences-pagination').innerHTML = '';
+                updateSequenceCount(0, 0);
             }
         }
         
@@ -741,10 +794,39 @@
             document.getElementById('filtered-count').textContent = `${filtered}`;
         }
         
-        // Apply filters
+        // Apply filters with enhanced debugging
         function applyFilters() {
+            console.log('Applying filters...');
+            
+            // Get current filter values
+            const symbolFilter = document.getElementById('symbol-filter').value;
+            const featureFilter = document.getElementById('feature-filter').value;
+            const valueMin = document.getElementById('value-min').value;
+            const valueMax = document.getElementById('value-max').value;
+            
+            console.log('Filter values:', {
+                symbol: symbolFilter,
+                feature: featureFilter,
+                valueMin: valueMin,
+                valueMax: valueMax
+            });
+            
+            // Reset to first page and reload
             currentPage = 1;
-            loadSequences();
+            
+            // Clear table while loading
+            const tbody = document.getElementById('sequences-table-body');
+            tbody.innerHTML = '<tr><td colspan="6" class="loading-spinner">🔄 Applying filters...</td></tr>';
+            
+            // Load sequences with new filters
+            loadSequences().then(() => {
+                console.log('Filters applied successfully');
+                // Automatically update distributions after filtering
+                setTimeout(updateDistributions, 500);
+            }).catch(error => {
+                console.error('Error applying filters:', error);
+                tbody.innerHTML = '<tr><td colspan="6" class="error-message">❌ Error applying filters</td></tr>';
+            });
         }
         
         // Clear all filters
@@ -803,10 +885,29 @@
                     (bin + dist.histogram_bins[i + 1]) / 2
                 );
                 
+                // Determine x-axis labels based on global setting
+                let xLabels = binCenters.map(center => center.toFixed(3));
+                let xAxisTitle = 'Value';
+                
+                if (globalXAxis === 'sequence_step') {
+                    xLabels = binCenters.map((_, i) => `Step ${i + 1}`);
+                    xAxisTitle = 'Sequence Step';
+                } else if (globalXAxis === 'trading_day') {
+                    xLabels = binCenters.map((_, i) => `Day ${i + 1}`);
+                    xAxisTitle = 'Trading Day';
+                } else if (globalXAxis === 'relative_time') {
+                    xLabels = binCenters.map((_, i) => `T+${i}`);
+                    xAxisTitle = 'Relative Time';
+                } else if (globalXAxis === 'date') {
+                    // For date, we'd need actual date data from the API
+                    xLabels = binCenters.map(center => center.toFixed(3));
+                    xAxisTitle = 'Date/Value';
+                }
+                
                 new Chart(ctx, {
                     type: 'bar',
                     data: {
-                        labels: binCenters.map(center => center.toFixed(3)),
+                        labels: xLabels,
                         datasets: [{
                             label: 'Frequency',
                             data: dist.histogram_counts,
@@ -827,7 +928,7 @@
                                 title: { display: true, text: 'Count' }
                             },
                             x: {
-                                title: { display: true, text: 'Value' }
+                                title: { display: true, text: xAxisTitle }
                             }
                         }
                     }
@@ -874,6 +975,21 @@
                     closeModal(modal.id);
                 }
             });
+        }
+        
+        // Global X-Axis control function
+        function updateGlobalXAxis() {
+            const xAxisSelect = document.getElementById('global-x-axis');
+            globalXAxis = xAxisSelect.value;
+            console.log('Global X-axis updated to:', globalXAxis);
+            
+            // Update all existing charts with new x-axis
+            updateDistributions();
+            
+            // If there's a sequence chart open, update it too
+            if (window.currentSequenceChart) {
+                window.currentSequenceChart.updateXAxis(globalXAxis);
+            }
         }
         
         // Load initial distributions

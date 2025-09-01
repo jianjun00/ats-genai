@@ -14,6 +14,7 @@ class DualAxisOHLCChart {
         this.topChart = null;
         this.bottomChart = null;
         this.data = null;
+        this.currentXAxis = (typeof globalXAxis !== 'undefined') ? globalXAxis : 'date'; // Use global x-axis setting
         
         // Chart colors for technical indicators
         this.indicatorColors = {
@@ -45,6 +46,9 @@ class DualAxisOHLCChart {
     async render() {
         // Load data first
         await this.loadData();
+        
+        // Update x-axis setting from global
+        this.currentXAxis = (typeof globalXAxis !== 'undefined') ? globalXAxis : 'date';
         
         // Create chart container structure
         const container = document.getElementById(this.containerId);
@@ -384,6 +388,59 @@ class DualAxisOHLCChart {
         this.bottomChart.options.onHover = (event, activeElements) => {
             syncTooltip(this.bottomChart, this.topChart, activeElements);
         };
+    }
+    
+    // Update x-axis for both charts
+    updateXAxis(newXAxis) {
+        this.currentXAxis = newXAxis;
+        
+        // Re-render both charts with new x-axis
+        if (this.topChart && this.bottomChart) {
+            this.topChart.destroy();
+            this.bottomChart.destroy();
+            this.renderTopPanel();
+            this.renderBottomPanel();
+            this.syncCharts();
+        }
+    }
+    
+    // Generate x-axis labels based on current setting
+    generateXAxisLabels(dataLength) {
+        const labels = [];
+        for (let i = 0; i < dataLength; i++) {
+            switch (this.currentXAxis) {
+                case 'sequence_step':
+                    labels.push(`Step ${i + 1}`);
+                    break;
+                case 'trading_day':
+                    labels.push(`Day ${i + 1}`);
+                    break;
+                case 'relative_time':
+                    labels.push(`T+${i}`);
+                    break;
+                case 'date':
+                default:
+                    // Use date from data if available, otherwise use index
+                    if (this.data && this.data.dates && this.data.dates[i]) {
+                        labels.push(new Date(this.data.dates[i]).toLocaleDateString());
+                    } else {
+                        labels.push(`${i}`);
+                    }
+                    break;
+            }
+        }
+        return labels;
+    }
+    
+    // Get x-axis title based on current setting
+    getXAxisTitle() {
+        switch (this.currentXAxis) {
+            case 'sequence_step': return 'Sequence Step';
+            case 'trading_day': return 'Trading Day';
+            case 'relative_time': return 'Relative Time';
+            case 'date': 
+            default: return 'Date';
+        }
     }
     
     destroy() {

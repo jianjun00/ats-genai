@@ -1107,6 +1107,44 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             response = {"status": "healthy", "service": "ats-analytics", "timestamp": datetime.now().isoformat()}
             self.wfile.write(json.dumps(response).encode('utf-8'))
             
+        elif self.path == '/dataset-detail':
+            # Serve the enhanced dataset detail page
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.end_headers()
+            
+            try:
+                # Read the HTML file
+                html_file_path = '/workspace/dataset_detail_page_frontend.html'
+                with open(html_file_path, 'r', encoding='utf-8') as f:
+                    html_content = f.read()
+                self.wfile.write(html_content.encode('utf-8'))
+            except Exception as e:
+                logger.error(f"Error serving dataset detail page: {e}")
+                error_html = f"""
+                <!DOCTYPE html>
+                <html><head><title>Error</title></head>
+                <body><h1>Error Loading Dataset Detail Page</h1><p>{e}</p></body></html>
+                """
+                self.wfile.write(error_html.encode('utf-8'))
+        
+        elif self.path == '/dual_axis_ohlc_chart.js':
+            # Serve the chart JavaScript file
+            self.send_response(200)
+            self.send_header('Content-type', 'application/javascript; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            try:
+                js_file_path = '/workspace/dual_axis_ohlc_chart.js'
+                with open(js_file_path, 'r', encoding='utf-8') as f:
+                    js_content = f.read()
+                self.wfile.write(js_content.encode('utf-8'))
+            except Exception as e:
+                logger.error(f"Error serving chart JS file: {e}")
+                error_js = f"// Error loading chart file: {e}"
+                self.wfile.write(error_js.encode('utf-8'))
+        
         elif self.path == '/' or self.path == '/dashboard':
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
