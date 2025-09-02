@@ -4,7 +4,7 @@
 
 ### **Primary Dashboard: Grafana**
 ```
-🎯 URL: http://localhost:4002/d/5/ats-vendor-monitoring-dashboard-postgresql
+🎯 URL: http://localhost:4002/d/cb0f07fd-9f56-486e-8cd6-7c9893e63116/ats-vendor-monitoring-dashboard-postgresql
 📊 Login: admin/admin
 ```
 
