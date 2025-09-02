@@ -1,8 +1,10 @@
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
+from dataclasses import dataclass
 import asyncpg
 import logging
+import gin
 
 from config.environment import Environment
 from .models import AuthContext, APIKeyTier
@@ -11,13 +13,31 @@ from .api_key_manager import APIKeyManager
 logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=False)
 
+@gin.configurable
+@dataclass
+class AuthenticationConfig:
+    """Configuration for authentication middleware"""
+    api_key_length: int = 32
+    free_tier_daily_limit: int = 24
+    rate_limit_reset_seconds: int = 86400  # 24 hours
+    premium_unlimited: bool = True
+    track_usage: bool = True
+    log_invalid_attempts: bool = True
+    
+    # Error messages
+    api_key_required_message: str = "API key required. Include 'Authorization: Bearer <your-api-key>' header."
+    invalid_format_message: str = "Invalid API key format. API key must be 32 characters."
+    invalid_key_message: str = "Invalid or expired API key."
+    rate_limit_exceeded_message: str = "Rate limit exceeded. Free tier allows 24 requests per day. Upgrade to premium for unlimited access."
+
 
 class AuthenticationMiddleware:
     """FastAPI middleware for API key authentication and rate limiting"""
     
-    def __init__(self):
+    def __init__(self, config: AuthenticationConfig = None):
         self.env = Environment()
         self.api_key_manager = APIKeyManager()
+        self.config = config or AuthenticationConfig()
     
     async def authenticate_request(
         self, 
@@ -33,24 +53,25 @@ class AuthenticationMiddleware:
         if not credentials:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="API key required. Include 'Authorization: Bearer <your-api-key>' header."
+                detail=self.config.api_key_required_message
             )
         
         # Validate API key format
         raw_key = credentials.credentials
-        if not raw_key or len(raw_key) != 32:
+        if not raw_key or len(raw_key) != self.config.api_key_length:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid API key format. API key must be 32 characters."
+                detail=self.config.invalid_format_message
             )
         
         # Validate API key
         api_key = await self.api_key_manager.validate_api_key(raw_key)
         if not api_key:
-            logger.warning(f"Invalid API key attempted: {raw_key[:8]}...")
+            if self.config.log_invalid_attempts:
+                logger.warning(f"Invalid API key attempted: {raw_key[:8]}...")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or expired API key."
+                detail=self.config.invalid_key_message
             )
         
         # Get current usage
@@ -58,18 +79,18 @@ class AuthenticationMiddleware:
         
         # Check rate limits
         is_premium = api_key.tier == APIKeyTier.PREMIUM
-        rate_limit = float('inf') if is_premium else 24
-        rate_limit_remaining = max(0, rate_limit - daily_usage) if not is_premium else float('inf')
+        rate_limit = float('inf') if (is_premium and self.config.premium_unlimited) else self.config.free_tier_daily_limit
+        rate_limit_remaining = max(0, rate_limit - daily_usage) if not (is_premium and self.config.premium_unlimited) else float('inf')
         
         # Block if over rate limit
-        if not is_premium and daily_usage >= 24:
+        if not (is_premium and self.config.premium_unlimited) and daily_usage >= self.config.free_tier_daily_limit:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Rate limit exceeded. Free tier allows 24 requests per day. Upgrade to premium for unlimited access.",
+                detail=self.config.rate_limit_exceeded_message,
                 headers={
-                    "X-RateLimit-Limit": "24",
+                    "X-RateLimit-Limit": str(self.config.free_tier_daily_limit),
                     "X-RateLimit-Remaining": "0",
-                    "X-RateLimit-Reset": "86400"  # 24 hours in seconds
+                    "X-RateLimit-Reset": str(self.config.rate_limit_reset_seconds)
                 }
             )
         
@@ -92,6 +113,9 @@ class AuthenticationMiddleware:
         response_time_ms: Optional[int] = None
     ):
         """Track API request for usage analytics and rate limiting"""
+        if not self.config.track_usage:
+            return
+            
         try:
             db_url = self.env.get_database_url()
             conn = await asyncpg.connect(db_url)
@@ -139,16 +163,18 @@ async def optional_auth(
 
 
 # Rate limit headers dependency
-def add_rate_limit_headers(auth_context: AuthContext) -> dict:
+def add_rate_limit_headers(auth_context: AuthContext, config: AuthenticationConfig = None) -> dict:
     """Generate rate limit headers for response"""
-    if auth_context.is_premium:
+    config = config or AuthenticationConfig()
+    
+    if auth_context.is_premium and config.premium_unlimited:
         return {
             "X-RateLimit-Limit": "unlimited",
             "X-RateLimit-Remaining": "unlimited"
         }
     else:
         return {
-            "X-RateLimit-Limit": "24",
+            "X-RateLimit-Limit": str(config.free_tier_daily_limit),
             "X-RateLimit-Remaining": str(auth_context.rate_limit_remaining),
-            "X-RateLimit-Reset": "86400"  # 24 hours
+            "X-RateLimit-Reset": str(config.rate_limit_reset_seconds)
         }

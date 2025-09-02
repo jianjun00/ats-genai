@@ -9,6 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from events.api import router as events_router
 import gin
 
+# Import environment-specific configuration system
+from config.environment_config import load_gin_config, get_current_env, get_env_info
+from config.validation import validate_current_config
+
 @gin.configurable
 @dataclass
 class FastAPIConfig:
@@ -34,11 +38,31 @@ class CORSConfig:
         if self.allow_headers is None:
             self.allow_headers = ["*"]
 
+# Load environment-specific configuration
+try:
+    detected_env = load_gin_config()
+    print(f"🚀 ATS GenAI API starting in {detected_env.value} environment")
+    
+    # Validate configuration
+    validation_result = validate_current_config()
+    if not validation_result.is_valid:
+        print("⚠️  Configuration validation warnings:")
+        for warning in validation_result.warnings:
+            print(f"   - {warning}")
+        for error in validation_result.errors:
+            print(f"   ❌ {error}")
+    else:
+        print("✅ Configuration validation passed")
+    
+except Exception as e:
+    print(f"❌ Failed to load environment configuration: {e}")
+    print("🔄 Falling back to default configuration...")
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize configuration
+# Initialize gin-configured settings
 fastapi_config = FastAPIConfig()
 cors_config = CORSConfig()
 
@@ -89,9 +113,13 @@ async def health_check():
     logger.info("Health check endpoint accessed")
     try:
         db_connected = await check_db_connection()
+        current_env = get_current_env()
+        
         return {
             "status": "healthy",
-            "database": "connected" if db_connected else "disconnected"
+            "database": "connected" if db_connected else "disconnected",
+            "environment": current_env.value if current_env else "unknown",
+            "configuration_loaded": current_env is not None
         }
     except Exception as e:
         import traceback
@@ -106,6 +134,42 @@ async def health_check():
             "database": "error",
             "error": str(e),
             "type": type(e).__name__
+        }
+
+@app.get("/config")
+async def get_configuration_info():
+    """Get current environment configuration information"""
+    try:
+        env_info = get_env_info()
+        current_env = get_current_env()
+        
+        # Add FastAPI configuration details
+        fastapi_info = {
+            "title": fastapi_config.title,
+            "description": fastapi_config.description,
+            "version": fastapi_config.version
+        }
+        
+        cors_info = {
+            "allow_origins": cors_config.allow_origins,
+            "allow_credentials": cors_config.allow_credentials,
+            "allow_methods": cors_config.allow_methods,
+            "allow_headers": cors_config.allow_headers
+        }
+        
+        return {
+            "current_environment": current_env.value if current_env else None,
+            "environment_info": env_info,
+            "fastapi_config": fastapi_info,
+            "cors_config": cors_info,
+            "configuration_status": "loaded" if current_env else "not_loaded"
+        }
+        
+    except Exception as e:
+        logger.error(f"Configuration info retrieval failed: {str(e)}")
+        return {
+            "error": f"Failed to retrieve configuration info: {str(e)}",
+            "configuration_status": "error"
         }
 
 # Helper function to check database connection

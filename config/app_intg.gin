@@ -126,3 +126,11 @@ dates.lookback.default_days = 30
 thresholds.success_rate = 0.85
 thresholds.data_coverage = 0.90
 thresholds.api_success = 0.75
+
+# Integration Authentication - production-like settings
+AuthenticationConfig.free_tier_daily_limit = 24  # Standard production limit
+AuthenticationConfig.api_key_length = 32
+AuthenticationConfig.rate_limit_reset_seconds = 86400  # 24 hours
+AuthenticationConfig.premium_unlimited = True
+AuthenticationConfig.log_invalid_attempts = True
+AuthenticationConfig.track_usage = True

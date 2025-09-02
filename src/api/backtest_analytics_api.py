@@ -19,6 +19,10 @@ import pandas as pd
 import uvicorn
 import gin
 
+# Import environment-specific configuration system
+from config.environment_config import load_gin_config, get_current_env, get_env_info
+from config.validation import validate_current_config
+
 from analytics.portfolio_analytics import (
     PortfolioAnalyticsEngine,
     PortfolioMetrics,
@@ -188,7 +192,27 @@ async def lifespan(app: FastAPI):
         await analytics_engine.close()
     logging.info("Backtest Analytics API shutdown")
 
-# Initialize configuration
+# Load environment-specific configuration
+try:
+    detected_env = load_gin_config()
+    logging.info(f"🚀 Backtest Analytics API starting in {detected_env.value} environment")
+    
+    # Validate configuration
+    validation_result = validate_current_config()
+    if not validation_result.is_valid:
+        logging.warning("Configuration validation warnings:")
+        for warning in validation_result.warnings:
+            logging.warning(f"   - {warning}")
+        for error in validation_result.errors:
+            logging.error(f"   ❌ {error}")
+    else:
+        logging.info("✅ Configuration validation passed")
+    
+except Exception as e:
+    logging.error(f"❌ Failed to load environment configuration: {e}")
+    logging.info("🔄 Falling back to default configuration...")
+
+# Initialize gin-configured settings
 api_config = BacktestAPIConfig()
 cors_config = BacktestCORSConfig()
 server_config = BacktestServerConfig()
@@ -223,7 +247,63 @@ async def get_analytics_engine() -> PortfolioAnalyticsEngine:
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.now()}
+    current_env = get_current_env()
+    return {
+        "status": "healthy", 
+        "timestamp": datetime.now(),
+        "environment": current_env.value if current_env else "unknown",
+        "configuration_loaded": current_env is not None,
+        "service": "Backtest Analytics API"
+    }
+
+@app.get("/config")
+async def get_configuration_info():
+    """Get current environment configuration information"""
+    try:
+        env_info = get_env_info()
+        current_env = get_current_env()
+        
+        # Add API configuration details
+        api_info = {
+            "title": api_config.title,
+            "description": api_config.description,
+            "version": api_config.version
+        }
+        
+        server_info = {
+            "host": server_config.host,
+            "port": server_config.port,
+            "reload": server_config.reload,
+            "log_level": server_config.log_level
+        }
+        
+        query_info = {
+            "default_limit": query_config.default_limit,
+            "max_limit": query_config.max_limit,
+            "min_limit": query_config.min_limit,
+            "max_offset": query_config.max_offset,
+            "max_comparison_runs": query_config.max_comparison_runs
+        }
+        
+        return {
+            "current_environment": current_env.value if current_env else None,
+            "environment_info": env_info,
+            "api_config": api_info,
+            "server_config": server_info,
+            "query_config": query_info,
+            "cors_config": {
+                "allow_origins": cors_config.allow_origins,
+                "allow_credentials": cors_config.allow_credentials
+            },
+            "configuration_status": "loaded" if current_env else "not_loaded"
+        }
+        
+    except Exception as e:
+        logging.error(f"Configuration info retrieval failed: {str(e)}")
+        return {
+            "error": f"Failed to retrieve configuration info: {str(e)}",
+            "configuration_status": "error"
+        }
 
 # Backtest listing and management
 @app.get("/api/v1/backtests", response_model=List[BacktestSummary])

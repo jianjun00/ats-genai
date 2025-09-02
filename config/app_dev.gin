@@ -100,3 +100,10 @@ dates.lookback.default_days = 7
 thresholds.success_rate = 0.80
 thresholds.data_coverage = 0.85
 thresholds.api_success = 0.70
+
+# Development Authentication - more lenient for testing
+AuthenticationConfig.free_tier_daily_limit = 100  # Higher limit for dev testing
+AuthenticationConfig.api_key_length = 32
+AuthenticationConfig.rate_limit_reset_seconds = 3600  # 1 hour reset for faster dev testing
+AuthenticationConfig.log_invalid_attempts = True
+AuthenticationConfig.track_usage = True

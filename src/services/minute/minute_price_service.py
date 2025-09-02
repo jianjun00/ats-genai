@@ -11,6 +11,10 @@ from typing import List
 from fastapi import FastAPI, BackgroundTasks
 from dataclasses import dataclass
 
+# Import environment-specific configuration system
+from config.environment_config import load_gin_config, get_current_env, get_env_info
+from config.validation import validate_current_config
+
 # Reuse existing ATS framework
 from config.environment import Environment
 from dao.base.base_dao import BaseDAO
@@ -318,7 +322,27 @@ class FMPMinuteCollector(VendorCollector):
         self.logger.info(f"Collected {len(prices)} minute prices from FMP")
         return prices
 
-# Initialize configuration
+# Load environment-specific configuration
+try:
+    detected_env = load_gin_config()
+    logger.info(f"🚀 Minute Price Service starting in {detected_env.value} environment")
+    
+    # Validate configuration
+    validation_result = validate_current_config()
+    if not validation_result.is_valid:
+        logger.warning("Configuration validation warnings:")
+        for warning in validation_result.warnings:
+            logger.warning(f"   - {warning}")
+        for error in validation_result.errors:
+            logger.error(f"   ❌ {error}")
+    else:
+        logger.info("✅ Configuration validation passed")
+    
+except Exception as e:
+    logger.error(f"❌ Failed to load environment configuration: {e}")
+    logger.info("🔄 Falling back to default configuration...")
+
+# Initialize gin-configured settings
 service_config = MinuteServiceConfig()
 
 # FastAPI Application - Integrates with existing patterns
@@ -420,14 +444,48 @@ async def shutdown():
 @app.get("/health")
 async def health():
     """Health check endpoint"""
+    current_env = get_current_env()
     return {
         "status": "healthy" if service.is_running else "stopped",
-        "environment": service.env.env_type.value,
+        "environment": current_env.value if current_env else "unknown",
+        "configuration_loaded": current_env is not None,
+        "service": "ATS Minute Price Service",
         "vendors": list(service.collectors.keys()),
         "symbols": service.symbols,
         "metrics": service.metrics,
         "timestamp": datetime.now().isoformat()
     }
+
+@app.get("/config")
+async def get_configuration_info():
+    """Get current environment configuration information"""
+    try:
+        env_info = get_env_info()
+        current_env = get_current_env()
+        
+        # Add service configuration details
+        service_info = {
+            "title": service_config.title,
+            "description": service_config.description,
+            "version": service_config.version,
+            "host": service_config.host,
+            "port": service_config.port,
+            "default_symbols": service_config.default_symbols
+        }
+        
+        return {
+            "current_environment": current_env.value if current_env else None,
+            "environment_info": env_info,
+            "service_config": service_info,
+            "configuration_status": "loaded" if current_env else "not_loaded"
+        }
+        
+    except Exception as e:
+        logger.error(f"Configuration info retrieval failed: {str(e)}")
+        return {
+            "error": f"Failed to retrieve configuration info: {str(e)}",
+            "configuration_status": "error"
+        }
 
 @app.get("/metrics")
 async def get_metrics():

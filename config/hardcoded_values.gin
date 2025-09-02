@@ -5,29 +5,29 @@
 # API AND SERVICE CONFIGURATION
 # =============================================================================
 
-# FastAPI Application Configuration
-main.FastAPIConfig.title = "ATS GenAI API"
-main.FastAPIConfig.description = "Algorithmic Trading System with GenAI"
-main.FastAPIConfig.version = "0.1.0"
+# FastAPI Application Configuration - using bind for simpler configuration
+FastAPIConfig.title = "ATS GenAI API"
+FastAPIConfig.description = "Algorithmic Trading System with GenAI"
+FastAPIConfig.version = "0.1.0"
 
-main.CORSConfig.allow_origins = ["*"]
-main.CORSConfig.allow_credentials = true
-main.CORSConfig.allow_methods = ["*"]
-main.CORSConfig.allow_headers = ["*"]
+CORSConfig.allow_origins = ["*"]
+CORSConfig.allow_credentials = True
+CORSConfig.allow_methods = ["*"]
+CORSConfig.allow_headers = ["*"]
 
-# Backtest Analytics API Configuration
-api.backtest_analytics_api.BacktestAPIConfig.title = "Backtest Analytics API"
-api.backtest_analytics_api.BacktestAPIConfig.description = "Advanced portfolio analytics and model performance analysis"
-api.backtest_analytics_api.BacktestAPIConfig.version = "1.0.0"
+# Backtest Analytics API Configuration - using bind for simpler configuration
+BacktestAPIConfig.title = "Backtest Analytics API"
+BacktestAPIConfig.description = "Advanced portfolio analytics and model performance analysis"
+BacktestAPIConfig.version = "1.0.0"
 
-api.backtest_analytics_api.BacktestCORSConfig.allow_origins = ["http://localhost:3000", "http://localhost:8080"]
-api.backtest_analytics_api.BacktestCORSConfig.allow_credentials = true
-api.backtest_analytics_api.BacktestCORSConfig.allow_methods = ["*"]
-api.backtest_analytics_api.BacktestCORSConfig.allow_headers = ["*"]
+BacktestCORSConfig.allow_origins = ["http://localhost:3000", "http://localhost:8080"]
+BacktestCORSConfig.allow_credentials = True
+BacktestCORSConfig.allow_methods = ["*"]
+BacktestCORSConfig.allow_headers = ["*"]
 
-api.backtest_analytics_api.BacktestServerConfig.host = "0.0.0.0"
-api.backtest_analytics_api.BacktestServerConfig.port = 8000
-api.backtest_analytics_api.BacktestServerConfig.reload = true
+BacktestServerConfig.host = "0.0.0.0"
+BacktestServerConfig.port = 8000
+BacktestServerConfig.reload = True
 api.backtest_analytics_api.BacktestServerConfig.log_level = "info"
 
 api.backtest_analytics_api.BacktestQueryConfig.default_limit = 50
