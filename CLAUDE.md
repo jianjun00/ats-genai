@@ -499,13 +499,25 @@ ats-intg-analytics  Up              0.0.0.0:4000->3000/tcp
 - **🗄️ ATS-INTG**: Docker volume `postgres-intg-data`
 - **📍 Location**: Managed by Docker in `/var/snap/docker/common/var-lib-docker/volumes/`
 
-**Vendor-Specific Data Organization (Parquet Files on Disk):**
-- **📊 Polygon**: `/mnt/d/ats-data/minute-bars/polygon/` (minute OHLCV parquet files)
-- **📊 FirstRate**: `/mnt/d/ats-data/minute-bars/firstrate/` (6,289 parquet files, 2020-2025)  
-- **📊 Tiingo**: `/mnt/d/ats-data/minute-bars/tiingo/` (future implementation)
-- **📊 EODHD**: `/mnt/d/ats-data/minute-bars/eodhd/` (future implementation)
+**🚨 CRITICAL: Two-Stream Data Storage Architecture:**
 
-**⚠️ CRITICAL: Minute-bar data is stored as parquet files on disk, NOT in database tables**
+#### **Real-Time Database Storage (Intraday Trading):**
+- **📊 Polygon Real-Time**: Database table `dev_daily_prices_polygon` (partial day data, every 30min)
+- **📊 Tiingo Real-Time**: Database table `dev_daily_prices_tiingo` (partial day data, every 30min)
+- **Purpose**: Fast SQL queries for live trading systems, alerts, real-time analytics
+- **Update Frequency**: Every 30 minutes during market hours (9:30 AM - 4:00 PM EST)
+
+#### **Historical Parquet Storage (Analysis & Research):**
+- **📊 Polygon Complete**: `/mnt/d/ats-data/minute-bars/polygon/` (complete daily minute bars)
+- **📊 Tiingo Complete**: `/mnt/d/ats-data/minute-bars/tiingo/` (complete daily minute bars)
+- **📊 FirstRate Direct**: `/mnt/d/ats-data/minute-bars/firstrate/` (52,796 parquet files, direct download)
+- **Purpose**: ML training, backtesting, historical analysis, research
+- **Update Frequency**: Daily after 7:00 PM EST (complete settlement data)
+
+**⚠️ DESIGN RATIONALE:**
+- **Database**: Optimized for real-time queries during trading hours
+- **Parquet**: Optimized for large-scale historical analysis and ML training
+- **Two streams prevent**: Trading system slowdowns from large historical queries
 
 **Environment Variables Available in Containers:**
 - `ATS_DATA_PATH=/data`
@@ -906,7 +918,40 @@ PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "SE
 | **FMP** | `FMP_API_KEY` | Fundamentals, earnings | 250 calls/day |
 | **Alpha Vantage** | `ALPHA_VANTAGE_API_KEY` | Economic indicators | 25 calls/day |
 | **EODHD** | `EODHD_API_KEY` | EOD prices, fundamentals | 20 calls/min |
-| **FirstRate** | `FIRSTRATE_USER_ID` | Minute-level OHLCV (parquet files) | Premium feed |
+| **FirstRate** | `FIRSTRATE_USER_ID` | Minute-level OHLCV (direct to parquet) | Premium feed |
+
+### **📊 CRITICAL: Market Data Collection Architecture**
+
+**🚨 TWO-STREAM DATA COLLECTION STRATEGY:**
+
+#### **Real-Time Intraday Collection (Database Storage)**
+**Polygon & Tiingo:** Every 30 minutes during market hours
+- **Purpose**: Real-time trading signals, live analytics  
+- **Storage**: Database tables (`dev_daily_prices_polygon`, `dev_daily_prices_tiingo`)
+- **Schedule**: 9:30 AM - 4:00 PM EST, every 30 minutes
+- **Data**: Current day's minute bars (partial day data)
+- **Use Case**: Live trading systems, real-time alerts
+
+#### **End-of-Day Complete Collection (Parquet Files)**  
+**Polygon & Tiingo:** After 7:00 PM daily
+- **Purpose**: Complete historical analysis, backtesting
+- **Storage**: Monthly parquet files (`/mnt/d/ats-data/minute-bars/polygon/`, `/mnt/d/ats-data/minute-bars/tiingo/`)
+- **Schedule**: 7:30 PM EST daily (after markets close + settlement)
+- **Data**: Complete daily minute bars (full day data)
+- **Use Case**: ML training, historical analysis, research
+
+#### **FirstRate Collection (Direct Parquet)**
+**FirstRate:** Single daily download at 2:30 AM
+- **Purpose**: Premium minute bar data for analysis
+- **Storage**: Direct to parquet files (`/mnt/d/ats-data/minute-bars/firstrate/`)  
+- **Schedule**: 2:30 AM EST daily (data available after midnight)
+- **Data**: Previous trading day's complete minute bars
+- **Use Case**: High-quality backtesting, research, ML training
+
+**⚠️ CRITICAL DESIGN RATIONALE:**
+- **Database**: Fast queries for real-time trading (partial day)
+- **Parquet**: Optimized storage for historical analysis (complete day)
+- **Two streams ensure**: Live trading AND historical research capabilities
 
 **API Key Configuration:**
 ```bash
@@ -1427,10 +1472,38 @@ crontab -l
 # * * * * * command
 ```
 
-**Production Cron Schedule:**
+**🚨 CRITICAL: Two-Stream Market Data Collection Schedule:**
 ```bash
-# FirstRate Daily Download - 2:30 AM EST/EDT daily
-30 2 * * * PYTHONPATH=src uv run python scripts/firstrate_daily_download.py --all >> /mnt/d/ats-logs/firstrate-daily.log 2>> /mnt/d/ats-logs/firstrate-daily-error.log
+# ===============================================================================
+# REAL-TIME INTRADAY COLLECTION (Database Storage) - Every 30 minutes during market hours
+# ===============================================================================
+
+# Polygon Real-Time Collection - Every 30 minutes (9:30 AM - 4:00 PM EST)
+30,0 9-15 * * 1-5 cd /home/jianjun/ats-genai-data && PYTHONPATH=src python3 scripts/polygon_realtime_collect.py --database >> /mnt/d/ats-logs/polygon-realtime.log 2>&1
+
+# Tiingo Real-Time Collection - Every 30 minutes (9:30 AM - 4:00 PM EST)  
+30,0 9-15 * * 1-5 cd /home/jianjun/ats-genai-data && PYTHONPATH=src python3 scripts/tiingo_realtime_collect.py --database >> /mnt/d/ats-logs/tiingo-realtime.log 2>&1
+
+# ===============================================================================
+# END-OF-DAY COMPLETE COLLECTION (Parquet Files) - After 7:00 PM daily
+# ===============================================================================
+
+# Polygon End-of-Day Complete Minute Bars - 7:30 PM EST daily (after settlement)
+30 19 * * 1-5 cd /home/jianjun/ats-genai-data && PYTHONPATH=src python3 scripts/polygon_eod_minute_bars.py --parquet >> /mnt/d/ats-logs/polygon-eod.log 2>&1
+
+# Tiingo End-of-Day Complete Minute Bars - 8:00 PM EST daily (after settlement)
+0 20 * * 1-5 cd /home/jianjun/ats-genai-data && PYTHONPATH=src python3 scripts/tiingo_eod_minute_bars.py --parquet >> /mnt/d/ats-logs/tiingo-eod.log 2>&1
+
+# ===============================================================================
+# FIRSTRATE DIRECT-TO-PARQUET COLLECTION - Single daily download
+# ===============================================================================
+
+# FirstRate Daily Download - 2:30 AM EST/EDT daily (previous trading day data)
+30 2 * * * cd /home/jianjun/ats-genai-data && PYTHONPATH=src uv run python scripts/firstrate_daily_download.py --all >> /mnt/d/ats-logs/firstrate-daily.log 2>> /mnt/d/ats-logs/firstrate-daily-error.log
+
+# ===============================================================================
+# ATS PLATFORM MAINTENANCE
+# ===============================================================================
 
 # ATS Platform Daily Backups
 0 2 * * * /home/jianjun/ats-genai-data/scripts/daily_backup_ats_dev.sh        # ATS-DEV backup at 2:00 AM
