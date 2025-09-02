@@ -261,9 +261,9 @@ def parse_args():
     # Output configuration
     parser.add_argument('--output-dir', default='/data/training/sequences',
                        help='Output directory for training data')
-    parser.add_argument('--storage-format', default='pickle',
-                       choices=['riegeli', 'tfrecord', 'pickle', 'parquet'],
-                       help='Storage format for training data')
+    parser.add_argument('--storage-format', default='riegeli',
+                       choices=['riegeli'],
+                       help='Storage format for training data (Riegeli only)')
     parser.add_argument('--use-advanced-storage', action='store_true',
                        help='Use SequenceStorageManager for advanced storage')
     parser.add_argument('--compression-level', type=int, default=6,

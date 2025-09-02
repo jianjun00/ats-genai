@@ -34,7 +34,7 @@ class DateBasedTrainingDataCallback(RunnerCallback):
                  config: Optional[Any] = None,  # Accept any config object
                  storage_manager: Optional[SequenceStorageManager] = None,
                  output_dir: str = "/data/training/sequences",
-                 save_format: str = "advanced"):  # "advanced", "pickle", "parquet"
+                 save_format: str = "riegeli"):  # "riegeli" only - removed pickle and parquet support
         """
         Initialize the date-based training data callback.
         
@@ -43,7 +43,7 @@ class DateBasedTrainingDataCallback(RunnerCallback):
             config: Training data configuration
             storage_manager: Storage manager for advanced storage
             output_dir: Base output directory 
-            save_format: Format to save data ("advanced", "pickle", "parquet")
+            save_format: Format to save data ("riegeli" only)
         """
         self.symbols = symbols
         self.config = config  # Use provided config or None

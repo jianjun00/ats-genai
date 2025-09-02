@@ -49,7 +49,21 @@ async def run_hermetic_tests() -> bool:
         window_suite = TwentyOneRowWindowVisualizationTests()
         window_result = await window_suite.run_all_tests()
         
-        return hermetic_result and bug_result and window_result
+        # Run data bounds validation tests (addresses "Start index out of bounds" errors)
+        print(f"\n{'='*80}")
+        from integration.test_data_bounds_validation import DataBoundsValidationTests
+        
+        bounds_suite = DataBoundsValidationTests()
+        bounds_result = await bounds_suite.run_all_tests()
+        
+        # Run API bounds integration tests
+        print(f"\n{'='*80}")
+        from integration.test_api_bounds_integration import APIBoundsIntegrationTests
+        
+        api_bounds_suite = APIBoundsIntegrationTests()
+        api_bounds_result = await api_bounds_suite.run_all_tests()
+        
+        return hermetic_result and bug_result and window_result and bounds_result and api_bounds_result
         
     except ImportError as e:
         print(f"❌ Failed to import hermetic test suite: {e}")
@@ -117,6 +131,8 @@ async def run_all_tests() -> bool:
     print(f"     - Training Data Visualization Suite")
     print(f"     - Datetime Bug Detection Tests")
     print(f"     - 21-Row Window Visualization Tests")
+    print(f"     - Data Bounds Validation Tests (prevents 'Start index out of bounds')")
+    print(f"     - API Bounds Integration Tests")
     print(f"   Integration Tests: {'✅ PASSED' if integration_result else '❌ FAILED'}")
     
     overall_success = hermetic_result and integration_result

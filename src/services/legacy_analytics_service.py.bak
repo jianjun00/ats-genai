@@ -22,10 +22,6 @@ logger = logging.getLogger(__name__)
 # Add the src directory to the path for imports
 from core.database.connection_manager import get_connection_manager
 from core.config.settings import get_settings
-from services.universe_analytics_service import UniverseAnalyticsService
-from dataclasses import asdict
-from datetime import date, timedelta
-from urllib.parse import urlparse, parse_qs
 
 # Ray EDA integration for massive dataset analysis
 try:
@@ -75,9 +71,8 @@ class JobManager:
     def __init__(self):
         self.db_manager = get_connection_manager()
         self.settings = get_settings()
-        self.universe_service = None
         
-    async def initialize(self):
+    def initialize(self):
         """Initialize database connection using centralized manager."""
         try:
             # Test the centralized connection
@@ -85,18 +80,6 @@ class JobManager:
                 logger.info("✅ Database connection established via centralized manager")
             else:
                 logger.warning("⚠️ Database connection check failed")
-            
-            # Initialize universe service
-            try:
-                from config.environment import Environment
-                env = Environment()
-                self.universe_service = UniverseAnalyticsService(env)
-                await self.universe_service.initialize()
-                logger.info("✅ Universe analytics service initialized")
-            except Exception as e:
-                logger.warning(f"⚠️ Universe service initialization failed: {e}")
-                self.universe_service = None
-                
         except Exception as e:
             logger.warning(f"Database initialization failed: {e}")
     
@@ -820,7 +803,16 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             return {"error": f"Ray analysis failed: {str(e)}"}
     
     def get_training_datasets(self):
-        """Get training datasets from database for dual-tab functionality"""
+        """Get training datasets from database for dual-tab functionality with per-symbol file support.
+        
+        UNIFIED TRAINING DATASET STRUCTURE SUPPORT:
+        - Handles both legacy single-file datasets and new unified run-based datasets
+        - New datasets have run_id, dataset_path, and symbol_files (JSONB mapping)
+        - symbol_files format: {"AAPL": "path/to/aapl.riegeli", "TSLA": "path/to/tsla.riegeli"}
+        - Example dataset ID 23: unified_training_run_20250901_193706_20250901_193707
+          * 169 total sequences (79 AAPL + 90 TSLA)
+          * File pattern: /mnt/d/ats-data/training/run_20250901_193706/<symbol>/<datetime>.riegeli
+        """
         try:
             from core.database.connection_manager import get_raw_connection
             
@@ -833,10 +825,10 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 from psycopg2.extras import RealDictCursor
                 with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                     cursor.execute(f"""
-                        SELECT id, dataset_name, total_sequences, feature_count, label_count,
+                        SELECT id, dataset_name, run_id, dataset_path, total_sequences, feature_count, label_count,
                                data_quality_score, feature_completeness, label_completeness,
                                file_size_mb, technical_indicators, symbols, 
-                               date_range_start, date_range_end, created_at
+                               date_range_start, date_range_end, symbol_files, created_at
                         FROM {table_name} 
                         ORDER BY created_at DESC 
                         LIMIT 20
@@ -846,9 +838,19 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     
                     datasets = []
                     for row in results:
+                        # Parse symbol files JSON if available
+                        symbol_files = {}
+                        if row.get('symbol_files'):
+                            try:
+                                symbol_files = json.loads(row['symbol_files']) if isinstance(row['symbol_files'], str) else row['symbol_files']
+                            except:
+                                symbol_files = {}
+                        
                         dataset = {
                             'id': row['id'],
                             'dataset_name': row['dataset_name'],
+                            'run_id': row.get('run_id', ''),
+                            'dataset_path': row.get('dataset_path', ''),
                             'total_sequences': row['total_sequences'] or 0,
                             'feature_count': row['feature_count'] or 0,
                             'label_count': row['label_count'] or 0,
@@ -858,6 +860,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             'file_size_mb': float(row['file_size_mb']) if row['file_size_mb'] else 0.0,
                             'technical_indicators': row['technical_indicators'] or "",
                             'symbols': list(row['symbols']) if row['symbols'] else [],
+                            'symbol_files': symbol_files,
                             'date_range_start': row['date_range_start'].isoformat() if row['date_range_start'] else None,
                             'date_range_end': row['date_range_end'].isoformat() if row['date_range_end'] else None,
                             'created_at': row['created_at'].isoformat() if row['created_at'] else None
@@ -1075,68 +1078,6 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                     feature_data = numeric_df.values.astype(float)
                                     
                                     logger.info(f"Loaded CSV data: {feature_data.shape} from {actual_feature_path}")
-                                elif actual_feature_path.endswith('.riegeli'):
-                                    # Load riegeli format - use metadata for shape information
-                                    import json
-                                    
-                                    # Find metadata file (should be in parent directory)
-                                    riegeli_dir = os.path.dirname(actual_feature_path)
-                                    metadata_file = os.path.join(os.path.dirname(riegeli_dir), 'metadata.json')
-                                    
-                                    if os.path.exists(metadata_file):
-                                        try:
-                                            with open(metadata_file, 'r') as f:
-                                                metadata = json.load(f)
-                                            
-                                            # Extract symbol from filename (e.g., AAPL from path ending with /AAPL/*.riegeli)
-                                            symbol = os.path.basename(riegeli_dir)
-                                            symbol_metadata = metadata.get('symbol_metadata', {}).get(symbol, {})
-                                            
-                                            num_sequences = symbol_metadata.get('num_sequences', 0)
-                                            sequence_length = symbol_metadata.get('sequence_length', 0)
-                                            num_features = symbol_metadata.get('num_features', 0)
-                                            feature_names = symbol_metadata.get('feature_names', [])
-                                            
-                                            # Generate synthetic tabular data for display
-                                            # TODO: Replace with actual riegeli reading when reader is available
-                                            import numpy as np
-                                            
-                                            # Create tabular data: each row is a flattened time sequence
-                                            total_rows = num_sequences
-                                            total_cols = sequence_length * num_features
-                                            
-                                            # Skip offset rows and limit results 
-                                            start_row = min(offset, total_rows - 1) if total_rows > 0 else 0
-                                            end_row = min(start_row + limit, total_rows)
-                                            actual_rows = max(0, end_row - start_row)
-                                            
-                                            if actual_rows > 0:
-                                                synthetic_data = np.random.random((actual_rows, total_cols)).astype(np.float32)
-                                                
-                                                # Apply realistic price-like scaling
-                                                for seq_idx in range(actual_rows):
-                                                    for feat_idx, fname in enumerate(feature_names):
-                                                        # Apply scaling to each feature across all time steps
-                                                        for t in range(sequence_length):
-                                                            col_idx = t * num_features + feat_idx
-                                                            if col_idx < total_cols:
-                                                                if fname.lower() in ['open', 'high', 'low', 'close', 'sma_20', 'ema_12', 'ema_26']:
-                                                                    synthetic_data[seq_idx, col_idx] = synthetic_data[seq_idx, col_idx] * 100 + 150  # Price range 150-250
-                                                                elif fname.lower() == 'volume':
-                                                                    synthetic_data[seq_idx, col_idx] = synthetic_data[seq_idx, col_idx] * 1000000 + 100000  # Volume range
-                                                
-                                                feature_data = synthetic_data
-                                                logger.info(f"Generated riegeli tabular data: {feature_data.shape} (rows {start_row}-{end_row} of {total_rows})")
-                                            else:
-                                                feature_data = np.empty((0, total_cols))
-                                                logger.info("No data rows available for requested page")
-                                                
-                                        except Exception as e:
-                                            logger.error(f"Error reading riegeli metadata for table data: {str(e)}")
-                                            feature_data = np.empty((0, 0))
-                                    else:
-                                        logger.warning(f"Riegeli metadata file not found for table data: {metadata_file}")
-                                        feature_data = np.empty((0, 0))
                                 else:
                                     # Load numpy files
                                     with np.load(actual_feature_path, mmap_mode='r') as features_mmap:
@@ -1300,8 +1241,18 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 'error': str(e)
             }
     
-    def get_training_dataset_visualization_data(self, dataset_id, start_idx=0, count=21):
-        """Get training dataset data for interactive OHLC visualization."""
+    def get_training_dataset_visualization_data(self, dataset_id, start_idx=0, count=21, symbol=None):
+        """Get training dataset data for interactive OHLC visualization with per-symbol file support.
+        
+        UNIFIED TRAINING DATASET VISUALIZATION:
+        - Supports both legacy single-file datasets and new unified per-symbol structure
+        - For unified datasets (e.g., ID 23), symbol parameter selects specific file:
+          * symbol="AAPL" loads: /mnt/d/ats-data/training/run_20250901_193706/AAPL/20250131_000000_20250827_000000.riegeli
+          * symbol="TSLA" loads: /mnt/d/ats-data/training/run_20250901_193706/TSLA/20250128_000000_20250901_000000.riegeli
+        - If no symbol specified for unified dataset, loads first available symbol file
+        - API endpoint: /api/v1/training-datasets/{id}/visualization-data?symbol=AAPL
+        - Returns OHLC data with technical indicators for interactive chart visualization
+        """
         try:
             from core.database.connection_manager import get_raw_connection
             import numpy as np
@@ -1315,9 +1266,10 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             with get_raw_connection() as conn:
                 from psycopg2.extras import RealDictCursor
                 with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                    # Get dataset info and file paths
+                    # Get dataset info with unified structure support
                     cursor.execute(f"""
-                        SELECT features_file_path, labels_file_path, metadata_file_path,
+                        SELECT dataset_path, symbol_files, symbols,
+                               features_file_path, labels_file_path, metadata_file_path,
                                sequence_length, total_sequences
                         FROM {table_name} 
                         WHERE id = %s
@@ -1328,9 +1280,35 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     if not dataset_info:
                         return {"error": "Dataset not found", "data": []}
             
-            # Get file paths
-            features_file_path = dataset_info.get('features_file_path')
-            metadata_file_path = dataset_info.get('metadata_file_path')
+            # Handle unified structure with per-symbol files
+            # UNIFIED DATASET STRUCTURE SUPPORT:
+            # - symbol_files is JSONB mapping: {"AAPL": "/path/to/aapl.riegeli", "TSLA": "/path/to/tsla.riegeli"}
+            # - For dataset ID 23: contains paths to AAPL (79 seqs) and TSLA (90 seqs) Riegeli files
+            symbol_files = {}
+            if dataset_info.get('symbol_files'):
+                try:
+                    symbol_files = json.loads(dataset_info['symbol_files']) if isinstance(dataset_info['symbol_files'], str) else dataset_info['symbol_files']
+                except:
+                    symbol_files = {}
+            
+            # Determine which file to load based on unified vs legacy structure
+            features_file_path = None
+            
+            if symbol_files and symbol:
+                # Load specific symbol file from unified structure (e.g., ?symbol=AAPL)
+                features_file_path = symbol_files.get(symbol)
+                if not features_file_path:
+                    return {"error": f"Symbol '{symbol}' not found in dataset", "data": []}
+                logger.info(f"Loading unified dataset symbol '{symbol}' file: {features_file_path}")
+            elif symbol_files and not symbol:
+                # Load first symbol file if no specific symbol requested for unified dataset
+                first_symbol = list(symbol_files.keys())[0] if symbol_files else None
+                if first_symbol:
+                    features_file_path = symbol_files[first_symbol]
+                    logger.info(f"Loading first symbol '{first_symbol}' from unified dataset: {features_file_path}")
+            else:
+                # Fallback to legacy single file structure (features_file_path column)
+                features_file_path = dataset_info.get('features_file_path')
             
             if not features_file_path:
                 return {"error": "Features file path not found", "data": []}
@@ -1347,13 +1325,6 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             container_features_path = features_file_path
             if features_file_path.startswith('/mnt/d/ats-data/'):
                 container_features_path = features_file_path.replace('/mnt/d/ats-data/', '/data/')
-            
-            # Also fix metadata file path in container
-            container_metadata_path = None
-            if metadata_file_path:
-                container_metadata_path = metadata_file_path
-                if metadata_file_path.startswith('/mnt/d/ats-data/'):
-                    container_metadata_path = metadata_file_path.replace('/mnt/d/ats-data/', '/data/')
             
             # Check if file exists (try both host and container paths)
             file_to_load = None
@@ -1417,197 +1388,219 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         logger.info(f"Loaded CSV sequence data: {features_data.shape} (1 sequence with {features_data.shape[1]} time steps)")
                     
                 elif file_to_load.endswith('.riegeli'):
-                    # Load riegeli format - use metadata for shape information
-                    import json
+                    # Load Riegeli format using custom reader
+                    logger.info(f"Loading Riegeli file: {file_to_load}")
                     
-                    # Find metadata file (should be in parent directory)
-                    riegeli_dir = os.path.dirname(file_to_load)
-                    metadata_file = os.path.join(os.path.dirname(riegeli_dir), 'metadata.json')
+                    # Load data from Riegeli file using custom reader
+                    features_data, metadata = self._load_riegeli_training_data(file_to_load)
+                    if metadata:
+                        feature_names = metadata.get('feature_names', [])
+                        
+                    # Riegeli data is already in correct shape [sequences, time_steps, features]
+                    # No reshaping needed, just log the shape
+                    logger.info(f"Loaded Riegeli data: {features_data.shape} ({features_data.shape[0]} sequences, {features_data.shape[1]} time steps, {features_data.shape[2]} features)")
                     
-                    # Also try container metadata path if available
-                    if not os.path.exists(metadata_file) and container_metadata_path:
-                        metadata_file = container_metadata_path
+                elif file_to_load.endswith('.json'):
+                    # Load JSON format for demo datasets
+                    with open(file_to_load, 'r') as f:
+                        json_data = json.load(f)
                     
-                    if not os.path.exists(metadata_file):
-                        return {"error": f"Riegeli metadata file not found: {metadata_file}", "data": []}
-                    
-                    try:
-                        with open(metadata_file, 'r') as f:
-                            metadata = json.load(f)
+                    # Extract examples and metadata
+                    if 'examples' in json_data and 'metadata' in json_data:
+                        examples = json_data['examples']
+                        metadata = json_data['metadata']
                         
-                        # Extract symbol from filename (e.g., AAPL from path ending with /AAPL/*.riegeli)
-                        symbol = os.path.basename(riegeli_dir)
-                        symbol_metadata = metadata.get('symbol_metadata', {}).get(symbol, {})
+                        # Convert to numpy array
+                        features_list = [example['base_features'] for example in examples]
+                        features_data = np.array(features_list)
                         
-                        num_sequences = symbol_metadata.get('num_sequences', 0)
-                        sequence_length = symbol_metadata.get('sequence_length', 0) 
-                        num_features = symbol_metadata.get('num_features', 0)
-                        feature_names = symbol_metadata.get('feature_names', [])
+                        # Set feature names from metadata
+                        feature_names = metadata.get('feature_names', [])
+                        is_time_series = metadata.get('data_format') == 'demo_json'  # Treat as time series
                         
-                        logger.info(f"Riegeli metadata: {num_sequences} sequences × {sequence_length} steps × {num_features} features")
-                        
-                        # Generate synthetic data matching the metadata shape for visualization
-                        # TODO: Replace with actual riegeli reading when reader is available
-                        import numpy as np
-                        features_data = np.random.random((num_sequences, sequence_length, num_features)).astype(np.float32)
-                        
-                        # Apply realistic price-like scaling based on feature names
-                        for i, fname in enumerate(feature_names[:features_data.shape[2]]):
-                            if fname.lower() in ['open', 'high', 'low', 'close', 'sma_20', 'ema_12', 'ema_26']:
-                                features_data[:, :, i] = features_data[:, :, i] * 100 + 150  # Price range 150-250
-                            elif fname.lower() == 'volume':
-                                features_data[:, :, i] = features_data[:, :, i] * 1000000 + 100000  # Volume range
-                            elif fname.lower() in ['etop', 'ebot']:
-                                features_data[:, :, i] = features_data[:, :, i] * 10 + (160 if 'etop' in fname else 140)
-                        
-                        logger.info(f"Generated synthetic data for riegeli visualization: {features_data.shape}")
-                        
-                    except Exception as e:
-                        return {"error": f"Error reading riegeli metadata: {str(e)}", "data": []}
+                        if is_time_series:
+                            # JSON demo data: reshape to [time_points, 1, features] 
+                            features_data = features_data.reshape(features_data.shape[0], 1, features_data.shape[1])
+                            logger.info(f"Loaded JSON demo data: {features_data.shape} ({features_data.shape[0]} time points)")
+                        else:
+                            # JSON sequence data: reshape to [1, time_steps, features]
+                            features_data = features_data.reshape(1, features_data.shape[0], features_data.shape[1])
+                            logger.info(f"Loaded JSON sequence data: {features_data.shape} (1 sequence with {features_data.shape[1]} time steps)")
+                    else:
+                        return {"error": "Invalid JSON format - missing 'examples' or 'metadata'", "data": []}
                     
                 else:
-                    return {"error": f"Unsupported file format: {file_to_load}. Expected .npy, .csv, or .riegeli", "data": []}
-            except Exception as e:
-                return {"error": f"Error loading features file {file_to_load}: {str(e)}", "data": []}
-            
-            # Calculate the selected sequence index and time step within sequence
-            # Detect time series format by checking if features_data shape indicates time series structure
-            # Time series: [num_time_points, 1, features] vs Sequences: [num_sequences, time_steps, features]
-            dataset_name = dataset_info.get('dataset_name', '')
-            
-            # Check data shape to determine if it's time series (middle dimension = 1) or sequences
-            is_time_series_shape = features_data.shape[1] == 1
-            
-            if is_time_series_shape:
-                # For time series: sequence_length = 1, start_idx directly maps to sequence index
-                sequence_length = 1
-                sequence_idx = start_idx
-                time_step_in_sequence = 0  # Always 0 since each sequence has only 1 time step
-                logger.info(f"Time series detected: {features_data.shape[0]} time points, sequence_idx={sequence_idx}")
-            else:
-                # For sequence data: use traditional sequence_length (default 60)
-                sequence_length = dataset_info.get('sequence_length', 60)
+                    return {"error": f"Unsupported file format: {file_to_load}. Expected .npy, .csv, .json, or .riegeli", "data": []}
                 
-                # Prevent division by zero
-                if sequence_length <= 0:
-                    sequence_length = features_data.shape[1]  # Use actual time step dimension
-                    logger.warning(f"Invalid sequence_length from database, using actual: {sequence_length}")
+                # Process visualization data after loading
+                logger.info(f"Processing visualization data: shape={features_data.shape}, start_idx={start_idx}, count={count}")
                 
-                sequence_idx = start_idx // sequence_length
-                time_step_in_sequence = start_idx % sequence_length
-                logger.info(f"Sequence data detected: {features_data.shape[0]} sequences of {features_data.shape[1]} steps, sequence_idx={sequence_idx}")
-            
-            # BOUNDS VALIDATION FIX: Proactive checking with graceful degradation
-            actual_sequences = features_data.shape[0]
-            claimed_sequences = dataset_info.get('total_sequences', actual_sequences)
-            
-            # If sequence index exceeds actual data, provide graceful fallback
-            if sequence_idx >= actual_sequences:
-                # Clamp to the last available sequence for graceful degradation
-                safe_sequence_idx = max(0, actual_sequences - 1)
-                safe_start_idx = safe_sequence_idx * sequence_length + time_step_in_sequence
+                # Calculate the selected sequence index and time step within sequence
+                dataset_name = dataset_info.get('dataset_name', '')
+                
+                # Check data shape to determine if it's time series (middle dimension = 1) or sequences
+                is_time_series_shape = len(features_data.shape) >= 2 and features_data.shape[1] == 1
+                
+                if is_time_series_shape:
+                    # For time series: sequence_length = 1, start_idx directly maps to sequence index
+                    sequence_length = 1
+                    sequence_idx = start_idx
+                    time_step_in_sequence = 0
+                    logger.info(f"Time series detected: {features_data.shape[0]} time points, sequence_idx={sequence_idx}")
+                else:
+                    # For sequence data: use sequence_length from dataset or default to actual data shape
+                    sequence_length = dataset_info.get('sequence_length', 0)
+                    if sequence_length == 0:
+                        sequence_length = features_data.shape[1] if len(features_data.shape) > 1 else 60
+                    sequence_idx = start_idx // sequence_length
+                    time_step_in_sequence = start_idx % sequence_length
+                    logger.info(f"Sequence data detected: {features_data.shape[0]} sequences of {features_data.shape[1] if len(features_data.shape) > 1 else 1} steps, sequence_idx={sequence_idx}")
+                
+                # BOUNDS VALIDATION FIX: Proactive checking with graceful degradation
+                actual_sequences = features_data.shape[0]
+                
+                # If sequence index exceeds actual data, provide graceful fallback
+                if sequence_idx >= actual_sequences:
+                    # Clamp to the last available sequence for graceful degradation
+                    safe_sequence_idx = max(0, actual_sequences - 1)
+                    safe_start_idx = safe_sequence_idx * sequence_length + time_step_in_sequence
+                    
+                    return {
+                        "error": "Start index out of bounds - using nearest available data",
+                        "data": [],
+                        "bounds_info": {
+                            "requested_sequence": sequence_idx,
+                            "requested_start_idx": start_idx,
+                            "available_sequences": actual_sequences,
+                            "suggested_sequence": safe_sequence_idx,
+                            "suggested_start_idx": safe_start_idx,
+                            "sequence_length": sequence_length
+                        },
+                        "user_message": f"Requested sequence {sequence_idx} is beyond available data (max: {actual_sequences-1}). Please select a sequence between 0 and {actual_sequences-1}."
+                    }
+                
+                # Extract data around the selected point (10 before, current, 10 after)
+                half_window = count // 2
+                
+                if is_time_series_shape:
+                    # For time series: extract consecutive time points around selected point
+                    start_sequence = max(0, sequence_idx - half_window)
+                    end_sequence = min(actual_sequences, sequence_idx + half_window + 1)
+                    
+                    # Extract across multiple sequences (time points), each with 1 time step
+                    data_slice = features_data[start_sequence:end_sequence, 0, :]  # All sequences, first (only) time step
+                    logger.info(f"Time series window: sequences {start_sequence}-{end_sequence-1}, shape={data_slice.shape}")
+                    
+                    start_index = start_sequence
+                    selected_relative_index = sequence_idx - start_sequence
+                else:
+                    # For sequence data: extract time steps within the selected sequence
+                    start_time_step = max(0, time_step_in_sequence - half_window)
+                    end_time_step = min(sequence_length, time_step_in_sequence + half_window + 1)
+                    
+                    # Get the data slice from single sequence
+                    data_slice = features_data[sequence_idx, start_time_step:end_time_step, :]
+                    logger.info(f"Sequence window: sequence {sequence_idx}, time_steps {start_time_step}-{end_time_step-1}, shape={data_slice.shape}")
+                    
+                    start_index = start_time_step
+                    selected_relative_index = time_step_in_sequence - start_time_step
+                
+                # Use feature names from metadata or defaults
+                if 'feature_names' not in locals() or not feature_names:
+                    feature_names = ['open', 'high', 'low', 'close', 'volume', 'etop', 'ebot', 'pldot', 'sma_20', 'ema_12', 'ema_26']
+                
+                # Create visualization data structure
+                visualization_data = []
+                for i, row in enumerate(data_slice):
+                    row_data = {
+                        'index': start_index + i,
+                        'is_selected': i == selected_relative_index
+                    }
+                    
+                    # Map features to their names
+                    for j, feature_name in enumerate(feature_names):
+                        if j < len(row):
+                            row_data[feature_name] = float(row[j])
+                    
+                    visualization_data.append(row_data)
+                
+                logger.info(f"Created visualization data: {len(visualization_data)} points")
                 
                 return {
-                    "error": "Start index out of bounds - using nearest available data",
-                    "data": [],
-                    "bounds_info": {
-                        "requested_sequence": sequence_idx,
-                        "requested_start_idx": start_idx,
-                        "available_sequences": actual_sequences,
-                        "claimed_sequences": claimed_sequences,
-                        "suggested_sequence": safe_sequence_idx,
-                        "suggested_start_idx": safe_start_idx,
-                        "sequence_length": sequence_length
-                    },
-                    "user_message": f"Requested sequence {sequence_idx} is beyond available data (max: {actual_sequences-1}). Please select a sequence between 0 and {actual_sequences-1}."
+                    'data': visualization_data,
+                    'sequence_idx': sequence_idx,
+                    'selected_time_step': time_step_in_sequence,
+                    'total_sequences': features_data.shape[0],
+                    'sequence_length': sequence_length,
+                    'feature_names': feature_names
                 }
-            
-            # Extract data around the selected point (10 before, current, 10 after)
-            half_window = count // 2
-            
-            if is_time_series_shape:
-                # For time series: extract 21 consecutive time points (sequences) around selected point
-                start_sequence = max(0, sequence_idx - half_window)
-                end_sequence = min(actual_sequences, sequence_idx + half_window + 1)
-                
-                # Extract across multiple sequences (time points), each with 1 time step
-                data_slice = features_data[start_sequence:end_sequence, 0, :]  # All sequences, first (only) time step
-                logger.info(f"Time series window: sequences {start_sequence}-{end_sequence-1}, shape={data_slice.shape}")
-                
-                # For time series: use start_sequence as the base index
-                start_index = start_sequence
-                selected_relative_index = sequence_idx - start_sequence
-            else:
-                # For sequence data: extract time steps within the selected sequence
-                start_time_step = max(0, time_step_in_sequence - half_window)
-                end_time_step = min(sequence_length, time_step_in_sequence + half_window + 1)
-                
-                # Get the data slice from single sequence
-                data_slice = features_data[sequence_idx, start_time_step:end_time_step, :]
-                logger.info(f"Sequence window: sequence {sequence_idx}, time_steps {start_time_step}-{end_time_step-1}, shape={data_slice.shape}")
-                
-                # For sequence data: use start_time_step as the base index
-                start_index = start_time_step
-                selected_relative_index = time_step_in_sequence - start_time_step
-            
-            # Load feature names - use numeric column names for CSV data, or metadata for other formats
-            if file_to_load.endswith('.csv') and 'numeric_feature_names' in locals():
-                # For CSV files, use the actual numeric column names to ensure proper alignment
-                feature_names = numeric_feature_names
-                logger.info(f"Using CSV numeric column names: {feature_names}")
-            else:
-                # For non-CSV files, use default or metadata feature names
-                feature_names = ['open', 'high', 'low', 'close', 'volume', 'etop', 'ebot', 'pldot', 'z1b', 'z2b', 'z5t', 'z6t']
-                
-                if metadata_file_path:
-                    # Map metadata path for container compatibility
-                    container_metadata_path = metadata_file_path
-                    if metadata_file_path.startswith('/mnt/d/ats-data/'):
-                        container_metadata_path = metadata_file_path.replace('/mnt/d/ats-data/', '/data/')
                     
-                    metadata_to_load = None
-                    if os.path.exists(container_metadata_path):
-                        metadata_to_load = container_metadata_path
-                    elif os.path.exists(metadata_file_path):
-                        metadata_to_load = metadata_file_path
-                    
-                    if metadata_to_load:
-                        try:
-                            import json
-                            with open(metadata_to_load, 'r') as f:
-                                metadata = json.load(f)
-                                feature_names = metadata.get('feature_names', feature_names)
-                                logger.info(f"Loaded feature names from metadata: {feature_names}")
-                        except Exception as e:
-                            logger.warning(f"Could not load feature names from metadata: {e}")
-            
-            # Create visualization data structure
-            visualization_data = []
-            for i, row in enumerate(data_slice):
-                row_data = {
-                    'index': start_index + i,
-                    'is_selected': i == selected_relative_index
-                }
+            except Exception as e:
+                return {"error": f"Error loading features file {file_to_load}: {str(e)}", "data": []}
                 
-                # Map features to their names
-                for j, feature_name in enumerate(feature_names):
-                    if j < len(row):
-                        row_data[feature_name] = float(row[j])
-                
-                visualization_data.append(row_data)
-            
-            return {
-                'data': visualization_data,
-                'sequence_idx': sequence_idx,
-                'selected_time_step': time_step_in_sequence,
-                'total_sequences': features_data.shape[0],
-                'sequence_length': sequence_length,
-                'feature_names': feature_names
-            }
-            
         except Exception as e:
-            logger.error(f"Error loading visualization data: {e}")
+            logger.error(f"Error in get_training_dataset_visualization_data: {e}")
             return {"error": str(e), "data": []}
+    
+    def _load_riegeli_training_data(self, riegeli_file_path):
+        """Load training data from custom Riegeli binary format."""
+        import numpy as np
+        import json
+        import struct
+        import zlib
+        
+        features_list = []
+        metadata = None
+        
+        try:
+            with open(riegeli_file_path, 'rb') as f:
+                # Read header magic bytes
+                magic = f.read(7)
+                if magic != b'RIEGELI':
+                    raise ValueError(f"Invalid Riegeli file format: {riegeli_file_path}")
+                
+                # Read number of records
+                num_records = struct.unpack('<Q', f.read(8))[0]
+                logger.info(f"Loading {num_records} records from Riegeli file")
+                
+                # Read each record
+                for i in range(num_records):
+                    # Read record length
+                    record_length = struct.unpack('<Q', f.read(8))[0]
+                    
+                    # Read record data
+                    record_data = f.read(record_length)
+                    
+                    # Decompress if needed (assume all records are compressed)
+                    try:
+                        decompressed_data = zlib.decompress(record_data)
+                        record = json.loads(decompressed_data.decode('utf-8'))
+                    except:
+                        # Fallback: try without decompression
+                        record = json.loads(record_data.decode('utf-8'))
+                    
+                    # First record might contain metadata
+                    if i == 0 and 'symbol' in record and 'num_sequences' in record:
+                        metadata = record
+                        continue
+                    
+                    # Extract features from the training example
+                    if 'features' in record:
+                        # Convert features to numpy array
+                        features = np.array(record['features'])
+                        features_list.append(features)
+            
+            if features_list:
+                # Stack all features into a single numpy array [sequences, time_steps, features]
+                features_data = np.stack(features_list, axis=0)
+                logger.info(f"Loaded Riegeli data shape: {features_data.shape}")
+                return features_data, metadata
+            else:
+                raise ValueError("No feature data found in Riegeli file")
+                
+        except Exception as e:
+            logger.error(f"Error loading Riegeli training data from {riegeli_file_path}: {e}")
+            raise
     
     def do_GET(self):
         logger.info(f"📍 GET request: {self.path}")
@@ -2062,11 +2055,12 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 
                 start_idx = int(query_params.get('start_idx', ['0'])[0])
                 count = int(query_params.get('count', ['21'])[0])
+                symbol = query_params.get('symbol', [None])[0]  # Extract symbol parameter
                 
-                logger.info(f"Loading visualization data for dataset ID: {dataset_id}, start_idx: {start_idx}, count: {count}")
+                logger.info(f"Loading visualization data for dataset ID: {dataset_id}, start_idx: {start_idx}, count: {count}, symbol: {symbol}")
                 
-                # Get training data for visualization
-                visualization_data = self.get_training_dataset_visualization_data(dataset_id, start_idx, count)
+                # Get training data for visualization with symbol support
+                visualization_data = self.get_training_dataset_visualization_data(dataset_id, start_idx, count, symbol)
                 self.wfile.write(json.dumps(visualization_data).encode('utf-8'))
                 
             except Exception as e:
@@ -2236,232 +2230,6 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             self.end_headers()
             eda_html = self.get_eda_dashboard_html()
             self.wfile.write(eda_html.encode('utf-8'))
-        
-        # Universe Analytics Endpoints
-        elif self.path == '/analytics/universes':
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json; charset=utf-8')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            try:
-                if job_manager.universe_service:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    universes = loop.run_until_complete(job_manager.universe_service.get_all_universes())
-                    response = {
-                        "status": "success",
-                        "universes": universes,
-                        "count": len(universes)
-                    }
-                    self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
-                else:
-                    error_response = {"error": "Universe service not available"}
-                    self.wfile.write(json.dumps(error_response).encode('utf-8'))
-            except Exception as e:
-                logger.error(f"Error in universes endpoint: {e}")
-                error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode('utf-8'))
-        
-        elif self.path.startswith('/analytics/universe/') and '/metrics' in self.path:
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json; charset=utf-8')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            try:
-                # Parse URL: /analytics/universe/{id}/metrics?as_of_date=YYYY-MM-DD
-                path_parts = self.path.split('/')
-                universe_id = int(path_parts[3])
-                
-                # Parse query parameters
-                parsed_url = urlparse(self.path)
-                query_params = parse_qs(parsed_url.query)
-                as_of_date = query_params.get('as_of_date', [None])[0]
-                
-                if job_manager.universe_service:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    
-                    target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
-                    metrics = loop.run_until_complete(job_manager.universe_service.get_universe_metrics(universe_id, target_date))
-                    
-                    response = {
-                        "status": "success",
-                        "metrics": asdict(metrics)
-                    }
-                    self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
-                else:
-                    error_response = {"error": "Universe service not available"}
-                    self.wfile.write(json.dumps(error_response).encode('utf-8'))
-            except Exception as e:
-                logger.error(f"Error in universe metrics endpoint: {e}")
-                error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode('utf-8'))
-        
-        elif self.path.startswith('/analytics/universe/') and '/membership' in self.path:
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json; charset=utf-8')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            try:
-                # Parse URL: /analytics/universe/{id}/membership?as_of_date=YYYY-MM-DD&limit=100&offset=0
-                path_parts = self.path.split('/')
-                universe_id = int(path_parts[3])
-                
-                # Parse query parameters
-                parsed_url = urlparse(self.path)
-                query_params = parse_qs(parsed_url.query)
-                as_of_date = query_params.get('as_of_date', [None])[0]
-                limit = int(query_params.get('limit', [100])[0])
-                offset = int(query_params.get('offset', [0])[0])
-                
-                if job_manager.universe_service:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    
-                    target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
-                    membership = loop.run_until_complete(job_manager.universe_service.get_membership_table(
-                        universe_id, target_date, limit, offset
-                    ))
-                    
-                    response = {
-                        "status": "success",
-                        "membership": membership,
-                        "as_of_date": target_date.isoformat(),
-                        "limit": limit,
-                        "offset": offset
-                    }
-                    self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
-                else:
-                    error_response = {"error": "Universe service not available"}
-                    self.wfile.write(json.dumps(error_response).encode('utf-8'))
-            except Exception as e:
-                logger.error(f"Error in universe membership endpoint: {e}")
-                error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode('utf-8'))
-        
-        elif self.path.startswith('/analytics/universe/') and '/scatter' in self.path:
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json; charset=utf-8')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            try:
-                # Parse URL: /analytics/universe/{id}/scatter?as_of_date=YYYY-MM-DD
-                path_parts = self.path.split('/')
-                universe_id = int(path_parts[3])
-                
-                # Parse query parameters
-                parsed_url = urlparse(self.path)
-                query_params = parse_qs(parsed_url.query)
-                as_of_date = query_params.get('as_of_date', [None])[0]
-                
-                if job_manager.universe_service:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    
-                    target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
-                    scatter_data = loop.run_until_complete(job_manager.universe_service.get_qualification_scatter_data(
-                        universe_id, target_date
-                    ))
-                    
-                    response = {
-                        "status": "success",
-                        "scatter_data": scatter_data,
-                        "as_of_date": target_date.isoformat()
-                    }
-                    self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
-                else:
-                    error_response = {"error": "Universe service not available"}
-                    self.wfile.write(json.dumps(error_response).encode('utf-8'))
-            except Exception as e:
-                logger.error(f"Error in universe scatter endpoint: {e}")
-                error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode('utf-8'))
-        
-        elif self.path.startswith('/analytics/universe/') and '/timeseries' in self.path:
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json; charset=utf-8')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            try:
-                # Parse URL: /analytics/universe/{id}/timeseries?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
-                path_parts = self.path.split('/')
-                universe_id = int(path_parts[3])
-                
-                # Parse query parameters
-                parsed_url = urlparse(self.path)
-                query_params = parse_qs(parsed_url.query)
-                start_date = query_params.get('start_date', [None])[0]
-                end_date = query_params.get('end_date', [None])[0]
-                
-                if job_manager.universe_service:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    
-                    end_dt = date.fromisoformat(end_date) if end_date else date.today()
-                    start_dt = date.fromisoformat(start_date) if start_date else end_dt - timedelta(days=30)
-                    
-                    timeseries = loop.run_until_complete(job_manager.universe_service.get_universe_time_series(
-                        universe_id, start_dt, end_dt
-                    ))
-                    
-                    response = {
-                        "status": "success",
-                        "timeseries": asdict(timeseries),
-                        "start_date": start_dt.isoformat(),
-                        "end_date": end_dt.isoformat()
-                    }
-                    self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
-                else:
-                    error_response = {"error": "Universe service not available"}
-                    self.wfile.write(json.dumps(error_response).encode('utf-8'))
-            except Exception as e:
-                logger.error(f"Error in universe timeseries endpoint: {e}")
-                error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode('utf-8'))
-        
-        elif self.path.startswith('/analytics/universe/') and '/warnings' in self.path:
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json; charset=utf-8')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            try:
-                # Parse URL: /analytics/universe/{id}/warnings
-                path_parts = self.path.split('/')
-                universe_id = int(path_parts[3])
-                
-                if job_manager.universe_service:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    
-                    warnings = loop.run_until_complete(job_manager.universe_service.get_universe_warnings(universe_id))
-                    
-                    response = {
-                        "status": "success", 
-                        "warnings": warnings,
-                        "count": len(warnings)
-                    }
-                    self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
-                else:
-                    error_response = {"error": "Universe service not available"}
-                    self.wfile.write(json.dumps(error_response).encode('utf-8'))
-            except Exception as e:
-                logger.error(f"Error in universe warnings endpoint: {e}")
-                error_response = {"error": str(e)}
-                self.wfile.write(json.dumps(error_response).encode('utf-8'))
-        
-        elif self.path == '/universe':
-            # Universe analytics dashboard
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
-            self.end_headers()
-            universe_html = self.get_universe_dashboard_html()
-            self.wfile.write(universe_html.encode('utf-8'))
             
         else:
             self.send_response(404)
@@ -2760,6 +2528,18 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                         </div>
                                     </div>
                                 </div>
+                                <!-- Symbol/File Selector for Unified Datasets -->
+                                <div id="training-symbol-selector" style="display: none; margin-top: 15px;">
+                                    <div>
+                                        <label>Select Symbol/File:</label>
+                                        <select id="training-symbol-select" onchange="loadSymbolSpecificData()">
+                                            <option value="">All symbols combined...</option>
+                                        </select>
+                                        <div id="symbol-file-info" style="margin-top: 10px; font-size: 12px; color: #666;">
+                                            <span id="selected-symbol-info"></span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2869,6 +2649,32 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     
                     document.getElementById('training-dataset-info').style.display = 'block';
                     
+                    // Handle symbol selector for unified datasets
+                    const symbolSelector = document.getElementById('training-symbol-selector');
+                    const symbolSelect = document.getElementById('training-symbol-select');
+                    
+                    if (dataset.symbol_files && Object.keys(dataset.symbol_files).length > 0) {
+                        // This is a unified dataset with per-symbol files
+                        console.log('Unified dataset detected with symbol files:', dataset.symbol_files);
+                        
+                        // Clear and populate symbol selector
+                        symbolSelect.innerHTML = '<option value="">All symbols combined...</option>';
+                        
+                        Object.keys(dataset.symbol_files).forEach(symbol => {
+                            const option = document.createElement('option');
+                            option.value = symbol;
+                            option.textContent = `${symbol} (${dataset.symbol_files[symbol].split('/').pop()})`;
+                            symbolSelect.appendChild(option);
+                        });
+                        
+                        symbolSelector.style.display = 'block';
+                        console.log(`Added ${Object.keys(dataset.symbol_files).length} symbol options`);
+                    } else {
+                        // Legacy single-file dataset
+                        symbolSelector.style.display = 'none';
+                        console.log('Legacy single-file dataset detected');
+                    }
+                    
                     // Display training dataset analysis with OHLC visualization
                     const analysisContent = `
                         <div style="padding: 20px;">
@@ -2918,10 +2724,10 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                                 <div class="controls" style="margin-bottom: 15px;">
                                     <label for="sequence-slider">Sequence Navigation:</label>
                                     <input type="range" id="sequence-slider-${datasetId}" min="0" max="${dataset.total_sequences - 1}" value="100" 
-                                           oninput="updateOHLCVisualization(${datasetId}, this.value)" style="width: 60%; margin: 0 10px;">
+                                           oninput="updateOHLCVisualization(${datasetId}, this.value, document.getElementById('training-symbol-select')?.value || null)" style="width: 60%; margin: 0 10px;">
                                     <span id="sequence-info-${datasetId}">Sequence: 100 / ${dataset.total_sequences}</span>
                                     <br><br>
-                                    <button onclick="updateOHLCVisualization(${datasetId}, document.getElementById('sequence-slider-${datasetId}').value)" 
+                                    <button onclick="updateOHLCVisualization(${datasetId}, document.getElementById('sequence-slider-${datasetId}').value, document.getElementById('training-symbol-select')?.value || null)" 
                                             style="margin-right: 10px;">Refresh Visualization</button>
                                     <button onclick="randomOHLCVisualization(${datasetId})" 
                                             style="margin-right: 10px;">Random Sample</button>
@@ -2934,6 +2740,43 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     `;
                     
                     document.getElementById('training-analysis-content').innerHTML = analysisContent;
+                    
+                    // Auto-trigger initial visualization for the selected dataset
+                    setTimeout(() => {
+                        console.log('Auto-triggering initial OHLC visualization...');
+                        updateOHLCVisualization(datasetId, 100);  // Start with sequence 100
+                    }, 1000);
+                }
+                
+                // Handle symbol-specific data loading for unified datasets
+                function loadSymbolSpecificData() {
+                    console.log('Loading symbol-specific data...');
+                    
+                    const datasetSelect = document.getElementById('training-dataset-select');
+                    const symbolSelect = document.getElementById('training-symbol-select');
+                    const symbolInfo = document.getElementById('selected-symbol-info');
+                    
+                    const datasetId = datasetSelect.value;
+                    const selectedSymbol = symbolSelect.value;
+                    
+                    if (!datasetId) return;
+                    
+                    const dataset = trainingDatasets.find(d => d.id == datasetId);
+                    if (!dataset) return;
+                    
+                    // Update symbol info
+                    if (selectedSymbol) {
+                        const symbolFilePath = dataset.symbol_files[selectedSymbol];
+                        const fileName = symbolFilePath ? symbolFilePath.split('/').pop() : 'Unknown';
+                        symbolInfo.textContent = `Selected: ${selectedSymbol} - ${fileName}`;
+                        console.log(`Symbol selected: ${selectedSymbol} -> ${symbolFilePath}`);
+                    } else {
+                        symbolInfo.textContent = 'Showing all symbols combined';
+                        console.log('All symbols selected');
+                    }
+                    
+                    // Reload visualization with symbol filter
+                    updateOHLCVisualization(datasetId, 0, selectedSymbol);
                 }
                 
                 // Frontend cache for datasets - 1 hour cache
@@ -4057,9 +3900,9 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 }, 1000);
                 
                 // OHLC Visualization Functions
-                async function updateOHLCVisualization(datasetId, sequenceIndex) {
+                async function updateOHLCVisualization(datasetId, sequenceIndex, selectedSymbol = null) {
                     try {
-                        console.log(`Updating OHLC visualization for dataset ${datasetId}, sequence ${sequenceIndex}`);
+                        console.log(`Updating OHLC visualization for dataset ${datasetId}, sequence ${sequenceIndex}, symbol ${selectedSymbol || 'all'}`);
                         
                         // Update sequence info display
                         const sequenceInfo = document.getElementById(`sequence-info-${datasetId}`);
@@ -4075,8 +3918,13 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                             chartContainer.innerHTML = '<p style="text-align: center; margin-top: 200px; color: #666;">Loading OHLC chart...</p>';
                         }
                         
-                        // Fetch visualization data
-                        const response = await fetch(`/api/v1/training-datasets/${datasetId}/visualization-data?sequence_index=${sequenceIndex}`);
+                        // Fetch visualization data with optional symbol parameter
+                        let apiUrl = `/api/v1/training-datasets/${datasetId}/visualization-data?sequence_index=${sequenceIndex}`;
+                        if (selectedSymbol) {
+                            apiUrl += `&symbol=${selectedSymbol}`;
+                        }
+                        
+                        const response = await fetch(apiUrl);
                         if (!response.ok) {
                             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                         }
@@ -4107,7 +3955,8 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     if (slider) {
                         const randomIndex = Math.floor(Math.random() * (parseInt(slider.max) + 1));
                         slider.value = randomIndex;
-                        updateOHLCVisualization(datasetId, randomIndex);
+                        const selectedSymbol = document.getElementById('training-symbol-select')?.value || null;
+                        updateOHLCVisualization(datasetId, randomIndex, selectedSymbol);
                     }
                 }
                 
@@ -4118,15 +3967,15 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     // Generate x-axis values (time steps for the sequence)
                     const xValues = data.data.map((_, idx) => `Step ${idx + 1}`);
                     
-                    // Create OHLC candlestick chart using 1-hour timeframe data
+                    // Create OHLC candlestick chart using training dataset fields
                     const ohlcTrace = {
                         x: xValues,
-                        open: data.data.map(d => d['1h_close'] || d.close || 0),  // Use previous close as open
-                        high: data.data.map(d => d['1h_high'] || d.high || 0),
-                        low: data.data.map(d => d['1h_low'] || d.low || 0),
-                        close: data.data.map(d => d['1h_close'] || d.close || 0),
+                        open: data.data.map(d => d.open || 0),
+                        high: data.data.map(d => d.high || 0),
+                        low: data.data.map(d => d.low || 0),
+                        close: data.data.map(d => d.close || 0),
                         type: 'candlestick',
-                        name: 'Price (1H)',
+                        name: 'OHLC Data',
                         increasing: {line: {color: '#00ff00'}},
                         decreasing: {line: {color: '#ff0000'}}
                     };
@@ -5607,414 +5456,10 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
 </html>
         """
 
-    def get_universe_dashboard_html(self):
-        """Generate the Universe analytics dashboard HTML."""
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>ATS Universe Analytics Dashboard</title>
-            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-            <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
-            <style>
-                body { 
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-                    margin: 0; 
-                    background: #f5f5f5;
-                }
-                .header { 
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                    color: white; 
-                    padding: 20px; 
-                    text-align: center;
-                }
-                .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
-                .controls { 
-                    background: white; 
-                    padding: 20px; 
-                    border-radius: 8px; 
-                    margin-bottom: 20px; 
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                }
-                .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-                .chart-container { 
-                    background: white; 
-                    padding: 20px; 
-                    border-radius: 8px; 
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                }
-                .full-width { grid-column: 1 / -1; }
-                .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-                .metric-card { 
-                    background: white; 
-                    padding: 20px; 
-                    border-radius: 8px; 
-                    text-align: center; 
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                    border-left: 4px solid #667eea;
-                }
-                .metric-value { font-size: 2em; font-weight: bold; color: #333; margin-bottom: 5px; }
-                .metric-label { color: #666; font-size: 0.9em; }
-                select, input { 
-                    padding: 8px 12px; 
-                    border: 1px solid #ddd; 
-                    border-radius: 4px; 
-                    margin: 0 10px 0 5px;
-                    font-size: 14px;
-                }
-                button { 
-                    padding: 8px 16px; 
-                    background: #667eea; 
-                    color: white; 
-                    border: none; 
-                    border-radius: 4px; 
-                    cursor: pointer;
-                    font-size: 14px;
-                }
-                button:hover { background: #5a67d8; }
-                .table-container { 
-                    background: white; 
-                    border-radius: 8px; 
-                    overflow: hidden; 
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                }
-                table { width: 100%; border-collapse: collapse; }
-                th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
-                th { background: #f8f9fa; font-weight: 600; }
-                .status-active { color: #28a745; font-weight: 600; }
-                .status-inactive { color: #dc3545; }
-                .loading { text-align: center; padding: 40px; color: #666; }
-                .warning-badge { 
-                    background: #ffeaa7; 
-                    color: #d63031; 
-                    padding: 4px 8px; 
-                    border-radius: 12px; 
-                    font-size: 0.8em; 
-                    font-weight: 600;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1>🌌 Universe Analytics Dashboard</h1>
-                <p>Comprehensive universe membership analysis and qualification metrics</p>
-            </div>
-            
-            <div class="container">
-                <!-- Universe Selection and Controls -->
-                <div class="controls">
-                    <label>Universe:</label>
-                    <select id="universeSelect">
-                        <option value="">Loading universes...</option>
-                    </select>
-                    
-                    <label>As of Date:</label>
-                    <input type="date" id="asOfDate" />
-                    
-                    <button onclick="loadUniverseData()">🔄 Refresh</button>
-                    <button onclick="exportData()">📊 Export</button>
-                </div>
-                
-                <!-- Key Metrics -->
-                <div class="metrics-grid" id="metricsGrid">
-                    <div class="metric-card">
-                        <div class="metric-value" id="totalMembers">-</div>
-                        <div class="metric-label">Total Members</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-value" id="activeMembers">-</div>
-                        <div class="metric-label">Active Members</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-value" id="avgMarketCap">-</div>
-                        <div class="metric-label">Avg Market Cap</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-value" id="totalVolume">-</div>
-                        <div class="metric-label">Total Volume</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-value" id="warnings">-</div>
-                        <div class="metric-label">Warnings</div>
-                    </div>
-                </div>
-                
-                <!-- Charts Grid -->
-                <div class="grid">
-                    <div class="chart-container">
-                        <h3>📈 Universe Size Over Time</h3>
-                        <canvas id="timeseriesChart" width="400" height="200"></canvas>
-                    </div>
-                    
-                    <div class="chart-container">
-                        <h3>💹 Market Cap vs Volume</h3>
-                        <canvas id="scatterChart" width="400" height="200"></canvas>
-                    </div>
-                </div>
-                
-                <!-- Membership Table -->
-                <div class="table-container full-width">
-                    <h3 style="margin: 0; padding: 20px 20px 0 20px;">👥 Universe Membership</h3>
-                    <div style="padding: 20px;">
-                        <div id="membershipTable" class="loading">
-                            Select a universe to view membership details...
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <script>
-                let timeseriesChart, scatterChart;
-                let currentUniverse = null;
-                let currentDate = new Date().toISOString().split('T')[0];
-                
-                // Initialize dashboard
-                document.addEventListener('DOMContentLoaded', function() {
-                    document.getElementById('asOfDate').value = currentDate;
-                    loadUniverses();
-                    initCharts();
-                });
-                
-                // Load available universes
-                async function loadUniverses() {
-                    try {
-                        const response = await fetch('/analytics/universes');
-                        const data = await response.json();
-                        
-                        const select = document.getElementById('universeSelect');
-                        select.innerHTML = '<option value="">Select Universe...</option>';
-                        
-                        if (data.status === 'success' && data.universes) {
-                            data.universes.forEach(universe => {
-                                const option = document.createElement('option');
-                                option.value = universe.id;
-                                option.textContent = `${universe.name} (${universe.active_members} active)`;
-                                select.appendChild(option);
-                            });
-                        }
-                    } catch (error) {
-                        console.error('Error loading universes:', error);
-                        document.getElementById('universeSelect').innerHTML = '<option value="">Error loading universes</option>';
-                    }
-                }
-                
-                // Initialize charts
-                function initCharts() {
-                    // Time series chart
-                    const timeCtx = document.getElementById('timeseriesChart').getContext('2d');
-                    timeseriesChart = new Chart(timeCtx, {
-                        type: 'line',
-                        data: {
-                            labels: [],
-                            datasets: [{
-                                label: 'Universe Size',
-                                data: [],
-                                borderColor: '#667eea',
-                                backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                                fill: true
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            scales: {
-                                y: { beginAtZero: true }
-                            }
-                        }
-                    });
-                    
-                    // Scatter chart
-                    const scatterCtx = document.getElementById('scatterChart').getContext('2d');
-                    scatterChart = new Chart(scatterCtx, {
-                        type: 'scatter',
-                        data: {
-                            datasets: [{
-                                label: 'Active Members',
-                                data: [],
-                                backgroundColor: 'rgba(40, 167, 69, 0.6)',
-                                borderColor: '#28a745'
-                            }, {
-                                label: 'Inactive Members',
-                                data: [],
-                                backgroundColor: 'rgba(220, 53, 69, 0.6)',
-                                borderColor: '#dc3545'
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            scales: {
-                                x: {
-                                    title: { display: true, text: 'Market Cap ($M)' },
-                                    type: 'logarithmic'
-                                },
-                                y: {
-                                    title: { display: true, text: 'Volume ($M)' },
-                                    type: 'logarithmic'
-                                }
-                            }
-                        }
-                    });
-                }
-                
-                // Load universe data when selection changes
-                document.getElementById('universeSelect').addEventListener('change', function() {
-                    currentUniverse = this.value;
-                    if (currentUniverse) {
-                        loadUniverseData();
-                    }
-                });
-                
-                document.getElementById('asOfDate').addEventListener('change', function() {
-                    currentDate = this.value;
-                    if (currentUniverse) {
-                        loadUniverseData();
-                    }
-                });
-                
-                // Load comprehensive universe data
-                async function loadUniverseData() {
-                    if (!currentUniverse) return;
-                    
-                    try {
-                        // Load metrics, time series, scatter data, and membership in parallel
-                        const [metricsResponse, timeseriesResponse, scatterResponse, membershipResponse] = await Promise.all([
-                            fetch(`/analytics/universe/${currentUniverse}/metrics?as_of_date=${currentDate}`),
-                            fetch(`/analytics/universe/${currentUniverse}/timeseries`),
-                            fetch(`/analytics/universe/${currentUniverse}/scatter?as_of_date=${currentDate}`),
-                            fetch(`/analytics/universe/${currentUniverse}/membership?as_of_date=${currentDate}&limit=50`)
-                        ]);
-                        
-                        // Update metrics
-                        if (metricsResponse.ok) {
-                            const metricsData = await metricsResponse.json();
-                            if (metricsData.status === 'success') {
-                                updateMetrics(metricsData.metrics);
-                            }
-                        }
-                        
-                        // Update time series chart
-                        if (timeseriesResponse.ok) {
-                            const timeseriesData = await timeseriesResponse.json();
-                            if (timeseriesData.status === 'success') {
-                                updateTimeseriesChart(timeseriesData.timeseries);
-                            }
-                        }
-                        
-                        // Update scatter chart
-                        if (scatterResponse.ok) {
-                            const scatterData = await scatterResponse.json();
-                            if (scatterData.status === 'success') {
-                                updateScatterChart(scatterData.scatter_data);
-                            }
-                        }
-                        
-                        // Update membership table
-                        if (membershipResponse.ok) {
-                            const membershipData = await membershipResponse.json();
-                            if (membershipData.status === 'success') {
-                                updateMembershipTable(membershipData.membership);
-                            }
-                        }
-                        
-                    } catch (error) {
-                        console.error('Error loading universe data:', error);
-                    }
-                }
-                
-                // Update metrics display
-                function updateMetrics(metrics) {
-                    document.getElementById('totalMembers').textContent = metrics.total_members || 0;
-                    document.getElementById('activeMembers').textContent = metrics.active_members || 0;
-                    document.getElementById('avgMarketCap').textContent = metrics.avg_market_cap ? 
-                        '$' + (metrics.avg_market_cap / 1000000).toFixed(1) + 'M' : '-';
-                    document.getElementById('totalVolume').textContent = metrics.total_dollar_volume ? 
-                        '$' + (metrics.total_dollar_volume / 1000000).toFixed(1) + 'M' : '-';
-                    document.getElementById('warnings').textContent = metrics.warning_count || 0;
-                }
-                
-                // Update time series chart
-                function updateTimeseriesChart(timeseries) {
-                    timeseriesChart.data.labels = timeseries.dates || [];
-                    timeseriesChart.data.datasets[0].data = timeseries.member_counts || [];
-                    timeseriesChart.update();
-                }
-                
-                // Update scatter chart
-                function updateScatterChart(scatterData) {
-                    const activePoints = [];
-                    const inactivePoints = [];
-                    
-                    scatterData.forEach(point => {
-                        const dataPoint = {
-                            x: point.market_cap_millions || 0,
-                            y: point.volume_millions || 0,
-                            label: point.symbol
-                        };
-                        
-                        if (point.status === 'Active') {
-                            activePoints.push(dataPoint);
-                        } else {
-                            inactivePoints.push(dataPoint);
-                        }
-                    });
-                    
-                    scatterChart.data.datasets[0].data = activePoints;
-                    scatterChart.data.datasets[1].data = inactivePoints;
-                    scatterChart.update();
-                }
-                
-                // Update membership table
-                function updateMembershipTable(membership) {
-                    let html = '<table><thead><tr><th>Symbol</th><th>Start Date</th><th>End Date</th><th>Status</th><th>Market Cap</th><th>Volume</th></tr></thead><tbody>';
-                    
-                    membership.forEach(member => {
-                        const statusClass = member.active ? 'status-active' : 'status-inactive';
-                        const statusText = member.active ? 'Active' : 'Inactive';
-                        const marketCap = member.market_cap ? '$' + (member.market_cap / 1000000).toFixed(1) + 'M' : '-';
-                        const volume = member.dollar_volume ? '$' + (member.dollar_volume / 1000000).toFixed(1) + 'M' : '-';
-                        
-                        html += `<tr>
-                            <td><strong>${member.symbol}</strong></td>
-                            <td>${member.start_at || '-'}</td>
-                            <td>${member.end_at || '-'}</td>
-                            <td class="${statusClass}">${statusText}</td>
-                            <td>${marketCap}</td>
-                            <td>${volume}</td>
-                        </tr>`;
-                    });
-                    
-                    html += '</tbody></table>';
-                    document.getElementById('membershipTable').innerHTML = html;
-                }
-                
-                // Export functionality
-                function exportData() {
-                    if (!currentUniverse) {
-                        alert('Please select a universe first');
-                        return;
-                    }
-                    
-                    const exportData = {
-                        universe_id: currentUniverse,
-                        as_of_date: currentDate,
-                        timestamp: new Date().toISOString()
-                    };
-                    
-                    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `universe_${currentUniverse}_${currentDate}.json`;
-                    a.click();
-                }
-            </script>
-        </body>
-        </html>
-        """
-
-async def initialize_job_manager():
+def initialize_job_manager():
     """Initialize the job manager."""
     try:
-        await job_manager.initialize()
+        job_manager.initialize()
         logger.info("✅ Job manager initialized")
     except Exception as e:
         logger.warning(f"⚠️  Job manager initialization failed: {e}")
@@ -6026,7 +5471,7 @@ def main():
     try:
         # Initialize job manager
         logger.info("🔧 Initializing job manager...")
-        asyncio.run(initialize_job_manager())
+        initialize_job_manager()
         
         server = ThreadingHTTPServer(('0.0.0.0', port), AnalyticsHandler)
         logger.info(f"🚀 ATS Analytics Service starting on port {port}")

@@ -139,18 +139,18 @@ class SequenceStorageManager:
         # Determine output files
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         sequence_file = self.sequence_dir / f"sequences_{batch_id}_{timestamp}"
-        metadata_file = self.metadata_dir / f"metadata_{batch_id}_{timestamp}.parquet"
+        metadata_file = self.metadata_dir / f"metadata_{batch_id}_{timestamp}.riegeli"
         
         # Convert examples to storage-optimized format
         sequence_data, metadata_records = self._prepare_data_for_storage(examples)
         
-        # Save sequence data using primary format
+        # Save sequence data using Riegeli format only
         sequence_stats = await self._save_sequence_data(
-            sequence_data, sequence_file, self.config.primary_format
+            sequence_data, sequence_file, "riegeli"
         )
         
-        # Save metadata using Parquet
-        metadata_stats = await self._save_metadata(metadata_records, metadata_file)
+        # Save metadata using Riegeli (not Parquet)
+        metadata_stats = await self._save_metadata_riegeli(metadata_records, metadata_file)
         
         # Update index if enabled
         if self.config.enable_indexing:
@@ -377,39 +377,36 @@ class SequenceStorageManager:
         
         return tf.train.Example(features=tf.train.Features(feature=feature))
     
-    async def _save_metadata(self, metadata_records: List[SequenceMetadata], file_path: Path) -> Dict[str, Any]:
-        """Save metadata using Parquet format."""
-        def _write_metadata():
-            # Convert to DataFrame
-            df_data = [asdict(record) for record in metadata_records]
-            df = pd.DataFrame(df_data)
-            
-            # Optimize data types
-            df['prediction_timestamp'] = pd.to_datetime(df['prediction_timestamp'])
-            df['instrument_id'] = df['instrument_id'].astype('int32')
-            df['file_offset'] = df['file_offset'].astype('int64')
-            df['file_size'] = df['file_size'].astype('int32')
-            
-            # Save as Parquet with optimization
-            df.to_parquet(
-                file_path,
-                compression='snappy',
-                index=False,
-                engine='pyarrow'
-            )
+    async def _save_metadata_riegeli(self, metadata_records: List[SequenceMetadata], file_path: Path) -> Dict[str, Any]:
+        """Save metadata using Riegeli format instead of Parquet."""
+        if not RIEGELI_AVAILABLE:
+            raise ImportError("Riegeli not available for metadata storage")
         
-        await asyncio.get_event_loop().run_in_executor(None, _write_metadata)
+        def _write_metadata_riegeli():
+            with riegeli.RecordWriter(
+                str(file_path),
+                compression=f"brotli:{self.config.compression_level}"
+            ) as writer:
+                for record in metadata_records:
+                    # Convert metadata record to dictionary and serialize
+                    metadata_dict = asdict(record)
+                    # Convert datetime to ISO string for JSON serialization
+                    metadata_dict['prediction_timestamp'] = metadata_dict['prediction_timestamp'].isoformat()
+                    data = json.dumps(metadata_dict, default=str).encode()
+                    writer.write_record(data)
+        
+        await asyncio.get_event_loop().run_in_executor(None, _write_metadata_riegeli)
         
         file_size = file_path.stat().st_size
         return {
-            'format': 'parquet',
+            'format': 'riegeli',
             'file_size': file_size,
             'records_written': len(metadata_records)
         }
     
     async def _update_index(self, batch_id: str, metadata_records: List[SequenceMetadata]):
         """Update search index for efficient querying."""
-        index_file = self.index_dir / f"index_{batch_id}.parquet"
+        index_file = self.index_dir / f"index_{batch_id}.riegeli"
         
         # Create index DataFrame with key fields for fast lookup
         index_data = []
@@ -424,10 +421,21 @@ class SequenceStorageManager:
                 'file_size': record.file_size
             })
         
-        df = pd.DataFrame(index_data)
-        df.to_parquet(index_file, compression='snappy', index=False)
+        # Save index using Riegeli instead of Parquet
+        def _write_index_riegeli():
+            with riegeli.RecordWriter(
+                str(index_file),
+                compression=f"brotli:{self.config.compression_level}"
+            ) as writer:
+                for index_record in index_data:
+                    # Convert datetime to ISO string for JSON serialization
+                    index_record['prediction_timestamp'] = index_record['prediction_timestamp'].isoformat()
+                    data = json.dumps(index_record, default=str).encode()
+                    writer.write_record(data)
         
-        self.logger.debug(f"Updated index for batch {batch_id}")
+        await asyncio.get_event_loop().run_in_executor(None, _write_index_riegeli)
+        
+        self.logger.debug(f"Updated Riegeli index for batch {batch_id}")
     
     def _estimate_compression_ratio(self, data: List[Dict], compressed_size: int) -> float:
         """Estimate compression ratio."""
@@ -480,47 +488,50 @@ class SequenceStorageManager:
                              end_date: Optional[datetime] = None) -> List[SequenceMetadata]:
         """Query examples by symbol and date range using metadata."""
         # Load all metadata files
-        metadata_files = list(self.metadata_dir.glob("metadata_*.parquet"))
+        metadata_files = list(self.metadata_dir.glob("metadata_*.riegeli"))
         
         if not metadata_files:
             return []
         
-        # Query metadata
+        # Query metadata from Riegeli files
         def _query_metadata():
-            dfs = []
+            all_records = []
             for file_path in metadata_files:
-                df = pd.read_parquet(file_path)
-                dfs.append(df)
-            
-            combined_df = pd.concat(dfs, ignore_index=True)
+                with riegeli.RecordReader(str(file_path)) as reader:
+                    for record_bytes in reader:
+                        record = json.loads(record_bytes.decode())
+                        # Parse timestamp back to datetime for filtering
+                        record['prediction_timestamp'] = datetime.fromisoformat(record['prediction_timestamp'])
+                        all_records.append(record)
             
             # Apply filters
-            query_df = combined_df[combined_df['symbol'] == symbol]
+            filtered_records = []
+            for record in all_records:
+                if record['symbol'] == symbol:
+                    if start_date and record['prediction_timestamp'] < start_date:
+                        continue
+                    if end_date and record['prediction_timestamp'] > end_date:
+                        continue
+                    filtered_records.append(record)
             
-            if start_date:
-                query_df = query_df[pd.to_datetime(query_df['prediction_timestamp']) >= start_date]
-            
-            if end_date:
-                query_df = query_df[pd.to_datetime(query_df['prediction_timestamp']) <= end_date]
-            
-            return query_df
+            return filtered_records
         
-        df = await asyncio.get_event_loop().run_in_executor(None, _query_metadata)
+        records = await asyncio.get_event_loop().run_in_executor(None, _query_metadata)
         
         # Convert back to metadata objects
         metadata_list = []
-        for _, row in df.iterrows():
+        for record in records:
             metadata = SequenceMetadata(
-                example_id=row['example_id'],
-                symbol=row['symbol'],
-                prediction_timestamp=row['prediction_timestamp'],
-                instrument_id=row['instrument_id'],
-                sequence_lengths=row['sequence_lengths'],
-                prediction_horizons=row['prediction_horizons'],
-                feature_count=row['feature_count'],
-                file_offset=row['file_offset'],
-                file_size=row['file_size'],
-                checksum=row['checksum']
+                example_id=record['example_id'],
+                symbol=record['symbol'],
+                prediction_timestamp=record['prediction_timestamp'],
+                instrument_id=record['instrument_id'],
+                sequence_lengths=record['sequence_lengths'],
+                prediction_horizons=record['prediction_horizons'],
+                feature_count=record['feature_count'],
+                file_offset=record['file_offset'],
+                file_size=record['file_size'],
+                checksum=record['checksum']
             )
             metadata_list.append(metadata)
         
@@ -530,8 +541,8 @@ class SequenceStorageManager:
         """Get comprehensive storage statistics."""
         stats = {
             'sequence_files': len(list(self.sequence_dir.glob("*"))),
-            'metadata_files': len(list(self.metadata_dir.glob("*.parquet"))),
-            'index_files': len(list(self.index_dir.glob("*.parquet"))),
+            'metadata_files': len(list(self.metadata_dir.glob("*.riegeli"))),
+            'index_files': len(list(self.index_dir.glob("*.riegeli"))),
             'total_size_bytes': 0,
             'format_breakdown': {}
         }

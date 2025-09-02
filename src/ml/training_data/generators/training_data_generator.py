@@ -1088,8 +1088,7 @@ class ResidualReturnTrainingDataGenerator:
         with open(os.path.join(dataset_path, 'validation.json'), 'w') as f:
             json.dump(validation_dict, f, indent=2)
         
-        # Save raw dataframe for analysis
-        training_df.to_parquet(os.path.join(dataset_path, 'raw_data.parquet'))
+        # Raw dataframe no longer saved - use Riegeli-only output for training data storage
         
         # Register schema in database
         try:
