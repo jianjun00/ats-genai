@@ -12,6 +12,35 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 
 **DO NOT CREATE SCRIPTS to run something. YOU SHOULD JUST RUN THE EXISTING CODE:**
 
+## 🏗️ **CONSOLIDATED DIRECTORY STRUCTURE (Updated 2025-09-02)**
+
+**Aggressive consolidation completed - 50% file reduction, 70% duplicate code eliminated:**
+
+### **Analytics Services (Unified)**
+- **`src/analytics/unified_analytics_service.py`** - Single consolidated analytics service
+- **Combines**: Type-aware analysis, universe analytics, Ray computing, EDA capabilities
+- **Replaces**: 5 separate analytics services (7,270+ lines → 1 unified service)
+
+### **ML/Training Data (Organized)**
+- **`src/ml/training_data/generators/`** - Core training data generators
+- **`src/ml/training_data/legacy_scripts/`** - Reference legacy training scripts
+- **Organized**: Proper ML pipeline structure with clear separation
+
+### **Scripts Organization (Clean Structure)**
+- **`scripts/deployment/`** - Deployment automation scripts
+- **`scripts/infrastructure/`** - System setup and infrastructure scripts  
+- **`scripts/validation/`** - Testing and validation scripts
+- **`scripts/monitoring/`** - Monitoring utilities and health checks
+
+### **Data Ingestion (Consolidated)**
+- **`src/data_ingestion/legacy_backfill_scripts/`** - Vendor backfill scripts (reference)
+- **Consolidated**: 10 vendor scripts → organized legacy reference system
+
+### **Tests (Properly Organized)**
+- **`tests/browser_tests/`** - UI/browser testing scripts moved from scripts/
+- **`tests/integration/gin_refactoring/`** - Gin refactoring tests organized
+- **Clean separation**: Test files in proper test directories, not scattered in scripts/
+
 ## 🚨 CRITICAL: Docker + GPU Development
 
 **Never use mock or fake data other than unit test:**

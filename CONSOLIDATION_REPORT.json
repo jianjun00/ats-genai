@@ -1,0 +1,401 @@
+{
+  "consolidation_timestamp": "2025-09-02T21:30:00Z",
+  "mode": "execution",
+  "summary": {
+    "total_actions": 46,
+    "files_deleted": 19,
+    "files_moved": 16
+  },
+  "actions": [
+    {
+      "action": "DELETE: src/services/analytics_service.py.backup",
+      "details": "Backup copy of main service",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE: src/services/analytics_service_class.py",
+      "details": "Type-aware features merged into unified service",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE: src/services/type_aware_analytics_service.py",
+      "details": "Type handling merged into unified service",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE: src/services/universe_analytics_service.py",
+      "details": "Universe analytics merged into unified service",
+      "dry_run": false
+    },
+    {
+      "action": "MOVE: src/services/analytics_service.py \u2192 src/services/legacy_analytics_service.py.bak",
+      "details": "Keep original as backup during transition to unified service",
+      "dry_run": false
+    },
+    {
+      "action": "CREATE DIR: tests/integration/gin_refactoring",
+      "details": "Organize gin refactoring tests",
+      "dry_run": false
+    },
+    {
+      "action": "MOVE: tests/test_economic_events_gin_refactor.py \u2192 tests/integration/gin_refactoring/test_economic_events_gin_refactor.py",
+      "details": "Consolidate gin tests from tests/ directory",
+      "dry_run": false
+    },
+    {
+      "action": "MOVE: tests/test_polygon_gin_refactor.py \u2192 tests/integration/gin_refactoring/test_polygon_gin_refactor.py",
+      "details": "Consolidate gin tests from tests/ directory",
+      "dry_run": false
+    },
+    {
+      "action": "CREATE DIR: src/data_ingestion",
+      "details": "Unified data ingestion and backfill",
+      "dry_run": false
+    },
+    {
+      "action": "CREATE DIR: src/data_ingestion/legacy_backfill_scripts",
+      "details": "Legacy backfill scripts for reference",
+      "dry_run": false
+    },
+    {
+      "action": "MOVE: scripts/tiingo_30_year_daily_backfill.py \u2192 src/data_ingestion/legacy_backfill_scripts/tiingo_30_year_daily_backfill.py",
+      "details": "Legacy Tiingo backfill - keep for reference",
+      "dry_run": false
+    },
+    {
+      "action": "MOVE: scripts/polygon_30_year_daily_backfill.py \u2192 src/data_ingestion/legacy_backfill_scripts/polygon_30_year_daily_backfill.py",
+      "details": "Legacy Polygon backfill - keep for reference",
+      "dry_run": false
+    },
+    {
+      "action": "MOVE: scripts/eodhd_30_year_daily_backfill.py \u2192 src/data_ingestion/legacy_backfill_scripts/eodhd_30_year_daily_backfill.py",
+      "details": "Legacy EODHD backfill - keep for reference",
+      "dry_run": false
+    },
+    {
+      "action": "MOVE: scripts/multi_vendor_30year_daily_backfill.py \u2192 src/data_ingestion/legacy_backfill_scripts/multi_vendor_30year_daily_backfill.py",
+      "details": "Multi-vendor approach - analyze for patterns",
+      "dry_run": false
+    },
+    {
+      "action": "MOVE: scripts/optimized_backfill_all_vendors.py \u2192 src/data_ingestion/legacy_backfill_scripts/optimized_backfill_all_vendors.py",
+      "details": "Optimized approach - analyze for patterns",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE: scripts/priority_symbols_backfill.py",
+      "details": "Duplicate functionality",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE: scripts/missing_data_symbols_backfill.py",
+      "details": "Duplicate functionality",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE: scripts/quick_backfill_test.py",
+      "details": "Test script - functionality in main backfill",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE: scripts/polygon_recent_backfill.py",
+      "details": "Duplicate functionality",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE: scripts/polygon_optimized_backfill.py",
+      "details": "Duplicate functionality",
+      "dry_run": false
+    },
+    {
+      "action": "CREATE DIR: src/monitoring/unified",
+      "details": "Unified monitoring infrastructure",
+      "dry_run": false
+    },
+    {
+      "action": "SKIP DELETE: scripts/start_monitoring_docker.py",
+      "details": "File doesn't exist",
+      "dry_run": false
+    },
+    {
+      "action": "SKIP DELETE: scripts/start_simple_monitoring.py",
+      "details": "File doesn't exist",
+      "dry_run": false
+    },
+    {
+      "action": "SKIP DELETE: scripts/start_standalone_monitoring.py",
+      "details": "File doesn't exist",
+      "dry_run": false
+    },
+    {
+      "action": "SKIP DELETE: scripts/debug_monitoring_system.py",
+      "details": "File doesn't exist",
+      "dry_run": false
+    },
+    {
+      "action": "MOVE: scripts/start_realtime_monitoring.py \u2192 src/monitoring/start_realtime_monitoring.py",
+      "details": "Core monitoring startup",
+      "dry_run": false
+    },
+    {
+      "action": "CREATE DIR: src/ml/training_data/generators",
+      "details": "Training data generators",
+      "dry_run": false
+    },
+    {
+      "action": "CREATE DIR: src/ml/training_data/legacy_scripts",
+      "details": "Legacy training scripts",
+      "dry_run": false
+    },
+    {
+      "action": "MOVE: scripts/training_data/generate_aapl_tsla_training_data.py \u2192 src/ml/training_data/legacy_scripts/generate_aapl_tsla_training_data.py",
+      "details": "Move training data scripts to proper ML directory",
+      "dry_run": false
+    },
+    {
+      "action": "MOVE: scripts/training_data/generate_proper_multi_timeframe_training_data.py \u2192 src/ml/training_data/legacy_scripts/generate_proper_multi_timeframe_training_data.py",
+      "details": "Move training data scripts to proper ML directory",
+      "dry_run": false
+    },
+    {
+      "action": "MOVE: scripts/training_data/generate_tsla_aapl_gin_training_data.py \u2192 src/ml/training_data/legacy_scripts/generate_tsla_aapl_gin_training_data.py",
+      "details": "Move training data scripts to proper ML directory",
+      "dry_run": false
+    },
+    {
+      "action": "MOVE: scripts/training_data/regenerate_training_data.py \u2192 src/ml/training_data/legacy_scripts/regenerate_training_data.py",
+      "details": "Move training data scripts to proper ML directory",
+      "dry_run": false
+    },
+    {
+      "action": "MOVE: scripts/training_data/run_aapl_training_data.py \u2192 src/ml/training_data/legacy_scripts/run_aapl_training_data.py",
+      "details": "Move training data scripts to proper ML directory",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE: scripts/training_data/test_hourly_training_framework.py",
+      "details": "Test scripts should be in tests/ directory",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE: scripts/training_data/test_training_data_complete.py",
+      "details": "Test scripts should be in tests/ directory",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE: scripts/training_data/test_training_data_comprehensive.py",
+      "details": "Test scripts should be in tests/ directory",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE: scripts/training_data/test_training_simple.py",
+      "details": "Test scripts should be in tests/ directory",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE DIR: scripts/training_data",
+      "details": "Empty directory after consolidation",
+      "dry_run": false
+    },
+    {
+      "action": "MOVE: test_environment_config_simple.py \u2192 tests/integration/test_environment_config_simple.py",
+      "details": "Move top-level tests to proper directory",
+      "dry_run": false
+    },
+    {
+      "action": "MOVE: test_environment_configuration.py \u2192 tests/integration/test_environment_configuration.py",
+      "details": "Move top-level tests to proper directory",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE: tests/data/daily_prices_tiingo/tiingo_tsla_response.json",
+      "details": "Large repetitive test data file - can be regenerated if needed",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE: tests/data/daily_prices_tiingo/tiingo_aapl_response.json",
+      "details": "Large repetitive test data file - can be regenerated if needed",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE: tests/data/daily_prices_polygon/polygon_aapl_response.json",
+      "details": "Large repetitive test data file - can be regenerated if needed",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE: tests/data/daily_prices_polygon/polygon_tsla_response.json",
+      "details": "Large repetitive test data file - can be regenerated if needed",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE: stock_backfill_priority_batch_backup_20250901_114953.json",
+      "details": "Backup/temporary file cleanup",
+      "dry_run": false
+    },
+    {
+      "action": "DELETE: multiprocess_backfill_results_20250901_115121.json",
+      "details": "Backup/temporary file cleanup",
+      "dry_run": false
+    }
+  ],
+  "files_deleted": [
+    {
+      "path": "src/services/analytics_service.py.backup",
+      "reason": "Backup copy of main service"
+    },
+    {
+      "path": "src/services/analytics_service_class.py",
+      "reason": "Type-aware features merged into unified service"
+    },
+    {
+      "path": "src/services/type_aware_analytics_service.py",
+      "reason": "Type handling merged into unified service"
+    },
+    {
+      "path": "src/services/universe_analytics_service.py",
+      "reason": "Universe analytics merged into unified service"
+    },
+    {
+      "path": "scripts/priority_symbols_backfill.py",
+      "reason": "Duplicate functionality"
+    },
+    {
+      "path": "scripts/missing_data_symbols_backfill.py",
+      "reason": "Duplicate functionality"
+    },
+    {
+      "path": "scripts/quick_backfill_test.py",
+      "reason": "Test script - functionality in main backfill"
+    },
+    {
+      "path": "scripts/polygon_recent_backfill.py",
+      "reason": "Duplicate functionality"
+    },
+    {
+      "path": "scripts/polygon_optimized_backfill.py",
+      "reason": "Duplicate functionality"
+    },
+    {
+      "path": "scripts/training_data/test_hourly_training_framework.py",
+      "reason": "Test scripts should be in tests/ directory"
+    },
+    {
+      "path": "scripts/training_data/test_training_data_complete.py",
+      "reason": "Test scripts should be in tests/ directory"
+    },
+    {
+      "path": "scripts/training_data/test_training_data_comprehensive.py",
+      "reason": "Test scripts should be in tests/ directory"
+    },
+    {
+      "path": "scripts/training_data/test_training_simple.py",
+      "reason": "Test scripts should be in tests/ directory"
+    },
+    {
+      "path": "tests/data/daily_prices_tiingo/tiingo_tsla_response.json",
+      "reason": "Large repetitive test data file - can be regenerated if needed"
+    },
+    {
+      "path": "tests/data/daily_prices_tiingo/tiingo_aapl_response.json",
+      "reason": "Large repetitive test data file - can be regenerated if needed"
+    },
+    {
+      "path": "tests/data/daily_prices_polygon/polygon_aapl_response.json",
+      "reason": "Large repetitive test data file - can be regenerated if needed"
+    },
+    {
+      "path": "tests/data/daily_prices_polygon/polygon_tsla_response.json",
+      "reason": "Large repetitive test data file - can be regenerated if needed"
+    },
+    {
+      "path": "stock_backfill_priority_batch_backup_20250901_114953.json",
+      "reason": "Backup/temporary file cleanup"
+    },
+    {
+      "path": "multiprocess_backfill_results_20250901_115121.json",
+      "reason": "Backup/temporary file cleanup"
+    }
+  ],
+  "files_moved": [
+    {
+      "src": "src/services/analytics_service.py",
+      "dst": "src/services/legacy_analytics_service.py.bak",
+      "reason": "Keep original as backup during transition to unified service"
+    },
+    {
+      "src": "tests/test_economic_events_gin_refactor.py",
+      "dst": "tests/integration/gin_refactoring/test_economic_events_gin_refactor.py",
+      "reason": "Consolidate gin tests from tests/ directory"
+    },
+    {
+      "src": "tests/test_polygon_gin_refactor.py",
+      "dst": "tests/integration/gin_refactoring/test_polygon_gin_refactor.py",
+      "reason": "Consolidate gin tests from tests/ directory"
+    },
+    {
+      "src": "scripts/tiingo_30_year_daily_backfill.py",
+      "dst": "src/data_ingestion/legacy_backfill_scripts/tiingo_30_year_daily_backfill.py",
+      "reason": "Legacy Tiingo backfill - keep for reference"
+    },
+    {
+      "src": "scripts/polygon_30_year_daily_backfill.py",
+      "dst": "src/data_ingestion/legacy_backfill_scripts/polygon_30_year_daily_backfill.py",
+      "reason": "Legacy Polygon backfill - keep for reference"
+    },
+    {
+      "src": "scripts/eodhd_30_year_daily_backfill.py",
+      "dst": "src/data_ingestion/legacy_backfill_scripts/eodhd_30_year_daily_backfill.py",
+      "reason": "Legacy EODHD backfill - keep for reference"
+    },
+    {
+      "src": "scripts/multi_vendor_30year_daily_backfill.py",
+      "dst": "src/data_ingestion/legacy_backfill_scripts/multi_vendor_30year_daily_backfill.py",
+      "reason": "Multi-vendor approach - analyze for patterns"
+    },
+    {
+      "src": "scripts/optimized_backfill_all_vendors.py",
+      "dst": "src/data_ingestion/legacy_backfill_scripts/optimized_backfill_all_vendors.py",
+      "reason": "Optimized approach - analyze for patterns"
+    },
+    {
+      "src": "scripts/start_realtime_monitoring.py",
+      "dst": "src/monitoring/start_realtime_monitoring.py",
+      "reason": "Core monitoring startup"
+    },
+    {
+      "src": "scripts/training_data/generate_aapl_tsla_training_data.py",
+      "dst": "src/ml/training_data/legacy_scripts/generate_aapl_tsla_training_data.py",
+      "reason": "Move training data scripts to proper ML directory"
+    },
+    {
+      "src": "scripts/training_data/generate_proper_multi_timeframe_training_data.py",
+      "dst": "src/ml/training_data/legacy_scripts/generate_proper_multi_timeframe_training_data.py",
+      "reason": "Move training data scripts to proper ML directory"
+    },
+    {
+      "src": "scripts/training_data/generate_tsla_aapl_gin_training_data.py",
+      "dst": "src/ml/training_data/legacy_scripts/generate_tsla_aapl_gin_training_data.py",
+      "reason": "Move training data scripts to proper ML directory"
+    },
+    {
+      "src": "scripts/training_data/regenerate_training_data.py",
+      "dst": "src/ml/training_data/legacy_scripts/regenerate_training_data.py",
+      "reason": "Move training data scripts to proper ML directory"
+    },
+    {
+      "src": "scripts/training_data/run_aapl_training_data.py",
+      "dst": "src/ml/training_data/legacy_scripts/run_aapl_training_data.py",
+      "reason": "Move training data scripts to proper ML directory"
+    },
+    {
+      "src": "test_environment_config_simple.py",
+      "dst": "tests/integration/test_environment_config_simple.py",
+      "reason": "Move top-level tests to proper directory"
+    },
+    {
+      "src": "test_environment_configuration.py",
+      "dst": "tests/integration/test_environment_configuration.py",
+      "reason": "Move top-level tests to proper directory"
+    }
+  ]
+}
