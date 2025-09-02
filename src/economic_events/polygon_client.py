@@ -6,6 +6,7 @@ Fetches economic events data from Polygon.io API.
 
 import asyncio
 import aiohttp
+import gin
 import logging
 from datetime import datetime, date
 from typing import List, Dict, Any, Optional
@@ -13,13 +14,24 @@ from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
+@gin.configurable
+class PolygonEconomicEventsConfig:
+    def __init__(self,
+                 base_url: str = "https://api.polygon.io",
+                 timeout_seconds: int = 30,
+                 api_limit: int = 1000,
+                 rate_limit_sleep_seconds: int = 12):
+        self.base_url = base_url
+        self.timeout_seconds = timeout_seconds
+        self.api_limit = api_limit
+        self.rate_limit_sleep_seconds = rate_limit_sleep_seconds
 
 class PolygonEconomicEventsClient:
     """Client for Polygon Economic Events API."""
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, config: PolygonEconomicEventsConfig = None):
         self.api_key = api_key
-        self.base_url = "https://api.polygon.io"
+        self.config = config or PolygonEconomicEventsConfig()
     
     async def fetch_economic_events(self, start_date: date, end_date: date,
                                   importance: Optional[int] = None) -> List[Dict[str, Any]]:
@@ -34,16 +46,16 @@ class PolygonEconomicEventsClient:
         Returns:
             List of economic events data
         """
-        timeout = aiohttp.ClientTimeout(total=30)
+        timeout = aiohttp.ClientTimeout(total=self.config.timeout_seconds)
         
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            url = f"{self.base_url}/v1/economic/events"
+            url = f"{self.config.base_url}/v1/economic/events"
             
             params = {
                 "apikey": self.api_key,
                 "start_date": start_date.strftime("%Y-%m-%d"),
                 "end_date": end_date.strftime("%Y-%m-%d"),
-                "limit": 1000  # Maximum allowed by Polygon
+                "limit": self.config.api_limit
             }
             
             if importance:
@@ -59,7 +71,7 @@ class PolygonEconomicEventsClient:
                         return events
                     elif response.status == 429:
                         logger.warning("Polygon API rate limit hit")
-                        await asyncio.sleep(12)  # Polygon rate limit handling
+                        await asyncio.sleep(self.config.rate_limit_sleep_seconds)
                         return []
                     else:
                         logger.error(f"Polygon API error: {response.status}")
@@ -79,10 +91,10 @@ class PolygonEconomicEventsClient:
         Returns:
             Event data or None if not found
         """
-        timeout = aiohttp.ClientTimeout(total=30)
+        timeout = aiohttp.ClientTimeout(total=self.config.timeout_seconds)
         
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            url = f"{self.base_url}/v1/economic/events/{event_id}"
+            url = f"{self.config.base_url}/v1/economic/events/{event_id}"
             
             params = {"apikey": self.api_key}
             
@@ -208,10 +220,10 @@ class PolygonEconomicEventsClient:
         Returns:
             List of event types
         """
-        timeout = aiohttp.ClientTimeout(total=30)
+        timeout = aiohttp.ClientTimeout(total=self.config.timeout_seconds)
         
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            url = f"{self.base_url}/v1/economic/event-types"
+            url = f"{self.config.base_url}/v1/economic/event-types"
             
             params = {"apikey": self.api_key}
             

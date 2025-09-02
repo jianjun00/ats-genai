@@ -6,19 +6,33 @@ Fetches economic events data from Tiingo API.
 
 import asyncio
 import aiohttp
+import gin
 import logging
 from datetime import datetime, date
 from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
+@gin.configurable
+class TiingoEconomicConfig:
+    def __init__(self,
+                 base_url: str = "https://api.tiingo.com",
+                 timeout_seconds: int = 30,
+                 news_limit: int = 1000,
+                 crypto_news_limit: int = 500,
+                 rate_limit_delay_seconds: int = 5):
+        self.base_url = base_url
+        self.timeout_seconds = timeout_seconds
+        self.news_limit = news_limit
+        self.crypto_news_limit = crypto_news_limit
+        self.rate_limit_delay_seconds = rate_limit_delay_seconds
 
 class TiingoEconomicEventsClient:
     """Client for Tiingo Economic Events API."""
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, config: TiingoEconomicConfig = None):
         self.api_key = api_key
-        self.base_url = "https://api.tiingo.com"
+        self.config = config or TiingoEconomicConfig()
     
     async def fetch_economic_events(self, start_date: date, end_date: date) -> List[Dict[str, Any]]:
         """
@@ -33,18 +47,18 @@ class TiingoEconomicEventsClient:
         Returns:
             List of economic events data
         """
-        timeout = aiohttp.ClientTimeout(total=30)
+        timeout = aiohttp.ClientTimeout(total=self.config.timeout_seconds)
         
         async with aiohttp.ClientSession(timeout=timeout) as session:
             # Tiingo doesn't have a dedicated economic events endpoint like Polygon
             # We'll use their news API to find economic event mentions
-            url = f"{self.base_url}/tiingo/news"
+            url = f"{self.config.base_url}/tiingo/news"
             
             params = {
                 "token": self.api_key,
                 "startDate": start_date.strftime("%Y-%m-%d"),
                 "endDate": end_date.strftime("%Y-%m-%d"),
-                "limit": 1000,
+                "limit": self.config.news_limit,
                 "search": "economic|GDP|inflation|employment|fed|unemployment|CPI|PPI|retail|jobless|payrolls"
             }
             
@@ -63,7 +77,7 @@ class TiingoEconomicEventsClient:
                         return economic_events
                     elif response.status == 429:
                         logger.warning("Tiingo API rate limit hit")
-                        await asyncio.sleep(5)  # Tiingo rate limit handling
+                        await asyncio.sleep(self.config.rate_limit_delay_seconds)  # Tiingo rate limit handling
                         return []
                     else:
                         logger.error(f"Tiingo API error: {response.status}")
@@ -84,16 +98,16 @@ class TiingoEconomicEventsClient:
         Returns:
             List of crypto economic events
         """
-        timeout = aiohttp.ClientTimeout(total=30)
+        timeout = aiohttp.ClientTimeout(total=self.config.timeout_seconds)
         
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            url = f"{self.base_url}/tiingo/crypto/news"
+            url = f"{self.config.base_url}/tiingo/crypto/news"
             
             params = {
                 "token": self.api_key,
                 "startDate": start_date.strftime("%Y-%m-%d"),
                 "endDate": end_date.strftime("%Y-%m-%d"),
-                "limit": 500,
+                "limit": self.config.crypto_news_limit,
                 "search": "economic|regulation|fed|policy|SEC|CFTC"
             }
             

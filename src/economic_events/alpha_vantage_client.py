@@ -6,6 +6,7 @@ Fetches economic indicator data from Alpha Vantage API.
 
 import asyncio
 import aiohttp
+import gin
 import logging
 from datetime import datetime, date
 from typing import List, Dict, Any, Optional
@@ -13,13 +14,22 @@ from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
+@gin.configurable
+class AlphaVantageEconomicConfig:
+    def __init__(self,
+                 base_url: str = "https://www.alphavantage.co/query",
+                 timeout_seconds: int = 30,
+                 rate_limit_delay_seconds: int = 15):
+        self.base_url = base_url
+        self.timeout_seconds = timeout_seconds
+        self.rate_limit_delay_seconds = rate_limit_delay_seconds
 
 class AlphaVantageEconomicClient:
     """Client for Alpha Vantage Economic Indicators API."""
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, config: AlphaVantageEconomicConfig = None):
         self.api_key = api_key
-        self.base_url = "https://www.alphavantage.co/query"
+        self.config = config or AlphaVantageEconomicConfig()
     
     async def fetch_real_gdp(self, interval: str = "quarterly") -> List[Dict[str, Any]]:
         """
@@ -150,11 +160,11 @@ class AlphaVantageEconomicClient:
         Returns:
             List of economic data points
         """
-        timeout = aiohttp.ClientTimeout(total=30)
+        timeout = aiohttp.ClientTimeout(total=self.config.timeout_seconds)
         
         async with aiohttp.ClientSession(timeout=timeout) as session:
             try:
-                async with session.get(self.base_url, params=params) as response:
+                async with session.get(self.config.base_url, params=params) as response:
                     if response.status == 200:
                         data = await response.json()
                         
@@ -347,7 +357,7 @@ class AlphaVantageEconomicClient:
                 all_events.extend(indicator_data)
                 
                 # Rate limiting - Alpha Vantage free tier allows 5 requests per minute
-                await asyncio.sleep(15)  # Wait 15 seconds between requests
+                await asyncio.sleep(self.config.rate_limit_delay_seconds)  # Wait between requests for rate limiting
                 
             except Exception as e:
                 logger.error(f"Error fetching indicator data: {e}")

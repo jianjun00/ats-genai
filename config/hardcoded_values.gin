@@ -282,3 +282,30 @@ market_data.agent.polygon_adapter.PolygonAdapterConfig.debug_tickers = ["AAPL", 
 market_data.agent.polygon_adapter.PolygonAdapterConfig.debug_start_date = "2020-01-10"
 market_data.agent.polygon_adapter.PolygonAdapterConfig.debug_end_date = "2024-12-31"
 market_data.agent.polygon_adapter.PolygonAdapterConfig.debug_log_path = "tests/data"
+
+# =============================================================================
+# ECONOMIC EVENTS CLIENTS CONFIGURATION
+# =============================================================================
+
+# Polygon Economic Events Client Configuration
+economic_events.polygon_client.PolygonEconomicEventsConfig.base_url = "https://api.polygon.io"
+economic_events.polygon_client.PolygonEconomicEventsConfig.timeout_seconds = 30
+economic_events.polygon_client.PolygonEconomicEventsConfig.api_limit = 1000
+economic_events.polygon_client.PolygonEconomicEventsConfig.rate_limit_sleep_seconds = 12
+
+# FRED Economic Client Configuration  
+economic_events.fred_client.FREDEconomicConfig.base_url = "https://api.stlouisfed.org/fred"
+economic_events.fred_client.FREDEconomicConfig.timeout_seconds = 30
+economic_events.fred_client.FREDEconomicConfig.search_limit_default = 20
+
+# Alpha Vantage Economic Client Configuration
+economic_events.alpha_vantage_client.AlphaVantageEconomicConfig.base_url = "https://www.alphavantage.co/query"
+economic_events.alpha_vantage_client.AlphaVantageEconomicConfig.timeout_seconds = 30
+economic_events.alpha_vantage_client.AlphaVantageEconomicConfig.rate_limit_delay_seconds = 15
+
+# Tiingo Economic Client Configuration
+economic_events.tiingo_client.TiingoEconomicConfig.base_url = "https://api.tiingo.com"
+economic_events.tiingo_client.TiingoEconomicConfig.timeout_seconds = 30
+economic_events.tiingo_client.TiingoEconomicConfig.news_limit = 1000
+economic_events.tiingo_client.TiingoEconomicConfig.crypto_news_limit = 500
+economic_events.tiingo_client.TiingoEconomicConfig.rate_limit_delay_seconds = 5

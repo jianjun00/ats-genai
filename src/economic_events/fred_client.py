@@ -6,6 +6,7 @@ Fetches economic data from St. Louis Federal Reserve FRED API.
 
 import asyncio
 import aiohttp
+import gin
 import logging
 from datetime import datetime, date
 from typing import List, Dict, Any, Optional
@@ -13,13 +14,24 @@ from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
+@gin.configurable
+class FREDEconomicConfig:
+    def __init__(self,
+                 base_url: str = "https://api.stlouisfed.org/fred",
+                 timeout_seconds: int = 30,
+                 search_limit_default: int = 20,
+                 observations_limit: int = 100000):
+        self.base_url = base_url
+        self.timeout_seconds = timeout_seconds
+        self.search_limit_default = search_limit_default
+        self.observations_limit = observations_limit
 
 class FREDEconomicClient:
     """Client for FRED Economic Data API."""
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, config: FREDEconomicConfig = None):
         self.api_key = api_key
-        self.base_url = "https://api.stlouisfed.org/fred"
+        self.config = config or FREDEconomicConfig()
     
     # Popular FRED series IDs for economic indicators
     SERIES_MAP = {
@@ -58,21 +70,21 @@ class FREDEconomicClient:
         Returns:
             List of observations
         """
-        timeout = aiohttp.ClientTimeout(total=30)
+        timeout = aiohttp.ClientTimeout(total=self.config.timeout_seconds)
         
         async with aiohttp.ClientSession(timeout=timeout) as session:
             # First get series info
             series_info = await self._fetch_series_info(session, series_id)
             
             # Then get observations
-            url = f"{self.base_url}/series/observations"
+            url = f"{self.config.base_url}/series/observations"
             params = {
                 "series_id": series_id,
                 "api_key": self.api_key,
                 "file_type": "json",
                 "observation_start": start_date.strftime("%Y-%m-%d"),
                 "observation_end": end_date.strftime("%Y-%m-%d"),
-                "limit": 100000  # FRED's maximum
+                "limit": self.config.observations_limit
             }
             
             try:
@@ -110,7 +122,7 @@ class FREDEconomicClient:
         Returns:
             Series metadata
         """
-        url = f"{self.base_url}/series"
+        url = f"{self.config.base_url}/series"
         params = {
             "series_id": series_id,
             "api_key": self.api_key,
@@ -295,10 +307,10 @@ class FREDEconomicClient:
         Returns:
             List of matching series
         """
-        timeout = aiohttp.ClientTimeout(total=30)
+        timeout = aiohttp.ClientTimeout(total=self.config.timeout_seconds)
         
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            url = f"{self.base_url}/series/search"
+            url = f"{self.config.base_url}/series/search"
             params = {
                 "search_text": search_text,
                 "api_key": self.api_key,
@@ -326,10 +338,10 @@ class FREDEconomicClient:
         Returns:
             List of categories
         """
-        timeout = aiohttp.ClientTimeout(total=30)
+        timeout = aiohttp.ClientTimeout(total=self.config.timeout_seconds)
         
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            url = f"{self.base_url}/categories"
+            url = f"{self.config.base_url}/categories"
             params = {
                 "api_key": self.api_key,
                 "file_type": "json"
