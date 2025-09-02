@@ -1288,65 +1288,164 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     import pandas as pd
                     df = pd.read_csv(file_to_load)
                     
-                    # For CSV files, assume each row is a time step in a single sequence
-                    # Reshape to [1, time_steps, features] format expected by visualization
-                    features_data = df.select_dtypes(include=[np.number]).values
-                    features_data = features_data.reshape(1, features_data.shape[0], features_data.shape[1])
+                    # Load metadata from JSON file if available
+                    dataset_name = dataset_info.get('dataset_name', '')
+                    is_time_series = False
                     
-                    logger.info(f"Loaded CSV data: {features_data.shape} from {file_to_load}")
+                    # Try to load metadata file
+                    metadata_file = file_to_load.replace('.csv', '_metadata.json')
+                    try:
+                        if os.path.exists(metadata_file):
+                            import json
+                            with open(metadata_file, 'r') as f:
+                                metadata = json.load(f)
+                            
+                            data_format = metadata.get('data_format', '')
+                            is_time_series = data_format in ['one_row_per_hour', 'one_row_per_day', 'one_row_per_minute', 'csv_time_series']
+                            logger.info(f"Metadata file found: data_format='{data_format}', is_time_series={is_time_series}, num_rows={metadata.get('num_rows', 'unknown')}")
+                        else:
+                            # Fallback to name-based detection
+                            is_time_series = 'hourly' in dataset_name.lower() or 'daily' in dataset_name.lower() or 'minute' in dataset_name.lower()
+                            logger.info(f"No metadata file, fallback detection: dataset_name='{dataset_name}', is_time_series={is_time_series}")
+                    except Exception as e:
+                        # Fallback to name-based detection if metadata loading fails
+                        is_time_series = 'hourly' in dataset_name.lower() or 'daily' in dataset_name.lower() or 'minute' in dataset_name.lower()
+                        logger.info(f"Metadata loading failed, using fallback: dataset_name='{dataset_name}', is_time_series={is_time_series}, error={e}")
+                    
+                    # Get numeric data and preserve column names for proper feature mapping
+                    numeric_df = df.select_dtypes(include=[np.number])
+                    features_data = numeric_df.values
+                    numeric_feature_names = list(numeric_df.columns)
+                    
+                    logger.info(f"Numeric features extracted: {numeric_feature_names[:10]}...")
+                    
+                    if is_time_series:
+                        # For time series CSV: each row is a separate time point
+                        # Reshape to [time_points, 1, features] - each row is one "sequence" of length 1
+                        features_data = features_data.reshape(features_data.shape[0], 1, features_data.shape[1])
+                        logger.info(f"Loaded CSV time series data: {features_data.shape} ({features_data.shape[0]} time points)")
+                    else:
+                        # For sequence CSV: assume each row is a time step in a single sequence
+                        # Reshape to [1, time_steps, features] format expected by visualization
+                        features_data = features_data.reshape(1, features_data.shape[0], features_data.shape[1])
+                        logger.info(f"Loaded CSV sequence data: {features_data.shape} (1 sequence with {features_data.shape[1]} time steps)")
+                    
                 else:
                     return {"error": f"Unsupported file format: {file_to_load}. Expected .npy or .csv", "data": []}
             except Exception as e:
                 return {"error": f"Error loading features file {file_to_load}: {str(e)}", "data": []}
             
             # Calculate the selected sequence index and time step within sequence
-            sequence_length = dataset_info.get('sequence_length', 60)
-            sequence_idx = start_idx // sequence_length
-            time_step_in_sequence = start_idx % sequence_length
+            # Detect time series format by checking if features_data shape indicates time series structure
+            # Time series: [num_time_points, 1, features] vs Sequences: [num_sequences, time_steps, features]
+            dataset_name = dataset_info.get('dataset_name', '')
             
-            # Ensure we don't go out of bounds
-            if sequence_idx >= features_data.shape[0]:
-                return {"error": "Start index out of bounds", "data": []}
+            # Check data shape to determine if it's time series (middle dimension = 1) or sequences
+            is_time_series_shape = features_data.shape[1] == 1
+            
+            if is_time_series_shape:
+                # For time series: sequence_length = 1, start_idx directly maps to sequence index
+                sequence_length = 1
+                sequence_idx = start_idx
+                time_step_in_sequence = 0  # Always 0 since each sequence has only 1 time step
+                logger.info(f"Time series detected: {features_data.shape[0]} time points, sequence_idx={sequence_idx}")
+            else:
+                # For sequence data: use traditional sequence_length (default 60)
+                sequence_length = dataset_info.get('sequence_length', 60)
+                sequence_idx = start_idx // sequence_length
+                time_step_in_sequence = start_idx % sequence_length
+                logger.info(f"Sequence data detected: {features_data.shape[0]} sequences of {features_data.shape[1]} steps, sequence_idx={sequence_idx}")
+            
+            # BOUNDS VALIDATION FIX: Proactive checking with graceful degradation
+            actual_sequences = features_data.shape[0]
+            claimed_sequences = dataset_info.get('total_sequences', actual_sequences)
+            
+            # If sequence index exceeds actual data, provide graceful fallback
+            if sequence_idx >= actual_sequences:
+                # Clamp to the last available sequence for graceful degradation
+                safe_sequence_idx = max(0, actual_sequences - 1)
+                safe_start_idx = safe_sequence_idx * sequence_length + time_step_in_sequence
+                
+                return {
+                    "error": "Start index out of bounds - using nearest available data",
+                    "data": [],
+                    "bounds_info": {
+                        "requested_sequence": sequence_idx,
+                        "requested_start_idx": start_idx,
+                        "available_sequences": actual_sequences,
+                        "claimed_sequences": claimed_sequences,
+                        "suggested_sequence": safe_sequence_idx,
+                        "suggested_start_idx": safe_start_idx,
+                        "sequence_length": sequence_length
+                    },
+                    "user_message": f"Requested sequence {sequence_idx} is beyond available data (max: {actual_sequences-1}). Please select a sequence between 0 and {actual_sequences-1}."
+                }
             
             # Extract data around the selected point (10 before, current, 10 after)
             half_window = count // 2
-            start_time_step = max(0, time_step_in_sequence - half_window)
-            end_time_step = min(sequence_length, time_step_in_sequence + half_window + 1)
             
-            # Get the data slice
-            data_slice = features_data[sequence_idx, start_time_step:end_time_step, :]
-            
-            # Load feature names from metadata
-            feature_names = ['open', 'high', 'low', 'close', 'volume', 'etop', 'ebot', 'pldot', 'z1b', 'z2b', 'z5t', 'z6t']
-            
-            if metadata_file_path:
-                # Map metadata path for container compatibility
-                container_metadata_path = metadata_file_path
-                if metadata_file_path.startswith('/mnt/d/ats-data/'):
-                    container_metadata_path = metadata_file_path.replace('/mnt/d/ats-data/', '/data/')
+            if is_time_series_shape:
+                # For time series: extract 21 consecutive time points (sequences) around selected point
+                start_sequence = max(0, sequence_idx - half_window)
+                end_sequence = min(actual_sequences, sequence_idx + half_window + 1)
                 
-                metadata_to_load = None
-                if os.path.exists(container_metadata_path):
-                    metadata_to_load = container_metadata_path
-                elif os.path.exists(metadata_file_path):
-                    metadata_to_load = metadata_file_path
+                # Extract across multiple sequences (time points), each with 1 time step
+                data_slice = features_data[start_sequence:end_sequence, 0, :]  # All sequences, first (only) time step
+                logger.info(f"Time series window: sequences {start_sequence}-{end_sequence-1}, shape={data_slice.shape}")
                 
-                if metadata_to_load:
-                    try:
-                        import json
-                        with open(metadata_to_load, 'r') as f:
-                            metadata = json.load(f)
-                            feature_names = metadata.get('feature_names', feature_names)
-                            logger.info(f"Loaded feature names from metadata: {feature_names}")
-                    except Exception as e:
-                        logger.warning(f"Could not load feature names from metadata: {e}")
+                # For time series: use start_sequence as the base index
+                start_index = start_sequence
+                selected_relative_index = sequence_idx - start_sequence
+            else:
+                # For sequence data: extract time steps within the selected sequence
+                start_time_step = max(0, time_step_in_sequence - half_window)
+                end_time_step = min(sequence_length, time_step_in_sequence + half_window + 1)
+                
+                # Get the data slice from single sequence
+                data_slice = features_data[sequence_idx, start_time_step:end_time_step, :]
+                logger.info(f"Sequence window: sequence {sequence_idx}, time_steps {start_time_step}-{end_time_step-1}, shape={data_slice.shape}")
+                
+                # For sequence data: use start_time_step as the base index
+                start_index = start_time_step
+                selected_relative_index = time_step_in_sequence - start_time_step
+            
+            # Load feature names - use numeric column names for CSV data, or metadata for other formats
+            if file_to_load.endswith('.csv') and 'numeric_feature_names' in locals():
+                # For CSV files, use the actual numeric column names to ensure proper alignment
+                feature_names = numeric_feature_names
+                logger.info(f"Using CSV numeric column names: {feature_names}")
+            else:
+                # For non-CSV files, use default or metadata feature names
+                feature_names = ['open', 'high', 'low', 'close', 'volume', 'etop', 'ebot', 'pldot', 'z1b', 'z2b', 'z5t', 'z6t']
+                
+                if metadata_file_path:
+                    # Map metadata path for container compatibility
+                    container_metadata_path = metadata_file_path
+                    if metadata_file_path.startswith('/mnt/d/ats-data/'):
+                        container_metadata_path = metadata_file_path.replace('/mnt/d/ats-data/', '/data/')
+                    
+                    metadata_to_load = None
+                    if os.path.exists(container_metadata_path):
+                        metadata_to_load = container_metadata_path
+                    elif os.path.exists(metadata_file_path):
+                        metadata_to_load = metadata_file_path
+                    
+                    if metadata_to_load:
+                        try:
+                            import json
+                            with open(metadata_to_load, 'r') as f:
+                                metadata = json.load(f)
+                                feature_names = metadata.get('feature_names', feature_names)
+                                logger.info(f"Loaded feature names from metadata: {feature_names}")
+                        except Exception as e:
+                            logger.warning(f"Could not load feature names from metadata: {e}")
             
             # Create visualization data structure
             visualization_data = []
             for i, row in enumerate(data_slice):
                 row_data = {
-                    'index': start_time_step + i,
-                    'is_selected': (start_time_step + i) == time_step_in_sequence
+                    'index': start_index + i,
+                    'is_selected': i == selected_relative_index
                 }
                 
                 # Map features to their names
@@ -4821,13 +4920,41 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
             try {
                 console.log(`Loading OHLC visualization for dataset ${datasetId}, sequence ${sequenceIndex}`);
                 
-                // Update sequence display
-                document.getElementById('sequence-display').textContent = `Sequence: ${sequenceIndex} (21-row window)`;
-                
-                // Calculate start_idx for 21-row window (10 before + selected + 10 after)
-                // For training data, each sequence typically has 60 time steps
-                const sequenceLength = currentDataset?.sequence_length || 60;
+                // Use schema metadata for proper data format detection
+                // Fallback detection for file-based datasets that don't have schema metadata
+                const dataFormat = currentDataset?.data_format || 
+                    (currentDataset?.dataset_name?.includes('hourly') ? 'csv_time_series' : 'numpy_sequences');
+                const isTimeSeries = currentDataset?.is_time_series ?? 
+                    (currentDataset?.dataset_name?.includes('hourly') || currentDataset?.dataset_name?.includes('daily'));
+                const timeStepUnit = currentDataset?.time_step_unit || 
+                    (currentDataset?.dataset_name?.includes('hourly') ? 'hour' : 'time_step');
+                const sequenceLength = currentDataset?.sequence_length || 
+                    (isTimeSeries ? 1 : 60);  // Time series = 1 point per sequence, training sequences = 60 steps
                 const totalSequences = currentDataset?.total_sequences || 1;
+                
+                console.log(`Dataset schema: format=${dataFormat}, isTimeSeries=${isTimeSeries}, sequenceLength=${sequenceLength}, totalSequences=${totalSequences}`);
+                
+                // Update sequence display with format-appropriate labeling
+                const displayLabel = isTimeSeries ? 
+                    `${timeStepUnit.charAt(0).toUpperCase() + timeStepUnit.slice(1)}: ${sequenceIndex} (21-${timeStepUnit} window)` : 
+                    `Sequence: ${sequenceIndex} (21-row window)`;
+                document.getElementById('sequence-display').textContent = displayLabel;
+                
+                // FRONTEND BOUNDS VALIDATION: Check sequence bounds before calculation
+                if (sequenceIndex >= totalSequences) {
+                    const maxValidSequence = totalSequences - 1;
+                    document.getElementById('ohlc-chart').innerHTML = 
+                        `<div class="alert alert-warning">
+                            <h5>⚠️ Sequence Out of Bounds</h5>
+                            <p><strong>Requested sequence ${sequenceIndex}</strong> exceeds available data.</p>
+                            <p><strong>Available sequences:</strong> 0 to ${maxValidSequence} (total: ${totalSequences})</p>
+                            <p><strong>Suggestion:</strong> Please select a sequence between 0 and ${maxValidSequence}.</p>
+                            <button class="btn btn-primary" onclick="document.getElementById('sequence-slider').value=${maxValidSequence}; updateOHLCVisualization('${datasetId}', ${maxValidSequence});">
+                                Go to sequence ${maxValidSequence}
+                            </button>
+                        </div>`;
+                    return;
+                }
                 
                 // Calculate the start index for a 21-row window centered on the selected sequence
                 // If sequenceIndex is the sequence number, we want the middle time step of that sequence
@@ -4865,6 +4992,27 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                         total_points: data.data.length
                     };
                     createOHLCChart('ohlc-chart', data);
+                } else if (data && data.error && data.bounds_info) {
+                    // Handle enhanced bounds error response
+                    const bounds = data.bounds_info;
+                    const suggestedSequence = bounds.suggested_sequence;
+                    document.getElementById('ohlc-chart').innerHTML = 
+                        `<div class="alert alert-warning">
+                            <h5>🚨 Backend Bounds Validation Error</h5>
+                            <p><strong>${data.user_message}</strong></p>
+                            <div class="details mt-3">
+                                <p><strong>Debug Information:</strong></p>
+                                <ul>
+                                    <li>Requested sequence: ${bounds.requested_sequence}</li>
+                                    <li>Available sequences: 0 to ${bounds.available_sequences - 1}</li>
+                                    <li>Metadata claimed: ${bounds.claimed_sequences} sequences</li>
+                                    <li>Actual file has: ${bounds.available_sequences} sequences</li>
+                                </ul>
+                            </div>
+                            <button class="btn btn-success" onclick="document.getElementById('sequence-slider').value=${suggestedSequence}; updateOHLCVisualization('${datasetId}', ${suggestedSequence});">
+                                📍 Go to suggested sequence ${suggestedSequence}
+                            </button>
+                        </div>`;
                 } else {
                     document.getElementById('ohlc-chart').innerHTML = 
                         '<p style="text-align: center; padding: 50px; color: #666;">No OHLC data available for this sequence</p>';
@@ -5005,6 +5153,16 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 chartTitle = `OHLC Chart - Sequence ${data.sequence_idx} (${data.selected_time_step + 1}/${data.sequence_length})`;
             }
             
+            // Calculate y-axis range from OHLC data for better centering
+            const allPrices = [];
+            chartData.forEach(d => {
+                allPrices.push(d.open, d.high, d.low, d.close);
+            });
+            const minPrice = Math.min(...allPrices);
+            const maxPrice = Math.max(...allPrices);
+            const priceRange = maxPrice - minPrice;
+            const padding = Math.max(priceRange * 0.1, 0.5); // 10% padding, minimum $0.50
+            
             const layout = {
                 title: {
                     text: chartTitle,
@@ -5016,7 +5174,8 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     tickangle: -45
                 },
                 yaxis: {
-                    title: 'Price ($)'
+                    title: 'Price ($)',
+                    range: [minPrice - padding, maxPrice + padding]
                 },
                 height: 500,
                 showlegend: true,
