@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 class StandaloneMonitoringDashboard:
     """Standalone monitoring dashboard."""
     
-    def __init__(self, host: str = "0.0.0.0", port: int = 8090):
+    def __init__(self, host: str = "0.0.0.0", port: int = 4008):
         self.host = host
         self.port = port
         self.app = web.Application()
@@ -580,8 +580,8 @@ class StandaloneMonitoringSystem:
         logger.info("✅ All components started")
         logger.info("")
         logger.info("📊 Access Points:")
-        logger.info("   Dashboard:  http://localhost:8090")
-        logger.info("   Health:     http://localhost:8090/health")
+        logger.info("   Dashboard:  http://localhost:4008")
+        logger.info("   Health:     http://localhost:4008/health")
         logger.info("   Metrics:    http://localhost:8091/metrics")
         logger.info("")
         

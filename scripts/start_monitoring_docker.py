@@ -86,7 +86,7 @@ def start_monitoring_in_docker():
         "--rm",
         "--name", "ats-realtime-monitoring",
         "--network", "ats-network",  # Connect to ATS network for database access
-        "-p", "8090:8090",  # Dashboard port
+        "-p", "4008:4008",  # Dashboard port
         "-p", "8091:8091",  # Metrics port
         "-v", f"{project_root}:/workspace",
         "-w", "/workspace",
@@ -118,9 +118,9 @@ def start_monitoring_in_docker():
     
     logger.info("🔧 Docker command configured")
     logger.info("📊 Access points will be:")
-    logger.info("   Dashboard:  http://localhost:8090")
+    logger.info("   Dashboard:  http://localhost:4008")
     logger.info("   Metrics:    http://localhost:8091/metrics")
-    logger.info("   Health:     http://localhost:8090/health")
+    logger.info("   Health:     http://localhost:4008/health")
     logger.info("")
     logger.info("🎯 Starting monitoring container...")
     

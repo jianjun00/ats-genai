@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class SimpleMonitoringDashboard:
     """Simplified monitoring dashboard using basic HTML templates."""
     
-    def __init__(self, host: str = "0.0.0.0", port: int = 8090):
+    def __init__(self, host: str = "0.0.0.0", port: int = 4008):
         self.host = host
         self.port = port
         self.app = web.Application()

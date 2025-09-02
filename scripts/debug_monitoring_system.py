@@ -390,7 +390,7 @@ class MonitoringSystemDebugger:
                         ))
                         
                 elif comp_name == 'dashboard':
-                    port = comp_config.get('port', 8090)
+                    port = comp_config.get('port', 4008)
                     host = comp_config.get('host', '0.0.0.0')
                     
                     self.log_result(DiagnosticResult(
@@ -429,7 +429,7 @@ class MonitoringSystemDebugger:
         """Test network port availability."""
         
         ports_to_test = [
-            (8090, "Monitoring Dashboard"),
+            (4008, "Monitoring Dashboard"),
             (8091, "Prometheus Metrics"),
             (3000, "ATS-DEV Analytics"),
             (4000, "ATS-INTG Dashboard"),
@@ -768,7 +768,7 @@ class MonitoringSystemDebugger:
                 "components": {
                     "monitor": {"enabled": True, "interval_seconds": 60},
                     "alerting": {"enabled": True, "test_on_startup": False},
-                    "dashboard": {"enabled": True, "port": 8090},
+                    "dashboard": {"enabled": True, "port": 4008},
                     "prometheus": {"enabled": True, "port": 8091}
                 },
                 "logging": {"level": "INFO"}
