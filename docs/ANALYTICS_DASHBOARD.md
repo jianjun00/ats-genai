@@ -35,6 +35,14 @@ GET /api/vendors         - Multi-vendor coverage breakdown
 GET /api/jobs/stats      - Real job statistics from dev_runs table
 GET /api/jobs/recent     - Recent job history (last 15 jobs)
 GET /api/collections/status - Real-time collection process monitoring
+
+# Universe Analytics API (NEW)
+GET /analytics/universes                    - List all universes with summary stats
+GET /analytics/universe/{id}/metrics        - Universe metrics for specific date
+GET /analytics/universe/{id}/membership     - Paginated membership table
+GET /analytics/universe/{id}/scatter        - Market cap vs volume scatter plot data
+GET /analytics/universe/{id}/timeseries     - Historical universe size time series
+GET /analytics/universe/{id}/warnings       - Current warning indicators
 ```
 
 ---

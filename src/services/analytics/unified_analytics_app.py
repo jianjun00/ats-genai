@@ -32,10 +32,18 @@ from analytics.portfolio_analytics import (
     DrillDownAnalysis
 )
 
-# Import type-aware analytics components
-from services.analytics_service import AnalyticsService
-from api.type_aware_analytics_api import create_type_aware_analytics_router
-from schema.registry import schema_registry
+# Import components
+from services.universe_analytics_service import UniverseAnalyticsService
+
+# Optional type-aware analytics - disable if causing issues
+try:
+    from services.analytics_service_class import AnalyticsService
+    from api.type_aware_analytics_api import create_type_aware_analytics_router
+    from schema.registry import schema_registry
+    TYPE_AWARE_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Type-aware analytics not available: {e}")
+    TYPE_AWARE_AVAILABLE = False
 
 # Configure Gin
 try:
@@ -125,9 +133,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include type-aware analytics router
-type_aware_router = create_type_aware_analytics_router()
-app.include_router(type_aware_router)
+# Include type-aware analytics router (if available)
+if TYPE_AWARE_AVAILABLE:
+    try:
+        type_aware_router = create_type_aware_analytics_router()
+        app.include_router(type_aware_router)
+        logger.info("✅ Type-aware analytics router added")
+    except Exception as e:
+        logger.warning(f"Failed to add type-aware router: {e}")
+else:
+    logger.info("⏭️ Skipping type-aware analytics router")
 
 # Include datasets EDA router for table analysis
 try:
@@ -155,6 +170,7 @@ class UnifiedAnalyticsService:
         self.redis_client = None
         self.connection_manager = ConnectionManager()
         self.type_aware_analytics = None  # Will be initialized on startup
+        self.universe_service = None      # Will be initialized on startup
         
         # Service endpoints for health monitoring
         self.service_endpoints = {
@@ -192,14 +208,27 @@ class UnifiedAnalyticsService:
         except Exception as e:
             self.logger.warning(f"Redis connection failed: {e}")
         
-        # Initialize type-aware analytics service
+        # Initialize type-aware analytics service (if available)
+        if TYPE_AWARE_AVAILABLE:
+            try:
+                db_manager = self.env.get_database()
+                self.type_aware_analytics = AnalyticsService(db_manager)
+                self.logger.info("Type-aware analytics service initialized")
+                self.logger.info(f"Schema registry loaded with {len(schema_registry.get_schema_summary()['entities'])} entities")
+            except Exception as e:
+                self.logger.warning(f"Failed to initialize type-aware analytics: {e}")
+                self.type_aware_analytics = None
+        else:
+            self.logger.info("⏭️ Skipping type-aware analytics initialization")
+            self.type_aware_analytics = None
+        
+        # Initialize universe analytics service
         try:
-            db_manager = self.env.get_database()
-            self.type_aware_analytics = AnalyticsService(db_manager)
-            self.logger.info("Type-aware analytics service initialized")
-            self.logger.info(f"Schema registry loaded with {len(schema_registry.get_schema_summary()['entities'])} entities")
+            self.universe_service = UniverseAnalyticsService(self.env)
+            await self.universe_service.initialize()
+            self.logger.info("Universe analytics service initialized")
         except Exception as e:
-            self.logger.error(f"Failed to initialize type-aware analytics: {e}")
+            self.logger.error(f"Failed to initialize universe analytics: {e}")
             raise
         
         self.logger.info("Unified analytics service initialized with type system")
@@ -209,6 +238,8 @@ class UnifiedAnalyticsService:
         await self.analytics_engine.close()
         if self.redis_client:
             await self.redis_client.close()
+        if self.universe_service:
+            await self.universe_service.close()
     
     async def check_system_health(self) -> SystemStatus:
         """Comprehensive system health check"""
@@ -590,6 +621,136 @@ async def get_drill_down_analysis(
         service.system_metrics["errors"] += 1
         raise HTTPException(status_code=500, detail=str(e))
 
+# Universe Analytics Endpoints
+@app.get("/analytics/universes")
+async def get_all_universes():
+    """Get list of all available universes with summary statistics"""
+    service.system_metrics["total_requests"] += 1
+    
+    try:
+        universes = await service.universe_service.get_all_universes()
+        return {
+            "status": "success",
+            "universes": universes,
+            "count": len(universes)
+        }
+    except Exception as e:
+        service.system_metrics["errors"] += 1
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/analytics/universe/{universe_id}/metrics")
+async def get_universe_metrics(universe_id: int, as_of_date: Optional[str] = None):
+    """Get comprehensive metrics for a universe as of a specific date"""
+    service.system_metrics["total_requests"] += 1
+    
+    try:
+        # Default to today if no date specified
+        target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
+        
+        metrics = await service.universe_service.get_universe_metrics(universe_id, target_date)
+        
+        return {
+            "status": "success",
+            "metrics": asdict(metrics)
+        }
+    except Exception as e:
+        service.system_metrics["errors"] += 1
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/analytics/universe/{universe_id}/membership")
+async def get_universe_membership(
+    universe_id: int, 
+    as_of_date: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0
+):
+    """Get paginated membership table for a universe as of a specific date"""
+    service.system_metrics["total_requests"] += 1
+    
+    try:
+        target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
+        
+        membership = await service.universe_service.get_membership_table(
+            universe_id, target_date, limit, offset
+        )
+        
+        return {
+            "status": "success",
+            "membership": membership,
+            "as_of_date": target_date.isoformat(),
+            "limit": limit,
+            "offset": offset
+        }
+    except Exception as e:
+        service.system_metrics["errors"] += 1
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/analytics/universe/{universe_id}/scatter")
+async def get_qualification_scatter(universe_id: int, as_of_date: Optional[str] = None):
+    """Get market cap vs volume scatter plot data for universe members"""
+    service.system_metrics["total_requests"] += 1
+    
+    try:
+        target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
+        
+        scatter_data = await service.universe_service.get_qualification_scatter_data(
+            universe_id, target_date
+        )
+        
+        return {
+            "status": "success",
+            "scatter_data": scatter_data,
+            "as_of_date": target_date.isoformat()
+        }
+    except Exception as e:
+        service.system_metrics["errors"] += 1
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/analytics/universe/{universe_id}/timeseries")
+async def get_universe_timeseries(
+    universe_id: int,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    """Get time series data for universe size and composition"""
+    service.system_metrics["total_requests"] += 1
+    
+    try:
+        # Default to last 30 days if no dates specified
+        end_dt = date.fromisoformat(end_date) if end_date else date.today()
+        start_dt = date.fromisoformat(start_date) if start_date else end_dt - timedelta(days=30)
+        
+        timeseries = await service.universe_service.get_universe_time_series(
+            universe_id, start_dt, end_dt
+        )
+        
+        return {
+            "status": "success",
+            "timeseries": asdict(timeseries),
+            "start_date": start_dt.isoformat(),
+            "end_date": end_dt.isoformat()
+        }
+    except Exception as e:
+        service.system_metrics["errors"] += 1
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/analytics/universe/{universe_id}/warnings")
+async def get_universe_warnings(universe_id: int):
+    """Get current warning indicators for universe members"""
+    service.system_metrics["total_requests"] += 1
+    
+    try:
+        warnings = await service.universe_service.get_universe_warnings(universe_id)
+        
+        return {
+            "status": "success", 
+            "warnings": warnings,
+            "count": len(warnings)
+        }
+    except Exception as e:
+        service.system_metrics["errors"] += 1
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Data Quality and Monitoring Endpoints
 @app.get("/data-quality/report")
 async def get_data_quality_report():
@@ -808,6 +969,11 @@ async def dashboard():
                 <p id="websocket-status">Connecting to WebSocket...</p>
                 <div id="real-time-updates"></div>
             </div>
+            <div class="metric-card">
+                <h3>🌌 Universe Analytics</h3>
+                <p>Interactive universe membership analysis with qualification metrics, time series, and scatter plots.</p>
+                <a href="/universe" style="color: #667eea; text-decoration: none; font-weight: 600;">→ Open Universe Dashboard</a>
+            </div>
         </div>
         
         <script>
@@ -858,6 +1024,421 @@ async def dashboard():
                     ws.send(JSON.stringify({type: 'ping'}));
                 }
             }, 30000);
+        </script>
+    </body>
+    </html>
+    """
+    return html_content
+
+@app.get("/universe", response_class=HTMLResponse)
+async def universe_dashboard():
+    """Interactive universe analytics dashboard"""
+    html_content = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>ATS Universe Analytics Dashboard</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+        <style>
+            body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+                margin: 0; 
+                background: #f5f5f5;
+            }
+            .header { 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                color: white; 
+                padding: 20px; 
+                text-align: center;
+            }
+            .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+            .controls { 
+                background: white; 
+                padding: 20px; 
+                border-radius: 8px; 
+                margin-bottom: 20px; 
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+            .chart-container { 
+                background: white; 
+                padding: 20px; 
+                border-radius: 8px; 
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .full-width { grid-column: 1 / -1; }
+            .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+            .metric-card { 
+                background: white; 
+                padding: 20px; 
+                border-radius: 8px; 
+                text-align: center; 
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                border-left: 4px solid #667eea;
+            }
+            .metric-value { font-size: 2em; font-weight: bold; color: #333; margin-bottom: 5px; }
+            .metric-label { color: #666; font-size: 0.9em; }
+            select, input { 
+                padding: 8px 12px; 
+                border: 1px solid #ddd; 
+                border-radius: 4px; 
+                margin: 0 10px 0 5px;
+                font-size: 14px;
+            }
+            button { 
+                padding: 8px 16px; 
+                background: #667eea; 
+                color: white; 
+                border: none; 
+                border-radius: 4px; 
+                cursor: pointer;
+                font-size: 14px;
+            }
+            button:hover { background: #5a67d8; }
+            .table-container { 
+                background: white; 
+                border-radius: 8px; 
+                overflow: hidden; 
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+            th { background: #f8f9fa; font-weight: 600; }
+            .status-active { color: #28a745; font-weight: 600; }
+            .status-inactive { color: #dc3545; }
+            .loading { text-align: center; padding: 40px; color: #666; }
+            .warning-badge { 
+                background: #ffeaa7; 
+                color: #d63031; 
+                padding: 4px 8px; 
+                border-radius: 12px; 
+                font-size: 0.8em; 
+                font-weight: 600;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>🌌 Universe Analytics Dashboard</h1>
+            <p>Comprehensive universe membership analysis and qualification metrics</p>
+        </div>
+        
+        <div class="container">
+            <!-- Universe Selection and Controls -->
+            <div class="controls">
+                <label>Universe:</label>
+                <select id="universeSelect">
+                    <option value="">Loading universes...</option>
+                </select>
+                
+                <label>As of Date:</label>
+                <input type="date" id="asOfDate" />
+                
+                <button onclick="loadUniverseData()">🔄 Refresh</button>
+                <button onclick="exportData()">📊 Export</button>
+            </div>
+            
+            <!-- Key Metrics -->
+            <div class="metrics-grid" id="metricsGrid">
+                <div class="metric-card">
+                    <div class="metric-value" id="totalMembers">-</div>
+                    <div class="metric-label">Total Members</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="activeMembers">-</div>
+                    <div class="metric-label">Active Members</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="totalMarketCap">-</div>
+                    <div class="metric-label">Total Market Cap</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="avgVolume">-</div>
+                    <div class="metric-label">Avg Daily Volume</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="warningCount">-</div>
+                    <div class="metric-label">⚠️ Warnings</div>
+                </div>
+            </div>
+            
+            <!-- Charts Grid -->
+            <div class="grid">
+                <!-- Universe Size Time Series -->
+                <div class="chart-container">
+                    <h3>📈 Universe Size Over Time</h3>
+                    <canvas id="timeSeriesChart" height="300"></canvas>
+                </div>
+                
+                <!-- Market Cap vs Volume Scatter -->
+                <div class="chart-container">
+                    <h3>💰 Market Cap vs Trading Volume</h3>
+                    <canvas id="scatterChart" height="300"></canvas>
+                </div>
+            </div>
+            
+            <!-- Membership Table -->
+            <div class="table-container">
+                <div style="padding: 20px; border-bottom: 1px solid #eee; background: #f8f9fa;">
+                    <h3>📋 Current Membership</h3>
+                    <span id="membershipInfo">As of: <span id="asOfDateDisplay">-</span></span>
+                </div>
+                <div style="max-height: 600px; overflow-y: auto;">
+                    <table id="membershipTable">
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Status</th>
+                                <th>Entry Date</th>
+                                <th>Market Cap</th>
+                                <th>Volume</th>
+                                <th>Warnings</th>
+                            </tr>
+                        </thead>
+                        <tbody id="membershipBody">
+                            <tr><td colspan="6" class="loading">Select a universe to view membership data</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            let currentUniverseId = null;
+            let timeSeriesChart = null;
+            let scatterChart = null;
+            
+            // Initialize dashboard
+            document.addEventListener('DOMContentLoaded', async () => {
+                // Set default date to today
+                document.getElementById('asOfDate').value = new Date().toISOString().split('T')[0];
+                
+                // Load universes
+                await loadUniverses();
+            });
+            
+            async function loadUniverses() {
+                try {
+                    const response = await fetch('/analytics/universes');
+                    const data = await response.json();
+                    
+                    const select = document.getElementById('universeSelect');
+                    select.innerHTML = '<option value="">Select a universe...</option>';
+                    
+                    data.universes.forEach(universe => {
+                        const option = document.createElement('option');
+                        option.value = universe.id;
+                        option.textContent = `${universe.name} (${universe.active_members} active)`;
+                        select.appendChild(option);
+                    });
+                    
+                    // Auto-select first universe if available
+                    if (data.universes.length > 0) {
+                        select.value = data.universes[0].id;
+                        currentUniverseId = data.universes[0].id;
+                        await loadUniverseData();
+                    }
+                } catch (error) {
+                    console.error('Error loading universes:', error);
+                }
+            }
+            
+            async function loadUniverseData() {
+                const universeId = document.getElementById('universeSelect').value;
+                const asOfDate = document.getElementById('asOfDate').value;
+                
+                if (!universeId) return;
+                
+                currentUniverseId = universeId;
+                document.getElementById('asOfDateDisplay').textContent = asOfDate;
+                
+                // Load metrics
+                await loadMetrics(universeId, asOfDate);
+                
+                // Load charts
+                await loadTimeSeriesChart(universeId);
+                await loadScatterChart(universeId, asOfDate);
+                
+                // Load membership table
+                await loadMembershipTable(universeId, asOfDate);
+            }
+            
+            async function loadMetrics(universeId, asOfDate) {
+                try {
+                    const url = `/analytics/universe/${universeId}/metrics${asOfDate ? `?as_of_date=${asOfDate}` : ''}`;
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    const metrics = data.metrics;
+                    
+                    document.getElementById('totalMembers').textContent = metrics.total_members || '-';
+                    document.getElementById('activeMembers').textContent = metrics.active_members || '-';
+                    
+                    const marketCap = metrics.total_market_cap;
+                    document.getElementById('totalMarketCap').textContent = marketCap ? 
+                        `$${(marketCap / 1e9).toFixed(1)}B` : '-';
+                    
+                    const volume = metrics.avg_dollar_volume;
+                    document.getElementById('avgVolume').textContent = volume ? 
+                        `$${(volume / 1e6).toFixed(0)}M` : '-';
+                    
+                    document.getElementById('warningCount').textContent = metrics.warning_count || '0';
+                } catch (error) {
+                    console.error('Error loading metrics:', error);
+                }
+            }
+            
+            async function loadTimeSeriesChart(universeId) {
+                try {
+                    const endDate = new Date().toISOString().split('T')[0];
+                    const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                    
+                    const response = await fetch(`/analytics/universe/${universeId}/timeseries?start_date=${startDate}&end_date=${endDate}`);
+                    const data = await response.json();
+                    
+                    const ctx = document.getElementById('timeSeriesChart').getContext('2d');
+                    
+                    if (timeSeriesChart) {
+                        timeSeriesChart.destroy();
+                    }
+                    
+                    timeSeriesChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: data.timeseries.dates,
+                            datasets: [{
+                                label: 'Universe Size',
+                                data: data.timeseries.member_counts,
+                                borderColor: '#667eea',
+                                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: { display: true, text: 'Number of Members' }
+                                }
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error loading time series chart:', error);
+                }
+            }
+            
+            async function loadScatterChart(universeId, asOfDate) {
+                try {
+                    const url = `/analytics/universe/${universeId}/scatter${asOfDate ? `?as_of_date=${asOfDate}` : ''}`;
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    const ctx = document.getElementById('scatterChart').getContext('2d');
+                    
+                    if (scatterChart) {
+                        scatterChart.destroy();
+                    }
+                    
+                    scatterChart = new Chart(ctx, {
+                        type: 'scatter',
+                        data: {
+                            datasets: [{
+                                label: 'Active Members',
+                                data: data.scatter_data.filter(d => d.status === 'Active').map(d => ({
+                                    x: d.volume_millions,
+                                    y: d.market_cap_millions,
+                                    symbol: d.symbol
+                                })),
+                                backgroundColor: 'rgba(40, 167, 69, 0.6)',
+                                borderColor: '#28a745'
+                            }, {
+                                label: 'Inactive Members', 
+                                data: data.scatter_data.filter(d => d.status === 'Inactive').map(d => ({
+                                    x: d.volume_millions,
+                                    y: d.market_cap_millions,
+                                    symbol: d.symbol
+                                })),
+                                backgroundColor: 'rgba(220, 53, 69, 0.6)',
+                                borderColor: '#dc3545'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: { 
+                                    title: { display: true, text: 'Daily Volume ($M)' },
+                                    type: 'logarithmic'
+                                },
+                                y: { 
+                                    title: { display: true, text: 'Market Cap ($M)' },
+                                    type: 'logarithmic'
+                                }
+                            },
+                            plugins: {
+                                tooltip: {
+                                    callbacks: {
+                                        label: (context) => {
+                                            return `${context.raw.symbol}: $${context.parsed.y}M cap, $${context.parsed.x}M vol`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error loading scatter chart:', error);
+                }
+            }
+            
+            async function loadMembershipTable(universeId, asOfDate) {
+                try {
+                    const url = `/analytics/universe/${universeId}/membership${asOfDate ? `?as_of_date=${asOfDate}` : ''}`;
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    const tbody = document.getElementById('membershipBody');
+                    
+                    if (data.membership.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" class="loading">No membership data available</td></tr>';
+                        return;
+                    }
+                    
+                    tbody.innerHTML = data.membership.map(member => `
+                        <tr>
+                            <td><strong>${member.symbol}</strong></td>
+                            <td>
+                                <span class="${member.active ? 'status-active' : 'status-inactive'}">
+                                    ${member.active ? '✅ Active' : '❌ Inactive'}
+                                </span>
+                            </td>
+                            <td>${new Date(member.start_at).toLocaleDateString()}</td>
+                            <td>${member.market_cap ? `$${(member.market_cap / 1e6).toFixed(0)}M` : '-'}</td>
+                            <td>${member.dollar_volume ? `$${(member.dollar_volume / 1e6).toFixed(0)}M` : '-'}</td>
+                            <td>${member.removal_reason ? `<span class="warning-badge">${member.removal_reason}</span>` : '-'}</td>
+                        </tr>
+                    `).join('');
+                } catch (error) {
+                    console.error('Error loading membership table:', error);
+                }
+            }
+            
+            function exportData() {
+                if (!currentUniverseId) return;
+                
+                const asOfDate = document.getElementById('asOfDate').value;
+                const url = `/analytics/universe/${currentUniverseId}/membership?as_of_date=${asOfDate}&limit=1000&format=csv`;
+                window.open(url);
+            }
+            
+            // Event listeners
+            document.getElementById('universeSelect').addEventListener('change', loadUniverseData);
+            document.getElementById('asOfDate').addEventListener('change', loadUniverseData);
         </script>
     </body>
     </html>
