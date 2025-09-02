@@ -19,18 +19,17 @@ The monitoring system provides:
 ### Start Complete Monitoring System
 
 ```bash
-# Start all components (recommended)
+# Start all components with production configuration (recommended)
+./scripts/start_monitoring.sh
+
+# Alternative: Use Python script directly
 python3 scripts/start_realtime_monitoring.py
 
-# Start with custom configuration
-python3 scripts/start_realtime_monitoring.py --config monitoring_config.json
-
-# Start specific components only
-python3 scripts/start_realtime_monitoring.py --components monitor,dashboard
-
-# Test environment validation
-python3 scripts/start_realtime_monitoring.py --test
+# Test environment validation only
+python3 scripts/test_monitoring_architecture.py
 ```
+
+**Production Configuration**: Uses existing Slack webhook and jianjun00@gmail.com for email alerts
 
 ### Access Points
 

@@ -83,7 +83,14 @@ class MonitoringSystemOrchestrator:
     def _load_configuration(self, config_file: Optional[str]) -> Dict[str, Any]:
         """Load monitoring system configuration."""
         
-        # Default configuration
+        # Try to use production config by default
+        if config_file is None:
+            production_config = os.path.join(os.path.dirname(__file__), '..', 'config', 'realtime_monitoring_config.json')
+            if os.path.exists(production_config):
+                config_file = production_config
+                logger.info(f"📋 Using production configuration: {production_config}")
+        
+        # Default configuration (fallback)
         default_config = {
             "components": {
                 "monitor": {
