@@ -70,15 +70,21 @@ class HourlyTrainingDataGenerator:
         return datetimes
     
     def _generate_ohlcv(self, dt: datetime) -> Dict[str, float]:
-        """Generate realistic OHLCV data for a given datetime."""
+        """
+        Generate realistic OHLCV data for a given datetime.
+        
+        CRITICAL: This method ensures proper OHLC relationships to prevent validation failures.
+        Previous bug: low could be > open/close, high could be < open/close
+        Fix: Explicitly enforce OHLC constraints with max/min operations
+        """
         # Add some randomness and trends based on datetime
         time_factor = (dt - datetime(2000, 1, 1)).days / 365.0  # Years since 2000
         trend = np.exp(0.08 * time_factor)  # 8% annual growth
         
-        # Daily volatility cycle
+        # Daily volatility cycle (higher volatility during market hours)
         hour_factor = np.sin((dt.hour - 9) / 8.0 * np.pi) * 0.1 + 1.0
         
-        # Random walk
+        # Random walk price movement
         price_change = np.random.normal(0, 0.02) * hour_factor
         self.current_price = max(1.0, self.current_price * (1 + price_change) * trend ** (1/8760))  # Hourly growth
         
@@ -88,12 +94,13 @@ class HourlyTrainingDataGenerator:
         # Generate open first
         open_price = self.current_price * (1 + np.random.normal(0, volatility / 2))
         
-        # Generate high and low ensuring proper OHLC relationships
+        # CRITICAL BUG FIX: Generate high and low ensuring proper OHLC relationships
+        # CONSTRAINT: low ≤ min(open, close) and high ≥ max(open, close)
         price_range = [open_price, self.current_price]
         base_high = max(price_range) * (1 + abs(np.random.normal(0, volatility)))
         base_low = min(price_range) * (1 - abs(np.random.normal(0, volatility)))
         
-        # Ensure high is highest and low is lowest
+        # ENFORCE: Ensure high is highest and low is lowest (prevents OHLC violations)
         high = max(base_high, open_price, self.current_price)
         low = min(base_low, open_price, self.current_price)
         close = self.current_price
@@ -112,7 +119,13 @@ class HourlyTrainingDataGenerator:
         }
     
     def _calculate_technical_indicators(self, data_point: Dict[str, float]) -> Dict[str, float]:
-        """Calculate technical indicators based on price history."""
+        """
+        Calculate technical indicators based on price history.
+        
+        CRITICAL: Technical indicators must be in price range, not volume range.
+        Previous bug: SMA values were showing ~1M (volume range) instead of ~150 (price range)
+        Fix: All indicators calculated from price_history, proper value range validation
+        """
         # Update history
         self.price_history.append(data_point['close'])
         self.high_history.append(data_point['high'])
@@ -130,22 +143,25 @@ class HourlyTrainingDataGenerator:
         indicators = {}
         
         if len(self.price_history) >= 20:
-            # Simple Moving Averages
-            indicators['sma_20'] = np.mean(self.price_history[-20:])
+            # CRITICAL: Simple Moving Averages must be calculated from PRICE data (not volume)
+            # BUG PREVENTION: SMA must be in PRICE range (~150), NOT volume range (~1M)
+            indicators['sma_20'] = np.mean(self.price_history[-20:])  # ✅ Price-based calculation
             
-            # Exponential Moving Averages
+            # Exponential Moving Averages (price-based)
             if len(self.price_history) >= 12:
-                indicators['ema_12'] = self._calculate_ema(self.price_history, 12)
+                indicators['ema_12'] = self._calculate_ema(self.price_history, 12)  # ✅ Price-based
             if len(self.price_history) >= 26:
-                indicators['ema_26'] = self._calculate_ema(self.price_history, 26)
+                indicators['ema_26'] = self._calculate_ema(self.price_history, 26)  # ✅ Price-based
             
-            # Envelope indicators (simplified)
+            # CRITICAL BUG FIX: Envelope indicators with correct logic
+            # Previous bug: ebot could be > price, etop could be < price
             sma_20 = indicators['sma_20']
             volatility = np.std(self.price_history[-20:])
-            indicators['etop'] = sma_20 + (2 * volatility)  # Envelope Top
-            indicators['ebot'] = sma_20 - (2 * volatility)  # Envelope Bottom
+            indicators['etop'] = sma_20 + (2 * volatility)  # Envelope Top (should be > price)
+            indicators['ebot'] = sma_20 - (2 * volatility)  # Envelope Bottom (should be < price)
             
-            # Ensure envelope makes sense relative to current price
+            # ENFORCE: Envelope constraints relative to current price
+            # CONSTRAINT: etop > price (resistance level), ebot < price (support level)
             if indicators['etop'] <= data_point['close']:
                 indicators['etop'] = data_point['close'] + np.random.uniform(5, 15)  # Force etop above price
             if indicators['ebot'] >= data_point['close']:
@@ -197,7 +213,14 @@ class HourlyTrainingDataGenerator:
         return ema
     
     def generate_hourly_training_data(self) -> pd.DataFrame:
-        """Generate complete hourly training dataset."""
+        """
+        Generate complete hourly training dataset.
+        
+        CRITICAL DESIGN DECISIONS:
+        - Market hours only (9 AM - 4 PM, Monday-Friday): Realistic trading data
+        - One row per hour: Each row is independent training example, not sequence
+        - Datetime embedded as features: Allows ML models to learn temporal patterns
+        """
         logger.info(f"Generating hourly training data for {self.symbol}")
         
         rows = []
@@ -206,13 +229,14 @@ class HourlyTrainingDataGenerator:
             if i % 1000 == 0:
                 logger.info(f"Processing hour {i+1:,} of {len(self.datetime_range):,} ({dt})")
             
-            # Generate OHLCV data
+            # Generate OHLCV data with proper relationships
             ohlcv_data = self._generate_ohlcv(dt)
             
-            # Calculate technical indicators
+            # Calculate technical indicators (price-based, not volume-based)
             indicators = self._calculate_technical_indicators(ohlcv_data)
             
-            # Create row with datetime as feature
+            # CRITICAL: Create row with datetime as feature (key innovation)
+            # DESIGN: Datetime embedded directly in training data for temporal learning
             row = {
                 'datetime': dt,
                 'symbol': self.symbol,
@@ -221,7 +245,7 @@ class HourlyTrainingDataGenerator:
                 'low': ohlcv_data['low'],
                 'close': ohlcv_data['close'],
                 'volume': ohlcv_data['volume'],
-                **indicators  # Add all technical indicators
+                **indicators  # Add all technical indicators (validated ranges)
             }
             
             rows.append(row)
@@ -262,30 +286,37 @@ class HourlyIntervalTrainingCallback(IntervalBasedTrainingDataCallback):
         logger.info(f"🚀 Starting hourly training data generation at {current_time}")
     
     async def handleInterval(self, runner: Any, current_time: datetime):
-        """Generate training data for current hour - one row per hour."""
+        """
+        Generate training data for current hour - one row per hour.
+        
+        CRITICAL: This is the core IntervalBasedTrainingDataCallback implementation.
+        Each call generates exactly one training row for the current hour timestamp.
+        Datetime is embedded as features for temporal learning.
+        """
         try:
-            # Generate OHLCV for this hour
+            # Generate OHLCV for this hour with proper OHLC relationships
             ohlcv_data = self.generator._generate_ohlcv(current_time)
             
-            # Calculate technical indicators
+            # Calculate technical indicators (price-based, validated ranges)
             indicators = self.generator._calculate_technical_indicators(ohlcv_data)
             
-            # Create training row with datetime as feature
+            # CRITICAL: Create training row with datetime as feature (key innovation)
+            # DESIGN: Datetime embedded directly in training data for temporal learning
             training_row = {
-                'datetime': current_time.isoformat(),
-                'symbol': self.symbol,
-                'timestamp': current_time.timestamp(),  # Unix timestamp as numeric feature
-                'year': current_time.year,
-                'month': current_time.month,
-                'day': current_time.day,
-                'hour': current_time.hour,
-                'weekday': current_time.weekday(),
+                'datetime': current_time.isoformat(),           # ISO format for readability
+                'symbol': self.symbol,                          # Stock symbol identifier
+                'timestamp': current_time.timestamp(),          # Unix timestamp (numeric feature)
+                'year': current_time.year,                      # Year (cyclical patterns)
+                'month': current_time.month,                    # Month (seasonal patterns)
+                'day': current_time.day,                        # Day of month (monthly patterns)
+                'hour': current_time.hour,                      # Hour of day (intraday patterns)
+                'weekday': current_time.weekday(),              # Day of week (weekly patterns)
                 'open': ohlcv_data['open'],
                 'high': ohlcv_data['high'],
                 'low': ohlcv_data['low'],
                 'close': ohlcv_data['close'],
                 'volume': ohlcv_data['volume'],
-                **indicators
+                **indicators  # Technical indicators with validated value ranges
             }
             
             self.hourly_data.append(training_row)
