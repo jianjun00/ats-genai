@@ -16,7 +16,7 @@ print('[DEBUG_IMPORT] about to import signals.indicator_config')
 from signals.indicator_config import IndicatorConfig
 print('[DEBUG_IMPORT] imported signals.indicator_config')
 print('[DEBUG_IMPORT] about to import signals.indicator')
-from signals.indicator import ETop, EBot, PL
+from signals.indicator import EnvelopeTop, EnvelopeBot, PL
 print('[DEBUG_IMPORT] imported signals.indicator')
 print('[DEBUG_IMPORT] about to import datetime/date/timedelta')
 print('[DEBUG_IMPORT] imported datetime/date/timedelta')

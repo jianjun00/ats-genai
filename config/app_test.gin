@@ -12,9 +12,9 @@ bind = ['enable_caching', False]
 bind = ['enable_metrics', False]
 bind = ['strict_validation', True]
 
-import app.indicator_runner
+# import app.indicator_runner  # Temporarily disabled due to protobuf dependency issues
 import config.environment
-import signals.indicator
+# import signals.indicator  # Temporarily disabled due to dependency on app.indicator_runner
 
 # Configure the environment for testing
 # Define macros for environment types
@@ -26,10 +26,9 @@ config.environment.Environment.logging_config = @config.logging_config.LoggingCo
 config.logging_config.LoggingConfig.log_level = "DEBUG"
 config.logging_config.LoggingConfig.log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
-# Configure the indicator runner
-
-app.indicator_runner.IndicatorRunner.indicator_config = [
-    @signals.indicator.ETop(),
-    @signals.indicator.EBot(),
-    @signals.indicator.PL(),
-]
+# Configure the indicator runner (temporarily disabled due to dependency issues)
+# app.indicator_runner.IndicatorRunner.indicator_config = [
+#     @signals.indicator.EnvelopeTop(),
+#     @signals.indicator.EnvelopeBot(),
+#     @signals.indicator.PL(),
+# ]
