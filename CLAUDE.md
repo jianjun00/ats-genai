@@ -1720,6 +1720,48 @@ tail -50 /mnt/d/ats-logs/minute-bars-backfill.log  # Daily minute bars processin
 
 *This is a Docker-first, test-driven development platform. Every change must be validated end-to-end with REAL DATA ONLY.*
 
+## 📊 **VENDOR MONITORING & DASHBOARDS**
+
+**Comprehensive vendor API and data collection monitoring via Grafana:**
+
+### **🎯 Primary Dashboard**
+```bash
+# Professional Grafana dashboards (recommended)
+http://localhost:4002/d/5/ats-vendor-monitoring-dashboard-postgresql  # Main vendor dashboard
+http://localhost:4002                                                   # Grafana home (admin/admin)
+```
+
+### **📈 Monitoring Capabilities**
+- **Minute Bar Collection per Vendor**: Real-time collection rates by vendor/symbol
+- **API Calls per Vendor with Status Codes**: 200, 429, 500 response breakdown
+- **Vendor Health Monitoring**: Success rates, response times, rate limits
+- **Error Tracking**: Recent API failures with detailed error messages
+- **Data Quality Metrics**: Collection success rates and data quality scores
+
+### **🔧 Backend Services**
+```bash
+# Prometheus metrics (feeds Grafana)
+http://localhost:8091/metrics                    # Vendor performance metrics
+
+# Database tables for direct queries
+intg_api_calls                                   # API call tracking
+intg_minute_bar_collection_metrics               # Collection performance
+intg_vendor_api_health                          # Periodic health summaries
+```
+
+### **📋 Quick Setup**
+```bash
+# Setup Grafana vendor monitoring (one-time)
+python3 scripts/setup_grafana_vendor_monitoring.py
+
+# View live vendor data
+PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "
+SELECT vendor, COUNT(*) as calls, AVG(response_time_ms)::int as avg_ms 
+FROM intg_api_calls GROUP BY vendor;"
+```
+
+**Documentation**: See [VENDOR_MONITORING.md](VENDOR_MONITORING.md) for complete setup guide.
+
 ---
 
 **🎯 Success Checklist for Service Deployment:**

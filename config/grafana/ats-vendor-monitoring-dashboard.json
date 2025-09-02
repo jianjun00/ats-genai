@@ -1,0 +1,144 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "ATS Vendor Monitoring Dashboard",
+    "tags": ["ats", "monitoring", "vendors", "minute-bars"],
+    "timezone": "utc",
+    "panels": [
+      {
+        "id": 1,
+        "title": "API Success Rate by Vendor",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(ats_vendor_api_calls_total{status_code=~\"2.*\"}[5m]) / rate(ats_vendor_api_calls_total[5m]) * 100",
+            "legendFormat": "{{vendor}} Success Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 85},
+                {"color": "green", "value": 95}
+              ]
+            },
+            "unit": "percent"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "API Response Time by Vendor",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "ats_vendor_api_response_time_seconds",
+            "legendFormat": "{{vendor}} Response Time"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "unit": "s"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Minute Bar Records Collected",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(ats_minute_bar_records_collected_total[5m])",
+            "legendFormat": "{{vendor}} {{symbol}} Records/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "unit": "rps"
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Collection Success Rate by Vendor",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "ats_minute_bar_collection_success_rate * 100",
+            "legendFormat": "{{vendor}} {{symbol}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 90},
+                {"color": "green", "value": 98}
+              ]
+            },
+            "min": 0,
+            "max": 100,
+            "unit": "percent"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "id": 5,
+        "title": "API Status Code Distribution",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (status_code) (ats_vendor_api_calls_total)",
+            "legendFormat": "{{status_code}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "id": 6,
+        "title": "Recent API Errors",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "ats_vendor_api_calls_total{status_code>=400}",
+            "legendFormat": "{{vendor}} {{status_code}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 24}
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "schemaVersion": 30,
+    "version": 1
+  }
+}
