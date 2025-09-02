@@ -5,7 +5,57 @@
 # API AND SERVICE CONFIGURATION
 # =============================================================================
 
-# Port configurations
+# FastAPI Application Configuration
+main.FastAPIConfig.title = "ATS GenAI API"
+main.FastAPIConfig.description = "Algorithmic Trading System with GenAI"
+main.FastAPIConfig.version = "0.1.0"
+
+main.CORSConfig.allow_origins = ["*"]
+main.CORSConfig.allow_credentials = true
+main.CORSConfig.allow_methods = ["*"]
+main.CORSConfig.allow_headers = ["*"]
+
+# Backtest Analytics API Configuration
+api.backtest_analytics_api.BacktestAPIConfig.title = "Backtest Analytics API"
+api.backtest_analytics_api.BacktestAPIConfig.description = "Advanced portfolio analytics and model performance analysis"
+api.backtest_analytics_api.BacktestAPIConfig.version = "1.0.0"
+
+api.backtest_analytics_api.BacktestCORSConfig.allow_origins = ["http://localhost:3000", "http://localhost:8080"]
+api.backtest_analytics_api.BacktestCORSConfig.allow_credentials = true
+api.backtest_analytics_api.BacktestCORSConfig.allow_methods = ["*"]
+api.backtest_analytics_api.BacktestCORSConfig.allow_headers = ["*"]
+
+api.backtest_analytics_api.BacktestServerConfig.host = "0.0.0.0"
+api.backtest_analytics_api.BacktestServerConfig.port = 8000
+api.backtest_analytics_api.BacktestServerConfig.reload = true
+api.backtest_analytics_api.BacktestServerConfig.log_level = "info"
+
+api.backtest_analytics_api.BacktestQueryConfig.default_limit = 50
+api.backtest_analytics_api.BacktestQueryConfig.max_limit = 100
+api.backtest_analytics_api.BacktestQueryConfig.min_limit = 1
+api.backtest_analytics_api.BacktestQueryConfig.max_offset = 10000
+api.backtest_analytics_api.BacktestQueryConfig.max_comparison_runs = 5
+api.backtest_analytics_api.BacktestQueryConfig.min_comparison_runs = 2
+
+# Minute Price Service Configuration
+services.minute.minute_price_service.MinuteServiceConfig.title = "ATS Minute Price Service"
+services.minute.minute_price_service.MinuteServiceConfig.description = "1-minute intraday price collection using existing ATS framework"
+services.minute.minute_price_service.MinuteServiceConfig.version = "1.0.0"
+services.minute.minute_price_service.MinuteServiceConfig.host = "0.0.0.0"
+services.minute.minute_price_service.MinuteServiceConfig.port = 8081
+services.minute.minute_price_service.MinuteServiceConfig.default_symbols = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA"]
+
+# Slack Webhook Service Configuration
+services.slack_webhook.app.SlackWebhookConfig.title = "ATS Slack Webhook Proxy"
+services.slack_webhook.app.SlackWebhookConfig.version = "1.0.0"
+services.slack_webhook.app.SlackWebhookConfig.host = "0.0.0.0"
+services.slack_webhook.app.SlackWebhookConfig.port = 8080
+services.slack_webhook.app.SlackWebhookConfig.slack_webhook_url = ""
+services.slack_webhook.app.SlackWebhookConfig.log_level = "INFO"
+services.slack_webhook.app.SlackWebhookConfig.timeout_seconds = 30
+services.slack_webhook.app.SlackWebhookConfig.max_retries = 3
+
+# Legacy configurations (can be gradually removed)
 simple_main.ApiConfig.port = 8080
 simple_main.ApiConfig.host = "0.0.0.0"
 simple_main.ApiConfig.title = "ATS GenAI API"
@@ -22,6 +72,55 @@ api.cors.allowed_origins = [
     "http://localhost:8080", 
     "http://localhost:3001"
 ]
+
+# =============================================================================
+# DATA PROCESSING AND ETL PIPELINE CONFIGURATION
+# =============================================================================
+
+# Real-time Data Collector Configuration
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.symbols = ["AAPL", "TSLA"]
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.collection_interval = 60
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.db_host = "ats-intg-postgres"
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.db_port = 5432
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.db_user = "postgres"
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.db_password = "intg_password"
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.db_name = "intg_db"
+
+# Database Connection Pool Settings
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.pool_min_size = 2
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.pool_max_size = 10
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.command_timeout = 30
+
+# HTTP Client Settings
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.http_timeout = 30
+
+# Data Collection Settings
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.lookback_hours = 2
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.stale_data_threshold_hours = 1
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.polygon_quality_score = 0.95
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.tiingo_quality_score = 0.90
+
+# Retry and Error Handling
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.max_retries = 3
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.retry_delay = 5
+
+# Tiingo Adapter Configuration
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.base_url = "https://api.tiingo.com/tiingo/daily/{ticker}/prices"
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.request_timeout = 30
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.max_retries = 3
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.retry_delay = 1.0
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.rate_limit_delay = 1.0
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.batch_size = 100
+
+# Response Tracking Settings
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.track_response_sizes = true
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.track_latency = true
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.log_api_errors = true
+
+# Data Validation Settings
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.validate_prices = true
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.min_price = 0.01
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.max_price = 100000.0
 
 # =============================================================================
 # DATABASE CONFIGURATION

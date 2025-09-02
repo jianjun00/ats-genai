@@ -8,22 +8,43 @@ import os
 import logging
 from datetime import datetime
 from typing import Dict, List, Any
+from dataclasses import dataclass
 
 from fastapi import FastAPI, Request, HTTPException
 from pydantic import BaseModel
 import httpx
 import uvicorn
+import gin
 
-# Configuration
-SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL', '')
-LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
-PORT = int(os.getenv('PORT', 8080))
+@gin.configurable
+@dataclass
+class SlackWebhookConfig:
+    """Configuration for Slack webhook proxy service"""
+    title: str = "ATS Slack Webhook Proxy"
+    version: str = "1.0.0"
+    host: str = "0.0.0.0"
+    port: int = None
+    slack_webhook_url: str = None
+    log_level: str = "INFO"
+    timeout_seconds: int = 30
+    max_retries: int = 3
+    
+    def __post_init__(self):
+        if self.port is None:
+            self.port = int(os.getenv('PORT', 8080))
+        if self.slack_webhook_url is None:
+            self.slack_webhook_url = os.getenv('SLACK_WEBHOOK_URL', '')
+        if self.log_level == "INFO":
+            self.log_level = os.getenv('LOG_LEVEL', 'INFO')
+
+# Initialize configuration
+slack_config = SlackWebhookConfig()
 
 # Setup logging
-logging.basicConfig(level=getattr(logging, LOG_LEVEL))
+logging.basicConfig(level=getattr(logging, slack_config.log_level))
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="ATS Slack Webhook Proxy", version="1.0.0")
+app = FastAPI(title=slack_config.title, version=slack_config.version)
 
 class AlertManagerWebhook(BaseModel):
     version: str
@@ -201,14 +222,14 @@ def format_alert_for_slack(alert_data: AlertManagerWebhook, alert_type: str = "d
 
 async def send_to_slack(message: Dict[str, Any]) -> bool:
     """Send message to Slack webhook"""
-    if not SLACK_WEBHOOK_URL or SLACK_WEBHOOK_URL == "PLACEHOLDER_SLACK_WEBHOOK_URL":
+    if not slack_config.slack_webhook_url or slack_config.slack_webhook_url == "PLACEHOLDER_SLACK_WEBHOOK_URL":
         logger.warning("Slack webhook URL not configured")
         return False
     
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                SLACK_WEBHOOK_URL,
+                slack_config.slack_webhook_url,
                 json=message,
                 headers={"Content-Type": "application/json"},
                 timeout=10.0
@@ -231,7 +252,7 @@ async def root():
         "service": "ATS Slack Webhook Proxy",
         "status": "running",
         "timestamp": datetime.now().isoformat(),
-        "webhook_configured": bool(SLACK_WEBHOOK_URL and SLACK_WEBHOOK_URL != "PLACEHOLDER_SLACK_WEBHOOK_URL")
+        "webhook_configured": bool(slack_config.slack_webhook_url and slack_config.slack_webhook_url != "PLACEHOLDER_SLACK_WEBHOOK_URL")
     }
 
 @app.get("/health")
@@ -240,7 +261,7 @@ async def health():
         "status": "healthy",
         "service": "ATS Slack Webhook Proxy",
         "timestamp": datetime.now().isoformat(),
-        "webhook_url_configured": bool(SLACK_WEBHOOK_URL and SLACK_WEBHOOK_URL != "PLACEHOLDER_SLACK_WEBHOOK_URL")
+        "webhook_url_configured": bool(slack_config.slack_webhook_url and slack_config.slack_webhook_url != "PLACEHOLDER_SLACK_WEBHOOK_URL")
     }
 
 @app.post("/critical")
@@ -333,12 +354,12 @@ async def test_slack():
     
     return {
         "test_sent": success,
-        "webhook_configured": bool(SLACK_WEBHOOK_URL and SLACK_WEBHOOK_URL != "PLACEHOLDER_SLACK_WEBHOOK_URL"),
+        "webhook_configured": bool(slack_config.slack_webhook_url and slack_config.slack_webhook_url != "PLACEHOLDER_SLACK_WEBHOOK_URL"),
         "timestamp": datetime.now().isoformat()
     }
 
 if __name__ == "__main__":
-    logger.info(f"Starting ATS Slack Webhook Proxy on port {PORT}")
-    logger.info(f"Slack webhook configured: {bool(SLACK_WEBHOOK_URL and SLACK_WEBHOOK_URL != 'PLACEHOLDER_SLACK_WEBHOOK_URL')}")
+    logger.info(f"Starting ATS Slack Webhook Proxy on port {slack_config.port}")
+    logger.info(f"Slack webhook configured: {bool(slack_config.slack_webhook_url and slack_config.slack_webhook_url != 'PLACEHOLDER_SLACK_WEBHOOK_URL')}")
     
-    uvicorn.run(app, host="0.0.0.0", port=PORT)
+    uvicorn.run(app, host=slack_config.host, port=slack_config.port)

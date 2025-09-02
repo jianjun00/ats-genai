@@ -1,28 +1,60 @@
 import logging
 import traceback
+from dataclasses import dataclass
+from typing import List
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from events.api import router as events_router
+import gin
+
+@gin.configurable
+@dataclass
+class FastAPIConfig:
+    """Configuration for FastAPI application"""
+    title: str = "ATS GenAI API"
+    description: str = "Algorithmic Trading System with GenAI"
+    version: str = "0.1.0"
+
+@gin.configurable
+@dataclass
+class CORSConfig:
+    """Configuration for CORS middleware"""
+    allow_origins: List[str] = None
+    allow_credentials: bool = True
+    allow_methods: List[str] = None
+    allow_headers: List[str] = None
+    
+    def __post_init__(self):
+        if self.allow_origins is None:
+            self.allow_origins = ["*"]
+        if self.allow_methods is None:
+            self.allow_methods = ["*"]
+        if self.allow_headers is None:
+            self.allow_headers = ["*"]
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Initialize configuration
+fastapi_config = FastAPIConfig()
+cors_config = CORSConfig()
+
 app = FastAPI(
-    title="ATS GenAI API",
-    description="Algorithmic Trading System with GenAI",
-    version="0.1.0"
+    title=fastapi_config.title,
+    description=fastapi_config.description,
+    version=fastapi_config.version
 )
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=cors_config.allow_origins,
+    allow_credentials=cors_config.allow_credentials,
+    allow_methods=cors_config.allow_methods,
+    allow_headers=cors_config.allow_headers,
 )
 
 # Global exception handler

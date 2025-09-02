@@ -8,6 +8,7 @@ model performance analysis, and drill-down capabilities.
 import logging
 from datetime import date, datetime
 from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, Query, Path, HTTPException, WebSocket, WebSocketDisconnect
@@ -16,6 +17,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 import pandas as pd
 import uvicorn
+import gin
 
 from analytics.portfolio_analytics import (
     PortfolioAnalyticsEngine,
@@ -23,6 +25,51 @@ from analytics.portfolio_analytics import (
     AttributionMetrics,
     ModelPerformanceMetrics
 )
+
+@gin.configurable
+@dataclass
+class BacktestAPIConfig:
+    """Configuration for Backtest Analytics API"""
+    title: str = "Backtest Analytics API"
+    description: str = "Advanced portfolio analytics and model performance analysis"
+    version: str = "1.0.0"
+
+@gin.configurable
+@dataclass
+class BacktestCORSConfig:
+    """Configuration for CORS middleware in Backtest API"""
+    allow_origins: List[str] = None
+    allow_credentials: bool = True
+    allow_methods: List[str] = None
+    allow_headers: List[str] = None
+    
+    def __post_init__(self):
+        if self.allow_origins is None:
+            self.allow_origins = ["http://localhost:3000", "http://localhost:8080"]
+        if self.allow_methods is None:
+            self.allow_methods = ["*"]
+        if self.allow_headers is None:
+            self.allow_headers = ["*"]
+
+@gin.configurable
+@dataclass
+class BacktestServerConfig:
+    """Configuration for uvicorn server"""
+    host: str = "0.0.0.0"
+    port: int = 8000
+    reload: bool = True
+    log_level: str = "info"
+
+@gin.configurable
+@dataclass
+class BacktestQueryConfig:
+    """Configuration for query parameters and limits"""
+    default_limit: int = 50
+    max_limit: int = 100
+    min_limit: int = 1
+    max_offset: int = 10000
+    max_comparison_runs: int = 5
+    min_comparison_runs: int = 2
 
 # Pydantic models for API requests/responses
 class BacktestSummary(BaseModel):
@@ -62,14 +109,14 @@ class ForecastDataPoint(BaseModel):
 
 class PortfolioComparisonRequest(BaseModel):
     """Request for comparing multiple portfolio strategies"""
-    backtest_run_ids: List[str] = Field(..., min_length=2, max_length=5)
+    backtest_run_ids: List[str] = Field(..., min_length=query_config.min_comparison_runs, max_length=query_config.max_comparison_runs)
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     metrics_to_compare: List[str] = ["total_return", "sharpe_ratio", "max_drawdown"]
 
 class ModelComparisonRequest(BaseModel):
     """Request for comparing model performance"""
-    backtest_run_ids: List[str] = Field(..., min_length=2, max_length=5)
+    backtest_run_ids: List[str] = Field(..., min_length=query_config.min_comparison_runs, max_length=query_config.max_comparison_runs)
     start_date: Optional[date] = None
     end_date: Optional[date] = None
 
@@ -141,21 +188,27 @@ async def lifespan(app: FastAPI):
         await analytics_engine.close()
     logging.info("Backtest Analytics API shutdown")
 
+# Initialize configuration
+api_config = BacktestAPIConfig()
+cors_config = BacktestCORSConfig()
+server_config = BacktestServerConfig()
+query_config = BacktestQueryConfig()
+
 # Initialize FastAPI app
 app = FastAPI(
-    title="Backtest Analytics API",
-    description="Advanced portfolio analytics and model performance analysis",
-    version="1.0.0",
+    title=api_config.title,
+    description=api_config.description,
+    version=api_config.version,
     lifespan=lifespan
 )
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8080"],  # React dev server
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=cors_config.allow_origins,
+    allow_credentials=cors_config.allow_credentials,
+    allow_methods=cors_config.allow_methods,
+    allow_headers=cors_config.allow_headers,
 )
 
 async def get_analytics_engine() -> PortfolioAnalyticsEngine:
@@ -175,8 +228,8 @@ async def health_check():
 # Backtest listing and management
 @app.get("/api/v1/backtests", response_model=List[BacktestSummary])
 async def list_backtests(
-    limit: int = Query(50, le=100, ge=1),
-    offset: int = Query(0, ge=0),
+    limit: int = Query(query_config.default_limit, le=query_config.max_limit, ge=query_config.min_limit),
+    offset: int = Query(0, ge=0, le=query_config.max_offset),
     strategy_type: Optional[str] = Query(None),
     start_date: Optional[date] = Query(None),
     engine: PortfolioAnalyticsEngine = Depends(get_analytics_engine)
@@ -610,8 +663,8 @@ async def general_exception_handler(request, exc):
 if __name__ == "__main__":
     uvicorn.run(
         "backtest_analytics_api:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info"
+        host=server_config.host,
+        port=server_config.port,
+        reload=server_config.reload,
+        log_level=server_config.log_level
     )

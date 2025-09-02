@@ -12,7 +12,45 @@ import logging
 import os
 from datetime import datetime, timedelta
 from typing import List, Optional
+from dataclasses import dataclass
 import aiohttp
+import gin
+
+@gin.configurable
+@dataclass
+class RealtimeCollectorConfig:
+    """Configuration for AAPL/TSLA realtime data collector"""
+    symbols: List[str] = None
+    collection_interval: int = 60  # seconds
+    db_host: str = None
+    db_port: int = 5432
+    db_user: str = "postgres"
+    db_password: str = "intg_password"
+    db_name: str = "intg_db"
+    
+    # Database connection pool settings
+    pool_min_size: int = 2
+    pool_max_size: int = 10
+    command_timeout: int = 30
+    
+    # HTTP client settings
+    http_timeout: int = 30
+    
+    # Data collection settings
+    lookback_hours: int = 2
+    stale_data_threshold_hours: int = 1
+    polygon_quality_score: float = 0.95
+    tiingo_quality_score: float = 0.90
+    
+    # Retry and error handling
+    max_retries: int = 3
+    retry_delay: int = 5
+    
+    def __post_init__(self):
+        if self.symbols is None:
+            self.symbols = ['AAPL', 'TSLA']
+        if self.db_host is None:
+            self.db_host = os.getenv('DB_HOST', 'ats-intg-postgres')
 
 # Setup logging
 logging.basicConfig(
@@ -24,17 +62,20 @@ logger = logging.getLogger(__name__)
 class AAPLTSLARealtimeCollector:
     """Real-time collector for AAPL and TSLA minute data"""
     
-    def __init__(self):
-        # Configuration
-        self.symbols = ['AAPL', 'TSLA']
-        self.collection_interval = 60  # seconds
+    def __init__(self, config: RealtimeCollectorConfig = None):
+        # Initialize configuration
+        self.config = config or RealtimeCollectorConfig()
         
-        # Database connection
-        self.db_host = os.getenv('DB_HOST', 'ats-intg-postgres')
-        self.db_port = int(os.getenv('DB_PORT', '5432'))
-        self.db_user = os.getenv('DB_USER', 'postgres')
-        self.db_password = os.getenv('DB_PASSWORD', 'intg_password')
-        self.db_name = os.getenv('DB_NAME', 'intg_db')
+        # Configuration
+        self.symbols = self.config.symbols
+        self.collection_interval = self.config.collection_interval
+        
+        # Database connection from config
+        self.db_host = self.config.db_host
+        self.db_port = self.config.db_port
+        self.db_user = self.config.db_user
+        self.db_password = self.config.db_password
+        self.db_name = self.config.db_name
         
         # API keys
         self.tiingo_api_key = os.getenv('TIINGO_API_KEY')
@@ -55,13 +96,13 @@ class AAPLTSLARealtimeCollector:
         dsn = f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
         self.pool = await asyncpg.create_pool(
             dsn,
-            min_size=2,
-            max_size=10,
-            command_timeout=30
+            min_size=self.config.pool_min_size,
+            max_size=self.config.pool_max_size,
+            command_timeout=self.config.command_timeout
         )
         
         # HTTP session
-        self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30))
+        self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.config.http_timeout))
         
         logger.info("✅ Database and HTTP session initialized")
     
@@ -71,9 +112,9 @@ class AAPLTSLARealtimeCollector:
             logger.warning("No Tiingo API key configured")
             return []
         
-        # Get last 2 hours of minute data
+        # Get last N hours of minute data (configurable)
         end_time = datetime.now()
-        start_time = end_time - timedelta(hours=2)
+        start_time = end_time - timedelta(hours=self.config.lookback_hours)
         
         url = f"https://api.tiingo.com/iex/{symbol}/prices"
         params = {
@@ -97,8 +138,8 @@ class AAPLTSLARealtimeCollector:
                         # Parse timestamp
                         timestamp = datetime.fromisoformat(item['date'].replace('Z', '+00:00'))
                         
-                        # Skip if older than 1 hour (avoid duplicates)
-                        if timestamp < datetime.now().replace(tzinfo=timestamp.tzinfo) - timedelta(hours=1):
+                        # Skip if older than configured threshold (avoid duplicates)
+                        if timestamp < datetime.now().replace(tzinfo=timestamp.tzinfo) - timedelta(hours=self.config.stale_data_threshold_hours):
                             continue
                         
                         minute_bars.append({
@@ -110,7 +151,7 @@ class AAPLTSLARealtimeCollector:
                             'close_price': float(item['close']),
                             'volume': int(item.get('volume', 0)),
                             'vendor': 'tiingo',
-                            'quality_score': 0.9,  # Default quality score
+                            'quality_score': self.config.tiingo_quality_score,
                             'data_latency_ms': int((datetime.now().replace(tzinfo=timestamp.tzinfo) - timestamp).total_seconds() * 1000)
                         })
                     
@@ -134,9 +175,9 @@ class AAPLTSLARealtimeCollector:
             logger.warning("No Polygon API key configured")
             return []
         
-        # Get last 2 hours of minute data
+        # Get last N hours of minute data (configurable)
         end_time = datetime.now()
-        start_time = end_time - timedelta(hours=2)
+        start_time = end_time - timedelta(hours=self.config.lookback_hours)
         
         url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/minute/{start_time.strftime('%Y-%m-%d')}/{end_time.strftime('%Y-%m-%d')}"
         params = {
@@ -157,8 +198,8 @@ class AAPLTSLARealtimeCollector:
                         # Parse timestamp (milliseconds)
                         timestamp = datetime.fromtimestamp(item['t'] / 1000)
                         
-                        # Skip if older than 1 hour (avoid duplicates)
-                        if timestamp < datetime.now() - timedelta(hours=1):
+                        # Skip if older than configured threshold (avoid duplicates)
+                        if timestamp < datetime.now() - timedelta(hours=self.config.stale_data_threshold_hours):
                             continue
                         
                         minute_bars.append({
@@ -172,7 +213,7 @@ class AAPLTSLARealtimeCollector:
                             'vwap': item.get('vw'),
                             'trade_count': item.get('n'),
                             'vendor': 'polygon',
-                            'quality_score': 0.95,  # Polygon typically has high quality
+                            'quality_score': self.config.polygon_quality_score,
                             'data_latency_ms': int((datetime.now() - timestamp).total_seconds() * 1000)
                         })
                     
@@ -337,7 +378,9 @@ class AAPLTSLARealtimeCollector:
 
 async def main():
     """Main entry point"""
-    collector = AAPLTSLARealtimeCollector()
+    # Initialize global configuration
+    config = RealtimeCollectorConfig()
+    collector = AAPLTSLARealtimeCollector(config)
     
     try:
         await collector.initialize()

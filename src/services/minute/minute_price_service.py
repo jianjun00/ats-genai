@@ -24,6 +24,21 @@ try:
 except Exception as e:
     print(f'[WARN] Could not parse gin config: {e}')
 
+@gin.configurable
+@dataclass
+class MinuteServiceConfig:
+    """Configuration for minute price service API"""
+    title: str = "ATS Minute Price Service"
+    description: str = "1-minute intraday price collection using existing ATS framework"
+    version: str = "1.0.0"
+    host: str = "0.0.0.0"
+    port: int = 8081
+    default_symbols: List[str] = None
+    
+    def __post_init__(self):
+        if self.default_symbols is None:
+            self.default_symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA']
+
 logger = get_logger(__name__)
 
 @dataclass
@@ -303,11 +318,14 @@ class FMPMinuteCollector(VendorCollector):
         self.logger.info(f"Collected {len(prices)} minute prices from FMP")
         return prices
 
+# Initialize configuration
+service_config = MinuteServiceConfig()
+
 # FastAPI Application - Integrates with existing patterns
 app = FastAPI(
-    title="ATS Minute Price Service",
-    description="1-minute intraday price collection using existing ATS framework",
-    version="1.0.0"
+    title=service_config.title,
+    description=service_config.description,
+    version=service_config.version
 )
 
 class MinutePriceService:
@@ -320,7 +338,7 @@ class MinutePriceService:
             'tiingo': TiingoMinuteCollector(self.env), 
             'fmp': FMPMinuteCollector(self.env)
         }
-        self.symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA']
+        self.symbols = service_config.default_symbols
         self.is_running = False
         self.metrics = {
             'total_collected': 0,
@@ -434,4 +452,4 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8081)
+    uvicorn.run(app, host=service_config.host, port=service_config.port)

@@ -2,12 +2,35 @@ import os
 import requests
 import time
 from typing import List, Optional
+from dataclasses import dataclass
 from .base_adapter import VendorAdapter
 from .models import InstrumentMetadata, EODPrice
 import logging
 import asyncio
 import sys
+import gin
 
+@gin.configurable
+@dataclass
+class TiingoAdapterConfig:
+    """Configuration for Tiingo adapter with tracking"""
+    base_url: str = "https://api.tiingo.com/tiingo/daily/{ticker}/prices"
+    request_timeout: int = 30
+    max_retries: int = 3
+    retry_delay: float = 1.0
+    rate_limit_delay: float = 1.0
+    batch_size: int = 100
+    
+    # Response tracking settings
+    track_response_sizes: bool = True
+    track_latency: bool = True
+    log_api_errors: bool = True
+    
+    # Data validation settings
+    validate_prices: bool = True
+    min_price: float = 0.01
+    max_price: float = 100000.0
+    
 # Add scripts to path for API tracker
 sys.path.append('/workspace/scripts')
 from api_status_tracker import get_global_tracker
@@ -22,12 +45,15 @@ class TiingoAdapterWithTracking(VendorAdapter):
     for monitoring and dashboard visualization.
     """
     vendor_name = "tiingo"
-    BASE_URL = "https://api.tiingo.com/tiingo/daily/{ticker}/prices?startDate={start}&endDate={end}&token={api_key}"
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, config: TiingoAdapterConfig = None):
+        self.config = config or TiingoAdapterConfig()
         self.api_key = api_key or os.getenv("TIINGO_API_KEY")
         if not self.api_key:
             raise Exception("Please set your TIINGO_API_KEY environment variable or pass api_key explicitly.")
+        
+        # Build base URL from config
+        self.BASE_URL = f"{self.config.base_url}?startDate={{start}}&endDate={{end}}&token={{api_key}}"
         
         # Get global API tracker
         self.api_tracker = get_global_tracker()
