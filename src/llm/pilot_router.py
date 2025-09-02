@@ -10,10 +10,80 @@ import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from dataclasses import dataclass
+import gin
 
 from sentiment.news_sentiment_analyzer import NewsArticle
 
 logger = logging.getLogger(__name__)
+
+@gin.configurable
+class PilotRouterConfig:
+    def __init__(self,
+                 # Complexity scoring thresholds
+                 long_text_threshold: int = 2000,
+                 medium_text_threshold: int = 1000,
+                 long_text_score: float = 0.2,
+                 medium_text_score: float = 0.1,
+                 
+                 # Financial analysis thresholds
+                 high_numbers_threshold: int = 10,
+                 medium_numbers_threshold: int = 5,
+                 high_numbers_score: float = 0.3,
+                 medium_numbers_score: float = 0.15,
+                 financial_term_score: float = 0.05,
+                 max_financial_score: float = 0.2,
+                 
+                 # Sentence complexity thresholds
+                 complex_sentence_threshold: int = 25,
+                 medium_sentence_threshold: int = 20,
+                 complex_sentence_score: float = 0.15,
+                 medium_sentence_score: float = 0.1,
+                 
+                 # Routing decision thresholds
+                 deepseek_complexity_threshold: float = 0.6,
+                 finbert_complexity_threshold: float = 0.3,
+                 
+                 # Priority thresholds (based on content importance)
+                 high_priority_threshold: int = 1,
+                 medium_priority_threshold: int = 2,
+                 
+                 # Cost and latency estimates
+                 deepseek_cost: float = 0.05,
+                 llama_cost: float = 0.02,
+                 finbert_cost: float = 0.001,
+                 deepseek_latency: float = 3.0,
+                 llama_latency: float = 1.5,
+                 finbert_latency: float = 0.5):
+        
+        self.long_text_threshold = long_text_threshold
+        self.medium_text_threshold = medium_text_threshold
+        self.long_text_score = long_text_score
+        self.medium_text_score = medium_text_score
+        
+        self.high_numbers_threshold = high_numbers_threshold
+        self.medium_numbers_threshold = medium_numbers_threshold
+        self.high_numbers_score = high_numbers_score
+        self.medium_numbers_score = medium_numbers_score
+        self.financial_term_score = financial_term_score
+        self.max_financial_score = max_financial_score
+        
+        self.complex_sentence_threshold = complex_sentence_threshold
+        self.medium_sentence_threshold = medium_sentence_threshold
+        self.complex_sentence_score = complex_sentence_score
+        self.medium_sentence_score = medium_sentence_score
+        
+        self.deepseek_complexity_threshold = deepseek_complexity_threshold
+        self.finbert_complexity_threshold = finbert_complexity_threshold
+        
+        self.high_priority_threshold = high_priority_threshold
+        self.medium_priority_threshold = medium_priority_threshold
+        
+        self.deepseek_cost = deepseek_cost
+        self.llama_cost = llama_cost
+        self.finbert_cost = finbert_cost
+        self.deepseek_latency = deepseek_latency
+        self.llama_latency = llama_latency
+        self.finbert_latency = finbert_latency
 
 
 @dataclass
@@ -32,7 +102,8 @@ class NewsContentAnalyzer:
     Analyze news content to determine complexity and importance for routing decisions.
     """
     
-    def __init__(self):
+    def __init__(self, config: PilotRouterConfig = None):
+        self.config = config or PilotRouterConfig()
         # High-impact financial keywords that warrant deep LLM analysis
         self.high_impact_keywords = {
             # Earnings and financials
@@ -101,17 +172,17 @@ class NewsContentAnalyzer:
         score = 0.0
         
         # Length-based complexity
-        if len(text) > 2000:
-            score += 0.2
-        elif len(text) > 1000:
-            score += 0.1
+        if len(text) > self.config.long_text_threshold:
+            score += self.config.long_text_score
+        elif len(text) > self.config.medium_text_threshold:
+            score += self.config.medium_text_score
         
         # Numerical complexity
         numbers = re.findall(r'\d+(?:\.\d+)?', text)
-        if len(numbers) > 10:
-            score += 0.3
-        elif len(numbers) > 5:
-            score += 0.15
+        if len(numbers) > self.config.high_numbers_threshold:
+            score += self.config.high_numbers_score
+        elif len(numbers) > self.config.medium_numbers_threshold:
+            score += self.config.medium_numbers_score
         
         # Financial terminology density
         financial_terms = [
@@ -119,15 +190,15 @@ class NewsContentAnalyzer:
             'multiple', 'yield', 'volatility', 'correlation'
         ]
         term_count = sum(1 for term in financial_terms if term in text)
-        score += min(term_count * 0.05, 0.2)
+        score += min(term_count * self.config.financial_term_score, self.config.max_financial_score)
         
         # Sentence complexity (long sentences = higher complexity)
         sentences = text.split('.')
         avg_sentence_length = sum(len(s.split()) for s in sentences) / len(sentences)
-        if avg_sentence_length > 25:
-            score += 0.15
-        elif avg_sentence_length > 20:
-            score += 0.1
+        if avg_sentence_length > self.config.complex_sentence_threshold:
+            score += self.config.complex_sentence_score
+        elif avg_sentence_length > self.config.medium_sentence_threshold:
+            score += self.config.medium_sentence_score
         
         return min(score, 1.0)
     

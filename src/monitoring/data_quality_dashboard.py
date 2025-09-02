@@ -13,8 +13,56 @@ import asyncpg
 from enum import Enum
 import plotly.express as px
 import streamlit as st
+import gin
 
 logger = logging.getLogger(__name__)
+
+@gin.configurable
+class DataQualityConfig:
+    def __init__(self,
+                 # Completeness thresholds
+                 completeness_warning: float = 0.95,
+                 completeness_critical: float = 0.90,
+                 
+                 # Freshness thresholds (hours)
+                 freshness_warning_hours: int = 24,
+                 freshness_critical_hours: int = 48,
+                 
+                 # Accuracy thresholds
+                 accuracy_warning: float = 0.98,
+                 accuracy_critical: float = 0.95,
+                 
+                 # Consistency thresholds
+                 consistency_warning: float = 0.98,
+                 consistency_critical: float = 0.95,
+                 
+                 # Rate thresholds
+                 duplicate_rate_warning: float = 0.01,
+                 duplicate_rate_critical: float = 0.05,
+                 outlier_rate_warning: float = 0.05,
+                 outlier_rate_critical: float = 0.10,
+                 null_rate_warning: float = 0.02,
+                 null_rate_critical: float = 0.05,
+                 
+                 # Schema compliance thresholds
+                 schema_compliance_warning: float = 0.99,
+                 schema_compliance_critical: float = 0.95,
+                 
+                 # Report settings
+                 default_lookback_days: int = 7):
+        
+        self.quality_thresholds = {
+            'completeness': {'warning': completeness_warning, 'critical': completeness_critical},
+            'freshness_hours': {'warning': freshness_warning_hours, 'critical': freshness_critical_hours},
+            'accuracy': {'warning': accuracy_warning, 'critical': accuracy_critical},
+            'consistency': {'warning': consistency_warning, 'critical': consistency_critical},
+            'duplicate_rate': {'warning': duplicate_rate_warning, 'critical': duplicate_rate_critical},
+            'outlier_rate': {'warning': outlier_rate_warning, 'critical': outlier_rate_critical},
+            'null_rate': {'warning': null_rate_warning, 'critical': null_rate_critical},
+            'schema_compliance': {'warning': schema_compliance_warning, 'critical': schema_compliance_critical}
+        }
+        
+        self.default_lookback_days = default_lookback_days
 
 
 class DataQualityLevel(Enum):
@@ -55,21 +103,13 @@ class DataQualityReport:
 class DataQualityMonitor:
     """Monitor data quality across the ATS system."""
     
-    def __init__(self, connection_pool: asyncpg.Pool, env):
+    def __init__(self, connection_pool: asyncpg.Pool, env, config: DataQualityConfig = None):
         self.pool = connection_pool
         self.env = env
+        self.config = config or DataQualityConfig()
         
-        # Quality thresholds
-        self.quality_thresholds = {
-            'completeness': {'warning': 0.95, 'critical': 0.90},
-            'freshness_hours': {'warning': 24, 'critical': 48},
-            'accuracy': {'warning': 0.98, 'critical': 0.95},
-            'consistency': {'warning': 0.98, 'critical': 0.95},
-            'duplicate_rate': {'warning': 0.01, 'critical': 0.05},
-            'outlier_rate': {'warning': 0.05, 'critical': 0.10},
-            'null_rate': {'warning': 0.02, 'critical': 0.05},
-            'schema_compliance': {'warning': 0.99, 'critical': 0.95}
-        }
+        # Get quality thresholds from configuration
+        self.quality_thresholds = self.config.quality_thresholds
         
         # Tables to monitor
         self.monitored_tables = {
@@ -80,8 +120,10 @@ class DataQualityMonitor:
             'residual_returns': ['instrument_id', 'date', 'residual_return', 'r_squared']
         }
     
-    async def generate_quality_report(self, lookback_days: int = 7) -> DataQualityReport:
+    async def generate_quality_report(self, lookback_days: Optional[int] = None) -> DataQualityReport:
         """Generate comprehensive data quality report."""
+        if lookback_days is None:
+            lookback_days = self.config.default_lookback_days
         logger.info(f"Generating data quality report for last {lookback_days} days")
         
         start_time = datetime.now()

@@ -309,3 +309,103 @@ economic_events.tiingo_client.TiingoEconomicConfig.timeout_seconds = 30
 economic_events.tiingo_client.TiingoEconomicConfig.news_limit = 1000
 economic_events.tiingo_client.TiingoEconomicConfig.crypto_news_limit = 500
 economic_events.tiingo_client.TiingoEconomicConfig.rate_limit_delay_seconds = 5
+
+# =============================================================================
+# MONITORING AND DATA QUALITY CONFIGURATION
+# =============================================================================
+
+# Data Quality Dashboard Configuration
+monitoring.data_quality_dashboard.DataQualityConfig.completeness_warning = 0.95
+monitoring.data_quality_dashboard.DataQualityConfig.completeness_critical = 0.90
+monitoring.data_quality_dashboard.DataQualityConfig.freshness_warning_hours = 24
+monitoring.data_quality_dashboard.DataQualityConfig.freshness_critical_hours = 48
+monitoring.data_quality_dashboard.DataQualityConfig.accuracy_warning = 0.98
+monitoring.data_quality_dashboard.DataQualityConfig.accuracy_critical = 0.95
+monitoring.data_quality_dashboard.DataQualityConfig.consistency_warning = 0.98
+monitoring.data_quality_dashboard.DataQualityConfig.consistency_critical = 0.95
+monitoring.data_quality_dashboard.DataQualityConfig.duplicate_rate_warning = 0.01
+monitoring.data_quality_dashboard.DataQualityConfig.duplicate_rate_critical = 0.05
+monitoring.data_quality_dashboard.DataQualityConfig.outlier_rate_warning = 0.05
+monitoring.data_quality_dashboard.DataQualityConfig.outlier_rate_critical = 0.10
+monitoring.data_quality_dashboard.DataQualityConfig.null_rate_warning = 0.02
+monitoring.data_quality_dashboard.DataQualityConfig.null_rate_critical = 0.05
+monitoring.data_quality_dashboard.DataQualityConfig.schema_compliance_warning = 0.99
+monitoring.data_quality_dashboard.DataQualityConfig.schema_compliance_critical = 0.95
+monitoring.data_quality_dashboard.DataQualityConfig.default_lookback_days = 7
+
+# Data Validation Reporter Configuration
+monitoring.data_validation_reporter.DataValidationConfig.max_workers = 4
+monitoring.data_validation_reporter.DataValidationConfig.market_open_hour = 9
+monitoring.data_validation_reporter.DataValidationConfig.market_open_minute = 30
+monitoring.data_validation_reporter.DataValidationConfig.market_close_hour = 16
+monitoring.data_validation_reporter.DataValidationConfig.market_close_minute = 0
+monitoring.data_validation_reporter.DataValidationConfig.expected_bars_per_day = 390
+monitoring.data_validation_reporter.DataValidationConfig.default_expected_bars = 0
+monitoring.data_validation_reporter.DataValidationConfig.default_actual_bars = 0
+monitoring.data_validation_reporter.DataValidationConfig.default_missing_bars = 0
+monitoring.data_validation_reporter.DataValidationConfig.default_quality_score = 0.0
+
+# =============================================================================
+# LLM AND ROUTING CONFIGURATION
+# =============================================================================
+
+# LLM Pilot Router Configuration
+llm.pilot_router.PilotRouterConfig.long_text_threshold = 2000
+llm.pilot_router.PilotRouterConfig.medium_text_threshold = 1000
+llm.pilot_router.PilotRouterConfig.long_text_score = 0.2
+llm.pilot_router.PilotRouterConfig.medium_text_score = 0.1
+llm.pilot_router.PilotRouterConfig.high_numbers_threshold = 10
+llm.pilot_router.PilotRouterConfig.medium_numbers_threshold = 5
+llm.pilot_router.PilotRouterConfig.high_numbers_score = 0.3
+llm.pilot_router.PilotRouterConfig.medium_numbers_score = 0.15
+llm.pilot_router.PilotRouterConfig.financial_term_score = 0.05
+llm.pilot_router.PilotRouterConfig.max_financial_score = 0.2
+llm.pilot_router.PilotRouterConfig.complex_sentence_threshold = 25
+llm.pilot_router.PilotRouterConfig.medium_sentence_threshold = 20
+llm.pilot_router.PilotRouterConfig.complex_sentence_score = 0.15
+llm.pilot_router.PilotRouterConfig.medium_sentence_score = 0.1
+llm.pilot_router.PilotRouterConfig.deepseek_complexity_threshold = 0.6
+llm.pilot_router.PilotRouterConfig.finbert_complexity_threshold = 0.3
+llm.pilot_router.PilotRouterConfig.high_priority_threshold = 1
+llm.pilot_router.PilotRouterConfig.medium_priority_threshold = 2
+llm.pilot_router.PilotRouterConfig.deepseek_cost = 0.05
+llm.pilot_router.PilotRouterConfig.llama_cost = 0.02
+llm.pilot_router.PilotRouterConfig.finbert_cost = 0.001
+llm.pilot_router.PilotRouterConfig.deepseek_latency = 3.0
+llm.pilot_router.PilotRouterConfig.llama_latency = 1.5
+llm.pilot_router.PilotRouterConfig.finbert_latency = 0.5
+
+# =============================================================================
+# MACHINE LEARNING AND NEURAL NETWORK CONFIGURATION
+# =============================================================================
+
+# Agent Networks Configuration
+agents.agent_networks.AgentConfig.hidden_dim = 256
+agents.agent_networks.AgentConfig.action_dim = 3
+agents.agent_networks.AgentConfig.learning_rate = 0.001
+agents.agent_networks.AgentConfig.risk_tolerance = 0.5
+agents.agent_networks.AgentConfig.memory_horizon = 60
+agents.agent_networks.AgentConfig.interaction_radius = 0.1
+agents.agent_networks.AgentConfig.dropout_rate = 0.1
+agents.agent_networks.AgentConfig.attention_heads = 8
+agents.agent_networks.AgentConfig.hidden_layers_ratio = 2
+
+agents.agent_networks.NetworkConfig.num_agents = 10
+agents.agent_networks.NetworkConfig.interaction_type = "graph_attention"
+agents.agent_networks.NetworkConfig.graph_topology = "dynamic"
+agents.agent_networks.NetworkConfig.communication_rounds = 3
+agents.agent_networks.NetworkConfig.consensus_threshold = 0.7
+agents.agent_networks.NetworkConfig.enable_learning = True
+agents.agent_networks.NetworkConfig.dropout = 0.1
+agents.agent_networks.NetworkConfig.temperature = 1.0
+
+# Cross-Scale Attention Configuration
+models.attention.cross_scale_attention.AttentionConfig.d_model = 64
+models.attention.cross_scale_attention.AttentionConfig.n_heads = 4
+models.attention.cross_scale_attention.AttentionConfig.n_scales = 3
+models.attention.cross_scale_attention.AttentionConfig.dropout = 0.1
+models.attention.cross_scale_attention.AttentionConfig.temperature = 1.0
+models.attention.cross_scale_attention.AttentionConfig.use_relative_position = True
+models.attention.cross_scale_attention.AttentionConfig.max_relative_position = 512
+models.attention.cross_scale_attention.AttentionConfig.max_positional_length = 10000
+models.attention.cross_scale_attention.AttentionConfig.scale_embedding_dim = 32

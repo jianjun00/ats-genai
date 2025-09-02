@@ -19,12 +19,14 @@ import torch.nn.functional as F
 from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass, field
 import logging
+import gin
 
 from config.feature_flags import require_feature, feature_gate, is_enabled
 
 logger = logging.getLogger(__name__)
 
 
+@gin.configurable
 @dataclass
 class AgentConfig:
     """Configuration for individual agents."""
@@ -36,9 +38,14 @@ class AgentConfig:
     risk_tolerance: float = 0.5
     memory_horizon: int = 60
     interaction_radius: float = 0.1
+    # Neural network architecture parameters
+    dropout_rate: float = 0.1
+    attention_heads: int = 8
+    hidden_layers_ratio: int = 2  # hidden_dim // hidden_layers_ratio for intermediate layers
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
+@gin.configurable
 @dataclass
 class NetworkConfig:
     """Configuration for agent network."""
@@ -63,7 +70,7 @@ class StockAgent(nn.Module):
         self.state_encoder = nn.Sequential(
             nn.Linear(config.hidden_dim, config.hidden_dim),
             nn.ReLU(),
-            nn.Dropout(0.1),
+            nn.Dropout(config.dropout_rate),
             nn.Linear(config.hidden_dim, config.hidden_dim)
         )
         
@@ -71,14 +78,14 @@ class StockAgent(nn.Module):
         self.message_encoder = nn.Linear(config.hidden_dim, config.hidden_dim)
         self.message_aggregator = nn.MultiheadAttention(
             config.hidden_dim, 
-            num_heads=8, 
-            dropout=0.1,
+            num_heads=config.attention_heads, 
+            dropout=config.dropout_rate,
             batch_first=True
         )
         
         # Action prediction
         self.action_head = nn.Sequential(
-            nn.Linear(config.hidden_dim, config.hidden_dim // 2),
+            nn.Linear(config.hidden_dim, config.hidden_dim // config.hidden_layers_ratio),
             nn.ReLU(),
             nn.Linear(config.hidden_dim // 2, config.action_dim),
             nn.Softmax(dim=-1)
@@ -183,7 +190,7 @@ class GraphAttentionNetwork(nn.Module):
         self.ffn = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim * 4),
             nn.ReLU(),
-            nn.Dropout(0.1),
+            nn.Dropout(config.dropout_rate),
             nn.Linear(hidden_dim * 4, hidden_dim)
         )
     

@@ -18,10 +18,43 @@ from pathlib import Path
 import exchange_calendars as xcals
 from concurrent.futures import ThreadPoolExecutor
 import os
+import gin
 
 from config.environment import env
 
 logger = logging.getLogger(__name__)
+
+@gin.configurable
+class DataValidationConfig:
+    def __init__(self,
+                 # Threading settings
+                 max_workers: int = 4,
+                 
+                 # Market hours (24-hour format)
+                 market_open_hour: int = 9,
+                 market_open_minute: int = 30,
+                 market_close_hour: int = 16,
+                 market_close_minute: int = 0,
+                 
+                 # Expected data settings
+                 expected_bars_per_day: int = 390,  # 6.5 hours * 60 minutes
+                 
+                 # Default values for metrics
+                 default_expected_bars: int = 0,
+                 default_actual_bars: int = 0,
+                 default_missing_bars: int = 0,
+                 default_quality_score: float = 0.0):
+        
+        self.max_workers = max_workers
+        self.market_open_hour = market_open_hour
+        self.market_open_minute = market_open_minute
+        self.market_close_hour = market_close_hour
+        self.market_close_minute = market_close_minute
+        self.expected_bars_per_day = expected_bars_per_day
+        self.default_expected_bars = default_expected_bars
+        self.default_actual_bars = default_actual_bars
+        self.default_missing_bars = default_missing_bars
+        self.default_quality_score = default_quality_score
 
 
 @dataclass
@@ -32,10 +65,22 @@ class ValidationIssue:
     issue_type: str
     severity: str  # 'critical', 'warning', 'info'
     description: str
-    expected_bars: int = 0
-    actual_bars: int = 0
-    missing_bars: int = 0
-    quality_score: float = 0.0
+    expected_bars: int = None
+    actual_bars: int = None
+    missing_bars: int = None
+    quality_score: float = None
+    
+    def __post_init__(self):
+        """Set defaults from config if None"""
+        config = DataValidationConfig()  # This will get defaults or gin-configured values
+        if self.expected_bars is None:
+            self.expected_bars = config.default_expected_bars
+        if self.actual_bars is None:
+            self.actual_bars = config.default_actual_bars
+        if self.missing_bars is None:
+            self.missing_bars = config.default_missing_bars
+        if self.quality_score is None:
+            self.quality_score = config.default_quality_score
 
 
 @dataclass
@@ -81,24 +126,24 @@ class DataValidationReporter:
         self, 
         pool: asyncpg.Pool,
         slack_webhook_url: Optional[str] = None,
-        slack_channel: str = "#ats-dev"
+        slack_channel: str = "#ats-dev",
+        config: DataValidationConfig = None
     ):
         self.pool = pool
         self.slack_webhook_url = slack_webhook_url or os.getenv("SLACK_WEBHOOK_URL")
         self.slack_channel = slack_channel
-        self.executor = ThreadPoolExecutor(max_workers=4)
+        self.config = config or DataValidationConfig()
+        self.executor = ThreadPoolExecutor(max_workers=self.config.max_workers)
         
         # NYSE trading calendar for accurate trading days
         self.trading_calendar = xcals.get_calendar('XNYS')  # NYSE
         
-        # Market hours (NYSE/NASDAQ)
-        self.market_open_hour = 9
-        self.market_open_minute = 30
-        self.market_close_hour = 16
-        self.market_close_minute = 0
-        
-        # Expected bars per trading day (6.5 hours * 60 minutes = 390 bars)
-        self.expected_bars_per_day = 390
+        # Market hours and settings from configuration
+        self.market_open_hour = self.config.market_open_hour
+        self.market_open_minute = self.config.market_open_minute
+        self.market_close_hour = self.config.market_close_hour
+        self.market_close_minute = self.config.market_close_minute
+        self.expected_bars_per_day = self.config.expected_bars_per_day
     
     def is_trading_day(self, check_date: date) -> bool:
         """Check if a date is a valid trading day using NYSE calendar."""

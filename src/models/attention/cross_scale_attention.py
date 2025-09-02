@@ -21,12 +21,14 @@ import math
 from typing import Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass
 import logging
+import gin
 
 from ...storage.multi_scale_sequence import TimeScale
 
 logger = logging.getLogger(__name__)
 
 
+@gin.configurable
 @dataclass
 class AttentionConfig:
     """Configuration for cross-scale attention."""
@@ -38,6 +40,9 @@ class AttentionConfig:
     use_relative_position: bool = True
     max_relative_position: int = 512
     attention_window: Optional[int] = None  # Local attention window
+    # Additional hyperparameters
+    max_positional_length: int = 10000
+    scale_embedding_dim: int = 32
 
 
 class HierarchicalPositionalEncoding(nn.Module):
@@ -436,6 +441,7 @@ class CrossScaleAttention(nn.Module):
         # Hierarchical positional encoding
         self.positional_encoding = HierarchicalPositionalEncoding(
             d_model=config.d_model,
+            max_len=config.max_positional_length,
             scales=[TimeScale.MINUTE, TimeScale.HOURLY, TimeScale.DAILY]
         )
         
