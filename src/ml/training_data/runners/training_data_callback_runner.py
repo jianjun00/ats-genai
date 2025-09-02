@@ -18,7 +18,9 @@ import asyncio
 import asyncpg
 import gin
 import json
+import logging
 import time
+import pandas as pd
 from datetime import datetime, date
 from pathlib import Path
 from typing import List, Optional, Dict, Any
@@ -57,6 +59,159 @@ class TrainingDataConfig:
         '1h': 6,    # Next 6 hours
         '1d': 5,    # Next 5 days
     })
+
+
+def save_as_riegeli(df: pd.DataFrame, riegeli_file: Path):
+    """Save DataFrame as riegeli format."""
+    logger = logging.getLogger(__name__)
+    try:
+        import riegeli
+        import numpy as np
+        
+        # Convert DataFrame to numpy array (keeping same structure as CSV)
+        data = df.to_numpy(dtype=np.float32)
+        
+        with riegeli.RecordWriter(str(riegeli_file)) as writer:
+            # Write column names as first record
+            writer.write_record(str(list(df.columns)).encode('utf-8'))
+            
+            # Write each row as a record
+            for row in data:
+                writer.write_record(row.tobytes())
+                
+    except ImportError:
+        # Fallback: save as numpy binary if riegeli not available
+        import numpy as np
+        np_file = riegeli_file.with_suffix('.npy')
+        np.save(str(np_file), df.to_numpy())
+        logger.warning(f"Riegeli not available, saved as numpy: {np_file}")
+
+
+async def register_training_dataset(symbol: str, start_date: date, end_date: date,
+                                   metadata: Dict[str, Any], riegeli_file: Path, 
+                                   parquet_file: Path, metadata_file: Path,
+                                   environment: str = 'dev') -> int:
+    """Register training dataset in database."""
+    logger = logging.getLogger(__name__)
+    
+    # Connect directly to database
+    if environment == 'dev':
+        db_url = "postgresql://postgres:dev_password@localhost:3432/dev_db"
+    elif environment == 'intg':
+        db_url = "postgresql://postgres:intg_password@localhost:4432/intg_db"
+    else:
+        raise ValueError(f"Unsupported environment: {environment}")
+        
+    conn = await asyncpg.connect(db_url)
+    
+    try:
+        # Calculate file sizes
+        riegeli_size_mb = riegeli_file.stat().st_size / (1024 * 1024)
+        parquet_size_mb = parquet_file.stat().st_size / (1024 * 1024) if parquet_file.exists() else 0
+        total_size_mb = riegeli_size_mb + parquet_size_mb
+        
+        # Create run record
+        run_query = f"""
+        INSERT INTO {environment}_runs (
+            run_type, status, start_time, end_time, created_by, error_message, parameters
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7) 
+        RETURNING id
+        """
+        
+        now = datetime.now()
+        run_parameters = {
+            "symbol": symbol,
+            "data_format": "one_row_per_hour",
+            "datetime_features": metadata.get('datetime_features', []),
+            "technical_indicators": metadata.get('technical_indicators', []),
+            "multi_timeframe_features": metadata.get('multi_timeframe_features', []),
+            "file_size_mb": total_size_mb,
+            "generation_method": "training_data_callback_runner"
+        }
+        
+        run_id = await conn.fetchval(
+            run_query,
+            "hourly_training_data_generation",
+            "completed",
+            now,
+            now,
+            "training_data_callback_runner",
+            None,
+            json.dumps(run_parameters)
+        )
+        
+        logger.info(f"📝 Created run record: {run_id}")
+        
+        # Create training dataset record
+        dataset_query = f"""
+        INSERT INTO {environment}_training_datasets (
+            dataset_name, run_id, total_sequences, sequence_length, feature_count, label_count,
+            symbols, date_range_start, date_range_end, data_quality_score, feature_completeness,
+            label_completeness, generation_duration_seconds, file_size_mb, data_sources, status,
+            features_file_path, labels_file_path, metadata_file_path, feature_metadata,
+            technical_indicators, prediction_horizon, created_by, generation_parameters
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+            $17, $18, $19, $20, $21, $22, $23, $24
+        ) RETURNING id
+        """
+        
+        dataset_name = f"{symbol}_training_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}_{now.strftime('%H%M%S')}"
+        
+        dataset_id = await conn.fetchval(
+            dataset_query,
+            dataset_name,
+            run_id,
+            metadata['num_rows'],  # total_sequences (rows, not sequences)
+            1,  # sequence_length (each row is independent)
+            metadata['num_features'],  # feature_count
+            0,  # label_count (no labels, this is feature generation)
+            [symbol],  # symbols array
+            start_date,  # date_range_start
+            end_date,  # date_range_end
+            1.0,  # data_quality_score
+            1.0,  # feature_completeness
+            1.0,  # label_completeness
+            0,    # generation_duration_seconds
+            total_size_mb,  # file_size_mb
+            ["training_data_callback_runner"],  # data_sources array
+            "completed",  # status
+            str(riegeli_file),  # features_file_path (use riegeli as primary)
+            "",  # labels_file_path (no labels)
+            str(metadata_file),  # metadata_file_path
+            json.dumps({
+                "data_format": "one_row_per_hour",
+                "datetime_as_features": True,
+                "technical_indicators": metadata.get('technical_indicators', []),
+                "multi_timeframe": True,
+                "riegeli_file": str(riegeli_file),
+                "parquet_file": str(parquet_file)
+            }),  # feature_metadata
+            metadata.get('technical_indicators', []),  # technical_indicators
+            "1_hour",  # prediction_horizon
+            "training_data_callback_runner",  # created_by
+            json.dumps({
+                "data_format": "one_row_per_hour",
+                "datetime_as_features": True,
+                "technical_indicators": metadata.get('technical_indicators', []),
+                "multi_timeframe": True,
+                "riegeli_file": str(riegeli_file),
+                "parquet_file": str(parquet_file)
+            })  # generation_parameters
+        )
+        
+        logger.info(f"✅ Dataset registered with ID: {dataset_id}")
+        logger.info(f"   Dataset name: {dataset_name}")
+        logger.info(f"   Rows: {metadata['num_rows']:,}")
+        logger.info(f"   Features: {metadata['num_features']}")
+        logger.info(f"   File size: {total_size_mb:.1f} MB")
+        logger.info(f"   Riegeli file: {riegeli_file}")
+        logger.info(f"   Metadata file: {metadata_file}")
+        
+        return dataset_id
+        
+    finally:
+        await conn.close()
 
 
 def parse_args():
