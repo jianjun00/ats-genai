@@ -72,7 +72,7 @@ groups:
           drive: C
         annotations:
           summary: "High C: drive usage in INTG environment"
-          description: "C: drive usage is above 70% ({{ $value | humanizePercentage }}) - Current usage: {{ printf \"%.2f\" (mul $value 100) }}%"
+          description: "C: drive usage is above 70% ({{ $value | humanizePercentage }})"
 
       - alert: CriticalDiskUsageDriveC_INTG
         expr: (1 - (node_filesystem_avail_bytes{job="node-exporter-intg",mountpoint="/host/mnt/c"} / node_filesystem_size_bytes{job="node-exporter-intg",mountpoint="/host/mnt/c"})) > 0.85
@@ -94,7 +94,7 @@ groups:
           drive: D
         annotations:
           summary: "High D: drive usage in INTG environment"
-          description: "D: drive usage is above 70% ({{ $value | humanizePercentage }}) - Current usage: {{ printf \"%.2f\" (mul $value 100) }}%. D: drive stores ATS data, backups and logs."
+          description: "D: drive usage is above 70% ({{ $value | humanizePercentage }}). D: drive stores ATS data, backups and logs."
 
       - alert: CriticalDiskUsageDriveD_INTG
         expr: (1 - (node_filesystem_avail_bytes{job="node-exporter-intg",mountpoint="/host/mnt/d"} / node_filesystem_size_bytes{job="node-exporter-intg",mountpoint="/host/mnt/d"})) > 0.85

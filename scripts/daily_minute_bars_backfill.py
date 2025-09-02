@@ -52,6 +52,10 @@ sys.path.insert(0, '/workspace/src')
 from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick
 from core.run_aware_logging import setup_run_aware_logging
 
+# Import API status tracker
+sys.path.append('/workspace/scripts')
+from api_status_tracker import get_global_tracker, initialize_global_tracker
+
 logger = logging.getLogger(__name__)
 
 class DailyMinuteBarBackfill:
@@ -79,6 +83,9 @@ class DailyMinuteBarBackfill:
         # Initialize adapters
         self.firstrate = FirstRateAdapter()
         self.db_pool = None
+        
+        # Initialize API status tracker
+        self.api_tracker = get_global_tracker()
         
         # Processing stats
         self.stats = {
@@ -120,6 +127,9 @@ class DailyMinuteBarBackfill:
                 command_timeout=60
             )
             
+            # Initialize API status tracker
+            await initialize_global_tracker()
+            
             # Create output directory structure
             self.daily_output_path.mkdir(parents=True, exist_ok=True)
             
@@ -127,6 +137,7 @@ class DailyMinuteBarBackfill:
             logger.info(f"📁 Base data path: {self.base_data_path}")
             logger.info(f"📁 Daily output path: {self.daily_output_path}")
             logger.info(f"📅 Lookback days: {self.lookback_days}")
+            logger.info("✅ API status tracking initialized")
             
         except Exception as e:
             logger.error(f"❌ Failed to initialize backfill system: {e}")
@@ -242,6 +253,8 @@ class DailyMinuteBarBackfill:
         Returns:
             DataFrame with 1-minute OHLCV data or None if no data
         """
+        start_time_ms = time.time()
+        
         try:
             # Use FirstRate adapter to get 1-minute data
             start_time = datetime.combine(processing_date, datetime.min.time())
@@ -255,35 +268,80 @@ class DailyMinuteBarBackfill:
                 end_time=end_time
             )
             
-            if not minute_data:
+            # Calculate latency
+            latency_ms = (time.time() - start_time_ms) * 1000
+            
+            # Track API call (simulating successful file access)
+            if minute_data:
+                # Simulate successful data retrieval
+                self.api_tracker.track_request(
+                    vendor="firstrate",
+                    api_endpoint="minute_bars",
+                    status_code=200,
+                    latency_ms=latency_ms,
+                    response_size_bytes=len(minute_data) * 32 if minute_data else 0,  # Estimate: 32 bytes per tick
+                    symbol=symbol
+                )
+                
+                # Convert to DataFrame
+                df = pd.DataFrame([
+                    {
+                        'timestamp': tick.timestamp,
+                        'open': tick.open_price,
+                        'high': tick.high_price, 
+                        'low': tick.low_price,
+                        'close': tick.close_price,
+                        'volume': tick.volume
+                    }
+                    for tick in minute_data
+                ])
+                
+                if df.empty:
+                    return None
+                    
+                # Ensure proper time indexing
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
+                df = df.set_index('timestamp')
+                df = df.sort_index()
+                
+                logger.debug(f"📊 Downloaded {len(df)} minute bars for {symbol} on {processing_date}")
+                return df
+            else:
+                # Track no data found as 404
+                self.api_tracker.track_request(
+                    vendor="firstrate",
+                    api_endpoint="minute_bars",
+                    status_code=404,
+                    latency_ms=latency_ms,
+                    error_message="No data found",
+                    symbol=symbol
+                )
                 logger.debug(f"📊 No data for {symbol} on {processing_date}")
                 return None
-                
-            # Convert to DataFrame
-            df = pd.DataFrame([
-                {
-                    'timestamp': tick.timestamp,
-                    'open': tick.open_price,
-                    'high': tick.high_price, 
-                    'low': tick.low_price,
-                    'close': tick.close_price,
-                    'volume': tick.volume
-                }
-                for tick in minute_data
-            ])
             
-            if df.empty:
-                return None
-                
-            # Ensure proper time indexing
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
-            df = df.set_index('timestamp')
-            df = df.sort_index()
-            
-            logger.debug(f"📊 Downloaded {len(df)} minute bars for {symbol} on {processing_date}")
-            return df
+        except FileNotFoundError as e:
+            latency_ms = (time.time() - start_time_ms) * 1000
+            self.api_tracker.track_request(
+                vendor="firstrate",
+                api_endpoint="minute_bars",
+                status_code=404,
+                latency_ms=latency_ms,
+                error_message=f"File not found: {str(e)}",
+                symbol=symbol
+            )
+            logger.debug(f"📊 No data file for {symbol} on {processing_date}")
+            return None
             
         except Exception as e:
+            latency_ms = (time.time() - start_time_ms) * 1000
+            self.api_tracker.track_request(
+                vendor="firstrate",
+                api_endpoint="minute_bars",
+                status_code=500,
+                latency_ms=latency_ms,
+                error_message=str(e),
+                symbol=symbol
+            )
             logger.error(f"❌ Failed to download data for {symbol} on {processing_date}: {e}")
             self.stats['processing_errors'].append(f"{symbol}_{processing_date}: {str(e)}")
             return None

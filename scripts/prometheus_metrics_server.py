@@ -86,6 +86,7 @@ class PrometheusMetricsServer:
             self.app = web.Application()
             self.app.router.add_get('/metrics', self.metrics_handler)
             self.app.router.add_get('/health', self.health_handler)
+            self.app.router.add_get('/api/v1/query', self.prometheus_query_handler)
             self.app.router.add_get('/', self.root_handler)
             
             logger.info("✅ Prometheus metrics server initialized")
@@ -120,6 +121,17 @@ class PrometheusMetricsServer:
         try:
             metrics_lines = []
             timestamp = int(datetime.now().timestamp())
+            
+            # Include API status tracking metrics
+            try:
+                from api_status_tracker import get_global_tracker
+                api_tracker = get_global_tracker()
+                api_metrics = api_tracker.get_prometheus_metrics()
+                if api_metrics:
+                    metrics_lines.append("# API Status Tracking Metrics")
+                    metrics_lines.append(api_metrics)
+            except Exception as e:
+                logger.debug(f"API tracker metrics not available: {e}")
             
             async with self.db_pool.acquire() as conn:
                 # Total active instruments
@@ -322,7 +334,7 @@ ats_metrics_collection_errors 1 {error_timestamp}
                 
             return web.Response(
                 text=content,
-                content_type='text/plain; version=0.0.4; charset=utf-8'
+                content_type='text/plain'
             )
             
         except Exception as e:
@@ -359,6 +371,79 @@ ats_metrics_collection_errors 1 {error_timestamp}
                 },
                 status=503
             )
+            
+    async def prometheus_query_handler(self, request):
+        """Prometheus-compatible query endpoint for Grafana."""
+        try:
+            query = request.query.get('query', '')
+            
+            if not query:
+                return web.json_response({
+                    'status': 'error',
+                    'errorType': 'bad_data',
+                    'error': 'query parameter is required'
+                }, status=400)
+            
+            # Get current metrics
+            metrics_text = await self.collect_metrics()
+            
+            # Parse metrics to find the requested one
+            result_value = None
+            current_timestamp = datetime.now().timestamp()
+            
+            # Simple metric parsing for common queries
+            for line in metrics_text.split('\n'):
+                line = line.strip()
+                if line.startswith('#') or not line:
+                    continue
+                    
+                parts = line.split(' ')
+                if len(parts) >= 2:
+                    metric_name = parts[0]
+                    metric_value = parts[1]
+                    
+                    # Handle exact match queries
+                    if query == metric_name:
+                        result_value = float(metric_value)
+                        break
+                    
+                    # Handle sum() queries like sum(ats_instruments_with_recent_data)
+                    if query.startswith('sum(') and query.endswith(')'):
+                        inner_query = query[4:-1]  # Remove sum() wrapper
+                        if metric_name.startswith(inner_query):
+                            if result_value is None:
+                                result_value = 0
+                            result_value += float(metric_value)
+            
+            if result_value is not None:
+                # Return Prometheus-compatible response
+                return web.json_response({
+                    'status': 'success',
+                    'data': {
+                        'resultType': 'vector',
+                        'result': [{
+                            'metric': {'__name__': query},
+                            'value': [current_timestamp, str(result_value)]
+                        }]
+                    }
+                })
+            else:
+                # No data found
+                return web.json_response({
+                    'status': 'success',
+                    'data': {
+                        'resultType': 'vector',
+                        'result': []
+                    }
+                })
+                
+        except Exception as e:
+            logger.error(f"❌ Error in Prometheus query handler: {e}")
+            return web.json_response({
+                'status': 'error',
+                'errorType': 'internal',
+                'error': str(e)
+            }, status=500)
             
     async def root_handler(self, request):
         """HTTP handler for root / endpoint."""

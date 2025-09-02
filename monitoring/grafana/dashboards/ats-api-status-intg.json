@@ -1,0 +1,633 @@
+{
+  "id": null,
+  "uid": "api-status-intg",
+  "title": "ATS-INTG API Status Dashboard",
+  "tags": ["ats", "api", "status", "vendors", "intg"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Total API Requests by Vendor",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "sum by (vendor) (ats_api_requests_total)",
+          "legendFormat": "{{vendor}}",
+          "datasource": {"uid": "PBFA97CFB590B2093"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "barAlignment": 0,
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "spanNulls": false,
+            "insertNulls": false,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "stacking": {"mode": "none", "group": "A"},
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "scaleDistribution": {"type": "linear"}
+          },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {"mode": "single", "sort": "none"},
+        "legend": {"displayMode": "visible", "placement": "bottom"},
+        "displayMode": "table",
+        "placement": "bottom",
+        "calcs": ["lastNotNull"]
+      }
+    },
+    {
+      "id": 2,
+      "title": "API Success Rate by Vendor",
+      "type": "stat",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "ats_api_success_rate_percent",
+          "legendFormat": "{{vendor}}",
+          "datasource": {"uid": "PBFA97CFB590B2093"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "displayMode": "basic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": 0},
+              {"color": "yellow", "value": 80},
+              {"color": "green", "value": 95}
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 3,
+      "title": "API Status Codes by Vendor",
+      "type": "table",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8},
+      "targets": [
+        {
+          "expr": "ats_api_requests_total",
+          "legendFormat": "{{vendor}} - {{status_code}}",
+          "datasource": {"uid": "PBFA97CFB590B2093"},
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "displayMode": "color-background",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": 200},
+              {"color": "yellow", "value": 400},
+              {"color": "red", "value": 500}
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "vendor"},
+            "properties": [
+              {"id": "custom.width", "value": 120}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "status_code"},
+            "properties": [
+              {"id": "custom.width", "value": 100}
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {"desc": true, "displayName": "Value"}
+        ]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {"Time": true},
+            "indexByName": {
+              "vendor": 0,
+              "status_code": 1,
+              "Value": 2
+            },
+            "renameByName": {
+              "Value": "Request Count"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "API Latency by Vendor",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "targets": [
+        {
+          "expr": "ats_api_latency_avg_ms",
+          "legendFormat": "{{vendor}} - avg",
+          "datasource": {"uid": "PBFA97CFB590B2093"}
+        },
+        {
+          "expr": "ats_api_latency_max_ms",
+          "legendFormat": "{{vendor}} - max",
+          "datasource": {"uid": "PBFA97CFB590B2093"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "barAlignment": 0,
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "spanNulls": false,
+            "insertNulls": false,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "stacking": {"mode": "none", "group": "A"},
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "scaleDistribution": {"type": "linear"}
+          },
+          "unit": "ms",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {"mode": "multi", "sort": "none"},
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]}
+      }
+    },
+    {
+      "id": 5,
+      "title": "Rate Limiting Events",
+      "type": "bargauge",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "targets": [
+        {
+          "expr": "ats_api_rate_limits_total",
+          "legendFormat": "{{vendor}}",
+          "datasource": {"uid": "PBFA97CFB590B2093"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "displayMode": "gradient",
+            "orientation": "horizontal",
+            "barMinWidth": 10
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": 0},
+              {"color": "yellow", "value": 10},
+              {"color": "red", "value": 50}
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "orientation": "horizontal",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 6,
+      "title": "API Endpoints Request Distribution",
+      "type": "piechart",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+      "targets": [
+        {
+          "expr": "sum by (endpoint) (ats_api_endpoint_requests)",
+          "legendFormat": "{{endpoint}}",
+          "datasource": {"uid": "PBFA97CFB590B2093"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            }
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "pieType": "pie",
+        "tooltip": {"mode": "single", "sort": "none"},
+        "legend": {"displayMode": "table", "placement": "right", "values": ["value", "percent"]},
+        "displayLabels": ["name", "percent"]
+      }
+    },
+    {
+      "id": 7,
+      "title": "Error Rate by Vendor",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+      "targets": [
+        {
+          "expr": "rate(ats_api_errors_total[5m]) * 100",
+          "legendFormat": "{{vendor}}",
+          "datasource": {"uid": "PBFA97CFB590B2093"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "barAlignment": 0,
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "spanNulls": false,
+            "insertNulls": false,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "stacking": {"mode": "none", "group": "A"},
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "scaleDistribution": {"type": "linear"}
+          },
+          "unit": "percent",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {"mode": "multi", "sort": "none"},
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]}
+      }
+    },
+    {
+      "id": 8,
+      "title": "API Requests Heatmap by Hour and Vendor",
+      "type": "heatmap",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 32},
+      "targets": [
+        {
+          "expr": "sum by (vendor) (increase(ats_api_requests_total[1h]))",
+          "legendFormat": "{{vendor}}",
+          "datasource": {"uid": "PBFA97CFB590B2093"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "spectrum"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "calculate": false,
+        "cellGap": 2,
+        "cellValues": {},
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "mode": "spectrum",
+          "reverse": false,
+          "scale": "exponential",
+          "scheme": "Oranges",
+          "steps": 128
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
+        "legend": {
+          "show": true
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        },
+        "tooltip": {
+          "show": true,
+          "yHistogram": false
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "reverse": false
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Current API Health Summary",
+      "type": "table",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 40},
+      "targets": [
+        {
+          "expr": "ats_api_requests_total",
+          "legendFormat": "{{vendor}}",
+          "datasource": {"uid": "PBFA97CFB590B2093"},
+          "format": "table"
+        },
+        {
+          "expr": "ats_api_success_rate_percent",
+          "legendFormat": "{{vendor}}",
+          "datasource": {"uid": "PBFA97CFB590B2093"},
+          "format": "table"
+        },
+        {
+          "expr": "ats_api_latency_avg_ms",
+          "legendFormat": "{{vendor}}",
+          "datasource": {"uid": "PBFA97CFB590B2093"},
+          "format": "table"
+        },
+        {
+          "expr": "ats_api_errors_total",
+          "legendFormat": "{{vendor}}",
+          "datasource": {"uid": "PBFA97CFB590B2093"},
+          "format": "table"
+        },
+        {
+          "expr": "ats_api_rate_limits_total",
+          "legendFormat": "{{vendor}}",
+          "datasource": {"uid": "PBFA97CFB590B2093"},
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "displayMode": "color-background",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "transparent", "value": null},
+              {"color": "green", "value": 0}
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "Success Rate (%)"},
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {"color": "red", "value": 0},
+                    {"color": "yellow", "value": 80},
+                    {"color": "green", "value": 95}
+                  ]
+                }
+              },
+              {"id": "unit", "value": "percent"}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "Avg Latency (ms)"},
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {"color": "green", "value": 0},
+                    {"color": "yellow", "value": 1000},
+                    {"color": "red", "value": 5000}
+                  ]
+                }
+              },
+              {"id": "unit", "value": "ms"}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "Rate Limits"},
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {"color": "green", "value": 0},
+                    {"color": "yellow", "value": 10},
+                    {"color": "red", "value": 50}
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {"desc": false, "displayName": "Vendor"}
+        ]
+      },
+      "transformations": [
+        {
+          "id": "groupBy",
+          "options": {
+            "fields": {
+              "vendor": {
+                "aggregations": [],
+                "operation": "groupby"
+              },
+              "Value #A": {
+                "aggregations": ["lastNotNull"],
+                "operation": "aggregate"
+              },
+              "Value #B": {
+                "aggregations": ["lastNotNull"],
+                "operation": "aggregate"
+              },
+              "Value #C": {
+                "aggregations": ["lastNotNull"],
+                "operation": "aggregate"
+              },
+              "Value #D": {
+                "aggregations": ["lastNotNull"],
+                "operation": "aggregate"
+              },
+              "Value #E": {
+                "aggregations": ["lastNotNull"],
+                "operation": "aggregate"
+              }
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {
+              "vendor": 0,
+              "Value #A (lastNotNull)": 1,
+              "Value #B (lastNotNull)": 2,
+              "Value #C (lastNotNull)": 3,
+              "Value #D (lastNotNull)": 4,
+              "Value #E (lastNotNull)": 5
+            },
+            "renameByName": {
+              "vendor": "Vendor",
+              "Value #A (lastNotNull)": "Total Requests",
+              "Value #B (lastNotNull)": "Success Rate (%)",
+              "Value #C (lastNotNull)": "Avg Latency (ms)",
+              "Value #D (lastNotNull)": "Total Errors",
+              "Value #E (lastNotNull)": "Rate Limits"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {"uid": "PBFA97CFB590B2093"},
+        "definition": "label_values(ats_api_requests_total, vendor)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "vendor",
+        "options": [],
+        "query": {
+          "query": "label_values(ats_api_requests_total, vendor)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {"uid": "PBFA97CFB590B2093"},
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": ["ats", "api", "status", "vendors", "intg"],
+  "templating": {
+    "list": []
+  },
+  "timepicker": {},
+  "timezone": "",
+  "version": 0,
+  "weekStart": ""
+}
