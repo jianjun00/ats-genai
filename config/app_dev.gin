@@ -1,4 +1,9 @@
-# Gin config for dev environment
+# Development Environment Configuration
+# Inherits base configuration from hardcoded_values.gin and applies dev-specific overrides
+
+include 'config/hardcoded_values.gin'
+
+# Original dev environment configuration
 bind = ['env_type', 'dev']
 
 # API keys - use actual values for dev
@@ -13,3 +18,85 @@ LoggingConfig.log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s
 bind = ['enable_caching', False]
 bind = ['enable_metrics', False]
 bind = ['strict_validation', True]
+
+# =============================================================================
+# DEVELOPMENT ENVIRONMENT OVERRIDES
+# =============================================================================
+
+# Development Database Configuration
+database.connection.host = 'localhost'
+database.connection.port = 3432
+database.connection.user = 'postgres'
+database.connection.password = 'dev_password'
+database.connection.database = 'dev_db'
+database.connection.pool_min_size = 1
+database.connection.pool_max_size = 5
+database.connection.command_timeout = 120
+
+# Development API Configuration
+api.backtest_analytics_api.BacktestServerConfig.host = "localhost"
+api.backtest_analytics_api.BacktestServerConfig.port = 3000
+api.backtest_analytics_api.BacktestServerConfig.reload = true
+api.backtest_analytics_api.BacktestServerConfig.log_level = "debug"
+
+# Development CORS - Allow local frontend access
+main.CORSConfig.allow_origins = ["http://localhost:3000", "http://localhost:3001", "http://localhost:8080"]
+api.backtest_analytics_api.BacktestCORSConfig.allow_origins = ["http://localhost:3000", "http://localhost:3001", "http://localhost:8080"]
+
+# Development Real-time Data Collector
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.db_host = "ats-dev-postgres"
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.db_port = 5432
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.db_password = "dev_password"
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.db_name = "dev_db"
+
+# Development connection pool - smaller for local development
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.pool_min_size = 1
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.pool_max_size = 5
+
+# Development timeouts - longer for debugging
+timeouts.api.default = 60
+timeouts.api.long_running = 120
+timeouts.database.connection = 60
+timeouts.database.query = 120
+
+# Development batch sizes - smaller for faster feedback
+batch.sizes.default = 10
+batch.sizes.large = 50
+batch.processing.max_symbols = 100
+
+# Development symbol universe - limited for faster testing
+symbols.default_universe = ['AAPL', 'TSLA', 'MSFT']
+market_data.realtime.aapl_tsla_realtime_collector.RealtimeCollectorConfig.symbols = ["AAPL", "TSLA"]
+services.minute.minute_price_service.MinuteServiceConfig.default_symbols = ["AAPL", "TSLA", "MSFT"]
+
+# Development monitoring - more verbose logging
+monitoring.intervals.health_check = 60  # 1 minute for faster feedback
+monitoring.intervals.metrics_collection = 30
+monitoring.alerts.failure_rate_threshold = 0.20  # More lenient for development
+
+# Development data paths
+paths.data.root = '/tmp/ats-dev-data'
+paths.logs.root = '/tmp/ats-dev-logs'
+paths.backup.root = '/tmp/ats-dev-backup'
+
+# Development ML configuration - smaller models for faster iteration
+agents.agent_networks.AgentConfig.hidden_dim = 128
+agents.agent_networks.AgentConfig.memory_horizon = 30
+agents.agent_networks.NetworkConfig.num_agents = 5
+models.attention.cross_scale_attention.AttentionConfig.d_model = 32
+models.attention.cross_scale_attention.AttentionConfig.n_heads = 2
+
+# Development external APIs - more conservative rate limits for testing
+external.polygon.rate_limit_per_minute = 2
+external.tiingo.rate_limit_per_hour = 100
+delays.rate_limit.default = 2.0
+
+# Development date ranges - shorter for faster testing
+dates.default_start = '2024-08-01'
+dates.default_end = '2024-08-31'
+dates.lookback.default_days = 7
+
+# Development thresholds - more lenient for testing
+thresholds.success_rate = 0.80
+thresholds.data_coverage = 0.85
+thresholds.api_success = 0.70
