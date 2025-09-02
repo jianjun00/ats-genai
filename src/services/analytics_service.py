@@ -5056,27 +5056,52 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                 const prevClose = index > 0 ? data.data[index - 1]['5m_close'] || data.data[index - 1]['1h_close'] || data.data[index - 1]['15m_close'] : null;
                 const currentClose = point['5m_close'] || point['1h_close'] || point['15m_close'] || 0;
                 
-                // Format datetime for x-axis display
-                let xValue = index; // fallback to index
-                if (point.datetime) {
+                // Format datetime for x-axis display as YYYYMMDD HH [index]
+                let xValue = `[${index}]`; // fallback to index only
+                
+                // Try timestamp field first (Unix timestamp)
+                if (point.timestamp) {
                     try {
-                        let date;
-                        if (typeof point.datetime === 'number') {
-                            // Unix timestamp
-                            date = new Date(point.datetime * 1000);
-                        } else if (typeof point.datetime === 'string') {
-                            // ISO string
-                            date = new Date(point.datetime);
-                        }
-                        
-                        if (date && !isNaN(date)) {
-                            // Format as YYYYMMDD HH:MM for x-axis
+                        const date = new Date(point.timestamp * 1000);
+                        if (!isNaN(date)) {
                             const year = date.getFullYear();
                             const month = String(date.getMonth() + 1).padStart(2, '0');
                             const day = String(date.getDate()).padStart(2, '0');
                             const hours = String(date.getHours()).padStart(2, '0');
-                            const minutes = String(date.getMinutes()).padStart(2, '0');
-                            xValue = `${year}${month}${day} ${hours}:${minutes}`;
+                            xValue = `${year}${month}${day} ${hours} [${index}]`;
+                        }
+                    } catch (e) {
+                        console.log('X-axis timestamp formatting error:', e);
+                    }
+                }
+                // Fallback to individual year/month/day/hour fields
+                else if (point.year && point.month && point.day && point.hour !== undefined) {
+                    try {
+                        const year = Math.floor(point.year);
+                        const month = String(Math.floor(point.month)).padStart(2, '0');
+                        const day = String(Math.floor(point.day)).padStart(2, '0');
+                        const hours = String(Math.floor(point.hour)).padStart(2, '0');
+                        xValue = `${year}${month}${day} ${hours} [${index}]`;
+                    } catch (e) {
+                        console.log('X-axis component datetime formatting error:', e);
+                    }
+                }
+                // Legacy datetime field support
+                else if (point.datetime) {
+                    try {
+                        let date;
+                        if (typeof point.datetime === 'number') {
+                            date = new Date(point.datetime * 1000);
+                        } else if (typeof point.datetime === 'string') {
+                            date = new Date(point.datetime);
+                        }
+                        
+                        if (date && !isNaN(date)) {
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const hours = String(date.getHours()).padStart(2, '0');
+                            xValue = `${year}${month}${day} ${hours} [${index}]`;
                         }
                     } catch (e) {
                         console.log('X-axis datetime formatting error:', e);
@@ -5169,7 +5194,7 @@ class AnalyticsHandler(BaseHTTPRequestHandler):
                     font: {size: 14}
                 },
                 xaxis: {
-                    title: 'Time (YYYYMMDD HH:MM)',
+                    title: 'Time (YYYYMMDD HH [index])',
                     rangeslider: {visible: false},
                     tickangle: -45
                 },
