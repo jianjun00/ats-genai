@@ -1,0 +1,284 @@
+# Gin configuration for hardcoded values extraction
+# This file centralizes all hardcoded values found throughout the codebase
+
+# =============================================================================
+# API AND SERVICE CONFIGURATION
+# =============================================================================
+
+# Port configurations
+simple_main.ApiConfig.port = 8080
+simple_main.ApiConfig.host = "0.0.0.0"
+simple_main.ApiConfig.title = "ATS GenAI API"
+simple_main.ApiConfig.description = "Algorithmic Trading System with GenAI"
+simple_main.ApiConfig.version = "1.0.0"
+
+api.AnalyticsService.port = 3000
+api.DashboardService.port = 4000
+api.MetricsService.port = 8080
+
+# CORS configuration  
+api.cors.allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:8080", 
+    "http://localhost:3001"
+]
+
+# =============================================================================
+# DATABASE CONFIGURATION
+# =============================================================================
+
+# Database connection defaults
+database.connection.host = 'localhost'
+database.connection.port = 5432
+database.connection.user = 'postgres'
+database.connection.database = 'dev_db'
+database.connection.pool_min_size = 1
+database.connection.pool_max_size = 10
+database.connection.command_timeout = 60
+
+# Database table names
+database.tables.instruments = 'dev_instruments'
+database.tables.daily_prices = 'dev_daily_prices'
+database.tables.backtest_runs = 'backtest_runs'
+database.tables.portfolio_metrics = 'portfolio_metrics'
+
+# =============================================================================
+# STOCK SYMBOLS AND UNIVERSE CONFIGURATION  
+# =============================================================================
+
+# Analytics API Mock Data Configuration
+analytics_api_dynamic.MockDataConfig.default_universe = [
+    'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA',
+    'META', 'NVDA', 'JPM', 'V', 'JNJ'
+]
+
+analytics_api_dynamic.MockDataConfig.large_cap_universe = [
+    'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'TSLA', 'META', 'NVDA',
+    'JPM', 'V', 'JNJ', 'WMT', 'PG', 'MA', 'UNH', 'HD', 'BAC', 'ABBV',
+    'CRM', 'PFE', 'KO', 'AVGO', 'PEP', 'TMO', 'COST', 'DIS', 'ABT',
+    'DHR', 'NFLX', 'VZ', 'ADBE', 'NKE', 'CRM', 'CMCSA', 'XOM'
+]
+
+analytics_api_dynamic.MockDataConfig.base_prices = {
+    'AAPL': 150, 'MSFT': 300, 'GOOGL': 120, 'AMZN': 180,
+    'TSLA': 250, 'META': 160, 'NVDA': 400, 'JPM': 140,
+    'JNJ': 160, 'V': 220, 'WMT': 140, 'PG': 140
+}
+
+analytics_api_dynamic.MockDataConfig.volatilities = {
+    'TSLA': 0.04, 'META': 0.035, 'NVDA': 0.038, 'AMZN': 0.032,
+    'AAPL': 0.025, 'MSFT': 0.022, 'GOOGL': 0.028, 'JPM': 0.020, 'V': 0.018
+}
+
+analytics_api_dynamic.MockDataConfig.sector_mapping = {
+    'AAPL': 'Technology', 'MSFT': 'Technology', 'GOOGL': 'Technology',
+    'META': 'Technology', 'NVDA': 'Technology', 'AMZN': 'Consumer Discretionary',
+    'TSLA': 'Consumer Discretionary', 'JPM': 'Financial', 'V': 'Financial',
+    'JNJ': 'Healthcare', 'WMT': 'Consumer Staples', 'XOM': 'Energy'
+}
+
+analytics_api_dynamic.MockDataConfig.lookback_days = 30
+
+# Default universe symbols
+symbols.default_universe = [
+    'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA',
+    'META', 'NVDA', 'JPM', 'V', 'JNJ'
+]
+
+# Large cap universe
+symbols.large_cap_universe = [
+    'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'TSLA', 'META', 'NVDA',
+    'JPM', 'V', 'JNJ', 'WMT', 'PG', 'MA', 'UNH', 'HD', 'BAC', 'ABBV',
+    'CRM', 'PFE', 'KO', 'AVGO', 'PEP', 'TMO', 'COST', 'DIS', 'ABT',
+    'DHR', 'NFLX', 'VZ', 'ADBE', 'NKE', 'CRM', 'CMCSA', 'XOM'
+]
+
+# ETF universe
+symbols.etf_universe = ['SPY', 'QQQ', 'IWM', 'VTI', 'VOO']
+
+# Priority symbols for testing/monitoring
+symbols.priority_symbols = ['AAPL', 'TSLA', 'SPY']
+
+# Technology sector symbols
+symbols.tech_sector = [
+    'AAPL', 'MSFT', 'GOOGL', 'META', 'NVDA', 'CRM', 
+    'ORCL', 'INTC', 'CSCO', 'ADBE'
+]
+
+# =============================================================================
+# FINANCIAL THRESHOLDS AND METRICS
+# =============================================================================
+
+# Performance thresholds
+thresholds.sharpe_ratio.base = 1.2
+thresholds.sharpe_ratio.good = 1.5
+thresholds.sharpe_ratio.excellent = 2.0
+
+thresholds.max_drawdown.warning = 0.08
+thresholds.max_drawdown.critical = 0.15
+thresholds.max_drawdown.maximum = 0.25
+
+thresholds.volatility.low = 0.10
+thresholds.volatility.medium = 0.16
+thresholds.volatility.high = 0.25
+
+# Success and coverage thresholds
+thresholds.success_rate = 0.90
+thresholds.data_coverage = 0.95
+thresholds.api_success = 0.80
+
+# =============================================================================
+# MOCK DATA CONFIGURATION
+# =============================================================================
+
+# Base prices for mock data generation
+mock_data.base_prices = {
+    'AAPL': 150, 'MSFT': 300, 'GOOGL': 120, 'AMZN': 180,
+    'TSLA': 250, 'META': 160, 'NVDA': 400, 'JPM': 140,
+    'JNJ': 160, 'V': 220, 'WMT': 140, 'PG': 140
+}
+
+# Volatility values for mock data
+mock_data.volatilities = {
+    'TSLA': 0.04, 'META': 0.035, 'NVDA': 0.038, 'AMZN': 0.032,
+    'AAPL': 0.025, 'MSFT': 0.022, 'GOOGL': 0.028, 'JPM': 0.020, 'V': 0.018
+}
+
+# Sector classifications
+mock_data.sector_mapping = {
+    'AAPL': 'Technology', 'MSFT': 'Technology', 'GOOGL': 'Technology',
+    'META': 'Technology', 'NVDA': 'Technology', 'AMZN': 'Consumer Discretionary',
+    'TSLA': 'Consumer Discretionary', 'JPM': 'Financial', 'V': 'Financial',
+    'JNJ': 'Healthcare', 'WMT': 'Consumer Staples', 'XOM': 'Energy'
+}
+
+# =============================================================================
+# DATE AND TIME CONFIGURATION
+# =============================================================================
+
+# Default date ranges
+dates.default_start = '2024-01-01'
+dates.default_end = '2024-12-31'
+dates.comprehensive_start = '2022-01-01'
+dates.comprehensive_end = '2025-08-19'
+dates.backtest_default_start = '2024-01-01'
+dates.backtest_default_end = '2024-06-30'
+
+# Lookback periods
+dates.lookback.default_days = 30
+dates.lookback.short_term = 7
+dates.lookback.medium_term = 90
+dates.lookback.long_term = 365
+
+# =============================================================================
+# TIMEOUT AND DELAY CONFIGURATION
+# =============================================================================
+
+# API timeouts (seconds)
+timeouts.api.default = 30
+timeouts.api.long_running = 60
+timeouts.api.critical = 120
+
+# Database timeouts (seconds)
+timeouts.database.connection = 30
+timeouts.database.query = 60
+timeouts.database.long_query = 300
+
+# Rate limiting delays (seconds)
+delays.rate_limit.default = 1.0
+delays.rate_limit.aggressive = 0.5
+delays.rate_limit.conservative = 2.0
+
+# Retry delays (seconds)
+delays.retry.initial = 1
+delays.retry.backoff_multiplier = 2
+delays.retry.max_delay = 60
+
+# =============================================================================
+# BATCH PROCESSING CONFIGURATION
+# =============================================================================
+
+# Batch sizes
+batch.sizes.small = 10
+batch.sizes.default = 100
+batch.sizes.large = 1000
+batch.sizes.maximum = 10000
+
+# API limits
+batch.api.polygon_limit = 1000
+batch.api.fred_limit = 100000
+batch.api.tiingo_limit = 500
+batch.api.default_limit = 50
+
+# Processing limits
+batch.processing.max_symbols = 1000
+batch.processing.max_days = 365
+batch.processing.max_concurrent = 5
+
+# =============================================================================
+# FILE PATH CONFIGURATION
+# =============================================================================
+
+# Data directories
+paths.data.root = '/data'
+paths.data.portfolios = 'data/portfolios/backtests/'
+paths.data.universe_states = '/tmp/universe_states'
+paths.data.test = 'test/data/'
+
+# Log directories
+paths.logs.root = '/logs'
+paths.logs.daily_collection = '/logs/daily_collection.log'
+paths.logs.coverage_validation = '/logs/coverage_validation.log'
+
+# Backup directories  
+paths.backup.root = '/backup'
+
+# =============================================================================
+# MONITORING AND ALERTING
+# =============================================================================
+
+# Alert thresholds
+monitoring.alerts.data_staleness_hours = 24
+monitoring.alerts.failure_rate_threshold = 0.10
+monitoring.alerts.coverage_threshold = 0.90
+
+# Monitoring intervals
+monitoring.intervals.health_check = 300  # 5 minutes
+monitoring.intervals.metrics_collection = 60  # 1 minute
+monitoring.intervals.alert_check = 600  # 10 minutes
+
+# Cleanup retention periods (days)
+monitoring.retention.logs = 30
+monitoring.retention.metrics = 90
+monitoring.retention.alerts = 7
+
+# =============================================================================
+# EXTERNAL SERVICE CONFIGURATION
+# =============================================================================
+
+# FRED API configuration
+external.fred.rate_limit_per_minute = 120
+external.fred.max_series_per_request = 100
+
+# Polygon API configuration  
+external.polygon.rate_limit_per_minute = 5
+external.polygon.max_results_per_page = 1000
+
+# Tiingo API configuration
+external.tiingo.rate_limit_per_hour = 1000
+external.tiingo.max_symbols_per_request = 100
+
+# =============================================================================
+# POLYGON ADAPTER CONFIGURATION
+# =============================================================================
+
+# Polygon Adapter Configuration
+market_data.agent.polygon_adapter.PolygonAdapterConfig.api_limit = 50000
+market_data.agent.polygon_adapter.PolygonAdapterConfig.base_url = "https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{start}/{end}?adjusted=true&sort=asc&limit={limit}&apiKey={api_key}"
+market_data.agent.polygon_adapter.PolygonAdapterConfig.instruments_url = "https://api.polygon.io/v3/reference/tickers?active=true&apiKey={api_key}"
+
+# Logging configuration for debugging specific tickers
+market_data.agent.polygon_adapter.PolygonAdapterConfig.debug_tickers = ["AAPL", "TSLA"]
+market_data.agent.polygon_adapter.PolygonAdapterConfig.debug_start_date = "2020-01-10"
+market_data.agent.polygon_adapter.PolygonAdapterConfig.debug_end_date = "2024-12-31"
+market_data.agent.polygon_adapter.PolygonAdapterConfig.debug_log_path = "tests/data"

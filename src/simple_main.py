@@ -1,12 +1,31 @@
 from fastapi import FastAPI
 from typing import Dict, Any
 import os
+import gin
+
+# Gin configurable parameters
+@gin.configurable
+class ApiConfig:
+    def __init__(self, 
+                 title: str = "ATS GenAI API",
+                 description: str = "Algorithmic Trading System with GenAI", 
+                 version: str = "1.0.0",
+                 port: int = 8080,
+                 host: str = "0.0.0.0"):
+        self.title = title
+        self.description = description
+        self.version = version
+        self.port = port
+        self.host = host
+
+# Initialize configuration (will be overridden by gin)
+config = ApiConfig()
 
 # Create FastAPI app
 app = FastAPI(
-    title="ATS GenAI API",
-    description="Algorithmic Trading System with GenAI",
-    version="1.0.0"
+    title=config.title,
+    description=config.description,
+    version=config.version
 )
 
 @app.get("/")
@@ -44,4 +63,12 @@ async def api_status() -> Dict[str, Any]:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    
+    # Load gin configuration if available
+    gin_config = os.getenv("GIN_CONFIG", "config/hardcoded_values.gin")
+    if os.path.exists(gin_config):
+        gin.parse_config_file(gin_config)
+        # Reinitialize config after gin parsing
+        config = ApiConfig()
+    
+    uvicorn.run(app, host=config.host, port=config.port)

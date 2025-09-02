@@ -14,9 +14,45 @@ import numpy as np
 from fastapi import FastAPI, Depends, Query, Path, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import gin
 
 from config.environment import Environment
 from config.database import Database
+
+# Gin configurable data configuration
+@gin.configurable
+class MockDataConfig:
+    def __init__(self,
+                 default_universe: List[str] = None,
+                 large_cap_universe: List[str] = None,
+                 base_prices: Dict[str, float] = None,
+                 volatilities: Dict[str, float] = None,
+                 sector_mapping: Dict[str, str] = None,
+                 lookback_days: int = 30):
+        self.default_universe = default_universe or [
+            'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 
+            'META', 'NVDA', 'JPM', 'V', 'JNJ'
+        ]
+        self.large_cap_universe = large_cap_universe or self.default_universe
+        self.base_prices = base_prices or {
+            "AAPL": 150, "MSFT": 300, "GOOGL": 120, "AMZN": 180,
+            "TSLA": 250, "META": 160, "NVDA": 400, "JPM": 140,
+            "JNJ": 160, "V": 220
+        }
+        self.volatilities = volatilities or {
+            "TSLA": 0.04, "META": 0.035, "NVDA": 0.038, "AMZN": 0.032,
+            "AAPL": 0.025, "MSFT": 0.022, "GOOGL": 0.028, "JPM": 0.020, "V": 0.018
+        }
+        self.sector_mapping = sector_mapping or {
+            "AAPL": "Technology", "MSFT": "Technology", "GOOGL": "Technology",
+            "META": "Technology", "NVDA": "Technology", "AMZN": "Consumer Discretionary",
+            "TSLA": "Consumer Discretionary", "JPM": "Financial", "V": "Financial",
+            "JNJ": "Healthcare"
+        }
+        self.lookback_days = lookback_days
+
+# Initialize global mock data config
+mock_data_config = MockDataConfig()
 
 # Pydantic models for dynamic API
 class PortfolioMetrics(BaseModel):
