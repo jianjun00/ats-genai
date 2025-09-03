@@ -248,7 +248,7 @@ class BaseRealtimeCollector(ABC):
                     vendor=self.vendor_name,
                     symbol=symbol
                 )
-            self.logger.warning(f"Using fallback symbols: {len(self.active_symbols)} symbols")
+            raise RuntimeError(f"Failed to load active symbols from database. Realtime collection requires configured symbols - fallbacks not allowed")
     
     async def store_minute_bar(self, bar: MinuteBar) -> bool:
         """Store minute bar in vendor-specific database table."""

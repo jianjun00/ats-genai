@@ -119,8 +119,8 @@ class LLMPatternRecognizer:
             return analysis
             
         except Exception as e:
-            logger.warning(f"Failed to analyze pattern with LLM: {e}")
-            return self._create_fallback_analysis()
+            logger.error(f"Failed to analyze pattern with LLM: {e}")
+            raise RuntimeError(f"Pattern analysis failed: {e}. LLM analysis is required for pattern recognition")
     
     async def identify_market_regime(self,
                                    market_data: pd.DataFrame,
@@ -152,8 +152,8 @@ class LLMPatternRecognizer:
             return regime_analysis
             
         except Exception as e:
-            logger.warning(f"Failed to analyze market regime: {e}")
-            return self._create_fallback_regime()
+            logger.error(f"Failed to analyze market regime: {e}")
+            raise RuntimeError(f"Market regime analysis failed: {e}. LLM analysis is required for regime identification")
     
     async def generate_synthetic_patterns(self,
                                         base_patterns: List[pd.DataFrame],
@@ -447,7 +447,7 @@ Consider:
         except Exception as e:
             logger.warning(f"Failed to parse LLM response: {e}")
         
-        return self._create_fallback_analysis()
+        raise RuntimeError(f"Failed to parse pattern analysis response: {response[:200]}...")
     
     def _parse_regime_analysis(self, response: str) -> MarketRegimeAnalysis:
         """Parse LLM response into MarketRegimeAnalysis object."""
@@ -471,32 +471,8 @@ Consider:
         except Exception as e:
             logger.warning(f"Failed to parse regime analysis: {e}")
         
-        return self._create_fallback_regime()
+        raise RuntimeError(f"Failed to parse regime analysis response: {response[:200]}...")
     
-    def _create_fallback_analysis(self) -> PatternAnalysis:
-        """Create fallback analysis when LLM fails."""
-        return PatternAnalysis(
-            pattern_type="unknown",
-            confidence=0.5,
-            description="Pattern analysis unavailable",
-            technical_indicators={},
-            predicted_direction="neutral",
-            support_resistance={},
-            volume_analysis="",
-            risk_assessment="",
-            timeframe_relevance=[]
-        )
-    
-    def _create_fallback_regime(self) -> MarketRegimeAnalysis:
-        """Create fallback regime analysis when LLM fails."""
-        return MarketRegimeAnalysis(
-            regime_type="unknown",
-            confidence=0.5,
-            characteristics=[],
-            typical_duration="unknown",
-            trading_implications=[],
-            risk_factors=[]
-        )
     
     def _calculate_pattern_strength(self, analysis: PatternAnalysis) -> float:
         """Calculate pattern strength score from analysis."""

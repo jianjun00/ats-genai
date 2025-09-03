@@ -2,25 +2,21 @@
 """
 ATS-INTG Prometheus Metrics HTTP Server
 
-Exposes comprehensive ATS metrics via HTTP endpoint for Prometheus scraping:
-- Daily price coverage metrics
-- Vendor API performance metrics  
-- Minute bar collection statistics
-- System health indicators
+Exposes daily price coverage metrics via HTTP endpoint for Prometheus scraping.
+Runs as a background service and updates metrics periodically.
 
 Features:
 - HTTP endpoint on /metrics for Prometheus scraping
 - Real-time metrics from database queries
-- Vendor performance monitoring
 - Configurable refresh intervals
 - Health check endpoint
 - Graceful shutdown handling
 
 Usage:
     python3 scripts/prometheus_metrics_server.py
-    python3 scripts/prometheus_metrics_server.py --port 8091 --refresh-interval 300
-    curl http://localhost:8091/metrics
-    curl http://localhost:8091/health
+    python3 scripts/prometheus_metrics_server.py --port 8080 --refresh-interval 300
+    curl http://localhost:8080/metrics
+    curl http://localhost:8080/health
 """
 
 import asyncio
@@ -188,18 +184,6 @@ class PrometheusMetricsServer:
                     metrics_lines.append(api_metrics)
             except Exception as e:
                 logger.debug(f"API tracker metrics not available: {e}")
-            
-            # Include comprehensive vendor metrics
-            try:
-                from monitoring.vendor_metrics_service import VendorMetricsService
-                vendor_service = VendorMetricsService()
-                vendor_prometheus_metrics = await vendor_service.generate_prometheus_metrics()
-                if vendor_prometheus_metrics:
-                    metrics_lines.append("# Vendor Performance Metrics")
-                    metrics_lines.append(vendor_prometheus_metrics)
-                logger.debug("✅ Vendor metrics integrated")
-            except Exception as e:
-                logger.debug(f"Vendor metrics not available: {e}")
             
             async with self.db_pool.acquire() as conn:
                 # Total active instruments

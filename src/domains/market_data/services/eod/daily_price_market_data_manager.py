@@ -118,10 +118,9 @@ class DailyPriceMarketDataManager(MarketDataManager):
                 logger.debug(f"get_ohlc: interval found but start/end mismatch for {instrument_id}")
         else:
             logger.debug(f"get_ohlc: no interval found for {instrument_id}")
-        # Optionally, fallback to last_prices
-        fallback = self._last_prices.get(instrument_id)
-        logger.debug(f"get_ohlc: returning fallback last_prices for {instrument_id}: {fallback}")
-        return fallback
+        # No data found - fail explicitly
+        raise ValueError(f"No OHLC data found for instrument_id {instrument_id} between {start} and {end}")
+        return None
 
     def _get_exchange_open_close(self, cur_date: date):
         # For NYSE, open=9:30, close=16:00

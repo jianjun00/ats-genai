@@ -200,7 +200,7 @@ class ResidualReturnInterpreter:
             
         except Exception as e:
             logger.error(f"Failed to generate explanation for {symbol}: {e}")
-            return self._create_fallback_explanation(symbol, prediction_date, predictions)
+            raise RuntimeError(f"Failed to generate prediction explanation for {symbol}: {e}")
     
     def _generate_executive_summary(self,
                                   symbol: str,
@@ -862,30 +862,6 @@ class ResidualReturnInterpreter:
         
         return warnings
     
-    def _create_fallback_explanation(self,
-                                   symbol: str,
-                                   prediction_date: datetime,
-                                   predictions: Dict[str, Dict[str, float]]) -> PredictionExplanation:
-        """Create fallback explanation when main generation fails."""
-        return PredictionExplanation(
-            symbol=symbol,
-            prediction_date=prediction_date,
-            prediction_horizons=[1, 2, 3, 4, 5],
-            predictions=predictions,
-            executive_summary=f"Prediction generated for {symbol} - detailed analysis unavailable",
-            technical_explanation={},
-            event_explanation={},
-            timeframe_explanation={},
-            risk_explanation={},
-            factor_explanation={},
-            confidence_explanation={'overall_confidence': 'Unknown'},
-            top_features=[],
-            feature_contributions={},
-            market_regime="unknown",
-            volatility_environment="unknown",
-            trading_recommendations=["Consult additional analysis before trading"],
-            warnings=["Explanation generation failed - use predictions with caution"]
-        )
     
     # Additional helper methods for specific analysis types
     def _analyze_trend_signals(self, trend_features: Dict[str, Any], feature_importance: Dict[str, float]) -> Dict[str, Any]:

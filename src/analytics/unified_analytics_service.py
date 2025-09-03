@@ -303,28 +303,11 @@ class UnifiedAnalyticsService:
     async def get_ray_analytics(self, dataset_id: str, analysis_type: str = "comprehensive") -> Dict[str, Any]:
         """Get distributed analytics using Ray if available."""
         if not self.ray_enabled:
-            logger.warning("Ray not available, falling back to local computation")
-            return await self._get_local_analytics(dataset_id, analysis_type)
+            raise RuntimeError("Ray analytics service is not enabled - cannot perform distributed analytics")
         
-        try:
-            ray_service = get_ray_eda_service()
-            return await ray_service.analyze_dataset(dataset_id, analysis_type)
-        except Exception as e:
-            logger.error(f"Ray analytics failed: {e}, falling back to local")
-            return await self._get_local_analytics(dataset_id, analysis_type)
+        ray_service = get_ray_eda_service()
+        return await ray_service.analyze_dataset(dataset_id, analysis_type)
 
-    async def _get_local_analytics(self, dataset_id: str, analysis_type: str) -> Dict[str, Any]:
-        """Local analytics computation fallback."""
-        return {
-            "dataset_id": dataset_id,
-            "analysis_type": analysis_type,
-            "method": "local",
-            "results": {
-                "basic_stats": {},
-                "distributions": {},
-                "correlations": {}
-            }
-        }
 
     # ==============================================
     # WEB DASHBOARD SERVING (from analytics_service.py)

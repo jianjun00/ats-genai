@@ -341,22 +341,9 @@ async def run_file_daily_price_ohlcv(
             df = base_df
             print(f"[DEBUG][run_file_daily_price_ohlcv] Final synthetic DataFrame has {len(df)} rows without indicators")
     
-    # Absolutely final check - if df is still empty, create a minimal valid DataFrame
+    # Absolutely final check - if df is still empty, fail explicitly
     if df.empty:
-        print(f"[DEBUG][run_file_daily_price_ohlcv] CRITICAL: DataFrame is STILL empty after all fallbacks, creating emergency synthetic data")
-        # Create a single row with valid data
-        emergency_data = [{
-            'start_date_time': start_date,
-            'end_date_time': start_date,
-            'instrument_id': instrument_ids[0] if instrument_ids else 1,
-            'open': 100.0,
-            'high': 105.0,
-            'low': 95.0,
-            'close': 102.0,
-            'volume': 1000
-        }]
-        
-        df = pd.DataFrame(emergency_data)
+        raise RuntimeError(f"No OHLC data could be generated for instruments {instrument_ids} between {start_date} and {end_date}. Database must contain real data - synthetic fallbacks are not allowed")
         print(f"[DEBUG][run_file_daily_price_ohlcv] Created emergency DataFrame with {len(df)} rows")
         
         # Add indicators if required

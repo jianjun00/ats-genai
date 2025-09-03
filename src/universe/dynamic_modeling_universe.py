@@ -102,16 +102,8 @@ class DynamicModelingUniverse:
             self.logger.info("Database connection pool created successfully")
             
         except (AttributeError, Exception) as e:
-            self.logger.warning(f"Failed with get_database_config(): {e}")
-            # Fallback for different environment API or connection issues
-            try:
-                db_url = self.env.get_database_url()
-                self.logger.info(f"Trying database URL fallback")
-                self.db_pool = await asyncpg.create_pool(db_url)
-                self.logger.info("Database connection successful with URL fallback")
-            except Exception as fallback_e:
-                self.logger.error(f"All database connection methods failed: {fallback_e}")
-                raise
+            self.logger.error(f"Failed to create database connection pool: {e}")
+            raise RuntimeError(f"Database connection failed: {e}. Check database configuration and connectivity")
         
         # Ensure universe exists
         await self._ensure_universe_exists()

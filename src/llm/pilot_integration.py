@@ -150,9 +150,7 @@ class DeepSeekPilotClient:
             
         except Exception as e:
             logger.error(f"DeepSeek analysis failed for {article.url}: {e}")
-            
-            # Fallback to FinBERT
-            return await self._fallback_analysis(article)
+            raise RuntimeError(f"Failed to analyze article {article.url}: {e}. No fallback analysis available")
     
     def _create_analysis_prompt(self, article: NewsArticle) -> str:
         """Create structured prompt for financial analysis"""
@@ -300,71 +298,6 @@ Provide only the JSON response, no other text."""
                 reasoning='Response parsing failed',
                 metadata={'error': str(e), 'raw_response': response}
             )
-    
-    async def _fallback_analysis(self, article: NewsArticle) -> Dict[str, Any]:
-        """Fallback to FinBERT analysis when DeepSeek fails"""
-        
-        try:
-            # Initialize FinBERT analyzer if not already done
-            if not self._fallback_analyzer:
-                from sentiment.news_sentiment_analyzer import FinBERTSentimentAnalyzer
-                self._fallback_analyzer = FinBERTSentimentAnalyzer()
-            
-            # Get FinBERT analysis
-            sentiment = self._fallback_analyzer.analyze_sentiment(
-                f"{article.title} {article.content}"
-            )
-            
-            # Convert to our structured format
-            fallback_analysis = LLMAnalysisResult(
-                sentiment_score=sentiment.compound_score,
-                confidence=sentiment.confidence * 0.8,  # Reduce confidence for fallback
-                event_type='other',  # FinBERT doesn't classify events
-                impact_timeline='1month',  # Default timeline
-                quantified_impact='not specified',
-                risk_factors=['fallback_analysis'],
-                key_points=[f"Fallback sentiment analysis: {sentiment.source}"],
-                reasoning=f"Fallback FinBERT analysis with {sentiment.confidence:.2f} confidence",
-                metadata={'fallback': True, 'original_source': sentiment.source}
-            )
-            
-            return {
-                'analysis': fallback_analysis,
-                'metadata': {
-                    'processor': 'finbert-fallback',
-                    'latency': 0.1,  # FinBERT is fast
-                    'cost': 0.0,
-                    'timestamp': datetime.now(),
-                    'cached': False,
-                    'fallback_reason': 'deepseek_failure'
-                }
-            }
-            
-        except Exception as e:
-            logger.error(f"Fallback analysis also failed: {e}")
-            
-            # Last resort: minimal analysis
-            return {
-                'analysis': LLMAnalysisResult(
-                    sentiment_score=0.0,
-                    confidence=0.0,
-                    event_type='other',
-                    impact_timeline='unknown',
-                    quantified_impact='not specified',
-                    risk_factors=['analysis_failure'],
-                    key_points=['Analysis failed'],
-                    reasoning='Both DeepSeek and FinBERT analysis failed',
-                    metadata={'error': str(e)}
-                ),
-                'metadata': {
-                    'processor': 'error',
-                    'latency': 0.0,
-                    'cost': 0.0,
-                    'timestamp': datetime.now(),
-                    'cached': False,
-                    'error': str(e)
-                }
-            }
     
     def _generate_cache_key(self, article: NewsArticle) -> str:
         """Generate cache key for article"""

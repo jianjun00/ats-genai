@@ -293,10 +293,9 @@ class MonitoringSystem:
         self.dashboard.get_metrics_endpoint = self.get_metrics_endpoint
         
     async def get_real_data_metrics(self) -> Dict[str, Any]:
-        """Get real data metrics with fallback to mock data."""
+        """Get real data metrics."""
         if not DEPS_AVAILABLE:
-            logger.info("📊 Using mock data - dependencies not available")
-            return self._get_mock_data()
+            raise RuntimeError("Database dependencies not available - cannot get real data metrics")
         
         try:
             # Try container connection first

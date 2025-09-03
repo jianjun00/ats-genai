@@ -49,10 +49,7 @@ class MultiTimeframeDataCollector:
             self.use_real_data = True
             logger.info("Initialized MultiTimeframeDataCollector with REAL minute data manager")
         else:
-            # Fallback to database pool for legacy compatibility
-            self.db_pool = db_pool
-            self.use_real_data = False
-            logger.warning("Initialized MultiTimeframeDataCollector with DATABASE fallback (will use synthetic data)")
+            raise RuntimeError("MultiTimeframeDataCollector requires real minute data manager - database fallback not allowed")
         
         self.feature_registry = feature_registry
         
@@ -277,36 +274,7 @@ class MultiTimeframeDataCollector:
                 logger.warning(f"Failed to get data from {table_name}: {e}")
                 continue
         
-        logger.error(f"❌ No minute data found in any database table, generating synthetic data as fallback")
-        return self._generate_emergency_synthetic_data(symbols, start_date, end_date, minutes)
-    
-    def _generate_emergency_synthetic_data(self, symbols: List[str], start_date: str, end_date: str, 
-                                         minutes: int = 5) -> pd.DataFrame:
-        """Emergency synthetic data generation - only when no real data is available."""
-        
-        logger.warning(f"🔴 EMERGENCY: Generating synthetic data for {symbols} - THIS SHOULD NOT HAPPEN IN PRODUCTION")
-        
-        # Use the existing generate_synthetic_ohlc_data function
-        from .multi_timeframe_data_collector import generate_synthetic_ohlc_data
-        from .enhanced_feature_types import TimeframeSpec
-        
-        # Map minutes to TimeframeSpec
-        timeframe_map = {
-            1: TimeframeSpec.MINUTE_5,  # Close enough for testing
-            5: TimeframeSpec.MINUTE_5,
-            15: TimeframeSpec.MINUTE_15,
-            60: TimeframeSpec.HOUR_1
-        }
-        
-        timeframe = timeframe_map.get(minutes, TimeframeSpec.MINUTE_5)
-        
-        return generate_synthetic_ohlc_data(
-            symbols=symbols,
-            start_date=start_date,
-            end_date=end_date,
-            timeframe=timeframe,
-            seed=42  # Deterministic for testing
-        )
+        raise RuntimeError(f"No minute data found in any database table for symbols {symbols}. Database must contain real data - synthetic fallbacks are not allowed")
     
     async def _get_daily_data(self, symbols: List[str], start_date: str, end_date: str) -> pd.DataFrame:
         """Get daily OHLC data."""
