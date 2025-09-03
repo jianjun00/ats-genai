@@ -13,7 +13,7 @@
 
 ---
 
-## 📚 **Complete Documentation (12 Essential Guides)**
+## 📚 **Complete Documentation (15 Essential Guides)**
 
 ### **🎯 Platform Essentials**
 1. **[README.md](README.md)** - This navigation hub
@@ -21,20 +21,25 @@
 3. **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development workflow, TDD, CI/CD
 4. **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment strategies and GitOps
 
-### **🏗️ Technical Architecture**  
-5. **[SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md)** - Complete technical architecture
-6. **[BACKEND_PLATFORM.md](BACKEND_PLATFORM.md)** - APIs, services, authentication
-7. **[DATA_INFRASTRUCTURE.md](DATA_INFRASTRUCTURE.md)** - Data pipelines, storage, ETL
-8. **[DATABASE_ENVIRONMENTS.md](DATABASE_ENVIRONMENTS.md)** - Database setup, ats-dev/ats-intg environments
-9. **[ML_PLATFORM.md](ML_PLATFORM.md)** - AI/ML training, inference, optimization
+### **🔧 Claude Code Guidance** ⭐ **NEW**
+5. **[CLAUDE.md](../CLAUDE.md)** - Simplified core development principles for Claude Code
+6. **[DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md)** - Detailed TDD, testing protocols, quality standards
+7. **[OPERATIONS.md](OPERATIONS.md)** - Daily operations, monitoring, cron jobs, troubleshooting  
+8. **[INFRASTRUCTURE.md](INFRASTRUCTURE.md)** - Database connections, Docker networking, storage architecture
 
-### **⚙️ Operations**
-10. **[OPERATIONS.md](OPERATIONS.md)** - DevOps, monitoring, infrastructure management
-11. **[ANALYTICS_DASHBOARD.md](ANALYTICS_DASHBOARD.md)** - Real-time database analytics and job management
-12. **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues, solutions, emergency procedures
+### **🏗️ Technical Architecture**  
+9. **[SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md)** - Complete technical architecture
+10. **[BACKEND_PLATFORM.md](BACKEND_PLATFORM.md)** - APIs, services, authentication
+11. **[DATA_INFRASTRUCTURE.md](DATA_INFRASTRUCTURE.md)** - Data pipelines, storage, ETL
+12. **[DATABASE_ENVIRONMENTS.md](DATABASE_ENVIRONMENTS.md)** - Database setup, ats-dev/ats-intg environments
+13. **[ML_PLATFORM.md](ML_PLATFORM.md)** - AI/ML training, inference, optimization
+
+### **⚙️ Additional Operations**
+14. **[ANALYTICS_DASHBOARD.md](ANALYTICS_DASHBOARD.md)** - Real-time database analytics and job management
+15. **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues, solutions, emergency procedures
 
 ### **📋 Project Documentation**
-13. **[projects/](projects/)** - Active project requirements and design documents
+16. **[projects/](projects/)** - Active project requirements and design documents
 
 ---
 

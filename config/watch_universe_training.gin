@@ -1,0 +1,45 @@
+# Gin configuration for watch universe multi-timeframe training data generation
+# Watch universe: TSLA, AAPL with 1h base + 10d/10w context
+# Structure: 10 1h sequences → predict next 7 price trajectory
+
+# Technical indicators for watch universe training data
+get_technical_indicators.indicators = [
+    "envelope_bot",    # Bottom envelope indicator
+    "envelope_top",    # Top envelope indicator  
+    "pldot",          # Momentum indicator
+    "z1b",            # Zone 1 bottom
+    "z2b",            # Zone 2 bottom
+    "z5t",            # Zone 5 top
+    "z6t"             # Zone 6 top
+]
+
+# Training Data Configuration - Multi-timeframe approach
+TrainingDataConfig.base_interval_minutes = 1                  # 1-minute base data
+TrainingDataConfig.training_interval_minutes = 60            # Generate training examples every hour
+
+# Multi-timeframe sequence configuration
+TrainingDataConfig.sequence_lengths = {
+    '1h': 10,     # 10 1-hour sequences for main input  
+    '1d': 10,     # 10 days of daily context
+    '1w': 10      # 10 weeks of weekly context
+}
+
+# Prediction horizons
+TrainingDataConfig.prediction_horizons = {
+    '1h': 7       # Predict next 7 hourly price points
+}
+
+# Timeframe definitions  
+TrainingDataConfig.timeframes = {
+    '1h': 60,      # 1-hour bars (60 minutes)
+    '1d': 1440,    # Daily bars (1440 minutes)
+    '1w': 10080    # Weekly bars (10080 minutes)
+}
+
+# Output configuration
+TrainingDataConfig.output_base_path = "/mnt/d/ats-data/training/watch_universe"
+TrainingDataConfig.minute_data_base_path = "/mnt/d/ats-data/minute-bars"
+
+# Quality and processing
+TrainingDataConfig.min_valid_ratio = 0.85
+TrainingDataConfig.enable_temporal_features = True  # Include datetime, date, yyyy, week_of_year

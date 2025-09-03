@@ -468,6 +468,79 @@ python scripts/run_metadata_cli.py export --run-id 42 --output audit.json
 
 ---
 
+## 🚀 **WATCH UNIVERSE MULTI-TIMEFRAME TRAINING DATA GENERATION** *(September 2, 2025)*
+
+### **Advanced Training Data Generation Requirements**
+The ATS platform now supports specialized training data generation for watch universe symbols with multi-timeframe context and sophisticated prediction structures.
+
+#### **🎯 Watch Universe Configuration**
+- **Target Symbols**: TSLA, AAPL (expandable watch universe)
+- **Date Range**: 2025-07-01 to present (continuous extension)
+- **Base Timeframe**: 1-hour intervals for primary sequence data
+- **Training Structure**: 10 1h sequences → predict next 7 price trajectory points
+
+#### **📊 Multi-Timeframe Feature Architecture**
+- **Hourly Sequences**: 10 consecutive 1-hour intervals for main input features
+- **Daily Context**: 10 days of daily OHLCV + technical indicators for market context
+- **Weekly Context**: 10 weeks of weekly OHLCV + technical indicators for trend context
+- **Feature Integration**: Combined multi-timeframe features in single training sequence
+
+#### **🔧 Technical Indicators Specification**
+- **envelope_bot**: Lower envelope boundary for support/resistance analysis
+- **envelope_top**: Upper envelope boundary for support/resistance analysis  
+- **pldot**: Price level dot momentum indicator
+- **z1b**: Zone 1 bottom boundary indicator
+- **z2b**: Zone 2 bottom boundary indicator
+- **z5t**: Zone 5 top boundary indicator
+- **z6t**: Zone 6 top boundary indicator
+
+#### **⏰ Temporal Feature Integration**
+Each training row includes comprehensive temporal context:
+- **datetime**: Full timestamp for precise time alignment
+- **date**: Date component for daily pattern recognition
+- **yyyy**: Year component for long-term trend analysis
+- **week_of_year**: Week number for seasonal pattern detection
+
+#### **🏗️ Implementation Using Existing Infrastructure**
+Following CLAUDE.md principles of enhancing existing code:
+
+**✅ Existing Components Utilized:**
+- `src/ml/training_data/generators/configurable_train_data_generator.py` - Enhanced for multi-timeframe support
+- `src/ml/training_data/runners/training_data_callback_runner.py` - Command-line interface for generation
+- `src/state/universe_state_manager.py` - `get_lagged_signals()` method for historical data retrieval
+- `config/watch_universe_training.gin` - Gin configuration for technical indicators
+
+**💻 Command Structure:**
+```bash
+PYTHONPATH=src python3 src/ml/training_data/runners/training_data_callback_runner.py \
+  --symbols TSLA AAPL \
+  --start-date 2025-07-01 \
+  --end-date 2025-09-03 \
+  --environment dev \
+  --gin-config config/watch_universe_training.gin \
+  --training-interval 60 \
+  --sequence-1h 10 \
+  --sequence-1d 10 \
+  --sequence-1w 10 \
+  --predict-1h 7 \
+  --output-dir /mnt/d/ats-data/training/watch_universe
+```
+
+#### **📁 Output Structure**
+- **Features Shape**: `[N_sequences, 10_timesteps, multi_timeframe_features]`
+- **Targets Shape**: `[N_sequences, 7_prediction_points]`
+- **File Organization**: `/mnt/d/ats-data/training/watch_universe/{run_id}/`
+- **Metadata**: Comprehensive JSON metadata with generation parameters
+- **Database Integration**: Automatic registration in `dev_training_datasets` table
+
+#### **🎯 Training Data Quality Requirements**
+- **Completeness**: Minimum 85% valid data ratio across all timeframes
+- **Consistency**: Aligned timestamps across hourly, daily, and weekly contexts
+- **Coverage**: Complete indicator coverage for all specified technical indicators
+- **Validation**: Automated quality checks and outlier detection
+
+---
+
 ## 🎖️ Success Criteria
 
 ### Quantitative Metrics
