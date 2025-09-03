@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, AsyncMock
 import asyncpg
 
-from modeling.event_features import (
+from domains.ml.services.event_features import (
     EventPattern,
     EventFeatures,
     EventCalendar,
@@ -152,6 +152,7 @@ class TestEventCalendar:
     """Test EventCalendar functionality."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_upcoming_events(self, mock_connection_pool, mock_env, sample_events):
         """Test getting upcoming events."""
         pool, conn = mock_connection_pool
@@ -212,6 +213,7 @@ class TestEventCalendar:
             assert 'importance' in event
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_economic_events_no_table(self, mock_connection_pool, mock_env):
         """Test economic events when table doesn't exist."""
         pool, conn = mock_connection_pool
@@ -227,6 +229,7 @@ class TestEventCalendar:
         
         assert events == []
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_company_events(self, mock_connection_pool, mock_env):
         """Test company events retrieval."""
@@ -301,6 +304,7 @@ class TestEventSequenceExtractor:
     """Test EventSequenceExtractor functionality."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_extract_event_features(self, mock_universe_state_manager, sample_events):
         """Test event feature extraction."""
         # Mock event calendar
@@ -326,6 +330,7 @@ class TestEventSequenceExtractor:
         assert isinstance(features.event_proximity_score, float)
         assert isinstance(features.event_importance_weighted_score, float)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_historical_event_pattern(self, mock_universe_state_manager):
         """Test historical event pattern analysis."""
@@ -360,6 +365,7 @@ class TestEventSequenceExtractor:
         assert pattern.avg_reaction > 0
         assert pattern.confidence > 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_analyze_event_reaction(self, mock_universe_state_manager):
         """Test event reaction analysis."""
@@ -598,6 +604,7 @@ class TestEdgeCasesAndErrorHandling:
     """Test edge cases and error handling."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_extract_event_features_no_upcoming_events(self, mock_universe_state_manager):
         """Test event feature extraction with no upcoming events."""
         event_calendar = Mock()
@@ -616,6 +623,7 @@ class TestEdgeCasesAndErrorHandling:
         assert features.event_importance_weighted_score == 0.0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_extract_event_features_exception_handling(self, mock_universe_state_manager):
         """Test graceful handling of exceptions during feature extraction."""
         event_calendar = Mock()
@@ -633,6 +641,7 @@ class TestEdgeCasesAndErrorHandling:
         assert len(features.upcoming_events) == 0
         assert features.event_proximity_score == 0.0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_analyze_event_reaction_no_data(self, mock_universe_state_manager):
         """Test event reaction analysis with no price data."""
@@ -682,6 +691,7 @@ class TestEdgeCasesAndErrorHandling:
         assert len(quarter_end) >= 1
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_integration_workflow(mock_connection_pool, mock_env, mock_universe_state_manager):
     """Test complete integration workflow."""

@@ -26,6 +26,7 @@ class TestEnhancedDatasetFeatures:
             yield session
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_enhanced_dataset_detail_page_accessibility(self, webapp_base_url, http_session):
         """Test that enhanced dataset detail page is accessible and contains new features"""
         async with http_session.get(f"{webapp_base_url}/dataset-detail?id=5") as response:
@@ -55,6 +56,7 @@ class TestEnhancedDatasetFeatures:
             assert "EBOT Distribution" in html_content, "Should contain EBOT distribution"
             assert "Volume Distribution" in html_content, "Should contain volume distribution"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_enhanced_dataset_api_endpoint(self, webapp_base_url, http_session):
         """Test the enhanced dataset API that provides sequence data"""
@@ -90,6 +92,7 @@ class TestEnhancedDatasetFeatures:
                 assert 'oneonedot' in first_sequence, "Should have ONEONEDOT indicator"
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_enhanced_data_contains_real_indicators(self, webapp_base_url, http_session):
         """Test that the enhanced API returns real technical indicator values"""
         async with http_session.get(f"{webapp_base_url}/api/v1/datasets/5/enhanced-data") as response:
@@ -112,6 +115,7 @@ class TestEnhancedDatasetFeatures:
             assert all(ebot > 0 for ebot in ebot_values), "EBOT values should be positive when non-zero"
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_chart_js_library_inclusion(self, webapp_base_url, http_session):
         """Test that Chart.js library is properly included for visualizations"""
         async with http_session.get(f"{webapp_base_url}/dataset-detail?id=5") as response:
@@ -128,6 +132,7 @@ class TestEnhancedDatasetFeatures:
             assert "createMiniOHLCChart" in html_content, "Should contain mini OHLC chart function"
             assert "createDistributionCharts" in html_content, "Should contain distribution charts function"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_filtering_and_sorting_functionality(self, webapp_base_url, http_session):
         """Test that the filtering and sorting functionality is present"""
@@ -149,6 +154,7 @@ class TestEnhancedDatasetFeatures:
             # Verify table interaction
             assert "onclick=\"sortColumn(" in html_content, "Should have clickable column headers"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_enhanced_page_does_not_return_404(self, webapp_base_url, http_session):
         """Regression test: Ensure enhanced dataset detail page doesn't return 404"""

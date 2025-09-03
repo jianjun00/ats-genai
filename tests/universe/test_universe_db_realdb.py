@@ -1,11 +1,12 @@
 import pytest
 import asyncpg
 from datetime import date
-from universe.universe_db import UniverseDB
-from config.environment import Environment, EnvironmentType
+from domains.trading.services.universe_db import UniverseDB
+from shared.utils.environment import Environment, EnvironmentType
 from db.test_db_manager import unit_test_db_clean
-from universe.universe_manager import UniverseManager
+from domains.trading.services.universe_manager import UniverseManager
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_add_and_get_universe_members_real_db(unit_test_db):
     """
@@ -23,9 +24,9 @@ async def test_add_and_get_universe_members_real_db(unit_test_db):
         await conn.execute(f"DELETE FROM {env.get_table_name('universe')}")
 
     # --- Setup vendor, instrument, and instrument_xref for AAPL ---
-    from dao.vendors_dao import VendorsDAO
-    from dao.instruments_dao import InstrumentsDAO
-    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+    from infrastructure.database.repositories.vendors_dao import VendorsDAO
+    from domains.instruments.repositories.instruments_dao import InstrumentsDAO
+    from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
     vendor_name = "TEST_VENDOR"
     vendors_dao = VendorsDAO(env)
     instruments_dao = InstrumentsDAO(env)
@@ -74,6 +75,7 @@ async def test_add_and_get_universe_members_real_db(unit_test_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_universe_manager_multiday_multiinstrument_real_db(unit_test_db):
     """
     Integration test: UniverseManager with multi-day, multi-instrument membership changes.
@@ -90,9 +92,9 @@ async def test_universe_manager_multiday_multiinstrument_real_db(unit_test_db):
         await conn.execute(f"DELETE FROM {env.get_table_name('universe_membership')}")
         await conn.execute(f"DELETE FROM {env.get_table_name('universe')}")
     # --- Setup vendor, instruments, and instrument_xrefs for test isolation ---
-    from dao.vendors_dao import VendorsDAO
-    from dao.instruments_dao import InstrumentsDAO
-    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+    from infrastructure.database.repositories.vendors_dao import VendorsDAO
+    from domains.instruments.repositories.instruments_dao import InstrumentsDAO
+    from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 
     vendor_name = "TEST_VENDOR"
     vendors_dao = VendorsDAO(env)

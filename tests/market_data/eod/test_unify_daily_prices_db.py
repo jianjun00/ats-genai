@@ -1,15 +1,16 @@
 import pytest
 import asyncio
 from datetime import date, datetime
-from src.config.environment import Environment, EnvironmentType
-from src.market_data.eod.unify_daily_prices import DatabaseDailyPricesUnifier
-from src.dao.instruments_dao import InstrumentsDAO
-from src.dao.vendors_dao import VendorsDAO
-from src.dao.instrument_xrefs_dao import InstrumentXrefsDAO
-from src.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
-from src.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+from shared.utils.environment import Environment, EnvironmentType
+from domains.market_data.services.eod.unify_daily_prices import DatabaseDailyPricesUnifier
+from domains.instruments.repositories.instruments_dao import InstrumentsDAO
+from infrastructure.database.repositories.vendors_dao import VendorsDAO
+from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
+from domains.market_data.repositories.daily_prices_tiingo_dao import DailyPricesTiingoDAO
+from domains.market_data.repositories.daily_prices_polygon_dao import DailyPricesPolygonDAO
 from src.db.test_db_manager import unit_test_db
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_unify_daily_prices_with_instrument_id(unit_test_db):
     """
@@ -69,6 +70,7 @@ async def test_unify_daily_prices_with_instrument_id(unit_test_db):
     assert row['volume'] in (1000000, 999999)
     assert row['source'] in ("tiingo", "polygon", "both")
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_unify_daily_prices_missing_instrument_id(unit_test_db):
     """

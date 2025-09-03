@@ -27,6 +27,7 @@ class DummyUniverseState:
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_in_memory_history_enables_single_day_lag(tmp_path):
     # Create manager that writes to a temp base path to avoid polluting repo
     mgr = UniverseStateManager(env=None, base_path=str(tmp_path))
@@ -77,6 +78,7 @@ async def test_in_memory_history_enables_single_day_lag(tmp_path):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_in_memory_history_window_tail(tmp_path):
     mgr = UniverseStateManager(env=None, base_path=str(tmp_path))
 
@@ -121,6 +123,7 @@ async def test_in_memory_history_window_tail(tmp_path):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_history_date_normalization_from_asof_datetime(tmp_path):
     mgr = UniverseStateManager(env=None, base_path=str(tmp_path))
 
@@ -145,6 +148,7 @@ async def test_history_date_normalization_from_asof_datetime(tmp_path):
     assert lag.iloc[0]["close"] == 10.5
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_history_dedup_keeps_latest_row(tmp_path):
     mgr = UniverseStateManager(env=None, base_path=str(tmp_path))

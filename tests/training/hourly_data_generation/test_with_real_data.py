@@ -20,7 +20,7 @@ from unittest.mock import Mock, patch
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
 
-from ml.training_data.runners.training_data_callback_runner import TrainingDataJobRunner, TrainingDataJobConfig
+from domains.ml.services.training_data.runners.training_data_callback_runner import TrainingDataJobRunner, TrainingDataJobConfig
 from storage.file_based_minute_manager import FileBasedMinuteManager
 
 
@@ -171,6 +171,8 @@ class TestHourlyGenerationWithRealData(unittest.TestCase):
         self.runner.config = self.config
         self.runner.run_id = 555
     
+    @pytest.mark.asyncio
+    
     async def test_end_to_end_with_real_minute_data(self):
         """Test complete pipeline with real minute data files."""
         
@@ -224,6 +226,8 @@ class TestHourlyGenerationWithRealData(unittest.TestCase):
             # Test symbol consistency
             self.assertEqual(hour_row['symbol'], 'AAPL')
     
+    @pytest.mark.asyncio
+    
     async def test_multiple_symbols_real_data(self):
         """Test with multiple symbols using real data."""
         
@@ -250,6 +254,8 @@ class TestHourlyGenerationWithRealData(unittest.TestCase):
                     self.assertEqual(row['symbol'], symbol)
                 
                 print(f"{symbol}: {len(minute_data)} minutes -> {len(hourly_rows)} hours")
+    
+    @pytest.mark.asyncio
     
     async def test_hourly_aggregation_accuracy(self):
         """Test accuracy of hourly OHLCV aggregation from minute data."""

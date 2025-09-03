@@ -26,7 +26,7 @@ import sys
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-from src.market_data.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
+from domains.market_data.services.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
 
 logger = logging.getLogger(__name__)
 
@@ -309,6 +309,7 @@ class TestOHLCValidation:
     """Test OHLC data validation"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_tiingo_ohlc_relationships(self, quality_db_pool):
         """Test OHLC relationships in Tiingo data"""
         validator = DataQualityValidator(quality_db_pool)
@@ -332,6 +333,7 @@ class TestOHLCValidation:
         assert 'invalid_close' not in validation_result['violation_counts']
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_polygon_ohlc_relationships(self, quality_db_pool):
         """Test OHLC relationships in Polygon data"""
         validator = DataQualityValidator(quality_db_pool)
@@ -352,6 +354,7 @@ class TestOHLCValidation:
         assert validation_result['total_records'] > 0
         assert validation_result['violation_rate'] < 0.01  # Less than 1% violations
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_price_range_validation(self, quality_db_pool):
         """Test that prices are within reasonable ranges"""
@@ -395,6 +398,7 @@ class TestVolumeValidation:
     """Test volume data validation"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_volume_consistency(self, quality_db_pool):
         """Test volume data consistency"""
         validator = DataQualityValidator(quality_db_pool)
@@ -424,6 +428,7 @@ class TestVolumeValidation:
         assert polygon_validation['negative_volume_rate'] == 0
         assert polygon_validation['volume_stats']['avg_volume'] > 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_volume_distribution(self, quality_db_pool):
         """Test volume distribution patterns"""
@@ -471,6 +476,7 @@ class TestCrossVendorConsistency:
     """Test consistency between vendors"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_vendor_price_consistency(self, quality_db_pool):
         """Test price consistency between Tiingo and Polygon"""
         validator = DataQualityValidator(quality_db_pool)
@@ -497,6 +503,7 @@ class TestCrossVendorConsistency:
             assert consistency_result['avg_price_diff_pct'] < 0.05  # Less than 5% average difference
             assert consistency_result['large_discrepancies'] < consistency_result['matched_records'] * 0.1  # Less than 10% large discrepancies
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_vendor_coverage_consistency(self, quality_db_pool):
         """Test that both vendors cover the same symbols and timeframes"""
@@ -543,6 +550,7 @@ class TestQualityScoreValidation:
     """Test quality score validation"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_quality_score_ranges(self, quality_db_pool):
         """Test quality score ranges and distributions"""
         validator = DataQualityValidator(quality_db_pool)
@@ -572,6 +580,7 @@ class TestQualityScoreValidation:
         assert polygon_quality['invalid_score_rate'] == 0
         assert polygon_quality['quality_stats']['avg_quality'] > 0.7
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_quality_score_correlation(self, quality_db_pool):
         """Test correlation between quality scores and other metrics"""
@@ -620,6 +629,7 @@ class TestTimeSeriesContinuity:
     """Test time series continuity and gaps"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_time_series_gaps(self, quality_db_pool):
         """Test detection of time series gaps"""
         validator = DataQualityValidator(quality_db_pool)
@@ -646,6 +656,7 @@ class TestTimeSeriesContinuity:
         tsla_continuity = await validator.validate_price_continuity('intg_one_minute_live_polygon', 'TSLA')
         assert tsla_continuity['continuity_score'] > 0.8
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_timestamp_precision(self, quality_db_pool):
         """Test timestamp precision and ordering"""
@@ -691,6 +702,7 @@ class TestTimeSeriesContinuity:
 class TestComprehensiveDataQuality:
     """Comprehensive data quality assessment"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_overall_data_quality_score(self, quality_db_pool):
         """Calculate comprehensive data quality score"""

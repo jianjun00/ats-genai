@@ -1,9 +1,9 @@
 from src.app.runner import Runner
-from config.environment import Environment, EnvironmentType
+from shared.utils.environment import Environment, EnvironmentType
 import pytest
 
 import pytest
-from config.environment import Environment, EnvironmentType
+from shared.utils.environment import Environment, EnvironmentType
 from src.app.runner import Runner
 
 @pytest.mark.usefixtures('unit_test_db')

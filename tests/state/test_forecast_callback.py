@@ -9,6 +9,7 @@ import pytest
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_forecast_callback_augments_universe_state(tmp_path):
     # Ensure PYTHONPATH=src for imports when running in subprocess/pytests
     repo_root = Path(__file__).resolve().parents[2]
@@ -50,7 +51,7 @@ async def test_forecast_callback_augments_universe_state(tmp_path):
     class FakeEnv:
         def get_indicator_config(self):
             # Avoid real indicator building complexity by returning an empty IndicatorConfig
-            from signals.indicator_config import IndicatorConfig
+            from domains.trading.services.indicator_config import IndicatorConfig
             return IndicatorConfig.empty_config()
         def get_table_name(self, base: str) -> str:
             # Minimal stub to satisfy DailyMarketCapDAO

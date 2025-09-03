@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from core.run_context import RunContext, create_run_context
 from state.run_aware_universe_state_manager import RunAwareUniverseStateManager, create_run_aware_universe_state_manager
-from config.environment import Environment, EnvironmentType
+from shared.utils.environment import Environment, EnvironmentType
 
 
 class TestRunAwareUniverseStateManager:

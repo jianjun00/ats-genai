@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, AsyncMock
 import asyncpg
 
-from modeling.portfolio_evaluator import (
+from domains.ml.services.portfolio_evaluator import (
     PredictionRecord,
     PortfolioMetrics,
     EvaluationConfig,
@@ -204,6 +204,7 @@ class TestPortfolioEvaluator:
         assert evaluator.current_positions == {}
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_evaluate_model_predictions_basic(self, mock_connection_pool, mock_env, mock_universe_state_manager, sample_predictions_df):
         """Test basic model prediction evaluation."""
         pool, conn = mock_connection_pool
@@ -233,6 +234,7 @@ class TestPortfolioEvaluator:
             assert isinstance(metrics.sharpe_ratio, float)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_process_daily_predictions(self, mock_connection_pool, mock_env, mock_universe_state_manager, sample_predictions_df):
         """Test daily prediction processing."""
         pool, conn = mock_connection_pool
@@ -261,6 +263,7 @@ class TestPortfolioEvaluator:
             
             assert len(evaluator.prediction_records) > 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_create_prediction_record(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test prediction record creation."""
@@ -349,6 +352,7 @@ class TestPortfolioEvaluator:
         assert high_conf_size > low_conf_size
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_update_portfolio(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test portfolio update process."""
         pool, conn = mock_connection_pool
@@ -376,6 +380,7 @@ class TestPortfolioEvaluator:
             assert len(evaluator.daily_returns) == 1
             assert len(evaluator.benchmark_returns) == 1
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_close_expired_positions(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test closing expired positions."""
@@ -410,6 +415,7 @@ class TestPortfolioEvaluator:
             assert expired_position.realized_pnl is not None
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_open_new_positions(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test opening new positions."""
         pool, conn = mock_connection_pool
@@ -437,6 +443,7 @@ class TestPortfolioEvaluator:
         assert 456 in evaluator.current_positions
         assert evaluator.current_positions[456] == new_prediction
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_calculate_portfolio_value(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test portfolio value calculation."""
@@ -566,6 +573,7 @@ class TestConvenienceFunction:
     """Test convenience function."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_evaluate_residual_return_strategy(self, mock_connection_pool, mock_env, mock_universe_state_manager, sample_predictions_df):
         """Test convenience function."""
         pool, conn = mock_connection_pool
@@ -597,6 +605,7 @@ class TestErrorHandlingAndEdgeCases:
     """Test error handling and edge cases."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_evaluate_with_no_predictions(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test evaluation with no predictions."""
         pool, conn = mock_connection_pool
@@ -614,6 +623,7 @@ class TestErrorHandlingAndEdgeCases:
         assert metrics.total_return == 0.0
         assert metrics.prediction_accuracy == 0.0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_create_prediction_record_no_price_data(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test prediction record creation with no price data."""
@@ -674,6 +684,7 @@ class TestErrorHandlingAndEdgeCases:
         assert position_size == 0.0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_actual_residual_return_error(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test handling of errors in residual return calculation."""
         pool, conn = mock_connection_pool
@@ -692,6 +703,7 @@ class TestErrorHandlingAndEdgeCases:
             
             assert residual is None
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_backtest_strategy_basic(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test basic strategy backtesting."""

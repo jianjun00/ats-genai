@@ -5,11 +5,11 @@ from unittest.mock import patch, MagicMock, AsyncMock
 from datetime import date, datetime, timedelta
 from typing import List, Dict, Set, Optional
 
-from universe.data_complete_universe_creator import (
+from domains.trading.services.data_complete_universe_creator import (
     DataCompleteUniverseCreator, 
     DataCompleteness
 )
-from config.environment import Environment
+from shared.utils.environment import Environment
 
 
 class TestDataCompleteUniverseCreator:
@@ -38,6 +38,7 @@ class TestDataCompleteUniverseCreator:
         
         assert creator.env == custom_env
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_analyze_data_completeness_success(self):
         """Test successful data completeness analysis."""
@@ -101,6 +102,7 @@ class TestDataCompleteUniverseCreator:
                     assert result[1].overall_quality_score == 0.96
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_analyze_data_completeness_database_error(self):
         """Test data completeness analysis with database connection error."""
         mock_env = MagicMock()
@@ -114,6 +116,7 @@ class TestDataCompleteUniverseCreator:
             with pytest.raises(asyncpg.PostgresConnectionError):
                 await creator.analyze_data_completeness()
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_symbols_with_both_datasets_success(self):
         """Test getting symbols present in both daily and minute data."""
@@ -139,6 +142,7 @@ class TestDataCompleteUniverseCreator:
         assert "GOOGL" not in result  # Only in daily
         assert "TSLA" not in result   # Only in minute
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_analyze_symbol_completeness_complete_data(self):
         """Test symbol completeness analysis for high-quality data."""
@@ -182,6 +186,7 @@ class TestDataCompleteUniverseCreator:
         assert result.overall_quality_score == 0.97
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_analyze_symbol_completeness_insufficient_data(self):
         """Test symbol completeness analysis for insufficient data."""
         mock_env = MagicMock()
@@ -197,6 +202,7 @@ class TestDataCompleteUniverseCreator:
         
         assert result is None
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_analyze_daily_completeness_success(self):
         """Test daily data completeness analysis."""
@@ -221,6 +227,7 @@ class TestDataCompleteUniverseCreator:
         assert result['count'] == 1260
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_analyze_daily_completeness_no_data(self):
         """Test daily completeness analysis with no data."""
         mock_env = MagicMock()
@@ -233,6 +240,7 @@ class TestDataCompleteUniverseCreator:
         
         assert result is None
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_analyze_minute_completeness_success(self):
         """Test minute data completeness analysis."""
@@ -334,6 +342,7 @@ class TestDataCompleteUniverseCreator:
         assert score < 0.70
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_instrument_id_success(self):
         """Test instrument ID lookup."""
         mock_env = MagicMock()
@@ -349,6 +358,7 @@ class TestDataCompleteUniverseCreator:
         assert result == 123
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_instrument_id_not_found(self):
         """Test instrument ID lookup when not found."""
         mock_env = MagicMock()
@@ -363,6 +373,7 @@ class TestDataCompleteUniverseCreator:
         
         assert result is None
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_create_data_complete_universe_success(self):
         """Test creating a data complete universe."""
@@ -466,6 +477,7 @@ class TestDataCompleteUniverseCreator:
         assert result == []
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_create_universe_with_members_success(self):
         """Test creating universe with members."""
         mock_env = MagicMock()
@@ -496,6 +508,7 @@ class TestDataCompleteUniverseCreator:
         creator._create_universe.assert_called_once()
         creator._add_universe_members.assert_called_once()
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_generate_quality_report_comprehensive(self):
         """Test generating comprehensive quality report."""
@@ -594,6 +607,7 @@ class TestDataCompleteUniverseCreatorIntegration:
     """Integration tests for DataCompleteUniverseCreator."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_end_to_end_universe_creation_workflow(self):
         """Test complete end-to-end universe creation workflow."""
         mock_env = MagicMock()
@@ -635,6 +649,7 @@ class TestDataCompleteUniverseCreatorIntegration:
             creator._create_universe.assert_called_once()
             creator._add_universe_members.assert_called_once()
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_error_handling_during_analysis(self):
         """Test error handling during completeness analysis."""

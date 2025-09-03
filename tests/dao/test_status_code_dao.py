@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from dao.status_code_dao import StatusCodeDAO
-from config.environment import Environment
+from infrastructure.database.repositories.status_code_dao import StatusCodeDAO
+from shared.utils.environment import Environment
 
 
 class TestStatusCodeDAO:
@@ -32,6 +32,7 @@ class TestStatusCodeDAO:
         mock_environment.get_table_name.assert_called_once_with('status_code')
         mock_environment.get_database_url.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_insert_status(self, dao):
         """Test inserting a status code."""
@@ -68,6 +69,7 @@ class TestStatusCodeDAO:
             mock_pool.close.assert_called_once()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_status(self, dao):
         """Test getting a status code."""
         # Create async context manager mock
@@ -102,6 +104,7 @@ class TestStatusCodeDAO:
             # Verify pool cleanup
             mock_pool.close.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_list_statuses(self, dao):
         """Test listing all status codes."""
@@ -155,6 +158,7 @@ class TestStatusCodeDAO:
         mock_environment.get_table_name.assert_called_with('status_code')
         mock_environment.get_database_url.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_sql_injection_protection(self, dao):
         """Test that DAO uses parameterized queries to prevent SQL injection."""

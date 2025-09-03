@@ -14,13 +14,13 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from ml.evaluation.sr_backtester import (
+from domains.ml.services.evaluation.sr_backtester import (
     SRBacktester,
     PredictionResult,
     TradingSignal,
     BacktestMetrics
 )
-from config.environment import Environment
+from shared.utils.environment import Environment
 
 class TestPredictionResult:
     """Test suite for PredictionResult data structure"""
@@ -394,6 +394,7 @@ class TestSRBacktester:
         assert abs(aggregate.win_rate - 52/90) < 1e-6
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_daily_data_mock(self, backtester):
         """Test getting daily data with mocked database"""
         mock_conn = AsyncMock()
@@ -496,6 +497,7 @@ class TestSRBacktesterIntegration:
         generator._generate_features = mock_generate_features
         return generator
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_backtest_model_mock(self, mock_env, mock_model, mock_feature_generator):
         """Test backtesting with mocked components"""

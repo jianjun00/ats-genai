@@ -2,10 +2,10 @@ import pytest
 import pandas as pd
 from datetime import date
 from app.runner import Runner
-from config.environment import Environment
-from universe.universe_manager import UniverseManager
+from shared.utils.environment import Environment
+from domains.trading.services.universe_manager import UniverseManager
 from state.universe_state_manager import UniverseStateManager
-from config.environment import Environment, EnvironmentType
+from shared.utils.environment import Environment, EnvironmentType
 
 import asyncio
 import asyncpg
@@ -19,6 +19,7 @@ UNIVERSE_ID = 9998  # Arbitrary test universe ID for unit test
 import pytest
 from db.test_db_manager import unit_test_db_clean
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
     # Patch UniverseStateBuilder.__init__ to always receive required args for test
@@ -56,7 +57,7 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
     symbols = UNIVERSE_SYMBOLS
     # Insert test data as needed (no backup/restore required)
     # Insert test data as needed (no backup/restore required)
-    from config.environment import Environment
+    from shared.utils.environment import Environment
     env = Environment(db_url=db_url)
     # DEBUG: Print all tables in the test DB after migrations and before any inserts
     async with asyncpg.create_pool(db_url) as pool:
@@ -143,7 +144,7 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
     monkeypatch.setattr(env, 'get', lambda section, key, default=None: ['state.universe_state_builder.UniverseStateIntervalBuilder'] if (section, key) == ('runner', 'callbacks') else env.__class__.get(env, section, key, default))
     runner = Runner(TEST_START_DATE, TEST_END_DATE, env, UNIVERSE_ID, ['state.universe_state_builder.UniverseStateIntervalBuilder'], '1d')
     # Insert test daily prices for AAPL/TSLA for each test date
-    from dao.daily_prices_dao import DailyPricesDAO
+    from domains.market_data.repositories.daily_prices_dao import DailyPricesDAO
     dao = DailyPricesDAO(env)
     test_dates = [pd.to_datetime(d).date() for d in pd.date_range(TEST_START_DATE, TEST_END_DATE)]
     async def setup_prices():
@@ -158,7 +159,7 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
     await setup_prices()
 
     # Patch in a real DailyPriceMarketDataManager
-    from market_data.eod.daily_price_market_data_manager import DailyPriceMarketDataManager
+    from domains.market_data.services.eod.daily_price_market_data_manager import DailyPriceMarketDataManager
     class TestDailyPriceMarketDataManager(DailyPriceMarketDataManager):
         def _get_all_symbols(self):
             return UNIVERSE_SYMBOLS
@@ -254,6 +255,7 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
         print(f"Full universe state loaded from {full_file}, shape: {full_df.shape}")
         print(full_df)
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_runner_event_iterator(unit_test_db_clean):
     """Test the event iterator functionality of Runner."""

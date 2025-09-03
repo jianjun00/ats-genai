@@ -255,6 +255,7 @@ class TestComprehensive30YearMinuteBackfill:
             }
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_initialization(self, temp_config):
         """Test backfill system initialization."""
         config, temp_path = temp_config
@@ -275,6 +276,7 @@ class TestComprehensive30YearMinuteBackfill:
             mock_init_storage.assert_called_once()
             mock_load_jobs.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_job_generation(self, temp_config):
         """Test job generation for target instruments."""
@@ -307,6 +309,7 @@ class TestComprehensive30YearMinuteBackfill:
             assert "polygon" in job_vendors
             assert "tiingo" in job_vendors
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_checkpoint_save_load(self, temp_config):
         """Test checkpoint saving and loading."""
@@ -349,6 +352,7 @@ class TestComprehensive30YearMinuteBackfill:
         assert new_backfill.progress.total_jobs == 1
     
     @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     async def test_data_storage_file(self, temp_config, mock_adapters):
         """Test file-based data storage."""
         config, temp_path = temp_config
@@ -385,6 +389,7 @@ class TestComprehensive30YearMinuteBackfill:
             mock_file_manager.store_minute_data.assert_called_once()
             mock_minute_bar.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_symbol_job_processing(self, temp_config, mock_adapters):
         """Test individual symbol job processing."""
@@ -424,6 +429,7 @@ class TestComprehensive30YearMinuteBackfill:
             assert job.chunks_completed == 1
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_error_handling(self, temp_config, mock_adapters):
         """Test error handling during job processing."""
         config, temp_path = temp_config
@@ -449,6 +455,7 @@ class TestComprehensive30YearMinuteBackfill:
         assert job.error_message == "API Error"
         assert job.attempt_count == 1
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_quality_validation_failure(self, temp_config, mock_adapters):
         """Test handling of low quality data."""
@@ -489,6 +496,7 @@ class TestComprehensive30YearMinuteBackfill:
 class TestIntegration:
     """Integration tests for the complete system."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_end_to_end_simulation(self):
         """Test end-to-end backfill simulation."""

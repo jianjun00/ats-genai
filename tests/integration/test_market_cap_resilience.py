@@ -16,12 +16,13 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import List, Dict, Any, Optional
 
-from config.environment import Environment
+from shared.utils.environment import Environment
 
 
 class TestMarketCapResilience:
     """Test market cap system resilience and error handling"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_database_connectivity_resilience(self):
         """Test handling of database connectivity issues"""
@@ -48,6 +49,7 @@ class TestMarketCapResilience:
             # In production, system should gracefully handle this
             assert False, "Database should be available for tests"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_market_cap_data_quality_validation(self):
         """Test data quality validation for market cap calculations"""
@@ -111,6 +113,7 @@ class TestMarketCapResilience:
             pytest.skip("Database not available for quality validation")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_universe_filtering_resilience(self):
         """Test resilience of universe filtering with market cap data"""
         
@@ -170,6 +173,7 @@ class TestMarketCapResilience:
             pytest.skip("Database not available for universe filtering test")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_graceful_degradation_patterns(self):
         """Test graceful degradation when components fail"""
         
@@ -208,6 +212,7 @@ class TestMarketCapResilience:
         print("✅ Graceful degradation test completed")
     
     @pytest.mark.asyncio  
+    @pytest.mark.asyncio
     async def test_data_consistency_validation(self):
         """Test data consistency across the market cap system"""
         
@@ -264,6 +269,7 @@ class TestMarketCapResilience:
 class TestMarketCapPerformance:
     """Test performance characteristics of market cap system"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_query_performance(self):
         """Test performance of key market cap queries"""

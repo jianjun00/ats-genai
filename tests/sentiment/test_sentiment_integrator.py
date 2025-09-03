@@ -373,6 +373,7 @@ class TestSentimentIntegrator:
             assert 'social' in integrator.sentiment_weights
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_generate_unified_sentiment_signals(self, mock_connection_pool, mock_env, 
                                                      sample_news_signal, sample_social_signal):
         """Test generation of unified sentiment signals."""
@@ -407,6 +408,7 @@ class TestSentimentIntegrator:
                 assert signals["AAPL"].social_sentiment == sample_social_signal
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_combine_sentiment_signals(self, mock_connection_pool, mock_env,
                                            sample_news_signal, sample_social_signal):
         """Test combining news and social sentiment signals."""
@@ -438,6 +440,7 @@ class TestSentimentIntegrator:
                 assert 0 <= unified_signal.consensus_score <= 1
                 assert unified_signal.divergence_score >= 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_combine_sentiment_signals_news_only(self, mock_connection_pool, mock_env, sample_news_signal):
         """Test combining with only news signal."""
@@ -481,6 +484,7 @@ class TestSentimentIntegrator:
             assert horizon == "short"  # Short takes priority
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_calculate_risk_score(self, mock_connection_pool, mock_env, sample_news_signal, sample_social_signal):
         """Test risk score calculation."""
         pool, conn = mock_connection_pool
@@ -522,6 +526,7 @@ class TestSentimentIntegrator:
             # Should detect earnings and dividend themes
             assert any(theme in ['earnings', 'dividend', 'trading'] for theme in themes)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_enhance_residual_return_predictions(self, mock_connection_pool, mock_env):
         """Test enhancement of residual return predictions with sentiment."""
@@ -610,6 +615,7 @@ class TestSentimentIntegrator:
             assert adjustment['confidence_boost'] > 0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_store_unified_signals(self, mock_connection_pool, mock_env, sample_unified_signal):
         """Test storing unified signals in database."""
         pool, conn = mock_connection_pool
@@ -639,6 +645,7 @@ class TestSentimentIntegrator:
             call_args = conn.execute.call_args[0]
             assert json.loads(call_args[15]) == sample_unified_signal.sentiment_features
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_historical_signals(self, mock_connection_pool, mock_env):
         """Test getting historical unified signals."""
@@ -682,6 +689,7 @@ class TestSentimentIntegrator:
             assert signals[0].sentiment_features == {"test_feature": 0.5}
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_close_resources(self, mock_connection_pool, mock_env):
         """Test closing integrator resources."""
         pool, conn = mock_connection_pool
@@ -702,6 +710,7 @@ class TestSentimentIntegrator:
 class TestConvenienceFunctions:
     """Test convenience functions."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_generate_sentiment_enhanced_predictions(self, mock_connection_pool, mock_env):
         """Test convenience function for enhanced predictions."""
@@ -726,6 +735,7 @@ class TestConvenienceFunctions:
             mock_integrator.close.assert_called_once()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_analyze_unified_sentiment(self, mock_connection_pool, mock_env):
         """Test convenience function for unified sentiment analysis."""
         pool, conn = mock_connection_pool
@@ -746,6 +756,7 @@ class TestConvenienceFunctions:
 class TestErrorHandling:
     """Test error handling scenarios."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_no_sentiment_signals_available(self, mock_connection_pool, mock_env):
         """Test handling when no sentiment signals are available."""
@@ -772,6 +783,7 @@ class TestErrorHandling:
             assert len(signals) == 0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_sentiment_analysis_error(self, mock_connection_pool, mock_env):
         """Test handling of sentiment analysis errors."""
         pool, conn = mock_connection_pool
@@ -797,6 +809,7 @@ class TestErrorHandling:
             assert isinstance(signals, dict)
             assert len(signals) == 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_database_error_handling(self, mock_connection_pool, mock_env):
         """Test handling of database errors."""
@@ -853,6 +866,7 @@ class TestIntegrationScenarios:
     """Test integration scenarios."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_high_consensus_scenario(self, mock_connection_pool, mock_env):
         """Test scenario with high consensus between news and social."""
         pool, conn = mock_connection_pool
@@ -885,6 +899,7 @@ class TestIntegrationScenarios:
                 assert unified_signal.divergence_score < 0.1
                 assert unified_signal.overall_confidence > 0.8
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_high_divergence_scenario(self, mock_connection_pool, mock_env):
         """Test scenario with high divergence between news and social."""

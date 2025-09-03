@@ -26,11 +26,11 @@ import subprocess
 import sys
 sys.path.append('src')
 
-from market_data.realtime.streaming_collector import RealtimeStreamingCollector
-from market_data.realtime.daily_validation import DailyValidationEngine
-from market_data.realtime.gap_detector import GapDetectionEngine
-from market_data.realtime.weekly_backfill import WeeklyBackfillEngine
-from market_data.realtime.metrics_exporter import RealtimeMetricsExporter
+from domains.market_data.services.realtime.streaming_collector import RealtimeStreamingCollector
+from domains.market_data.services.realtime.daily_validation import DailyValidationEngine
+from domains.market_data.services.realtime.gap_detector import GapDetectionEngine
+from domains.market_data.services.realtime.weekly_backfill import WeeklyBackfillEngine
+from domains.market_data.services.realtime.metrics_exporter import RealtimeMetricsExporter
 
 @pytest.mark.integration
 class TestEndToEndDataFlow:
@@ -67,6 +67,7 @@ class TestEndToEndDataFlow:
                         'mock_conn': mock_conn
                     }
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_complete_data_collection_flow(self, integration_environment):
         """Test complete data collection flow from WebSocket to database"""
@@ -111,6 +112,7 @@ class TestEndToEndDataFlow:
         
         await collector.shutdown()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_multi_vendor_data_integration(self, integration_environment):
         """Test integration of data from multiple vendors"""
@@ -157,6 +159,7 @@ class TestEndToEndDataFlow:
         
         await collector.shutdown()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_gap_detection_and_backfill_integration(self, integration_environment):
         """Test integration between gap detection and backfill systems"""
@@ -211,6 +214,7 @@ class TestEndToEndDataFlow:
         
         await gap_detector.shutdown()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_validation_workflow_integration(self, integration_environment):
         """Test integration of daily validation workflow"""
@@ -281,6 +285,7 @@ class TestSystemResilience:
             yield
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_database_connection_recovery(self, resilience_environment):
         """Test recovery from database connection failures"""
         # Simulate connection failure then recovery
@@ -309,6 +314,7 @@ class TestSystemResilience:
                     # Expected to fail in test environment
                     assert connection_attempts >= 2
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_api_rate_limit_handling(self, resilience_environment):
         """Test handling of API rate limits across vendors"""
@@ -342,6 +348,7 @@ class TestSystemResilience:
             # May succeed or fail depending on retry logic
             assert success in [True, False]
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_malformed_data_handling(self, resilience_environment):
         """Test handling of malformed data from vendors"""
@@ -393,6 +400,7 @@ class TestPerformanceUnderLoad:
             yield
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_high_frequency_data_processing(self, performance_environment):
         """Test processing high frequency data"""
         with patch('market_data.realtime.streaming_collector.Environment'):
@@ -443,6 +451,7 @@ class TestPerformanceUnderLoad:
                 await collector.shutdown()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_concurrent_backfill_performance(self, performance_environment):
         """Test performance of concurrent backfill operations"""
         backfill_engine = WeeklyBackfillEngine()
@@ -484,9 +493,10 @@ class TestPerformanceUnderLoad:
         assert backfill_engine._mark_job_failed.call_count == 0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_metrics_collection_performance(self, performance_environment):
         """Test performance of metrics collection under load"""
-        from market_data.realtime.metrics_exporter import MetricsCollector
+        from domains.market_data.services.realtime.metrics_exporter import MetricsCollector
         
         with patch('market_data.realtime.metrics_exporter.Environment'):
             mock_pool = AsyncMock()
@@ -583,9 +593,10 @@ class TestHealthMonitoring:
     """Test health monitoring and alerting integration"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_health_check_endpoints(self):
         """Test health check endpoint functionality"""
-        from market_data.realtime.metrics_exporter import HealthcheckHandler
+        from domains.market_data.services.realtime.metrics_exporter import HealthcheckHandler
         
         health_handler = HealthcheckHandler()
         
@@ -604,9 +615,10 @@ class TestHealthMonitoring:
             assert 'checks' in response_data
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_metrics_endpoint_integration(self):
         """Test metrics endpoint integration"""
-        from market_data.realtime.metrics_exporter import RealtimeMetricsExporter
+        from domains.market_data.services.realtime.metrics_exporter import RealtimeMetricsExporter
         
         with patch('market_data.realtime.metrics_exporter.Environment'):
             exporter = RealtimeMetricsExporter()

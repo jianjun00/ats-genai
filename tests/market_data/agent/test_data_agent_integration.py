@@ -13,12 +13,12 @@ class DateTimeEncoder(json.JSONEncoder):
             return obj.isoformat()
         return super().default(obj)
 
-from src.market_data.agent.data_agent_orchestrator import DataAgentOrchestrator
-from src.market_data.agent.polygon_adapter import PolygonAdapter
-from src.market_data.agent.tiingo_adapter import TiingoAdapter
-from src.market_data.agent.reconciliation import ReconciliationEngine
-from src.market_data.agent.llm_assistant import LLMAssistant
-from src.market_data.agent.models import EODPrice, ReconciledRecord
+from domains.market_data.services.agent.data_agent_orchestrator import DataAgentOrchestrator
+from domains.market_data.services.agent.polygon_adapter import PolygonAdapter
+from domains.market_data.services.agent.tiingo_adapter import TiingoAdapter
+from domains.market_data.services.agent.reconciliation import ReconciliationEngine
+from domains.market_data.services.agent.llm_assistant import LLMAssistant
+from domains.market_data.services.agent.models import EODPrice, ReconciledRecord
 
 # Mock database fixtures
 class MockPool:
@@ -190,6 +190,7 @@ def data_agent(mock_pool, mock_polygon_adapter, mock_tiingo_adapter):
         )
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_backfill_workflow(data_agent):
     """Test the complete backfill workflow"""
     # Patch json.dumps to handle date/datetime objects
@@ -207,6 +208,7 @@ async def test_backfill_workflow(data_agent):
     # This is an indirect test since we're using mocks
     # In a real test, we would check the database for the inserted records
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_frontfill_workflow(data_agent):
     """Test the complete frontfill workflow"""
@@ -226,6 +228,7 @@ async def test_frontfill_workflow(data_agent):
     # In a real test, we would check the database for the inserted records
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_end_to_end_workflow(data_agent):
     """Test the end-to-end workflow with both backfill and frontfill"""
     # Patch json.dumps to handle date/datetime objects
@@ -244,6 +247,7 @@ async def test_end_to_end_workflow(data_agent):
     
     # In a real test, we would verify the database state
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_data_point_processing(data_agent):
     """Test processing a specific data point"""

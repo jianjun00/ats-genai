@@ -7,8 +7,8 @@ These tests identify and reproduce the connection problems before fixing them.
 import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock, patch
-from config.environment import Environment
-from universe.dynamic_modeling_universe import DynamicModelingUniverse
+from shared.utils.environment import Environment
+from domains.trading.services.dynamic_modeling_universe import DynamicModelingUniverse
 
 
 class TestDatabaseConnectionIssues:
@@ -66,6 +66,7 @@ class TestDatabaseConnectionIssues:
             print(f"Error getting database URL: {e}")
             raise
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_asyncpg_connection_with_actual_config(self):
         """Test asyncpg connection with actual environment config"""

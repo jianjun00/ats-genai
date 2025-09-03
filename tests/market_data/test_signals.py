@@ -1,5 +1,5 @@
 import unittest
-from src.market_data.signals import extract_all_signals
+from domains.market_data.services.signals import extract_all_signals
 from datetime import datetime
 
 class TestExtractAllSignals(unittest.TestCase):

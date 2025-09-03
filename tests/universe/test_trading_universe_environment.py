@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 from datetime import date
 
-from config.environment import EnvironmentType
+from shared.utils.environment import EnvironmentType
 
 def make_mock_asyncpg_pool(mock_conn):
     pool = MagicMock()
@@ -52,6 +52,7 @@ def make_mock_asyncpg_pool(mock_conn):
         assert daily_adjusted_prices_table == "test_daily_adjusted_prices"
     
     @patch('asyncpg.create_pool')
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_update_for_end_of_day_uses_prefixed_tables(self, mock_create_pool):
         """Test that update_for_end_of_day uses environment-specific table names."""

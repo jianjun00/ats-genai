@@ -506,6 +506,7 @@ class TestMomentumETFResearch:
     """Test suite for momentum ETF research"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_momentum_etf_coverage(self):
         """Test momentum ETF coverage across vendors"""
         

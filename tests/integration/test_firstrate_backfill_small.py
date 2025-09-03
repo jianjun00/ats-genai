@@ -14,6 +14,8 @@ sys.path.insert(0, '/home/jianjun/ats-genai-data/src')
 sys.path.insert(0, '/home/jianjun/ats-genai-data/scripts')
 from populate_firstrate_minute_bars import FirstRateBackfillProcessor
 
+@pytest.mark.asyncio
+
 async def test_small_backfill():
     """Test backfill with just 2 symbols"""
     

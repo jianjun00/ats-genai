@@ -26,7 +26,7 @@ import gc
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-from src.market_data.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
+from domains.market_data.services.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +119,7 @@ class TestHighFrequencyCollection:
     """Test high-frequency data collection scenarios"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_rapid_successive_collections(self, performance_db_pool):
         """Test rapid successive data collections"""
         collector = AAPLTSLASyntheticCollector()
@@ -165,6 +166,7 @@ class TestHighFrequencyCollection:
         total_records = sum(r['records_stored'] for r in results)
         assert total_records > 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_concurrent_high_frequency_collectors(self, performance_db_pool):
         """Test multiple collectors running concurrently at high frequency"""
@@ -227,6 +229,7 @@ class TestLargeVolumeProcessing:
     """Test processing of large data volumes"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_extended_collection_session(self, performance_db_pool):
         """Test extended data collection session"""
         collector = AAPLTSLASyntheticCollector()
@@ -272,6 +275,7 @@ class TestLargeVolumeProcessing:
         assert final_report['memory_growth_mb'] < 50  # Memory leaks should be minimal
         assert total_records > 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_bulk_historical_backfill(self, performance_db_pool):
         """Test bulk historical data backfill performance"""
@@ -327,6 +331,7 @@ class TestMemoryOptimization:
     """Test memory usage optimization"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_memory_efficiency(self, performance_db_pool):
         """Test memory efficiency during sustained operations"""
         collector = AAPLTSLASyntheticCollector()
@@ -362,6 +367,7 @@ class TestMemoryOptimization:
         assert final_memory_growth < 50  # Final growth should be reasonable
         assert memory_stability < 10  # Memory usage should be stable
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_connection_pool_efficiency(self, performance_db_pool):
         """Test database connection pool efficiency"""
@@ -411,6 +417,7 @@ class TestScalabilityLimits:
     """Test system scalability limits"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_maximum_concurrent_operations(self, performance_db_pool):
         """Test maximum sustainable concurrent operations"""
         base_collectors = 50
@@ -450,6 +457,7 @@ class TestScalabilityLimits:
         # Should handle at least base level of concurrency
         assert success_rate > 0.8
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_data_volume_limits(self, performance_db_pool):
         """Test data volume processing limits"""
@@ -504,6 +512,7 @@ class TestScalabilityLimits:
 class TestPerformanceRegression:
     """Test for performance regressions"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_baseline_performance_benchmark(self, performance_db_pool):
         """Establish baseline performance benchmark"""

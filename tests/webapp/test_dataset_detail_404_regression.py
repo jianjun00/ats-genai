@@ -30,6 +30,7 @@ class TestDatasetDetail404Regression:
             yield session
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_original_failing_url_now_works(self, webapp_base_url, http_session):
         """Test the exact URL that was failing: http://10.0.0.79:3000/dataset-detail?id=5"""
         failing_url = f"{webapp_base_url}/dataset-detail?id=5"
@@ -54,6 +55,7 @@ class TestDatasetDetail404Regression:
             assert "Dataset Detail" in content, "Should contain dataset detail page content"
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_dataset_5_api_endpoint_works(self, webapp_base_url, http_session):
         """Test that the API endpoint for dataset 5 works (supports the page)"""
         api_url = f"{webapp_base_url}/api/v1/datasets/5"
@@ -73,6 +75,7 @@ class TestDatasetDetail404Regression:
             # Should be real data, not mock
             assert 'mock' not in data['dataset_name'].lower(), "Should not be mock data"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_no_json_detail_not_found_responses(self, webapp_base_url, http_session):
         """Ensure no endpoints return the problematic JSON response"""
@@ -97,6 +100,7 @@ class TestDatasetDetail404Regression:
                 assert 'text/html' in content_type, f"URL {url} should return HTML"
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_page_loads_with_real_dataset_content(self, webapp_base_url, http_session):
         """Test that the dataset detail page loads with real content from database"""
         url = f"{webapp_base_url}/dataset-detail?id=5"
@@ -120,6 +124,7 @@ class TestDatasetDetail404Regression:
             assert content != '{"detail":"Not Found"}', "Should not be the original JSON error"
             assert '{"detail":"Not Found"}' not in content, "Should not contain JSON error anywhere"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_all_supporting_apis_work(self, webapp_base_url, http_session):
         """Test all API endpoints that the dataset detail page depends on"""

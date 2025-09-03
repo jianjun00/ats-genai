@@ -15,7 +15,7 @@ import asyncpg
 
 from state.universe_state_builder import UniverseStateIntervalBuilder
 from state.universe_state_manager import UniverseStateManager
-from config.environment import Environment, EnvironmentType
+from shared.utils.environment import Environment, EnvironmentType
 from db.test_db_manager import unit_test_db
 
 class TestUniverseStateIntervalBuilder:
@@ -67,9 +67,11 @@ class TestUniverseStateIntervalBuilder:
     
     @pytest.mark.skip(reason="UniverseStateIntervalBuilder no longer owns _apply_membership_changes or _apply_corporate_actions; integration now handled via runner and managers.")
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_build_universe_state_success(self, universe_builder, sample_base_universe):
         pass
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_indicator_builder_rolling_cache(self):
         """Test that UniverseStateIntervalBuilder maintains rolling cache and builds indicator intervals correctly."""
@@ -89,8 +91,8 @@ class TestUniverseStateIntervalBuilder:
                         return current_time + timedelta(minutes=5)
                 return [DummyDuration()]
             def get_indicator_config(self):
-                from signals.indicator_config import IndicatorConfig
-                from signals.indicator import OneOneDot
+                from domains.trading.services.indicator_config import IndicatorConfig
+                from domains.trading.services.indicator import OneOneDot
                 cfg = IndicatorConfig.empty_config()
                 cfg.add_indicator('OneOneDot', OneOneDot)
                 return cfg
@@ -149,10 +151,12 @@ class TestUniverseStateIntervalBuilder:
     
     @pytest.mark.skip(reason="build_universe_state removed from UniverseStateIntervalBuilder in refactor; test obsolete.")
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_build_universe_state_invalid_date(self, universe_builder):
         pass
     
     @pytest.mark.skip(reason="UniverseStateIntervalBuilder no longer owns _apply_membership_changes or _apply_corporate_actions; integration now handled via runner and managers.")
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_build_universe_state_validation_failure(self, universe_builder, sample_base_universe):
         pass

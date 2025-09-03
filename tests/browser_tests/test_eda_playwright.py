@@ -7,6 +7,8 @@ Tests the specific issues that were fixed
 import asyncio
 from playwright.async_api import async_playwright
 
+@pytest.mark.asyncio
+
 async def test_eda_fixes():
     """Test all the EDA interface fixes."""
     print("🎭 Testing EDA Interface Fixes with Playwright")

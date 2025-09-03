@@ -67,6 +67,7 @@ class TestUniverseStateManager:
         assert len(manager._cache) == 0
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_save_universe_state_dao_called(self, state_manager, sample_universe_data, valid_timestamp):
         """Test that save_universe_state calls DAO with correct arguments and updates cache."""
         import datetime
@@ -100,11 +101,13 @@ class TestUniverseStateManager:
         assert result == "db://universe_state_interval/42/20231201_120000"
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_save_universe_state_missing_metadata(self, state_manager, sample_universe_data, valid_timestamp):
         """Test save_universe_state raises if required metadata is missing."""
         with pytest.raises(ValueError):
             await state_manager.save_universe_state(sample_universe_data, valid_timestamp, metadata={})
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_save_universe_state_empty_df(self, state_manager, valid_timestamp):
         """Test save_universe_state raises on empty DataFrame."""
@@ -128,12 +131,14 @@ class TestUniverseStateManager:
         assert result == "db://universe_state_interval/42/20231201_120000"
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_save_universe_state_missing_metadata(self, state_manager, sample_universe_data, valid_timestamp):
         """Test save_universe_state raises if required metadata is missing."""
         with pytest.raises(ValueError):
             await state_manager.save_universe_state(sample_universe_data, valid_timestamp, metadata={})
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_save_universe_state_empty_df(self, state_manager, valid_timestamp):
         """Test save_universe_state raises on empty DataFrame."""
         with pytest.raises(ValueError):
@@ -145,6 +150,7 @@ class TestUniverseStateManager:
             })
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_save_universe_state_empty_df(self, state_manager, valid_timestamp):
         """Test save_universe_state raises on empty DataFrame."""
         with pytest.raises(ValueError):
@@ -154,6 +160,7 @@ class TestUniverseStateManager:
                 'start_date_time': '2023-12-01T00:00:00',
                 'end_date_time': '2023-12-01T23:59:59'
             })
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_save_universe_state_success(self, state_manager, sample_universe_data, valid_timestamp):
         """Test successful universe state saving to DB."""
@@ -177,6 +184,7 @@ class TestUniverseStateManager:
         assert len(state_manager._cache[valid_timestamp]) == 5
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_save_universe_state_empty_data(self, state_manager, valid_timestamp):
         """Test saving empty universe state raises error."""
         import pandas as pd
@@ -185,12 +193,14 @@ class TestUniverseStateManager:
             await state_manager.save_universe_state(empty_data, valid_timestamp)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_save_universe_state_invalid_timestamp(self, state_manager, sample_universe_data):
         """Test saving with invalid timestamp format."""
         invalid_timestamp = "invalid_format"
         with pytest.raises(ValueError, match="Invalid timestamp format"):
             await state_manager.save_universe_state(sample_universe_data, invalid_timestamp)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_load_universe_state_success(self, state_manager, sample_universe_data, valid_timestamp):
         """Test successful universe state loading from DB."""
@@ -212,6 +222,7 @@ class TestUniverseStateManager:
         assert loaded_data['market_cap'].dtype in ['float64', 'float32', 'int64', 'uint64', 'int32', 'uint32']  # DB may return float
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_load_universe_state_with_filters(self, state_manager, sample_universe_data, valid_timestamp):
         """Test loading universe state with filters."""
         # Save data first
@@ -231,6 +242,7 @@ class TestUniverseStateManager:
         assert len(loaded_data) == 3  # Only Technology stocks
         assert all(loaded_data['sector'] == 'Technology')
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_load_universe_state_with_columns(self, state_manager, sample_universe_data, valid_timestamp):
         """Test loading specific columns only."""
@@ -252,6 +264,7 @@ class TestUniverseStateManager:
         with pytest.raises(FileNotFoundError, match="Universe state not found"):
             state_manager.load_universe_state("20231201_999999")
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_load_universe_state_latest(self, state_manager, sample_universe_data):
         """Test loading latest universe state."""
@@ -308,6 +321,7 @@ class TestUniverseStateManager:
         assert available_states[0] == recent_timestamp
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_state_metadata(self, state_manager, sample_universe_data, valid_timestamp):
         """Test getting state metadata."""
         # Save state with metadata
@@ -344,6 +358,7 @@ class TestUniverseStateManager:
         assert stats['latest_timestamp'] == "20231202_120000"
         assert stats['oldest_timestamp'] == "20231201_120000"
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_cache_functionality(self, state_manager, sample_universe_data, valid_timestamp):
         """Test caching functionality."""
@@ -409,6 +424,7 @@ class TestUniverseStateManager:
         assert not state_manager._validate_timestamp_format("invalid")
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_metadata_creation_and_saving(self, state_manager, sample_universe_data, valid_timestamp):
         """Test metadata creation and saving."""
         additional_metadata = {
@@ -426,6 +442,7 @@ class TestUniverseStateManager:
         assert metadata.record_count == 5
         assert len(metadata.columns) == len(sample_universe_data.columns)
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_error_handling_file_operations(self, state_manager, sample_universe_data, valid_timestamp):
         """Test error handling in file operations."""
@@ -484,6 +501,7 @@ class TestUniverseStateManager:
         assert len(results) == 5
         assert all(result[1] == 5 for result in results)  # All should have 5 records
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_large_dataset_handling(self, state_manager):
         """Test handling of large datasets."""

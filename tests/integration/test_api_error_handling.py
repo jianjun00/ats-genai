@@ -20,7 +20,7 @@ import logging
 from datetime import date, datetime
 import json
 
-from config.environment import Environment
+from shared.utils.environment import Environment
 from src.secmaster.compute_market_cap_from_shares import compute_and_populate_market_cap
 
 
@@ -38,6 +38,7 @@ class TestAPIErrorHandling:
         env.db_name = 'dev_db'
         yield env
         
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_rate_limit_handling(self, engine):
         """Test graceful handling of rate limit responses"""
@@ -59,6 +60,7 @@ class TestAPIErrorHandling:
             mock_session.get.assert_called_once()
     
     @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     async def test_authentication_failure_handling(self, engine):
         """Test handling of authentication failures"""
         
@@ -73,6 +75,7 @@ class TestAPIErrorHandling:
         assert result is None
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_network_timeout_handling(self, engine):
         """Test handling of network timeouts"""
         
@@ -82,6 +85,7 @@ class TestAPIErrorHandling:
         result = await engine.fetch_shares_outstanding('AAPL', mock_session)
         assert result is None
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_malformed_json_response_handling(self, engine):
         """Test handling of malformed JSON responses"""
@@ -96,6 +100,7 @@ class TestAPIErrorHandling:
         result = await engine.fetch_shares_outstanding('AAPL', mock_session)
         assert result is None
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_missing_data_fields_handling(self, engine):
         """Test handling of responses missing expected data fields"""
@@ -119,6 +124,7 @@ class TestAPIErrorHandling:
         assert result is None
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_database_connection_failure_resilience(self, engine):
         """Test resilience to database connection failures"""
         
@@ -129,6 +135,7 @@ class TestAPIErrorHandling:
             result = await engine.get_recent_price(1, 'AAPL')
             assert result is None
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_concurrent_api_call_throttling(self, engine):
         """Test that concurrent API calls are properly throttled"""
@@ -168,6 +175,7 @@ class TestAPIErrorHandling:
         duration = (end_time - start_time).total_seconds()
         assert duration >= 1.0  # At least some delay from rate limiting
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_api_response_validation(self, engine):
         """Test validation of API response data quality"""
@@ -217,6 +225,7 @@ class TestDataQualityValidation:
     """Test data quality validation and error detection"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_market_cap_sanity_checks(self):
         """Test market cap calculation sanity checks"""
         
@@ -243,6 +252,7 @@ class TestDataQualityValidation:
             
             assert is_valid == expected_valid, f"Sanity check failed for shares={shares}, price={price}"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_price_data_validation(self):
         """Test validation of price data from database"""
@@ -294,6 +304,7 @@ class TestSystemResilience:
     """Test overall system resilience and recovery patterns"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_partial_failure_recovery(self):
         """Test system behavior when some API calls fail but others succeed"""
         
@@ -341,6 +352,7 @@ class TestSystemResilience:
             # Restore original method
             engine.fetch_shares_outstanding = original_method
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_graceful_degradation(self):
         """Test graceful degradation when external services are unavailable"""

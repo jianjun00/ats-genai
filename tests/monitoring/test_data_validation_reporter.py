@@ -81,6 +81,7 @@ class TestDataValidationReporter:
         assert trading_days == expected_days
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_stock_info(self, reporter, mock_pool):
         """Test stock information retrieval."""
         pool, conn = mock_pool
@@ -105,6 +106,7 @@ class TestDataValidationReporter:
         assert stock_info.is_active == True
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_data_coverage(self, reporter, mock_pool):
         """Test data coverage calculation."""
         pool, conn = mock_pool
@@ -124,6 +126,7 @@ class TestDataValidationReporter:
         assert coverage[date(2024, 8, 20)] == 350
         assert coverage[date(2024, 8, 21)] == 390
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_price_anomalies(self, reporter, mock_pool):
         """Test price anomaly detection."""
@@ -157,6 +160,7 @@ class TestDataValidationReporter:
         assert issues[1].severity == "warning"  # < 20% threshold
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_ohlc_validation_issues(self, reporter, mock_pool):
         """Test OHLC validation."""
         pool, conn = mock_pool
@@ -182,6 +186,7 @@ class TestDataValidationReporter:
         assert issues[0].severity == "critical"
         assert "high (190.0) < low (195.0)" in issues[0].description
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_validate_symbol_data(self, reporter, mock_pool):
         """Test comprehensive symbol validation."""
@@ -270,6 +275,7 @@ class TestDataValidationReporter:
     
     @patch('requests.post')
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_post_to_slack_success(self, mock_post, reporter):
         """Test successful Slack posting."""
         mock_post.return_value.status_code = 200
@@ -299,6 +305,7 @@ class TestDataValidationReporter:
         assert "🟢" in payload['text']  # Success indicator
     
     @patch('requests.post')
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_post_to_slack_failure(self, mock_post, reporter):
         """Test Slack posting failure."""
@@ -368,6 +375,7 @@ class TestValidationIntegration:
     """Integration tests for validation system."""
     
     @patch('src.monitoring.data_validation_reporter.asyncpg.create_pool')
+    @pytest.mark.asyncio
     async def test_run_daily_validation_report(self, mock_create_pool):
         """Test complete validation report workflow."""
         # Mock database pool

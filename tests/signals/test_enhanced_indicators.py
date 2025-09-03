@@ -11,7 +11,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
 
-from signals.enhanced_indicators import (
+from domains.trading.services.enhanced_indicators import (
     EMAIndicator,
     ATRIndicator,
     RSIIndicator,

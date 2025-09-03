@@ -318,6 +318,7 @@ class TestCrossTimeframeAligner:
         assert found_name == "rsi_daily_16"  # Expected default name
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_generate_synthetic_source_data(self, aligner):
         """Test synthetic source data generation."""
         spec = FeatureSpecification(
@@ -471,6 +472,7 @@ class TestValidationFunction:
 class TestIntegrationScenarios:
     """Integration tests for realistic scenarios."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_end_to_end_cross_timeframe_alignment(self):
         """Test complete cross-timeframe alignment workflow."""

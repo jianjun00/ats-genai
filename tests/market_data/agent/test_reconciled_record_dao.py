@@ -2,10 +2,11 @@ import pytest
 import asyncio
 import json
 from datetime import date
-from market_data.agent.models import ReconciledRecord
-from market_data.agent.reconciled_record_dao import ReconciledRecordDAO
+from domains.market_data.services.agent.models import ReconciledRecord
+from domains.market_data.services.agent.reconciled_record_dao import ReconciledRecordDAO
 from db.test_db_manager import unit_test_db_clean
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_insert_and_get_reconciled_record(unit_test_db):
     import asyncpg

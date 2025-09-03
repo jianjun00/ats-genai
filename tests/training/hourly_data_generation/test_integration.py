@@ -20,7 +20,7 @@ import shutil
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
 
-from ml.training_data.runners.training_data_callback_runner import TrainingDataJobRunner, TrainingDataJobConfig
+from domains.ml.services.training_data.runners.training_data_callback_runner import TrainingDataJobRunner, TrainingDataJobConfig
 from storage.file_based_minute_manager import FileBasedMinuteManager
 
 
@@ -116,6 +116,7 @@ class TestHourlyTrainingDataIntegration(unittest.TestCase):
             current_date += timedelta(days=1)
     
     @patch('storage.file_based_minute_manager.FileBasedMinuteManager')
+    @pytest.mark.asyncio
     async def test_hourly_generation_with_real_minute_manager(self, MockMinuteManager):
         """Test hourly generation with mocked FileBasedMinuteManager."""
         
@@ -180,6 +181,7 @@ class TestHourlyTrainingDataIntegration(unittest.TestCase):
             self.assertIn('symbol', metadata['primary_keys'])
     
     @patch('storage.file_based_minute_manager.FileBasedMinuteManager')
+    @pytest.mark.asyncio
     async def test_no_minute_data_available(self, MockMinuteManager):
         """Test behavior when no minute data is available."""
         
@@ -208,6 +210,8 @@ class TestHourlyTrainingDataIntegration(unittest.TestCase):
             
             # Test directory creation
             self.assertTrue(manager.base_path.exists())
+    
+    @pytest.mark.asyncio
     
     async def test_minute_data_retrieval_format(self):
         """Test that minute data retrieval returns expected format."""
@@ -271,6 +275,8 @@ class TestAsyncHourlyGeneration(unittest.TestCase):
         self.runner = TrainingDataJobRunner(self.mock_env)
         self.runner.config = self.config
         self.runner.run_id = 777
+    
+    @pytest.mark.asyncio
     
     async def test_async_hourly_generation_without_universe_state(self):
         """Test async hourly generation without universe state indicators."""

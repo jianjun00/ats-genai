@@ -1,6 +1,6 @@
 import pytest
 from datetime import date
-from secmaster.secmaster import SecMaster
+from domains.instruments.services.secmaster import SecMaster
 
 class DummyConn:
     def __init__(self, fetchval_map):
@@ -39,6 +39,7 @@ class DummyPool:
         pass
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_get_last_close_price(monkeypatch):
     fetchval_map = {'last_close': 123.45}
     async def dummy_create_pool(db_url):
@@ -53,6 +54,7 @@ async def test_get_last_close_price(monkeypatch):
     assert price == 123.45
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_get_average_dollar_volume(monkeypatch):
     fetchval_map = {'avg_dv': 1_000_000}
     async def dummy_create_pool(db_url):
@@ -66,6 +68,7 @@ async def test_get_average_dollar_volume(monkeypatch):
     avg_dv = await secm.get_average_dollar_volume('AAPL', window=30)
     assert avg_dv == 1_000_000
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_get_market_cap(monkeypatch):
     fetchval_map = {'market_cap': 2_500_000_000_000}

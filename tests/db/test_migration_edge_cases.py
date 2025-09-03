@@ -14,7 +14,7 @@ from pathlib import Path
 from unittest.mock import patch
 from db.migration_manager import MigrationManager
 from db.test_db_manager import TestDatabaseManager
-from config.environment import EnvironmentType, Environment
+from shared.utils.environment import EnvironmentType, Environment
 import pytest_asyncio
 
 @pytest_asyncio.fixture
@@ -23,13 +23,14 @@ def pristine_test_db(request):
     Fixture factory for a pristine (no migrations) test database per test function.
     Usage:
         @pytest.mark.asyncio
+        @pytest.mark.asyncio
         async def test_something(pristine_test_db):
             db_url = await pristine_test_db()
             ...
     """
     async def factory():
         test_name = request.node.name if hasattr(request, 'node') else None
-        from config.database import Database
+        from shared.utils.database import Database
         import uuid
         if test_name:
             hash_part = uuid.uuid4().hex[:8]
@@ -62,12 +63,13 @@ async def isolated_test_db(request):
         request: pytest fixture request object (automatically provided)
     Usage:
         @pytest.mark.asyncio
+        @pytest.mark.asyncio
         async def test_something(isolated_test_db):
             ...
     """
     # set_environment(EnvironmentType.TEST)  # Not needed, always use Environment(db_url=..., env_type=EnvironmentType.TEST)
     test_name = request.node.name if hasattr(request, 'node') else None
-    from config.database import Database
+    from shared.utils.database import Database
     import uuid
     if test_name:
         hash_part = uuid.uuid4().hex[:8]
@@ -100,12 +102,13 @@ async def isolated_test_db_migrate(request):
         request: pytest fixture request object (automatically provided)
     Usage:
         @pytest.mark.asyncio
+        @pytest.mark.asyncio
         async def test_something(isolated_test_db):
             ...
     """
     # set_environment(EnvironmentType.TEST)  # Not needed, always use Environment(db_url=..., env_type=EnvironmentType.TEST)
     test_name = request.node.name if hasattr(request, 'node') else None
-    from config.database import Database
+    from shared.utils.database import Database
     import uuid
     if test_name:
         hash_part = uuid.uuid4().hex[:8]
@@ -130,6 +133,7 @@ async def isolated_test_db_migrate(request):
     await db_manager.teardown_test_database()
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_migration_manager_basic_functionality(isolated_test_db):
     
     """Test basic migration manager functionality."""
@@ -145,6 +149,7 @@ async def test_migration_manager_basic_functionality(isolated_test_db):
     assert version == -1
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_table_prefix_application(isolated_test_db):
     
@@ -167,6 +172,7 @@ async def test_table_prefix_application(isolated_test_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_table_prefix_no_double_prefixing(isolated_test_db):
     
     """Test that already prefixed tables don't get double-prefixed."""
@@ -180,6 +186,7 @@ async def test_table_prefix_no_double_prefixing(isolated_test_db):
     assert "test_events" in prefixed_sql
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_checksum_calculation(isolated_test_db):
     
@@ -211,6 +218,7 @@ async def test_checksum_calculation(isolated_test_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_migration_file_parsing():
     """Test parsing of migration file names."""
     # Create temporary migration directory
@@ -236,6 +244,7 @@ async def test_migration_file_parsing():
         assert migrations[2] == (10, "add indexes", migrations_dir / "010_add_indexes.sql")
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_apply_migration_success(pristine_test_db):
     """Test successful migration application on pristine DB."""
@@ -282,6 +291,7 @@ async def test_apply_migration_success(pristine_test_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_apply_migration_sql_error(pristine_test_db):
     """Test migration application with SQL error on pristine DB."""
     db_url = await pristine_test_db()
@@ -315,6 +325,7 @@ async def test_apply_migration_sql_error(pristine_test_db):
         temp_file.unlink()
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_migration_rollback_on_error(isolated_test_db):
     
@@ -361,6 +372,7 @@ async def test_migration_rollback_on_error(isolated_test_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_migrate_to_latest_with_multiple_migrations(isolated_test_db):
     
     """Test migrate_to_latest with multiple migrations."""
@@ -406,6 +418,7 @@ async def test_migrate_to_latest_with_multiple_migrations(isolated_test_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_migrate_to_latest_partial_failure(isolated_test_db):
     
     """Test migrate_to_latest when one migration fails."""
@@ -445,6 +458,7 @@ async def test_migrate_to_latest_partial_failure(isolated_test_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_validation_with_modified_file(isolated_test_db):
     
     """Test migration validation when file has been modified."""
@@ -469,6 +483,7 @@ async def test_validation_with_modified_file(isolated_test_db):
         assert is_valid is False
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_migration_version_ordering(isolated_test_db):
     
@@ -516,6 +531,7 @@ async def test_migration_version_ordering(isolated_test_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_duplicate_version_handling(pristine_test_db):
     """Test handling of duplicate migration versions on pristine DB."""
     db_url = await pristine_test_db()
@@ -550,6 +566,7 @@ async def test_duplicate_version_handling(pristine_test_db):
         temp_file.unlink()
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_complex_sql_migration(pristine_test_db):
     """Test migration with complex SQL including functions, triggers, etc. on pristine DB."""
@@ -610,6 +627,7 @@ async def test_complex_sql_migration(pristine_test_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_empty_migration_directory(isolated_test_db):
     
     """Test migrate_to_latest when no migrations are available."""
@@ -622,6 +640,7 @@ async def test_empty_migration_directory(isolated_test_db):
         assert success is True
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_checksum_edge_cases(isolated_test_db):
     """Test checksum validation with various edge cases."""

@@ -2,18 +2,19 @@ import pytest
 import asyncio
 from datetime import datetime, timedelta
 import asyncpg
-from config.environment import Environment, EnvironmentType
+from shared.utils.environment import Environment, EnvironmentType
 from db.test_db_manager import unit_test_db
-from dao.universe_state_interval_dao import UniverseStateIntervalDAO
-from dao.instrument_interval_dao import InstrumentIntervalDAO
-from dao.factor_interval_dao import FactorIntervalDAO
-from dao.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
+from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
+from domains.instruments.repositories.instrument_interval_dao import InstrumentIntervalDAO
+from domains.trading.repositories.factor_interval_dao import FactorIntervalDAO
+from domains.instruments.repositories.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
 from state.universe_state import UniverseStateInterval
 from state.instrument_interval import InstrumentInterval
 from state.factor_interval import FactorInterval
 from state.indicator_interval import IndicatorInterval
 from calendars.time_duration import TimeDuration
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_universe_state_interval_nested_multi(unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)

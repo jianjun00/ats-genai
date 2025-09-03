@@ -21,13 +21,13 @@ import os
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../..'))
 
-from market_data.reconciliation.majority_voting_reconciler import (
+from domains.market_data.services.reconciliation.majority_voting_reconciler import (
     MajorityVotingReconciler, 
     VendorPrice, 
     PriceConsensus,
     ReconciliationDecision
 )
-from config.environment import Environment
+from shared.utils.environment import Environment
 
 @pytest.fixture
 def env():
@@ -307,6 +307,8 @@ class TestVendorPriority:
 class TestReconcilerIntegration:
     """Integration tests with mocked database calls"""
     
+    @pytest.mark.asyncio
+    
     async def test_reconciliation_workflow(self, reconciler):
         """Test complete reconciliation workflow"""
         
@@ -330,6 +332,8 @@ class TestReconcilerIntegration:
         assert consensus.date == date(2025, 8, 19)
         assert "alphavantage" in consensus.outlier_vendors
         assert consensus.confidence_score > 0.8
+    
+    @pytest.mark.asyncio
     
     async def test_report_generation(self, reconciler):
         """Test reconciliation report generation"""

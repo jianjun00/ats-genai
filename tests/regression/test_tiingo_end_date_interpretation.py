@@ -75,7 +75,7 @@ class TestTiingoEndDateInterpretation:
         """Test the parse_date function handles various formats correctly"""
         # Import the function from the actual script
         sys.path.append('/workspace/src')
-        from secmaster.populate_instrument_tiingo import parse_date
+        from domains.instruments.services.populate_instrument_tiingo import parse_date
         
         # Test valid date
         assert parse_date("2025-08-26") == date(2025, 8, 26)
@@ -106,6 +106,7 @@ class TestTiingoEndDateInterpretation:
         old_date = today - timedelta(days=30)
         assert old_date < cutoff_date, "Old dates should be < cutoff"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_tiingo_instrument_population_active_stock(self, db_connection, mock_tiingo_responses):
         """Test that stocks with recent end dates are correctly marked as active"""
@@ -151,6 +152,7 @@ class TestTiingoEndDateInterpretation:
         await db_connection.execute("DELETE FROM dev_instrument_tiingo WHERE symbol = 'TEST_ACTIVE'")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_tiingo_instrument_population_truly_delisted(self, db_connection, mock_tiingo_responses):
         """Test that stocks with old end dates remain correctly marked as delisted"""
         old_delist_date = date(2020, 5, 15)
@@ -194,6 +196,7 @@ class TestTiingoEndDateInterpretation:
         await db_connection.execute("DELETE FROM dev_instrument_tiingo WHERE symbol = 'TEST_DELISTED'")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_major_stocks_are_active(self, db_connection):
         """Test that major stocks are correctly identified as active (regression protection)"""
         major_stocks = ['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'AMZN', 'NFLX', 'NVDA']
@@ -213,6 +216,7 @@ class TestTiingoEndDateInterpretation:
                 # If not found, log warning but don't fail test (might not be in test data)
                 print(f"Warning: {symbol} not found in Tiingo instruments")
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_active_percentage_is_reasonable(self, db_connection):
         """Test that the percentage of active instruments is reasonable (>70%)"""
@@ -240,6 +244,7 @@ class TestTiingoEndDateInterpretation:
             assert 'end_date >= $1' in content, "Fix script should contain date comparison logic"
             assert 'end_date = NULL' in content, "Fix script should set end_date to NULL for active stocks"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_batch_fix_logic(self, db_connection):
         """Test the batch fix logic on a sample of instruments"""
@@ -309,6 +314,7 @@ class TestTiingoEndDateInterpretation:
 class TestTiingoEndDateIntegrationScenarios:
     """Integration tests for complete Tiingo end date scenarios"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_full_population_and_fix_workflow(self):
         """Test the complete workflow: populate -> identify issue -> fix -> validate"""

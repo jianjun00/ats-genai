@@ -44,6 +44,7 @@ def test_ray_core_logic_none():
 
 # --- Optionally, test Ray remote function with mocks ---
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_ray_remote_db_args(monkeypatch):
     # Patch asyncpg.create_pool and requests.get
     import secmaster.populate_instrument_polygon as pip
@@ -80,6 +81,7 @@ async def test_ray_remote_db_args(monkeypatch):
     assert isinstance(parsed_list_date, datetime.date)
     assert isinstance(parsed_delisted, datetime.date)
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_ray_batched_upsert(monkeypatch):
     # Patch asyncpg.create_pool

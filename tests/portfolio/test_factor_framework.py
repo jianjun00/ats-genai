@@ -15,7 +15,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, List
 
-from portfolio.factor_framework import (
+from domains.trading.services.factor_framework import (
     FactorType,
     RiskFactor,
     FactorUniverse,

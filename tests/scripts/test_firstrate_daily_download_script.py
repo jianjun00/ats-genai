@@ -24,7 +24,7 @@ from io import StringIO
 # Add src to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from market_data.agent.firstrate_daily_downloader import FirstRateDownloader, DownloadJob
+from domains.market_data.services.agent.firstrate_daily_downloader import FirstRateDownloader, DownloadJob
 
 
 class TestFirstRateDownloadScript:
@@ -54,6 +54,7 @@ class TestFirstRateDownloadScript:
             assert 'argparse' in content, "Script should use argparse for CLI"
     
     @patch('market_data.agent.firstrate_daily_downloader.FirstRateDownloader')
+    @pytest.mark.asyncio
     async def test_run_daily_download_all_types(self, mock_downloader_class, temp_setup):
         """Test running daily download for all asset types."""
         # Import here to avoid import during collection
@@ -82,6 +83,7 @@ class TestFirstRateDownloadScript:
         assert mock_downloader.cleanup_old_files.call_count == 3  # Once per asset type
     
     @patch('market_data.agent.firstrate_daily_downloader.FirstRateDownloader')
+    @pytest.mark.asyncio
     async def test_run_daily_download_specific_date(self, mock_downloader_class, temp_setup):
         """Test running daily download for a specific date."""
         from scripts.firstrate_daily_download import run_daily_download
@@ -104,6 +106,7 @@ class TestFirstRateDownloadScript:
         assert call_args is not None
     
     @patch('market_data.agent.firstrate_daily_downloader.FirstRateDownloader')
+    @pytest.mark.asyncio
     async def test_run_daily_download_partial_failure(self, mock_downloader_class, temp_setup):
         """Test handling partial download failures."""
         from scripts.firstrate_daily_download import run_daily_download
@@ -126,6 +129,7 @@ class TestFirstRateDownloadScript:
         assert result is False
     
     @patch('market_data.agent.firstrate_daily_downloader.FirstRateDownloader')
+    @pytest.mark.asyncio
     async def test_run_daily_download_no_cleanup(self, mock_downloader_class, temp_setup):
         """Test running without cleanup."""
         from scripts.firstrate_daily_download import run_daily_download
@@ -324,6 +328,8 @@ class TestFirstRateDownloaderEnhancements:
         for file_path in non_matching_files:
             assert file_path.exists()
     
+    @pytest.mark.asyncio
+    
     async def test_download_with_network_timeout(self, temp_setup):
         """Test download handling network timeout."""
         downloader = FirstRateDownloader(base_path=temp_setup, max_retries=2, retry_delay=0.1)
@@ -344,6 +350,8 @@ class TestFirstRateDownloaderEnhancements:
             
             assert result is False
             assert not output_path.exists()
+    
+    @pytest.mark.asyncio
     
     async def test_download_with_connection_error(self, temp_setup):
         """Test download handling connection errors."""
@@ -367,6 +375,8 @@ class TestFirstRateDownloaderEnhancements:
             
             assert result is False
             assert not output_path.exists()
+    
+    @pytest.mark.asyncio
     
     async def test_download_daily_data_mixed_results(self, temp_setup):
         """Test download_daily_data with mixed success/failure results."""

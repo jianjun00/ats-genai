@@ -13,11 +13,11 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from universe.historical_universe_creator import (
+from domains.trading.services.historical_universe_creator import (
     HistoricalUniverseCreator,
     HistoricalStock
 )
-from config.environment import Environment
+from shared.utils.environment import Environment
 
 class TestHistoricalStock:
     """Test suite for HistoricalStock data structure"""
@@ -107,6 +107,7 @@ class TestHistoricalUniverseCreator:
         assert creator.env is not None
         assert hasattr(creator, 'logger')
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_active_stocks_in_year_mock(self, creator):
         """Test getting active stocks with mocked database"""
@@ -212,6 +213,7 @@ class TestHistoricalUniverseCreator:
         # TEST1 should be more likely (higher volume * price)
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_create_historical_sample_universe_mock(self, creator):
         """Test creating historical sample universe with mocked database"""
         with patch('asyncpg.create_pool') as mock_pool:
@@ -244,6 +246,7 @@ class TestHistoricalUniverseCreator:
             assert mock_conn.fetchrow.called  # Universe creation
             assert mock_conn.execute.called   # Member insertion
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_generate_historical_report(self, creator, sample_stock_data):
         """Test generating historical report"""
@@ -375,6 +378,7 @@ class TestHistoricalUniverseIntegration:
         env.get_table_name = lambda name: f"test_{name}"
         return env
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_end_to_end_universe_creation(self, mock_env):
         """Test complete universe creation workflow"""

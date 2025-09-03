@@ -40,6 +40,8 @@ class TestTiingoEndDateFix:
         yield conn
         await conn.close()
 
+    @pytest.mark.asyncio
+
     async def test_active_companies_have_null_end_date(self, db_connection):
         """Test that actively traded companies have NULL end_date after fix"""
         
@@ -65,6 +67,8 @@ class TestTiingoEndDateFix:
             assert end_date is None, f"❌ {symbol} should have NULL end_date but has {row['end_date_str']}"
             print(f"✅ {symbol}: Correctly has NULL end_date (actively traded)")
 
+    @pytest.mark.asyncio
+
     async def test_delisted_companies_have_correct_end_date(self, db_connection):
         """Test that actually delisted companies have correct end_date preserved"""
         
@@ -85,6 +89,8 @@ class TestTiingoEndDateFix:
                 print(f"✅ {symbol}: Correctly has end_date {actual_date} (actually delisted)")
             else:
                 print(f"⚠️ {symbol}: Not found in database")
+
+    @pytest.mark.asyncio
 
     async def test_no_recent_end_dates_for_active_stocks(self, db_connection):
         """Test that no actively traded stocks have recent end_dates (within 7 days)"""
@@ -109,6 +115,8 @@ class TestTiingoEndDateFix:
             f"❌ Found {len(results)} active stocks with recent end_dates: {[r['symbol'] for r in results]}"
         
         print(f"✅ No actively traded stocks have end_dates within last 7 days")
+
+    @pytest.mark.asyncio
 
     async def test_end_date_interpretation_logic(self, db_connection):
         """Test the core logic for interpreting Tiingo end_dates"""
@@ -163,6 +171,8 @@ class TestTiingoEndDateFix:
                 
                 print(f"✅ {symbol}: {interpretation} -> corrected_end_date: {row['corrected_end_date']}")
 
+    @pytest.mark.asyncio
+
     async def test_historical_accuracy_validation(self, db_connection):
         """Test against known historical market events"""
         
@@ -209,6 +219,8 @@ class TestTiingoEndDateFix:
                 print(f"✅ {symbol}: {validation['description']} - VALIDATED")
             else:
                 print(f"⚠️ {symbol}: Not found in database")
+
+    @pytest.mark.asyncio
 
     async def test_data_quality_metrics(self, db_connection):
         """Test overall data quality metrics after fix"""

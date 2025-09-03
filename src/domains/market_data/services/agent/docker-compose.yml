@@ -1,0 +1,36 @@
+version: '3'
+
+services:
+  instrument-agent:
+    image: ats-registry.dev/instrument-data-agent:dev
+    environment:
+      - ENVIRONMENT=dev
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=ats_dev
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - TABLE_PREFIX=dev_
+      - LOG_LEVEL=INFO
+      - DRY_RUN=true
+    volumes:
+      - ./logs:/var/log/instrument-agent
+      - ./reports:/app/reports
+    command: python -m src.market_data.agent.instrument_data_agent daily_update --environment dev
+    depends_on:
+      - postgres
+
+  # For local testing only - remove for actual dev deployment
+  postgres:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=ats_dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:

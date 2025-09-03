@@ -21,7 +21,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from events.economic_events_classifier import EconomicEventsClassifier, EconomicEventsProcessor
-from ml.training_data.generators.multimodal_dataset_generator import MultiModalDatasetGenerator, MultiModalSample
+from domains.ml.services.training_data.generators.multimodal_dataset_generator import MultiModalDatasetGenerator, MultiModalSample
 
 
 class TestPerformanceBenchmarks:
@@ -139,6 +139,7 @@ class TestPerformanceBenchmarks:
         assert memory_freed > memory_increase * 0.5, f"Memory not freed properly: {memory_freed:.1f}MB freed"
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_concurrent_sample_generation(self):
         """Test concurrent sample generation performance"""
         generator = MultiModalDatasetGenerator(self.db_config)
@@ -190,6 +191,7 @@ class TestScalabilityLimits:
         }
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_large_symbol_universe_processing(self):
         """Test processing large numbers of symbols"""
         generator = MultiModalDatasetGenerator(self.db_config)
@@ -225,6 +227,7 @@ class TestScalabilityLimits:
         expected_samples = 500 * 1 * 4  # 500 symbols × 1 date × 4 horizons
         assert total_samples == expected_samples
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_extended_date_range_processing(self):
         """Test processing extended historical periods"""
@@ -358,6 +361,7 @@ class TestConcurrencyAndThreadSafety:
         assert throughput > 100, f"Concurrent performance degraded: {throughput:.1f} articles/sec"
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_async_database_pool_usage(self):
         """Test efficient database connection pool usage"""
         processor = EconomicEventsProcessor(self.db_config)
@@ -450,6 +454,7 @@ class TestConcurrencyAndThreadSafety:
 class TestResourceUtilization:
     """Test CPU, memory, and I/O resource utilization"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_cpu_utilization_efficiency(self):
         """Test CPU utilization during intensive operations"""

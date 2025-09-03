@@ -1,7 +1,7 @@
 import os
 import tempfile
 from datetime import datetime, timedelta
-from config.environment import Environment
+from shared.utils.environment import Environment
 from app.runner import Runner
 from state.universe_state_builder import UniverseStateIntervalBuilder
 import logging
@@ -17,6 +17,7 @@ import pytest
 import pytest_asyncio
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_runner_with_universe_state_builder(tmp_path, caplog, unit_test_db):
     # Minimal environment config with runner callback
     config_path = tmp_path / "test.conf"
@@ -26,7 +27,7 @@ async def test_runner_with_universe_state_builder(tmp_path, caplog, unit_test_db
 callbacks=state.universe_state_builder.UniverseStateIntervalBuilder
 """)
     import os
-    from config.environment import EnvironmentType
+    from shared.utils.environment import EnvironmentType
     os.environ["ENVIRONMENT"] = "test"
     # set_environment(EnvironmentType.TEST)
     env = Environment(env_type="test", db_url=unit_test_db)

@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from signals.label_registry import (
+from domains.trading.services.label_registry import (
     LabelRegistry,
     LabelConfig,
     PriceLabelGenerator,

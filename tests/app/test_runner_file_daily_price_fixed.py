@@ -9,13 +9,14 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 import pandas as pd
 from pathlib import Path
-from config.environment import Environment, EnvironmentType
+from shared.utils.environment import Environment, EnvironmentType
 from app.runner import Runner
 from state.universe_state_builder import UniverseStateIntervalBuilder
 from state.universe_state_manager import UniverseStateManager
-from market_data.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
+from domains.market_data.services.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path, unit_test_db):
     # Setup environment
@@ -30,7 +31,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
     print(f"\n[DEBUG] Test DB URL: {unit_test_db}")
     env = await ensure_test_tables(unit_test_db)
     
-    from signals.indicator_config import IndicatorConfig
+    from domains.trading.services.indicator_config import IndicatorConfig
     env.get_indicator_config = lambda: IndicatorConfig(indicators={})
 
     # Insert test data
@@ -132,8 +133,8 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
     
     await insert_test_data()
 
-    from signals.indicator_config import IndicatorConfig
-    from signals.indicator import ETop, EBot, PL
+    from domains.trading.services.indicator_config import IndicatorConfig
+    from domains.trading.services.indicator import ETop, EBot, PL
     indicator_config = IndicatorConfig(indicators={
         'ETop': ETop,
         'EBot': EBot,

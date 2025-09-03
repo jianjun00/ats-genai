@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch, MagicMock
 from typing import List
 
-from market_data.agent.tiingo_intraday_adapter import (
+from domains.market_data.services.agent.tiingo_intraday_adapter import (
     TiingoIntradayAdapter,
     TiingoMinuteBar,
     fetch_tiingo_minute_data,
@@ -95,6 +95,7 @@ class TestTiingoIntradayAdapter:
         )
         assert url == expected
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_context_manager(self):
         """Test async context manager."""
@@ -340,6 +341,7 @@ class TestTiingoAsyncMethods:
     """Test async methods with mocked HTTP responses."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fetch_single_day_success(self):
         """Test successful single day fetch."""
         adapter = TiingoIntradayAdapter(api_key='test_key')
@@ -376,6 +378,7 @@ class TestTiingoAsyncMethods:
         assert result[0].open == 180.00
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fetch_single_day_rate_limit(self):
         """Test rate limit handling."""
         adapter = TiingoIntradayAdapter(api_key='test_key')
@@ -410,6 +413,7 @@ class TestTiingoAsyncMethods:
         mock_sleep.assert_called_once_with(60)  # Rate limit delay
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fetch_single_day_not_found(self):
         """Test handling of 404 responses."""
         adapter = TiingoIntradayAdapter(api_key='test_key')
@@ -426,6 +430,7 @@ class TestTiingoAsyncMethods:
         
         assert len(result) == 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_fetch_single_day_error(self):
         """Test error handling."""
@@ -444,6 +449,7 @@ class TestTiingoAsyncMethods:
         assert len(result) == 0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fetch_minute_bars_async_no_session(self):
         """Test fetch without session raises error."""
         adapter = TiingoIntradayAdapter(api_key='test_key')
@@ -455,6 +461,7 @@ class TestTiingoAsyncMethods:
                 datetime(2024, 1, 1)
             )
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_fetch_multiple_symbols_async(self):
         """Test fetching multiple symbols concurrently."""
@@ -489,6 +496,7 @@ class TestTiingoAsyncMethods:
 class TestConvenienceFunctions:
     """Test convenience functions."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_fetch_tiingo_minute_data(self):
         """Test convenience function for fetching minute data."""
@@ -529,6 +537,7 @@ class TestTiingoIntegration:
         not pytest.importorskip("os").getenv("TIINGO_API_KEY"),
         reason="TIINGO_API_KEY not available"
     )
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_real_api_fetch(self):
         """Test with real Tiingo API."""

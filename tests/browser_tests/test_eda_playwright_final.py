@@ -7,6 +7,8 @@ Tests with proper dropdown selection method
 import asyncio
 from playwright.async_api import async_playwright
 
+@pytest.mark.asyncio
+
 async def test_eda_interface_complete():
     """Complete test of EDA interface with proper dropdown handling."""
     print("🎭 Complete EDA Interface Test with Playwright")

@@ -91,6 +91,8 @@ async def simulate_api_requests(tracker: APIStatusTracker, num_requests: int = 1
             
     logger.info(f"✅ Simulation complete! Generated {num_requests} API requests")
 
+@pytest.mark.asyncio
+
 async def test_all_vendors(tracker: APIStatusTracker):
     """Test API tracking for all configured vendors with realistic patterns."""
     
@@ -208,6 +210,8 @@ async def display_metrics_summary(tracker: APIStatusTracker):
             logger.info(f"  Endpoints: {list(endpoints.keys())}")
             
         logger.info("")
+
+@pytest.mark.asyncio
 
 async def test_prometheus_metrics(tracker: APIStatusTracker):
     """Test Prometheus metrics generation."""

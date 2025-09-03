@@ -36,7 +36,7 @@ import os
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-from config.environment import Environment
+from shared.utils.environment import Environment
 
 @dataclass
 class MarketCapTestResult:
@@ -78,6 +78,7 @@ class TestMarketCapDatabaseSchema:
     def tester(self, env):
         return ComprehensiveMarketCapTester(env)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_market_cap_table_schema_complete(self, tester):
         """Test that market cap table has all required columns with correct types"""
@@ -247,6 +248,7 @@ class TestPolygonAPIIntegration:
         return ComprehensiveMarketCapTester(env)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_polygon_api_major_stocks(self, tester):
         """Test Polygon API integration with known major stocks"""
         
@@ -305,6 +307,7 @@ class TestPolygonAPIIntegration:
                     print(f"✅ {symbol}: {shares_outstanding:,} shares outstanding")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_polygon_api_error_handling(self, tester):
         """Test Polygon API error handling with invalid symbols"""
         
@@ -328,6 +331,7 @@ class TestPolygonAPIIntegration:
                     assert response.status in [404, 400], \
                         f"Expected 404/400 for invalid symbol {symbol}, got {response.status}"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_polygon_api_rate_limiting(self, tester):
         """Test that we handle Polygon API rate limiting correctly"""
@@ -388,6 +392,7 @@ class TestMarketCapCalculationAccuracy:
     def tester(self, env):
         return ComprehensiveMarketCapTester(env)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_market_cap_calculation_accuracy(self, tester):
         """Test market cap calculations against known approximate values"""
@@ -485,6 +490,7 @@ class TestMarketCapCalculationAccuracy:
             await pool.close()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_market_cap_edge_cases(self, tester):
         """Test market cap calculation edge cases and error handling"""
         
@@ -571,6 +577,7 @@ class TestMarketCapSystemPerformance:
     def tester(self, env):
         return ComprehensiveMarketCapTester(env)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_batch_processing_performance(self, tester):
         """Test performance of batch processing market cap calculations"""
@@ -663,6 +670,7 @@ class TestMarketCapSystemPerformance:
             await pool.close()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_concurrent_processing(self, tester):
         """Test concurrent market cap processing"""
         
@@ -753,6 +761,7 @@ class TestMarketCapDataQuality:
         return ComprehensiveMarketCapTester(env)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_data_consistency_across_dates(self, tester):
         """Test that market cap data is consistent across different dates"""
         
@@ -838,6 +847,7 @@ class TestMarketCapDataQuality:
         finally:
             await pool.close()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_market_cap_universe_filtering(self, tester):
         """Test that market cap data enables proper universe filtering"""

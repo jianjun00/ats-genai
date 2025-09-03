@@ -20,10 +20,11 @@ class TestEnvironmentAwareAPIs:
     """Test APIs work correctly in both DEV and INTG environments"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_training_datasets_api_uses_environment_config(self):
         """Test that training datasets API uses environment-specific database config"""
         from src.ml.training_data.apis.training_dataset_simple_api import get_db_connection, list_training_datasets
-        from src.config.environment import Environment
+        from shared.utils.environment import Environment
         
         # Test DEV environment
         with patch.dict(os.environ, {
@@ -65,9 +66,10 @@ class TestEnvironmentAwareAPIs:
                 assert 'intg_password' in args[0]
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_training_datasets_api_uses_correct_table_names(self):
         """Test that API queries use environment-specific table names"""
-        from src.api.training_dataset_simple_api import list_training_datasets
+        from interfaces.rest_api.training_dataset_simple_api import list_training_datasets
         
         # Mock database connection and query execution
         with patch('src.api.training_dataset_simple_api.get_db_connection') as mock_get_conn:
@@ -134,6 +136,7 @@ class TestEnvironmentAwareAPIs:
                 assert 'total_count' in data
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_no_hardcoded_database_connections_in_apis(self):
         """Test that APIs don't contain hardcoded database connection strings"""
         import ast
@@ -171,7 +174,7 @@ class TestEnvironmentConfigurationValidation:
     
     def test_environment_detection_accuracy(self):
         """Test that environment is correctly detected from different sources"""
-        from src.config.environment import Environment
+        from shared.utils.environment import Environment
         
         # Test explicit environment variable
         with patch.dict(os.environ, {'ENVIRONMENT': 'intg'}, clear=False):
@@ -186,7 +189,7 @@ class TestEnvironmentConfigurationValidation:
 
     def test_missing_environment_config_handling(self):
         """Test graceful handling when environment config is missing"""
-        from src.config.environment import Environment
+        from shared.utils.environment import Environment
         
         # Test with missing environment variables
         with patch.dict(os.environ, {}, clear=True):

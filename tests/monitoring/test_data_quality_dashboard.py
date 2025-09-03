@@ -191,6 +191,7 @@ class TestDataQualityMonitor:
         assert 'freshness_hours' in monitor.quality_thresholds
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_check_table_completeness(self, mock_connection_pool, mock_env):
         """Test table completeness check."""
         pool, conn = mock_connection_pool
@@ -213,6 +214,7 @@ class TestDataQualityMonitor:
         assert metric.quality_level in [DataQualityLevel.GOOD, DataQualityLevel.WARNING, DataQualityLevel.WARNING]
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_check_table_completeness_no_data(self, mock_connection_pool, mock_env):
         """Test table completeness check with no data."""
         pool, conn = mock_connection_pool
@@ -231,6 +233,7 @@ class TestDataQualityMonitor:
         assert metric.quality_level == DataQualityLevel.CRITICAL
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_check_data_freshness(self, mock_connection_pool, mock_env):
         """Test data freshness check."""
         pool, conn = mock_connection_pool
@@ -248,6 +251,7 @@ class TestDataQualityMonitor:
         assert metric.quality_level in [DataQualityLevel.GOOD, DataQualityLevel.WARNING]
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_check_data_freshness_stale(self, mock_connection_pool, mock_env):
         """Test data freshness check with stale data."""
         pool, conn = mock_connection_pool
@@ -262,6 +266,7 @@ class TestDataQualityMonitor:
         assert metric.metric_value == 25.0
         assert metric.quality_level in [DataQualityLevel.WARNING, DataQualityLevel.CRITICAL]
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_check_duplicate_records(self, mock_connection_pool, mock_env):
         """Test duplicate records check."""
@@ -302,6 +307,7 @@ class TestDataQualityMonitor:
         level = monitor._determine_quality_level(0.70, 0.90, 0.80)
         assert level == DataQualityLevel.CRITICAL
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_generate_quality_report(self, mock_connection_pool, mock_env):
         """Test quality report generation."""
@@ -379,6 +385,7 @@ class TestConvenienceFunction:
     """Test convenience function."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_run_data_quality_dashboard(self, mock_connection_pool, mock_env):
         """Test convenience function."""
         pool, conn = mock_connection_pool
@@ -415,6 +422,7 @@ class TestErrorHandlingAndEdgeCases:
     """Test error handling and edge cases."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_database_connection_error(self, mock_connection_pool, mock_env):
         """Test handling of database connection errors."""
         pool, conn = mock_connection_pool
@@ -428,6 +436,7 @@ class TestErrorHandlingAndEdgeCases:
         with pytest.raises(asyncpg.ConnectionDoesNotExistError):
             await monitor._check_table_completeness("test_table", "test_col")
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_invalid_table_name(self, mock_connection_pool, mock_env):
         """Test handling of invalid table names."""
@@ -459,6 +468,7 @@ class TestErrorHandlingAndEdgeCases:
         level = monitor._determine_quality_level(1.0, 0.90, 0.80)
         assert level == DataQualityLevel.GOOD
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_empty_database(self, mock_connection_pool, mock_env):
         """Test monitoring with empty database."""
@@ -504,6 +514,7 @@ class TestErrorHandlingAndEdgeCases:
 class TestDataQualityIntegration:
     """Test integration scenarios."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_complete_monitoring_workflow(self, mock_connection_pool, mock_env):
         """Test complete data quality monitoring workflow."""

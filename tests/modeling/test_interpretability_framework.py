@@ -8,7 +8,7 @@ import numpy as np
 from datetime import datetime
 from unittest.mock import Mock
 
-from modeling.interpretability_framework import (
+from domains.ml.services.interpretability_framework import (
     PredictionExplanation,
     ResidualReturnInterpreter,
     create_prediction_explanation

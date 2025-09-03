@@ -7,8 +7,8 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../src')))
 
-from market_data.eod.db_daily_price_market_data_manager import DBDailyPriceMarketDataManager
-from config.environment import Environment, EnvironmentType
+from domains.market_data.services.eod.db_daily_price_market_data_manager import DBDailyPriceMarketDataManager
+from shared.utils.environment import Environment, EnvironmentType
 
 class DummyVendorsDAO:
     def __init__(self, env):
@@ -47,6 +47,7 @@ class DummyPricesDAO:
         return rows
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_db_daily_price_manager_symbol_mapping(monkeypatch, unit_test_db):
     # Create a proper test environment with the test database
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
@@ -70,6 +71,7 @@ async def test_db_daily_price_manager_symbol_mapping(monkeypatch, unit_test_db):
         assert await mgr.resolve_symbol(1) == 'AAPL'
         assert await mgr.resolve_symbol(2) == 'TSLA'
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_db_daily_price_manager_get_ohlc(monkeypatch, unit_test_db):
     # Create a proper test environment with the test database
@@ -100,6 +102,7 @@ async def test_db_daily_price_manager_get_ohlc(monkeypatch, unit_test_db):
         assert ohlc['traded_dollar'] == 14000
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_db_daily_price_manager_get_ohlc_batch(monkeypatch, unit_test_db):
     # Create a proper test environment with the test database
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
@@ -127,6 +130,7 @@ async def test_db_daily_price_manager_get_ohlc_batch(monkeypatch, unit_test_db):
         assert batch[2]['traded_dollar'] == 48000
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_db_daily_price_manager_missing_symbol(monkeypatch, unit_test_db):
     # Create a proper test environment with the test database
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
@@ -150,6 +154,7 @@ async def test_db_daily_price_manager_missing_symbol(monkeypatch, unit_test_db):
         # Should return None for unmapped instrument
         assert ohlc is None
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_db_daily_price_manager_missing_price(monkeypatch, unit_test_db):
     # Create a proper test environment with the test database

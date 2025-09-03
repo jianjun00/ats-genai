@@ -11,23 +11,23 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-from src.market_data.market_cap.unified_market_cap_provider import (
+from domains.market_data.services.market_cap.unified_market_cap_provider import (
     UnifiedMarketCapProvider,
     MarketCapSource,
     UnifiedMarketCap,
     MarketCapValidationStatus
 )
-from src.market_data.fundamentals.unified_fundamental_provider import (
+from domains.market_data.services.fundamentals.unified_fundamental_provider import (
     UnifiedFundamental,
     VendorFundamental,
     ValidationStatus as FundamentalValidationStatus
 )
-from src.market_data.eod.unified_daily_price_validator import (
+from domains.market_data.services.eod.unified_daily_price_validator import (
     UnifiedPrice,
     ValidationResult,
     ValidationStatus as PriceValidationStatus
 )
-from src.config.environment import Environment
+from shared.utils.environment import Environment
 
 
 @pytest.fixture
@@ -132,6 +132,8 @@ class TestUnifiedMarketCapProvider:
             assert provider.min_confidence_threshold == 0.3
             assert provider.logger is not None
     
+    @pytest.mark.asyncio
+    
     async def test_connect_and_disconnect(self, mock_provider):
         """Test database connection management"""
         # Mock database connection
@@ -145,6 +147,8 @@ class TestUnifiedMarketCapProvider:
             await mock_provider.disconnect()
             mock_provider.conn.close.assert_called_once()
             mock_provider.price_validator.disconnect.assert_called_once()
+    
+    @pytest.mark.asyncio
     
     async def test_get_fundamental_market_cap_sources(self, mock_provider, sample_unified_fundamental):
         """Test getting market cap from fundamental data sources"""
@@ -162,6 +166,8 @@ class TestUnifiedMarketCapProvider:
         assert sources[0].market_cap == 3000000000000
         assert sources[1].vendor == "polygon"
         assert sources[1].market_cap == 2980000000000
+    
+    @pytest.mark.asyncio
     
     async def test_get_price_based_market_cap(self, mock_provider, sample_unified_price):
         """Test calculating market cap from price * shares outstanding"""
@@ -184,6 +190,8 @@ class TestUnifiedMarketCapProvider:
         assert source.shares_outstanding == 15000000000
         # Market cap = 195.89 * 15B = ~2.94T
         assert abs(source.market_cap - (195.89 * 15000000000)) < 100
+    
+    @pytest.mark.asyncio
     
     async def test_get_shares_outstanding_from_fundamental(self, mock_provider):
         """Test extracting shares outstanding from fundamental data"""
@@ -212,6 +220,8 @@ class TestUnifiedMarketCapProvider:
         
         assert shares == 15000000000
     
+    @pytest.mark.asyncio
+    
     async def test_get_shares_outstanding_from_database(self, mock_provider):
         """Test getting shares outstanding from database fallback"""
         # Mock no fundamental data
@@ -226,6 +236,8 @@ class TestUnifiedMarketCapProvider:
         
         assert shares == 14500000000
         mock_provider.conn.fetchrow.assert_called_once()
+    
+    @pytest.mark.asyncio
     
     async def test_get_historical_market_cap_estimate(self, mock_provider):
         """Test getting historical market cap estimate"""
@@ -248,6 +260,8 @@ class TestUnifiedMarketCapProvider:
         assert source.calculation_method == "historical_estimate"
         assert source.confidence < 1.0  # Lower confidence for historical data
         assert source.raw_data["days_difference"] == 6
+    
+    @pytest.mark.asyncio
     
     async def test_create_unified_market_cap_single_source(self, mock_provider):
         """Test creating unified market cap with single source"""
@@ -272,6 +286,8 @@ class TestUnifiedMarketCapProvider:
         assert result.status == MarketCapValidationStatus.SINGLE_SOURCE
         assert result.confidence_score == 0.9 * 0.7  # Reduced for single source
         assert result.primary_source == "fundamental_fmp"
+    
+    @pytest.mark.asyncio
     
     async def test_create_unified_market_cap_consensus(self, mock_provider):
         """Test creating unified market cap with consensus from multiple sources"""
@@ -315,6 +331,8 @@ class TestUnifiedMarketCapProvider:
         assert result.validation_metadata["consensus_sources"] == 3
         assert "Consensus from 3 sources" in result.calculation_notes
     
+    @pytest.mark.asyncio
+    
     async def test_create_unified_market_cap_disagreement(self, mock_provider):
         """Test handling vendor disagreement in market cap data"""
         sources = [
@@ -344,6 +362,8 @@ class TestUnifiedMarketCapProvider:
         assert result.status == MarketCapValidationStatus.VENDOR_DISAGREEMENT
         assert result.confidence_score == 0.4  # Low confidence due to disagreement
         assert result.validation_metadata["max_deviation_pct"] > 0.15
+    
+    @pytest.mark.asyncio
     
     async def test_create_unified_market_cap_outlier_detection(self, mock_provider):
         """Test outlier detection in market cap data"""
@@ -384,6 +404,8 @@ class TestUnifiedMarketCapProvider:
         assert result.validation_metadata["outliers_detected"] == 1
         assert result.validation_metadata["consensus_sources"] == 2  # Outlier excluded
     
+    @pytest.mark.asyncio
+    
     async def test_get_unified_market_cap_integration(self, mock_provider, sample_unified_fundamental, sample_unified_price):
         """Test full integration of get_unified_market_cap"""
         # Mock fundamental data
@@ -407,6 +429,8 @@ class TestUnifiedMarketCapProvider:
         assert 0.0 <= result.confidence_score <= 1.0
         assert len(result.source_data) >= 2  # Fundamental + price-calculated
     
+    @pytest.mark.asyncio
+    
     async def test_list_symbols_with_market_cap_data(self, mock_provider):
         """Test listing symbols with market cap data"""
         # Mock fundamental symbols
@@ -428,6 +452,8 @@ class TestUnifiedMarketCapProvider:
         # Should return union of fundamental and price symbols
         expected_symbols = ["AAPL", "GOOGL", "META", "MSFT", "TSLA"]
         assert sorted(symbols) == sorted(expected_symbols)
+    
+    @pytest.mark.asyncio
     
     async def test_get_market_cap_history(self, mock_provider):
         """Test getting market cap history over date range"""
@@ -474,6 +500,8 @@ class TestUnifiedMarketCapProvider:
         assert history[1].date == date(2023, 12, 31)
         assert history[1].market_cap == 3000000000000
     
+    @pytest.mark.asyncio
+    
     async def test_error_handling(self, mock_provider):
         """Test error handling in various scenarios"""
         # Test with no sources
@@ -491,6 +519,8 @@ class TestUnifiedMarketCapProvider:
         
         result = await mock_provider.get_unified_market_cap("INVALID", date(2023, 12, 31))
         assert result is None
+    
+    @pytest.mark.asyncio
     
     async def test_confidence_filtering(self, mock_provider):
         """Test filtering sources by minimum confidence threshold"""

@@ -32,6 +32,8 @@ class TestEDAInterface:
         yield page
         await context.close()
     
+    @pytest.mark.asyncio
+    
     async def test_eda_interface_loads(self, page: Page):
         """Test that EDA interface loads without JavaScript errors."""
         console_errors = []
@@ -52,6 +54,8 @@ class TestEDAInterface:
         assert len(console_errors) == 0, f"JavaScript errors found: {console_errors}"
         
         print("✅ EDA interface loads without JavaScript errors")
+    
+    @pytest.mark.asyncio
     
     async def test_datasets_dropdown_populates(self, page: Page):
         """Test that datasets dropdown gets populated with data."""
@@ -85,6 +89,8 @@ class TestEDAInterface:
         assert len(option_texts) > 0, "No actual dataset options found"
         
         print("✅ Datasets dropdown populates correctly")
+    
+    @pytest.mark.asyncio
     
     async def test_global_axis_control_positioning(self, page: Page):
         """Test that global x-axis control appears above Data Filter."""
@@ -122,6 +128,8 @@ class TestEDAInterface:
         
         print("✅ Global x-axis control positioned correctly above Data Filter")
     
+    @pytest.mark.asyncio
+    
     async def test_per_column_axis_controls_removed(self, page: Page):
         """Test that individual per-column x-axis controls are removed."""
         await page.goto(f"{self.BASE_URL}/eda")
@@ -151,6 +159,8 @@ class TestEDAInterface:
         assert viz_control_count == 0, f"Found {viz_control_count} visualization-controls, expected 0"
         
         print("✅ Per-column x-axis controls successfully removed")
+    
+    @pytest.mark.asyncio
     
     async def test_global_axis_dropdown_functionality(self, page: Page):
         """Test that global x-axis dropdown has correct options and functions."""
@@ -191,6 +201,8 @@ class TestEDAInterface:
         assert selected_value == "date", f"Expected 'date', got '{selected_value}'"
         
         print("✅ Global x-axis dropdown has correct options and functionality")
+    
+    @pytest.mark.asyncio
     
     async def test_symbol_filter_undefined_issue(self, page: Page):
         """Test the symbol filter to identify the 'undefined' records issue."""
@@ -274,6 +286,8 @@ class TestEDAInterface:
                 print(f"  - {error}")
         
         print("✅ Symbol filter test completed")
+    
+    @pytest.mark.asyncio
     
     async def test_date_columns_filtered_from_distributions(self, page: Page):
         """Test that date columns don't appear in distribution visualizations."""

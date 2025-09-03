@@ -54,6 +54,8 @@ class TestTiingoFundamentalsCollection:
         assert collector.request_delay == 1.0
         assert collector.stats['total_instruments'] == 0
     
+    @pytest.mark.asyncio
+    
     async def test_get_instruments_returns_dow_30_only(self, collector, mock_db_connection):
         """Test that instrument selection returns only DOW 30 symbols."""
         instruments = await collector.get_instruments_for_backfill(mock_db_connection, limit=10)
@@ -75,6 +77,8 @@ class TestTiingoFundamentalsCollection:
             assert 'active' in inst
             assert inst['active'] is True
     
+    @pytest.mark.asyncio
+    
     async def test_get_instruments_respects_limit(self, collector, mock_db_connection):
         """Test that limit parameter is respected."""
         # Test with various limits
@@ -82,6 +86,8 @@ class TestTiingoFundamentalsCollection:
             instruments = await collector.get_instruments_for_backfill(mock_db_connection, limit=limit)
             expected_count = min(limit, 30)  # DOW 30 has max 30 symbols
             assert len(instruments) == expected_count
+    
+    @pytest.mark.asyncio
     
     async def test_table_creation(self, collector, mock_db_connection):
         """Test that database tables are created with correct schema."""
@@ -209,6 +215,8 @@ class TestTiingoFundamentalsCollection:
             result = collector.fetch_daily_fundamentals(symbol, start_date, end_date)
             assert result == []
     
+    @pytest.mark.asyncio
+    
     async def test_daily_fundamentals_insertion(self, collector, mock_db_connection):
         """Test daily fundamentals database insertion."""
         symbol = "AAPL"
@@ -248,6 +256,8 @@ class TestTiingoFundamentalsCollection:
         assert row[1] == symbol  # symbol
         assert row[2] == instrument_id  # instrument_id
         assert row[3] == 3000000000000  # market_cap
+    
+    @pytest.mark.asyncio
     
     async def test_statements_insertion(self, collector, mock_db_connection):
         """Test financial statements database insertion.""" 
@@ -304,6 +314,8 @@ class TestTiingoFundamentalsCollection:
         assert is_row[6] == 'totalRevenue'  # data_code
         assert is_row[7] == 25000000000  # value
     
+    @pytest.mark.asyncio
+    
     async def test_existing_data_check(self, collector, mock_db_connection):
         """Test checking for existing data to skip duplicate collection."""
         symbol = "AAPL"
@@ -321,6 +333,8 @@ class TestTiingoFundamentalsCollection:
         
         result = await collector.check_existing_data(mock_db_connection, symbol, start_date, end_date)
         assert result is False
+    
+    @pytest.mark.asyncio
     
     async def test_statistics_tracking(self, collector, mock_db_connection):
         """Test that statistics are properly tracked during collection."""
@@ -367,6 +381,8 @@ class TestTiingoFundamentalsCollection:
 @pytest.mark.asyncio
 class TestTiingoFundamentalsIntegration:
     """Integration tests requiring database connections."""
+    
+    @pytest.mark.asyncio
     
     async def test_end_to_end_collection_flow(self):
         """Test complete collection flow with mocked database."""

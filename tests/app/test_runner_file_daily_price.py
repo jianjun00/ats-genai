@@ -9,13 +9,14 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 import pandas as pd
 from pathlib import Path
-from config.environment import Environment, EnvironmentType
+from shared.utils.environment import Environment, EnvironmentType
 from app.runner import Runner
 from state.universe_state_builder import UniverseStateIntervalBuilder
 from state.universe_state_manager import UniverseStateManager
-from market_data.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
+from domains.market_data.services.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path, unit_test_db):
     # Setup environment
@@ -26,7 +27,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
     vendors_dirs = {'polygon': polygon_dir, 'tiingo': tiingo_dir}
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     env.get_table_name = lambda table: f"test_{table}"
-    from signals.indicator_config import IndicatorConfig
+    from domains.trading.services.indicator_config import IndicatorConfig
     env.get_indicator_config = lambda: IndicatorConfig(indicators={})
 
     # Insert test data
@@ -60,8 +61,8 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
         await conn.close()
     await insert_test_data()
 
-    from signals.indicator_config import IndicatorConfig
-    from signals.indicator import ETop, EBot, PL
+    from domains.trading.services.indicator_config import IndicatorConfig
+    from domains.trading.services.indicator import ETop, EBot, PL
     indicator_config = IndicatorConfig(indicators={
         'ETop': ETop,
         'EBot': EBot,
@@ -77,7 +78,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
     tiingo_dir = os.path.abspath(tiingo_dir)
     vendors_dirs = {'polygon': polygon_dir, 'tiingo': tiingo_dir}
     # Use FileDailyPriceMarketDataManager to get instrument_ids
-    from market_data.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
+    from domains.market_data.services.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
     import json
     
     print('\n' + '='*80)
@@ -326,6 +327,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
     assert pd.to_datetime(max_date) <= allowed_max, f"max_date {max_date} exceeds allowed {allowed_max} for end_date {end_date}"
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_test_db):
     # Setup environment
     polygon_dir = os.path.join(os.path.dirname(__file__), '../data/daily_prices_polygon')
@@ -335,7 +337,7 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
     vendors_dirs = {'polygon': polygon_dir, 'tiingo': tiingo_dir}
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     env.get_table_name = lambda table: f"test_{table}"
-    from signals.indicator_config import IndicatorConfig
+    from domains.trading.services.indicator_config import IndicatorConfig
     env.get_indicator_config = lambda: IndicatorConfig(indicators={})
 
     # Patch UniverseManager and UniverseDB to avoid real DB access
@@ -406,8 +408,8 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
 
     # Create and patch a UniverseStateIntervalBuilder instance directly
     # Provide a minimal valid indicator_config for UniverseStateIntervalBuilder
-    from signals.indicator_config import IndicatorConfig
-    from signals.indicator import ETop, EBot, PL
+    from domains.trading.services.indicator_config import IndicatorConfig
+    from domains.trading.services.indicator import ETop, EBot, PL
     indicator_config = IndicatorConfig(indicators={
         'ETop': ETop,
         'EBot': EBot,
@@ -495,10 +497,11 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
     assert pd.to_datetime(max_date) <= pd.Timestamp(end_date)
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
     import asyncpg
     async def insert_test_data():
-        from config.environment import Environment, EnvironmentType
+        from shared.utils.environment import Environment, EnvironmentType
         env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
         env.get_table_name = lambda table: f"test_{table}"
         conn = await asyncpg.connect(unit_test_db)
@@ -525,7 +528,7 @@ async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
         await conn.close()
     await insert_test_data()
     # Insert test data
-    from config.environment import Environment, EnvironmentType
+    from shared.utils.environment import Environment, EnvironmentType
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     env.get_table_name = lambda table: f"test_{table}"
     import asyncpg
@@ -554,8 +557,8 @@ async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
         await conn.close()
     await insert_test_data()
 
-    from signals.indicator_config import IndicatorConfig
-    from signals.indicator import ETop, EBot, PL
+    from domains.trading.services.indicator_config import IndicatorConfig
+    from domains.trading.services.indicator import ETop, EBot, PL
     indicator_config = IndicatorConfig(indicators={
         'ETop': ETop,
         'EBot': EBot,
@@ -570,14 +573,14 @@ async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
     tiingo_dir = os.path.join(os.path.dirname(__file__), '../data/daily_prices_tiingo')
     tiingo_dir = os.path.abspath(tiingo_dir)
     vendors_dirs = {'polygon': polygon_dir, 'tiingo': tiingo_dir}
-    from market_data.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
+    from domains.market_data.services.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
     market_data_manager = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env)
     instrument_ids = list(market_data_manager._id_to_symbol.keys())
     output_dir = os.path.join(tmp_path, 'universe_state_7days')
     from datetime import datetime
     start_date = datetime.strptime('2025-07-20', '%Y-%m-%d').date()
     end_date = datetime.strptime('2025-07-27', '%Y-%m-%d').date()
-    from config.environment import Environment, EnvironmentType
+    from shared.utils.environment import Environment, EnvironmentType
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     env.get_table_name = lambda table: f"test_{table}"
     df = await run_file_daily_price_ohlcv(

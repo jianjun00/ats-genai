@@ -101,6 +101,7 @@ class TestEnhancedTrainingDataIntegration:
             yield tmpdir
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_complete_training_data_generation_workflow(
         self, mock_db_pool, sample_feature_specs, temp_output_dir
     ):
@@ -164,6 +165,7 @@ class TestEnhancedTrainingDataIntegration:
             assert metadata.feature_types[feature_name] in [ft.value for ft in FeatureType]
     
     @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     async def test_cross_timeframe_feature_integration(self, mock_db_pool, feature_registry):
         """Test cross-timeframe feature alignment integration."""
         
@@ -196,6 +198,7 @@ class TestEnhancedTrainingDataIntegration:
         assert aligned_data.shape[2] == 1   # feature dimension
         assert np.all(np.isfinite(aligned_data))
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_feature_registry_completeness(self, feature_registry):
         """Test that feature registry provides comprehensive coverage."""
@@ -235,6 +238,7 @@ class TestEnhancedTrainingDataIntegration:
             assert spec.feature_type == FeatureType.CROSS_TIMEFRAME_INDICATORS
             assert spec.source_timeframe is not None
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_data_quality_validation(self, mock_db_pool, feature_registry, temp_output_dir):
         """Test data quality validation and cleaning processes."""
@@ -277,6 +281,7 @@ class TestEnhancedTrainingDataIntegration:
         for name, data in cleaned_features.items():
             assert np.all(np.isfinite(data)), f"Cleaned feature {name} contains invalid values"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_hdf5_dataset_persistence(self, mock_db_pool, temp_output_dir):
         """Test HDF5 dataset saving and loading functionality."""
@@ -329,6 +334,7 @@ class TestEnhancedTrainingDataIntegration:
             loaded_labels = f['labels'][:]
             np.testing.assert_array_equal(loaded_labels, labels)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_multi_symbol_processing(self, mock_db_pool, feature_registry, temp_output_dir):
         """Test processing multiple symbols simultaneously."""
@@ -415,6 +421,7 @@ class TestEnhancedTrainingDataIntegration:
             assert spec.source_timeframe is not None, f"Cross-timeframe feature {spec.name} should have source timeframe"
             assert spec.indicator_type is not None, f"Cross-timeframe feature {spec.name} should have indicator type"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_error_handling_and_recovery(self, mock_db_pool, feature_registry):
         """Test error handling and recovery mechanisms."""

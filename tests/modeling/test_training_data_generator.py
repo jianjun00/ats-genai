@@ -9,14 +9,14 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, AsyncMock
 import asyncpg
 
-from ml.training_data.generators.training_data_generator import (
+from domains.ml.services.training_data.generators.training_data_generator import (
     TrainingConfig,
     TrainingSample,
     ResidualReturnTrainingDataGenerator,
     generate_residual_return_training_data
 )
-from modeling.factor_models import ResidualReturnCalculator
-from modeling.event_features import EventSequenceExtractor, EventCalendar
+from domains.ml.services.factor_models import ResidualReturnCalculator
+from domains.ml.services.event_features import EventSequenceExtractor, EventCalendar
 from state.universe_state_manager import UniverseStateManager
 
 
@@ -168,6 +168,7 @@ class TestResidualReturnTrainingDataGenerator:
         assert isinstance(generator.event_extractor, EventSequenceExtractor)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_active_instruments(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test getting active instruments."""
         pool, conn = mock_connection_pool
@@ -186,6 +187,7 @@ class TestResidualReturnTrainingDataGenerator:
         assert instruments == [1, 2, 3]
         conn.fetch.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_generate_training_dataset_basic(self, mock_connection_pool, mock_env, mock_universe_state_manager, sample_residual_returns):
         """Test basic training dataset generation."""
@@ -226,6 +228,7 @@ class TestResidualReturnTrainingDataGenerator:
                 assert 'date' in dataset.columns
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_generate_batch_samples(self, mock_connection_pool, mock_env, mock_universe_state_manager, sample_residual_returns):
         """Test batch sample generation."""
         pool, conn = mock_connection_pool
@@ -257,6 +260,7 @@ class TestResidualReturnTrainingDataGenerator:
                 assert isinstance(samples[0], TrainingSample)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_generate_instrument_samples(self, mock_connection_pool, mock_env, mock_universe_state_manager, sample_residual_returns):
         """Test instrument sample generation."""
         pool, conn = mock_connection_pool
@@ -281,6 +285,7 @@ class TestResidualReturnTrainingDataGenerator:
             assert len(samples) > 0
             assert all(isinstance(s, TrainingSample) for s in samples)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_create_training_sample(self, mock_connection_pool, mock_env, mock_universe_state_manager, sample_residual_returns):
         """Test training sample creation."""
@@ -418,6 +423,7 @@ class TestResidualReturnTrainingDataGenerator:
             assert 'return_1d' in features  # Should add basic features
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_extract_event_features(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test event feature extraction."""
         generator = ResidualReturnTrainingDataGenerator(
@@ -426,7 +432,7 @@ class TestResidualReturnTrainingDataGenerator:
         
         # Mock event extractor
         with patch.object(generator.event_extractor, 'extract_event_features') as mock_extract:
-            from modeling.event_features import EventFeatures
+            from domains.ml.services.event_features import EventFeatures
             
             mock_extract.return_value = EventFeatures(
                 instrument_id=123,
@@ -449,6 +455,7 @@ class TestResidualReturnTrainingDataGenerator:
                 assert isinstance(features, dict)
                 assert 'event_proximity_score' in features
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_extract_sector_features(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test sector feature extraction."""
@@ -638,6 +645,7 @@ class TestResidualReturnTrainingDataGenerator:
                 assert not cleaned[col].isin([np.inf, -np.inf]).any()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_instrument_sector(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test instrument sector retrieval."""
         pool, conn = mock_connection_pool
@@ -653,6 +661,7 @@ class TestResidualReturnTrainingDataGenerator:
         assert sector == 'Technology'
         conn.fetchrow.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_instrument_sector_cached(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test instrument sector caching."""
@@ -672,6 +681,7 @@ class TestResidualReturnTrainingDataGenerator:
         conn.fetchrow.assert_not_called()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_sector_return(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test sector return calculation."""
         generator = ResidualReturnTrainingDataGenerator(
@@ -688,6 +698,7 @@ class TestResidualReturnTrainingDataGenerator:
 class TestConvenienceFunction:
     """Test convenience function."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_generate_residual_return_training_data(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test convenience function for training data generation."""
@@ -717,6 +728,7 @@ class TestErrorHandlingAndEdgeCases:
     """Test error handling and edge cases."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_generate_dataset_no_instruments(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test dataset generation with no instruments."""
         pool, conn = mock_connection_pool
@@ -735,6 +747,7 @@ class TestErrorHandlingAndEdgeCases:
         assert isinstance(dataset, pd.DataFrame)
         assert dataset.empty
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_generate_batch_samples_error(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test batch sample generation with errors."""
@@ -757,6 +770,7 @@ class TestErrorHandlingAndEdgeCases:
             assert len(samples) == 0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_create_training_sample_insufficient_data(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test training sample creation with insufficient data."""
         # Very little price data
@@ -777,6 +791,7 @@ class TestErrorHandlingAndEdgeCases:
         
         assert sample is None  # Should return None for insufficient data
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_extract_event_features_error(self, mock_connection_pool, mock_env, mock_universe_state_manager):
         """Test event feature extraction with errors."""
@@ -862,6 +877,7 @@ class TestIntegrationScenarios:
     """Test integration scenarios."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_full_training_data_generation_workflow(self, mock_connection_pool, mock_env, mock_universe_state_manager, sample_residual_returns):
         """Test complete training data generation workflow."""
         pool, conn = mock_connection_pool
@@ -894,7 +910,7 @@ class TestIntegrationScenarios:
             
             # Mock event features
             with patch.object(generator.event_extractor, 'extract_event_features') as mock_event:
-                from modeling.event_features import EventFeatures
+                from domains.ml.services.event_features import EventFeatures
                 mock_event.return_value = EventFeatures(
                     instrument_id=1, date=datetime(2024, 1, 15),
                     upcoming_events=[], historical_patterns={}, pre_event_sequences={},

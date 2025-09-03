@@ -16,14 +16,14 @@ import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, Any
 
-from portfolio.optimization import (
+from domains.trading.services.optimization import (
     OptimizationConstraints,
     OptimizationResult,
     PortfolioConstructor,
     LongShortOptimizer
 )
-from portfolio.signal_generation import TradingSignal, SignalDirection, SignalStrength
-from portfolio.factor_framework import FactorUniverse
+from domains.trading.services.signal_generation import TradingSignal, SignalDirection, SignalStrength
+from domains.trading.services.factor_framework import FactorUniverse
 
 
 class TestOptimizationConstraints:

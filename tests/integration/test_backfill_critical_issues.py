@@ -14,15 +14,15 @@ from unittest.mock import patch, MagicMock, AsyncMock
 import asyncpg
 from typing import List, Dict
 
-from market_data.agent.polygon_adapter import PolygonAdapter
-from market_data.agent.tiingo_adapter import TiingoAdapter
+from domains.market_data.services.agent.polygon_adapter import PolygonAdapter
+from domains.market_data.services.agent.tiingo_adapter import TiingoAdapter
 from core.utils.datetime_utils import (
     format_datetime_for_api, 
     parse_api_datetime, 
     to_utc,
     US_EASTERN
 )
-from config.database import Database
+from shared.utils.database import Database
 
 
 class TestPolygonDatetimeTimezoneIssue:
@@ -107,6 +107,7 @@ class TestTiingoRateLimitingIssues:
 class TestDatabaseSchemaIssues:
     """Test database schema inconsistency issues."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_missing_tables_detection(self):
         """Test detection of missing instrument tables."""

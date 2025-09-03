@@ -21,7 +21,7 @@ from src.ml.training_data.generators.training_data_generator import (
     generate_residual_return_training_data
 )
 from src.schema.training_schema import TrainingDatasetSchema, FeatureType, ValidationResult
-from src.dao.training_schema_dao import TrainingSchemaDAO
+from domains.ml.repositories.training_schema_dao import TrainingSchemaDAO
 
 
 @pytest.fixture
@@ -96,6 +96,7 @@ class TestSchemaAwareTrainingGeneration:
     """Test suite for schema-aware training data generation."""
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_basic_training_generation_with_schema(
         self, mock_connection_pool, mock_environment, mock_universe_state_manager, training_config
     ):
@@ -157,6 +158,7 @@ class TestSchemaAwareTrainingGeneration:
                 assert os.path.exists(os.path.join(temp_dir, 'validation.json'))
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_feature_type_inference(
         self, mock_connection_pool, mock_environment, mock_universe_state_manager
     ):
@@ -194,6 +196,7 @@ class TestSchemaAwareTrainingGeneration:
                 inferred_type = generator._infer_feature_type(column_name)
                 assert inferred_type == expected_type, f"Failed for {column_name}: expected {expected_type}, got {inferred_type}"
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_schema_validation(
         self, mock_connection_pool, mock_environment, mock_universe_state_manager
@@ -254,6 +257,7 @@ class TestSchemaAwareTrainingGeneration:
             assert any("infinite values" in error for error in validation_result.errors)
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_backwards_compatibility(
         self, mock_connection_pool, mock_environment, mock_universe_state_manager
     ):
@@ -292,6 +296,7 @@ class TestSchemaAwareTrainingGeneration:
             assert result.validation_result is None
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_convenience_function(
         self, mock_connection_pool, mock_environment, mock_universe_state_manager
     ):
@@ -322,6 +327,7 @@ class TestSchemaAwareTrainingGeneration:
             assert isinstance(result, TrainingDatasetResult)
             assert isinstance(result.schema, TrainingDatasetSchema)
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_multi_instrument_schema_generation(
         self, mock_connection_pool, mock_environment, mock_universe_state_manager
@@ -360,6 +366,7 @@ class TestSchemaAwareTrainingGeneration:
             assert result.schema.metadata.additional_symbols == ['MSFT', 'GOOGL']
             assert result.schema.dataset_name.startswith('residual_return_MULTI')
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_database_schema_registration(
         self, mock_connection_pool, mock_environment, mock_universe_state_manager
@@ -413,6 +420,7 @@ class TestSchemaValidationEdgeCases:
     """Test edge cases in schema validation and generation."""
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_empty_training_data(
         self, mock_connection_pool, mock_environment, mock_universe_state_manager
     ):
@@ -441,6 +449,7 @@ class TestSchemaValidationEdgeCases:
             assert result.labels_array.shape[0] == 0
             assert result.schema.metadata.total_samples == 0
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_data_quality_scoring(
         self, mock_connection_pool, mock_environment, mock_universe_state_manager
@@ -479,6 +488,7 @@ class TestSchemaValidationEdgeCases:
             assert quality_score < 0.8  # Should be lower quality
 
     @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     async def test_feature_description_generation(
         self, mock_connection_pool, mock_environment, mock_universe_state_manager
     ):
@@ -505,6 +515,7 @@ class TestSchemaValidationEdgeCases:
 class TestEndToEndSchemaWorkflow:
     """End-to-end integration tests for complete schema workflow."""
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_complete_schema_workflow(
         self, mock_connection_pool, mock_environment, mock_universe_state_manager

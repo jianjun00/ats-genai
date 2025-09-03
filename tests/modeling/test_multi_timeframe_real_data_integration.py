@@ -19,17 +19,17 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
 try:
-    from market_data.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
-    from modeling.multi_timeframe_data_collector import MultiTimeframeDataCollector
-    from modeling.multi_timeframe_signal_pipeline import (
+    from domains.market_data.services.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
+    from domains.ml.services.multi_timeframe_data_collector import MultiTimeframeDataCollector
+    from domains.ml.services.multi_timeframe_signal_pipeline import (
         MultiTimeframeSignalPipeline, 
         create_signal_pipeline, 
         Timeframe, 
         TimeframeConfig
     )
     from storage.file_based_minute_manager import FileBasedMinuteManager, MinuteBar
-    from config.environment import Environment, EnvironmentType
-    from modeling.enhanced_feature_types import EnhancedFeatureRegistry
+    from shared.utils.environment import Environment, EnvironmentType
+    from domains.ml.services.enhanced_feature_types import EnhancedFeatureRegistry
 except ImportError as e:
     print(f"Import error: {e}")
     pytest.skip(f"Required modules not available: {e}", allow_module_level=True)
@@ -43,12 +43,14 @@ class TestMultiTimeframeRealDataIntegration:
     """Comprehensive integration tests for the multi-timeframe real data system."""
     
     @pytest.fixture
+    @pytest.mark.asyncio
     async def test_environment(self):
         """Create test environment."""
         env = Environment(EnvironmentType.TEST)
         return env
     
     @pytest.fixture
+    @pytest.mark.asyncio
     async def test_minute_bars_path(self, tmp_path):
         """Create test path with some sample data."""
         test_path = tmp_path / "minute-bars"
@@ -137,6 +139,7 @@ class TestMultiTimeframeRealDataIntegration:
         )
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_minute_manager_basic_functionality(self, minute_manager):
         """Test basic functionality of FileBasedMinuteManager."""
         
@@ -159,6 +162,7 @@ class TestMultiTimeframeRealDataIntegration:
         
         logger.info(f"✅ Basic minute manager test passed: {len(df)} bars retrieved")
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_minute_market_data_manager_aggregation(self, minute_market_data_manager):
         """Test aggregation functionality in market data manager."""
@@ -198,6 +202,7 @@ class TestMultiTimeframeRealDataIntegration:
             logger.info(f"✅ {minutes}-minute aggregation test passed: {len(df)} bars")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_data_collector_real_data_usage(self, real_data_collector):
         """Test that data collector uses real data instead of synthetic."""
         
@@ -228,6 +233,7 @@ class TestMultiTimeframeRealDataIntegration:
         
         logger.info(f"✅ Real data collector test passed: {len(df)} 5-minute bars retrieved")
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_signal_pipeline_computation(self, signal_pipeline, minute_market_data_manager):
         """Test complete signal computation pipeline."""
@@ -281,6 +287,7 @@ class TestMultiTimeframeRealDataIntegration:
         logger.info(f"✅ Signal pipeline test passed: computed signals for {len(timeframes)} timeframes")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_specific_indicator_accuracy(self, signal_pipeline, minute_market_data_manager):
         """Test accuracy of specific indicators with known test data."""
         
@@ -321,6 +328,7 @@ class TestMultiTimeframeRealDataIntegration:
         logger.info(f"✅ Indicator accuracy test passed: {len(computed_indicators)} indicators computed")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_performance_benchmarks(self, signal_pipeline, minute_market_data_manager):
         """Test performance benchmarks for signal computation."""
         
@@ -357,6 +365,7 @@ class TestMultiTimeframeRealDataIntegration:
         
         logger.info(f"✅ Performance test passed: {data_periods} periods processed in {computation_time:.2f}s")
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_error_handling_and_edge_cases(self, signal_pipeline):
         """Test error handling and edge cases."""

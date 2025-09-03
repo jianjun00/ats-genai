@@ -1,6 +1,6 @@
 import pytest
-from signals.indicator_config import IndicatorConfig
-from signals.indicator import PL, OneOneHigh, OneOneLow, OneOneDot, EBot, ETop
+from domains.trading.services.indicator_config import IndicatorConfig
+from domains.trading.services.indicator import PL, OneOneHigh, OneOneLow, OneOneDot, EBot, ETop
 
 
 def test_indicator_config_init():

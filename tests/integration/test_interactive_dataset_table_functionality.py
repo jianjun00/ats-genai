@@ -37,6 +37,8 @@ class TestInteractiveDatasetTableAPI:
         yield manager
         await manager.close()
     
+    @pytest.mark.asyncio
+    
     async def test_enhanced_list_datasets_default_parameters(self, analytics_manager):
         """Test that enhanced list_datasets works with default parameters"""
         result = await analytics_manager.list_datasets()
@@ -56,6 +58,8 @@ class TestInteractiveDatasetTableAPI:
             for field in required_fields:
                 assert field in dataset, f"Dataset missing required field: {field}"
     
+    @pytest.mark.asyncio
+    
     async def test_enhanced_list_datasets_with_filtering(self, analytics_manager):
         """Test dataset filtering functionality"""
         # Test filtering by symbol
@@ -70,6 +74,8 @@ class TestInteractiveDatasetTableAPI:
             symbols = str(dataset["symbols"]).lower()
             # Filter should match either dataset name or symbols
             assert "tsla" in dataset_name or "tsla" in symbols
+    
+    @pytest.mark.asyncio
     
     async def test_enhanced_list_datasets_with_sorting(self, analytics_manager):
         """Test dataset sorting functionality"""
@@ -88,6 +94,8 @@ class TestInteractiveDatasetTableAPI:
             assert names_asc == sorted(names_asc), "Ascending sort failed"
             assert names_desc == sorted(names_desc, reverse=True), "Descending sort failed"
     
+    @pytest.mark.asyncio
+    
     async def test_enhanced_list_datasets_with_pagination(self, analytics_manager):
         """Test dataset pagination functionality"""
         # Test with limit
@@ -97,6 +105,8 @@ class TestInteractiveDatasetTableAPI:
         # Test with offset
         result_offset = await analytics_manager.list_datasets(limit=1, offset=1)
         assert isinstance(result_offset["datasets"], list)
+    
+    @pytest.mark.asyncio
     
     async def test_enhanced_list_datasets_parameter_validation(self, analytics_manager):
         """Test that invalid sort parameters are handled safely"""
@@ -117,6 +127,8 @@ class TestInteractiveDatasetTableHTTPAPI:
         """Base URL for testing - adjust based on deployment"""
         return "http://172.25.223.121:3000"
     
+    @pytest.mark.asyncio
+    
     async def test_enhanced_datasets_api_endpoint_basic(self, base_url):
         """Test basic enhanced datasets API endpoint"""
         async with httpx.AsyncClient() as client:
@@ -132,6 +144,8 @@ class TestInteractiveDatasetTableHTTPAPI:
                 
             except httpx.ConnectError:
                 pytest.skip("Cannot connect to analytics API for integration test")
+    
+    @pytest.mark.asyncio
     
     async def test_enhanced_datasets_api_with_query_parameters(self, base_url):
         """Test enhanced datasets API with filtering and sorting parameters"""
@@ -157,6 +171,8 @@ class TestInteractiveDatasetTableHTTPAPI:
                 
             except httpx.ConnectError:
                 pytest.skip("Cannot connect to analytics API for integration test")
+    
+    @pytest.mark.asyncio
     
     async def test_enhanced_datasets_api_parameter_combinations(self, base_url):
         """Test combinations of enhanced API parameters"""
@@ -190,6 +206,8 @@ class TestInteractiveDatasetTableFrontend:
         """Base URL for testing"""
         return "http://172.25.223.121:3000"
     
+    @pytest.mark.asyncio
+    
     async def test_web_interface_contains_interactive_dataset_table(self, base_url):
         """Test that web interface includes interactive dataset table elements"""
         async with httpx.AsyncClient() as client:
@@ -218,6 +236,8 @@ class TestInteractiveDatasetTableFrontend:
                 
             except httpx.ConnectError:
                 pytest.skip("Cannot connect to web interface for integration test")
+    
+    @pytest.mark.asyncio
     
     async def test_web_interface_javascript_functions_present(self, base_url):
         """Test that required JavaScript functions are present"""
@@ -254,6 +274,8 @@ class TestInteractiveDatasetTableRegressionProtection:
         """Base URL for testing"""
         return "http://172.25.223.121:3000"
     
+    @pytest.mark.asyncio
+    
     async def test_datasets_api_backwards_compatibility(self, base_url):
         """Ensure old dataset API still works (no parameters)"""
         async with httpx.AsyncClient() as client:
@@ -278,6 +300,8 @@ class TestInteractiveDatasetTableRegressionProtection:
             except httpx.ConnectError:
                 pytest.skip("Cannot connect to analytics API for integration test")
     
+    @pytest.mark.asyncio
+    
     async def test_dataset_table_vs_job_table_consistency(self, base_url):
         """Test that dataset table has similar functionality to job table"""
         async with httpx.AsyncClient() as client:
@@ -301,6 +325,8 @@ class TestInteractiveDatasetTableRegressionProtection:
                 
             except httpx.ConnectError:
                 pytest.skip("Cannot connect to web interface for integration test")
+    
+    @pytest.mark.asyncio
     
     async def test_critical_user_workflow_preserved(self, base_url):
         """Test the specific workflow the user requested"""
@@ -348,6 +374,8 @@ class TestDatasetTableDataIntegrity:
         conn = await asyncpg.connect(env.get_database_url())
         yield conn
         await conn.close()
+    
+    @pytest.mark.asyncio
     
     async def test_dataset_table_real_data_compatibility(self, db_connection):
         """Test that enhanced dataset functionality works with real data"""

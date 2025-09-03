@@ -29,8 +29,8 @@ class EnvironmentType(Enum):
     PRODUCTION = "prod"
 
 
-from signals.indicator_config import IndicatorConfig
-from config.logging_config import LoggingConfig
+from domains.trading.services.indicator_config import IndicatorConfig
+from shared.utils.logging_config import LoggingConfig
 
 import gin
 

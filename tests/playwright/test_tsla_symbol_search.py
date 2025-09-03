@@ -7,6 +7,8 @@ Demonstrates the fix for the symbol visibility issue.
 import asyncio
 from playwright.async_api import async_playwright
 
+@pytest.mark.asyncio
+
 async def test_tsla_symbol_search():
     """Test that TSLA can be found using search and filtered correctly."""
     print("🎯 Testing TSLA Symbol Search and Filtering")

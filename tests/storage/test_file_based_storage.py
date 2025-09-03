@@ -180,6 +180,7 @@ class TestTimeSeriesFileManager:
     """Test TimeSeriesFileManager functionality"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_file_path_generation(self, file_manager):
         """Test file path generation with sharding"""
         instrument_id = 12345
@@ -195,6 +196,7 @@ class TestTimeSeriesFileManager:
         assert file_path == expected_path
         assert file_path.parent.exists()  # Directory should be created
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_write_and_read_monthly_file(self, file_manager, sample_records):
         """Test writing and reading monthly files"""
@@ -233,6 +235,7 @@ class TestTimeSeriesFileManager:
             assert restored.volume == original.volume
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_read_with_time_filtering(self, file_manager, sample_records):
         """Test reading files with time range filtering"""
         instrument_id = 12345
@@ -258,6 +261,7 @@ class TestTimeSeriesFileManager:
             assert start_time <= record.timestamp <= end_time
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_file_metadata_reading(self, file_manager, sample_records):
         """Test reading file metadata"""
         instrument_id = 12345
@@ -279,6 +283,7 @@ class TestTimeSeriesFileManager:
         assert metadata.last_timestamp == sample_records[-1].timestamp
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_list_available_data(self, file_manager, sample_records):
         """Test listing available data for an instrument"""
         instrument_id = 12345
@@ -299,6 +304,7 @@ class TestTimeSeriesFileManager:
         expected_months = [(2024, 5), (2024, 6), (2024, 7)]
         assert set(available) == set(expected_months)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_storage_statistics(self, file_manager, sample_records):
         """Test storage statistics calculation"""
@@ -322,6 +328,7 @@ class TestTimeSeriesFileManager:
         assert 0 < stats['compression_ratio'] < 1  # Should have some compression
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_empty_records_handling(self, file_manager):
         """Test handling of empty record lists"""
         instrument_id = 12345
@@ -341,6 +348,7 @@ class TestTimeSeriesQueryEngine:
     """Test TimeSeriesQueryEngine functionality"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_query_single_instrument_single_month(self, query_engine, sample_records):
         """Test querying single instrument for single month"""
         instrument_id = 12345
@@ -357,6 +365,7 @@ class TestTimeSeriesQueryEngine:
         assert instrument_id in results
         assert len(results[instrument_id]) == len(sample_records)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_query_multiple_instruments(self, query_engine, sample_records):
         """Test querying multiple instruments"""
@@ -379,6 +388,7 @@ class TestTimeSeriesQueryEngine:
             assert instrument_id in results
             assert len(results[instrument_id]) > 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_query_across_multiple_months(self, query_engine, sample_records):
         """Test querying across multiple months"""
@@ -403,6 +413,7 @@ class TestTimeSeriesQueryEngine:
         assert instrument_id in results
         assert len(results[instrument_id]) == len(sample_records)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_daily_ohlc_aggregation(self, query_engine):
         """Test daily OHLC aggregation from minute data"""
@@ -480,6 +491,7 @@ class TestDualWriteTimeSeriesManager:
         return DualWriteTimeSeriesManager(dual_write_config)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_write_minute_data_files_only(self, dual_write_manager, sample_records):
         """Test writing minute data in files-only mode"""
         instrument_id = 12345
@@ -492,6 +504,7 @@ class TestDualWriteTimeSeriesManager:
         assert result.records_written == len(sample_records)
         assert result.write_time_seconds > 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_read_minute_data_files_only(self, dual_write_manager, sample_records):
         """Test reading minute data in files-only mode"""
@@ -509,6 +522,7 @@ class TestDualWriteTimeSeriesManager:
         assert instrument_id in read_data
         assert len(read_data[instrument_id]) == len(sample_records)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_metrics_collection(self, dual_write_manager, sample_records):
         """Test metrics collection during writes"""
@@ -531,6 +545,7 @@ class TestDualWriteTimeSeriesManager:
         assert metrics['files']['failures'] == 0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_empty_records_handling(self, dual_write_manager):
         """Test handling of empty record lists"""
         instrument_id = 12345
@@ -544,6 +559,7 @@ class TestDualWriteTimeSeriesManager:
 class TestPerformanceBenchmarks:
     """Performance benchmarks for the file-based system"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_write_performance_benchmark(self, file_manager):
         """Benchmark write performance"""
@@ -585,6 +601,7 @@ class TestPerformanceBenchmarks:
         assert records_per_second > 1000  # Should write at least 1k records/sec
         assert write_time < 30  # Should complete within 30 seconds
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_read_performance_benchmark(self, file_manager):
         """Benchmark read performance"""
@@ -628,6 +645,7 @@ class TestPerformanceBenchmarks:
         assert records_per_second > 5000  # Should read at least 5k records/sec
         assert read_time < 10  # Should complete within 10 seconds
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_compression_efficiency(self, file_manager):
         """Test compression efficiency"""
@@ -675,6 +693,7 @@ class TestPerformanceBenchmarks:
         assert compression_ratio > 0.2  # But not impossibly good compression
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_integration_scenario():
     """Integration test simulating real-world usage scenario"""

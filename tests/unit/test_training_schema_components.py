@@ -21,7 +21,7 @@ from src.schema.training_schema import (
     create_ohlcv_schema,
     create_multi_horizon_schema
 )
-from src.dao.training_schema_dao import TrainingSchemaDAO, create_schema_dao
+from domains.ml.repositories.training_schema_dao import TrainingSchemaDAO, create_schema_dao
 
 
 class TestFeatureSchema:
@@ -369,6 +369,7 @@ class TestTrainingSchemaDAO:
         )
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_dao_initialization(self, mock_environment):
         """Test DAO initialization with environment."""
         dao = TrainingSchemaDAO(mock_environment)
@@ -377,6 +378,7 @@ class TestTrainingSchemaDAO:
         assert dao.datasets_table == 'dev_training_datasets'
         assert dao.registry_table == 'dev_training_schema_registry'
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_dao_register_schema(self, mock_environment, mock_connection, sample_schema):
         """Test schema registration in database."""
@@ -409,6 +411,7 @@ class TestTrainingSchemaDAO:
         assert len(schema_hash) > 0
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_dao_get_schema_by_hash(self, mock_environment, mock_connection, sample_schema):
         """Test schema retrieval by hash."""
         schema_dict = sample_schema.to_dict()
@@ -430,6 +433,7 @@ class TestTrainingSchemaDAO:
         assert isinstance(retrieved_schema, TrainingDatasetSchema)
         assert retrieved_schema.dataset_name == sample_schema.dataset_name
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_dao_get_schema_by_name_latest(self, mock_environment, mock_connection, sample_schema):
         """Test schema retrieval by name (latest version)."""
@@ -453,6 +457,7 @@ class TestTrainingSchemaDAO:
         
         assert retrieved_schema.dataset_name == sample_schema.dataset_name
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_dao_list_schemas(self, mock_environment, mock_connection):
         """Test schema listing with filters."""
@@ -484,6 +489,7 @@ class TestTrainingSchemaDAO:
         assert schemas[0]['schema_name'] == 'schema1'
         assert schemas[0]['usage_count'] == 5
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_dao_find_compatible_schemas(self, mock_environment, mock_connection):
         """Test finding compatible schemas by parameters."""
@@ -523,6 +529,7 @@ class TestTrainingSchemaDAO:
 class TestSchemaUtilityFunctions:
     """Test utility functions and convenience methods."""
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_create_schema_dao_factory(self):
         """Test DAO factory function."""

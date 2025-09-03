@@ -25,13 +25,15 @@ os.environ['EVENT_REFLECTION_ROLLOUT'] = '100.0'
 
 sys.path.insert(0, 'src')
 
+@pytest.mark.asyncio
+
 async def test_phase_2_enabled():
     """Test Phase 2 with features enabled."""
     print("🤖 Testing Phase 2 with Features Enabled")
     print("-" * 40)
     
     try:
-        from config.feature_flags import feature_manager, is_enabled
+        from shared.utils.feature_flags import feature_manager, is_enabled
         
         # Check if features are properly enabled
         agent_enabled = is_enabled("enable_agent_networks")
@@ -66,13 +68,15 @@ async def test_phase_2_enabled():
         import traceback
         traceback.print_exc()
 
+@pytest.mark.asyncio
+
 async def test_phase_3_enabled():
     """Test Phase 3 with features enabled."""
     print("\n🧠 Testing Phase 3 with Features Enabled")  
     print("-" * 40)
     
     try:
-        from config.feature_flags import is_enabled
+        from shared.utils.feature_flags import is_enabled
         
         # Check if features are properly enabled
         llm_enabled = is_enabled("enable_llm_events")
@@ -145,7 +149,7 @@ def test_feature_flag_system():
     print("-" * 40)
     
     try:
-        from config.feature_flags import feature_manager, is_enabled
+        from shared.utils.feature_flags import feature_manager, is_enabled
         
         # Test all major features
         features_to_test = [

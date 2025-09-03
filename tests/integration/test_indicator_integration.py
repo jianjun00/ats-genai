@@ -25,7 +25,7 @@ from typing import List, Optional, Dict, Any
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 try:
-    from signals.indicator import (
+    from domains.trading.services.indicator import (
         PL, L11, H11, Z1B, Z2B, EBot, ETop, Z5T, Z6T, 
         FiveNineSell, FiveNineBuy, InstrumentInterval
     )

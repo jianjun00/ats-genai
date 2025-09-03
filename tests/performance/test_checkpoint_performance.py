@@ -303,6 +303,8 @@ class HighVolumeJob:
         self.processed_count += 1
         return prices, None
 
+@pytest.mark.asyncio
+
 async def test_high_volume_processing():
     """Test processing large numbers of items"""
     logger.info("🚀 Starting high volume processing test...")
@@ -433,6 +435,8 @@ async def test_high_volume_processing():
         logger.error(f"❌ High volume processing test FAILED: {e}")
         raise
 
+@pytest.mark.asyncio
+
 async def test_concurrent_job_performance():
     """Test performance with multiple concurrent jobs"""
     logger.info("🚀 Starting concurrent job performance test...")
@@ -541,6 +545,8 @@ async def test_concurrent_job_performance():
     except Exception as e:
         logger.error(f"❌ Concurrent job performance test FAILED: {e}")
         raise
+
+@pytest.mark.asyncio
 
 async def test_memory_usage_patterns():
     """Test memory usage patterns and garbage collection"""
@@ -673,6 +679,8 @@ async def test_memory_usage_patterns():
     except Exception as e:
         logger.error(f"❌ Memory usage pattern test FAILED: {e}")
         raise
+
+@pytest.mark.asyncio
 
 async def test_database_performance_scaling():
     """Test database performance under increasing load"""

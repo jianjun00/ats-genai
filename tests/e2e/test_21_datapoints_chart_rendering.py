@@ -12,6 +12,8 @@ import time
 
 class Test21DataPointsChartRendering:
     
+    @pytest.mark.asyncio
+    
     async def test_21_datapoints_in_ohlc_chart(self):
         """Test that all 21 data points from API are rendered in the OHLC chart"""
         

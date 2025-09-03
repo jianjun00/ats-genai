@@ -34,7 +34,7 @@ from typing import List, Optional, Dict, Any, Tuple
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 try:
-    from signals.indicator import (
+    from domains.trading.services.indicator import (
         # HLC Linear Regression Indicators (9)
         PL, L11, H11, Z1B, Z2B, EnvelopeBot, EnvelopeTop, Z5T, Z6T,
         # Five Nine Arithmetic Indicators (2) 

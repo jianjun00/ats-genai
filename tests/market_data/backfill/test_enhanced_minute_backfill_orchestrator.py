@@ -15,7 +15,7 @@ import tempfile
 from pathlib import Path
 from typing import List, Dict, Any
 
-from src.market_data.backfill.enhanced_minute_backfill_orchestrator import (
+from domains.market_data.services.backfill.enhanced_minute_backfill_orchestrator import (
     EnhancedMinuteBackfillOrchestrator,
     EnhancedBackfillConfig,
     JobSegment,
@@ -23,7 +23,7 @@ from src.market_data.backfill.enhanced_minute_backfill_orchestrator import (
     BackfillProgress,
     run_enhanced_minute_backfill
 )
-from src.market_data.reconciliation.cross_vendor_reconciler import ReconciliationMethod
+from domains.market_data.services.reconciliation.cross_vendor_reconciler import ReconciliationMethod
 
 
 class TestJobSegment:
@@ -172,6 +172,7 @@ class TestEnhancedMinuteBackfillOrchestrator:
     """Test the main orchestrator functionality."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_orchestrator_initialization(self, mock_db_pool, sample_config):
         """Test orchestrator initialization."""
         orchestrator = EnhancedMinuteBackfillOrchestrator(
@@ -183,6 +184,7 @@ class TestEnhancedMinuteBackfillOrchestrator:
         assert orchestrator.progress.job_id
         assert orchestrator.job_segments == {}
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_segment_generation(self, mock_db_pool, sample_config):
         """Test job segment generation."""
@@ -208,6 +210,7 @@ class TestEnhancedMinuteBackfillOrchestrator:
         assert symbols_found == {"AAPL", "MSFT"}
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_date_chunk_creation(self, mock_db_pool, sample_config):
         """Test date chunk creation for symbols."""
         orchestrator = EnhancedMinuteBackfillOrchestrator(
@@ -228,6 +231,7 @@ class TestEnhancedMinuteBackfillOrchestrator:
         for actual, expected in zip(chunks, expected_chunks):
             assert actual == expected
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_checkpoint_save_and_load(self, mock_db_pool, sample_config, temp_checkpoint_file):
         """Test checkpoint save and load functionality."""
@@ -281,6 +285,7 @@ class TestEnhancedMinuteBackfillOrchestrator:
         assert len(completed_segments) == 1
         assert completed_segments[0].bars_reconciled == 500
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_checkpoint_resume_in_progress_segments(self, mock_db_pool, sample_config, temp_checkpoint_file):
         """Test that in-progress segments are reset to pending on resume."""
@@ -348,6 +353,7 @@ class TestEnhancedMinuteBackfillOrchestrator:
         assert len(pending_segments) == 2
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_single_segment_processing_success(self, mock_db_pool, sample_config):
         """Test successful processing of a single segment."""
         
@@ -412,6 +418,7 @@ class TestEnhancedMinuteBackfillOrchestrator:
             assert orchestrator.progress.total_bars_stored == 98
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_single_segment_processing_failure(self, mock_db_pool, sample_config):
         """Test handling of segment processing failure."""
         
@@ -455,6 +462,7 @@ class TestEnhancedMinuteBackfillOrchestrator:
             assert segment.error_message
             assert len(orchestrator.progress.recent_errors) > 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_single_segment_permanent_failure(self, mock_db_pool, sample_config):
         """Test permanent failure after max retries."""
@@ -501,6 +509,7 @@ class TestEnhancedMinuteBackfillOrchestrator:
             assert orchestrator.progress.segments_failed == 1
             assert segment.segment_id in orchestrator.progress.failed_segments
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_parallel_processing_semaphore_limits(self, mock_db_pool, sample_config):
         """Test that parallel processing respects semaphore limits."""
@@ -580,6 +589,7 @@ class TestConvenienceFunction:
     """Test the convenience function for running enhanced backfill."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_run_enhanced_minute_backfill_basic(self):
         """Test basic usage of convenience function."""
         
@@ -624,6 +634,7 @@ class TestConvenienceFunction:
 class TestIntegrationScenarios:
     """Integration tests for real-world scenarios."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_checkpoint_recovery_after_partial_completion(self, mock_db_pool, sample_config, temp_checkpoint_file):
         """Test resuming from checkpoint after partial completion."""
@@ -701,6 +712,7 @@ class TestIntegrationScenarios:
             assert len(pending_segments) == total_segments - 2
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_failure_threshold_enforcement(self, mock_db_pool, sample_config):
         """Test that high failure rates trigger job failure."""
         
@@ -736,6 +748,7 @@ class TestIntegrationScenarios:
                 async with orchestrator:
                     await orchestrator.run_backfill()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_progress_tracking_and_eta_calculation(self, mock_db_pool, sample_config):
         """Test progress tracking and ETA calculation during processing."""

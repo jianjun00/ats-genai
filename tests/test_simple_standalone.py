@@ -72,7 +72,7 @@ def test_polygon_adapter_gin_standalone():
     gin.clear_config()
     
     # Test that our PolygonAdapterConfig class can be imported and instantiated
-    from market_data.agent.polygon_adapter import PolygonAdapterConfig
+    from domains.market_data.services.agent.polygon_adapter import PolygonAdapterConfig
     
     # Test default values
     config = PolygonAdapterConfig()

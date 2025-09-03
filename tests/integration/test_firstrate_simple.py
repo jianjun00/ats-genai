@@ -10,7 +10,9 @@ from pathlib import Path
 # Add src to Python path
 sys.path.insert(0, '/home/jianjun/ats-genai-data/src')
 
-from market_data.agent.firstrate_adapter import FirstRateAdapter
+from domains.market_data.services.agent.firstrate_adapter import FirstRateAdapter
+
+@pytest.mark.asyncio
 
 async def test_firstrate():
     """Test FirstRate adapter functionality"""

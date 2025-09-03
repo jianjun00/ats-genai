@@ -8,6 +8,8 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("test_db_connection")
 
+@pytest.mark.asyncio
+
 async def test_centralized_connection():
     """Test database connection using the centralized Database class."""
     logger.info("Testing database connection using centralized Database class...")
@@ -23,8 +25,8 @@ async def test_centralized_connection():
     os.environ["DB_NAME"] = "trading_db"
     
     # Import after setting environment variables to ensure they're picked up
-    from config.database import Database
-    from config.environment import Environment, EnvironmentType
+    from shared.utils.database import Database
+    from shared.utils.environment import Environment, EnvironmentType
     
     # Test only the test environment
     environments = ["test"]

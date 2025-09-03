@@ -7,7 +7,7 @@ import sys
 import os
 sys.path.append('src')
 
-from signals.indicator import PL, L11, Z1B, Z2B, EBot, ETop, Z5T, Z6T
+from domains.trading.services.indicator import PL, L11, Z1B, Z2B, EBot, ETop, Z5T, Z6T
 from state.instrument_interval import InstrumentInterval
 from datetime import datetime, date
 import math

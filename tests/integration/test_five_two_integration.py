@@ -29,7 +29,7 @@ from typing import List, Optional, Dict, Any, Tuple
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 try:
-    from signals.indicator import (
+    from domains.trading.services.indicator import (
         FiveTwoBuy, FiveTwoSell, FiveOneBuy, FiveOneSell,
         FiveNineBuy, FiveNineSell, H11, L11, EnvelopeBot, EnvelopeTop
     )

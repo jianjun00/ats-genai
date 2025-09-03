@@ -527,6 +527,7 @@ class TestValueETFResearch:
     """Test suite for value ETF research"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_value_etf_coverage(self):
         """Test value ETF coverage across vendors"""
         

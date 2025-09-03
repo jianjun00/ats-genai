@@ -20,14 +20,14 @@ import json
 import tempfile
 from pathlib import Path
 
-from portfolio.recommendation_engine import (
+from domains.trading.services.recommendation_engine import (
     RecommendationOutput,
     TradingUniverse,
     DataManager,
     HourlyRecommendationEngine
 )
-from portfolio.optimization import OptimizationConstraints
-from portfolio.performance_metrics import PerformanceMetrics
+from domains.trading.services.optimization import OptimizationConstraints
+from domains.trading.services.performance_metrics import PerformanceMetrics
 
 
 class TestRecommendationOutput:
@@ -328,7 +328,7 @@ class TestHourlyRecommendationEngine:
     def test_risk_warning_generation(self):
         """Test risk warning generation."""
         # Create a scenario that should generate warnings
-        from portfolio.optimization import OptimizationResult
+        from domains.trading.services.optimization import OptimizationResult
         
         # Mock optimization result with high exposures
         mock_result = OptimizationResult(
@@ -350,7 +350,7 @@ class TestHourlyRecommendationEngine:
     
     def test_execution_notes_generation(self):
         """Test execution notes generation."""
-        from portfolio.optimization import OptimizationResult
+        from domains.trading.services.optimization import OptimizationResult
         
         # Mock optimization result
         mock_result = OptimizationResult(

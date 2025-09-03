@@ -153,6 +153,7 @@ class TestDistributedColumnAnalysis:
     """Test distributed column analysis across massive datasets"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_numeric_column_analysis_performance(self):
         """Test numeric column analysis performance on 3.6GB dataset"""
         from services.ray_eda_engine import get_ray_eda_service
@@ -178,6 +179,7 @@ class TestDistributedColumnAnalysis:
             break
     
     @pytest.mark.asyncio  
+    @pytest.mark.asyncio
     async def test_categorical_column_analysis(self):
         """Test categorical column analysis with top values"""
         from services.ray_eda_engine import get_ray_eda_service
@@ -202,6 +204,7 @@ class TestDistributedColumnAnalysis:
                         assert 1 <= len(symbol) <= 5, f"Invalid symbol length: {symbol}"
             break
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_parallel_multi_column_analysis(self):
         """Test parallel analysis of multiple columns"""
@@ -289,6 +292,7 @@ class TestErrorHandlingAndRobustness:
     """Test error handling and system robustness"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_database_connection_failure_handling(self):
         """Test graceful handling of database connection failures"""
         from services.ray_eda_engine import get_ray_eda_service
@@ -328,6 +332,7 @@ class TestErrorHandlingAndRobustness:
                     assert "Ray unavailable" in str(e)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_timeout_handling_for_massive_queries(self):
         """Test timeout handling for queries on massive datasets"""
         from services.ray_eda_engine import get_ray_eda_service
@@ -350,6 +355,7 @@ class TestErrorHandlingAndRobustness:
 class TestPerformanceBenchmarks:
     """Performance benchmarks and regression tests"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_ray_vs_traditional_performance_comparison(self):
         """Compare Ray vs traditional analysis performance"""
@@ -393,6 +399,7 @@ class TestDataAccuracyAndConsistency:
     """Test data accuracy and consistency across distributed analysis"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_sample_size_accuracy(self):
         """Test that sample sizes are reasonable for statistical accuracy"""
         from services.ray_eda_engine import get_ray_eda_service
@@ -412,6 +419,7 @@ class TestDataAccuracyAndConsistency:
             
             break
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_distributed_aggregation_consistency(self):
         """Test that distributed results are internally consistent"""

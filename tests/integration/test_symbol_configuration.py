@@ -11,7 +11,7 @@ from datetime import date, timedelta
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-from ml.training_data.runners.training_data_callback_runner import create_sample_job_config, run_training_data_job_for_symbol
+from domains.ml.services.training_data.runners.training_data_callback_runner import create_sample_job_config, run_training_data_job_for_symbol
 
 def test_job_config_symbol_configuration():
     """Test that job configuration correctly uses different symbols."""
@@ -56,6 +56,8 @@ def test_dataset_name_generation():
     assert 'TSLA' in expected_tsla_prefix
     
     print("✅ Dataset name generation tests passed!")
+
+@pytest.mark.asyncio
 
 async def test_training_data_generation_different_symbols():
     """Test actual training data generation with different symbols."""

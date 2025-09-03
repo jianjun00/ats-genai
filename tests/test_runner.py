@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 def test_collector_initialization():
     """Test collector initialization without database"""
     try:
-        from src.market_data.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
+        from domains.market_data.services.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
         
         collector = AAPLTSLASyntheticCollector()
         
@@ -43,7 +43,7 @@ def test_collector_initialization():
 def test_data_generation():
     """Test synthetic data generation"""
     try:
-        from src.market_data.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
+        from domains.market_data.services.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
         
         collector = AAPLTSLASyntheticCollector()
         timestamp = datetime.now()
@@ -87,7 +87,7 @@ def test_data_generation():
 def test_price_relationships():
     """Test OHLC price relationships"""
     try:
-        from src.market_data.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
+        from domains.market_data.services.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
         
         collector = AAPLTSLASyntheticCollector()
         timestamp = datetime.now()
@@ -118,7 +118,7 @@ def test_price_relationships():
 def test_data_quality_metrics():
     """Test data quality scoring"""
     try:
-        from src.market_data.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
+        from domains.market_data.services.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
         
         collector = AAPLTSLASyntheticCollector()
         timestamp = datetime.now()

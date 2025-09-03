@@ -6,6 +6,8 @@ Test the search functionality with symbols that should be in the first 50.
 import asyncio
 from playwright.async_api import async_playwright
 
+@pytest.mark.asyncio
+
 async def test_search_functionality():
     """Test search functionality with known available symbols."""
     print("🔍 Testing Symbol Search Functionality")

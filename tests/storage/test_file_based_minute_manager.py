@@ -96,6 +96,7 @@ class TestFileBasedMinuteManager:
 
     # Test Case 1: Missing Monthly Files Scenario
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_missing_monthly_files_query(self, temp_manager):
         """Test querying data when monthly files don't exist"""
         # Query data for a symbol/date that doesn't exist
@@ -109,6 +110,7 @@ class TestFileBasedMinuteManager:
         assert result.empty
         assert isinstance(result, pd.DataFrame)
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_missing_files_partial_data(self, temp_manager, sample_bars):
         """Test querying across months where some files exist and some don't"""
@@ -128,6 +130,7 @@ class TestFileBasedMinuteManager:
         assert all(result['timestamp'].dt.month == 1)
 
     # Test Case 2: Overlapping Intervals Between Files and New Data
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_overlap_merge_strategy(self, temp_manager, sample_bars, overlapping_bars):
         """Test overlap handling with merge strategy"""
@@ -154,6 +157,7 @@ class TestFileBasedMinuteManager:
         assert len(all_data) == len(all_data['timestamp'].unique())
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_overlap_replace_strategy(self, temp_manager, sample_bars, overlapping_bars):
         """Test overlap handling with replace strategy"""
         # Store initial data
@@ -175,6 +179,7 @@ class TestFileBasedMinuteManager:
         overlap_vendors = overlap_data['vendor'].unique()
         assert 'test2' in overlap_vendors
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_overlap_skip_strategy(self, temp_manager, sample_bars, overlapping_bars):
         """Test overlap handling with skip strategy"""
@@ -215,6 +220,7 @@ class TestFileBasedMinuteManager:
 
     # Test Case 3: File Corruption and Recovery
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_corrupted_file_handling(self, temp_manager, sample_bars):
         """Test handling of corrupted Parquet files"""
         # Store initial data
@@ -236,6 +242,7 @@ class TestFileBasedMinuteManager:
         assert result.empty
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_missing_metadata_file(self, temp_manager, sample_bars):
         """Test handling when metadata file is missing"""
         # Store data (creates metadata)
@@ -256,6 +263,7 @@ class TestFileBasedMinuteManager:
         assert not result.empty
 
     # Test Case 4: Cross-Month Data Handling
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_cross_month_data_storage(self, temp_manager):
         """Test storing data that spans multiple months"""
@@ -309,6 +317,7 @@ class TestFileBasedMinuteManager:
 
     # Test Case 5: Large Dataset Handling
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_large_dataset_performance(self, temp_manager):
         """Test performance with large datasets"""
         # Create large dataset (1 month of minute data)
@@ -352,6 +361,7 @@ class TestFileBasedMinuteManager:
         assert query_time < 10  # Should complete within 10 seconds
 
     # Test Case 6: Multiple Vendors Data
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_multiple_vendors_same_symbol(self, temp_manager):
         """Test storing data from multiple vendors for same symbol/time"""
@@ -398,6 +408,7 @@ class TestFileBasedMinuteManager:
 
     # Test Case 7: Concurrent Operations
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_concurrent_storage_operations(self, temp_manager):
         """Test concurrent storage operations on different symbols"""
         
@@ -437,6 +448,7 @@ class TestFileBasedMinuteManager:
 
     # Test Case 8: Backup and Recovery
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_backup_creation_and_recovery(self, temp_manager, sample_bars):
         """Test backup creation during file updates"""
         # Store initial data
@@ -465,6 +477,7 @@ class TestFileBasedMinuteManager:
 
     # Test Case 9: Data Integrity Verification
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_data_integrity_verification(self, temp_manager, sample_bars):
         """Test comprehensive data integrity checks"""
         # Store data
@@ -480,6 +493,7 @@ class TestFileBasedMinuteManager:
         assert integrity_result['checksum_mismatches'] == 0
 
     # Test Case 10: Edge Cases in Data Structure
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_edge_case_data_values(self, temp_manager):
         """Test edge cases with unusual data values"""
@@ -518,6 +532,7 @@ class TestFileBasedMinuteManager:
 
     # Test Case 11: Storage Statistics Accuracy
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_storage_statistics_accuracy(self, temp_manager):
         """Test accuracy of storage statistics reporting"""
         # Create data for multiple symbols and months
@@ -550,6 +565,7 @@ class TestFileBasedMinuteManager:
         assert stats['total_size_bytes'] > 0
 
     # Test Case 12: Query Edge Cases
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_query_edge_cases(self, temp_manager, sample_bars):
         """Test edge cases in data querying"""

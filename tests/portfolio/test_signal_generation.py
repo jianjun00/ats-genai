@@ -16,7 +16,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, Any
 
-from portfolio.signal_generation import (
+from domains.trading.services.signal_generation import (
     SignalDirection,
     SignalStrength,
     TradingSignal,

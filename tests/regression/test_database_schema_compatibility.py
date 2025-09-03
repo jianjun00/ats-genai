@@ -79,6 +79,7 @@ class TestDatabaseSchemaCompatibility:
         }
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_tiingo_daily_prices_table_schema(self, db_connection, expected_table_schemas):
         """Test that Tiingo daily prices table has correct schema"""
         table_name = 'dev_daily_prices_tiingo'
@@ -105,6 +106,7 @@ class TestDatabaseSchemaCompatibility:
         assert 'adj_close' not in actual_columns, "Table should NOT have 'adj_close' column"
     
     @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     async def test_polygon_daily_prices_table_schema(self, db_connection, expected_table_schemas):
         """Test that Polygon daily prices table has correct schema"""
         table_name = 'dev_daily_prices_polygon'
@@ -129,6 +131,7 @@ class TestDatabaseSchemaCompatibility:
         # Polygon table should have market_cap column
         assert 'market_cap' in actual_columns, "Polygon table should have market_cap column"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_instruments_table_schema(self, db_connection, expected_table_schemas):
         """Test that main instruments table has correct schema"""
@@ -159,6 +162,7 @@ class TestDatabaseSchemaCompatibility:
         assert len(missing_columns) == 0, f"Missing columns in {table_name}: {missing_columns}"
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_primary_key_constraints(self, db_connection):
         """Test that tables have proper primary key constraints"""
         tables_with_pks = [
@@ -187,6 +191,7 @@ class TestDatabaseSchemaCompatibility:
                 assert set(actual_pk_columns) == set(expected_pk), \
                     f"Table {table_name} should have PK on {expected_pk}, got {actual_pk_columns}"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_foreign_key_constraints(self, db_connection):
         """Test that tables have proper foreign key relationships"""
@@ -263,6 +268,7 @@ class TestDatabaseSchemaCompatibility:
                             assert col in content, f"Polygon script should reference column '{col}'"
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_schema_consistency_across_environments(self, db_connection):
         """Test that schema is consistent and doesn't vary by environment"""
         # Get current environment tables
@@ -287,6 +293,7 @@ class TestDatabaseSchemaCompatibility:
         missing_tables = set(required_tables) - set(table_names)
         assert len(missing_tables) == 0, f"Missing required tables: {missing_tables}"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_data_type_compatibility(self, db_connection):
         """Test that column data types are compatible with our usage"""
@@ -338,6 +345,7 @@ class TestDatabaseSchemaCompatibility:
                         assert 'IF NOT EXISTS' in content, \
                             f"{script_path} should use IF NOT EXISTS for table creation"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_insert_statement_column_order(self, db_connection):
         """Test that INSERT statements match actual table column order"""
@@ -401,6 +409,7 @@ class TestDatabaseSchemaCompatibility:
 class TestSchemaCompatibilityIntegration:
     """Integration tests for schema compatibility across the full system"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_end_to_end_data_flow(self):
         """Test complete data flow from API to database respects schema"""

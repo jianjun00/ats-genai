@@ -11,8 +11,10 @@ from pathlib import Path
 # Add src to Python path
 sys.path.insert(0, '/home/jianjun/ats-genai-data/src')
 
-from market_data.agent.firstrate_adapter import FirstRateAdapter
+from domains.market_data.services.agent.firstrate_adapter import FirstRateAdapter
 from storage.file_based_minute_manager import FileBasedMinuteManager
+
+@pytest.mark.asyncio
 
 async def test_simple_processing():
     """Simple processing test"""

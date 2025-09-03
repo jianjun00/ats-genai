@@ -23,7 +23,7 @@ import time
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-from src.market_data.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
+from domains.market_data.services.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +99,7 @@ class TestDatabaseIntegration:
     """Integration tests for database operations"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_database_schema_validation(self, integration_db_pool):
         """Test database schema matches collector expectations"""
         async with integration_db_pool.acquire() as conn:
@@ -131,6 +132,7 @@ class TestDatabaseIntegration:
             polygon_existing = {row['column_name'] for row in polygon_columns}
             assert polygon_required.issubset(polygon_existing)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_data_persistence_and_retrieval(self, integration_db_pool):
         """Test complete data persistence and retrieval workflow"""
@@ -170,6 +172,7 @@ class TestDatabaseIntegration:
                 assert row['vendor'] == 'tiingo'
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_duplicate_handling(self, integration_db_pool):
         """Test UPSERT behavior with duplicate timestamps"""
         collector = AAPLTSLASyntheticCollector()
@@ -206,6 +209,7 @@ class TestDatabaseIntegration:
             assert float(price) == bar2['close_price']
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_concurrent_writes(self, integration_db_pool):
         """Test concurrent writes to database"""
         collectors = [AAPLTSLASyntheticCollector() for _ in range(5)]
@@ -235,6 +239,7 @@ class TestDatabaseIntegration:
 class TestDataQualityIntegration:
     """Integration tests for data quality validation"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_cross_vendor_consistency(self, integration_db_pool):
         """Test data consistency between Tiingo and Polygon"""
@@ -266,6 +271,7 @@ class TestDataQualityIntegration:
                 assert row['price_diff'] < 0.05, f"Price difference too large for {row['symbol']}"
     
     @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     async def test_data_completeness(self, integration_db_pool):
         """Test data completeness across collection cycles"""
         collector = AAPLTSLASyntheticCollector()
@@ -296,6 +302,7 @@ class TestDataQualityIntegration:
             assert tiingo_symbols == expected_symbols
             assert polygon_symbols == expected_symbols
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_quality_score_distribution(self, integration_db_pool):
         """Test quality score distribution"""
@@ -333,6 +340,7 @@ class TestPerformanceIntegration:
     """Performance integration tests"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_bulk_data_insertion_performance(self, integration_db_pool):
         """Test performance of bulk data insertion"""
         collector = AAPLTSLASyntheticCollector()
@@ -358,6 +366,7 @@ class TestPerformanceIntegration:
         assert total_records > 0  # Should actually insert data
         assert total_records / elapsed > 1.0  # At least 1 record per second
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_query_performance(self, integration_db_pool):
         """Test query performance on collected data"""
@@ -422,6 +431,7 @@ class TestSystemResilience:
     """Test system resilience and error recovery"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_database_reconnection(self, integration_db_pool):
         """Test handling of database connection issues"""
         collector = AAPLTSLASyntheticCollector()
@@ -446,6 +456,7 @@ class TestSystemResilience:
         result3 = await collector.generate_and_store_data()
         assert result3 > 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_data_validation_under_stress(self, integration_db_pool):
         """Test data validation under concurrent load"""
@@ -497,6 +508,7 @@ class TestMonitoringAndMetrics:
     """Test monitoring and metrics collection"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_collection_metrics_generation(self, integration_db_pool):
         """Test generation of collection metrics"""
         collector = AAPLTSLASyntheticCollector()
@@ -546,6 +558,7 @@ class TestMonitoringAndMetrics:
             collection_duration = metrics['last_received'] - metrics['first_received']
             assert collection_duration.total_seconds() > 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_data_freshness_monitoring(self, integration_db_pool):
         """Test data freshness monitoring"""

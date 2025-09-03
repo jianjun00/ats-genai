@@ -32,6 +32,7 @@ class TestPolygonApiStatusHandling:
     """Test suite for Polygon API status handling fixes"""
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_api_accepts_ok_status(self):
         """Test that API correctly accepts standard OK status"""
         
@@ -60,6 +61,7 @@ class TestPolygonApiStatusHandling:
         results = mock_response_data.get('results', [])
         assert len(results) > 0, "Should process results when status is OK"
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_api_accepts_delayed_status(self):
         """Test that API correctly accepts DELAYED status (the fix)"""
@@ -90,6 +92,7 @@ class TestPolygonApiStatusHandling:
         assert len(results) > 0, "Should process DELAYED status results (critical fix)"
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_api_rejects_error_status(self):
         """Test that API correctly rejects actual error statuses"""
         
@@ -104,6 +107,7 @@ class TestPolygonApiStatusHandling:
         assert api_status not in ['OK', 'DELAYED'], "Error statuses should still be rejected"
 
     @pytest.mark.asyncio  
+    @pytest.mark.asyncio
     async def test_polygon_data_transformation(self):
         """Test that Polygon API data transforms correctly to our schema"""
         
@@ -150,6 +154,7 @@ class TestPolygonApiStatusHandling:
         assert record['data_source'] == 'polygon'
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_status_handling_before_fix(self):
         """Test that demonstrates the original bug (for regression testing)"""
         
@@ -169,6 +174,7 @@ class TestPolygonApiStatusHandling:
         ok_response = {"status": "OK", "results": [{"t": 1640995200000}]}
         assert old_status_check(ok_response), "Old logic correctly accepted OK status"
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_status_handling_after_fix(self):
         """Test that demonstrates the NEW logic (the fix)"""
@@ -193,6 +199,7 @@ class TestPolygonApiStatusHandling:
         error_response = {"status": "ERROR", "error": "Bad request"}
         assert not new_status_check(error_response), "New logic still rejects error statuses"
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_real_polygon_api_delayed_status(self, polygon_api_key, test_symbols):
         """Integration test with real Polygon API to verify DELAYED status handling"""
@@ -234,6 +241,7 @@ class TestPolygonApiStatusHandling:
                 # Rate limiting
                 await asyncio.sleep(2)
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_checkpoint_recovery_after_fix(self):
         """Test that checkpoint system works correctly after the API status fix"""
@@ -289,6 +297,7 @@ class TestPolygonDataValidation:
     """Test suite for Polygon data validation and edge cases"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_missing_fields_handling(self):
         """Test handling of missing or null fields in Polygon responses"""
         
@@ -325,6 +334,7 @@ class TestPolygonDataValidation:
         assert record['vwap'] is None  # Correctly handles missing optional field
         assert record['transactions'] is None  # Correctly handles missing optional field
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_large_volume_handling(self):
         """Test handling of large volume numbers from Polygon"""

@@ -1,11 +1,12 @@
 import pytest
 import asyncio
 from datetime import date
-from secmaster.range_dividend_tiingo import parse_date, map_tiingo_dividend, insert_dividends_tiingo
+from domains.instruments.services.range_dividend_tiingo import parse_date, map_tiingo_dividend, insert_dividends_tiingo
 
 import types
-from secmaster.range_dividend_tiingo import get_symbols_from_dividend_polygon
+from domains.instruments.services.range_dividend_tiingo import get_symbols_from_dividend_polygon
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_get_symbols_from_dividend_polygon_parses_dates(tmp_path):
     # Setup: create a test DB and table
@@ -51,6 +52,7 @@ async def test_get_symbols_from_dividend_polygon_parses_dates(tmp_path):
         mod.asyncpg.create_pool = orig_create_pool
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_parse_date_handles_none_and_date():
     assert parse_date(None) is None
     d = date(2022, 1, 1)
@@ -78,6 +80,7 @@ def test_map_tiingo_dividend_basic():
     assert mapped['description'] == 'Quarterly dividend'
     assert mapped['refid'] == 'tiingo123'
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_insert_dividends_tiingo_inserts_valid_dividends():
     class DummyDAO:

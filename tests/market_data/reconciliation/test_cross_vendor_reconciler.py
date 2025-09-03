@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from unittest.mock import patch, MagicMock
 from typing import List
 
-from market_data.reconciliation.cross_vendor_reconciler import (
+from domains.market_data.services.reconciliation.cross_vendor_reconciler import (
     CrossVendorReconciler,
     ReconciliationConfig,
     ReconciliationMethod,
@@ -278,6 +278,7 @@ class TestCrossVendorReconciler:
         assert not_found is None
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_reconcile_single_bar_no_data(self):
         """Test reconciling with no data."""
         reconciler = CrossVendorReconciler()
@@ -288,6 +289,7 @@ class TestCrossVendorReconciler:
         
         assert result is None
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_reconcile_single_bar_single_source(self):
         """Test reconciling with single data source."""
@@ -313,6 +315,7 @@ class TestCrossVendorReconciler:
         assert result.volume_variance == 0.0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_reconcile_single_bar_low_quality(self):
         """Test reconciling with low quality data."""
         config = ReconciliationConfig(min_quality_score=0.8)
@@ -327,6 +330,7 @@ class TestCrossVendorReconciler:
         
         assert result is None  # Rejected due to low quality
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_reconcile_multiple_sources_weighted_average(self):
         """Test reconciling multiple sources with weighted average."""
@@ -356,6 +360,7 @@ class TestCrossVendorReconciler:
         # Expected close: 180.5 * 0.6 + 180.7 * 0.4 = 180.58
         assert abs(result.close - 180.58) < 0.001
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_reconcile_multiple_sources_high_variance(self):
         """Test reconciling with high price variance."""
@@ -596,6 +601,7 @@ class TestCrossVendorReconciler:
         assert anomaly_bar.quality_score < 0.9  # Quality reduced
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_reconcile_minute_data_integration(self):
         """Test complete minute data reconciliation."""
         reconciler = CrossVendorReconciler()
@@ -640,6 +646,7 @@ class TestCrossVendorReconciler:
         single_source_bars = [bar for bar in result if bar.vendor_count == 1]
         assert len(single_source_bars) >= 1
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_reconcile_batch(self):
         """Test batch reconciliation."""
@@ -741,6 +748,7 @@ class TestCrossVendorReconciler:
 class TestReconciliationIntegration:
     """Integration tests for reconciliation workflows."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_complete_reconciliation_workflow(self):
         """Test complete reconciliation workflow."""

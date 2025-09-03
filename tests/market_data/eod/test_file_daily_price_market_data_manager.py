@@ -2,7 +2,7 @@ import os
 import pytest
 print(f"[IMPORT_DEBUG] Loaded test_file_daily_price_market_data_manager.py from {__file__}")
 from datetime import datetime
-from market_data.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
+from domains.market_data.services.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
 
 @pytest.fixture(scope="module")
 def vendors_dirs():
@@ -16,10 +16,10 @@ def vendors_dirs():
     }
 
 import pytest_asyncio
-from config.environment import Environment, EnvironmentType
-from dao.vendors_dao import VendorsDAO
-from dao.instruments_dao import InstrumentsDAO
-from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+from shared.utils.environment import Environment, EnvironmentType
+from infrastructure.database.repositories.vendors_dao import VendorsDAO
+from domains.instruments.repositories.instruments_dao import InstrumentsDAO
+from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 
 @pytest_asyncio.fixture(scope="function")
 async def manager(vendors_dirs, unit_test_db):
@@ -54,6 +54,7 @@ import pytest
 import pytest_asyncio
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_symbol_resolution(manager):
     assert await manager.resolve_instrument_id("AAPL") == 1
     assert await manager.resolve_instrument_id("TSLA") == 2
@@ -61,10 +62,12 @@ async def test_symbol_resolution(manager):
     assert await manager.resolve_symbol(2) == "TSLA"
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_get_all_symbols(manager):
     syms = manager._get_all_symbols()
     assert set(syms) == {"AAPL", "TSLA"}
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_get_ohlc(manager):
     # Pick a known date in both fixtures
@@ -79,6 +82,7 @@ async def test_get_ohlc(manager):
     assert ohlc["traded_volume"] > 0
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_get_ohlc_batch(manager):
     dt = datetime(2024, 1, 2)
@@ -97,6 +101,7 @@ async def test_get_ohlc_batch(manager):
         assert ohlc["traded_volume"] > 0
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_tiingo_list_date_parsing(tmp_path, unit_test_db):
     import json
@@ -137,7 +142,7 @@ async def test_tiingo_list_date_parsing(tmp_path, unit_test_db):
         print(f"[DEBUG][test_tiingo_list_date_parsing] Created test files in {tmp_path}")
         
         # Set up environment with test database
-        from config.environment import Environment, EnvironmentType
+        from shared.utils.environment import Environment, EnvironmentType
         env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
         env.get_table_name = lambda table: f"test_{table}"
         
@@ -186,6 +191,7 @@ async def test_tiingo_list_date_parsing(tmp_path, unit_test_db):
         raise
         # The loader should ignore non-dict rows and missing date/t rows gracefully
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_validate_date_no_warning(manager, caplog):
     # This test checks that no warning is logged when current_date matches the row date

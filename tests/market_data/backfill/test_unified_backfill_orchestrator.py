@@ -15,14 +15,14 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 import asyncpg
 
-from market_data.backfill.unified_backfill_orchestrator import (
+from domains.market_data.services.backfill.unified_backfill_orchestrator import (
     UnifiedBackfillOrchestrator,
     BackfillConfig,
     BackfillProgress,
     run_5_year_backfill
 )
 from storage.hybrid_minute_data_manager import StorageConfig
-from market_data.reconciliation.cross_vendor_reconciler import ReconciliationMethod
+from domains.market_data.services.reconciliation.cross_vendor_reconciler import ReconciliationMethod
 
 
 class TestBackfillConfig:
@@ -171,6 +171,7 @@ class TestUnifiedBackfillOrchestrator:
         assert 'symbols_processed' in orchestrator.stats
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_context_manager(self, orchestrator):
         """Test async context manager."""
         with patch('market_data.backfill.unified_backfill_orchestrator.PolygonMinuteAdapter') as MockPolygon, \
@@ -239,7 +240,7 @@ class TestUnifiedBackfillOrchestrator:
     
     def test_convert_for_storage(self, orchestrator):
         """Test converting reconciled bars for storage."""
-        from market_data.reconciliation.cross_vendor_reconciler import ReconciledBar
+        from domains.market_data.services.reconciliation.cross_vendor_reconciler import ReconciledBar
         
         reconciled_bars = [
             ReconciledBar(
@@ -322,6 +323,7 @@ class TestUnifiedBackfillOrchestrator:
         assert len(orchestrator.progress.symbols_completed) == 0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fetch_polygon_data_success(self, orchestrator):
         """Test successful Polygon data fetch."""
         mock_adapter = AsyncMock()
@@ -345,6 +347,7 @@ class TestUnifiedBackfillOrchestrator:
         mock_adapter.fetch_minute_bars_async.assert_called_once_with('AAPL', start_date, end_date)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fetch_polygon_data_with_retries(self, orchestrator):
         """Test Polygon data fetch with retries."""
         mock_adapter = AsyncMock()
@@ -363,6 +366,7 @@ class TestUnifiedBackfillOrchestrator:
         assert mock_adapter.fetch_minute_bars_async.call_count == 3
         assert mock_sleep.call_count == 2  # Two retry delays
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_fetch_tiingo_data_success(self, orchestrator):
         """Test successful Tiingo data fetch."""
@@ -384,6 +388,7 @@ class TestUnifiedBackfillOrchestrator:
         assert result[0]['vendor'] == 'tiingo'
         assert result[0]['open'] == 180.1
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_process_symbol_date_chunk_success(self, orchestrator):
         """Test successful symbol date chunk processing."""
@@ -423,6 +428,7 @@ class TestUnifiedBackfillOrchestrator:
         mock_tiingo.assert_called_once_with('AAPL', start_date, end_date)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_process_symbol_date_chunk_no_data(self, orchestrator):
         """Test processing with no data from either vendor."""
         with patch.object(orchestrator, '_fetch_polygon_data', return_value=[]), \
@@ -439,6 +445,7 @@ class TestUnifiedBackfillOrchestrator:
         assert len(result['errors']) > 0  # Should have error about no data
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_process_symbol_date_chunk_error_handling(self, orchestrator):
         """Test error handling in symbol processing."""
         orchestrator.config.continue_on_error = True
@@ -453,6 +460,7 @@ class TestUnifiedBackfillOrchestrator:
         assert len(result['errors']) > 0
         assert 'Test error' in str(result['errors'])
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_generate_final_statistics(self, orchestrator):
         """Test final statistics generation."""
@@ -487,6 +495,7 @@ class TestUnifiedBackfillOrchestrator:
         assert result['data_summary']['total_bars_stored'] == 850
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_run_backfill_integration(self, orchestrator):
         """Test complete backfill run integration."""
         # Mock all external dependencies
@@ -511,6 +520,7 @@ class TestUnifiedBackfillOrchestrator:
 class TestBackfillIntegration:
     """Integration tests for backfill workflow."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_run_5_year_backfill_function(self):
         """Test convenience function for 5-year backfill."""
@@ -547,6 +557,7 @@ class TestErrorHandlingAndEdgeCases:
         shutil.rmtree(temp_dir, ignore_errors=True)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_missing_api_keys(self, temp_storage_path):
         """Test handling of missing API keys."""
         config = BackfillConfig(
@@ -566,6 +577,7 @@ class TestErrorHandlingAndEdgeCases:
                 async with orchestrator:
                     pass
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_database_connection_failure(self, temp_storage_path):
         """Test handling of database connection failures."""
@@ -595,6 +607,7 @@ class TestErrorHandlingAndEdgeCases:
         assert stored_count == 0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_rate_limit_handling(self, temp_storage_path):
         """Test handling of API rate limits."""
         config = BackfillConfig(
@@ -622,6 +635,7 @@ class TestErrorHandlingAndEdgeCases:
         assert mock_adapter.fetch_minute_bars_async.call_count == 2
         mock_sleep.assert_called_once_with(0.1)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_partial_data_scenarios(self, temp_storage_path):
         """Test scenarios with partial data from vendors."""
@@ -655,6 +669,7 @@ class TestErrorHandlingAndEdgeCases:
         assert result['stored_bars'] == 1
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_checkpoint_corruption_handling(self, temp_storage_path):
         """Test handling of corrupted checkpoint files."""
         config = BackfillConfig(
@@ -676,6 +691,7 @@ class TestErrorHandlingAndEdgeCases:
         # Progress should remain at defaults
         assert len(orchestrator.progress.symbols_completed) == 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_large_symbol_list_batching(self, temp_storage_path):
         """Test handling of large symbol lists."""
@@ -702,6 +718,7 @@ class TestErrorHandlingAndEdgeCases:
 class TestPerformanceAndScaling:
     """Test performance and scaling scenarios."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_concurrent_symbol_processing(self, temp_dir=None):
         """Test concurrent processing of multiple symbols."""
@@ -738,6 +755,7 @@ class TestPerformanceAndScaling:
         # Clean up
         shutil.rmtree(temp_dir, ignore_errors=True)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_memory_efficient_processing(self):
         """Test memory-efficient processing of large datasets."""

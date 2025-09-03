@@ -6,6 +6,8 @@ Simple Playwright Test to verify setup works
 import asyncio
 from playwright.async_api import async_playwright
 
+@pytest.mark.asyncio
+
 async def test_playwright_basic():
     """Basic test to verify Playwright works."""
     print("🎭 Testing Playwright setup...")

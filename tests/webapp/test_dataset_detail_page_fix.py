@@ -34,6 +34,7 @@ class TestDatasetDetailPageFix:
             yield session
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_dataset_detail_page_accessibility(self, webapp_base_url, http_session):
         """Test that dataset detail page is accessible and returns HTML"""
         # Test with a known dataset ID (5)
@@ -56,6 +57,7 @@ class TestDatasetDetailPageFix:
             assert "fetch(`/api/v1/datasets/${datasetId}`)" in html_content, "Should contain dataset API call"
             assert "fetch('/api/v1/training/files')" in html_content, "Should contain training files API call"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_dataset_api_endpoint_functionality(self, webapp_base_url, http_session):
         """Test that dataset API endpoints return real data"""
@@ -91,6 +93,7 @@ class TestDatasetDetailPageFix:
                 assert data.get('status') != 'mock', "Status should not be mock"
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_dataset_metadata_endpoint(self, webapp_base_url, http_session):
         """Test dataset metadata endpoint functionality"""
         async with http_session.get(f"{webapp_base_url}/api/v1/datasets/5/metadata") as response:
@@ -107,6 +110,7 @@ class TestDatasetDetailPageFix:
             assert data['status'] == 'real_database_record', "Should indicate real database record"
             assert 'real file system access' in data['note'], "Should mention real file system access"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_dataset_detail_page_error_handling(self, webapp_base_url, http_session):
         """Test error handling for invalid dataset IDs"""
@@ -127,6 +131,7 @@ class TestDatasetDetailPageFix:
             assert 'not found' in data['detail'].lower(), "Should indicate dataset not found"
     
     @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     async def test_training_files_integration(self, webapp_base_url, http_session):
         """Test that training files endpoint works (used by dataset detail page)"""
         async with http_session.get(f"{webapp_base_url}/api/v1/training/files") as response:
@@ -150,6 +155,7 @@ class TestDatasetDetailPageFix:
                 for field in required_file_fields:
                     assert field in first_file, f"File info should have field '{field}'"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_all_dataset_pages_accessible(self, webapp_base_url, http_session):
         """Test that all existing datasets have accessible detail pages"""
@@ -178,6 +184,7 @@ class TestDatasetDetailPageFix:
                 async with http_session.get(f"{webapp_base_url}/api/v1/datasets/{dataset_id}/metadata") as meta_response:
                     assert meta_response.status == 200, f"Dataset metadata should work for ID {dataset_id}"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_health_endpoint_shows_dataset_features(self, webapp_base_url, http_session):
         """Test that health endpoint confirms dataset detail functionality"""
@@ -214,6 +221,7 @@ class TestDatasetDetailRegression:
             yield session
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_dataset_detail_not_404(self, webapp_base_url, http_session):
         """Regression test: Ensure dataset detail page doesn't return 404"""
         test_cases = [
@@ -232,6 +240,7 @@ class TestDatasetDetailRegression:
                 content_type = response.headers.get('content-type', '')
                 assert 'text/html' in content_type, f"Should return HTML, not JSON error for ID {dataset_id}"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_no_detail_not_found_json_responses(self, webapp_base_url, http_session):
         """Regression test: Ensure we don't get {"detail":"Not Found"} responses for pages"""

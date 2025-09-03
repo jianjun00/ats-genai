@@ -20,12 +20,13 @@ import sys
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../..'))
 
-from src.market_data.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
-from src.market_data.realtime.aapl_tsla_realtime_collector import AAPLTSLARealtimeCollector
+from domains.market_data.services.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
+from domains.market_data.services.realtime.aapl_tsla_realtime_collector import AAPLTSLARealtimeCollector
 
 logger = logging.getLogger(__name__)
 
 @pytest.fixture
+@pytest.mark.asyncio
 async def test_db_pool():
     """Create test database pool"""
     # Use test database or mock
@@ -59,6 +60,7 @@ class TestAAPLTSLASyntheticCollector:
     """Test suite for synthetic real-time collector"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_initialization(self):
         """Test collector initialization"""
         collector = AAPLTSLASyntheticCollector()
@@ -69,6 +71,7 @@ class TestAAPLTSLASyntheticCollector:
         assert collector.base_prices['TSLA'] == 330.0
         assert not collector.running
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_database_initialization(self, test_db_pool):
         """Test database connection initialization"""
@@ -136,6 +139,7 @@ class TestAAPLTSLASyntheticCollector:
             assert base_price * 0.95 <= bar['close_price'] <= base_price * 1.05
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_tiingo_data_storage(self, test_db_pool):
         """Test storing Tiingo data in database"""
         collector = AAPLTSLASyntheticCollector()
@@ -151,6 +155,7 @@ class TestAAPLTSLASyntheticCollector:
         stored_count = await collector.store_tiingo_data(bars)
         assert stored_count >= 0  # Should not fail
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_polygon_data_storage(self, test_db_pool):
         """Test storing Polygon data in database"""
@@ -168,6 +173,7 @@ class TestAAPLTSLASyntheticCollector:
         assert stored_count >= 0  # Should not fail
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_empty_data_handling(self, test_db_pool):
         """Test handling of empty data lists"""
         collector = AAPLTSLASyntheticCollector()
@@ -181,6 +187,7 @@ class TestAAPLTSLASyntheticCollector:
         assert polygon_stored == 0
     
     @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     async def test_generate_and_store_data(self, test_db_pool):
         """Test complete generation and storage workflow"""
         collector = AAPLTSLASyntheticCollector()
@@ -190,6 +197,7 @@ class TestAAPLTSLASyntheticCollector:
         assert total_stored >= 0  # Should store data for both symbols and vendors
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_test_collection_mode(self, test_db_pool):
         """Test the test collection mode"""
         collector = AAPLTSLASyntheticCollector()
@@ -198,6 +206,7 @@ class TestAAPLTSLASyntheticCollector:
         # Should run without error
         await collector.run_test_collection(cycles=2)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_shutdown(self):
         """Test collector shutdown"""
@@ -212,6 +221,7 @@ class TestAAPLTSLARealtimeCollector:
     """Test suite for real API-based collector"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_initialization(self):
         """Test collector initialization"""
         collector = AAPLTSLARealtimeCollector()
@@ -220,6 +230,7 @@ class TestAAPLTSLARealtimeCollector:
         assert collector.collection_interval == 60
         assert not collector.running
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_initialization_with_db(self, test_db_pool):
         """Test collector initialization with database"""
@@ -233,6 +244,7 @@ class TestAAPLTSLARealtimeCollector:
             assert collector.pool is not None
             assert collector.session is not None
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_tiingo_api_success(self):
         """Test successful Tiingo API response"""
@@ -270,6 +282,7 @@ class TestAAPLTSLARealtimeCollector:
                 assert bar['close_price'] == 180.75
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_tiingo_api_error(self):
         """Test Tiingo API error handling"""
         collector = AAPLTSLARealtimeCollector()
@@ -286,6 +299,7 @@ class TestAAPLTSLARealtimeCollector:
             assert bars == []
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_tiingo_rate_limit(self):
         """Test Tiingo API rate limit handling"""
         collector = AAPLTSLARealtimeCollector()
@@ -301,6 +315,7 @@ class TestAAPLTSLARealtimeCollector:
             bars = await collector.collect_tiingo_minute_data('AAPL')
             assert bars == []
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_polygon_api_success(self):
         """Test successful Polygon API response"""
@@ -344,6 +359,7 @@ class TestAAPLTSLARealtimeCollector:
                 assert 'trade_count' in bar
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_polygon_api_error(self):
         """Test Polygon API error handling"""
         collector = AAPLTSLARealtimeCollector()
@@ -360,6 +376,7 @@ class TestAAPLTSLARealtimeCollector:
             assert bars == []
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_no_api_keys(self):
         """Test behavior when API keys are not configured"""
         collector = AAPLTSLARealtimeCollector()
@@ -372,6 +389,7 @@ class TestAAPLTSLARealtimeCollector:
         assert tiingo_bars == []
         assert polygon_bars == []
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_data_storage(self, test_db_pool):
         """Test data storage operations"""
@@ -418,6 +436,7 @@ class TestAAPLTSLARealtimeCollector:
 class TestCollectorIntegration:
     """Integration tests for collectors"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_database_schema_compatibility(self, test_db_pool):
         """Test that collectors work with actual database schema"""
@@ -475,6 +494,7 @@ class TestCollectorIntegration:
         assert total_stored >= 0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_concurrent_collection(self, test_db_pool):
         """Test concurrent collection from multiple collectors"""
         collectors = [AAPLTSLASyntheticCollector() for _ in range(3)]
@@ -490,6 +510,7 @@ class TestCollectorIntegration:
         for result in results:
             assert not isinstance(result, Exception)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_data_consistency(self, test_db_pool):
         """Test data consistency across collection cycles"""
@@ -570,6 +591,7 @@ class TestErrorHandling:
     """Tests for error handling and edge cases"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_database_connection_failure(self):
         """Test handling of database connection failures"""
         collector = AAPLTSLASyntheticCollector()
@@ -595,6 +617,7 @@ class TestErrorHandling:
         
         assert result == 0  # Should return 0 on failure
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_malformed_data_handling(self, test_db_pool):
         """Test handling of malformed data"""
@@ -622,6 +645,7 @@ class TestErrorHandling:
         assert result >= 0
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_performance_benchmark(test_db_pool):
     """Performance benchmark for collectors"""

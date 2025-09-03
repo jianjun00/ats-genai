@@ -1,5 +1,5 @@
 import pytest
-from signals.indicator import PL, OneOneHigh, Z1B, Z2B, Z5T, Z6T, EnvelopeTop, EnvelopeBot
+from domains.trading.services.indicator import PL, OneOneHigh, Z1B, Z2B, Z5T, Z6T, EnvelopeTop, EnvelopeBot
 from state.instrument_interval import InstrumentInterval
 from datetime import datetime, timedelta
 import math
@@ -30,7 +30,7 @@ def test_pl_invalid():
 
 
 def test_pl_missing_ohlc():
-    from signals.indicator import PL
+    from domains.trading.services.indicator import PL
     from state.instrument_interval import InstrumentInterval
     from datetime import datetime, timedelta
     base = datetime(2023, 1, 1)
@@ -89,7 +89,7 @@ def test_oneonehigh_invalid():
 
 
 def test_oneonehigh_missing_ohlc():
-    from signals.indicator import OneOneHigh
+    from domains.trading.services.indicator import OneOneHigh
     from state.instrument_interval import InstrumentInterval
     from datetime import datetime, timedelta
     base = datetime(2023, 1, 1)
@@ -134,7 +134,7 @@ def test_oneonehigh_missing_ohlc():
     assert indicator.get_value() is None
 
 def test_oneonelow_ok(three_ok_intervals):
-    from signals.indicator import OneOneLow
+    from domains.trading.services.indicator import OneOneLow
     indicator = OneOneLow()
     indicator.update(three_ok_intervals)
     assert indicator.status == 'ok'
@@ -145,7 +145,7 @@ def test_oneonelow_ok(three_ok_intervals):
     assert abs(indicator.get_value() - expected) < 1e-8
 
 def test_oneonedot_ok():
-    from signals.indicator import OneOneDot
+    from domains.trading.services.indicator import OneOneDot
     base = datetime(2023, 1, 1)
     intervals = [
         InstrumentInterval(1, base, base, 10, 15, 9, 14, 100, 1000, 'ok'),
@@ -162,7 +162,7 @@ def test_oneonedot_invalid_status():
 
 
 def test_oneonedot_missing_ohlc():
-    from signals.indicator import OneOneDot
+    from domains.trading.services.indicator import OneOneDot
     from state.instrument_interval import InstrumentInterval
     from datetime import datetime, timedelta
     base = datetime(2023, 1, 1)
@@ -192,7 +192,7 @@ def test_oneonedot_missing_ohlc():
     assert dot.status == 'invalid'
     assert dot.get_value() is None
 
-    from signals.indicator import OneOneDot
+    from domains.trading.services.indicator import OneOneDot
     base = datetime(2023, 1, 1)
     intervals = [
         InstrumentInterval(1, base, base, 10, 15, 9, 14, 100, 1000, 'ok'),
@@ -204,7 +204,7 @@ def test_oneonedot_missing_ohlc():
     assert dot.get_value() is None
 
 def test_oneonedot_invalid_empty():
-    from signals.indicator import OneOneDot
+    from domains.trading.services.indicator import OneOneDot
     dot = OneOneDot()
     dot.update([])
     assert dot.status == 'invalid'
@@ -215,7 +215,7 @@ def test_oneonelow_invalid():
 
 
 def test_oneonelow_missing_ohlc():
-    from signals.indicator import OneOneLow
+    from domains.trading.services.indicator import OneOneLow
     from state.instrument_interval import InstrumentInterval
     from datetime import datetime, timedelta
     base = datetime(2023, 1, 1)
@@ -248,7 +248,7 @@ def test_oneonelow_missing_ohlc():
     assert indicator.status == 'invalid'
     assert indicator.get_value() is None
 
-    from signals.indicator import OneOneLow
+    from domains.trading.services.indicator import OneOneLow
     base = datetime(2023, 1, 1)
     intervals = [
         InstrumentInterval(1, base, base, 10, 15, 9, 14, 100, 1000, 'ok'),
@@ -261,7 +261,7 @@ def test_oneonelow_missing_ohlc():
     assert indicator.get_value() is None
 
 import pytest
-from signals.indicator import PL, OneOneHigh, OneOneLow
+from domains.trading.services.indicator import PL, OneOneHigh, OneOneLow
 from state.instrument_interval import InstrumentInterval
 from datetime import datetime, timedelta
 
@@ -341,7 +341,7 @@ def test_indicator_rolling_window(indicator_cls, attr):
     assert getattr(indicator, attr)() is not None
 
 def test_etop_too_few():
-    from signals.indicator import ETop
+    from domains.trading.services.indicator import ETop
     base = datetime(2023, 1, 1)
     # Test with 1 interval (too few)
     intervals = [InstrumentInterval(1, base, base, 10, 15, 9, 14, 100, 1000, 'ok')]
@@ -356,7 +356,7 @@ def test_etop_too_few():
     assert etop.get_value() is None
 
 def test_etop_all_ok():
-    from signals.indicator import ETop
+    from domains.trading.services.indicator import ETop
     base = datetime(2023, 1, 1)
     vals = [
         (10,15,9,14,100,1000,'ok'),
@@ -380,7 +380,7 @@ def test_etop_all_ok():
     assert abs(etop.get_value() - expected) < 1e-8
 
 def test_etop_invalid_in_window():
-    from signals.indicator import ETop
+    from domains.trading.services.indicator import ETop
     base = datetime(2023, 1, 1)
     vals = [
         (10,15,9,14,100,1000,'ok'),
@@ -396,7 +396,7 @@ def test_etop_invalid_in_window():
     assert etop.get_value() is None
 
 def test_ebot_too_few():
-    from signals.indicator import EBot
+    from domains.trading.services.indicator import EBot
     base = datetime(2023, 1, 1)
     intervals = [InstrumentInterval(1, base+timedelta(days=i), base+timedelta(days=i), 10+i, 15+i, 9+i, 14+i, 100, 1000, 'ok') for i in range(4)]
     ebot = EBot()
@@ -411,7 +411,7 @@ def test_ebot_too_few():
     assert ebot.get_value() is None
 
 def test_ebot_all_ok():
-    from signals.indicator import EBot
+    from domains.trading.services.indicator import EBot
     base = datetime(2023, 1, 1)
     vals = [
         (10,15,9,14,100,1000,'ok'),
@@ -435,7 +435,7 @@ def test_ebot_all_ok():
     assert abs(ebot.get_value() - expected) < 1e-8
 
 def test_ebot_invalid_in_window():
-    from signals.indicator import EBot
+    from domains.trading.services.indicator import EBot
     base = datetime(2023, 1, 1)
     vals = [
         (10,15,9,14,100,1000,'ok'),

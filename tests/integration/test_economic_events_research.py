@@ -446,6 +446,7 @@ class TestEconomicEventsResearch:
     """Test suite for economic events research"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_economic_events_coverage(self):
         """Test economic events coverage across vendors"""
         

@@ -9,7 +9,7 @@ import pandas as pd
 from datetime import datetime, timezone
 from unittest.mock import Mock
 
-from src.market_data.reconciliation.cross_vendor_reconciler import (
+from domains.market_data.services.reconciliation.cross_vendor_reconciler import (
     CrossVendorReconciler, 
     ReconciliationConfig,
     VendorBar
@@ -224,6 +224,8 @@ class TestTimezoneHandling:
 @pytest.mark.asyncio
 class TestTimezoneReconciliationIntegration:
     """Integration tests for timezone handling in reconciliation."""
+    
+    @pytest.mark.asyncio
     
     async def test_reconcile_with_mixed_timezones(self):
         """Test full reconciliation with mixed timezone data."""

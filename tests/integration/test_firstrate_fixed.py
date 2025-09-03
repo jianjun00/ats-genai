@@ -19,8 +19,10 @@ from pathlib import Path
 from datetime import datetime, date, timedelta
 from typing import Dict, List
 
-from market_data.agent.firstrate_adapter import FirstRateAdapter
+from domains.market_data.services.agent.firstrate_adapter import FirstRateAdapter
 from storage.file_based_minute_manager import FileBasedMinuteManager
+
+@pytest.mark.asyncio
 
 async def test_fixed_backfill():
     """Test the fixed backfill with just a couple symbols"""

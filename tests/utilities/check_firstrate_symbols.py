@@ -10,7 +10,7 @@ import os
 os.chdir('/workspace')
 sys.path.insert(0, '/workspace/src')
 
-from market_data.agent.firstrate_adapter import FirstRateAdapter
+from domains.market_data.services.agent.firstrate_adapter import FirstRateAdapter
 
 def main():
     print("🔍 Checking FirstRate symbol inventory...")

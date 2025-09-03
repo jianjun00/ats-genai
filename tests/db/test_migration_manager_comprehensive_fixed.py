@@ -21,6 +21,7 @@ from db.test_db_manager import TestDatabaseManager
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_migration_manager_initialization(unit_test_db_clean):
     """Test that migration manager initializes correctly."""
     manager = MigrationManager(unit_test_db_clean)
@@ -33,6 +34,7 @@ async def test_migration_manager_initialization(unit_test_db_clean):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_get_current_version_empty_database(unit_test_db_clean):
     """Test getting version from empty database returns -1."""
     manager = MigrationManager(unit_test_db_clean)
@@ -43,6 +45,7 @@ async def test_get_current_version_empty_database(unit_test_db_clean):
 
 @pytest.mark.unit
 @pytest.mark.database
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_get_current_version_with_existing_data(unit_test_db_clean):
     """Test getting version when db_version table has data."""
@@ -70,6 +73,7 @@ async def test_get_current_version_with_existing_data(unit_test_db_clean):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_apply_table_prefixes(unit_test_db_clean):
     """Test that table prefixes are correctly applied to SQL."""
     manager = MigrationManager(unit_test_db_clean)
@@ -92,6 +96,7 @@ async def test_apply_table_prefixes(unit_test_db_clean):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_apply_table_prefixes_no_double_prefixing(unit_test_db_clean):
     """Test that already prefixed tables don't get double-prefixed."""
     manager = MigrationManager(unit_test_db_clean)
@@ -106,6 +111,7 @@ async def test_apply_table_prefixes_no_double_prefixing(unit_test_db_clean):
 
 @pytest.mark.unit
 @pytest.mark.database
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_calculate_checksum(unit_test_db_clean):
     """Test checksum calculation for migration files."""
@@ -139,6 +145,7 @@ async def test_calculate_checksum(unit_test_db_clean):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_migration_file_parsing():
     """Test parsing of migration file names."""
     # Create temporary migration directory
@@ -166,6 +173,7 @@ async def test_migration_file_parsing():
 
 @pytest.mark.unit
 @pytest.mark.database
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_apply_migration_success(unit_test_db_clean):
     """Test successful migration application."""
@@ -224,6 +232,7 @@ async def test_apply_migration_success(unit_test_db_clean):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_apply_migration_sql_error(unit_test_db_clean):
     """Test migration application with SQL error."""
     manager = MigrationManager(unit_test_db_clean)
@@ -257,6 +266,7 @@ async def test_apply_migration_sql_error(unit_test_db_clean):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_migrate_to_latest_no_migrations(unit_test_db_clean):
     """Test migrate_to_latest when no migrations are available."""
     # Create temporary empty migration directory
@@ -270,6 +280,7 @@ async def test_migrate_to_latest_no_migrations(unit_test_db_clean):
 
 @pytest.mark.unit
 @pytest.mark.database
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_migrate_to_latest_with_migrations(unit_test_db_clean):
     """Test migrate_to_latest with multiple migrations."""
@@ -317,6 +328,7 @@ async def test_migrate_to_latest_with_migrations(unit_test_db_clean):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_migrate_to_latest_partial_failure(unit_test_db_clean):
     """Test migrate_to_latest when one migration fails."""
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -357,6 +369,7 @@ async def test_migrate_to_latest_partial_failure(unit_test_db_clean):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_validate_migrations_success(unit_test_db_clean):
     """Test migration validation with valid checksums."""
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -379,6 +392,7 @@ async def test_validate_migrations_success(unit_test_db_clean):
 
 @pytest.mark.unit
 @pytest.mark.database
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_validate_migrations_modified_file(unit_test_db_clean):
     """Test migration validation when file has been modified."""
@@ -406,6 +420,7 @@ async def test_validate_migrations_modified_file(unit_test_db_clean):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_validate_migrations_missing_file(unit_test_db_clean):
     """Test migration validation when migration file is missing."""
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -431,6 +446,7 @@ async def test_validate_migrations_missing_file(unit_test_db_clean):
 
 @pytest.mark.unit
 @pytest.mark.database
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_concurrent_migration_application(unit_test_db_clean):
     """Test that concurrent migration applications are handled correctly."""
@@ -491,6 +507,7 @@ async def test_concurrent_migration_application(unit_test_db_clean):
 
 @pytest.mark.unit
 @pytest.mark.database
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_migration_with_complex_sql(unit_test_db_clean):
     """Test migration with complex SQL including functions, triggers, etc."""
@@ -628,6 +645,7 @@ async def test_migration_with_complex_sql(unit_test_db_clean):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_migration_rollback_on_error(unit_test_db_clean):
     """Test that migration is rolled back on error (transaction behavior)."""
     manager = MigrationManager(unit_test_db_clean)
@@ -674,6 +692,7 @@ async def test_migration_rollback_on_error(unit_test_db_clean):
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_migration_checksum_validation_edge_cases(unit_test_db_clean):
     """Test checksum validation with various edge cases."""
     manager = MigrationManager(unit_test_db_clean)
@@ -700,6 +719,7 @@ async def test_migration_checksum_validation_edge_cases(unit_test_db_clean):
 
 @pytest.mark.unit
 @pytest.mark.database
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_migration_version_ordering(unit_test_db_clean):
     """Test that migrations are applied in correct version order."""
@@ -747,6 +767,7 @@ async def test_migration_version_ordering(unit_test_db_clean):
 
 @pytest.mark.unit
 @pytest.mark.database
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_migration_duplicate_version_handling(unit_test_db_clean):
     """Test handling of duplicate migration versions."""

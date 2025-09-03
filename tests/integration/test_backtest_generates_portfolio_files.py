@@ -12,7 +12,7 @@ from datetime import date, datetime
 import asyncpg
 
 from src.ml.evaluation.sr_backtester import SRBacktester, BacktestMetrics
-from config.environment import Environment
+from shared.utils.environment import Environment
 
 class TestBacktestGeneratesPortfolioFiles:
     """Test that running actual backtests generates portfolio files"""
@@ -58,6 +58,8 @@ class TestBacktestGeneratesPortfolioFiles:
                 return np.random.random((10, 20))  # 10 samples, 20 features
         
         return MockFeatureGenerator()
+    
+    @pytest.mark.asyncio
     
     async def test_sr_backtester_generates_portfolio_file(self, db_connection, temp_portfolio_dir, mock_model, mock_feature_generator):
         """Test that SRBacktester generates a portfolio file when run"""
@@ -183,6 +185,8 @@ class TestBacktestGeneratesPortfolioFiles:
             
         except Exception as e:
             pytest.fail(f"Backtest failed to generate portfolio file: {e}")
+    
+    @pytest.mark.asyncio
     
     async def test_backtest_without_portfolio_generation(self, mock_model, mock_feature_generator):
         """Test that backtest can run without generating portfolio files"""

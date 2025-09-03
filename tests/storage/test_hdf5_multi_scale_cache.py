@@ -101,6 +101,7 @@ class TestHDF5MultiScaleCache:
     """Test HDF5MultiScaleCache functionality."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_cache_initialization(self, temp_cache_dir):
         """Test cache initialization."""
         config = CacheConfig(cache_path=temp_cache_dir)
@@ -112,6 +113,7 @@ class TestHDF5MultiScaleCache:
         
         await cache.close()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_store_minute_data(self, temp_cache_dir, sample_minute_data):
         """Test storing minute-level data."""
@@ -147,6 +149,7 @@ class TestHDF5MultiScaleCache:
         
         await cache.close()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_data_minute(self, temp_cache_dir, sample_minute_data):
         """Test retrieving minute data."""
@@ -184,6 +187,7 @@ class TestHDF5MultiScaleCache:
         await cache.close()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_data_hourly(self, temp_cache_dir, sample_minute_data):
         """Test retrieving hourly aggregated data."""
         config = CacheConfig(cache_path=temp_cache_dir, auto_aggregate=True)
@@ -218,6 +222,7 @@ class TestHDF5MultiScaleCache:
         await cache.close()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_data_with_columns(self, temp_cache_dir, sample_minute_data):
         """Test retrieving specific columns."""
         config = CacheConfig(cache_path=temp_cache_dir)
@@ -247,6 +252,7 @@ class TestHDF5MultiScaleCache:
         
         await cache.close()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_multi_scale_data(self, temp_cache_dir, sample_minute_data):
         """Test retrieving multi-scale data."""
@@ -284,6 +290,7 @@ class TestHDF5MultiScaleCache:
         await cache.close()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_cache_stats(self, temp_cache_dir, sample_minute_data):
         """Test cache statistics."""
         config = CacheConfig(cache_path=temp_cache_dir)
@@ -312,6 +319,7 @@ class TestHDF5MultiScaleCache:
         
         await cache.close()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_data_integrity_checksums(self, temp_cache_dir, sample_minute_data):
         """Test data integrity with checksums."""
@@ -348,6 +356,7 @@ class TestHDF5MultiScaleCache:
         
         await cache.close()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_aggregation_functions(self, temp_cache_dir):
         """Test custom aggregation functions."""
@@ -393,6 +402,7 @@ class TestHDF5MultiScaleCache:
         await cache.close()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_empty_data_handling(self, temp_cache_dir):
         """Test handling of empty data."""
         config = CacheConfig(cache_path=temp_cache_dir)
@@ -417,6 +427,7 @@ class TestHDF5MultiScaleCache:
         await cache.close()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_cleanup_cache(self, temp_cache_dir, sample_minute_data):
         """Test cache cleanup functionality."""
         config = CacheConfig(cache_path=temp_cache_dir)
@@ -433,6 +444,7 @@ class TestHDF5MultiScaleCache:
         
         await cache.close()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_concurrent_operations(self, temp_cache_dir, sample_minute_data):
         """Test concurrent read/write operations."""
@@ -477,6 +489,7 @@ class TestCreateHDF5Cache:
     """Test convenience function for creating cache."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_create_hdf5_cache(self, temp_cache_dir):
         """Test cache creation function."""
         cache = await create_hdf5_cache(
@@ -496,6 +509,7 @@ class TestCreateHDF5Cache:
 class TestPerformance:
     """Test performance characteristics."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_large_dataset_performance(self, temp_cache_dir):
         """Test performance with large datasets."""
@@ -548,6 +562,7 @@ class TestPerformance:
         
         await cache.close()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_memory_usage(self, temp_cache_dir, sample_minute_data):
         """Test memory usage characteristics."""

@@ -54,6 +54,7 @@ class TestGetExchangeSymbols:
     """Test exchange symbol fetching"""
     
     @patch('src.secmaster.populate_instrument_eodhd.requests.get')
+    @pytest.mark.asyncio
     async def test_get_exchange_symbols_success(self, mock_get):
         """Test successful symbol fetching from exchange"""
         # Mock API response
@@ -95,6 +96,7 @@ class TestGetExchangeSymbols:
         assert 'test_api_key' in call_url
     
     @patch('src.secmaster.populate_instrument_eodhd.requests.get')
+    @pytest.mark.asyncio
     async def test_get_exchange_symbols_api_error(self, mock_get):
         """Test handling of API errors"""
         mock_get.side_effect = Exception("API Error")
@@ -104,6 +106,7 @@ class TestGetExchangeSymbols:
         assert result == []
     
     @patch('src.secmaster.populate_instrument_eodhd.requests.get')
+    @pytest.mark.asyncio
     async def test_get_exchange_symbols_filter_long_symbols(self, mock_get):
         """Test filtering of overly long symbol names"""
         mock_response = Mock()
@@ -124,6 +127,7 @@ class TestFetchFundamentalData:
     """Test fundamental data fetching"""
     
     @patch('src.secmaster.populate_instrument_eodhd.requests.get')
+    @pytest.mark.asyncio
     async def test_fetch_fundamental_data_success(self, mock_get):
         """Test successful fundamental data fetching"""
         # Mock API response with complete data
@@ -162,6 +166,7 @@ class TestFetchFundamentalData:
         assert 'test_api_key' in call_url
     
     @patch('src.secmaster.populate_instrument_eodhd.requests.get')
+    @pytest.mark.asyncio
     async def test_fetch_fundamental_data_already_has_exchange(self, mock_get):
         """Test handling symbols that already have exchange suffix"""
         mock_response = Mock()
@@ -178,6 +183,7 @@ class TestFetchFundamentalData:
         assert 'fundamentals/AAPL.US' in call_url
     
     @patch('src.secmaster.populate_instrument_eodhd.requests.get')
+    @pytest.mark.asyncio
     async def test_fetch_fundamental_data_api_error(self, mock_get):
         """Test handling of API errors"""
         mock_response = Mock()
@@ -189,6 +195,7 @@ class TestFetchFundamentalData:
         assert result is None
     
     @patch('src.secmaster.populate_instrument_eodhd.requests.get')
+    @pytest.mark.asyncio
     async def test_fetch_fundamental_data_network_error(self, mock_get):
         """Test handling of network errors"""
         mock_get.side_effect = Exception("Network Error")
@@ -200,6 +207,8 @@ class TestFetchFundamentalData:
 
 class TestUpsertInstrument:
     """Test database upsert operations"""
+    
+    @pytest.mark.asyncio
     
     async def test_upsert_instrument_new_format(self):
         """Test upserting instrument with new data format"""
@@ -249,6 +258,8 @@ class TestUpsertInstrument:
             assert params[2] == 'NASDAQ'  # exchange
             assert params[5] == date(1980, 12, 12)  # parsed ipo_date
     
+    @pytest.mark.asyncio
+    
     async def test_upsert_instrument_legacy_format(self):
         """Test upserting instrument with legacy data format"""
         mock_pool = Mock()
@@ -287,6 +298,7 @@ class TestFetchAndStoreInstruments:
     
     @patch('src.secmaster.populate_instrument_eodhd.Database')
     @patch('src.secmaster.populate_instrument_eodhd.fetch_fundamental_data')
+    @pytest.mark.asyncio
     async def test_fetch_and_store_specific_tickers(self, mock_fetch_fundamental, mock_db_class):
         """Test processing specific tickers"""
         # Mock database
@@ -332,6 +344,7 @@ class TestFetchAndStoreInstruments:
     @patch('src.secmaster.populate_instrument_eodhd.Database')
     @patch('src.secmaster.populate_instrument_eodhd.get_exchange_symbols')
     @patch('src.secmaster.populate_instrument_eodhd.fetch_fundamental_data')
+    @pytest.mark.asyncio
     async def test_fetch_and_store_bulk_mode_sample(self, mock_fetch_fundamental, mock_get_symbols, mock_db_class):
         """Test bulk mode with a small sample"""
         # Mock database
@@ -389,6 +402,7 @@ class TestErrorHandling:
     """Test error handling scenarios"""
     
     @patch('src.secmaster.populate_instrument_eodhd.Database')
+    @pytest.mark.asyncio
     async def test_database_connection_failure(self, mock_db_class):
         """Test handling of database connection failures"""
         # Mock database connection failure
@@ -400,6 +414,7 @@ class TestErrorHandling:
     
     @patch('src.secmaster.populate_instrument_eodhd.Database')
     @patch('src.secmaster.populate_instrument_eodhd.fetch_fundamental_data')
+    @pytest.mark.asyncio
     async def test_partial_failures_in_bulk_mode(self, mock_fetch_fundamental, mock_db_class):
         """Test handling of partial failures in bulk processing"""
         # Mock database

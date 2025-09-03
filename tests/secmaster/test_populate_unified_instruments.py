@@ -1,17 +1,18 @@
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
-from secmaster.populate_unified_instruments import populate_unified_instruments, parse_date
+from domains.instruments.services.populate_unified_instruments import populate_unified_instruments, parse_date
 
-from secmaster.populate_unified_instruments import parse_date
+from domains.instruments.services.populate_unified_instruments import parse_date
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_batch_logic_mixed_existing_and_new():
     # Import batch_logic from the module (copy-paste or expose for test)
-    from secmaster.populate_unified_instruments import batch_logic_for_test
+    from domains.instruments.services.populate_unified_instruments import batch_logic_for_test
     # Setup mocks
     polygon_dao = MagicMock()
     polygon_dao.get_instrument_by_symbol = AsyncMock(side_effect=lambda symbol: {
@@ -61,8 +62,9 @@ async def test_batch_logic_mixed_existing_and_new():
     assert xref_batch[0]['end_at'] is None
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_batch_logic_skips_existing_xref():
-    from secmaster.populate_unified_instruments import batch_logic_for_test
+    from domains.instruments.services.populate_unified_instruments import batch_logic_for_test
     polygon_dao = MagicMock()
     polygon_dao.get_instrument_by_symbol = AsyncMock(return_value={'symbol': 'BAR', 'name': 'Bar Inc.', 'exchange': 'XNYS', 'type': 'CS', 'currency': 'USD', 'list_date': '2022-02-02', 'delist_date': None})
     instruments_dao = AsyncMock()

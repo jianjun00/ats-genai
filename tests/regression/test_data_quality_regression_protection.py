@@ -30,10 +30,11 @@ class TestTiingoEndDateRegression:
     """Prevent regression of Tiingo end date misinterpretation issue"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_tiingo_active_instruments_ratio(self):
         """Test that Tiingo maintains proper ratio of active instruments"""
-        from config.database import Database
-        from config.environment import Environment, EnvironmentType
+        from shared.utils.database import Database
+        from shared.utils.environment import Environment, EnvironmentType
         
         try:
             env = Environment(EnvironmentType.DEV)
@@ -70,10 +71,11 @@ class TestTiingoEndDateRegression:
             pytest.skip(f"Database not available for testing: {e}")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_tiingo_end_date_interpretation(self):
         """Test correct interpretation of Tiingo end_date field"""
-        from config.database import Database
-        from config.environment import Environment, EnvironmentType
+        from shared.utils.database import Database
+        from shared.utils.environment import Environment, EnvironmentType
         
         try:
             env = Environment(EnvironmentType.DEV)
@@ -224,10 +226,11 @@ class TestDatabaseSchemaRegression:
     """Prevent regression of database schema compatibility issues"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_price_table_schema_consistency(self):
         """Test that price tables have consistent, expected schemas"""
-        from config.database import Database
-        from config.environment import Environment, EnvironmentType
+        from shared.utils.database import Database
+        from shared.utils.environment import Environment, EnvironmentType
         
         try:
             env = Environment(EnvironmentType.DEV)
@@ -274,10 +277,11 @@ class TestDatabaseSchemaRegression:
             pytest.skip(f"Database not available for testing: {e}")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_instrument_tables_compatibility(self):
         """Test compatibility between vendor-specific instrument tables"""
-        from config.database import Database
-        from config.environment import Environment, EnvironmentType
+        from shared.utils.database import Database
+        from shared.utils.environment import Environment, EnvironmentType
         
         try:
             env = Environment(EnvironmentType.DEV)
@@ -324,10 +328,11 @@ class TestEODHDPopulationRegression:
     """Prevent regression of EODHD population gap (85% missing instruments)"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_eodhd_population_completeness(self):
         """Test that EODHD population reaches expected completeness levels"""
-        from config.database import Database
-        from config.environment import Environment, EnvironmentType
+        from shared.utils.database import Database
+        from shared.utils.environment import Environment, EnvironmentType
         
         try:
             env = Environment(EnvironmentType.DEV)
@@ -362,10 +367,11 @@ class TestEODHDPopulationRegression:
             pytest.skip(f"Database not available for testing: {e}")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_eodhd_to_unified_population_flow(self):
         """Test that EODHD instruments flow properly into unified table"""
-        from config.database import Database
-        from config.environment import Environment, EnvironmentType
+        from shared.utils.database import Database
+        from shared.utils.environment import Environment, EnvironmentType
         
         try:
             env = Environment(EnvironmentType.DEV)
@@ -409,10 +415,11 @@ class TestReferentialIntegrityRegression:
     """Prevent regression of referential integrity problems"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_price_instrument_referential_integrity(self):
         """Test referential integrity between price data and instruments"""
-        from config.database import Database
-        from config.environment import Environment, EnvironmentType
+        from shared.utils.database import Database
+        from shared.utils.environment import Environment, EnvironmentType
         
         try:
             env = Environment(EnvironmentType.DEV)
@@ -464,10 +471,11 @@ class TestReferentialIntegrityRegression:
             pytest.skip(f"Database not available for testing: {e}")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_news_data_integrity(self):
         """Test integrity of news data and symbol references"""
-        from config.database import Database
-        from config.environment import Environment, EnvironmentType
+        from shared.utils.database import Database
+        from shared.utils.environment import Environment, EnvironmentType
         
         try:
             env = Environment(EnvironmentType.DEV)
@@ -609,10 +617,11 @@ class TestSystemHealthRegression:
     """Overall system health and regression prevention"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_overall_data_quality_metrics(self):
         """Test overall system data quality metrics"""
-        from config.database import Database
-        from config.environment import Environment, EnvironmentType
+        from shared.utils.database import Database
+        from shared.utils.environment import Environment, EnvironmentType
         
         try:
             env = Environment(EnvironmentType.DEV)

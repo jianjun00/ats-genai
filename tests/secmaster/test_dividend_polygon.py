@@ -5,6 +5,7 @@ from secmaster import dividend_polygon
 from db.test_db_manager import unit_test_db_clean
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_insert_dividends_polygon_inserts_correctly(unit_test_db):
     # Example Polygon dividends API response
     dividends = [
@@ -21,8 +22,8 @@ async def test_insert_dividends_polygon_inserts_correctly(unit_test_db):
     ]
     ticker = "AAPL"
         # Patch: Inject DAO with test DB URL
-    from dao.dividend_polygon_dao import DividendPolygonDAO
-    from config.environment import Environment, EnvironmentType
+    from infrastructure.database.repositories.dividend_polygon_dao import DividendPolygonDAO
+    from shared.utils.environment import Environment, EnvironmentType
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     dao = DividendPolygonDAO(env)
     await dividend_polygon.insert_dividends_polygon(dividends, ticker, dao=dao)

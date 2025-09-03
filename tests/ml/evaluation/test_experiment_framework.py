@@ -21,7 +21,7 @@ import shutil
 from unittest.mock import Mock, patch, AsyncMock
 
 # Import the components to test
-from ml.evaluation.experiment_framework import (
+from domains.ml.services.evaluation.experiment_framework import (
     ModelExperimentFramework,
     ExperimentConfig,
     ExperimentResult,
@@ -229,6 +229,7 @@ class TestModelExperimentFramework:
         assert all(isinstance(symbol, str) for symbol in symbols_50)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_single_experiment_run(self, experiment_framework):
         """Test running a single experiment"""
         config = ExperimentConfig(
@@ -279,6 +280,7 @@ class TestModelExperimentFramework:
             assert isinstance(result.daily_returns, pd.Series)
             assert len(result.trade_explanations) > 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_ab_test_execution(self, experiment_framework):
         """Test A/B test execution"""
@@ -506,6 +508,7 @@ class TestErrorHandling:
             pass
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_experiment_failure_handling(self):
         """Test handling of experiment failures"""
         framework = ModelExperimentFramework()
@@ -519,6 +522,7 @@ class TestErrorHandling:
 class TestVisualizationGeneration:
     """Test visualization generation components"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_visualization_creation(self):
         """Test that visualizations are created without errors"""
@@ -563,6 +567,7 @@ class TestEndToEndWorkflow:
     """Integration tests for the complete workflow"""
     
     @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     async def test_complete_spy_qqq_experiment(self):
         """Test complete SPY/QQQ experiment workflow"""
         with tempfile.TemporaryDirectory() as temp_dir:

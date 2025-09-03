@@ -2,10 +2,11 @@ import pytest
 import asyncio
 from datetime import date
 from unittest.mock import AsyncMock, patch, MagicMock
-from universe.universe_manager import UniverseManager
-from universe.universe_manager import UniverseMembershipChange
-from config.environment import Environment, EnvironmentType
+from domains.trading.services.universe_manager import UniverseManager
+from domains.trading.services.universe_manager import UniverseMembershipChange
+from shared.utils.environment import Environment, EnvironmentType
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_update_universe_membership_applies_changes(monkeypatch, unit_test_db):
     # Mock environment and DB
@@ -27,6 +28,7 @@ async def test_update_universe_membership_applies_changes(monkeypatch, unit_test
     assert manager._apply_single_membership_change.await_count == len(changes)
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_update_universe_membership_no_changes(monkeypatch, unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     manager = UniverseManager(env=env, universe_id=1)
@@ -36,6 +38,7 @@ async def test_update_universe_membership_no_changes(monkeypatch, unit_test_db):
     assert manager._apply_single_membership_change.await_count == 0
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_get_members(monkeypatch, unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     manager = UniverseManager(env=env, universe_id=1)
@@ -44,6 +47,7 @@ async def test_get_members(monkeypatch, unit_test_db):
     members = await manager.get_members(1, date(2025, 7, 15))
     assert members == expected
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_update_for_eod(monkeypatch, unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
@@ -76,6 +80,7 @@ async def test_update_for_eod(monkeypatch, unit_test_db):
     assert change.reason == 'test'
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_update_for_sod(monkeypatch, caplog, unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     manager = UniverseManager(env=env, universe_id=1)
@@ -94,6 +99,7 @@ async def test_update_for_sod(monkeypatch, caplog, unit_test_db):
     assert any(f'UniverseManager.update_for_sod called for universe_id={manager.universe_id} at 2025-07-24' in r.message for r in caplog.records)
     assert any(f"UniverseManager.instrument_ids set to {expected_ids}" in r.message for r in caplog.records)
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_update_for_sod_error(monkeypatch, unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)

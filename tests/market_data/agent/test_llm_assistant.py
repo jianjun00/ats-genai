@@ -3,8 +3,8 @@ from unittest import mock
 import json
 from datetime import date
 
-from src.market_data.agent.llm_assistant import LLMAssistant
-from src.market_data.agent.models import EODPrice
+from domains.market_data.services.agent.llm_assistant import LLMAssistant
+from domains.market_data.services.agent.models import EODPrice
 
 class TestLLMAssistant:
     @pytest.fixture

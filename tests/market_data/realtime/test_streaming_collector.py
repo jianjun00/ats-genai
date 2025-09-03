@@ -24,7 +24,7 @@ from dataclasses import asdict
 import sys
 sys.path.append('src')
 
-from market_data.realtime.streaming_collector import (
+from domains.market_data.services.realtime.streaming_collector import (
     RealtimeStreamingCollector, 
     MinuteBar
 )
@@ -126,6 +126,7 @@ class TestRealtimeStreamingCollector:
         assert collector.fmp_api_key == 'test_fmp_key'
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_initialize_database_connection(self, collector, mock_env):
         """Test database initialization"""
         mock_pool = AsyncMock()
@@ -138,6 +139,7 @@ class TestRealtimeStreamingCollector:
                     assert collector.pool == mock_pool
                     mock_env.get_database_url.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_load_active_universe(self, collector):
         """Test loading active universe from database"""
@@ -162,6 +164,7 @@ class TestRealtimeStreamingCollector:
         assert collector.instrument_mapping['MSFT'] == 2
         assert collector.instrument_mapping['GOOGL'] == 3
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_initialize_collection_status(self, collector):
         """Test initializing collection status for all vendors and symbols"""
@@ -201,6 +204,7 @@ class TestRealtimeStreamingCollector:
         score = collector._calculate_quality_score(data, latency_ms=360000)  # 6 minutes
         assert score == 0.5  # -0.5 penalty
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_process_polygon_minute_bar(self, collector):
         """Test processing Polygon minute bar data"""
@@ -243,6 +247,7 @@ class TestRealtimeStreamingCollector:
         assert bar.collection_method == 'websocket'
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_process_polygon_minute_bar_unknown_symbol(self, collector):
         """Test processing Polygon data for unknown symbol"""
         collector.universe_symbols = {'MSFT'}  # AAPL not in universe
@@ -264,6 +269,7 @@ class TestRealtimeStreamingCollector:
         # Should not store data for unknown symbol
         collector._store_minute_bar.assert_not_called()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_store_minute_bar(self, collector):
         """Test storing minute bar in database"""
@@ -305,6 +311,7 @@ class TestRealtimeStreamingCollector:
         # Verify stats were incremented
         assert collector.collection_stats['bars_stored'] == 1
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_update_collection_status(self, collector):
         """Test updating collection status"""
@@ -358,6 +365,7 @@ class TestRealtimeStreamingCollector:
             assert collector.should_collect_now() is True
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_detect_gaps(self, collector):
         """Test gap detection logic"""
         mock_conn = AsyncMock()
@@ -384,6 +392,7 @@ class TestRealtimeStreamingCollector:
         # Verify gap was detected and handled
         collector._handle_detected_gap.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_handle_detected_gap(self, collector):
         """Test handling detected gaps"""
@@ -414,6 +423,7 @@ class TestRealtimeStreamingCollector:
         assert collector.collection_stats['gaps_detected'] == 1
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_shutdown(self, collector):
         """Test graceful shutdown"""
         # Set up mocked resources
@@ -443,6 +453,7 @@ class TestPolygonIntegration:
                 collector.instrument_mapping = {'AAPL': 1, 'MSFT': 2}
                 return collector
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_polygon_websocket_stream_setup(self, collector):
         """Test Polygon WebSocket connection setup"""
@@ -503,6 +514,7 @@ class TestErrorHandling:
             return RealtimeStreamingCollector()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_database_connection_failure(self, collector):
         """Test handling database connection failures"""
         with patch('market_data.realtime.streaming_collector.asyncpg.create_pool', 
@@ -510,6 +522,7 @@ class TestErrorHandling:
             with pytest.raises(Exception, match="Connection failed"):
                 await collector.initialize()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_malformed_polygon_data(self, collector):
         """Test handling malformed Polygon data"""
@@ -528,6 +541,7 @@ class TestErrorHandling:
         await collector._process_polygon_minute_bar(malformed_data)
         collector._store_minute_bar.assert_not_called()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_store_minute_bar_database_error(self, collector):
         """Test handling database errors during storage"""
@@ -578,6 +592,7 @@ class TestMetricsAndStats:
         
         assert collector.collection_stats == expected_stats
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_stats_updates(self, collector):
         """Test that statistics are properly updated"""

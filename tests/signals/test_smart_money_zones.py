@@ -17,7 +17,7 @@ import pytz
 from datetime import datetime, timedelta
 from typing import Dict, Any
 
-from signals.smart_money_zones import (
+from domains.trading.services.smart_money_zones import (
     MarketStructure,
     StructureChange,
     SwingPoint,
@@ -752,7 +752,7 @@ class TestMultiTimeframeAnalysis:
         mtf = MultiTimeframeAnalysis()
         
         # Create two similar zones that should overlap
-        from signals.smart_money_zones import SmartMoneyZone
+        from domains.trading.services.smart_money_zones import SmartMoneyZone
         from datetime import datetime
         
         zone1 = SmartMoneyZone(

@@ -43,6 +43,8 @@ class TestINTGJobMonitoring:
             ]
         }
     
+    @pytest.mark.asyncio
+    
     async def test_database_connection_health(self, intg_db_connection):
         """Test INTG database connectivity"""
         # Test basic connection
@@ -62,6 +64,8 @@ class TestINTGJobMonitoring:
         for table in expected_tables:
             assert table in table_names, f"Missing required table: {table}"
     
+    @pytest.mark.asyncio
+    
     async def test_daily_prices_job_status_empty(self, intg_db_connection):
         """Test daily prices job when no data exists"""
         # Check if table exists but is empty
@@ -80,6 +84,8 @@ class TestINTGJobMonitoring:
         required_columns = ['symbol', 'date', 'open', 'high', 'low', 'close', 'volume', 'created_at']
         for col in required_columns:
             assert col in column_names, f"Missing required column: {col}"
+    
+    @pytest.mark.asyncio
     
     async def test_realtime_tables_missing(self, intg_db_connection):
         """Test when real-time one-minute tables are missing"""
@@ -146,6 +152,8 @@ class TestINTGJobMonitoring:
         # This is the main issue - missing monitor script
         assert len(dashboard_errors) > 0, "Should detect missing monitor script error"
     
+    @pytest.mark.asyncio
+    
     async def test_job_failure_scenarios(self, intg_db_connection):
         """Test various job failure scenarios"""
         # Scenario 1: Database connection loss
@@ -210,6 +218,8 @@ class TestINTGJobMonitoring:
             assert spec is not None, "Script should be importable"
         except Exception as e:
             pytest.fail(f"Monitor script import failed: {e}")
+    
+    @pytest.mark.asyncio
     
     async def test_create_missing_realtime_tables(self, intg_db_connection):
         """Test creating missing real-time tables"""

@@ -60,6 +60,8 @@ class TestDatabaseSchemaValidation:
         
         return schema
     
+    @pytest.mark.asyncio
+    
     async def test_training_dataset_table_exists(self, actual_schema):
         """Test that the training dataset table exists with correct name"""
         # Our code should reference the correct table name
@@ -70,6 +72,8 @@ class TestDatabaseSchemaValidation:
         assert 'dev_training_datasets' not in actual_schema, \
             "Code incorrectly references non-existent 'dev_training_datasets' table"
     
+    @pytest.mark.asyncio
+    
     async def test_job_runs_table_exists(self, actual_schema):
         """Test that the job runs table exists for job management functionality"""
         # CRITICAL: This test catches the exact error we're seeing in dev
@@ -79,6 +83,8 @@ class TestDatabaseSchemaValidation:
         # Verify it's not incorrectly named
         assert 'job_runs' not in actual_schema or 'dev_job_runs' in actual_schema, \
             "Job runs table should be named 'dev_job_runs' with dev prefix"
+    
+    @pytest.mark.asyncio
     
     async def test_training_dataset_required_columns(self, actual_schema):
         """Test that required columns exist in training dataset table"""
@@ -111,6 +117,8 @@ class TestDatabaseSchemaValidation:
             else:
                 # Allow some flexibility for similar types
                 assert False, f"Column '{column}' type mismatch. Expected {expected_type}, got {actual_type}"
+    
+    @pytest.mark.asyncio
     
     async def test_job_runs_required_columns(self, actual_schema):
         """Test that required columns exist in job runs table"""
@@ -152,6 +160,8 @@ class TestDatabaseSchemaValidation:
                 # Allow some flexibility for similar types
                 assert False, f"Column '{column}' type mismatch. Expected {expected_type}, got {actual_type}"
     
+    @pytest.mark.asyncio
+    
     async def test_sql_queries_syntax_validation(self, db_connection):
         """Test that all SQL queries in our code are syntactically valid"""
         
@@ -171,6 +181,8 @@ class TestDatabaseSchemaValidation:
             await db_connection.prepare(dataset_query)
         except asyncpg.exceptions.PostgresError as e:
             pytest.fail(f"SQL query syntax error: {e}")
+    
+    @pytest.mark.asyncio
     
     async def test_job_management_sql_queries_validation(self, db_connection):
         """Test that job management SQL queries are valid and tables exist"""
@@ -223,6 +235,8 @@ class TestDatabaseSchemaValidation:
             except asyncpg.exceptions.PostgresError as e:
                 pytest.fail(f"Job management query {i+1} SQL syntax error: {e}")
     
+    @pytest.mark.asyncio
+    
     async def test_column_references_are_valid(self, actual_schema):
         """Test that all column references in our code exist in actual schema"""
         table_columns = actual_schema.get('dev_training_dataset', {})
@@ -256,6 +270,8 @@ class TestDatabaseSchemaValidation:
         assert 'postgres' in db_url, "Database URL should include postgres user"
         assert 'dev_db' in db_url, "Database URL should reference dev_db database"
     
+    @pytest.mark.asyncio
+    
     async def test_data_access_layer_contract(self, db_connection):
         """Test that our data access layer matches database contract"""
         
@@ -268,6 +284,8 @@ class TestDatabaseSchemaValidation:
             assert True
         except asyncpg.exceptions.PostgresError as e:
             pytest.fail(f"Data access layer contract broken: {e}")
+    
+    @pytest.mark.asyncio
     
     async def test_type_compatibility(self, actual_schema):
         """Test that our Python types match database types"""
@@ -286,6 +304,8 @@ class TestDatabaseSchemaValidation:
             assert column in table_schema, \
                 f"Column '{column}' missing for type validation"
             # Type validation is implicit in successful query execution
+    
+    @pytest.mark.asyncio
     
     async def test_query_parameter_safety(self, db_connection):
         """Test that our parameterized queries are safe from SQL injection"""
@@ -323,6 +343,8 @@ class TestMigrationStateCompatibility:
             return result
         except:
             return None
+    
+    @pytest.mark.asyncio
     
     async def test_code_migration_compatibility(self, migration_version):
         """Test that our code is compatible with current migration state"""
@@ -408,6 +430,8 @@ async def validated_database_engine():
 class TestJobManagementAPISchemaCompatibility:
     """Test job management API against real database schema"""
     
+    @pytest.mark.asyncio
+    
     async def test_job_management_database_integration(self, db_connection):
         """Test that job management queries work with real database"""
         
@@ -423,6 +447,8 @@ class TestJobManagementAPISchemaCompatibility:
             pytest.fail(f"CRITICAL: dev_job_runs table does not exist. This is the exact error reported by user: {e}")
         except Exception as e:
             pytest.fail(f"Unexpected error in job management database test: {e}")
+    
+    @pytest.mark.asyncio
     
     async def test_job_management_api_endpoints_via_http(self):
         """Test job management API endpoints via HTTP to catch integration errors"""
@@ -461,10 +487,14 @@ class TestJobManagementAPISchemaCompatibility:
 class TestDatasetVisualizationEngineSchemaCompatibility:
     """Test the actual engine against real database schema"""
     
+    @pytest.mark.asyncio
+    
     async def test_engine_initialization_with_real_schema(self, validated_database_engine):
         """Test that engine initializes successfully with real database"""
         engine = validated_database_engine
         assert engine.db_pool is not None
+    
+    @pytest.mark.asyncio
     
     async def test_get_dataset_details_query_execution(self, validated_database_engine):
         """Test that get_dataset_details can execute without schema errors"""

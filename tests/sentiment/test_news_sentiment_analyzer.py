@@ -250,6 +250,7 @@ class TestNewsContentFetcher:
     """Test news content fetcher."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_content_fetcher_initialization(self):
         """Test news content fetcher initialization."""
         with patch('sentiment.news_sentiment_analyzer.aiohttp.ClientSession'):
@@ -257,6 +258,7 @@ class TestNewsContentFetcher:
             assert hasattr(fetcher, 'rss_feeds')
             assert 'reuters_business' in fetcher.rss_feeds
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_fetch_news_for_symbols(self):
         """Test fetching news for symbols."""
@@ -323,6 +325,7 @@ class TestNewsContentFetcher:
             assert score < 0.3
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_close_session(self):
         """Test closing aiohttp session."""
         with patch('sentiment.news_sentiment_analyzer.aiohttp.ClientSession') as mock_session:
@@ -354,6 +357,7 @@ class TestNewsSentimentAnalyzer:
             assert hasattr(analyzer, 'vader')
             assert hasattr(analyzer, 'content_fetcher')
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_analyze_news_sentiment(self, mock_connection_pool, mock_env, sample_news_article):
         """Test complete news sentiment analysis."""
@@ -408,6 +412,7 @@ class TestNewsSentimentAnalyzer:
                 assert signals["AAPL"].signal_direction == "bullish"
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_analyze_article_sentiment(self, mock_connection_pool, mock_env, sample_news_article):
         """Test individual article sentiment analysis."""
         pool, conn = mock_connection_pool
@@ -444,6 +449,7 @@ class TestNewsSentimentAnalyzer:
             expected_score = 0.8 * 0.6 + 0.7 * 0.4  # finbert_weight * score + vader_weight * score
             assert abs(result.compound_score - expected_score) < 0.01
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_generate_sentiment_signal(self, mock_connection_pool, mock_env):
         """Test sentiment signal generation."""
@@ -529,6 +535,7 @@ class TestNewsSentimentAnalyzer:
             assert momentum > 0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_store_sentiment_analysis(self, mock_connection_pool, mock_env):
         """Test storing sentiment analysis results."""
         pool, conn = mock_connection_pool
@@ -582,6 +589,7 @@ class TestNewsSentimentAnalyzer:
             assert conn.execute.call_count >= 2  # At least one for article, one for signal
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_sentiment_history(self, mock_connection_pool, mock_env):
         """Test getting sentiment history."""
         pool, conn = mock_connection_pool
@@ -612,6 +620,7 @@ class TestNewsSentimentAnalyzer:
                 assert 'avg_signal_strength' in df.columns
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_close_resources(self, mock_connection_pool, mock_env):
         """Test closing analyzer resources."""
         pool, conn = mock_connection_pool
@@ -632,6 +641,7 @@ class TestNewsSentimentAnalyzer:
 class TestConvenienceFunction:
     """Test convenience function."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_analyze_symbol_sentiment(self, mock_connection_pool, mock_env):
         """Test convenience function."""
@@ -666,6 +676,7 @@ class TestErrorHandling:
     """Test error handling scenarios."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_no_news_articles_found(self, mock_connection_pool, mock_env):
         """Test handling when no news articles are found."""
         pool, conn = mock_connection_pool
@@ -684,6 +695,7 @@ class TestErrorHandling:
             assert isinstance(result, dict)
             assert len(result) == 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_sentiment_analysis_error(self, mock_connection_pool, mock_env):
         """Test handling of sentiment analysis errors."""
@@ -704,6 +716,7 @@ class TestErrorHandling:
             assert isinstance(result, dict)
             assert len(result) == 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_database_error_handling(self, mock_connection_pool, mock_env):
         """Test handling of database errors."""

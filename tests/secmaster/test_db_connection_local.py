@@ -10,8 +10,8 @@ from pathlib import Path
 # Add the src directory to the Python path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.config.database import Database
-from src.config.db_retry import retry_async
+from shared.utils.database import Database
+from shared.utils.db_retry import retry_async
 
 # Configure logging
 logging.basicConfig(
@@ -32,6 +32,8 @@ parser.add_argument('--db-port', dest='db_port', default=os.getenv('DB_PORT', '5
                     help='Database port (default: from DB_PORT env var or "5432")')
 parser.add_argument('--environments', dest='environments', default='dev,intg,prod,local',
                     help='Comma-separated list of environments to test (default: "dev,intg,prod,local")')
+
+@pytest.mark.asyncio
 
 async def test_database_connection(args):
     """Test database connection with retry logic."""

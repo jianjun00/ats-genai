@@ -21,7 +21,7 @@ from unittest.mock import Mock, AsyncMock, patch, MagicMock
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
 
-from ml.training_data.runners.training_data_callback_runner import TrainingDataJobRunner, TrainingDataJobConfig
+from domains.ml.services.training_data.runners.training_data_callback_runner import TrainingDataJobRunner, TrainingDataJobConfig
 
 
 class TestUniverseStateBuilderIntegration(unittest.TestCase):
@@ -187,6 +187,7 @@ class TestUniverseStateBuilderIntegration(unittest.TestCase):
     
     @patch('state.universe_state_manager.UniverseStateManager')
     @patch('storage.file_based_minute_manager.FileBasedMinuteManager')
+    @pytest.mark.asyncio
     async def test_full_pipeline_with_universe_state_mocking(self, MockMinuteManager, MockUniverseManager):
         """Test full pipeline with both FileBasedMinuteManager and UniverseStateManager mocked."""
         

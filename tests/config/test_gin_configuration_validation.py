@@ -17,9 +17,9 @@ import numpy as np
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from signals.feature_registry import FeatureRegistry, FeatureConfig, create_feature_config, create_feature_registry
-from signals.label_registry import LabelRegistry, LabelConfig, create_label_config, create_label_registry
-from modeling.configurable_train_data_generator import (
+from domains.trading.services.feature_registry import FeatureRegistry, FeatureConfig, create_feature_config, create_feature_registry
+from domains.trading.services.label_registry import LabelRegistry, LabelConfig, create_label_config, create_label_registry
+from domains.ml.services.configurable_train_data_generator import (
     ConfigurableTrainingDataGenerator,
     ConfigurableTrainingDataConfig,
     create_configurable_training_data_config
@@ -511,8 +511,8 @@ create_configurable_training_data_config.sequence_length = 25
                 gin.parse_config_file(f.name)
                 
                 # Should be able to create default configuration
-                from signals.feature_registry import FeatureRegistry
-                from signals.label_registry import LabelRegistry
+                from domains.trading.services.feature_registry import FeatureRegistry
+                from domains.trading.services.label_registry import LabelRegistry
                 
                 # Create empty registries
                 feature_registry = FeatureRegistry()

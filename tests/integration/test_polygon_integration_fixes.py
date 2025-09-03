@@ -45,6 +45,7 @@ class TestPolygonIntegrationFixes:
     """Complete integration test suite for Polygon fixes"""
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_complete_polygon_fix_integration(self, db_connection, integration_job_id):
         """
         Test the complete integration of all Polygon fixes:
@@ -252,6 +253,7 @@ class TestPolygonIntegrationFixes:
         )
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_before_and_after_fix_comparison(self, db_connection, integration_job_id):
         """
         Test that demonstrates the before/after behavior of the fixes.
@@ -382,6 +384,7 @@ class TestPolygonIntegrationFixes:
             "DELETE FROM dev_polygon_prices WHERE symbol = $1", test_symbol
         )
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_real_world_scenario_simulation(self, db_connection, integration_job_id):
         """
@@ -571,6 +574,7 @@ class TestPolygonFixValidation:
     """Test suite for validating specific fixes are working"""
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_api_status_fix_validation(self):
         """Validate that the API status fix is working correctly"""
         
@@ -627,6 +631,7 @@ class TestPolygonFixValidation:
             print(f"   ✅ {test_case['name']}: {'PASS' if is_valid else 'REJECTED'} - {message}")
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_database_schema_fix_validation(self, db_connection):
         """Validate that the database schema fix is working correctly"""
         
@@ -655,6 +660,7 @@ class TestPolygonFixValidation:
         print("   ✅ All required columns exist")
 
     @pytest.mark.asyncio  
+    @pytest.mark.asyncio
     async def test_checkpoint_system_fix_validation(self, db_connection):
         """Validate that the checkpoint system is working correctly"""
         

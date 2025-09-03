@@ -13,12 +13,12 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from ml.training_data.support_resistance_generator import (
+from domains.ml.services.training_data.support_resistance_generator import (
     SupportResistanceTrainingGenerator,
     SupportResistanceLevel,
     TrainingExample
 )
-from config.environment import Environment
+from shared.utils.environment import Environment
 
 class TestSupportResistanceTrainingGenerator:
     """Test suite for SupportResistanceTrainingGenerator"""
@@ -259,6 +259,7 @@ class TestSupportResistanceTrainingGenerator:
         assert isinstance(signal, (int, float, np.number))
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_generate_training_data_mock(self, generator):
         """Test training data generation with mocked database"""
         # Mock the database connection and methods
@@ -416,6 +417,7 @@ class TestSupportResistanceIntegration:
         env.get_table_name = lambda name: f"test_{name}"
         return env
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_end_to_end_training_data_generation(self, mock_env):
         """Test complete training data generation workflow"""

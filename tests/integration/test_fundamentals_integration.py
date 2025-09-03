@@ -10,14 +10,14 @@ import asyncio
 from datetime import date, datetime
 from decimal import Decimal
 
-from src.dao.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental
-from src.dao.fundamentals_polygon_dao import FundamentalsPolygonDAO, PolygonFundamental  
-from src.dao.fundamentals_tiingo_dao import FundamentalsTiingoDAO, TiingoFundamental
-from src.market_data.fundamentals.unified_fundamental_provider import (
+from domains.market_data.repositories.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental
+from domains.market_data.repositories.fundamentals_polygon_dao import FundamentalsPolygonDAO, PolygonFundamental  
+from domains.market_data.repositories.fundamentals_tiingo_dao import FundamentalsTiingoDAO, TiingoFundamental
+from domains.market_data.services.fundamentals.unified_fundamental_provider import (
     UnifiedFundamentalProvider, 
     ValidationStatus
 )
-from src.config.environment import Environment
+from shared.utils.environment import Environment
 
 
 @pytest.fixture
@@ -99,6 +99,8 @@ def sample_tiingo_test_data(test_symbol, test_date):
 class TestFundamentalsDAOIntegration:
     """Integration tests for fundamental DAOs against real database"""
     
+    @pytest.mark.asyncio
+    
     async def test_fmp_dao_crud_operations(self, dev_environment, sample_fmp_test_data):
         """Test FMP DAO CRUD operations against real database"""
         dao = FundamentalsFMPDAO(dev_environment)
@@ -137,6 +139,8 @@ class TestFundamentalsDAOIntegration:
             delete_result = await dao.delete_fundamental(sample_fmp_test_data.symbol, sample_fmp_test_data.date)
             assert delete_result is True
     
+    @pytest.mark.asyncio
+    
     async def test_polygon_dao_crud_operations(self, dev_environment, sample_polygon_test_data):
         """Test Polygon DAO CRUD operations against real database"""
         dao = FundamentalsPolygonDAO(dev_environment)
@@ -159,6 +163,8 @@ class TestFundamentalsDAOIntegration:
         finally:
             # Cleanup
             await dao.delete_fundamental(sample_polygon_test_data.symbol, sample_polygon_test_data.date)
+    
+    @pytest.mark.asyncio
     
     async def test_tiingo_dao_crud_operations(self, dev_environment, sample_tiingo_test_data):
         """Test Tiingo DAO CRUD operations against real database"""
@@ -187,6 +193,8 @@ class TestFundamentalsDAOIntegration:
 @pytest.mark.integration  
 class TestUnifiedFundamentalProviderIntegration:
     """Integration tests for UnifiedFundamentalProvider with real database"""
+    
+    @pytest.mark.asyncio
     
     async def test_cross_vendor_validation(self, dev_environment, sample_fmp_test_data, 
                                          sample_polygon_test_data, sample_tiingo_test_data):
@@ -234,6 +242,8 @@ class TestUnifiedFundamentalProviderIntegration:
             await polygon_dao.delete_fundamental(sample_polygon_test_data.symbol, sample_polygon_test_data.date)
             await tiingo_dao.delete_fundamental(sample_tiingo_test_data.symbol, sample_tiingo_test_data.date)
     
+    @pytest.mark.asyncio
+    
     async def test_unified_symbols_list(self, dev_environment):
         """Test unified symbols list functionality"""
         provider = UnifiedFundamentalProvider(dev_environment)
@@ -244,6 +254,8 @@ class TestUnifiedFundamentalProviderIntegration:
         assert isinstance(symbols, list)
         # Should return some real symbols from the database
         # (actual symbols will depend on what's in the dev database)
+    
+    @pytest.mark.asyncio
     
     async def test_database_schema_compatibility(self, dev_environment, sample_fmp_test_data):
         """Test that our DAO schema matches actual database schema"""

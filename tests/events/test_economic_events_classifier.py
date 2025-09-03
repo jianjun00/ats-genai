@@ -257,11 +257,13 @@ class TestEconomicEventsProcessor:
         self.processor = EconomicEventsProcessor(self.db_config)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_processor_initialization(self):
         """Test processor initializes with classifier"""
         assert self.processor.classifier is not None
         assert self.processor.db_config == self.db_config
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_table_creation_logic(self):
         """Test database table creation SQL"""
@@ -281,6 +283,7 @@ class TestEconomicEventsProcessor:
             # Check indexes were created
             assert any('CREATE INDEX' in call for call in create_calls)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_news_article_processing_flow(self):
         """Test end-to-end news processing workflow"""
@@ -327,6 +330,7 @@ class TestEconomicEventsProcessor:
             assert mock_conn.fetchval.call_count == 2  # Two events inserted
             assert mock_conn.execute.call_count == 2   # Two news-event mappings
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_confidence_threshold_filtering(self):
         """Test that low confidence events are filtered out"""
@@ -376,6 +380,7 @@ class TestEconomicEventsProcessor:
                 assert mock_conn.fetchval.call_count == 1
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_database_error_handling(self):
         """Test graceful handling of database errors"""
         mock_conn = AsyncMock()
@@ -388,6 +393,7 @@ class TestEconomicEventsProcessor:
             with pytest.raises(Exception):
                 await self.processor.process_news_articles('news_test')
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_duplicate_event_handling(self):
         """Test handling of duplicate news-event mappings"""

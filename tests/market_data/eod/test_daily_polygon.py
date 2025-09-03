@@ -1,17 +1,18 @@
 import pytest
 import asyncio
 from datetime import datetime, timezone
-from config.environment import Environment, EnvironmentType
+from shared.utils.environment import Environment, EnvironmentType
 from db.test_db_manager import unit_test_db
-from dao.instrument_polygon_dao import InstrumentPolygonDAO
-from dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
-from market_data.eod import daily_price_polygon
+from domains.instruments.repositories.instrument_polygon_dao import InstrumentPolygonDAO
+from domains.market_data.repositories.daily_prices_polygon_dao import DailyPricesPolygonDAO
+from domains.market_data.services.eod import daily_price_polygon
 import os
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch, polygon_vendor_id):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
-    from dao.instruments_dao import InstrumentsDAO
+    from domains.instruments.repositories.instruments_dao import InstrumentsDAO
     instrument_dao = InstrumentsDAO(env)
     prices_dao = DailyPricesPolygonDAO(env)
 
@@ -28,7 +29,7 @@ async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch, polygon_v
     )
     assert test_instrument_id is not None, "Instrument insert failed"
     # Insert xref for AAPL/Polygon
-    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+    from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
     xrefs_dao = InstrumentXrefsDAO(env)
     await xrefs_dao.create_xref(
         instrument_id=test_instrument_id,
@@ -55,6 +56,7 @@ async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch, polygon_v
     monkeypatch.setattr(daily_price_polygon.requests, "get", lambda url: FakeResp())
     
     # Create a non-Ray version of run_ingestion for testing
+    @pytest.mark.asyncio
     async def test_run_ingestion_no_ray(tickers, start_date, end_date, environment, instrument_dao, prices_dao, polygon_api_key, **kwargs):
         """Non-Ray version of run_ingestion for testing"""
         # Process each ticker serially instead of using Ray

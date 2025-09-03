@@ -11,8 +11,8 @@ from pathlib import Path
 from datetime import datetime
 
 from state.training_data_callback import DateBasedTrainingDataCallback
-from ml.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-from config.environment import Environment, EnvironmentType
+from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
+from shared.utils.environment import Environment, EnvironmentType
 from state.universe_state_manager import UniverseStateManager
 
 
@@ -171,6 +171,7 @@ class TestPureCallbackTraining:
 
 
     @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     async def test_pure_callback_with_runner_framework(self):
         """
         Test pure callback approach with Runner framework.

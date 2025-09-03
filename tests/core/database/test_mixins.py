@@ -162,6 +162,7 @@ class TestAsyncDatabaseMixin:
     
     @patch('src.core.database.mixins.get_connection_manager')
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_initialize_database_success(self, mock_get_manager):
         """Test successful async database initialization."""
         mock_manager = Mock()
@@ -176,6 +177,7 @@ class TestAsyncDatabaseMixin:
         mock_manager.check_async_connection.assert_called_once()
     
     @patch('src.core.database.mixins.get_connection_manager')
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_initialize_database_failure(self, mock_get_manager):
         """Test async database initialization failure."""

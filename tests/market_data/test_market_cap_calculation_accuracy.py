@@ -13,6 +13,7 @@ from datetime import date, timedelta
 from typing import Dict, List, Optional
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_market_cap_calculation_accuracy():
     """Test that our market cap calculations match external sources within 5% tolerance"""
     
@@ -88,6 +89,7 @@ async def test_market_cap_calculation_accuracy():
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_market_cap_universe_coverage():
     """Test that we have sufficient market cap coverage for universe building"""
     
@@ -145,6 +147,7 @@ async def test_market_cap_universe_coverage():
 
 
 @pytest.mark.asyncio 
+@pytest.mark.asyncio
 async def test_polygon_api_data_freshness():
     """Test that Polygon API returns fresh, accurate data for major stocks"""
     
@@ -182,6 +185,7 @@ async def test_polygon_api_data_freshness():
         await asyncio.sleep(0.2)  # Rate limiting
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_price_data_consistency():
     """Test that our price data is consistent and reasonable"""
@@ -246,6 +250,7 @@ async def test_price_data_consistency():
         await pool.close()
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_shares_outstanding_reasonableness():
     """Test that shares outstanding data is reasonable for major companies"""

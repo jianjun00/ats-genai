@@ -287,6 +287,8 @@ class TestDatabaseIntegration:
         yield manager
         await manager.cleanup_test_tables()
     
+    @pytest.mark.asyncio
+    
     async def test_checkpoint_table_creation(self, checkpoint_manager, db_connection):
         """Test that checkpoint tables are created correctly"""
         # Verify tables exist
@@ -310,6 +312,8 @@ class TestDatabaseIntegration:
         index_names = [row['indexname'] for row in indexes]
         assert any('idx_test_job_runs_status' in idx for idx in index_names)
         assert any('idx_test_job_progress_status' in idx for idx in index_names)
+        
+    @pytest.mark.asyncio
         
     async def test_job_run_crud_operations(self, checkpoint_manager):
         """Test basic CRUD operations on job runs"""
@@ -352,6 +356,8 @@ class TestDatabaseIntegration:
         
         assert final_job['status'] == 'completed'
         assert final_job['completed_at'] is not None
+        
+    @pytest.mark.asyncio
         
     async def test_item_progress_tracking(self, checkpoint_manager):
         """Test item progress tracking functionality"""
@@ -402,6 +408,8 @@ class TestDatabaseIntegration:
         assert 'AAPL' not in pending_items  # Completed
         assert 'MSFT' not in pending_items  # Failed
         
+    @pytest.mark.asyncio
+        
     async def test_job_statistics_calculation(self, checkpoint_manager):
         """Test job statistics calculation with real database aggregation"""
         job_id = await checkpoint_manager.create_job_run(
@@ -426,6 +434,8 @@ class TestDatabaseIntegration:
         assert stats['in_progress'] == 1
         assert stats['pending'] == 2
         assert stats['total_records'] == 125  # 50 + 75
+        
+    @pytest.mark.asyncio
         
     async def test_price_data_storage_and_retrieval(self, checkpoint_manager):
         """Test storing and retrieving price data"""
@@ -516,6 +526,8 @@ class TestConcurrentJobExecution:
         yield manager
         await manager.cleanup_test_tables()
     
+    @pytest.mark.asyncio
+    
     async def test_concurrent_job_isolation(self, checkpoint_manager):
         """Test that concurrent jobs don't interfere with each other"""
         
@@ -564,6 +576,8 @@ class TestConcurrentJobExecution:
         for symbol in job2_symbols + job3_symbols:
             assert symbol not in job1_processed
             
+    @pytest.mark.asyncio
+            
     async def test_concurrent_item_processing_same_job(self, checkpoint_manager):
         """Test concurrent processing of items within the same job"""
         job_id = await checkpoint_manager.create_job_run(
@@ -593,6 +607,8 @@ class TestConcurrentJobExecution:
         # Verify concurrent processing was faster than sequential
         duration = (end_time - start_time).total_seconds()
         assert duration < 0.15  # Should be much faster than 10 * 0.02 = 0.2s
+        
+    @pytest.mark.asyncio
         
     async def test_database_connection_under_load(self, checkpoint_manager):
         """Test database performance under concurrent load"""
@@ -671,6 +687,8 @@ class TestJobRecoveryAndResumption:
         yield manager
         await manager.cleanup_test_tables()
     
+    @pytest.mark.asyncio
+    
     async def test_job_resumption_after_partial_completion(self, checkpoint_manager):
         """Test resuming job after partial completion"""
         # Start initial job
@@ -708,6 +726,8 @@ class TestJobRecoveryAndResumption:
         assert final_stats['completed'] == 5
         assert final_stats['pending'] == 0
         assert final_stats['total_records'] == 850  # 100 + 150 + 3*200
+        
+    @pytest.mark.asyncio
         
     async def test_failed_item_retry_logic(self, checkpoint_manager):
         """Test retry logic for failed items"""
@@ -759,6 +779,8 @@ class TestJobRecoveryAndResumption:
                 assert row['retry_count'] == 1  # One retry
             else:
                 assert row['retry_count'] == 0  # No retry needed
+                
+    @pytest.mark.asyncio
                 
     async def test_data_consistency_after_interruption(self, checkpoint_manager):
         """Test data consistency after job interruption"""

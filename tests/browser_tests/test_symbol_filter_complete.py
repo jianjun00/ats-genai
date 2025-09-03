@@ -7,6 +7,8 @@ import asyncio
 from playwright.async_api import async_playwright
 import json
 
+@pytest.mark.asyncio
+
 async def test_symbol_filter_complete():
     """Test the complete symbol filter workflow and monitor network requests."""
     print("🔍 Complete Symbol Filter Test")

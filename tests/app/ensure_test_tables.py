@@ -5,7 +5,7 @@ This can be imported by test files to ensure proper test database setup.
 import asyncio
 import asyncpg
 import logging
-from config.environment import Environment, EnvironmentType
+from shared.utils.environment import Environment, EnvironmentType
 
 logger = logging.getLogger(__name__)
 

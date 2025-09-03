@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, 'src')
 
 from src.universe.modeling_universe_creator import ModelingUniverseCreator, ModelingStock
-from src.config.environment import Environment
+from shared.utils.environment import Environment
 
 
 class TestModelingUniverseCreatorCore:

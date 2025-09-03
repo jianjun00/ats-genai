@@ -8,7 +8,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, AsyncMock
 
-from modeling.multi_timeframe_analyzer import (
+from domains.ml.services.multi_timeframe_analyzer import (
     TimeFrame,
     TimeFrameConfig,
     MultiTimeFrameFeatures,
@@ -17,7 +17,7 @@ from modeling.multi_timeframe_analyzer import (
     flatten_multi_timeframe_features,
     analyze_multi_timeframe_patterns
 )
-from modeling.llm_pattern_recognition import LLMPatternRecognizer, PatternAnalysis, LLMProvider
+from domains.ml.services.llm_pattern_recognition import LLMPatternRecognizer, PatternAnalysis, LLMProvider
 from state.universe_state_manager import UniverseStateManager
 
 
@@ -259,6 +259,7 @@ class TestMultiTimeFrameAnalyzer:
         assert quarterly_config.lookback_periods == 8
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_analyze_multi_timeframe_basic(self, mock_universe_state_manager, mock_llm_recognizer, sample_daily_data):
         """Test basic multi-timeframe analysis."""
         # Setup mock to return sample data
@@ -283,6 +284,7 @@ class TestMultiTimeFrameAnalyzer:
         assert 0 <= features.trend_strength <= 1
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_analyze_multi_timeframe_no_data(self, mock_universe_state_manager, mock_llm_recognizer):
         """Test multi-timeframe analysis with no data."""
         # Setup mock to return empty data
@@ -304,6 +306,7 @@ class TestMultiTimeFrameAnalyzer:
         assert features.trend_strength == 0.0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_prepare_timeframe_data(self, mock_universe_state_manager, sample_daily_data):
         """Test timeframe data preparation."""
         analyzer = MultiTimeFrameAnalyzer(mock_universe_state_manager, None)
@@ -324,6 +327,7 @@ class TestMultiTimeFrameAnalyzer:
         assert len(timeframe_data[TimeFrame.MONTHLY]) <= 2
         assert len(timeframe_data[TimeFrame.QUARTERLY]) == 1
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_analyze_single_timeframe(self, mock_universe_state_manager, mock_llm_recognizer, sample_daily_data):
         """Test single timeframe analysis."""
@@ -347,6 +351,7 @@ class TestMultiTimeFrameAnalyzer:
         tech_features = [k for k in daily_analysis.keys() if 'ema' in k or 'rsi' in k or 'atr' in k]
         assert len(tech_features) > 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_analyze_single_timeframe_insufficient_data(self, mock_universe_state_manager, mock_llm_recognizer):
         """Test single timeframe analysis with insufficient data."""
@@ -405,6 +410,7 @@ class TestMultiTimeFrameAnalyzer:
         # Should have range analysis
         assert 'avg_range' in features
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_extract_llm_pattern_features(self, mock_universe_state_manager, mock_llm_recognizer, sample_daily_data):
         """Test LLM pattern feature extraction."""
@@ -654,6 +660,7 @@ class TestConvenienceFunction:
     """Test convenience function."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_analyze_multi_timeframe_patterns(self, mock_universe_state_manager, sample_daily_data):
         """Test convenience function for multi-timeframe analysis."""
         # Setup mock
@@ -680,6 +687,7 @@ class TestConvenienceFunction:
             assert isinstance(features, MultiTimeFrameFeatures)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_analyze_multi_timeframe_patterns_no_llm(self, mock_universe_state_manager, sample_daily_data):
         """Test convenience function without LLM API key."""
         mock_universe_state_manager.get_lag_prices.return_value = sample_daily_data
@@ -700,6 +708,7 @@ class TestEdgeCasesAndErrorHandling:
     """Test edge cases and error handling."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_analyze_with_corrupt_data(self, mock_universe_state_manager, mock_llm_recognizer):
         """Test analysis with corrupt/invalid data."""
         # Create data with NaN values
@@ -719,6 +728,7 @@ class TestEdgeCasesAndErrorHandling:
         
         assert isinstance(features, MultiTimeFrameFeatures)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_analyze_with_extreme_values(self, mock_universe_state_manager, mock_llm_recognizer):
         """Test analysis with extreme price values."""
@@ -744,6 +754,7 @@ class TestEdgeCasesAndErrorHandling:
             if isinstance(value, (int, float)):
                 assert np.isfinite(value)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_llm_error_handling(self, mock_universe_state_manager, sample_daily_data):
         """Test handling of LLM errors."""
@@ -793,6 +804,7 @@ class TestEdgeCasesAndErrorHandling:
         assert features['trend_slope'] == 0.0  # No slope for constant prices
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_analysis_with_single_timeframe_data(self, mock_universe_state_manager, mock_llm_recognizer):
         """Test analysis when only one timeframe has sufficient data."""
         # Very limited data that only works for daily
@@ -816,6 +828,7 @@ class TestEdgeCasesAndErrorHandling:
 class TestIntegrationScenarios:
     """Test integration scenarios."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_complete_multi_timeframe_workflow(self, mock_universe_state_manager, sample_daily_data):
         """Test complete multi-timeframe analysis workflow."""

@@ -14,15 +14,15 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../src'))
 
-from market_data.eod.unified_daily_price_validator import (
+from domains.market_data.services.eod.unified_daily_price_validator import (
     UnifiedDailyPriceValidator, 
     ValidationStatus, 
     VendorPrice, 
     ValidationResult,
     UnifiedPrice
 )
-from market_data.eod.unified_daily_price_pipeline import UnifiedDailyPricePipeline
-from config.environment import Environment
+from domains.market_data.services.eod.unified_daily_price_pipeline import UnifiedDailyPricePipeline
+from shared.utils.environment import Environment
 
 
 class TestUnifiedDailyPriceValidator:
@@ -77,6 +77,7 @@ class TestUnifiedDailyPriceValidator:
         assert result.confidence_score == 0.95
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_statistical_validation_normal_price(self, validator):
         """Test statistical validation with normal price"""
         # Mock historical stats
@@ -95,6 +96,7 @@ class TestUnifiedDailyPriceValidator:
         assert result.statistical_score < 1.0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_statistical_validation_outlier(self, validator):
         """Test statistical validation with outlier price"""
         historical_stats = {
@@ -111,6 +113,7 @@ class TestUnifiedDailyPriceValidator:
         assert result.confidence_score == 0.0
         assert result.statistical_score > 6.0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_statistical_validation_manual_review(self, validator):
         """Test statistical validation requiring manual review"""
@@ -214,6 +217,7 @@ class TestUnifiedDailyPricePipeline:
         await pipeline.disconnect()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_create_run_record(self, pipeline):
         """Test creating a run record"""
         # Mock the database return
@@ -232,6 +236,7 @@ class TestUnifiedDailyPricePipeline:
         pipeline.conn.fetchval.assert_called_once()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_update_run_record(self, pipeline):
         """Test updating a run record"""
         results = {
@@ -248,12 +253,14 @@ class TestUnifiedDailyPricePipeline:
         assert '"total_processed": 100' in call_args[2]  # results JSON
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_symbols_to_process_explicit(self, pipeline):
         """Test getting symbols when explicitly provided"""
         symbols = await pipeline.get_symbols_to_process(['AAPL', 'MSFT', 'GOOGL'], limit=2)
         
         assert symbols == ['AAPL', 'MSFT']
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_symbols_to_process_from_universe(self, pipeline):
         """Test getting symbols from universe membership"""
@@ -270,6 +277,7 @@ class TestUnifiedDailyPricePipeline:
         assert symbols == ['AAPL', 'MSFT']
         pipeline.conn.fetch.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_store_unified_price(self, pipeline):
         """Test storing a unified price record"""
@@ -313,6 +321,7 @@ class TestIntegrationScenarios:
     """Integration test scenarios"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_end_to_end_validation_scenario(self):
         """Test complete end-to-end validation scenario"""
         env = Environment()
@@ -353,12 +362,14 @@ class TestIntegrationScenarios:
                 assert unified_price.primary_vendor in ["polygon", "tiingo"]
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_holiday_detection_scenario(self):
         """Test detection of market holidays"""
         # This would test holiday exclusion logic
         # Implementation depends on how holidays are detected
         pass
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_corporate_action_scenario(self):
         """Test handling of corporate actions affecting prices"""
@@ -417,6 +428,7 @@ class TestPerformanceAndEdgeCases:
         # Should handle string inputs properly
         assert isinstance(vendor_price.close, str)  # VendorPrice stores as provided
         
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_large_batch_processing(self):
         """Test processing large batches of symbols"""

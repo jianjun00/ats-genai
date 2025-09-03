@@ -4,9 +4,10 @@ import asyncio
 from datetime import date
 
 # Adjust import as needed for your project structure
-from config.environment import Environment, EnvironmentType, EnvironmentType
+from shared.utils.environment import Environment, EnvironmentType, EnvironmentType
 from db.test_db_manager import unit_test_db_clean
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_membership_changes_produce_expected_universe_membership(unit_test_db, tmp_path):
     """

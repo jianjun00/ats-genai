@@ -22,7 +22,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
 
-from market_data.agent.firstrate_daily_downloader import FirstRateDownloader, DownloadJob
+from domains.market_data.services.agent.firstrate_daily_downloader import FirstRateDownloader, DownloadJob
 
 
 class TestDownloadJob:
@@ -179,6 +179,7 @@ class TestFirstRateDownloader:
         assert downloader.verify_zip_file(empty_zip) is False
     
     @pytest.mark.skip(reason="Complex async mocking issue - functionality works in real execution")
+    @pytest.mark.asyncio
     async def test_download_with_retries_success(self, temp_setup):
         """Test successful download with retry logic."""
         downloader = FirstRateDownloader(base_path=temp_setup, max_retries=2)
@@ -220,6 +221,7 @@ class TestFirstRateDownloader:
             assert output_path.stat().st_size > 0
     
     @patch('aiohttp.ClientSession.get')
+    @pytest.mark.asyncio
     async def test_download_with_retries_404(self, mock_get, temp_setup):
         """Test download handling 404 error."""
         downloader = FirstRateDownloader(base_path=temp_setup, max_retries=2)
@@ -242,6 +244,7 @@ class TestFirstRateDownloader:
         assert not output_path.exists()
     
     @patch('aiohttp.ClientSession.get')
+    @pytest.mark.asyncio
     async def test_download_with_retries_failure(self, mock_get, temp_setup):
         """Test download with retries after failures."""
         downloader = FirstRateDownloader(base_path=temp_setup, max_retries=1, retry_delay=0.1)
@@ -300,6 +303,7 @@ class TestFirstRateDownloader:
         assert today_file.exists()    # Should remain (today)
     
     @patch('market_data.agent.firstrate_daily_downloader.FirstRateDownloader.download_with_retries')
+    @pytest.mark.asyncio
     async def test_download_daily_data_success(self, mock_download, temp_setup):
         """Test complete daily data download process."""
         downloader = FirstRateDownloader(base_path=temp_setup)
@@ -324,6 +328,7 @@ class TestFirstRateDownloader:
     
     @patch('market_data.agent.firstrate_daily_downloader.FirstRateDownloader.download_with_retries')
     @patch('market_data.agent.firstrate_daily_downloader.FirstRateDownloader.verify_zip_file')
+    @pytest.mark.asyncio
     async def test_download_daily_data_skip_existing(self, mock_verify, mock_download, temp_setup):
         """Test skipping existing valid files."""
         downloader = FirstRateDownloader(base_path=temp_setup)
@@ -360,6 +365,8 @@ class TestIntegration:
         # Cleanup
         import shutil
         shutil.rmtree(temp_dir)
+    
+    @pytest.mark.asyncio
     
     async def test_end_to_end_download_simulation(self, temp_setup):
         """Test complete download process with simulated API."""

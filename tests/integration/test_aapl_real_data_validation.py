@@ -21,11 +21,11 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 try:
-    from market_data.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
-    from modeling.multi_timeframe_data_collector import MultiTimeframeDataCollector
-    from modeling.multi_timeframe_signal_pipeline import create_signal_pipeline
-    from config.environment import Environment, EnvironmentType
-    from modeling.enhanced_feature_types import EnhancedFeatureRegistry
+    from domains.market_data.services.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
+    from domains.ml.services.multi_timeframe_data_collector import MultiTimeframeDataCollector
+    from domains.ml.services.multi_timeframe_signal_pipeline import create_signal_pipeline
+    from shared.utils.environment import Environment, EnvironmentType
+    from domains.ml.services.enhanced_feature_types import EnhancedFeatureRegistry
 except ImportError as e:
     print(f"❌ Import error: {e}")
     print("Make sure to run: PYTHONPATH=src python test_aapl_real_data_validation.py")
@@ -129,6 +129,8 @@ class AAPLRealDataValidator:
             logger.error(f"Error getting available symbols: {e}")
             return []
     
+    @pytest.mark.asyncio
+    
     async def test_data_availability(self):
         """Test AAPL data availability across different periods."""
         logger.info("🔍 Testing AAPL data availability...")
@@ -181,6 +183,8 @@ class AAPLRealDataValidator:
         logger.info(f"📈 Data available for {len(available_periods)}/{len(test_periods)} test periods")
         
         return available_periods
+    
+    @pytest.mark.asyncio
     
     async def test_timeframe_aggregation_accuracy(self):
         """Test accuracy of timeframe aggregation."""
@@ -275,6 +279,8 @@ class AAPLRealDataValidator:
         
         return validation
     
+    @pytest.mark.asyncio
+    
     async def test_signal_computation_performance(self):
         """Test signal computation performance and accuracy."""
         logger.info("⚡ Testing signal computation performance...")
@@ -338,6 +344,8 @@ class AAPLRealDataValidator:
         except Exception as e:
             logger.error(f"❌ Signal computation test failed: {e}")
             self.results['signal_computation'] = {'error': str(e)}
+    
+    @pytest.mark.asyncio
     
     async def test_data_collector_integration(self):
         """Test integration with MultiTimeframeDataCollector."""

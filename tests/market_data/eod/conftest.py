@@ -2,8 +2,8 @@ import os
 import json
 import pytest
 import asyncio
-from config.environment import Environment
-from dao.vendors_dao import VendorsDAO
+from shared.utils.environment import Environment
+from infrastructure.database.repositories.vendors_dao import VendorsDAO
 
 @pytest.fixture(scope="function")
 async def polygon_vendor_id(unit_test_db):

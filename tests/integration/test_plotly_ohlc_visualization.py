@@ -28,6 +28,7 @@ class TestPlotlyOHLCVisualization:
             pytest.skip("Analytics service not accessible")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_eda_page_loads(self):
         """Test 1: Verify EDA page loads successfully"""
         async with async_playwright() as p:
@@ -48,6 +49,7 @@ class TestPlotlyOHLCVisualization:
             finally:
                 await browser.close()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_training_dataset_tab_exists(self):
         """Test 2: Verify Training Dataset tab is present and clickable"""
@@ -86,6 +88,7 @@ class TestPlotlyOHLCVisualization:
                 await browser.close()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_plotly_js_loaded(self):
         """Test 3: Verify Plotly.js is loaded on the page"""
         async with async_playwright() as p:
@@ -114,6 +117,7 @@ class TestPlotlyOHLCVisualization:
                 await browser.close()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_training_datasets_api_accessible(self):
         """Test 4: Verify training datasets API returns valid data"""
         async with async_playwright() as p:
@@ -141,6 +145,7 @@ class TestPlotlyOHLCVisualization:
             finally:
                 await browser.close()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_visualization_data_api(self):
         """Test 5: Verify visualization data API returns OHLC data with technical indicators"""
@@ -193,6 +198,7 @@ class TestPlotlyOHLCVisualization:
             finally:
                 await browser.close()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_ohlc_visualization_ui_elements(self):
         """Test 6: Verify OHLC visualization UI elements are present"""
@@ -249,6 +255,7 @@ class TestPlotlyOHLCVisualization:
             finally:
                 await browser.close()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_ohlc_chart_functionality(self):
         """Test 7: Test OHLC chart creation and interaction"""
@@ -323,6 +330,7 @@ class TestPlotlyOHLCVisualization:
             finally:
                 await browser.close()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_technical_indicators_display(self):
         """Test 8: Verify technical indicators are displayed in chart legend"""

@@ -7,9 +7,9 @@ import asyncio
 import time
 from datetime import datetime, date, timedelta
 from unittest.mock import AsyncMock, MagicMock
-from market_data.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
-from market_data.eod.unify_daily_prices import DatabaseDailyPricesUnifier
-from config.environment import Environment
+from domains.market_data.services.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
+from domains.market_data.services.eod.unify_daily_prices import DatabaseDailyPricesUnifier
+from shared.utils.environment import Environment
 
 
 class TestOptimizedDataPipelinePerformance:
@@ -31,6 +31,7 @@ class TestOptimizedDataPipelinePerformance:
         """Sample symbols corresponding to instrument IDs."""
         return [f"TEST{i:03d}" for i in range(1, 101)]
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_batch_symbol_resolution_performance(self, mock_env, sample_instrument_ids):
         """Test that batch symbol resolution is significantly faster than individual calls."""
@@ -75,6 +76,7 @@ class TestOptimizedDataPipelinePerformance:
             assert len(batch_results) == len(sample_instrument_ids)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_symbol_caching_performance(self, mock_env, sample_instrument_ids):
         """Test that symbol caching reduces repeated database calls."""
         manager = UnifiedDBDailyPriceMarketDataManager(mock_env)
@@ -107,6 +109,7 @@ class TestOptimizedDataPipelinePerformance:
             
             print(f"Cache hit rate: {1 - (call_count / 3):.1%}")
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_batch_ohlc_performance_improvement(self, mock_env):
         """Test that batch OHLC fetching is significantly faster than individual calls."""
@@ -153,6 +156,7 @@ class TestOptimizedDataPipelinePerformance:
         print(f"Processing {len(instrument_ids)} instruments")
         print(f"Average time per instrument: {batch_time / len(instrument_ids):.6f}s")
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_bulk_database_query_efficiency(self, mock_env):
         """Test that bulk database queries reduce query count."""
@@ -204,6 +208,7 @@ class TestOptimizedDataPipelinePerformance:
 class TestDataPipelineMemoryEfficiency:
     """Test memory usage patterns in optimized pipeline."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_cache_memory_management(self, mock_env):
         """Verify that caching doesn't cause memory leaks."""

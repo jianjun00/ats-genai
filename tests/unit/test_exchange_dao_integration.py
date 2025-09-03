@@ -9,9 +9,9 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from datetime import date, datetime
 
-from dao.exchange_dao import ExchangeDAO
-from dao.instrument_xref_dao import InstrumentXrefDAO  
-from dao.vendor_dao import VendorDAO
+from domains.instruments.repositories.exchange_dao import ExchangeDAO
+from domains.instruments.repositories.instrument_xref_dao import InstrumentXrefDAO  
+from infrastructure.database.repositories.vendor_dao import VendorDAO
 from services.exchange_service import ExchangeService
 from core.exceptions.custom_exceptions import DataValidationError, DatabaseError
 from core.validation.data_validators import ValidationResult

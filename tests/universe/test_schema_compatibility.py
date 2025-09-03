@@ -10,13 +10,14 @@ from unittest.mock import Mock, AsyncMock
 import asyncpg
 import os
 
-from config.environment import Environment
-from universe.dynamic_modeling_universe import DynamicModelingUniverse
+from shared.utils.environment import Environment
+from domains.trading.services.dynamic_modeling_universe import DynamicModelingUniverse
 
 
 class TestSchemaCompatibility:
     """Test that dynamic universe system is compatible with existing database schema"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_existing_universe_table_schema(self):
         """Test that existing dev_universe table has expected columns"""
@@ -104,6 +105,7 @@ class TestSchemaCompatibility:
         print("❌ DETECTED ISSUE: Query assumes 'updated_at' column exists, but it doesn't in current schema")
     
     @pytest.mark.asyncio  
+    @pytest.mark.asyncio
     async def test_universe_tracking_table_creation(self):
         """Test universe tracking table creation SQL"""
         env = Mock(spec=Environment)
@@ -168,6 +170,7 @@ class TestSchemaCompatibility:
 class TestDatabaseErrorHandling:
     """Test error handling for database schema issues"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_universe_initialization_with_schema_error(self):
         """Test that we can detect and handle schema errors gracefully"""

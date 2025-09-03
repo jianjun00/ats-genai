@@ -24,7 +24,7 @@ import aiohttp
 import sys
 sys.path.append('src')
 
-from market_data.realtime.daily_validation import (
+from domains.market_data.services.realtime.daily_validation import (
     DailyValidationEngine,
     ValidationResult
 )
@@ -175,6 +175,7 @@ class TestDailyValidationEngine:
         assert validation_engine._has_api_key('unknown') is False
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_initialize_database_connection(self, validation_engine, mock_env):
         """Test database initialization"""
         mock_pool = AsyncMock()
@@ -187,6 +188,7 @@ class TestDailyValidationEngine:
             assert validation_engine.pool == mock_pool
             mock_env.get_database_url.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_active_symbols(self, validation_engine):
         """Test getting active symbols for validation"""
@@ -206,6 +208,7 @@ class TestDailyValidationEngine:
         assert symbols == ['AAPL', 'MSFT', 'GOOGL']
         mock_conn.fetch.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_realtime_data(self, validation_engine):
         """Test getting real-time data from database"""
@@ -245,6 +248,7 @@ class TestDailyValidationEngine:
         assert data[1]['close_price'] == 152.0
         mock_conn.fetch.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_polygon_batch_data(self, validation_engine):
         """Test getting batch data from Polygon API"""
@@ -288,6 +292,7 @@ class TestDailyValidationEngine:
             assert isinstance(data[0]['timestamp'], datetime)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_tiingo_batch_data(self, validation_engine):
         """Test getting batch data from Tiingo API"""
         validation_date = date(2025, 1, 15)
@@ -327,6 +332,7 @@ class TestDailyValidationEngine:
             assert data[1]['close_price'] == 152.0
             assert isinstance(data[0]['timestamp'], datetime)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_fmp_batch_data(self, validation_engine):
         """Test getting batch data from FMP API"""
@@ -549,6 +555,7 @@ class TestDailyValidationEngine:
         assert result.validation_status == 'failed'  # Below 95%
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_validate_vendor(self, validation_engine):
         """Test validating a specific vendor"""
         # Mock all the required methods
@@ -577,6 +584,7 @@ class TestDailyValidationEngine:
         assert validation_engine.validation_results[0].symbol == 'AAPL'
         assert validation_engine.validation_results[1].symbol == 'MSFT'
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_store_validation_results(self, validation_engine):
         """Test storing validation results in database"""
@@ -620,6 +628,7 @@ class TestDailyValidationEngine:
         assert 'overall_accuracy_score' in sql_call
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_generate_validation_summary(self, validation_engine):
         """Test generating validation summary"""
         # Add test validation results
@@ -662,6 +671,7 @@ class TestDailyValidationEngine:
         assert summary['critical_issues'][0].symbol == 'GOOGL'
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_send_validation_alerts(self, validation_engine):
         """Test sending validation alerts"""
         # Set up critical issues in summary
@@ -685,6 +695,7 @@ class TestDailyValidationEngine:
         # For now, we just verify it doesn't crash
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_run_daily_validation_complete_flow(self, validation_engine):
         """Test the complete daily validation flow"""
         # Mock all dependencies
@@ -706,6 +717,7 @@ class TestDailyValidationEngine:
         validation_engine._generate_validation_summary.assert_called_once()
         validation_engine._send_validation_alerts.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_shutdown(self, validation_engine):
         """Test graceful shutdown"""
@@ -730,6 +742,7 @@ class TestAPIErrorHandling:
                 return engine
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_polygon_api_error(self, validation_engine):
         """Test handling Polygon API errors"""
         mock_response = AsyncMock()
@@ -741,6 +754,7 @@ class TestAPIErrorHandling:
             data = await validation_engine._get_polygon_batch_data('AAPL')
             assert data == []
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_tiingo_api_error(self, validation_engine):
         """Test handling Tiingo API errors"""
@@ -754,6 +768,7 @@ class TestAPIErrorHandling:
             assert data == []
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fmp_api_error(self, validation_engine):
         """Test handling FMP API errors"""
         mock_response = AsyncMock()
@@ -765,6 +780,7 @@ class TestAPIErrorHandling:
             data = await validation_engine._get_fmp_batch_data('AAPL')
             assert data == []
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_network_timeout(self, validation_engine):
         """Test handling network timeouts"""

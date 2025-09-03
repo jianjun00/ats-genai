@@ -27,7 +27,7 @@ import subprocess
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-from src.market_data.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
+from domains.market_data.services.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
 
 logger = logging.getLogger(__name__)
 
@@ -178,6 +178,7 @@ class TestCompleteWorkflow:
     """Test complete collection workflow"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_full_collection_lifecycle(self, e2e_db_pool):
         """Test complete collection lifecycle from start to finish"""
         harness = E2ETestHarness(e2e_db_pool)
@@ -245,6 +246,7 @@ class TestCompleteWorkflow:
             await harness.log_event("test_end", {"phase": "cleanup"})
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_concurrent_collectors_workflow(self, e2e_db_pool):
         """Test workflow with multiple concurrent collectors"""
         harness = E2ETestHarness(e2e_db_pool)
@@ -304,6 +306,7 @@ class TestSystemRecovery:
     """Test system recovery scenarios"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_database_reconnection_recovery(self, e2e_db_pool):
         """Test recovery from database connection issues"""
         harness = E2ETestHarness(e2e_db_pool)
@@ -338,6 +341,7 @@ class TestSystemRecovery:
         finally:
             await harness.stop_all_collectors()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_data_corruption_recovery(self, e2e_db_pool):
         """Test recovery from data corruption scenarios"""
@@ -377,6 +381,7 @@ class TestSystemRecovery:
 class TestMonitoringIntegration:
     """Test monitoring and alerting integration"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_metrics_collection_integration(self, e2e_db_pool):
         """Test integration with metrics collection systems"""
@@ -436,6 +441,7 @@ class TestMonitoringIntegration:
             await harness.stop_all_collectors()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_health_check_endpoints(self, e2e_db_pool, http_session):
         """Test health check endpoint integration"""
         harness = E2ETestHarness(e2e_db_pool)
@@ -479,6 +485,7 @@ class TestMonitoringIntegration:
 class TestProductionReadiness:
     """Test production readiness scenarios"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_production_scale_simulation(self, e2e_db_pool):
         """Simulate production-scale operation"""
@@ -576,6 +583,7 @@ class TestProductionReadiness:
             await harness.stop_all_collectors()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_long_running_stability(self, e2e_db_pool):
         """Test long-running system stability"""
         harness = E2ETestHarness(e2e_db_pool)
@@ -654,6 +662,7 @@ class TestProductionReadiness:
 class TestIntegrationWithExistingServices:
     """Test integration with existing ATS services"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_analytics_service_integration(self, e2e_db_pool):
         """Test integration with analytics service"""

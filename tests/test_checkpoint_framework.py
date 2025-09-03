@@ -323,6 +323,8 @@ class TestCheckpointManager:
             custom_config={}
         )
     
+    @pytest.mark.asyncio
+    
     async def test_create_job_run(self, checkpoint_manager, sample_config):
         """Test job run creation"""
         job_id = await checkpoint_manager.create_job_run(sample_config, 100)
@@ -336,6 +338,8 @@ class TestCheckpointManager:
         assert job_data['total_items'] == 100
         assert job_data['status'] == JobStatus.PENDING
         
+    @pytest.mark.asyncio
+        
     async def test_get_or_create_new_job(self, checkpoint_manager, sample_config):
         """Test creating new job when none exists"""
         job_id, checkpoint = await checkpoint_manager.get_or_create_job_run(sample_config, 50)
@@ -344,6 +348,8 @@ class TestCheckpointManager:
         assert checkpoint.processed_count == 0
         assert checkpoint.error_count == 0
         assert checkpoint.last_successful_item is None
+        
+    @pytest.mark.asyncio
         
     async def test_get_or_create_existing_job(self, checkpoint_manager, sample_config):
         """Test resuming existing incomplete job"""
@@ -363,6 +369,8 @@ class TestCheckpointManager:
         assert checkpoint_2.error_count == 2
         assert checkpoint_2.last_successful_item == 'AAPL'
         
+    @pytest.mark.asyncio
+        
     async def test_initialize_items(self, checkpoint_manager, sample_config):
         """Test item initialization in progress table"""
         job_id = await checkpoint_manager.create_job_run(sample_config, 3)
@@ -376,6 +384,8 @@ class TestCheckpointManager:
         for item in items:
             assert item in checkpoint_manager.job_progress[job_id]
             assert checkpoint_manager.job_progress[job_id][item]['status'] == 'pending'
+            
+    @pytest.mark.asyncio
             
     async def test_get_next_items(self, checkpoint_manager, sample_config):
         """Test getting next batch of pending items"""
@@ -394,6 +404,8 @@ class TestCheckpointManager:
         assert 'AAPL' not in next_items  # Already completed
         assert 'MSFT' not in next_items  # Already failed
         assert all(item in ['GOOGL', 'TSLA', 'NVDA'] for item in next_items)
+        
+    @pytest.mark.asyncio
         
     async def test_item_status_transitions(self, checkpoint_manager, sample_config):
         """Test item status transitions"""
@@ -414,6 +426,8 @@ class TestCheckpointManager:
         await checkpoint_manager.mark_item_failed(job_id, 'MSFT', 'instrument', 'API Error')
         assert checkpoint_manager.job_progress[job_id]['MSFT']['status'] == 'failed'
         assert checkpoint_manager.job_progress[job_id]['MSFT']['error_message'] == 'API Error'
+        
+    @pytest.mark.asyncio
         
     async def test_get_job_stats(self, checkpoint_manager, sample_config):
         """Test job statistics calculation"""
@@ -451,12 +465,16 @@ class TestCheckpointableJob:
     def mock_session(self):
         return AsyncMock(spec=aiohttp.ClientSession)
     
+    @pytest.mark.asyncio
+    
     async def test_get_iteration_items(self, tiingo_job):
         """Test getting items for processing"""
         items = await tiingo_job.get_iteration_items()
         assert len(items) == 5
         assert 'AAPL' in items
         assert 'MSFT' in items
+        
+    @pytest.mark.asyncio
         
     async def test_process_item_success(self, tiingo_job, mock_session):
         """Test successful item processing"""
@@ -468,6 +486,8 @@ class TestCheckpointableJob:
         assert all('open' in item for item in result)
         assert 'AAPL' in tiingo_job.processed_items
         
+    @pytest.mark.asyncio
+        
     async def test_process_item_failure(self, tiingo_job, mock_session):
         """Test item processing failure"""
         result, error = await tiingo_job.process_item('FAIL_SYMBOL', mock_session)
@@ -476,11 +496,15 @@ class TestCheckpointableJob:
         assert error == "API Error: Symbol not found"
         assert 'FAIL_SYMBOL' not in tiingo_job.processed_items
         
+    @pytest.mark.asyncio
+        
     async def test_store_result(self, tiingo_job):
         """Test result storage"""
         mock_prices = [{'date': date.today(), 'open': 100}] * 5
         count = await tiingo_job.store_result('AAPL', mock_prices)
         assert count == 5
+        
+    @pytest.mark.asyncio
         
     async def test_job_configuration(self, tiingo_job):
         """Test job configuration properties"""
@@ -511,6 +535,8 @@ class TestGenericJobRunner:
     def job_runner(self, tiingo_job, checkpoint_manager):
         return GenericJobRunner(tiingo_job, checkpoint_manager)
         
+    @pytest.mark.asyncio
+        
     async def test_complete_job_execution(self, job_runner):
         """Test full job execution from start to finish"""
         await job_runner.run()
@@ -527,6 +553,8 @@ class TestGenericJobRunner:
         # Verify all items were processed
         assert len(job_runner.job.processed_items) == 5
         assert job_runner.checkpoint_manager.job_runs[job_id]['status'] == JobStatus.COMPLETED
+        
+    @pytest.mark.asyncio
         
     async def test_job_resume_after_failure(self, job_runner, tiingo_job):
         """Test job resumption after partial completion"""
@@ -548,6 +576,8 @@ class TestGenericJobRunner:
         final_stats = await new_runner.checkpoint_manager.get_job_stats(job_id)
         assert final_stats['completed'] == 5  # All items completed
         assert len(new_tiingo_job.processed_items) == 3  # Only GOOGL, TSLA, NVDA processed in second run
+        
+    @pytest.mark.asyncio
         
     async def test_error_handling_continues_processing(self, tiingo_job, checkpoint_manager):
         """Test that errors on individual items don't stop job"""
@@ -580,6 +610,8 @@ class TestPerformanceAndScalability:
     @pytest.fixture
     def mock_db_connection(self):
         return AsyncMock(spec=asyncpg.Connection)
+        
+    @pytest.mark.asyncio
         
     async def test_large_item_count_processing(self, mock_db_connection):
         """Test processing large number of items"""
@@ -627,6 +659,8 @@ class TestPerformanceAndScalability:
         duration = (end_time - start_time).total_seconds()
         assert duration < 30, f"Large scale test took too long: {duration}s"
         
+    @pytest.mark.asyncio
+        
     async def test_batch_processing_efficiency(self, mock_db_connection):
         """Test batch processing reduces database calls"""
         call_count = {'db_calls': 0}
@@ -656,6 +690,8 @@ class TestPerformanceAndScalability:
         
         stats = await checkpoint_manager.get_job_stats(job.job_id)
         assert stats['completed'] == 50
+        
+    @pytest.mark.asyncio
         
     async def test_memory_usage_with_large_datasets(self, mock_db_connection):
         """Test memory usage doesn't grow unbounded"""
@@ -705,6 +741,8 @@ class TestErrorHandlingAndRecovery:
     def mock_db_connection(self):
         return AsyncMock(spec=asyncpg.Connection)
         
+    @pytest.mark.asyncio
+        
     async def test_database_connection_failure_recovery(self, mock_db_connection):
         """Test recovery from database connection failures"""
         # Mock database to fail initially then succeed
@@ -741,6 +779,8 @@ class TestErrorHandlingAndRecovery:
         stats = await checkpoint_manager.get_job_stats(job.job_id)
         assert stats['completed'] == 5
         
+    @pytest.mark.asyncio
+        
     async def test_api_rate_limit_handling(self, mock_db_connection):
         """Test proper handling of API rate limits"""
         class RateLimitedJob(MockTiingoJob):
@@ -770,6 +810,8 @@ class TestErrorHandlingAndRecovery:
         assert stats['completed'] >= 2  # At least initial successes
         assert stats['failed'] >= 1     # At least some rate limit failures
         
+    @pytest.mark.asyncio
+        
     async def test_job_timeout_handling(self, mock_db_connection):
         """Test job timeout scenarios"""
         class SlowJob(MockTiingoJob):
@@ -787,6 +829,8 @@ class TestErrorHandlingAndRecovery:
         # Job should timeout before completing all items
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(runner.run(), timeout=0.5)
+        
+    @pytest.mark.asyncio
         
     async def test_partial_failure_recovery(self, mock_db_connection):
         """Test recovery from partial failures"""
@@ -837,6 +881,8 @@ class TestEndToEndScenarios:
     def mock_db_connection(self):
         return AsyncMock(spec=asyncpg.Connection)
         
+    @pytest.mark.asyncio
+        
     async def test_multi_vendor_job_coordination(self, mock_db_connection):
         """Test running multiple vendor jobs concurrently"""
         class MockFMPJob(CheckpointableJob):
@@ -886,6 +932,8 @@ class TestEndToEndScenarios:
         assert fmp_stats['completed'] == 3    # FMP processes 3 symbols
         assert tiingo_stats['failed'] == 0
         assert fmp_stats['failed'] == 0
+        
+    @pytest.mark.asyncio
         
     async def test_30_year_historical_simulation(self, mock_db_connection):
         """Simulate 30-year historical data collection scenario"""

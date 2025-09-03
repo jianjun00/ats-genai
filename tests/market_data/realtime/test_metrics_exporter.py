@@ -25,7 +25,7 @@ from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, Histo
 import sys
 sys.path.append('src')
 
-from market_data.realtime.metrics_exporter import (
+from domains.market_data.services.realtime.metrics_exporter import (
     RealtimeMetricsExporter,
     MetricsCollector,
     HealthcheckHandler
@@ -61,6 +61,7 @@ class TestMetricsCollector:
         assert metrics_collector.enable_detailed_metrics is True
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_initialize_database_connection(self, metrics_collector, mock_env):
         """Test database initialization"""
         mock_pool = AsyncMock()
@@ -70,6 +71,7 @@ class TestMetricsCollector:
             assert metrics_collector.pool == mock_pool
             mock_env.get_database_url.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_collect_realtime_streaming_metrics(self, metrics_collector):
         """Test collecting real-time streaming metrics"""
@@ -114,6 +116,7 @@ class TestMetricsCollector:
         mock_conn.fetch.assert_called_once()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_collect_gap_detection_metrics(self, metrics_collector):
         """Test collecting gap detection metrics"""
         mock_conn = AsyncMock()
@@ -150,6 +153,7 @@ class TestMetricsCollector:
         assert metrics[1]['backfill_success_rate'] == 1.0
         mock_conn.fetch.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_collect_validation_metrics(self, metrics_collector):
         """Test collecting validation metrics"""
@@ -189,6 +193,7 @@ class TestMetricsCollector:
         assert metrics[1]['avg_accuracy_score'] == 0.98
         mock_conn.fetch.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_collect_system_metrics(self, metrics_collector):
         """Test collecting system performance metrics"""
@@ -350,6 +355,7 @@ class TestRealtimeMetricsExporter:
         assert metrics_exporter.enable_health_checks is True
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_initialize_exporter(self, metrics_exporter, mock_env):
         """Test exporter initialization"""
         with patch('market_data.realtime.metrics_exporter.start_http_server') as mock_start_server:
@@ -361,6 +367,7 @@ class TestRealtimeMetricsExporter:
             mock_collector.initialize.assert_called_once()
             mock_start_server.assert_called_once_with(9090)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_metrics_update_loop(self, metrics_exporter):
         """Test metrics update loop"""
@@ -383,6 +390,7 @@ class TestRealtimeMetricsExporter:
         assert mock_collector.collect_all_metrics.call_count >= 1
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_start_exporter(self, metrics_exporter):
         """Test starting the metrics exporter"""
         metrics_exporter.initialize = AsyncMock()
@@ -404,6 +412,7 @@ class TestRealtimeMetricsExporter:
         metrics_exporter.initialize.assert_called_once()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_shutdown_exporter(self, metrics_exporter):
         """Test graceful shutdown"""
         mock_collector = AsyncMock()
@@ -423,6 +432,7 @@ class TestHealthcheckHandler:
         """Create a health check handler"""
         return HealthcheckHandler()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_health_check_endpoint(self, health_handler):
         """Test health check endpoint response"""
@@ -444,6 +454,7 @@ class TestHealthcheckHandler:
             assert 'checks' in call_args
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_ready_check_endpoint(self, health_handler):
         """Test readiness check endpoint"""
         mock_request = Mock()
@@ -459,6 +470,7 @@ class TestHealthcheckHandler:
             assert call_args['status'] == 'ready'
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_live_check_endpoint(self, health_handler):
         """Test liveness check endpoint"""
         mock_request = Mock()
@@ -469,6 +481,7 @@ class TestHealthcheckHandler:
             call_args = mock_json_response.call_args[0][0]
             assert call_args['status'] == 'alive'
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_database_connectivity_check(self, health_handler):
         """Test database connectivity check"""
@@ -485,6 +498,7 @@ class TestHealthcheckHandler:
         mock_conn.fetchval.assert_called_once_with("SELECT 1")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_database_connectivity_check_failure(self, health_handler):
         """Test database connectivity check failure"""
         mock_pool = AsyncMock()
@@ -499,6 +513,7 @@ class TestHealthcheckHandler:
         assert result is False
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_metrics_collection_check(self, health_handler):
         """Test metrics collection health check"""
         # Mock recent metrics collection
@@ -508,6 +523,7 @@ class TestHealthcheckHandler:
         
         assert result is True
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_metrics_collection_check_stale(self, health_handler):
         """Test metrics collection check when stale"""
@@ -530,6 +546,7 @@ class TestIntegrationScenarios:
             }):
                 return RealtimeMetricsExporter()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_full_metrics_collection_cycle(self, metrics_exporter):
         """Test complete metrics collection cycle"""
@@ -564,6 +581,7 @@ class TestIntegrationScenarios:
         mock_collector._collect_system_metrics.assert_called_once()
         mock_collector._generate_prometheus_metrics.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_error_handling_during_collection(self, metrics_exporter):
         """Test error handling during metrics collection"""

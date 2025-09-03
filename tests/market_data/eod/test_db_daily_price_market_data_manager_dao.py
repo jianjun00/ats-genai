@@ -5,8 +5,8 @@ import pandas as pd
 import numpy as np
 from datetime import date, datetime, timedelta
 
-from market_data.eod.db_daily_price_market_data_manager import DBDailyPriceMarketDataManager
-from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+from domains.market_data.services.eod.db_daily_price_market_data_manager import DBDailyPriceMarketDataManager
+from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 
 
 class TestDBDailyPriceMarketDataManagerDAO:
@@ -45,6 +45,7 @@ class TestDBDailyPriceMarketDataManagerDAO:
             return manager
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_resolve_instrument_id_uses_dao(self, mock_db_manager, mock_xrefs_dao):
         """Test that resolve_instrument_id uses the InstrumentXrefsDAO."""
         symbol = "AAPL"
@@ -54,6 +55,7 @@ class TestDBDailyPriceMarketDataManagerDAO:
         mock_xrefs_dao.resolve_instrument_id_by_symbol.assert_called_once_with(symbol)
         assert instrument_id == 1
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_resolve_symbol_uses_dao(self, mock_db_manager, mock_xrefs_dao):
         """Test that resolve_symbol uses the InstrumentXrefsDAO."""
@@ -66,6 +68,7 @@ class TestDBDailyPriceMarketDataManagerDAO:
         )
         assert symbol == "AAPL"
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_ohlc_resolves_symbol_with_dao(self, mock_db_manager, mock_xrefs_dao):
         """Test that get_ohlc resolves symbols using the InstrumentXrefsDAO."""
@@ -97,6 +100,7 @@ class TestDBDailyPriceMarketDataManagerDAO:
         assert result is not None
         assert result['close'] == 152.0
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_ohlc_batch_resolves_symbols_with_dao(self, mock_db_manager, mock_xrefs_dao):
         """Test that get_ohlc_batch resolves symbols using the InstrumentXrefsDAO."""

@@ -9,12 +9,12 @@ import pytest
 import asyncio
 from datetime import date, datetime, timedelta
 
-from src.market_data.market_cap.unified_market_cap_provider import (
+from domains.market_data.services.market_cap.unified_market_cap_provider import (
     UnifiedMarketCapProvider,
     MarketCapValidationStatus,
     UnifiedMarketCap
 )
-from src.config.environment import Environment
+from shared.utils.environment import Environment
 
 
 @pytest.fixture
@@ -43,6 +43,8 @@ def test_dates():
 class TestUnifiedMarketCapProviderIntegration:
     """Integration tests for UnifiedMarketCapProvider with real database"""
     
+    @pytest.mark.asyncio
+    
     async def test_provider_initialization_and_connection(self, dev_environment):
         """Test provider initialization and database connection"""
         provider = UnifiedMarketCapProvider(dev_environment)
@@ -57,6 +59,8 @@ class TestUnifiedMarketCapProviderIntegration:
             
         finally:
             await provider.disconnect()
+    
+    @pytest.mark.asyncio
     
     async def test_list_symbols_with_market_cap_data(self, dev_environment):
         """Test listing symbols that have market cap data"""
@@ -82,6 +86,8 @@ class TestUnifiedMarketCapProviderIntegration:
             
         finally:
             await provider.disconnect()
+    
+    @pytest.mark.asyncio
     
     async def test_get_fundamental_market_cap_sources_real_data(self, dev_environment, test_symbols):
         """Test getting market cap from real fundamental data"""
@@ -109,6 +115,8 @@ class TestUnifiedMarketCapProviderIntegration:
                     
         finally:
             await provider.disconnect()
+    
+    @pytest.mark.asyncio
     
     async def test_get_price_based_market_cap_real_data(self, dev_environment, test_symbols):
         """Test calculating market cap from real price data"""
@@ -143,6 +151,8 @@ class TestUnifiedMarketCapProviderIntegration:
         finally:
             await provider.disconnect()
     
+    @pytest.mark.asyncio
+    
     async def test_get_shares_outstanding_real_data(self, dev_environment, test_symbols):
         """Test getting shares outstanding from real data sources"""
         provider = UnifiedMarketCapProvider(dev_environment)
@@ -163,6 +173,8 @@ class TestUnifiedMarketCapProviderIntegration:
                     
         finally:
             await provider.disconnect()
+    
+    @pytest.mark.asyncio
     
     async def test_get_historical_market_cap_estimate_real_data(self, dev_environment):
         """Test getting historical market cap estimates from real database"""
@@ -191,6 +203,8 @@ class TestUnifiedMarketCapProviderIntegration:
                 
         finally:
             await provider.disconnect()
+    
+    @pytest.mark.asyncio
     
     async def test_get_unified_market_cap_real_data(self, dev_environment, test_symbols, test_dates):
         """Test full unified market cap calculation with real data"""
@@ -236,6 +250,8 @@ class TestUnifiedMarketCapProviderIntegration:
         finally:
             await provider.disconnect()
     
+    @pytest.mark.asyncio
+    
     async def test_market_cap_data_consistency(self, dev_environment):
         """Test consistency of market cap data across multiple calls"""
         provider = UnifiedMarketCapProvider(dev_environment)
@@ -265,6 +281,8 @@ class TestUnifiedMarketCapProviderIntegration:
                     
         finally:
             await provider.disconnect()
+    
+    @pytest.mark.asyncio
     
     async def test_market_cap_history_real_data(self, dev_environment):
         """Test getting market cap history with real data"""
@@ -299,6 +317,8 @@ class TestUnifiedMarketCapProviderIntegration:
                     
         finally:
             await provider.disconnect()
+    
+    @pytest.mark.asyncio
     
     async def test_cross_source_validation_real_data(self, dev_environment):
         """Test cross-source validation with real market cap data"""
@@ -348,6 +368,8 @@ class TestUnifiedMarketCapProviderIntegration:
         finally:
             await provider.disconnect()
     
+    @pytest.mark.asyncio
+    
     async def test_error_handling_real_database(self, dev_environment):
         """Test error handling with real database connection"""
         provider = UnifiedMarketCapProvider(dev_environment)
@@ -370,6 +392,8 @@ class TestUnifiedMarketCapProviderIntegration:
             
         finally:
             await provider.disconnect()
+    
+    @pytest.mark.asyncio
     
     async def test_database_schema_compatibility(self, dev_environment):
         """Test compatibility with actual database schema"""

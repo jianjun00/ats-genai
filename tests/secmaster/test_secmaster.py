@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 from datetime import date
-from secmaster.secmaster import SecMaster
+from domains.instruments.services.secmaster import SecMaster
 
 class DummyConn:
     def __init__(self, rows):
@@ -30,6 +30,7 @@ class DummyPool:
     async def close(self):
         pass
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_membership_add_remove_logic(monkeypatch):
     # Membership intervals: (symbol, start_date, end_date)
@@ -90,6 +91,7 @@ async def test_membership_add_remove_logic(monkeypatch):
     assert 'TICK1' in members
     assert 'TICK2' not in members
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_advance_membership_and_caches(monkeypatch):
     # Membership intervals: (symbol, start_date, end_date)

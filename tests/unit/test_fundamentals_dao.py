@@ -11,10 +11,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import date, datetime
 from decimal import Decimal
 
-from src.dao.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental
-from src.dao.fundamentals_polygon_dao import FundamentalsPolygonDAO, PolygonFundamental  
-from src.dao.fundamentals_tiingo_dao import FundamentalsTiingoDAO, TiingoFundamental
-from src.config.environment import Environment
+from domains.market_data.repositories.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental
+from domains.market_data.repositories.fundamentals_polygon_dao import FundamentalsPolygonDAO, PolygonFundamental  
+from domains.market_data.repositories.fundamentals_tiingo_dao import FundamentalsTiingoDAO, TiingoFundamental
+from shared.utils.environment import Environment
 
 
 @pytest.fixture
@@ -97,6 +97,7 @@ class TestFundamentalsFMPDAO:
         assert dao.logger is not None
     
     @patch('asyncpg.create_pool')
+    @pytest.mark.asyncio
     async def test_insert_fundamental_success(self, mock_pool, mock_environment, sample_fmp_fundamental):
         """Test successful fundamental insertion"""
         # Setup mocks
@@ -123,6 +124,7 @@ class TestFundamentalsFMPDAO:
         assert call_args[0][3] == "fmp"  # vendor
     
     @patch('asyncpg.create_pool')
+    @pytest.mark.asyncio
     async def test_insert_fundamental_failure(self, mock_pool, mock_environment, sample_fmp_fundamental):
         """Test fundamental insertion failure"""
         # Setup mocks to raise exception
@@ -142,6 +144,7 @@ class TestFundamentalsFMPDAO:
         mock_conn.execute.assert_called_once()
     
     @patch('asyncpg.create_pool')
+    @pytest.mark.asyncio
     async def test_get_fundamental_found(self, mock_pool, mock_environment):
         """Test getting existing fundamental data"""
         # Setup mock data
@@ -200,6 +203,7 @@ class TestFundamentalsFMPDAO:
         mock_conn.fetchrow.assert_called_once()
     
     @patch('asyncpg.create_pool')
+    @pytest.mark.asyncio
     async def test_get_fundamental_not_found(self, mock_pool, mock_environment):
         """Test getting non-existent fundamental data"""
         mock_conn = AsyncMock()
@@ -218,6 +222,7 @@ class TestFundamentalsFMPDAO:
         mock_conn.fetchrow.assert_called_once()
     
     @patch('asyncpg.create_pool')
+    @pytest.mark.asyncio
     async def test_list_fundamentals(self, mock_pool, mock_environment):
         """Test listing fundamentals for a symbol"""
         mock_rows = [
@@ -269,6 +274,7 @@ class TestFundamentalsFMPDAO:
         mock_conn.fetch.assert_called_once()
     
     @patch('asyncpg.create_pool')
+    @pytest.mark.asyncio
     async def test_delete_fundamental_success(self, mock_pool, mock_environment):
         """Test successful fundamental deletion"""
         mock_conn = AsyncMock()
@@ -294,6 +300,7 @@ class TestFundamentalsFMPDAO:
         assert call_args[0][3] == "fmp"
     
     @patch('asyncpg.create_pool')
+    @pytest.mark.asyncio
     async def test_delete_fundamental_not_found(self, mock_pool, mock_environment):
         """Test deletion of non-existent fundamental"""
         mock_conn = AsyncMock()
@@ -312,6 +319,7 @@ class TestFundamentalsFMPDAO:
         mock_conn.execute.assert_called_once()
     
     @patch('asyncpg.create_pool')
+    @pytest.mark.asyncio
     async def test_get_symbols_with_data(self, mock_pool, mock_environment):
         """Test getting symbols that have fundamental data"""
         mock_rows = [
@@ -349,6 +357,7 @@ class TestFundamentalsPolygonDAO:
         assert dao.db_url == "postgresql://test:test@localhost:5432/test_db"
     
     @patch('asyncpg.create_pool')
+    @pytest.mark.asyncio
     async def test_insert_and_retrieve(self, mock_pool, mock_environment, sample_polygon_fundamental):
         """Test inserting and retrieving Polygon fundamental data"""
         # Mock for insertion
@@ -382,6 +391,7 @@ class TestFundamentalsTiingoDAO:
         assert dao.db_url == "postgresql://test:test@localhost:5432/test_db"
     
     @patch('asyncpg.create_pool')
+    @pytest.mark.asyncio
     async def test_vendor_specific_operations(self, mock_pool, mock_environment, sample_tiingo_fundamental):
         """Test Tiingo-specific operations"""
         mock_conn = AsyncMock()
@@ -431,6 +441,7 @@ class TestDAOErrorHandling:
     """Test error handling across all DAOs"""
     
     @patch('asyncpg.create_pool')
+    @pytest.mark.asyncio
     async def test_database_connection_failure(self, mock_pool, mock_environment):
         """Test handling of database connection failures"""
         mock_pool.side_effect = Exception("Connection failed")
@@ -442,6 +453,7 @@ class TestDAOErrorHandling:
         assert result is None
     
     @patch('asyncpg.create_pool')
+    @pytest.mark.asyncio
     async def test_query_execution_failure(self, mock_pool, mock_environment):
         """Test handling of query execution failures"""
         mock_conn = AsyncMock()
@@ -493,7 +505,7 @@ class TestUnifiedFundamentalProvider:
     @pytest.fixture
     def mock_unified_provider(self, mock_environment):
         """Mock UnifiedFundamentalProvider for testing"""
-        from src.market_data.fundamentals.unified_fundamental_provider import UnifiedFundamentalProvider
+        from domains.market_data.services.fundamentals.unified_fundamental_provider import UnifiedFundamentalProvider
         
         with patch.multiple(
             'src.market_data.fundamentals.unified_fundamental_provider',
@@ -507,7 +519,7 @@ class TestUnifiedFundamentalProvider:
     @pytest.fixture
     def sample_vendor_fundamentals(self, sample_fmp_fundamental, sample_polygon_fundamental, sample_tiingo_fundamental):
         """Sample vendor fundamental data for testing"""
-        from src.market_data.fundamentals.unified_fundamental_provider import VendorFundamental
+        from domains.market_data.services.fundamentals.unified_fundamental_provider import VendorFundamental
         
         return [
             VendorFundamental(
@@ -550,7 +562,7 @@ class TestUnifiedFundamentalProvider:
     
     def test_init(self, mock_environment):
         """Test UnifiedFundamentalProvider initialization"""
-        from src.market_data.fundamentals.unified_fundamental_provider import UnifiedFundamentalProvider
+        from domains.market_data.services.fundamentals.unified_fundamental_provider import UnifiedFundamentalProvider
         
         with patch.multiple(
             'src.market_data.fundamentals.unified_fundamental_provider',
@@ -566,9 +578,11 @@ class TestUnifiedFundamentalProvider:
             assert hasattr(provider, 'tiingo_dao')
             assert provider.logger is not None
     
+    @pytest.mark.asyncio
+    
     async def test_get_unified_fundamental_all_vendors(self, mock_unified_provider, sample_vendor_fundamentals):
         """Test getting unified fundamental with data from all vendors"""
-        from src.market_data.fundamentals.unified_fundamental_provider import UnifiedFundamental, ValidationStatus
+        from domains.market_data.services.fundamentals.unified_fundamental_provider import UnifiedFundamental, ValidationStatus
         
         # Mock DAO responses
         mock_unified_provider.fmp_dao.get_fundamental = AsyncMock(return_value=sample_vendor_fundamentals[0])
@@ -590,9 +604,11 @@ class TestUnifiedFundamentalProvider:
         vendors = {vd.vendor for vd in result.vendor_data}
         assert vendors == {"fmp", "polygon", "tiingo"}
     
+    @pytest.mark.asyncio
+    
     async def test_get_unified_fundamental_partial_data(self, mock_unified_provider, sample_vendor_fundamentals):
         """Test getting unified fundamental with partial vendor data"""
-        from src.market_data.fundamentals.unified_fundamental_provider import ValidationStatus
+        from domains.market_data.services.fundamentals.unified_fundamental_provider import ValidationStatus
         
         # Mock DAO responses - only 2 out of 3 vendors have data
         mock_unified_provider.fmp_dao.get_fundamental = AsyncMock(return_value=sample_vendor_fundamentals[0])
@@ -607,6 +623,8 @@ class TestUnifiedFundamentalProvider:
         assert len(result.vendor_data) == 2
         assert result.confidence_score > 0.0
     
+    @pytest.mark.asyncio
+    
     async def test_get_unified_fundamental_no_data(self, mock_unified_provider):
         """Test getting unified fundamental when no vendors have data"""
         # Mock DAO responses - no data from any vendor
@@ -619,9 +637,11 @@ class TestUnifiedFundamentalProvider:
         
         assert result is None
     
+    @pytest.mark.asyncio
+    
     async def test_get_unified_fundamental_single_vendor(self, mock_unified_provider, sample_vendor_fundamentals):
         """Test getting unified fundamental with only one vendor"""
-        from src.market_data.fundamentals.unified_fundamental_provider import ValidationStatus
+        from domains.market_data.services.fundamentals.unified_fundamental_provider import ValidationStatus
         
         # Mock DAO responses - only FMP has data
         mock_unified_provider.fmp_dao.get_fundamental = AsyncMock(return_value=sample_vendor_fundamentals[0])
@@ -686,6 +706,8 @@ class TestUnifiedFundamentalProvider:
         low_score = mock_unified_provider._calculate_confidence_score(sample_vendor_fundamentals, disagreements)
         assert low_score < 0.8  # Lower confidence with disagreements
     
+    @pytest.mark.asyncio
+    
     async def test_dao_error_handling(self, mock_unified_provider):
         """Test handling of DAO errors"""
         # Mock DAO to raise exception
@@ -697,6 +719,8 @@ class TestUnifiedFundamentalProvider:
         result = await mock_unified_provider.get_unified_fundamental("AAPL", date(2023, 12, 31))
         
         assert result is None  # No data available due to errors and missing data
+    
+    @pytest.mark.asyncio
     
     async def test_list_symbols_with_data(self, mock_unified_provider):
         """Test listing symbols that have fundamental data"""

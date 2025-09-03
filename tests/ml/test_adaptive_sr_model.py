@@ -18,12 +18,12 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from ml.dynamic_training.adaptive_sr_model import (
+from domains.ml.services.dynamic_training.adaptive_sr_model import (
     AdaptiveSupportResistanceModel,
     AdaptiveModelConfig,
     AdaptiveModelState
 )
-from ml.training_data.support_resistance_generator import (
+from domains.ml.services.training_data.support_resistance_generator import (
     TrainingExample,
     SupportResistanceLevel
 )
@@ -171,6 +171,7 @@ class TestAdaptiveSupportResistanceModel:
         assert len(model.training_data_cache) == 0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_bootstrap_model_mock(self, model):
         """Test model bootstrapping with mocked data"""
         symbols = ['TEST1', 'TEST2']
@@ -212,6 +213,7 @@ class TestAdaptiveSupportResistanceModel:
         assert model.model is not None
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_bootstrap_insufficient_data(self, model):
         """Test bootstrap failure with insufficient data"""
         symbols = ['TEST']
@@ -232,6 +234,7 @@ class TestAdaptiveSupportResistanceModel:
         assert model.model is None
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_daily_update_before_bootstrap(self, model):
         """Test that daily update fails before bootstrap"""
         current_date = date(2023, 1, 2)
@@ -244,6 +247,7 @@ class TestAdaptiveSupportResistanceModel:
         
         assert updated is False
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_daily_update_with_mock(self, model, sample_training_examples):
         """Test daily update with mocked components"""
@@ -275,6 +279,7 @@ class TestAdaptiveSupportResistanceModel:
         assert model.state.model_version == 2
         assert len(model.state.training_history) == 1
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_training_data_caching(self, model):
         """Test training data caching mechanism"""
@@ -437,6 +442,7 @@ class TestAdaptiveModelIntegration:
             min_retrain_examples=2       # Very low for testing
         )
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_complete_adaptive_workflow(self, integration_config):
         """Test complete adaptive model workflow"""

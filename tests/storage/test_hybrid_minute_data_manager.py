@@ -170,12 +170,14 @@ class TestHybridMinuteDataManager:
         assert key == "2024_03_15"
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_store_minute_data_empty(self, manager):
         """Test storing empty data."""
         result = await manager.store_minute_data('AAPL', [])
         
         assert result == {'stored_hot': 0, 'stored_cold': 0, 'errors': 0}
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_store_minute_data_hot_tier(self, manager):
         """Test storing recent data in hot tier."""
@@ -203,6 +205,7 @@ class TestHybridMinuteDataManager:
         mock_hot.assert_called_once_with('AAPL', data)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_store_minute_data_cold_tier(self, manager):
         """Test storing old data in cold tier."""
         old_date = datetime.now() - timedelta(days=200)
@@ -229,6 +232,7 @@ class TestHybridMinuteDataManager:
         mock_cold.assert_called_once_with('AAPL', data)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_store_minute_data_force_tier(self, manager):
         """Test forcing data to specific tier."""
         now = datetime.now()
@@ -253,6 +257,7 @@ class TestHybridMinuteDataManager:
         assert result['stored_hot'] == 0
         mock_cold.assert_called_once_with('AAPL', data)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_store_minute_data_mixed_tiers(self, manager):
         """Test storing data across multiple tiers."""
@@ -293,6 +298,7 @@ class TestHybridMinuteDataManager:
         assert result['errors'] == 0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_store_hot_data_database_insert(self, manager):
         """Test hot data database insertion."""
         data = [
@@ -314,6 +320,7 @@ class TestHybridMinuteDataManager:
         assert stored_count == 1
         mock_conn.executemany.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_store_parquet_data_new_file(self, manager, temp_storage_path):
         """Test storing data to new Parquet file."""
@@ -340,6 +347,7 @@ class TestHybridMinuteDataManager:
         assert df.iloc[0]['symbol'] == 'AAPL'
         assert df.iloc[0]['open'] == 180.0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_store_parquet_data_append_to_existing(self, manager, temp_storage_path):
         """Test appending data to existing Parquet file."""
@@ -374,6 +382,7 @@ class TestHybridMinuteDataManager:
         assert df.iloc[0]['timestamp'] < df.iloc[1]['timestamp']  # Should be sorted
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_query_minute_data_hot_only(self, manager):
         """Test querying data from hot storage only."""
         now = datetime.now()
@@ -398,6 +407,7 @@ class TestHybridMinuteDataManager:
         assert result.iloc[0]['symbol'] == 'AAPL'
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_query_minute_data_cold_only(self, manager):
         """Test querying data from cold storage only."""
         old_start = datetime.now() - timedelta(days=200)
@@ -420,6 +430,7 @@ class TestHybridMinuteDataManager:
         assert len(result) == 1
         assert result.iloc[0]['symbol'] == 'AAPL'
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_query_minute_data_mixed_storage(self, manager):
         """Test querying data across hot and cold storage."""
@@ -455,6 +466,7 @@ class TestHybridMinuteDataManager:
         # Should be sorted by timestamp
         assert result.iloc[0]['timestamp'] < result.iloc[1]['timestamp']
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_query_hot_data_database(self, manager):
         """Test querying hot data from database."""
@@ -506,6 +518,7 @@ class TestHybridMinuteDataManager:
         assert "AAPL_2024_02.parquet" in file_names
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_archive_old_data(self, manager):
         """Test archiving old data."""
         with patch.object(manager, '_archive_hot_data', return_value=100) as mock_archive_hot, \
@@ -520,6 +533,7 @@ class TestHybridMinuteDataManager:
         mock_compress.assert_called_once()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_storage_stats(self, manager):
         """Test getting storage statistics."""
         with patch.object(manager, '_get_hot_storage_stats', return_value={'total_records': 1000}) as mock_hot_stats, \
@@ -532,6 +546,7 @@ class TestHybridMinuteDataManager:
         assert result['hot_storage']['total_records'] == 1000
         assert result['cold_storage']['total_files'] == 50
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_hot_storage_stats_database(self, manager):
         """Test getting hot storage statistics from database."""
@@ -546,6 +561,7 @@ class TestHybridMinuteDataManager:
         assert result['unique_symbols'] == 50
         assert result['table_size'] == 1048576
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_cold_storage_stats_filesystem(self, manager, temp_storage_path):
         """Test getting cold storage statistics from filesystem."""
@@ -573,6 +589,7 @@ class TestHybridMinuteDataManager:
         assert 'warm' in result['tiers']
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_close(self, manager):
         """Test manager cleanup."""
         await manager.close()
@@ -582,6 +599,7 @@ class TestHybridMinuteDataManager:
 class TestConvenienceFunctions:
     """Test convenience functions."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_create_hybrid_manager(self):
         """Test creating hybrid manager with connection."""
@@ -596,6 +614,7 @@ class TestConvenienceFunctions:
         mock_create_pool.assert_called_once_with(db_url, min_size=5, max_size=20)
         assert isinstance(manager, HybridMinuteDataManager)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_migrate_existing_data_no_source(self):
         """Test migration with non-existent source path."""
@@ -618,6 +637,7 @@ class TestDataLifecycleManagement:
         yield temp_dir
         shutil.rmtree(temp_dir, ignore_errors=True)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_data_aging_workflow(self, temp_storage_path):
         """Test complete data aging workflow."""
@@ -680,6 +700,7 @@ class TestDataLifecycleManagement:
         assert len(cold_files) >= 1
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_data_deduplication(self, temp_storage_path):
         """Test data deduplication in Parquet files."""
         config = StorageConfig(base_data_path=temp_storage_path)
@@ -732,6 +753,7 @@ class TestPerformanceAndEdgeCases:
         shutil.rmtree(temp_dir, ignore_errors=True)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_large_batch_processing(self, temp_storage_path):
         """Test processing large batches of data."""
         config = StorageConfig(
@@ -771,6 +793,7 @@ class TestPerformanceAndEdgeCases:
         
         assert total_records == 500
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_concurrent_file_operations(self, temp_storage_path):
         """Test concurrent file operations."""
@@ -817,6 +840,7 @@ class TestPerformanceAndEdgeCases:
             assert len(symbol_files) >= 1
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_error_handling_storage_failure(self, temp_storage_path):
         """Test error handling in storage operations."""
         config = StorageConfig(base_data_path="/invalid/path/that/cannot/be/created")
@@ -826,6 +850,7 @@ class TestPerformanceAndEdgeCases:
         with pytest.raises(Exception):
             manager = HybridMinuteDataManager(mock_pool, config)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_query_with_missing_files(self, temp_storage_path):
         """Test querying when expected files are missing."""
@@ -841,6 +866,7 @@ class TestPerformanceAndEdgeCases:
         
         assert len(result) == 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_corrupted_parquet_file_handling(self, temp_storage_path):
         """Test handling of corrupted Parquet files."""

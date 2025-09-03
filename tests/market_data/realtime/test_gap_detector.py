@@ -24,7 +24,7 @@ import aiohttp
 import sys
 sys.path.append('src')
 
-from market_data.realtime.gap_detector import (
+from domains.market_data.services.realtime.gap_detector import (
     GapDetectionEngine,
     DataGap
 )
@@ -117,6 +117,7 @@ class TestGapDetectionEngine:
         assert gap_detector.fmp_api_key == 'test_fmp_key'
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_initialize_database_connection(self, gap_detector, mock_env):
         """Test database initialization"""
         mock_pool = AsyncMock()
@@ -198,6 +199,7 @@ class TestGapDetectionEngine:
         assert gap_detector._is_market_hours_gap(pre_market, during_market) is True
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_active_symbols(self, gap_detector):
         """Test getting active symbols for gap detection"""
         mock_conn = AsyncMock()
@@ -217,6 +219,7 @@ class TestGapDetectionEngine:
         assert symbols == ['AAPL', 'MSFT', 'GOOGL']
         mock_conn.fetch.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_detect_symbol_gaps(self, gap_detector):
         """Test detecting gaps for a specific symbol"""
@@ -248,6 +251,7 @@ class TestGapDetectionEngine:
         assert gaps[1].gap_duration_minutes == 15
         assert gaps[1].severity == 'critical'
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_detect_symbol_gaps_market_hours_filter(self, gap_detector):
         """Test that market hours filtering works correctly"""
@@ -311,6 +315,7 @@ class TestGapDetectionEngine:
         assert prioritized[2].symbol == 'AAPL'
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_store_gaps(self, gap_detector):
         """Test storing detected gaps in database"""
         mock_conn = AsyncMock()
@@ -340,6 +345,7 @@ class TestGapDetectionEngine:
         assert mock_conn.execute.call_count == 2
         assert gap_detector.gaps_detected == 2
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_backfill_polygon_gap(self, gap_detector):
         """Test backfilling gap using Polygon API"""
@@ -384,6 +390,7 @@ class TestGapDetectionEngine:
             gap_detector._store_backfilled_data.assert_called_once()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_backfill_tiingo_gap(self, gap_detector):
         """Test backfilling gap using Tiingo API"""
         base_time = datetime.now(timezone.utc)
@@ -422,6 +429,7 @@ class TestGapDetectionEngine:
             assert success is True
             gap_detector._store_backfilled_tiingo_data.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_backfill_fmp_gap(self, gap_detector):
         """Test backfilling gap using FMP API"""
@@ -462,6 +470,7 @@ class TestGapDetectionEngine:
             gap_detector._store_backfilled_fmp_data.assert_called_once()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_store_backfilled_data(self, gap_detector):
         """Test storing backfilled data in database"""
         mock_conn = AsyncMock()
@@ -487,6 +496,7 @@ class TestGapDetectionEngine:
         gap_detector._get_instrument_id.assert_called_once_with('AAPL')
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_instrument_id(self, gap_detector):
         """Test getting instrument ID for symbol"""
         mock_conn = AsyncMock()
@@ -502,6 +512,7 @@ class TestGapDetectionEngine:
         mock_conn.fetchval.assert_called_once()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_instrument_id_not_found(self, gap_detector):
         """Test getting instrument ID when symbol not found"""
         mock_conn = AsyncMock()
@@ -516,6 +527,7 @@ class TestGapDetectionEngine:
         assert instrument_id == 0
         mock_conn.fetchval.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_mark_gap_backfilled(self, gap_detector):
         """Test marking gap as successfully backfilled"""
@@ -542,6 +554,7 @@ class TestGapDetectionEngine:
         assert 'completed' in sql_call
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_mark_gap_failed(self, gap_detector):
         """Test marking gap backfill as failed"""
         mock_conn = AsyncMock()
@@ -567,6 +580,7 @@ class TestGapDetectionEngine:
         assert 'backfill_status' in sql_call
         assert 'failed' in sql_call
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_update_collection_status(self, gap_detector):
         """Test updating collection status based on detected gaps"""
@@ -602,6 +616,7 @@ class TestGapDetectionEngine:
         assert 'collection_health_score' in sql_call
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_run_gap_detection_complete_flow(self, gap_detector):
         """Test the complete gap detection flow"""
         # Mock all dependencies
@@ -623,6 +638,7 @@ class TestGapDetectionEngine:
         gap_detector._execute_backfills.assert_called_once()
         gap_detector._update_collection_status.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_execute_backfills(self, gap_detector):
         """Test executing backfill operations"""
@@ -659,6 +675,7 @@ class TestGapDetectionEngine:
         assert gap_detector.backfill_errors == 0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_shutdown(self, gap_detector):
         """Test graceful shutdown"""
         mock_pool = AsyncMock()
@@ -682,6 +699,7 @@ class TestAPIErrorHandling:
                 return detector
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_polygon_api_rate_limit(self, gap_detector):
         """Test handling Polygon API rate limits"""
         base_time = datetime.now(timezone.utc)
@@ -702,6 +720,7 @@ class TestAPIErrorHandling:
             success = await gap_detector._backfill_polygon_gap(gap)
             assert success is False
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_tiingo_api_server_error(self, gap_detector):
         """Test handling Tiingo API server errors"""
@@ -724,6 +743,7 @@ class TestAPIErrorHandling:
             assert success is False
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fmp_api_authentication_error(self, gap_detector):
         """Test handling FMP API authentication errors"""
         base_time = datetime.now(timezone.utc)
@@ -745,6 +765,7 @@ class TestAPIErrorHandling:
             assert success is False
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_network_timeout_handling(self, gap_detector):
         """Test handling network timeouts during backfill"""
         base_time = datetime.now(timezone.utc)
@@ -762,6 +783,7 @@ class TestAPIErrorHandling:
             success = await gap_detector._backfill_polygon_gap(gap)
             assert success is False
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_missing_api_key(self, gap_detector):
         """Test handling missing API keys"""
@@ -786,6 +808,7 @@ class TestEdgeCases:
         with patch('market_data.realtime.gap_detector.Environment'):
             return GapDetectionEngine()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_empty_gaps_list(self, gap_detector):
         """Test handling empty gaps list"""
@@ -820,6 +843,7 @@ class TestEdgeCases:
         assert len(prioritized) == 1
         assert prioritized[0].symbol == 'AAPL'
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_database_error_during_gap_storage(self, gap_detector):
         """Test handling database errors during gap storage"""

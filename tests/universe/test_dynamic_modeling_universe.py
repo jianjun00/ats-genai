@@ -15,12 +15,12 @@ from datetime import date, timedelta
 from unittest.mock import Mock, AsyncMock, patch
 import asyncpg
 
-from universe.dynamic_modeling_universe import (
+from domains.trading.services.dynamic_modeling_universe import (
     DynamicModelingUniverse,
     UniverseStock,
     QualificationMetrics
 )
-from config.environment import Environment
+from shared.utils.environment import Environment
 
 
 @pytest.fixture
@@ -162,6 +162,7 @@ class TestDynamicModelingUniverse:
     """Test main dynamic universe functionality"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_universe_initialization(self, universe_system):
         """Test universe system initialization"""
         # Mock the ensure universe exists method
@@ -176,6 +177,7 @@ class TestDynamicModelingUniverse:
         assert universe_system.grace_period_days == 7
         assert universe_system.reentry_restriction_days == 365
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_qualifying_stocks_query(self, universe_system):
         """Test qualifying stocks database query"""
@@ -221,6 +223,7 @@ class TestDynamicModelingUniverse:
         assert metrics[1].symbol == 'SMALL'
         assert metrics[1].qualifies is False
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_reentry_eligibility_check(self, universe_system):
         """Test re-entry eligibility checking"""
@@ -278,6 +281,7 @@ class TestDynamicModelingUniverse:
         assert "Market cap" in reason and "Volume" in reason
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_stock_addition_workflow(self, universe_system):
         """Test stock addition to universe"""
         metrics = QualificationMetrics(
@@ -295,6 +299,7 @@ class TestDynamicModelingUniverse:
         # Verify database calls were made
         assert mock_conn.execute.call_count == 2  # Tracking + membership inserts
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_stock_removal_workflow(self, universe_system):
         """Test stock removal from universe"""
@@ -317,6 +322,7 @@ class TestDynamicModelingUniverse:
         assert mock_conn.execute.call_count == 2  # Tracking update + membership delete
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_warning_workflow(self, universe_system):
         """Test warning date setting and clearing"""
         stock = UniverseStock(
@@ -337,6 +343,7 @@ class TestDynamicModelingUniverse:
         await universe_system._clear_warning_date(stock, date(2024, 2, 10))
         assert mock_conn.execute.call_count >= 2
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_daily_update_logic(self, universe_system):
         """Test daily update processing logic"""
@@ -393,6 +400,7 @@ class TestGracePeriodLogic:
     """Test grace period and removal timing"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_grace_period_scenarios(self, universe_system):
         """Test different grace period scenarios"""
         update_date = date(2024, 2, 8)
@@ -438,6 +446,7 @@ class TestReentryRestrictions:
     """Test re-entry restriction logic"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_reentry_timing(self, universe_system):
         """Test re-entry restriction timing"""
         current_date = date(2024, 8, 15)
@@ -471,6 +480,7 @@ class TestReentryRestrictions:
 class TestReportGeneration:
     """Test universe reporting functionality"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_universe_report_generation(self, universe_system):
         """Test universe report generation"""

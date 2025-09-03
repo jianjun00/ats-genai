@@ -27,7 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 # Add src to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
 
-from market_data.agent.firstrate_daily_downloader import FirstRateDownloader, DownloadJob
+from domains.market_data.services.agent.firstrate_daily_downloader import FirstRateDownloader, DownloadJob
 
 
 class TestFirstRateErrorHandling:
@@ -42,6 +42,8 @@ class TestFirstRateErrorHandling:
         # Cleanup
         import shutil
         shutil.rmtree(temp_dir)
+    
+    @pytest.mark.asyncio
     
     async def test_download_server_error_500(self, temp_setup):
         """Test handling of server 500 errors with retries."""
@@ -77,6 +79,8 @@ class TestFirstRateErrorHandling:
             assert elapsed_time > 0.2  # At least 0.1 + 0.2 + 0.4 seconds for delays
             assert mock_session.get.call_count == 4  # 4 retry attempts (initial + 3 retries)
     
+    @pytest.mark.asyncio
+    
     async def test_download_rate_limit_429(self, temp_setup):
         """Test handling of rate limit 429 errors."""
         downloader = FirstRateDownloader(base_path=temp_setup, max_retries=2, retry_delay=0.1)
@@ -106,6 +110,8 @@ class TestFirstRateErrorHandling:
             
             assert result is False
             assert not output_path.exists()
+    
+    @pytest.mark.asyncio
     
     async def test_download_partial_content_corruption(self, temp_setup):
         """Test handling of corrupted partial downloads."""
@@ -141,6 +147,8 @@ class TestFirstRateErrorHandling:
             # Should fail due to verification failure
             assert result is False
             assert not output_path.exists() or not downloader.verify_zip_file(output_path)
+    
+    @pytest.mark.asyncio
     
     async def test_download_disk_space_error(self, temp_setup):
         """Test handling of disk space errors during download."""
@@ -204,6 +212,8 @@ class TestFirstRateErrorHandling:
         # Should handle gracefully
         assert deleted_count == 0
     
+    @pytest.mark.asyncio
+    
     async def test_download_daily_data_exception_handling(self, temp_setup):
         """Test exception handling in download_daily_data."""
         downloader = FirstRateDownloader(base_path=temp_setup)
@@ -242,6 +252,8 @@ class TestFirstRateErrorHandling:
         
         # URL should be properly encoded
         assert "userid=test%40user%2B123" in url or "userid=test@user+123" in url
+    
+    @pytest.mark.asyncio
     
     async def test_concurrent_downloads(self, temp_setup):
         """Test concurrent downloads don't interfere with each other.""" 
@@ -350,6 +362,8 @@ class TestFirstRatePerformance:
         assert deleted_count > 90
         # Should complete quickly
         assert elapsed_time < 2.0
+    
+    @pytest.mark.asyncio
     
     async def test_retry_delay_accuracy(self, temp_setup):
         """Test that retry delays are accurate."""
@@ -492,6 +506,7 @@ class TestFirstRateEdgeCases:
         assert downloader.base_path == unicode_path
     
     @pytest.mark.skip(reason="Complex async mocking issue - functionality works in real execution")
+    @pytest.mark.asyncio
     async def test_extremely_slow_download_simulation(self, temp_setup):
         """Test handling of extremely slow downloads."""
         downloader = FirstRateDownloader(base_path=temp_setup, max_retries=1, retry_delay=0.1)

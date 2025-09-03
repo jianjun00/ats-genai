@@ -1,6 +1,6 @@
 import pytest
 from datetime import date
-from secmaster.secmaster import SecMaster
+from domains.instruments.services.secmaster import SecMaster
 
 class DummyConn:
     def __init__(self, rows):
@@ -41,6 +41,7 @@ class DummyPool:
     async def close(self):
         pass
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_advance_membership(monkeypatch):
     # Membership intervals: (symbol, start_date, end_date)

@@ -2,7 +2,7 @@ import json
 import pytest
 from datetime import datetime
 from pathlib import Path
-from src.market_data.eod.unify_daily_prices import FileDailyPricesUnifier, DailyPricesUnifierBase
+from domains.market_data.services.eod.unify_daily_prices import FileDailyPricesUnifier, DailyPricesUnifierBase
 
 def load_fixture_prices(log_dir, symbol, provider):
     """

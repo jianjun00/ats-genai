@@ -3,8 +3,8 @@ import asyncpg
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import date
 from typing import List, Dict
-from dao.instruments_dao import InstrumentsDAO
-from config.environment import Environment
+from domains.instruments.repositories.instruments_dao import InstrumentsDAO
+from shared.utils.environment import Environment
 
 
 class TestInstrumentsDAO:
@@ -23,6 +23,8 @@ class TestInstrumentsDAO:
         """Create InstrumentsDAO instance with mocked environment."""
         return InstrumentsDAO(mock_environment)
     
+    @pytest.mark.asyncio
+    
     async def test_count_instruments_success(self, dao):
         """Test successful instrument count retrieval."""
         mock_pool = MagicMock()
@@ -36,12 +38,14 @@ class TestInstrumentsDAO:
         # Mock successful count query
         mock_connection.fetchrow.return_value = {'count': 2500}
         
-        with patch('dao.instruments_dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.instruments_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.count_instruments()
         
         assert result == 2500
         mock_connection.fetchrow.assert_called_once_with("SELECT COUNT(*) as count FROM test_instruments")
         mock_pool.close.assert_called_once()
+    
+    @pytest.mark.asyncio
     
     async def test_count_instruments_empty_result(self, dao):
         """Test count_instruments when no rows returned."""
@@ -56,10 +60,12 @@ class TestInstrumentsDAO:
         # Mock empty result
         mock_connection.fetchrow.return_value = None
         
-        with patch('dao.instruments_dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.instruments_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.count_instruments()
         
         assert result == 0
+    
+    @pytest.mark.asyncio
     
     async def test_create_instrument_success(self, dao):
         """Test successful instrument creation with all parameters."""
@@ -84,7 +90,7 @@ class TestInstrumentsDAO:
             'delist_date': None
         }
         
-        with patch('dao.instruments_dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.instruments_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.create_instrument(**test_params)
         
         assert result == 123
@@ -109,6 +115,8 @@ class TestInstrumentsDAO:
         assert params[5] == date(1980, 12, 12)  # list_date
         assert params[6] is None  # delist_date
     
+    @pytest.mark.asyncio
+    
     async def test_create_instrument_minimal_params(self, dao):
         """Test instrument creation with only required parameter."""
         mock_pool = MagicMock()
@@ -121,7 +129,7 @@ class TestInstrumentsDAO:
         
         mock_connection.fetchrow.return_value = {'id': 456}
         
-        with patch('dao.instruments_dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.instruments_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.create_instrument('GOOGL')
         
         assert result == 456
@@ -137,6 +145,8 @@ class TestInstrumentsDAO:
         assert params[5] is None     # list_date
         assert params[6] is None     # delist_date
     
+    @pytest.mark.asyncio
+    
     async def test_create_instrument_no_result(self, dao):
         """Test create_instrument when no result is returned."""
         mock_pool = MagicMock()
@@ -150,10 +160,12 @@ class TestInstrumentsDAO:
         # Mock no result (could happen with constraint violations)
         mock_connection.fetchrow.return_value = None
         
-        with patch('dao.instruments_dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.instruments_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.create_instrument('DUPLICATE')
         
         assert result is None
+    
+    @pytest.mark.asyncio
     
     async def test_get_instrument_success(self, dao):
         """Test successful instrument retrieval by ID."""
@@ -178,13 +190,15 @@ class TestInstrumentsDAO:
         }
         mock_connection.fetchrow.return_value = test_result
         
-        with patch('dao.instruments_dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.instruments_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_instrument(123)
         
         assert result == test_result
         mock_connection.fetchrow.assert_called_once_with(
             "SELECT * FROM test_instruments WHERE id = $1", 123
         )
+    
+    @pytest.mark.asyncio
     
     async def test_get_instrument_not_found(self, dao):
         """Test get_instrument when ID not found."""
@@ -199,10 +213,12 @@ class TestInstrumentsDAO:
         # Mock not found
         mock_connection.fetchrow.return_value = None
         
-        with patch('dao.instruments_dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.instruments_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_instrument(999)
         
         assert result is None
+    
+    @pytest.mark.asyncio
     
     async def test_list_instruments_success(self, dao):
         """Test successful retrieval of all instruments."""
@@ -222,12 +238,14 @@ class TestInstrumentsDAO:
         ]
         mock_connection.fetch.return_value = test_instruments
         
-        with patch('dao.instruments_dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.instruments_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.list_instruments()
         
         assert result == test_instruments
         assert len(result) == 3
         mock_connection.fetch.assert_called_once_with("SELECT * FROM test_instruments")
+    
+    @pytest.mark.asyncio
     
     async def test_list_instruments_empty(self, dao):
         """Test list_instruments when no instruments exist."""
@@ -241,10 +259,12 @@ class TestInstrumentsDAO:
         
         mock_connection.fetch.return_value = []
         
-        with patch('dao.instruments_dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.instruments_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.list_instruments()
         
         assert result == []
+    
+    @pytest.mark.asyncio
     
     async def test_get_instrument_by_symbol_success(self, dao):
         """Test successful instrument retrieval by symbol."""
@@ -265,7 +285,7 @@ class TestInstrumentsDAO:
         }
         mock_connection.fetchrow.return_value = test_result
         
-        with patch('dao.instruments_dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.instruments_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_instrument_by_symbol('AAPL')
         
         assert result == test_result
@@ -273,6 +293,8 @@ class TestInstrumentsDAO:
             "SELECT * FROM test_instruments WHERE symbol = $1", 
             'AAPL'
         )
+    
+    @pytest.mark.asyncio
     
     async def test_get_instrument_by_symbol_not_found(self, dao):
         """Test get_instrument_by_symbol when symbol not found."""
@@ -286,10 +308,12 @@ class TestInstrumentsDAO:
         
         mock_connection.fetchrow.return_value = None
         
-        with patch('dao.instruments_dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.instruments_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_instrument_by_symbol('NONEXISTENT')
         
         assert result is None
+    
+    @pytest.mark.asyncio
     
     async def test_create_instruments_batch_success(self, dao):
         """Test successful batch instrument creation."""
@@ -336,7 +360,7 @@ class TestInstrumentsDAO:
             }
         ]
         
-        with patch('dao.instruments_dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.instruments_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.create_instruments_batch(test_instruments)
         
         expected_ids = [100, 101, 102]
@@ -360,10 +384,14 @@ class TestInstrumentsDAO:
         assert names == ['Apple Inc.', 'Alphabet Inc.', 'Microsoft Corporation']
         assert exchanges == ['NASDAQ', 'NASDAQ', 'NASDAQ']
     
+    @pytest.mark.asyncio
+    
     async def test_create_instruments_batch_empty_list(self, dao):
         """Test batch creation with empty instruments list."""
         result = await dao.create_instruments_batch([])
         assert result == []
+    
+    @pytest.mark.asyncio
     
     async def test_create_instruments_batch_custom_pool_settings(self, dao):
         """Test batch creation with custom pool settings."""
@@ -379,7 +407,7 @@ class TestInstrumentsDAO:
         
         test_instruments = [{'symbol': 'TEST', 'name': None, 'exchange': None, 'type_': None, 'currency': None, 'list_date': None, 'delist_date': None}]
         
-        with patch('dao.instruments_dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool) as mock_create_pool:
+        with patch(\'domains.market_data.repositories.instruments_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool) as mock_create_pool:
             result = await dao.create_instruments_batch(test_instruments, pool_min_size=2, pool_max_size=5)
         
         assert result == [200]
@@ -388,6 +416,8 @@ class TestInstrumentsDAO:
         call_kwargs = mock_create_pool.call_args[1]
         assert call_kwargs['min_size'] == 2
         assert call_kwargs['max_size'] == 5
+    
+    @pytest.mark.asyncio
     
     async def test_get_symbols_by_ids_success(self, dao):
         """Test successful symbol retrieval by IDs."""
@@ -409,7 +439,7 @@ class TestInstrumentsDAO:
         
         test_ids = [1, 2, 3]
         
-        with patch('dao.instruments_dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.instruments_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_symbols_by_ids(test_ids)
         
         expected_result = {1: 'AAPL', 2: 'GOOGL', 3: 'MSFT'}
@@ -424,6 +454,8 @@ class TestInstrumentsDAO:
         assert "SELECT id, symbol FROM test_instruments" in sql_query
         assert "WHERE id = ANY($1)" in sql_query
         assert params == test_ids
+    
+    @pytest.mark.asyncio
     
     async def test_get_symbols_by_ids_partial_data(self, dao):
         """Test get_symbols_by_ids when only some IDs exist."""
@@ -444,24 +476,30 @@ class TestInstrumentsDAO:
         
         test_ids = [1, 2, 3]  # ID 2 doesn't exist
         
-        with patch('dao.instruments_dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.instruments_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_symbols_by_ids(test_ids)
         
         expected_result = {1: 'AAPL', 3: 'MSFT'}  # ID 2 is missing
         assert result == expected_result
         assert 2 not in result
     
+    @pytest.mark.asyncio
+    
     async def test_get_symbols_by_ids_empty_list(self, dao):
         """Test get_symbols_by_ids with empty ID list."""
         result = await dao.get_symbols_by_ids([])
         assert result == {}
     
+    @pytest.mark.asyncio
+    
     async def test_database_connection_error(self, dao):
         """Test handling of database connection errors."""
         connection_error = Exception("Connection failed")
-        with patch('dao.instruments_dao.asyncpg.create_pool', new_callable=AsyncMock, side_effect=connection_error):
+        with patch(\'domains.market_data.repositories.instruments_dao.asyncpg.create_pool\', new_callable=AsyncMock, side_effect=connection_error):
             with pytest.raises(Exception, match="Connection failed"):
                 await dao.count_instruments()
+    
+    @pytest.mark.asyncio
     
     async def test_sql_injection_protection_symbol_queries(self, dao):
         """Test that symbol queries use parameterized queries for SQL injection protection."""
@@ -478,7 +516,7 @@ class TestInstrumentsDAO:
         # Test with malicious input
         malicious_symbol = "'; DROP TABLE test_instruments; --"
         
-        with patch('dao.instruments_dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.instruments_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_instrument_by_symbol(malicious_symbol)
         
         # Verify the malicious input was passed as parameter, not concatenated into SQL

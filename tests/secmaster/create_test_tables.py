@@ -21,7 +21,7 @@ async def create_instrument_polygon_table():
     os.environ["ENVIRONMENT"] = "test"
     
     # Import after setting environment variables to ensure they're picked up
-    from config.database import Database
+    from shared.utils.database import Database
     
     try:
         # Create a connection pool using the centralized logic

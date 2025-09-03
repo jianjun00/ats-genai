@@ -12,11 +12,12 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../src'))
 
-from dao.daily_prices_alphavantage_dao import DailyPricesAlphaVantageDAO
-from config.environment import Environment
+from domains.market_data.repositories.daily_prices_alphavantage_dao import DailyPricesAlphaVantageDAO
+from shared.utils.environment import Environment
 
 class TestAlphaVantageDailyPrices:
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_dao_initialization(self):
         """Test that Alpha Vantage DAO can be initialized"""
@@ -41,7 +42,7 @@ class TestAlphaVantageDailyPrices:
                 del os.environ['ALPHA_VANTAGE_API_KEY']
             
             # Import after removing env var
-            from market_data.eod.daily_price_alphavantage import ALPHA_VANTAGE_API_KEY
+            from domains.market_data.services.eod.daily_price_alphavantage import ALPHA_VANTAGE_API_KEY
             assert ALPHA_VANTAGE_API_KEY is None
             
             # Test with API key set
@@ -52,7 +53,7 @@ class TestAlphaVantageDailyPrices:
             import market_data.eod.daily_price_alphavantage
             importlib.reload(market_data.eod.daily_price_alphavantage)
             
-            from market_data.eod.daily_price_alphavantage import ALPHA_VANTAGE_API_KEY
+            from domains.market_data.services.eod.daily_price_alphavantage import ALPHA_VANTAGE_API_KEY
             assert ALPHA_VANTAGE_API_KEY == 'test_key_123'
             
         finally:
@@ -139,10 +140,11 @@ class TestAlphaVantageIntegration:
         expected_base_url = "https://www.alphavantage.co/query"
         expected_function = "TIME_SERIES_DAILY_ADJUSTED"
         
-        from market_data.eod.daily_price_alphavantage import ALPHA_VANTAGE_BASE_URL
+        from domains.market_data.services.eod.daily_price_alphavantage import ALPHA_VANTAGE_BASE_URL
         
         assert ALPHA_VANTAGE_BASE_URL == expected_base_url
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_database_table_exists(self):
         """Test that the Alpha Vantage daily prices table exists"""
@@ -173,15 +175,15 @@ if __name__ == "__main__":
         def test_imports(self):
             """Test that Alpha Vantage modules can be imported"""
             try:
-                from dao.daily_prices_alphavantage_dao import DailyPricesAlphaVantageDAO
-                from market_data.eod.daily_price_alphavantage import fetch_alphavantage_daily_prices
+                from domains.market_data.repositories.daily_prices_alphavantage_dao import DailyPricesAlphaVantageDAO
+                from domains.market_data.services.eod.daily_price_alphavantage import fetch_alphavantage_daily_prices
                 self.assertTrue(True)
             except ImportError as e:
                 self.fail(f"Failed to import Alpha Vantage modules: {e}")
         
         def test_basic_functionality(self):
             """Test basic DAO functionality"""
-            from dao.daily_prices_alphavantage_dao import DailyPricesAlphaVantageDAO
+            from domains.market_data.repositories.daily_prices_alphavantage_dao import DailyPricesAlphaVantageDAO
             from unittest.mock import MagicMock
             
             env = MagicMock()

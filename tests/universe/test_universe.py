@@ -1,4 +1,4 @@
-from signals.universe import Universe
+from domains.trading.services.universe import Universe
 import pytest
 from datetime import date
 

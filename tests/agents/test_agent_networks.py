@@ -24,7 +24,7 @@ import os
 import sys
 sys.path.insert(0, 'src')
 
-from config.feature_flags import FeatureManager, feature_manager
+from shared.utils.feature_flags import FeatureManager, feature_manager
 from agents.agent_networks import (
     StockAgent, AgentConfig, NetworkConfig, AgentInteractionNetwork,
     GraphAttentionNetwork, PortfolioAgentSystem, create_agent_network,

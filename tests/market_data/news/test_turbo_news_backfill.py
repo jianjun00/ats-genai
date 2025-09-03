@@ -5,7 +5,7 @@ from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, date
 import aioresponses
 
-from src.market_data.news.turbo_news_backfill import (
+from domains.market_data.services.news.turbo_news_backfill import (
     TurboPolygonNewsFetcher,
     TurboTiingoNewsFetcher,
     TurboNewsDatabaseInserter
@@ -96,6 +96,7 @@ class TestTurboPolygonNewsFetcher:
     """Unit tests for TurboPolygonNewsFetcher."""
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fetch_news_for_symbol_success(self):
         """Test successful news fetch from Polygon API."""
         with aioresponses.aioresponses() as m:
@@ -129,6 +130,7 @@ class TestTurboPolygonNewsFetcher:
                 assert first_article['insights'][0]['sentiment'] == "positive"
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fetch_news_rate_limit_retry(self):
         """Test retry logic for rate limiting."""
         with aioresponses.aioresponses() as m:
@@ -142,6 +144,7 @@ class TestTurboPolygonNewsFetcher:
                 
                 assert len(results) == 2
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_fetch_news_server_error_retry(self):
         """Test retry logic for server errors."""
@@ -157,6 +160,7 @@ class TestTurboPolygonNewsFetcher:
                 assert len(results) == 2
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fetch_news_max_retries_exceeded(self):
         """Test behavior when max retries are exceeded."""
         with aioresponses.aioresponses() as m:
@@ -169,6 +173,7 @@ class TestTurboPolygonNewsFetcher:
                 
                 assert results == []
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_fetch_news_no_results(self):
         """Test handling of API response with no results."""
@@ -183,6 +188,7 @@ class TestTurboPolygonNewsFetcher:
                 
                 assert results == []
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_fetch_news_malformed_date(self):
         """Test handling of malformed date in API response."""
@@ -214,6 +220,7 @@ class TestTurboTiingoNewsFetcher:
     """Unit tests for TurboTiingoNewsFetcher."""
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fetch_news_for_symbol_success(self):
         """Test successful news fetch from Tiingo API."""
         with aioresponses.aioresponses() as m:
@@ -242,6 +249,7 @@ class TestTurboTiingoNewsFetcher:
                 assert isinstance(first_article['crawl_date'], datetime)
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fetch_news_rate_limit_retry(self):
         """Test retry logic for rate limiting."""
         with aioresponses.aioresponses() as m:
@@ -256,6 +264,7 @@ class TestTurboTiingoNewsFetcher:
                 assert len(results) == 2
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fetch_news_empty_response(self):
         """Test handling of empty API response."""
         with aioresponses.aioresponses() as m:
@@ -266,6 +275,7 @@ class TestTurboTiingoNewsFetcher:
                 
                 assert results == []
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_fetch_news_timeout_retry(self):
         """Test retry logic for timeouts."""
@@ -337,6 +347,7 @@ class TestTurboNewsDatabaseInserter:
         ]
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_bulk_insert_polygon_news_success(self, db_config, sample_polygon_news_data):
         """Test successful bulk insert for Polygon news data."""
         with patch('src.market_data.news.turbo_news_backfill.asyncpg.create_pool') as mock_pool:
@@ -363,6 +374,7 @@ class TestTurboNewsDatabaseInserter:
             assert len(records) == 1
             assert records[0][0] == 'test-id-1'  # polygon_id
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_bulk_insert_tiingo_news_success(self, db_config, sample_tiingo_news_data):
         """Test successful bulk insert for Tiingo news data."""
@@ -391,6 +403,7 @@ class TestTurboNewsDatabaseInserter:
             assert records[0][0] == 12345  # tiingo_id
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_bulk_insert_empty_data(self, db_config):
         """Test bulk insert with empty data."""
         inserter = TurboNewsDatabaseInserter(db_config)
@@ -402,6 +415,7 @@ class TestTurboNewsDatabaseInserter:
             assert result_polygon == 0
             assert result_tiingo == 0
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_bulk_insert_database_error(self, db_config, sample_polygon_news_data):
         """Test handling of database errors during insert."""
@@ -419,6 +433,7 @@ class TestTurboNewsDatabaseInserter:
             
             assert result == 0  # Should return 0 on error
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_json_serialization(self, db_config, sample_polygon_news_data):
         """Test that complex data structures are properly JSON serialized."""
@@ -448,6 +463,7 @@ class TestTurboNewsDatabaseInserter:
 class TestTurboNewsBackfillIntegration:
     """Integration tests for the complete turbo news backfill workflow."""
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_concurrent_news_api_calls(self):
         """Test that concurrent news API calls work properly."""
@@ -500,6 +516,7 @@ class TestTurboNewsBackfillIntegration:
                     for result in tiingo_results:
                         assert len(result) == 2  # 2 news articles
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_mixed_success_failure_batch(self):
         """Test handling of mixed success/failure in batch processing."""

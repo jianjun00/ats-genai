@@ -6,7 +6,7 @@ from datetime import datetime, date
 from aiohttp import ClientResponse, ClientSession
 import aioresponses
 
-from src.market_data.eod.turbo_price_backfill import (
+from domains.market_data.services.eod.turbo_price_backfill import (
     TurboPolygonFetcher,
     TurboTiingoFetcher,
     TurboDatabaseInserter
@@ -59,6 +59,7 @@ class TestTurboPolygonFetcher:
     """Unit tests for TurboPolygonFetcher."""
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fetch_symbol_year_success(self):
         """Test successful symbol year fetch from Polygon API."""
         with aioresponses.aioresponses() as m:
@@ -83,6 +84,7 @@ class TestTurboPolygonFetcher:
                 assert results[0]['volume'] == 1000000
                 assert isinstance(results[0]['date'], date)
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_fetch_symbol_year_rate_limit_retry(self):
         """Test retry logic for rate limiting."""
@@ -110,6 +112,7 @@ class TestTurboPolygonFetcher:
                 assert results[0]['instrument_id'] == 123
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fetch_symbol_year_server_error_retry(self):
         """Test retry logic for server errors."""
         with aioresponses.aioresponses() as m:
@@ -135,6 +138,7 @@ class TestTurboPolygonFetcher:
                 assert len(results) == 2
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fetch_symbol_year_max_retries_exceeded(self):
         """Test behavior when max retries are exceeded."""
         with aioresponses.aioresponses() as m:
@@ -155,6 +159,7 @@ class TestTurboPolygonFetcher:
                 
                 assert results == []
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_fetch_symbol_year_no_results(self):
         """Test handling of API response with no results."""
@@ -178,6 +183,7 @@ class TestTurboPolygonFetcher:
 class TestTurboTiingoFetcher:
     """Unit tests for TurboTiingoFetcher."""
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_fetch_symbol_data_success(self):
         """Test successful symbol data fetch from Tiingo API."""
@@ -203,6 +209,7 @@ class TestTurboTiingoFetcher:
                 assert isinstance(results[0]['date'], date)
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fetch_symbol_data_rate_limit_retry(self):
         """Test retry logic for rate limiting."""
         with aioresponses.aioresponses() as m:
@@ -221,6 +228,7 @@ class TestTurboTiingoFetcher:
                 
                 assert len(results) == 2
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_fetch_symbol_data_empty_response(self):
         """Test handling of empty API response."""
@@ -292,6 +300,7 @@ class TestTurboDatabaseInserter:
         ]
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_bulk_insert_polygon_success(self, db_config, sample_polygon_data):
         """Test successful bulk insert for Polygon data."""
         with patch('src.market_data.eod.turbo_price_backfill.asyncpg.create_pool') as mock_pool:
@@ -308,6 +317,7 @@ class TestTurboDatabaseInserter:
             assert result == 2
             assert mock_conn.executemany.called
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_bulk_insert_tiingo_success(self, db_config, sample_tiingo_data):
         """Test successful bulk insert for Tiingo data."""
@@ -326,6 +336,7 @@ class TestTurboDatabaseInserter:
             assert mock_conn.executemany.called
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_bulk_insert_empty_data(self, db_config):
         """Test bulk insert with empty data."""
         inserter = TurboDatabaseInserter(db_config)
@@ -337,6 +348,7 @@ class TestTurboDatabaseInserter:
             assert result_polygon == 0
             assert result_tiingo == 0
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_bulk_insert_database_error(self, db_config, sample_polygon_data):
         """Test handling of database errors during insert."""
@@ -358,6 +370,7 @@ class TestTurboDatabaseInserter:
 class TestTurboBackfillIntegration:
     """Integration tests for the complete turbo backfill workflow."""
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_concurrent_api_calls(self):
         """Test that concurrent API calls work properly."""
@@ -403,6 +416,7 @@ class TestTurboBackfillIntegration:
                         assert len(result) == 2  # 2 days of data
 
     @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     async def test_error_handling_in_batch_processing(self):
         """Test error handling when some API calls fail in batch processing."""
         with aioresponses.aioresponses() as m:
@@ -438,7 +452,7 @@ class TestTurboBackfillIntegration:
 
     def test_data_transformation_accuracy(self):
         """Test that data transformation from API response to database format is accurate."""
-        from src.market_data.eod.turbo_price_backfill import TurboPolygonFetcher
+        from domains.market_data.services.eod.turbo_price_backfill import TurboPolygonFetcher
         
         # Test timestamp conversion for Polygon
         sample_item = {

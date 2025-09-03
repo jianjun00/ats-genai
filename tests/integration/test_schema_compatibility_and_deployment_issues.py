@@ -20,7 +20,7 @@ from dataclasses import dataclass
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
-from config.environment import Environment
+from shared.utils.environment import Environment
 
 @dataclass
 class TableSchema:
@@ -300,6 +300,7 @@ class TestSchemaCompatibilityAndDeploymentIssues:
         return BackfillScriptValidator(env)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_all_vendor_tables_exist_and_compatible(self, schema_validator):
         """Test that all vendor price tables exist and have compatible schemas"""
         print("\n🔍 Testing vendor table schema compatibility...")
@@ -330,6 +331,7 @@ class TestSchemaCompatibilityAndDeploymentIssues:
         # Schema differences are warnings, not failures (vendors can have different optional columns)
         # But we should log them for awareness
         
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_critical_columns_consistent_across_vendors(self, schema_validator):
         """Test that critical price columns are consistent across all vendor tables"""
@@ -378,6 +380,7 @@ class TestSchemaCompatibilityAndDeploymentIssues:
         assert len(missing_critical) == 0, f"Critical columns missing: {missing_critical}"
         assert len(data_type_inconsistencies) == 0, f"Data type inconsistencies: {data_type_inconsistencies}"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_backfill_script_column_compatibility(self, script_validator):
         """Test that backfill scripts match actual table schemas - WOULD HAVE CAUGHT OUR BUG!"""
@@ -437,6 +440,7 @@ class TestSchemaCompatibilityAndDeploymentIssues:
             pytest.skip("Polygon table not available for testing")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_data_type_compatibility_for_joins(self, schema_validator):
         """Test that foreign key columns have compatible data types for cross-vendor queries"""
         print("\n🔍 Testing foreign key data type compatibility...")
@@ -491,6 +495,7 @@ class TestSchemaCompatibilityAndDeploymentIssues:
         assert columns == expected_columns, f"Column extraction failed: got {columns}, expected {expected_columns}"
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_detect_schema_evolution_issues(self, schema_validator):
         """Test detection of schema changes that could break existing code"""
         print("\n🔍 Testing schema evolution issue detection...")
@@ -531,6 +536,7 @@ class TestSchemaCompatibilityAndDeploymentIssues:
         
         assert len(missing_business_critical) == 0, f"Business-critical columns missing: {missing_business_critical}"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_deployment_readiness_checklist(self, schema_validator, script_validator):
         """Comprehensive deployment readiness test - would prevent production issues"""

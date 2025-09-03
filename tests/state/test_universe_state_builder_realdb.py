@@ -6,9 +6,10 @@ from datetime import datetime, date
 
 from state.universe_state_builder import UniverseStateIntervalBuilder
 from state.universe_state_manager import UniverseStateManager
-from config.environment import Environment, EnvironmentType
+from shared.utils.environment import Environment, EnvironmentType
 from db.test_db_manager import unit_test_db_clean
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_universe_state_builder_real_db(unit_test_db, tmp_path):
     """
@@ -21,7 +22,7 @@ async def test_universe_state_builder_real_db(unit_test_db, tmp_path):
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     env.get_database_url = lambda: unit_test_db
     # Ensure indicator config includes all required indicators
-    from signals.indicator_config import IndicatorConfig
+    from domains.trading.services.indicator_config import IndicatorConfig
     env.get_indicator_config = lambda: IndicatorConfig.default_config()
     base_path = tmp_path / "universe_state"
     state_manager = UniverseStateManager(env=env, base_path=base_path)

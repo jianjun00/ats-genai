@@ -11,7 +11,7 @@ from pathlib import Path
 from datetime import date, datetime
 import asyncpg
 
-from config.environment import Environment
+from shared.utils.environment import Environment
 
 class TestBacktestPortfolioFileGeneration:
     """Test that backtests properly generate and save portfolio holdings to disk"""
@@ -30,6 +30,8 @@ class TestBacktestPortfolioFileGeneration:
             portfolio_dir = Path(temp_dir) / "portfolios" / "backtests"
             portfolio_dir.mkdir(parents=True, exist_ok=True)
             yield portfolio_dir
+    
+    @pytest.mark.asyncio
     
     async def test_backtest_metadata_points_to_disk_files(self, db_connection):
         """Test that backtest metadata table correctly points to disk file paths"""
@@ -135,6 +137,8 @@ class TestBacktestPortfolioFileGeneration:
                     assert 'total_portfolio_value' in snapshot
                     assert 'holdings' in snapshot
                     assert 'daily_return' in snapshot
+    
+    @pytest.mark.asyncio
     
     async def test_file_generation_workflow(self, db_connection, temp_portfolio_dir):
         """Test the complete workflow of backtest generating portfolio files"""
@@ -257,6 +261,8 @@ class TestBacktestPortfolioFileGeneration:
         
         assert updated_portfolio['portfolio_metadata']['last_updated'] != original_timestamp
         assert updated_portfolio['portfolio_metadata']['total_value'] > original_total
+    
+    @pytest.mark.asyncio
     
     async def test_api_reads_from_disk_files(self):
         """Test that APIs can successfully read portfolio data from disk files"""

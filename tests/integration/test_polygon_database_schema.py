@@ -31,6 +31,7 @@ class TestPolygonTableSchema:
     """Test suite for Polygon table schema validation"""
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_polygon_table_exists(self, db_connection):
         """Test that dev_polygon_prices table exists (this was the main issue)"""
         
@@ -45,6 +46,7 @@ class TestPolygonTableSchema:
         
         assert table_exists, "dev_polygon_prices table must exist (was missing before fix)"
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_polygon_table_columns(self, db_connection):
         """Test that all required columns exist with correct types"""
@@ -83,6 +85,7 @@ class TestPolygonTableSchema:
                 f"Column {col_name} should be {expected_type}, got {actual_type}"
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_polygon_table_constraints(self, db_connection):
         """Test that proper constraints exist"""
         
@@ -109,6 +112,7 @@ class TestPolygonTableSchema:
         
         assert len(unique_constraints) > 0, "Must have unique constraint on (symbol, price_date)"
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_polygon_table_indexes(self, db_connection):
         """Test that performance indexes exist"""
@@ -137,6 +141,7 @@ class TestPolygonTableSchema:
             print(f"Warning: Missing recommended indexes for: {missing_indexes}")
             print(f"Existing indexes: {index_names}")
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_insert_polygon_data(self, db_connection):
         """Test that data can be inserted correctly (this was failing before)"""
@@ -197,6 +202,7 @@ class TestPolygonTableSchema:
             "DELETE FROM dev_polygon_prices WHERE id = $1", record_id
         )
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_conflict_resolution(self, db_connection):
         """Test ON CONFLICT DO UPDATE behavior for duplicate symbol/date combinations"""
@@ -281,6 +287,7 @@ class TestPolygonTableSchema:
         )
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_batch_insert_performance(self, db_connection):
         """Test batch insertion performance (used by collector)"""
         
@@ -348,6 +355,7 @@ class TestPolygonTableValidation:
     """Test suite for table validation and error handling"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_null_constraints(self, db_connection):
         """Test that NOT NULL constraints are properly enforced"""
         
@@ -362,6 +370,7 @@ class TestPolygonTableValidation:
         assert "null value" in str(exc_info.value).lower() or \
                "not-null constraint" in str(exc_info.value).lower()
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_data_type_validation(self, db_connection):
         """Test that data type constraints are enforced"""
@@ -383,6 +392,7 @@ class TestPolygonTableValidation:
             """)
 
     @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     async def test_default_values(self, db_connection):
         """Test that default values are applied correctly"""
         

@@ -15,14 +15,14 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from ml.models.support_resistance_model import (
+from domains.ml.services.models.support_resistance_model import (
     SRModelConfig,
     SupportResistanceNet,
     SRLoss,
     SRDataset,
     SupportResistanceEnsemble
 )
-from ml.training_data.support_resistance_generator import (
+from domains.ml.services.training_data.support_resistance_generator import (
     TrainingExample,
     SupportResistanceLevel
 )

@@ -9,7 +9,7 @@ import asyncio
 # Add src to PYTHONPATH
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
 
-from secmaster.populate_instrument_polygon import parse_date, upsert_instrument, fetch_and_store_instruments
+from domains.instruments.services.populate_instrument_polygon import parse_date, upsert_instrument, fetch_and_store_instruments
 
 
 class TestPopulateInstrumentPolygon(unittest.TestCase):

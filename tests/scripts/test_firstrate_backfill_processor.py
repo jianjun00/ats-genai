@@ -139,6 +139,7 @@ class TestFirstRateBackfillProcessor:
         assert ranges[2] == (date(2023, 3, 1), date(2023, 3, 10))
     
     @patch('storage.file_based_minute_manager.FileBasedMinuteManager.store_minute_data')
+    @pytest.mark.asyncio
     async def test_process_symbol_month_success(self, mock_store, temp_setup):
         """Test successful month processing."""
         mock_store.return_value = {'records_stored': 2}
@@ -169,6 +170,7 @@ class TestFirstRateBackfillProcessor:
         assert all(isinstance(bar, MinuteBar) for bar in kwargs['bars'])
     
     @patch('storage.file_based_minute_manager.FileBasedMinuteManager.store_minute_data')
+    @pytest.mark.asyncio
     async def test_process_symbol_month_no_data(self, mock_store, temp_setup):
         """Test month processing with no data."""
         processor = FirstRateBackfillProcessor(
@@ -194,6 +196,7 @@ class TestFirstRateBackfillProcessor:
         mock_store.assert_not_called()
     
     @patch('storage.file_based_minute_manager.FileBasedMinuteManager.store_minute_data')
+    @pytest.mark.asyncio
     async def test_process_symbol_month_error(self, mock_store, temp_setup):
         """Test month processing with storage error."""
         mock_store.side_effect = Exception("Storage error")
@@ -217,6 +220,7 @@ class TestFirstRateBackfillProcessor:
         assert result['month'] == '2023-01'
     
     @patch('storage.file_based_minute_manager.FileBasedMinuteManager.store_minute_data')
+    @pytest.mark.asyncio
     async def test_process_symbol_complete(self, mock_store, temp_setup):
         """Test complete symbol processing."""
         mock_store.return_value = {'records_stored': 1}
@@ -246,6 +250,7 @@ class TestFirstRateBackfillProcessor:
         assert '2023-02' in processor.checkpoint['completed_months']['AAPL']
     
     @patch('storage.file_based_minute_manager.FileBasedMinuteManager.store_minute_data')
+    @pytest.mark.asyncio
     async def test_checkpoint_resume(self, mock_store, temp_setup):
         """Test resuming from checkpoint."""
         mock_store.return_value = {'records_stored': 1}
@@ -365,7 +370,7 @@ class TestFirstRateTimezoneIntegration:
     
     def test_timezone_conversion_integration(self, temp_timezone_data):
         """Test timezone conversion in full processing pipeline."""
-        from market_data.agent.firstrate_adapter import FirstRateAdapter
+        from domains.market_data.services.agent.firstrate_adapter import FirstRateAdapter
         
         adapter = FirstRateAdapter(temp_timezone_data)
         zip_files = adapter.get_available_zip_files('stock')

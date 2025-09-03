@@ -3,15 +3,16 @@ import asyncio
 import json
 from datetime import datetime, date
 from db.test_db_manager import unit_test_db
-from config.environment import Environment, EnvironmentType
+from shared.utils.environment import Environment, EnvironmentType
 
-from src.market_data.news.turbo_news_backfill import (
+from domains.market_data.services.news.turbo_news_backfill import (
     TurboPolygonNewsFetcher,
     TurboTiingoNewsFetcher,
     TurboNewsDatabaseInserter
 )
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_end_to_end_polygon_news_backfill(unit_test_db):
     """Test end-to-end Polygon news backfill with real database."""
@@ -133,6 +134,7 @@ async def test_end_to_end_polygon_news_backfill(unit_test_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_end_to_end_tiingo_news_backfill(unit_test_db):
     """Test end-to-end Tiingo news backfill with real database."""
     # Setup test environment
@@ -229,6 +231,7 @@ async def test_end_to_end_tiingo_news_backfill(unit_test_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_duplicate_news_handling(unit_test_db):
     """Test that duplicate news articles are handled correctly."""
     # Setup test environment
@@ -296,6 +299,7 @@ async def test_duplicate_news_handling(unit_test_db):
             await pool.close()
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_concurrent_news_insertions(unit_test_db):
     """Test concurrent news insertions work correctly."""
@@ -405,6 +409,7 @@ async def test_concurrent_news_insertions(unit_test_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_large_news_batch_processing(unit_test_db):
     """Test processing of large batches of news data."""
     # Setup test environment
@@ -491,6 +496,7 @@ async def test_large_news_batch_processing(unit_test_db):
             await pool.close()
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_json_data_integrity(unit_test_db):
     """Test that complex JSON data structures maintain integrity through the database."""

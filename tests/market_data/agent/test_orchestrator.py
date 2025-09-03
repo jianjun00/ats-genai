@@ -4,10 +4,10 @@ from unittest import mock
 from datetime import datetime, date, timedelta
 import json
 
-from src.market_data.agent.data_agent_orchestrator import DataAgentOrchestrator
-from src.market_data.agent.base_adapter import VendorAdapter
-from src.market_data.agent.models import EODPrice, ReconciledRecord
-from src.market_data.agent.reconciliation import ReconciliationEngine
+from domains.market_data.services.agent.data_agent_orchestrator import DataAgentOrchestrator
+from domains.market_data.services.agent.base_adapter import VendorAdapter
+from domains.market_data.services.agent.models import EODPrice, ReconciledRecord
+from domains.market_data.services.agent.reconciliation import ReconciliationEngine
 
 # Mock adapter for testing
 class MockAdapter(VendorAdapter):
@@ -167,11 +167,13 @@ def orchestrator(mock_pool, mock_adapters, reconciliation_engine, monkeypatch):
     )
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_get_all_symbols(orchestrator):
     """Test retrieving all symbols"""
     symbols = await orchestrator.get_all_symbols()
     assert symbols == {"AAPL", "MSFT"}
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_get_missing_data_points(orchestrator):
     """Test identifying missing data points"""
@@ -186,6 +188,7 @@ async def test_get_missing_data_points(orchestrator):
     assert all(p["symbol"] == "AAPL" for p in missing_points)
     assert all(isinstance(p["date"], date) for p in missing_points)
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_process_data_point(orchestrator):
     """Test processing a single data point"""
@@ -212,6 +215,7 @@ async def test_process_data_point(orchestrator):
     assert value["open"] is not None
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_run_backfill_loop(orchestrator):
     """Test running the backfill loop"""
     # Mock methods to control execution
@@ -231,6 +235,7 @@ async def test_run_backfill_loop(orchestrator):
     orchestrator._process_batch.assert_called_once()
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_run_frontfill_loop(orchestrator):
     """Test running the frontfill loop"""
     # Mock methods
@@ -246,6 +251,7 @@ async def test_run_frontfill_loop(orchestrator):
     orchestrator.get_all_symbols.assert_called_once()
     assert orchestrator._process_data_point.call_count == 2  # Once for each symbol
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_market_closed_check(orchestrator):
     """Test market closed check logic"""

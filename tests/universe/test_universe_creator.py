@@ -7,6 +7,7 @@ from db.test_db_manager import unit_test_db_clean
 from config import Environment, EnvironmentType
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_universe_add_remove(unit_test_db, monkeypatch):
     # Use the test DB created by unit_test_db fixture, schema is initialized
     print(f"[DEBUG] Using test DB URL: {unit_test_db}")

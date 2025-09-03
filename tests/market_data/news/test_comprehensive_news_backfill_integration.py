@@ -13,7 +13,7 @@ from datetime import datetime, date
 import sys
 sys.path.insert(0, 'src')
 
-from market_data.news.comprehensive_news_backfill import ComprehensiveNewsBackfiller
+from domains.market_data.services.news.comprehensive_news_backfill import ComprehensiveNewsBackfiller
 
 
 class TestComprehensiveNewsBackfillIntegration:
@@ -83,6 +83,7 @@ class TestComprehensiveNewsBackfillIntegration:
             assert abs(years_diff - expected_years) < 0.1  # Within 36 days
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_backfiller_initialization(self, db_config, test_symbols):
         """Test backfiller initialization and cleanup"""
         backfiller = ComprehensiveNewsBackfiller(db_config, test_symbols)
@@ -95,6 +96,7 @@ class TestComprehensiveNewsBackfillIntegration:
         # Pool should be closed after context exit
         assert backfiller.db_pool.is_closing()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_eodhd_table_creation(self, db_config, test_symbols):
         """Test EODHD table creation"""
@@ -116,6 +118,7 @@ class TestComprehensiveNewsBackfillIntegration:
         not os.getenv('POLYGON_API_KEY'), 
         reason="Polygon API key not available"
     )
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_polygon_news_fetching_real_api(self, db_config):
         """Test Polygon news fetching with real API (requires API key)"""
@@ -144,6 +147,7 @@ class TestComprehensiveNewsBackfillIntegration:
         reason="Tiingo API key not available"
     )
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_tiingo_news_fetching_real_api(self, db_config):
         """Test Tiingo news fetching with real API (requires API key)"""
         symbols = ['AAPL']  # Single symbol for testing
@@ -171,6 +175,7 @@ class TestComprehensiveNewsBackfillIntegration:
         reason="EODHD API key not available"
     )
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_eodhd_news_fetching_real_api(self, db_config):
         """Test EODHD news fetching with real API (requires API key)"""
         symbols = ['AAPL']  # Single symbol for testing
@@ -193,6 +198,7 @@ class TestComprehensiveNewsBackfillIntegration:
             assert count >= 0
             print(f"Fetched {count} EODHD articles for {symbols}")
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_comprehensive_backfill_mock_apis(self, db_config, test_symbols):
         """Test comprehensive backfill with mocked API responses"""
@@ -270,6 +276,7 @@ class TestComprehensiveNewsBackfillIntegration:
             else:
                 assert source_name not in backfiller.api_keys
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_database_error_handling(self, test_symbols):
         """Test database connection error handling"""

@@ -30,8 +30,8 @@ import os
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-from config.environment import Environment
-from market_data.reconciliation.majority_voting_reconciler import (
+from shared.utils.environment import Environment
+from domains.market_data.services.reconciliation.majority_voting_reconciler import (
     MajorityVotingReconciler,
     VendorPrice,
     PriceConsensus
@@ -340,6 +340,7 @@ class TestCrossVendorPriceComparison:
     """Integration tests for cross-vendor price comparison"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_cross_vendor_comparison_initialization(self, comparator):
         """Test comparator initialization"""
         assert comparator.env is not None
@@ -349,6 +350,7 @@ class TestCrossVendorPriceComparison:
         assert 'tiingo' in comparator.vendor_tables
         assert comparator.thresholds['max_acceptable_variance'] == 0.05
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_single_symbol_price_comparison(self, comparator):
         """Test price comparison for a single symbol"""
@@ -375,6 +377,7 @@ class TestCrossVendorPriceComparison:
             assert isinstance(result.passed, bool)
             assert isinstance(result.notes, str)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_multi_vendor_data_retrieval(self, comparator):
         """Test retrieval of data from multiple vendors"""
@@ -409,6 +412,7 @@ class TestCrossVendorPriceComparison:
                     assert sample_data['close'] > 0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_price_variance_detection(self, comparator):
         """Test detection of high price variance"""
         
@@ -433,6 +437,7 @@ class TestCrossVendorPriceComparison:
         assert "variance" in result.notes.lower()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_acceptable_variance_scenario(self, comparator):
         """Test scenario with acceptable price variance"""
         
@@ -454,6 +459,7 @@ class TestCrossVendorPriceComparison:
         assert len(result.outlier_vendors) == 0
         assert result.confidence_score > 0.7  # Should have high confidence
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_insufficient_vendor_data(self, comparator):
         """Test handling of insufficient vendor data"""
@@ -535,6 +541,7 @@ class TestComparisonResultStructure:
 class TestComparisonPerformance:
     """Test performance of cross-vendor comparisons"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_comparison_performance_single_symbol(self, comparator):
         """Test performance of single symbol comparison"""

@@ -53,6 +53,7 @@ class TestUnifiedWebappAccessibility:
         process.wait()
     
     @pytest.mark.integration
+    @pytest.mark.asyncio
     async def test_webapp_startup_and_health_check(self, webapp_process):
         """Test that webapp starts and health check responds"""
         # Wait a bit more for full startup
@@ -78,6 +79,7 @@ class TestUnifiedWebappAccessibility:
                 pytest.fail(f"Health check failed: {e}")
     
     @pytest.mark.integration
+    @pytest.mark.asyncio
     async def test_dashboard_loads(self, webapp_process):
         """Test that main dashboard loads successfully"""
         await asyncio.sleep(1)
@@ -101,6 +103,7 @@ class TestUnifiedWebappAccessibility:
                 pytest.fail(f"Dashboard loading failed: {e}")
     
     @pytest.mark.integration
+    @pytest.mark.asyncio
     async def test_api_endpoints_respond(self, webapp_process):
         """Test that API endpoints are accessible and return expected data"""
         await asyncio.sleep(1)
@@ -146,6 +149,7 @@ class TestUnifiedWebappAccessibility:
                 pytest.fail(f"Portfolio metrics API failed: {e}")
     
     @pytest.mark.integration
+    @pytest.mark.asyncio
     async def test_api_docs_accessible(self, webapp_process):
         """Test that API documentation is accessible"""
         await asyncio.sleep(1)
@@ -167,6 +171,7 @@ class TestUnifiedWebappAccessibility:
                 pytest.fail(f"API docs failed: {e}")
     
     @pytest.mark.integration
+    @pytest.mark.asyncio
     async def test_cors_headers_present(self, webapp_process):
         """Test that CORS headers are properly configured for external access"""
         await asyncio.sleep(1)
@@ -192,6 +197,7 @@ class TestUnifiedWebappAccessibility:
                 pytest.fail(f"CORS headers test failed: {e}")
     
     @pytest.mark.integration 
+    @pytest.mark.asyncio
     async def test_database_connectivity_status(self, webapp_process):
         """Test that database connectivity status is reported correctly"""
         await asyncio.sleep(1)

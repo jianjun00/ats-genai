@@ -296,6 +296,7 @@ class TestSocialSentimentAnalyzer:
             assert hasattr(analyzer, 'data_generator')
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_analyze_social_sentiment(self, mock_connection_pool, mock_env, sample_social_media_post):
         """Test complete social sentiment analysis."""
         pool, conn = mock_connection_pool
@@ -495,6 +496,7 @@ class TestSocialSentimentAnalyzer:
             assert "Contrarian signal" in signal.risk_factors
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_store_social_analysis(self, mock_connection_pool, mock_env):
         """Test storing social analysis results."""
         pool, conn = mock_connection_pool
@@ -548,6 +550,7 @@ class TestSocialSentimentAnalyzer:
             assert conn.execute.call_count >= 2  # At least one for post, one for signal
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_social_sentiment_history(self, mock_connection_pool, mock_env):
         """Test getting social sentiment history."""
         pool, conn = mock_connection_pool
@@ -582,6 +585,7 @@ class TestConvenienceFunction:
     """Test convenience function."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_analyze_social_media_sentiment(self, mock_connection_pool, mock_env):
         """Test convenience function."""
         pool, conn = mock_connection_pool
@@ -614,6 +618,7 @@ class TestErrorHandling:
     """Test error handling scenarios."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_no_social_posts_found(self, mock_connection_pool, mock_env):
         """Test handling when no social media posts are found."""
         pool, conn = mock_connection_pool
@@ -631,6 +636,7 @@ class TestErrorHandling:
             assert isinstance(result, dict)
             assert len(result) == 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_social_analysis_error(self, mock_connection_pool, mock_env):
         """Test handling of social analysis errors."""

@@ -28,6 +28,7 @@ class TestDatasetEndpointDetection:
             yield session
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_webapp_health_check(self, webapp_base_url, http_session):
         """Test that the webapp is accessible"""
         try:
@@ -39,6 +40,7 @@ class TestDatasetEndpointDetection:
         except Exception as e:
             pytest.fail(f"❌ Webapp health check failed: {e}")
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_dataset_endpoints_exist(self, webapp_base_url, http_session):
         """Test that required dataset endpoints exist"""
@@ -70,6 +72,7 @@ class TestDatasetEndpointDetection:
         if missing_endpoints:
             pytest.fail(f"❌ Missing dataset endpoints:\n" + "\n".join(missing_endpoints))
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_dataset_detail_page_accessibility(self, webapp_base_url, http_session):
         """Test that dataset detail page is accessible"""
@@ -106,6 +109,7 @@ class TestDatasetEndpointDetection:
         except Exception as e:
             pytest.fail(f"❌ Failed to access dataset detail page: {e}")
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_dataset_sequence_loading(self, webapp_base_url, http_session):
         """Test that dataset sequences can be loaded via API"""
@@ -145,6 +149,7 @@ class TestDatasetEndpointDetection:
             pytest.fail(f"❌ Error testing dataset sequences: {e}")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_dataset_metadata_loading(self, webapp_base_url, http_session):
         """Test that dataset metadata can be loaded via API"""
         metadata_endpoint = f"{webapp_base_url}/api/v1/datasets/1/metadata"
@@ -183,6 +188,7 @@ class TestDatasetEndpointDetection:
         except Exception as e:
             logger.warning(f"⚠️ Error testing dataset metadata: {e}")
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_dataset_list_functionality(self, webapp_base_url, http_session):
         """Test that dataset list functionality works"""
@@ -272,6 +278,7 @@ class TestDatasetDetailPageFunctionality:
             yield session
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_dataset_detail_page_specific_error(self, webapp_base_url, http_session):
         """Test specifically for 'Error loading sequences' message"""
         dataset_detail_url = f"{webapp_base_url}/dataset-detail?id=1"
@@ -321,6 +328,7 @@ class TestDatasetDetailPageFunctionality:
         except Exception as e:
             pytest.fail(f"❌ Failed to test dataset detail page: {e}")
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_dataset_javascript_errors(self, webapp_base_url, http_session):
         """Test for JavaScript errors that might cause 'Error loading sequences'"""

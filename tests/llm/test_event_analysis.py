@@ -25,7 +25,7 @@ import os
 import sys
 sys.path.insert(0, 'src')
 
-from config.feature_flags import FeatureManager, feature_manager
+from shared.utils.feature_flags import FeatureManager, feature_manager
 from llm.event_analysis import (
     EventAnalysisRequest, EventAnalysisResult, LLMInterface,
     MockLLMInterface, OpenAIInterface, EventAnalysisCache,
@@ -150,6 +150,7 @@ class TestMockLLMInterface:
         return MockLLMInterface("mock-gpt-4")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_mock_analysis(self, mock_llm):
         """Test mock analysis."""
         request = EventAnalysisRequest(
@@ -182,6 +183,7 @@ class TestMockLLMInterface:
         assert info["provider"] == "mock"
         assert info["version"] == "1.0.0"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_mock_deterministic_output(self, mock_llm):
         """Test that mock produces deterministic output for same input."""
@@ -218,6 +220,7 @@ class TestOpenAIInterface:
         assert interface.model_name == "gpt-4"
         assert interface.api_key == "test-api-key"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_openai_fallback_to_mock(self):
         """Test OpenAI fallback to mock implementation."""
@@ -430,6 +433,7 @@ class TestLLMEventAnalyzer:
         assert hasattr(analyzer, 'reflection_prompt')
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_basic_event_analysis(self, analyzer):
         """Test basic event analysis."""
         request = EventAnalysisRequest(
@@ -454,6 +458,7 @@ class TestLLMEventAnalyzer:
         assert result.processing_time > 0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_event_analysis_with_reflection(self, analyzer, mock_feature_flags):
         """Test event analysis with reflection."""
         request = EventAnalysisRequest(
@@ -470,6 +475,7 @@ class TestLLMEventAnalyzer:
         assert result.reflection_notes is not None
         assert isinstance(result.reflection_notes, str)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_event_analysis_with_context(self, analyzer):
         """Test event analysis with context data."""
@@ -496,6 +502,7 @@ class TestLLMEventAnalyzer:
         assert result.confidence_score > 0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_cache_functionality(self, analyzer):
         """Test caching functionality."""
         request = EventAnalysisRequest(
@@ -517,6 +524,7 @@ class TestLLMEventAnalyzer:
         assert result1.sentiment_score == result2.sentiment_score
         assert result1.importance_score == result2.importance_score
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_batch_analysis(self, analyzer):
         """Test batch analysis of multiple events."""
@@ -540,6 +548,7 @@ class TestLLMEventAnalyzer:
             assert result.event_id == f"batch_{i}"
             assert isinstance(result.sentiment_score, float)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_error_handling(self, mock_feature_flags):
         """Test error handling in analysis."""
@@ -680,12 +689,14 @@ class TestFeatureFlagIntegration:
             assert isinstance(selector, AdaptiveModelSelector)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_quick_analysis_disabled(self):
         """Test quick analysis when feature is disabled."""
         with patch.object(feature_manager, 'is_enabled', return_value=False):
             result = await quick_event_analysis("test content", "AAPL")
             assert result is None
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_quick_analysis_enabled(self):
         """Test quick analysis when feature is enabled."""
@@ -695,6 +706,7 @@ class TestFeatureFlagIntegration:
             assert isinstance(result, EventAnalysisResult)
             assert result.symbol == "AAPL"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_deep_analysis_enabled(self):
         """Test deep analysis when feature is enabled."""
@@ -713,6 +725,7 @@ class TestFeatureFlagIntegration:
 class TestPerformanceBenchmarks:
     """Performance benchmarks for LLM event analysis."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_single_analysis_performance(self):
         """Test single event analysis performance."""
@@ -739,6 +752,7 @@ class TestPerformanceBenchmarks:
             assert result is not None
             assert processing_time < 1.0  # Should complete quickly with mock
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_batch_analysis_performance(self):
         """Test batch analysis performance."""
@@ -769,6 +783,7 @@ class TestPerformanceBenchmarks:
             assert len(results) == 20
             assert processing_time < 5.0  # Should complete reasonably fast
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_cache_performance_benefit(self):
         """Test caching performance benefit."""

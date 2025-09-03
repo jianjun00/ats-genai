@@ -1,11 +1,12 @@
 import pytest
 import asyncio
 from datetime import date
-from secmaster.range_splits_tiingo import parse_date, map_tiingo_split, insert_splits_tiingo
+from domains.instruments.services.range_splits_tiingo import parse_date, map_tiingo_split, insert_splits_tiingo
 
 import types
-from secmaster.range_splits_tiingo import get_symbols_from_stock_splits_polygon
+from domains.instruments.services.range_splits_tiingo import get_symbols_from_stock_splits_polygon
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_get_symbols_from_stock_splits_polygon_parses_dates():
     class DummyConn:
@@ -42,6 +43,7 @@ async def test_get_symbols_from_stock_splits_polygon_parses_dates():
         mod.asyncpg.create_pool = orig_create_pool
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_parse_date_handles_none_and_date():
     assert parse_date(None) is None
     d = date(2022, 1, 1)
@@ -73,6 +75,7 @@ def test_map_tiingo_split_basic():
     assert mapped['description'] == '4-for-1 split'
     assert mapped['refid'] == 'split123'
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_insert_splits_tiingo_inserts_valid_splits():
     class DummyDAO:

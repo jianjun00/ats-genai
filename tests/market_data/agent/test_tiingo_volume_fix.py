@@ -9,7 +9,7 @@ import pandas as pd
 from datetime import datetime
 from unittest.mock import Mock, patch
 
-from src.market_data.agent.tiingo_intraday_adapter import TiingoIntradayAdapter, TiingoMinuteBar
+from domains.market_data.services.agent.tiingo_intraday_adapter import TiingoIntradayAdapter, TiingoMinuteBar
 
 
 class TestTiingoVolumeParsing:

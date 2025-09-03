@@ -1,13 +1,13 @@
 import pytest
 import asyncio
 from datetime import datetime, date
-from src.config.environment import Environment, EnvironmentType
-from src.market_data.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
-from src.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
-from src.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
-from src.dao.instruments_dao import InstrumentsDAO
-from src.dao.instrument_xrefs_dao import InstrumentXrefsDAO
-from src.dao.vendors_dao import VendorsDAO
+from shared.utils.environment import Environment, EnvironmentType
+from domains.market_data.services.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
+from domains.market_data.repositories.daily_prices_tiingo_dao import DailyPricesTiingoDAO
+from domains.market_data.repositories.daily_prices_polygon_dao import DailyPricesPolygonDAO
+from domains.instruments.repositories.instruments_dao import InstrumentsDAO
+from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
+from infrastructure.database.repositories.vendors_dao import VendorsDAO
 from src.db.test_db_manager import unit_test_db
 
 async def get_or_create_vendor(vendors_dao, name, description=None):
@@ -18,6 +18,7 @@ async def get_or_create_vendor(vendors_dao, name, description=None):
         return {"id": vendor_id, "name": name}
     return vendor
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_unified_manager_returns_unified_price(unit_test_db):
     # Use the isolated test DB for all DAOs and managers

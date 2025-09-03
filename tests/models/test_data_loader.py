@@ -351,6 +351,7 @@ class TestTFTDataLoader:
     """Test TFT data loader."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_data_loader_creation(self, mock_connection_pool, mock_env):
         """Test data loader creation."""
         pool, conn = mock_connection_pool
@@ -361,6 +362,7 @@ class TestTFTDataLoader:
             assert loader.pool == pool
             assert loader.env == mock_env
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_load_price_data(self, mock_connection_pool, mock_env):
         """Test loading price data."""
@@ -407,6 +409,7 @@ class TestTFTDataLoader:
             assert 'returns' in data.columns
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_technical_indicators_calculation(self, mock_connection_pool, mock_env):
         """Test technical indicators calculation."""
         pool, conn = mock_connection_pool
@@ -450,6 +453,7 @@ class TestTFTDataLoader:
             assert not data['macd'].iloc[-10:].isna().all()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_load_sentiment_data(self, mock_connection_pool, mock_env):
         """Test loading sentiment data."""
         pool, conn = mock_connection_pool
@@ -484,6 +488,7 @@ class TestTFTDataLoader:
                 assert 'sentiment_score' in sentiment_data.columns
                 assert 'confidence' in sentiment_data.columns
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_create_datasets(self, mock_connection_pool, mock_env, sample_data_config):
         """Test dataset creation."""
@@ -528,6 +533,7 @@ class TestTFTDataLoader:
             assert len(train_dataset) > len(val_dataset)
             assert len(val_dataset) > 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_create_data_loaders(self, mock_connection_pool, mock_env, sample_data_config):
         """Test data loader creation."""
@@ -652,6 +658,7 @@ class TestIntegrationScenarios:
     """Test integration scenarios."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_end_to_end_data_pipeline(self, mock_connection_pool, mock_env):
         """Test complete data pipeline from database to dataset."""
         pool, conn = mock_connection_pool
@@ -761,6 +768,7 @@ class TestIntegrationScenarios:
 class TestErrorHandling:
     """Test error handling scenarios."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_no_data_available(self, mock_connection_pool, mock_env, sample_data_config):
         """Test handling when no data is available."""

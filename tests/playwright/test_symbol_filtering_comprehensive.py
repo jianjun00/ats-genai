@@ -7,6 +7,8 @@ This test shows why symbol is treated as categorical and verifies filtering work
 import asyncio
 from playwright.async_api import async_playwright
 
+@pytest.mark.asyncio
+
 async def test_symbol_filtering_comprehensive():
     """Comprehensive test demonstrating symbol filtering with categorical checkboxes."""
     print("🎯 Comprehensive Symbol Filtering Demonstration")

@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, AsyncMock
 import asyncpg
 
-from modeling.factor_models import (
+from domains.ml.services.factor_models import (
     MarketFactorCalculator,
     SectorFactorCalculator, 
     StyleFactorCalculator,
@@ -63,6 +63,7 @@ class TestMarketFactorCalculator:
     """Test market factor calculations."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_calculate_market_factor_basic(self, mock_connection_pool, mock_env, sample_market_data):
         """Test basic market factor calculation."""
         pool, conn = mock_connection_pool
@@ -90,6 +91,7 @@ class TestMarketFactorCalculator:
         assert all(abs(returns) < 0.5)  # No more than 50% daily returns
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_calculate_market_factor_custom_benchmark(self, mock_connection_pool, mock_env):
         """Test market factor calculation with custom benchmark."""
         pool, conn = mock_connection_pool
@@ -113,6 +115,7 @@ class TestMarketFactorCalculator:
         assert 'QQQ' in call_args
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_calculate_market_factor_no_data(self, mock_connection_pool, mock_env):
         """Test market factor calculation with no data."""
         pool, conn = mock_connection_pool
@@ -127,6 +130,7 @@ class TestMarketFactorCalculator:
         
         assert market_factor.empty
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_calculate_market_beta(self, mock_connection_pool, mock_env):
         """Test market beta calculation."""
@@ -162,6 +166,7 @@ class TestSectorFactorCalculator:
     """Test sector factor calculations."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_calculate_sector_factors(self, mock_connection_pool, mock_env):
         """Test sector factor calculation."""
         pool, conn = mock_connection_pool
@@ -191,6 +196,7 @@ class TestSectorFactorCalculator:
         assert not sector_factors.isnull().all().all()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_instrument_sector_loading(self, mock_connection_pool, mock_env):
         """Test instrument sector loading calculation."""
         pool, conn = mock_connection_pool
@@ -210,6 +216,7 @@ class TestSectorFactorCalculator:
         assert abs(total_loading - 1.0) < 1e-6  # Should sum to 1
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_instrument_sector_loading_unknown(self, mock_connection_pool, mock_env):
         """Test instrument sector loading for unknown sector."""
         pool, conn = mock_connection_pool
@@ -228,6 +235,7 @@ class TestSectorFactorCalculator:
 class TestStyleFactorCalculator:
     """Test style factor calculations."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_calculate_style_factors(self, mock_connection_pool, mock_env):
         """Test style factor calculation."""
@@ -270,6 +278,7 @@ class TestStyleFactorCalculator:
         assert len(style_factors) == 2
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_calculate_instrument_style_loadings(self, mock_connection_pool, mock_env):
         """Test instrument style loading calculation."""
         pool, conn = mock_connection_pool
@@ -296,6 +305,7 @@ class TestStyleFactorCalculator:
             assert -3 <= loadings[loading] <= 3  # Reasonable z-score range
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_calculate_instrument_style_loadings_missing_data(self, mock_connection_pool, mock_env):
         """Test style loadings with missing data."""
         pool, conn = mock_connection_pool
@@ -321,6 +331,7 @@ class TestStyleFactorCalculator:
 class TestResidualReturnCalculator:
     """Test comprehensive residual return calculations."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_calculate_residual_returns_market_model(self, mock_connection_pool, mock_env):
         """Test residual return calculation using market model."""
@@ -371,6 +382,7 @@ class TestResidualReturnCalculator:
         assert len(residual_returns) <= len(price_data) - 1
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_calculate_residual_returns_multi_factor(self, mock_connection_pool, mock_env):
         """Test residual return calculation using multi-factor model."""
         pool, conn = mock_connection_pool
@@ -417,6 +429,7 @@ class TestResidualReturnCalculator:
         assert len(factor_columns) > 0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fit_factor_model(self, mock_connection_pool, mock_env):
         """Test factor model fitting."""
         calculator = ResidualReturnCalculator(None, None)
@@ -459,6 +472,7 @@ class TestResidualReturnCalculator:
         assert result.r_squared == 0.0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_calculate_residual_returns_no_instruments(self, mock_connection_pool, mock_env):
         """Test residual return calculation with no instruments."""
         pool, conn = mock_connection_pool
@@ -475,6 +489,7 @@ class TestResidualReturnCalculator:
         
         assert residual_returns.empty
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_calculate_residual_returns_invalid_model(self, mock_connection_pool, mock_env):
         """Test residual return calculation with invalid model type."""
@@ -537,6 +552,7 @@ class TestIntegrationScenarios:
     """Test integration scenarios and realistic workflows."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_full_residual_calculation_workflow(self, mock_connection_pool, mock_env):
         """Test complete residual return calculation workflow."""
         pool, conn = mock_connection_pool
@@ -590,6 +606,7 @@ class TestIntegrationScenarios:
         assert all(0.5 <= beta <= 2.0 for beta in betas if not np.isnan(beta))
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_multiple_instruments_calculation(self, mock_connection_pool, mock_env):
         """Test residual return calculation for multiple instruments."""
         pool, conn = mock_connection_pool
@@ -640,6 +657,7 @@ class TestIntegrationScenarios:
             assert len(inst_data) == len(dates) - 1
 
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_error_handling_scenarios():
     """Test various error handling scenarios."""

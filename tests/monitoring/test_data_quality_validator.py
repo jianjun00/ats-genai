@@ -28,7 +28,7 @@ from monitoring.data_quality_validator import (
     ValidationCategory,
     DataQualityReport
 )
-from config.environment import Environment
+from shared.utils.environment import Environment
 
 @pytest.fixture
 def env():
@@ -184,6 +184,7 @@ class TestPriceConsistencyAnalysis:
     """Test cross-vendor price consistency analysis"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_price_consistency_analysis_normal_variance(self, validator):
         """Test price consistency with normal variance"""
         symbol = "AAPL"
@@ -213,6 +214,7 @@ class TestPriceConsistencyAnalysis:
             assert result.severity in [ValidationSeverity.WARNING, ValidationSeverity.CRITICAL]
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_price_consistency_analysis_high_variance(self, validator):
         """Test price consistency with high variance"""
         symbol = "TEST"
@@ -237,6 +239,7 @@ class TestPriceConsistencyAnalysis:
         assert 'sample_issues' in result.details
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_price_consistency_analysis_no_data(self, validator):
         """Test price consistency with no overlapping data"""
         symbol = "NODATA"
@@ -252,6 +255,7 @@ class TestPriceConsistencyAnalysis:
 class TestVolumeConsistencyAnalysis:
     """Test volume consistency analysis"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_volume_consistency_high_correlation(self, validator):
         """Test volume consistency with high correlation"""
@@ -281,6 +285,7 @@ class TestVolumeConsistencyAnalysis:
             assert result.severity == ValidationSeverity.INFO
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_volume_consistency_low_correlation(self, validator):
         """Test volume consistency with low correlation"""
         symbol = "TEST"
@@ -305,6 +310,7 @@ class TestVolumeConsistencyAnalysis:
             assert result.severity == ValidationSeverity.WARNING
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_volume_consistency_insufficient_data(self, validator):
         """Test volume consistency with insufficient data"""
         symbol = "SINGLE"
@@ -325,6 +331,7 @@ class TestTradingDaysCalculation:
     """Test trading days calculation"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_trading_days_weekdays_only(self, validator):
         """Test that trading days excludes weekends"""
         # Mock database connection
@@ -343,6 +350,7 @@ class TestTradingDaysCalculation:
             assert day.weekday() < 5  # Monday=0 to Friday=4
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_trading_days_single_day(self, validator):
         """Test trading days calculation for single day"""
         mock_conn = MagicMock()
@@ -353,6 +361,7 @@ class TestTradingDaysCalculation:
         assert len(trading_days) == 1
         assert trading_days[0] == monday
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_trading_days_weekend_only(self, validator):
         """Test trading days calculation for weekend only"""
@@ -368,6 +377,7 @@ class TestUtilityMethods:
     """Test utility methods"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_instrument_id_exists(self, validator):
         """Test getting instrument ID for existing symbol"""
         mock_conn = AsyncMock()
@@ -382,6 +392,7 @@ class TestUtilityMethods:
         )
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_get_instrument_id_not_exists(self, validator):
         """Test getting instrument ID for non-existent symbol"""
         mock_conn = AsyncMock()
@@ -395,6 +406,7 @@ class TestUtilityMethods:
 class TestDataQualityValidatorIntegration:
     """Integration tests with mocked database calls"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_comprehensive_validation_workflow(self, validator):
         """Test complete validation workflow with mocked database"""

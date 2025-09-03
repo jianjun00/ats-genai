@@ -16,12 +16,12 @@ import pytz
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from modeling.configurable_train_data_generator import (
+from domains.ml.services.configurable_train_data_generator import (
     ConfigurableTrainingDataGenerator,
     ConfigurableTrainingDataConfig
 )
-from signals.feature_registry import FeatureRegistry, FeatureConfig
-from signals.label_registry import LabelRegistry, LabelConfig
+from domains.trading.services.feature_registry import FeatureRegistry, FeatureConfig
+from domains.trading.services.label_registry import LabelRegistry, LabelConfig
 
 class TestDataQualityIssues:
     """Test various data quality issues common in financial data."""

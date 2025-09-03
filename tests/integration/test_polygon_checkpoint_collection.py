@@ -38,6 +38,7 @@ class TestPolygonCheckpointSystem:
     """Test suite for Polygon checkpoint-based collection system"""
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_job_initialization(self, db_connection, test_job_id):
         """Test that job progress tracking initializes correctly"""
         
@@ -81,6 +82,7 @@ class TestPolygonCheckpointSystem:
             "DELETE FROM vendor_job_progress WHERE job_id = $1", test_job_id
         )
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_symbol_status_transitions(self, db_connection, test_job_id):
         """Test symbol status transitions: pending -> processing -> completed/failed"""
@@ -144,6 +146,7 @@ class TestPolygonCheckpointSystem:
         )
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_error_handling_and_failure_tracking(self, db_connection, test_job_id):
         """Test error handling and failure status tracking"""
         
@@ -185,6 +188,7 @@ class TestPolygonCheckpointSystem:
             test_job_id, test_symbol
         )
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_progress_statistics(self, db_connection, test_job_id):
         """Test progress statistics calculation"""
@@ -244,6 +248,7 @@ class TestPolygonCheckpointSystem:
             "DELETE FROM vendor_job_progress WHERE job_id = $1", test_job_id
         )
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_checkpoint_recovery(self, db_connection, test_job_id):
         """Test recovery from checkpoint after interruption"""
@@ -310,6 +315,7 @@ class TestPolygonCheckpointSystem:
             "DELETE FROM vendor_job_progress WHERE job_id = $1", test_job_id
         )
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_concurrent_job_isolation(self, db_connection):
         """Test that multiple concurrent jobs don't interfere with each other"""
@@ -385,6 +391,7 @@ class TestPolygonCheckpointSystem:
 class TestPolygonDataIntegration:
     """Test integration between checkpoint system and data storage"""
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_end_to_end_symbol_processing(self, db_connection, test_job_id):
         """Test complete end-to-end processing of a symbol with data storage"""
@@ -506,6 +513,7 @@ class TestPolygonDataIntegration:
             "DELETE FROM dev_polygon_prices WHERE symbol = $1", test_symbol
         )
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_duplicate_handling_with_checkpoints(self, db_connection, test_job_id):
         """Test that duplicate data is handled correctly with checkpoint system"""

@@ -24,7 +24,7 @@ import aiohttp
 import sys
 sys.path.append('src')
 
-from market_data.realtime.weekly_backfill import (
+from domains.market_data.services.realtime.weekly_backfill import (
     WeeklyBackfillEngine,
     BackfillJob,
     BackfillStatus
@@ -116,6 +116,7 @@ class TestWeeklyBackfillEngine:
         assert backfill_engine.fmp_api_key == 'test_fmp_key'
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_initialize_database_connection(self, backfill_engine, mock_env):
         """Test database initialization"""
         mock_pool = AsyncMock()
@@ -125,6 +126,7 @@ class TestWeeklyBackfillEngine:
             assert backfill_engine.pool == mock_pool
             mock_env.get_database_url.assert_called_once()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_backfill_universe(self, backfill_engine):
         """Test getting universe for backfill"""
@@ -197,6 +199,7 @@ class TestWeeklyBackfillEngine:
         assert prioritized[2].priority == 1
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_execute_backfill_job_polygon(self, backfill_engine):
         """Test executing backfill job for Polygon"""
         job = BackfillJob(
@@ -240,6 +243,7 @@ class TestWeeklyBackfillEngine:
             backfill_engine._update_job_progress.assert_called()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_execute_backfill_job_tiingo(self, backfill_engine):
         """Test executing backfill job for Tiingo"""
         job = BackfillJob(
@@ -278,6 +282,7 @@ class TestWeeklyBackfillEngine:
             backfill_engine._store_backfill_data.assert_called_once()
             backfill_engine._update_job_progress.assert_called()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_execute_backfill_job_fmp(self, backfill_engine):
         """Test executing backfill job for FMP"""
@@ -318,6 +323,7 @@ class TestWeeklyBackfillEngine:
             backfill_engine._update_job_progress.assert_called()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_store_backfill_data(self, backfill_engine):
         """Test storing backfill data in database"""
         mock_conn = AsyncMock()
@@ -349,6 +355,7 @@ class TestWeeklyBackfillEngine:
         backfill_engine._get_instrument_id.assert_called_once_with('AAPL')
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_update_job_progress(self, backfill_engine):
         """Test updating job progress in database"""
         mock_conn = AsyncMock()
@@ -374,6 +381,7 @@ class TestWeeklyBackfillEngine:
         assert 'status' in sql_call
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_mark_job_completed(self, backfill_engine):
         """Test marking job as completed"""
         mock_conn = AsyncMock()
@@ -397,6 +405,7 @@ class TestWeeklyBackfillEngine:
         assert 'completed' in sql_call
         assert 'completed_at' in sql_call
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_mark_job_failed(self, backfill_engine):
         """Test marking job as failed"""
@@ -422,6 +431,7 @@ class TestWeeklyBackfillEngine:
         assert 'failed' in sql_call
         assert 'error_message' in sql_call
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_process_jobs_concurrently(self, backfill_engine):
         """Test concurrent job processing"""
@@ -450,6 +460,7 @@ class TestWeeklyBackfillEngine:
         assert backfill_engine.stats['jobs_failed'] == 0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_handle_job_failures_with_retry(self, backfill_engine):
         """Test job failure handling with retry logic"""
         job = BackfillJob(
@@ -474,6 +485,7 @@ class TestWeeklyBackfillEngine:
         assert backfill_engine._mark_job_completed.call_count == 1
         assert backfill_engine._mark_job_failed.call_count == 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_generate_backfill_summary(self, backfill_engine):
         """Test generating backfill summary"""
@@ -502,6 +514,7 @@ class TestWeeklyBackfillEngine:
         assert summary['recommendations']  # Should contain recommendations
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_run_weekly_backfill_complete_flow(self, backfill_engine):
         """Test the complete weekly backfill flow"""
         # Mock all dependencies
@@ -529,6 +542,7 @@ class TestWeeklyBackfillEngine:
         backfill_engine._send_completion_notification.assert_called_once()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_shutdown(self, backfill_engine):
         """Test graceful shutdown"""
         mock_pool = AsyncMock()
@@ -555,6 +569,7 @@ class TestAPIErrorHandling:
                 return engine
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_polygon_api_rate_limit_handling(self, backfill_engine):
         """Test handling Polygon API rate limits"""
         job = BackfillJob(
@@ -575,6 +590,7 @@ class TestAPIErrorHandling:
                 assert result is False
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_tiingo_api_server_error_handling(self, backfill_engine):
         """Test handling Tiingo API server errors"""
         job = BackfillJob(
@@ -593,6 +609,7 @@ class TestAPIErrorHandling:
             result = await backfill_engine._execute_backfill_job(job)
             assert result is False
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_network_timeout_handling(self, backfill_engine):
         """Test handling network timeouts during backfill"""
@@ -636,6 +653,7 @@ class TestPerformanceAndScaling:
         assert all(job.status == BackfillStatus.PENDING for job in jobs)
         assert all(job.retry_count == 0 for job in jobs)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_concurrent_job_processing_performance(self, backfill_engine):
         """Test performance of concurrent job processing"""
@@ -696,6 +714,7 @@ class TestEdgeCases:
         assert jobs[0].start_date == date(2025, 1, 15)
         assert jobs[0].end_date == date(2025, 1, 15)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_job_with_no_data_available(self, backfill_engine):
         """Test handling job when no data is available from API"""

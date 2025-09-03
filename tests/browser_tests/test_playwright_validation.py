@@ -7,6 +7,8 @@ import asyncio
 import sys
 import os
 
+@pytest.mark.asyncio
+
 async def test_basic_playwright():
     """Test basic Playwright functionality"""
     try:

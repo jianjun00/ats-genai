@@ -2,9 +2,9 @@ import pytest
 import asyncio
 from datetime import datetime, date
 from db.test_db_manager import unit_test_db
-from config.environment import Environment, EnvironmentType
+from shared.utils.environment import Environment, EnvironmentType
 
-from src.market_data.eod.turbo_price_backfill import (
+from domains.market_data.services.eod.turbo_price_backfill import (
     TurboPolygonFetcher,
     TurboTiingoFetcher,
     TurboDatabaseInserter,
@@ -14,15 +14,16 @@ from src.market_data.eod.turbo_price_backfill import (
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_end_to_end_polygon_backfill(unit_test_db):
     """Test end-to-end Polygon price backfill with real database."""
     # Setup test environment
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     
     # Setup test data: create test instrument
-    from dao.instruments_dao import InstrumentsDAO
-    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
-    from dao.vendors_dao import VendorsDAO
+    from domains.instruments.repositories.instruments_dao import InstrumentsDAO
+    from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
+    from infrastructure.database.repositories.vendors_dao import VendorsDAO
     
     instruments_dao = InstrumentsDAO(env)
     xrefs_dao = InstrumentXrefsDAO(env)
@@ -94,7 +95,7 @@ async def test_end_to_end_polygon_backfill(unit_test_db):
         assert inserted_count == 2
         
         # Verify data was inserted correctly
-        from dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+        from domains.market_data.repositories.daily_prices_polygon_dao import DailyPricesPolygonDAO
         prices_dao = DailyPricesPolygonDAO(env)
         
         # Get inserted prices
@@ -114,15 +115,16 @@ async def test_end_to_end_polygon_backfill(unit_test_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_end_to_end_tiingo_backfill(unit_test_db):
     """Test end-to-end Tiingo price backfill with real database."""
     # Setup test environment
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     
     # Setup test data: create test instrument
-    from dao.instruments_dao import InstrumentsDAO
-    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
-    from dao.vendors_dao import VendorsDAO
+    from domains.instruments.repositories.instruments_dao import InstrumentsDAO
+    from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
+    from infrastructure.database.repositories.vendors_dao import VendorsDAO
     
     instruments_dao = InstrumentsDAO(env)
     xrefs_dao = InstrumentXrefsDAO(env)
@@ -185,7 +187,7 @@ async def test_end_to_end_tiingo_backfill(unit_test_db):
         assert inserted_count == 1
         
         # Verify data was inserted correctly
-        from dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
+        from domains.market_data.repositories.daily_prices_tiingo_dao import DailyPricesTiingoDAO
         prices_dao = DailyPricesTiingoDAO(env)
         
         # Get inserted prices
@@ -201,14 +203,15 @@ async def test_end_to_end_tiingo_backfill(unit_test_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_duplicate_handling(unit_test_db):
     """Test that duplicate price data is handled correctly."""
     # Setup test environment
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     
     # Setup test data
-    from dao.instruments_dao import InstrumentsDAO
-    from dao.vendors_dao import VendorsDAO
+    from domains.instruments.repositories.instruments_dao import InstrumentsDAO
+    from infrastructure.database.repositories.vendors_dao import VendorsDAO
     
     instruments_dao = InstrumentsDAO(env)
     vendors_dao = VendorsDAO(env)
@@ -267,7 +270,7 @@ async def test_duplicate_handling(unit_test_db):
         assert second_insert == 1
         
         # Verify only one record exists
-        from dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+        from domains.market_data.repositories.daily_prices_polygon_dao import DailyPricesPolygonDAO
         prices_dao = DailyPricesPolygonDAO(env)
         
         prices = await prices_dao.list_prices(test_instrument_id)
@@ -275,14 +278,15 @@ async def test_duplicate_handling(unit_test_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_concurrent_database_operations(unit_test_db):
     """Test concurrent database insertions work correctly."""
     # Setup test environment
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     
     # Setup test data
-    from dao.instruments_dao import InstrumentsDAO
-    from dao.vendors_dao import VendorsDAO
+    from domains.instruments.repositories.instruments_dao import InstrumentsDAO
+    from infrastructure.database.repositories.vendors_dao import VendorsDAO
     
     instruments_dao = InstrumentsDAO(env)
     vendors_dao = VendorsDAO(env)
@@ -349,7 +353,7 @@ async def test_concurrent_database_operations(unit_test_db):
         assert all(result == 1 for result in results)
         
         # Verify data was inserted correctly for each instrument
-        from dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+        from domains.market_data.repositories.daily_prices_polygon_dao import DailyPricesPolygonDAO
         prices_dao = DailyPricesPolygonDAO(env)
         
         for i, instrument_id in enumerate(instrument_ids):
@@ -363,14 +367,15 @@ async def test_concurrent_database_operations(unit_test_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_large_batch_processing(unit_test_db):
     """Test processing of large batches of price data."""
     # Setup test environment
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     
     # Setup test data
-    from dao.instruments_dao import InstrumentsDAO
-    from dao.vendors_dao import VendorsDAO
+    from domains.instruments.repositories.instruments_dao import InstrumentsDAO
+    from infrastructure.database.repositories.vendors_dao import VendorsDAO
     
     instruments_dao = InstrumentsDAO(env)
     vendors_dao = VendorsDAO(env)
@@ -429,7 +434,7 @@ async def test_large_batch_processing(unit_test_db):
         assert inserted_count == 100
         
         # Verify all data was inserted
-        from dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+        from domains.market_data.repositories.daily_prices_polygon_dao import DailyPricesPolygonDAO
         prices_dao = DailyPricesPolygonDAO(env)
         
         prices = await prices_dao.list_prices(test_instrument_id)

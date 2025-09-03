@@ -2,11 +2,11 @@ import pytest
 from unittest.mock import MagicMock
 from datetime import date, datetime, timedelta
 
-from universe.data_complete_universe_creator import (
+from domains.trading.services.data_complete_universe_creator import (
     DataCompleteUniverseCreator, 
     DataCompleteness
 )
-from config.environment import Environment
+from shared.utils.environment import Environment
 
 
 class TestDataCompleteUniverseCreatorCore:

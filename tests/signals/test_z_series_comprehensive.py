@@ -22,7 +22,7 @@ Date: 2025-08-31
 import pytest
 import math
 from datetime import datetime, timedelta
-from signals.indicator import Z1B, Z2B, Z5T, Z6T
+from domains.trading.services.indicator import Z1B, Z2B, Z5T, Z6T
 from state.instrument_interval import InstrumentInterval
 
 # Mark all tests as unit tests

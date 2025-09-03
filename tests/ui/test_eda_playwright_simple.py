@@ -15,6 +15,8 @@ pytestmark = [
 class TestEDAPlaywright:
     """Simplified Playwright test class"""
     
+    @pytest.mark.asyncio
+    
     async def test_playwright_setup_validation(self):
         """Validate that Playwright setup is ready"""
         try:
@@ -32,6 +34,8 @@ class TestEDAPlaywright:
             pytest.skip("Playwright not available in current environment")
         except Exception as e:
             pytest.fail(f"Playwright setup validation failed: {e}")
+
+    @pytest.mark.asyncio
 
     async def test_eda_service_accessibility(self):
         """Test that EDA service is accessible for Playwright"""

@@ -104,6 +104,7 @@ class TestPolygonFundamentalsAPI:
         assert len(api_key) > 10, "API key appears invalid (too short)"
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_api_connectivity(self):
         """Test basic API connectivity and response format"""
         import aiohttp
@@ -127,6 +128,7 @@ class TestPolygonFundamentalsAPI:
                 assert isinstance(data['results'], list), "Results should be a list"
     
     @pytest.mark.asyncio  
+    @pytest.mark.asyncio
     async def test_api_rate_limiting_handling(self):
         """Test proper handling of rate limiting responses"""
         # This test would simulate rate limiting scenarios
@@ -194,11 +196,12 @@ class TestDatabaseSchema:
     """Test database schema compliance and operations"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_fundamentals_table_creation(self):
         """Test creation of fundamentals table with proper schema"""
         from scripts.simple_polygon_fundamentals_backfill import SimplePolygonFundamentalsCollector
-        from config.database import Database
-        from config.environment import Environment, EnvironmentType
+        from shared.utils.database import Database
+        from shared.utils.environment import Environment, EnvironmentType
         
         try:
             env = Environment(EnvironmentType.DEV)
@@ -240,11 +243,12 @@ class TestDatabaseSchema:
             pytest.skip(f"Database not available for testing: {e}")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_record_insertion_and_retrieval(self, sample_standardized_financial):
         """Test insertion and retrieval of financial records"""
         from scripts.simple_polygon_fundamentals_backfill import SimplePolygonFundamentalsCollector
-        from config.database import Database
-        from config.environment import Environment, EnvironmentType
+        from shared.utils.database import Database
+        from shared.utils.environment import Environment, EnvironmentType
         
         try:
             env = Environment(EnvironmentType.DEV)
@@ -274,11 +278,12 @@ class TestDatabaseSchema:
             pytest.skip(f"Database not available for testing: {e}")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_duplicate_handling(self, sample_standardized_financial):
         """Test proper handling of duplicate records (upsert behavior)"""
         from scripts.simple_polygon_fundamentals_backfill import SimplePolygonFundamentalsCollector
-        from config.database import Database
-        from config.environment import Environment, EnvironmentType
+        from shared.utils.database import Database
+        from shared.utils.environment import Environment, EnvironmentType
         
         try:
             env = Environment(EnvironmentType.DEV)
@@ -364,6 +369,7 @@ class TestErrorHandling:
     """Test error handling and resilience"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_api_error_handling(self):
         """Test handling of API errors and invalid responses"""
         from scripts.simple_polygon_fundamentals_backfill import SimplePolygonFundamentalsCollector
@@ -387,6 +393,7 @@ class TestErrorHandling:
         assert result is not None, "Should handle malformed data gracefully"
         assert result['symbol'] == 'TEST', "Symbol should still be set correctly"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_database_error_handling(self):
         """Test handling of database connection and query errors"""
@@ -442,11 +449,12 @@ class TestEndToEndIntegration:
     
     @pytest.mark.asyncio
     @pytest.mark.slow
+    @pytest.mark.asyncio
     async def test_complete_collection_workflow(self):
         """Test complete fundamentals collection workflow"""
         from scripts.simple_polygon_fundamentals_backfill import SimplePolygonFundamentalsCollector
-        from config.database import Database
-        from config.environment import Environment, EnvironmentType
+        from shared.utils.database import Database
+        from shared.utils.environment import Environment, EnvironmentType
         
         try:
             env = Environment(EnvironmentType.DEV)

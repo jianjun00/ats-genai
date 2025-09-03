@@ -5,6 +5,7 @@ from secmaster import splits_polygon
 from db.test_db_manager import unit_test_db_clean
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_insert_splits_polygon_inserts_correctly(unit_test_db):
     # Example Polygon splits API response
     splits = [
@@ -23,8 +24,8 @@ async def test_insert_splits_polygon_inserts_correctly(unit_test_db):
     ]
     ticker = "AAPL"
         # Patch: Inject DAO with test DB URL
-    from dao.stock_splits_polygon_dao import StockSplitsPolygonDAO
-    from config.environment import Environment, EnvironmentType
+    from infrastructure.database.repositories.stock_splits_polygon_dao import StockSplitsPolygonDAO
+    from shared.utils.environment import Environment, EnvironmentType
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     dao = StockSplitsPolygonDAO(env)
     await splits_polygon.insert_splits_polygon(splits, ticker, dao=dao)

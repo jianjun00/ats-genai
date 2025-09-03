@@ -15,18 +15,18 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from universe.historical_universe_creator import HistoricalUniverseCreator, HistoricalStock
-from ml.training_data.support_resistance_generator import (
+from domains.trading.services.historical_universe_creator import HistoricalUniverseCreator, HistoricalStock
+from domains.ml.services.training_data.support_resistance_generator import (
     SupportResistanceTrainingGenerator,
     TrainingExample,
     SupportResistanceLevel
 )
-from ml.models.support_resistance_model import (
+from domains.ml.services.models.support_resistance_model import (
     SupportResistanceEnsemble,
     SRModelConfig
 )
-from ml.evaluation.sr_backtester import SRBacktester, BacktestMetrics
-from config.environment import Environment
+from domains.ml.services.evaluation.sr_backtester import SRBacktester, BacktestMetrics
+from shared.utils.environment import Environment
 
 @pytest.mark.integration
 class TestCompleteSRPipeline:
@@ -151,6 +151,7 @@ class TestCompleteSRPipeline:
         
         return examples
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_complete_pipeline_mock(self, mock_env, sample_historical_stocks, sample_training_examples):
         """Test the complete pipeline with mocked database operations"""
@@ -353,6 +354,7 @@ class TestCompleteSRPipeline:
         assert metrics['support_mae'] >= 0
         assert metrics['resistance_mae'] >= 0
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_pipeline_scalability(self, mock_env):
         """Test pipeline behavior with larger datasets"""

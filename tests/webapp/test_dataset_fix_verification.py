@@ -25,6 +25,7 @@ class TestDatasetFixVerification:
             yield session
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_webapp_health_shows_fix(self, webapp_base_url, http_session):
         """Test that health endpoint indicates the fix is applied"""
         async with http_session.get(f"{webapp_base_url}/health") as response:
@@ -37,6 +38,7 @@ class TestDatasetFixVerification:
             
             logger.info(f"✅ Health endpoint confirms fix: {data['fix_applied']}")
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_dataset_sequences_api_works(self, webapp_base_url, http_session):
         """Test that dataset sequences API returns data without errors"""
@@ -60,6 +62,7 @@ class TestDatasetFixVerification:
             logger.info(f"   Note: {data['note']}")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_dataset_metadata_api_works(self, webapp_base_url, http_session):
         """Test that dataset metadata API works without file errors"""
         async with http_session.get(f"{webapp_base_url}/api/v1/datasets/1/metadata") as response:
@@ -75,6 +78,7 @@ class TestDatasetFixVerification:
             logger.info(f"✅ Dataset metadata API works for dataset: {data['dataset_name']}")
     
     @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     async def test_no_file_not_found_errors(self, webapp_base_url, http_session):
         """Test that we no longer get file not found errors"""
         test_endpoints = [
@@ -107,6 +111,7 @@ class TestDatasetFixVerification:
                     pass
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_dataset_detail_page_loads_successfully(self, webapp_base_url, http_session):
         """Test that dataset detail page loads and shows success indicators"""
         async with http_session.get(f"{webapp_base_url}/dataset-detail?id=1") as response:
@@ -123,6 +128,7 @@ class TestDatasetFixVerification:
             
             logger.info(f"✅ Dataset detail page loads successfully with fix indicators")
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_all_dataset_apis_consistent(self, webapp_base_url, http_session):
         """Test that all dataset-related APIs work consistently"""

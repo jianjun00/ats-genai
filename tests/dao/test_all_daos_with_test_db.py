@@ -6,39 +6,40 @@ Each test will use the TEST environment and real DB access.
 import pytest
 from datetime import datetime, date
 import asyncpg
-from config.environment import EnvironmentType, Environment
+from shared.utils.environment import EnvironmentType, Environment
 
 # Import all DAOs
-from dao.daily_market_cap_dao import DailyMarketCapDAO
-from dao.daily_prices_dao import DailyPricesDAO
-from dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
-from dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
-from dao.db_version_dao import DBVersionDAO
-from dao.dividends_dao import DividendsDAO
-from dao.events_dao import EventsDAO
-from dao.fundamentals_dao import FundamentalsDAO
+from infrastructure.database.repositories.daily_market_cap_dao import DailyMarketCapDAO
+from domains.market_data.repositories.daily_prices_dao import DailyPricesDAO
+from domains.market_data.repositories.daily_prices_polygon_dao import DailyPricesPolygonDAO
+from domains.market_data.repositories.daily_prices_tiingo_dao import DailyPricesTiingoDAO
+from infrastructure.database.repositories.db_version_dao import DBVersionDAO
+from infrastructure.database.repositories.dividends_dao import DividendsDAO
+from domains.analytics.repositories.events_dao import EventsDAO
+from domains.market_data.repositories.fundamentals_dao import FundamentalsDAO
 
 
-from dao.instrument_polygon_dao import InstrumentPolygonDAO
-from dao.instruments_dao import InstrumentsDAO
-from dao.secmaster_dao import SecMasterDAO
-from dao.status_code_dao import StatusCodeDAO
-from dao.stock_splits_dao import StockSplitsDAO
-from dao.universe_dao import UniverseDAO
-from dao.universe_membership_dao import UniverseMembershipDAO
-from dao.vendors_dao import VendorsDAO
+from domains.instruments.repositories.instrument_polygon_dao import InstrumentPolygonDAO
+from domains.instruments.repositories.instruments_dao import InstrumentsDAO
+from domains.instruments.repositories.secmaster_dao import SecMasterDAO
+from infrastructure.database.repositories.status_code_dao import StatusCodeDAO
+from infrastructure.database.repositories.stock_splits_dao import StockSplitsDAO
+from domains.trading.repositories.universe_dao import UniverseDAO
+from domains.trading.repositories.universe_membership_dao import UniverseMembershipDAO
+from infrastructure.database.repositories.vendors_dao import VendorsDAO
 
 import pytest_asyncio
 from db.test_db_manager import unit_test_db
 
 import asyncio
 from datetime import datetime
-from config.environment import Environment
+from shared.utils.environment import Environment
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_instruments_dao_crud(unit_test_db):
     
-    from config.environment import Environment
+    from shared.utils.environment import Environment
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     dao = InstrumentsDAO(env)
     symbol = "TESTSYM"
@@ -66,8 +67,9 @@ async def test_instruments_dao_crud(unit_test_db):
     assert any(inst['symbol'] == symbol for inst in all_insts)
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_daily_market_cap_dao_crud(unit_test_db):
-    from config.environment import Environment
+    from shared.utils.environment import Environment
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     # Create test instrument and get instrument_id
     instruments_dao = InstrumentsDAO(env)
@@ -118,8 +120,9 @@ async def test_daily_market_cap_dao_crud(unit_test_db):
         await pool.close()
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_daily_prices_dao_crud(unit_test_db):
-    from config.environment import Environment
+    from shared.utils.environment import Environment
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     # Create test instrument
     instruments_dao = InstrumentsDAO(env)
@@ -146,8 +149,9 @@ async def test_daily_prices_dao_crud(unit_test_db):
     _ = await dao.list_prices(instrument_id)
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_universe_dao_crud(unit_test_db):
-    from config.environment import Environment
+    from shared.utils.environment import Environment
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     dao = UniverseDAO(env)
     name = "TESTUNI"
@@ -182,8 +186,9 @@ async def test_universe_dao_crud(unit_test_db):
     assert uni2['name'] == new_name
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_universe_membership_dao_universe_isolation(unit_test_db):
-    from config.environment import Environment
+    from shared.utils.environment import Environment
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     dao = UniverseMembershipDAO(env)
     universe_id_1 = 101
@@ -250,8 +255,9 @@ async def test_universe_membership_dao_universe_isolation(unit_test_db):
     assert all(m['symbol'] != symbol_1 for m in memberships_2)
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_universe_membership_dao_active_memberships(unit_test_db):
-    from config.environment import Environment
+    from shared.utils.environment import Environment
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     dao = UniverseMembershipDAO(env)
     universe_id = 303
@@ -314,8 +320,9 @@ async def test_universe_membership_dao_active_memberships(unit_test_db):
     assert instrument_id_inactive not in active_after_ids
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_universe_membership_dao_crud(unit_test_db):
-    from config.environment import Environment
+    from shared.utils.environment import Environment
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     dao = UniverseMembershipDAO(env)
     import random
@@ -440,7 +447,7 @@ async def test_universe_membership_dao_crud(unit_test_db):
                 print(f"[DEBUG] Adding membership with symbol={symbol}, vendor_id={ticker_vendor_id}, start_at={start_at}")
                 
                 # Debug: Manually resolve instrument_id to see what's happening
-                from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+                from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
                 xrefs_dao = InstrumentXrefsDAO(env)
                 resolved_id = await xrefs_dao.resolve_instrument_id(
                     symbol=symbol,
@@ -490,8 +497,9 @@ async def test_universe_membership_dao_crud(unit_test_db):
     updated = await dao.get_memberships_by_universe(universe_id)
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_daily_prices_polygon_dao_crud(unit_test_db):
-    from config.environment import Environment
+    from shared.utils.environment import Environment
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     # Create test instrument
     instruments_dao = InstrumentsDAO(env)
@@ -521,8 +529,9 @@ async def test_daily_prices_polygon_dao_crud(unit_test_db):
     assert any(r['date'] == test_date for r in rows)
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_daily_prices_tiingo_dao_crud(unit_test_db):
-    from config.environment import Environment
+    from shared.utils.environment import Environment
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     # Create test instrument
     instruments_dao = InstrumentsDAO(env)
@@ -552,8 +561,9 @@ async def test_daily_prices_tiingo_dao_crud(unit_test_db):
     assert any(r['date'] == test_date for r in rows)
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_db_version_dao_crud(unit_test_db):
-    from config.environment import Environment
+    from shared.utils.environment import Environment
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     dao = DBVersionDAO(env)
     version = 9999
@@ -565,8 +575,9 @@ async def test_db_version_dao_crud(unit_test_db):
     rows = await dao.get_version()
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_universe_membership_dao_get_membership_changes(unit_test_db):
-    from config.environment import Environment
+    from shared.utils.environment import Environment
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     dao = UniverseMembershipDAO(env)
     pool = await asyncpg.create_pool(env.get_database_url())

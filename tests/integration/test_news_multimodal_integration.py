@@ -17,7 +17,7 @@ from typing import List, Dict, Any
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from market_data.news.comprehensive_news_backfill import ComprehensiveNewsBackfillSystem
+from domains.market_data.services.news.comprehensive_news_backfill import ComprehensiveNewsBackfillSystem
 from events.economic_events_classifier import EconomicEventsProcessor
 from training.multimodal_dataset_generator import MultiModalDatasetGenerator
 
@@ -42,6 +42,7 @@ class TestNewsToDatasetIntegration:
             'eodhd': {'api_key': 'test_eodhd_key'}
         }
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_complete_pipeline_flow(self):
         """Test complete pipeline: News → Events → Training Dataset"""
@@ -161,6 +162,7 @@ class TestNewsToDatasetIntegration:
             assert mock_conn.executemany.called  # Bulk operations occurred
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_data_consistency_across_pipeline(self):
         """Test that data remains consistent as it flows through pipeline"""
         
@@ -257,6 +259,7 @@ class TestNewsToDatasetIntegration:
                 assert hasattr(sample, 'earnings_impact_score')
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_error_handling_and_recovery(self):
         """Test system behavior when components fail"""
         
@@ -295,6 +298,7 @@ class TestNewsToDatasetIntegration:
                 assert sample.news_volume_7d == 0
                 assert sample.economic_event_impact_7d == 0.0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_performance_and_scalability(self):
         """Test system performance with larger datasets"""
@@ -344,6 +348,7 @@ class TestNewsToDatasetIntegration:
             assert processing_time < 5.0
             assert events_created >= 0  # Some events should be classified
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_data_quality_validation(self):
         """Test data quality checks throughout pipeline"""
@@ -425,6 +430,7 @@ class TestMultiVendorIntegration:
     """Test integration across multiple data vendors"""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_vendor_data_consolidation(self):
         """Test that data from multiple vendors is properly consolidated"""
         
@@ -474,6 +480,7 @@ class TestMultiVendorIntegration:
             assert features['news_volume_1d'] == 2  # Combined from both sources
             assert features['news_sentiment_1d'] > 0  # Should be positive (both positive)
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_vendor_specific_error_handling(self):
         """Test handling when one vendor fails but others succeed"""

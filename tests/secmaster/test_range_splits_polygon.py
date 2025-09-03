@@ -2,9 +2,10 @@ import pytest
 import asyncio
 from unittest.mock import patch, MagicMock
 from datetime import date
-from secmaster.range_splits_polygon import insert_splits_polygon, parse_date, date_chunks, main as range_main
-from dao.stock_splits_polygon_dao import StockSplitsPolygonDAO
+from domains.instruments.services.range_splits_polygon import insert_splits_polygon, parse_date, date_chunks, main as range_main
+from infrastructure.database.repositories.stock_splits_polygon_dao import StockSplitsPolygonDAO
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_insert_splits_polygon_inserts_valid_splits():
     # Mock DAO
@@ -50,6 +51,7 @@ async def test_insert_splits_polygon_inserts_valid_splits():
     assert s['refid'] == 'split123'
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_parse_date_handles_none_and_date():
     assert parse_date(None) is None
     d = date(2022, 1, 1)
@@ -64,6 +66,7 @@ def test_date_chunks_basic():
         ('2022-01-11', '2022-01-15'),
     ]
 
+@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_chunked_fetch_and_aggregation(monkeypatch):
     calls = []

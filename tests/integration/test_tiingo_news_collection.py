@@ -66,6 +66,8 @@ class TestTiingoNewsCollection:
         assert collector.total_articles_collected == 0
         assert collector.total_articles_inserted == 0
     
+    @pytest.mark.asyncio
+    
     async def test_news_api_call_structure(self, collector):
         """Test that news API calls are structured correctly."""
         collector.session = AsyncMock()
@@ -190,6 +192,8 @@ class TestTiingoNewsCollection:
                 assert result['published_utc'].month == expected.month
                 assert result['published_utc'].day == expected.day
     
+    @pytest.mark.asyncio
+    
     async def test_table_creation(self, collector, mock_db_pool):
         """Test that news table is created with correct schema."""
         conn = mock_db_pool.acquire.return_value.__aenter__.return_value
@@ -210,6 +214,8 @@ class TestTiingoNewsCollection:
         assert "tags ARRAY" in create_table_sql
         assert "data JSONB" in create_table_sql
         assert "PRIMARY KEY (tiingo_id)" in create_table_sql
+    
+    @pytest.mark.asyncio
     
     async def test_article_insertion(self, collector, mock_db_pool):
         """Test news article database insertion."""
@@ -257,6 +263,8 @@ class TestTiingoNewsCollection:
                           if 'INSERT INTO dev_news_tiingo' in str(call)]
         assert len(insertion_calls) >= 2
     
+    @pytest.mark.asyncio
+    
     async def test_insertion_idempotency(self, collector, mock_db_pool):
         """Test that insertions are idempotent (ON CONFLICT handling)."""
         conn = mock_db_pool.acquire.return_value.__aenter__.return_value
@@ -290,6 +298,8 @@ class TestTiingoNewsCollection:
             sql = call[0][0]
             assert "ON CONFLICT (tiingo_id) DO UPDATE SET" in sql
     
+    @pytest.mark.asyncio
+    
     async def test_api_error_handling(self, collector):
         """Test API error handling for various scenarios."""
         collector.session = AsyncMock()
@@ -308,6 +318,8 @@ class TestTiingoNewsCollection:
             
             result = await collector.fetch_news_for_symbol_year("AAPL", 2024)
             assert result == expected_result
+    
+    @pytest.mark.asyncio
     
     async def test_rate_limiting(self, collector, mock_db_pool):
         """Test that rate limiting delays are applied."""
@@ -333,6 +345,8 @@ class TestTiingoNewsCollection:
             for call in mock_sleep.call_args_list:
                 delay = call[0][0]
                 assert delay >= 2.0  # At least 2 seconds
+    
+    @pytest.mark.asyncio
     
     async def test_statistics_tracking(self, collector, mock_db_pool):
         """Test that collection statistics are properly tracked."""
@@ -366,6 +380,8 @@ class TestTiingoNewsCollection:
             assert 'symbols_processed' in results
             assert 'errors' in results
     
+    @pytest.mark.asyncio
+    
     async def test_empty_response_handling(self, collector, mock_db_pool):
         """Test handling of empty API responses."""
         collector.session = AsyncMock()
@@ -384,6 +400,8 @@ class TestTiingoNewsCollection:
 @pytest.mark.asyncio 
 class TestTiingoNewsIntegration:
     """Integration tests for Tiingo news collection."""
+    
+    @pytest.mark.asyncio
     
     async def test_end_to_end_collection_flow(self):
         """Test complete news collection workflow."""

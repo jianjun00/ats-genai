@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch, AsyncMock
 import json
 import aiohttp
 
-from modeling.llm_pattern_recognition import (
+from domains.ml.services.llm_pattern_recognition import (
     LLMProvider,
     PatternAnalysis,
     MarketRegimeAnalysis,
@@ -257,6 +257,7 @@ class TestLLMPatternRecognizer:
         assert analysis.predicted_direction == "neutral"
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_analyze_price_pattern_cached(self, sample_price_data):
         """Test price pattern analysis with caching."""
         recognizer = LLMPatternRecognizer()
@@ -287,6 +288,7 @@ class TestLLMPatternRecognizer:
             assert mock_call.call_count == 1
             assert analysis1.pattern_type == analysis2.pattern_type
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_analyze_price_pattern_error_handling(self, sample_price_data):
         """Test error handling in price pattern analysis."""
@@ -365,6 +367,7 @@ class TestLLMPatternRecognizer:
         assert 0.0 <= hurst <= 1.0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_enhance_feature_engineering(self, sample_price_data):
         """Test feature enhancement with LLM."""
         recognizer = LLMPatternRecognizer()
@@ -401,6 +404,7 @@ class TestLLMPatternRecognizer:
         assert 'llm_bullish_score' in enhanced_features
         assert 'llm_distance_to_support' in enhanced_features
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_llm_mathematical_features(self, sample_price_data):
         """Test LLM mathematical feature generation."""
@@ -443,6 +447,7 @@ class TestLLMPatternRecognizer:
         assert (pattern['low'] <= pattern[['open', 'close']].min(axis=1)).all()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_call_llm_success(self, mock_llm_response):
         """Test successful LLM API call."""
         recognizer = LLMPatternRecognizer(api_key="test_key")
@@ -460,6 +465,7 @@ class TestLLMPatternRecognizer:
             assert "ascending_triangle" in result
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_call_llm_error(self):
         """Test LLM API call error handling."""
         recognizer = LLMPatternRecognizer(api_key="test_key")
@@ -474,6 +480,7 @@ class TestLLMPatternRecognizer:
             
             assert result == ""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_call_llm_exception(self):
         """Test LLM API call exception handling."""
@@ -491,6 +498,7 @@ class TestConvenienceFunctions:
     """Test convenience functions."""
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_analyze_stock_pattern(self, sample_price_data, mock_llm_response):
         """Test analyze_stock_pattern convenience function."""
         with patch('aiohttp.ClientSession.post') as mock_post:
@@ -506,6 +514,7 @@ class TestConvenienceFunctions:
             assert isinstance(analysis, PatternAnalysis)
             assert analysis.pattern_type == "ascending_triangle"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_enhance_features_with_llm_function(self, sample_price_data):
         """Test enhance_features_with_llm convenience function."""
@@ -525,6 +534,7 @@ class TestConvenienceFunctions:
             assert 'momentum' in enhanced
             assert 'llm_feature' in enhanced
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_generate_training_data_with_llm_function(self, sample_price_data):
         """Test generate_training_data_with_llm convenience function."""
@@ -623,6 +633,7 @@ class TestEdgeCasesAndErrorHandling:
         assert analysis.predicted_direction == "neutral"  # Default value
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_generate_synthetic_patterns_error_handling(self, sample_price_data):
         """Test error handling in synthetic pattern generation."""
         recognizer = LLMPatternRecognizer()
@@ -651,6 +662,7 @@ class TestEdgeCasesAndErrorHandling:
         assert isinstance(summary, str)
         assert "Market Summary" in summary
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_rate_limiting_semaphore(self):
         """Test rate limiting with semaphore."""
@@ -681,6 +693,7 @@ class TestEdgeCasesAndErrorHandling:
 class TestIntegrationScenarios:
     """Test integration scenarios."""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_complete_pattern_analysis_workflow(self, sample_price_data):
         """Test complete pattern analysis workflow."""

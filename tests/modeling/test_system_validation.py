@@ -13,12 +13,12 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 try:
-    from modeling.enhanced_feature_types import (
+    from domains.ml.services.enhanced_feature_types import (
         FeatureSpecification, FeatureType, TimeframeSpec, 
         TechnicalIndicator, EnhancedFeatureRegistry
     )
-    from modeling.cross_timeframe_aligner import CrossTimeframeAligner
-    from modeling.multi_timeframe_data_collector import DataCollectionConfig
+    from domains.ml.services.cross_timeframe_aligner import CrossTimeframeAligner
+    from domains.ml.services.multi_timeframe_data_collector import DataCollectionConfig
 except ImportError as e:
     print(f"❌ Import error: {e}")
     print("Please ensure src/ directory is in PYTHONPATH")

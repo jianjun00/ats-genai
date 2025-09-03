@@ -3,8 +3,8 @@ import os
 from datetime import datetime, date
 import asyncio
 
-from src.dao.daily_prices_dao import DailyPricesDAO
-from config.environment import Environment, EnvironmentType
+from domains.market_data.repositories.daily_prices_dao import DailyPricesDAO
+from shared.utils.environment import Environment, EnvironmentType
 
 async def insert_test_daily_prices(json_path, symbol, instrument_id, unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)

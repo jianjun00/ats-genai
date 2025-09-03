@@ -34,6 +34,8 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+@pytest.mark.asyncio
+
 async def test_api_connection():
     """Test EODHD API connection"""
     
@@ -45,7 +47,7 @@ async def test_api_connection():
         return False
     
     try:
-        from market_data.agent.eodhd_minute_adapter import EODHDMinuteAdapter
+        from domains.market_data.services.agent.eodhd_minute_adapter import EODHDMinuteAdapter
         
         adapter = EODHDMinuteAdapter(api_key)
         
@@ -68,6 +70,8 @@ async def test_api_connection():
     except Exception as e:
         logger.error(f"❌ API connection failed: {e}")
         return False
+
+@pytest.mark.asyncio
 
 async def test_storage_setup():
     """Test D: drive storage setup"""
@@ -95,6 +99,8 @@ async def test_storage_setup():
     
     logger.error("❌ D: drive not accessible")
     return False
+
+@pytest.mark.asyncio
 
 async def test_populator_initialization():
     """Test populator initialization"""
@@ -126,6 +132,8 @@ async def test_populator_initialization():
         except Exception as e:
             logger.error(f"❌ Populator initialization failed: {e}")
             return False
+
+@pytest.mark.asyncio
 
 async def test_checkpoint_system():
     """Test checkpoint save/load functionality"""
@@ -169,6 +177,8 @@ async def test_checkpoint_system():
         except Exception as e:
             logger.error(f"❌ Checkpoint system test failed: {e}")
             return False
+
+@pytest.mark.asyncio
 
 async def test_sample_population():
     """Test actual data population with a tiny sample"""

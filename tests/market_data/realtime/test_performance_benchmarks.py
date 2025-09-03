@@ -27,10 +27,10 @@ from concurrent.futures import ThreadPoolExecutor
 import sys
 sys.path.append('src')
 
-from market_data.realtime.streaming_collector import RealtimeStreamingCollector, MinuteBar
-from market_data.realtime.gap_detector import GapDetectionEngine
-from market_data.realtime.weekly_backfill import WeeklyBackfillEngine
-from market_data.realtime.metrics_exporter import MetricsCollector
+from domains.market_data.services.realtime.streaming_collector import RealtimeStreamingCollector, MinuteBar
+from domains.market_data.services.realtime.gap_detector import GapDetectionEngine
+from domains.market_data.services.realtime.weekly_backfill import WeeklyBackfillEngine
+from domains.market_data.services.realtime.metrics_exporter import MetricsCollector
 
 @pytest.mark.benchmark
 class TestDataThroughputBenchmarks:
@@ -55,6 +55,7 @@ class TestDataThroughputBenchmarks:
                 yield collector
                 await collector.shutdown()
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_minute_bar_processing_throughput(self, benchmark_collector):
         """Benchmark minute bar processing throughput"""
@@ -105,6 +106,7 @@ class TestDataThroughputBenchmarks:
         assert bars_per_second > 100, f"Throughput too low: {bars_per_second:.1f} bars/second"
         assert processing_time < 20.0, f"Processing took too long: {processing_time:.3f} seconds"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_concurrent_symbol_processing(self, benchmark_collector):
         """Benchmark concurrent processing of multiple symbols"""
@@ -176,6 +178,7 @@ class TestLatencyBenchmarks:
                 await collector.shutdown()
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_single_bar_processing_latency(self, latency_collector):
         """Benchmark latency for processing a single minute bar"""
         
@@ -216,6 +219,7 @@ class TestLatencyBenchmarks:
         assert p95_latency < 100.0, f"95th percentile latency too high: {p95_latency:.2f} ms"
         assert p99_latency < 200.0, f"99th percentile latency too high: {p99_latency:.2f} ms"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_database_operation_latency(self, latency_collector):
         """Benchmark database operation latency"""
@@ -268,6 +272,7 @@ class TestLatencyBenchmarks:
 class TestMemoryUsageBenchmarks:
     """Benchmark memory usage patterns"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_memory_usage_during_high_throughput(self):
         """Benchmark memory usage during high-throughput processing"""
@@ -339,7 +344,7 @@ class TestMemoryUsageBenchmarks:
             base_time = datetime.now(timezone.utc)
             
             for i in range(10000):  # 10,000 gaps
-                from market_data.realtime.gap_detector import DataGap
+                from domains.market_data.services.realtime.gap_detector import DataGap
                 gap = DataGap(
                     vendor='polygon',
                     symbol=f'SYM{i % 1000:04d}',
@@ -380,6 +385,7 @@ class TestMemoryUsageBenchmarks:
 class TestConcurrencyBenchmarks:
     """Benchmark concurrent processing capabilities"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_backfill_concurrency_limits(self):
         """Test concurrency limits for backfill operations"""
@@ -439,6 +445,7 @@ class TestConcurrencyBenchmarks:
             assert results[10]['throughput'] > results[1]['throughput'], "Higher concurrency should improve throughput"
             assert results[5]['time'] < results[1]['time'], "Higher concurrency should reduce total time"
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_concurrent_gap_detection(self):
         """Benchmark concurrent gap detection across multiple vendors"""
@@ -504,6 +511,7 @@ class TestConcurrencyBenchmarks:
 class TestDatabasePerformanceBenchmarks:
     """Benchmark database operation performance"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_batch_insert_performance(self):
         """Benchmark batch insert performance"""
@@ -586,6 +594,7 @@ class TestDatabasePerformanceBenchmarks:
 class TestAPIResponseTimeBenchmarks:
     """Benchmark API response time handling"""
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_api_response_time_simulation(self):
         """Test performance with varying API response times"""

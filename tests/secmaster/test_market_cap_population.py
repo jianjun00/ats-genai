@@ -17,14 +17,15 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
-from config.environment import Environment, EnvironmentType
-from dao.daily_market_cap_dao import DailyMarketCapDAO
+from shared.utils.environment import Environment, EnvironmentType
+from infrastructure.database.repositories.daily_market_cap_dao import DailyMarketCapDAO
 
 
 class TestMarketCapPopulation:
     """Test suite for market cap population functionality."""
     
     @pytest.fixture
+    @pytest.mark.asyncio
     async def test_env(self):
         """Create test environment."""
         return Environment(env_type=EnvironmentType.TEST)
@@ -73,6 +74,7 @@ class TestMarketCapPopulation:
         }
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_polygon_market_cap_fetcher_direct_market_cap(self, mock_polygon_response):
         """Test fetching direct market cap from Polygon API."""
         from src.secmaster.populate_market_cap_polygon import PolygonMarketCapFetcher
@@ -93,6 +95,7 @@ class TestMarketCapPopulation:
             assert result['ticker'] == "AAPL"
             mock_get.assert_called_once()
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_polygon_market_cap_fetcher_rate_limit_handling(self):
         """Test rate limit handling in Polygon fetcher."""
@@ -122,6 +125,7 @@ class TestMarketCapPopulation:
             mock_sleep.assert_called_once_with(0.1)
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_polygon_market_cap_fetcher_api_error(self):
         """Test handling of API errors."""
         from src.secmaster.populate_market_cap_polygon import PolygonMarketCapFetcher
@@ -136,6 +140,7 @@ class TestMarketCapPopulation:
             assert result is None
 
     @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     async def test_market_cap_calculation(self):
         """Test market cap calculation logic."""
         # This would test the enhanced fetcher's calculate_market_cap method
@@ -158,6 +163,7 @@ class TestMarketCapPopulation:
                 # This would need the actual calculation logic imported
                 pass
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_batch_insertion_performance(self, test_env):
         """Test batch insertion performance and database operations."""
@@ -183,6 +189,7 @@ class TestMarketCapPopulation:
             # Verify batch insertion was called
             # mock_conn.executemany.assert_called_once()
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_instrument_filtering(self):
         """Test filtering logic for CS instruments."""
@@ -216,6 +223,7 @@ class TestMarketCapPopulation:
             assert len(result) == 3
             assert all(inst['symbol'] in ['AAPL', 'MSFT', 'GOOGL'] for inst in result)
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_database_upsert_logic(self, test_env):
         """Test UPSERT functionality for market cap records."""
@@ -252,6 +260,7 @@ class TestMarketCapPopulation:
             assert mock_conn.execute.call_count == 2
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_error_handling_and_recovery(self):
         """Test error handling and recovery mechanisms."""
         from src.secmaster.populate_market_cap_polygon import PolygonMarketCapFetcher
@@ -276,6 +285,7 @@ class TestMarketCapPopulation:
             result = fetcher.fetch_ticker_details("INVALID_JSON")
             assert result is None
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_market_cap_data_validation(self):
         """Test validation of market cap data before insertion."""
@@ -314,6 +324,7 @@ class TestMarketCapPopulation:
             assert actual_batches == expected_batches
 
     @pytest.mark.integration
+    @pytest.mark.asyncio
     async def test_end_to_end_market_cap_population(self):
         """Integration test for complete market cap population flow."""
         # This would be a full integration test that:
@@ -348,6 +359,7 @@ class TestMarketCapPopulation:
             assert 50_000_000 <= market_cap <= 550_000_000_000, f"Market cap for {symbol} should be in valid range"
             assert isinstance(market_cap, int), f"Market cap for {symbol} should be integer"
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_working_solution_instrument_creation(self):
         """Test the working solution's instrument creation logic."""
@@ -406,6 +418,7 @@ class TestMarketCapPopulation:
             assert mock_conn.fetchval.call_count == 5  # 3 checks + 2 creates
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_working_solution_batch_insertion(self):
         """Test the working solution's batch insertion logic."""
         with patch('asyncpg.connect') as mock_connect:
@@ -438,6 +451,7 @@ class TestMarketCapPopulation:
             assert total_inserted == 2000
             assert mock_conn.executemany.call_count == 2  # 2 batches of 1000 each
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_working_solution_symbol_selection(self):
         """Test the working solution's symbol selection query."""
@@ -472,6 +486,7 @@ class TestMarketCapPopulation:
             assert symbols[9999]['symbol'] == "SYM09999"
             mock_conn.fetch.assert_called_once()
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_working_solution_synthetic_instrument_creation(self):
         """Test synthetic instrument creation for reaching 10K target."""
@@ -516,6 +531,7 @@ class TestMarketCapPopulation:
                 assert 50_000_000 <= market_cap <= 550_000_000_000
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_working_solution_database_cleanup(self):
         """Test database cleanup before market cap insertion."""
         with patch('asyncpg.connect') as mock_connect:
@@ -532,6 +548,7 @@ class TestMarketCapPopulation:
             assert deleted == 500
             mock_conn.fetchval.assert_called_once_with("DELETE FROM dev_daily_market_cap")
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_working_solution_instrument_mapping(self):
         """Test instrument ID mapping for market cap insertion."""
@@ -564,6 +581,7 @@ class TestMarketCapPopulation:
             assert id_map['AMZN'] == 4
             assert id_map['TSLA'] == 5
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_working_solution_final_verification(self):
         """Test final count verification for 10K+ target."""
@@ -617,6 +635,7 @@ class TestMarketCapPopulation:
             market_cap_2 = generate_market_cap(symbol)
             assert market_cap == market_cap_2, f"Market cap for {symbol} should be deterministic"
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_working_solution_error_handling(self):
         """Test error handling in the working solution."""

@@ -26,6 +26,7 @@ class TestDatasetFilesystemFix:
             yield session
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_dataset_sequences_error_detection(self, webapp_base_url, http_session):
         """Test that dataset sequences endpoint properly handles file not found errors"""
         try:
@@ -59,6 +60,7 @@ class TestDatasetFilesystemFix:
         except Exception as e:
             pytest.fail(f"Failed to test dataset sequences: {e}")
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_dataset_metadata_error_detection(self, webapp_base_url, http_session):
         """Test that dataset metadata endpoint handles file errors properly"""
@@ -106,6 +108,7 @@ class TestDatasetFilesystemFix:
             logger.info(f"   Local file: {file.name}")
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_dataset_detail_page_error_source(self, webapp_base_url, http_session):
         """Test specifically what causes 'Error loading sequences' in the detail page"""
         dataset_detail_url = f"{webapp_base_url}/dataset-detail?id=1"
@@ -148,6 +151,7 @@ class TestDatasetFilesystemFix:
                 except Exception as e:
                     logger.error(f"   Error checking API endpoint: {e}")
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_dataset_file_path_investigation(self, webapp_base_url, http_session):
         """Investigate exact file paths the webapp is looking for"""

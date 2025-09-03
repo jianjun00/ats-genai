@@ -138,8 +138,8 @@ def test_training_data_callback_directly():
     Test the DateBasedTrainingDataCallback directly with mock data.
     """
     from state.training_data_callback import DateBasedTrainingDataCallback
-    from ml.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-    from config.environment import Environment, EnvironmentType
+    from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
+    from shared.utils.environment import Environment, EnvironmentType
     
     # Create test callback
     config = TrainingDataConfig(
@@ -192,16 +192,17 @@ def test_training_data_callback_directly():
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_training_data_generation_with_test_data():
     """
     Test training data generation with actual test data using the callback pattern.
     """
     from state.training_data_callback import DateBasedTrainingDataCallback
-    from ml.training_data.timeseries_sequence_training_generator import (
+    from domains.ml.services.training_data.timeseries_sequence_training_generator import (
         TrainingDataConfig,
         TimeSeriesSequenceTrainingGenerator
     )
-    from config.environment import Environment, EnvironmentType
+    from shared.utils.environment import Environment, EnvironmentType
     from state.universe_state_manager import UniverseStateManager
     
     # Create test environment
@@ -250,7 +251,7 @@ async def test_training_data_generation_with_test_data():
 
 def test_training_data_config():
     """Test TrainingDataConfig creation and validation."""
-    from ml.training_data.timeseries_sequence_training_generator import TrainingDataConfig
+    from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
     
     # Test default config
     config = TrainingDataConfig()
@@ -335,7 +336,7 @@ def test_no_training_data_runner_class():
     """Test that TrainingDataRunner class no longer exists (pure callback approach)."""
     # ✅ CORRECT: TrainingDataRunner class should not exist
     try:
-        from ml.training_data.runners.training_data_callback_runner import TrainingDataRunner
+        from domains.ml.services.training_data.runners.training_data_callback_runner import TrainingDataRunner
         # If we get here, the class still exists - that's wrong
         assert False, "TrainingDataRunner class should not exist in pure callback approach"
     except (ImportError, ModuleNotFoundError):
@@ -349,8 +350,8 @@ def test_callback_with_test_data_setup():
     """Test callback with proper test data setup following indicator_runner pattern."""
     import tempfile
     from state.training_data_callback import DateBasedTrainingDataCallback
-    from ml.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-    from config.environment import Environment, EnvironmentType
+    from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
+    from shared.utils.environment import Environment, EnvironmentType
     from datetime import datetime
     
     # Use minimal config for testing
@@ -422,8 +423,8 @@ def test_multi_symbol_callback_functionality():
     """Test callback with multiple symbols to verify it handles all symbols correctly."""
     import tempfile
     from state.training_data_callback import DateBasedTrainingDataCallback
-    from ml.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-    from config.environment import Environment, EnvironmentType
+    from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
+    from shared.utils.environment import Environment, EnvironmentType
     from datetime import datetime
     
     config = TrainingDataConfig(
@@ -477,8 +478,8 @@ def test_advanced_storage_configuration():
     """Test callback with advanced storage configuration."""
     import tempfile
     from state.training_data_callback import DateBasedTrainingDataCallback
-    from ml.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-    from ml.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
+    from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
+    from domains.ml.services.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
     
     config = TrainingDataConfig(
         sequence_lengths={'5m': 2, '15m': 2, '1h': 2, '1d': 2},
@@ -517,8 +518,8 @@ def test_error_handling_in_callback():
     """Test error handling and recovery in callback operations."""
     import tempfile
     from state.training_data_callback import DateBasedTrainingDataCallback
-    from ml.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-    from config.environment import Environment, EnvironmentType
+    from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
+    from shared.utils.environment import Environment, EnvironmentType
     from datetime import datetime
     
     config = TrainingDataConfig(

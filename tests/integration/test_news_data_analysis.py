@@ -47,6 +47,8 @@ class TestNewsDataAnalyzer:
         """Test analyzer initializes with correct vendors."""
         assert analyzer.vendors == ['polygon', 'tiingo', 'eodhd']
     
+    @pytest.mark.asyncio
+    
     async def test_table_existence_check(self, analyzer, mock_db_connection):
         """Test checking if news tables exist."""
         # Test existing table
@@ -71,6 +73,8 @@ class TestNewsDataAnalyzer:
         mock_db_connection.fetchval.return_value = False
         exists = await analyzer.check_table_exists(mock_db_connection, "non_existent_table")
         assert exists is False
+    
+    @pytest.mark.asyncio
     
     async def test_polygon_news_analysis(self, analyzer, mock_db_connection):
         """Test Polygon news data analysis."""
@@ -104,6 +108,8 @@ class TestNewsDataAnalyzer:
         assert result['coverage_days'] == (date(2025, 8, 27) - date(2016, 6, 24)).days
         assert 'sample_record' in result
     
+    @pytest.mark.asyncio
+    
     async def test_tiingo_news_analysis_empty_table(self, analyzer, mock_db_connection):
         """Test Tiingo news analysis with empty table."""
         # Mock table exists but is empty
@@ -130,6 +136,8 @@ class TestNewsDataAnalyzer:
         assert result['coverage_days'] == 0
         assert result['sample_record'] is None
     
+    @pytest.mark.asyncio
+    
     async def test_eodhd_news_analysis_no_table(self, analyzer, mock_db_connection):
         """Test EODHD news analysis when table doesn't exist."""
         # Mock table doesn't exist
@@ -145,6 +153,8 @@ class TestNewsDataAnalyzer:
         assert result['date_range'] == 'No data'
         assert result['coverage_days'] == 0
     
+    @pytest.mark.asyncio
+    
     async def test_total_instruments_query(self, analyzer, mock_db_connection):
         """Test getting total active instruments count."""
         mock_db_connection.fetchval.return_value = 20657
@@ -158,6 +168,8 @@ class TestNewsDataAnalyzer:
                 SELECT COUNT(*) FROM dev_instruments WHERE active = true
             """
         )
+    
+    @pytest.mark.asyncio
     
     async def test_comprehensive_news_analysis(self, analyzer):
         """Test comprehensive analysis across all vendors."""
@@ -249,6 +261,8 @@ class TestNewsDataAnalyzer:
         # This test ensures the method runs without error
         assert True  # Method completed without exception
     
+    @pytest.mark.asyncio
+    
     async def test_error_handling_in_analysis(self, analyzer, mock_db_connection):
         """Test error handling during analysis."""
         # Mock database error
@@ -285,6 +299,8 @@ class TestNewsDataAnalyzer:
         # Should be able to determine coverage status
         assert isinstance(has_30_year_coverage, bool)
     
+    @pytest.mark.asyncio
+    
     async def test_sql_query_structure(self, analyzer, mock_db_connection):
         """Test that SQL queries are properly structured for array handling."""
         # Mock successful response
@@ -312,6 +328,8 @@ class TestNewsDataAnalyzer:
 @pytest.mark.asyncio
 class TestNewsDataIntegration:
     """Integration tests for news data analysis."""
+    
+    @pytest.mark.asyncio
     
     async def test_real_database_schema_validation(self):
         """Test validation against expected database schemas."""
@@ -359,6 +377,8 @@ class TestNewsDataIntegration:
         assert any(col['data_type'] == 'jsonb' for col in polygon_columns)
         assert any(col['data_type'] == 'ARRAY' for col in tiingo_columns)
         assert any(col['data_type'] == 'jsonb' for col in tiingo_columns)
+    
+    @pytest.mark.asyncio
     
     async def test_cross_vendor_coverage_analysis(self):
         """Test analysis that compares coverage across vendors."""
@@ -410,6 +430,8 @@ class TestNewsDataIntegration:
         # Test coverage assessment logic
         assert total_records > 0  # Has some data
         assert vendors_with_data < 3  # Not all vendors have data
+        
+    @pytest.mark.asyncio
         
     async def test_performance_metrics_calculation(self):
         """Test calculation of performance and coverage metrics."""

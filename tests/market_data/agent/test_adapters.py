@@ -4,9 +4,9 @@ from unittest import mock
 from datetime import date, datetime
 import json
 
-from src.market_data.agent.polygon_adapter import PolygonAdapter
-from src.market_data.agent.tiingo_adapter import TiingoAdapter
-from src.market_data.agent.models import EODPrice
+from domains.market_data.services.agent.polygon_adapter import PolygonAdapter
+from domains.market_data.services.agent.tiingo_adapter import TiingoAdapter
+from domains.market_data.services.agent.models import EODPrice
 
 # Sample response data for mocking API calls
 POLYGON_SAMPLE_RESPONSE = {

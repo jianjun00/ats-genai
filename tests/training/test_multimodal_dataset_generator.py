@@ -17,7 +17,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from ml.training_data.generators.multimodal_dataset_generator import (
+from domains.ml.services.training_data.generators.multimodal_dataset_generator import (
     MultiModalDatasetGenerator,
     MultiModalSample
 )
@@ -111,6 +111,7 @@ class TestMultiModalDatasetGenerator:
         assert 'sideways' in self.generator.regime_thresholds
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_database_connection_pool_setup(self):
         """Test database connection pool initialization"""
         mock_pool = AsyncMock()
@@ -128,6 +129,7 @@ class TestMultiModalDatasetGenerator:
                 assert call_kwargs['max_size'] == 20
                 assert 'jit' in call_kwargs['server_settings']
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_table_creation_sql(self):
         """Test database table creation logic"""
@@ -185,6 +187,7 @@ class TestMultiModalDatasetGenerator:
         # Should be slightly positive (beat > concerns)
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_news_features_generation(self):
         """Test news sentiment feature generation"""
         mock_conn = AsyncMock()
@@ -237,6 +240,7 @@ class TestMultiModalDatasetGenerator:
         # Verify database queries were called correctly
         assert mock_conn.fetch.call_count == 6  # 2 sources × 3 lookback windows
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_economic_event_features_generation(self):
         """Test economic event feature generation"""
@@ -300,6 +304,7 @@ class TestMultiModalDatasetGenerator:
         assert features['macro_event_impact'] < 0  # Macro event should be negative
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_sample_generation_for_symbol_date(self):
         """Test generating a single training sample"""
         mock_pool = AsyncMock()
@@ -341,6 +346,7 @@ class TestMultiModalDatasetGenerator:
         assert 0.1 <= sample.sample_quality_score <= 1.0
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_sample_generation_future_date_filtering(self):
         """Test that samples too close to current date are filtered"""
         mock_pool = AsyncMock()
@@ -358,6 +364,7 @@ class TestMultiModalDatasetGenerator:
         # Should return None because not enough future data
         assert sample is None
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_bulk_insert_samples(self):
         """Test bulk insertion of training samples"""
@@ -407,6 +414,7 @@ class TestMultiModalDatasetGenerator:
         assert 'target_return_1d' in sql_call
     
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_bulk_insert_empty_samples(self):
         """Test bulk insert with empty sample list"""
         mock_pool = AsyncMock()
@@ -416,6 +424,7 @@ class TestMultiModalDatasetGenerator:
         
         assert inserted_count == 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_bulk_insert_error_handling(self):
         """Test error handling in bulk insert"""
@@ -439,6 +448,7 @@ class TestMultiModalDatasetGenerator:
         inserted_count = await self.generator.bulk_insert_samples(samples)
         assert inserted_count == 0
     
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_training_dataset_generation_workflow(self):
         """Test the complete dataset generation workflow"""
@@ -469,6 +479,7 @@ class TestMultiModalDatasetGenerator:
         assert total_samples == expected_samples
     
     @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     async def test_get_dataset_summary(self):
         """Test dataset summary statistics generation"""
         mock_conn = AsyncMock()
