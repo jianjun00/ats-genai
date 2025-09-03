@@ -45,3 +45,47 @@ bind = ['market_data.cache_ttl', 3600]
 bind = ['storage.base_path', '/tmp/ats-data']
 bind = ['storage.backup_path', '/tmp/ats-backup']
 bind = ['storage.log_path', '/tmp/ats-logs']
+
+# === Indicator Configuration ===
+# Configure which indicators are computed for different timeframes
+
+# Minute-level indicators (basic set for high-frequency data)
+FileBasedMinuteMarketDataManager.indicator_configs = {
+    '1m': @IndicatorConfig.basic_config(),
+    '5m': @IndicatorConfig.multi_timeframe_config(), 
+    '15m': @IndicatorConfig.multi_timeframe_config(),
+    '30m': @IndicatorConfig.multi_timeframe_config(),
+    '1h': @IndicatorConfig.standard_technical_config(),
+    '2h': @IndicatorConfig.standard_technical_config(),
+    '4h': @IndicatorConfig.standard_technical_config(),
+    '1d': @IndicatorConfig.standard_technical_config(),
+    '1w': @IndicatorConfig.standard_technical_config()
+}
+
+# Standard Technical Indicators Configuration
+IndicatorConfig.standard_technical_config.indicators = {
+    'SMA_20': @SMA(20),
+    'EMA_20': @EMA(20),
+    'RSI_14': @RSI(14),
+    'VWAP': @VWAP(),
+    'BB_20': @BollingerBands(20, 2.0),
+    'MACD': @MACD(12, 26, 9),
+    'Stoch_14': @StochasticOscillator(14, 3)
+}
+
+# Multi-timeframe Configuration  
+IndicatorConfig.multi_timeframe_config.indicators = {
+    'SMA_20': @SMA(20),
+    'EMA_20': @EMA(20), 
+    'RSI_14': @RSI(14),
+    'ETOP': @EnvelopeTop(),
+    'EBOT': @EnvelopeBot(),
+    'PLDOT': @PL()
+}
+
+# Basic Configuration (for high-frequency 1m data)
+IndicatorConfig.basic_config.indicators = {
+    'OneOneDot': @OneOneDot(),
+    'OneOneHigh': @OneOneHigh(),
+    'OneOneLow': @OneOneLow()
+}

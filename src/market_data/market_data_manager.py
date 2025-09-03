@@ -3,8 +3,29 @@ from datetime import datetime
 
 class MarketDataManager:
     """
-    Provides open, high, low, close for a given instrument and time range.
-    This is an interface; actual implementation should connect to your DB or data provider.
+    Pure OHLC Data Interface - Provides raw OHLC market data only.
+    
+    SINGLE RESPONSIBILITY:
+    - Fetch raw OHLC data (open, high, low, close) for instruments and time ranges
+    
+    STRICTLY ONLY:
+    - Returns Dict[str, float] with keys: 'open', 'high', 'low', 'close'  
+    - Handles individual instrument queries: get_ohlc()
+    - Handles batch instrument queries: get_ohlc_batch()
+    - Abstract interface - implementations connect to specific data sources
+    
+    DOES NOT:
+    - Compute any indicators or technical signals
+    - Manage any state or rolling windows  
+    - Handle any business logic or transformations
+    - Persist or cache any computed results
+    - Format data beyond basic OHLC dict structure
+    - Aggregate timeframes or perform any data processing
+    
+    INTERACTIONS:
+    - Used BY: UniverseStateBuilder (primary consumer)
+    - Returns: Pure OHLC data as simple dictionaries
+    - That's it - no other responsibilities
     """
 
     def get_ohlc(self, instrument_id: int, start: datetime, end: datetime) -> Optional[Dict[str, float]]:

@@ -1,8 +1,27 @@
 """
-UniverseStateManager - Fast persistence and retrieval of universe state data.
+UniverseStateManager - Data Persistence and Retrieval Layer for Universe State.
 
-This module handles the storage layer for universe state data using optimized
-Parquet format for fast I/O operations, caching, and data format optimization.
+SINGLE RESPONSIBILITY:
+- Optimize storage and retrieval of universe state data
+
+STRICTLY ONLY:
+- Persist UniverseStateInterval objects to optimized formats (Parquet, etc.)
+- Provide fast retrieval of historical data with caching and optimization
+- Handle data format optimization, compression, and storage efficiency
+- Implement lag retrieval for lookback operations
+- Manage metadata and data integrity validation
+- Support multiple storage backends (files, databases, cloud)
+
+DOES NOT:
+- Generate any data or compute any state (UniverseStateBuilder responsibility)
+- Perform any indicator calculations (IndicatorBuilder responsibility)
+- Fetch any raw data from any source (MarketDataManager responsibility)
+- Handle any business logic or transformations (UniverseStateBuilder responsibility)
+
+INTERACTIONS:
+- Receives FROM: UniverseStateBuilder (data to persist)
+- Provides TO: Training Callbacks, Analytics systems, ML pipelines (data retrieval)
+- That's it - storage and retrieval only
 """
 
 import pandas as pd

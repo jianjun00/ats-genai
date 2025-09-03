@@ -14,32 +14,117 @@ import logging
 from market_data.market_data_manager import MarketDataManager
 from storage.file_based_minute_manager import FileBasedMinuteManager
 from config.environment import Environment
+from signals.indicator_builder import IndicatorBuilder
+from signals.indicator_config import IndicatorConfig
+from signals.ohlcv_to_interval_adapter import OHLCVToIntervalAdapter
+from typing import Dict
+import gin
 
 logger = logging.getLogger(__name__)
 
 
+@gin.configurable
 class FileBasedMinuteMarketDataManager(MarketDataManager):
     """
     Market data manager that provides minute-level OHLC data from file-based storage.
     
     Follows the same interface patterns as DailyPriceMarketDataManager but operates
     on minute-level data stored in parquet files.
+    
+    Uses the indicator builder system for computing technical signals with Gin-configurable
+    indicator sets for different timeframes.
     """
     
-    def __init__(self, env: Environment, base_path: str = "/mnt/d/ats-data/minute-bars"):
+    def __init__(self, 
+                 env: Environment, 
+                 base_path: str = "/mnt/d/ats-data/minute-bars",
+                 indicator_configs: Dict[str, IndicatorConfig] = None):
         """
         Initialize with environment and base path to minute bar storage.
         
         Args:
             env: Environment configuration
             base_path: Path to minute bar storage directory
+            indicator_configs: Dict mapping intervals to indicator configurations
         """
         self.env = env
         self.base_path = Path(base_path)
         self.minute_manager = FileBasedMinuteManager(self.base_path)
         self._cache = {}  # Cache for recent queries
         
+        # Initialize indicator system
+        self.indicator_configs = indicator_configs or self._get_default_indicator_configs()
+        self.ohlcv_adapter = OHLCVToIntervalAdapter()
+        
+        # Note: IndicatorBuilder instances are created per timeframe by the adapter
+        # Each timeframe uses its own IndicatorBuilder with appropriate IndicatorConfig
+        
         logger.info(f"Initialized FileBasedMinuteMarketDataManager with path: {self.base_path}")
+        logger.info(f"Configured indicators for intervals: {list(self.indicator_configs.keys())}")
+    
+    async def get_ohlc_for_interval(
+        self,
+        symbols: List[str],
+        start: datetime,
+        end: datetime,
+        interval: str = '1m'
+    ) -> Dict[str, pd.DataFrame]:
+        """
+        Get OHLC data for specified interval using standardized interval notation.
+        
+        Args:
+            symbols: List of symbol strings (e.g., ['AAPL', 'TSLA'])
+            start: Start datetime for data query
+            end: End datetime for data query  
+            interval: Interval specification ('1m', '5m', '15m', '1h', '1d', '1w')
+            
+        Returns:
+            Dict mapping symbol to DataFrame with columns: timestamp, open, high, low, close, volume
+        """
+        # Convert interval string to minutes
+        timeframe_minutes = self._parse_interval_to_minutes(interval)
+        
+        return await self.get_minute_ohlc_batch(
+            symbols=symbols,
+            start=start,
+            end=end,
+            timeframe_minutes=timeframe_minutes
+        )
+    
+    def _parse_interval_to_minutes(self, interval: str) -> int:
+        """
+        Parse interval string to minutes.
+        
+        Args:
+            interval: Interval string ('1m', '5m', '15m', '30m', '1h', '2h', '4h', '1d', '1w')
+            
+        Returns:
+            Number of minutes for the interval
+        """
+        interval = interval.lower().strip()
+        
+        # Handle minute intervals
+        if interval.endswith('m'):
+            return int(interval[:-1])
+        
+        # Handle hour intervals
+        elif interval.endswith('h'):
+            return int(interval[:-1]) * 60
+        
+        # Handle day intervals
+        elif interval.endswith('d'):
+            return int(interval[:-1]) * 1440  # 24 * 60 minutes
+        
+        # Handle week intervals
+        elif interval.endswith('w'):
+            return int(interval[:-1]) * 10080  # 7 * 24 * 60 minutes
+        
+        # Handle month intervals (approximate)
+        elif interval.endswith('M'):
+            return int(interval[:-1]) * 43800  # 30.4 * 24 * 60 minutes (average)
+        
+        else:
+            raise ValueError(f"Unsupported interval format: {interval}. Use formats like '1m', '5m', '15m', '1h', '1d', '1w'")
     
     async def get_minute_ohlc_batch(
         self, 
@@ -88,6 +173,22 @@ class FileBasedMinuteMarketDataManager(MarketDataManager):
         
         logger.info(f"Retrieved minute data for {len(result)}/{len(symbols)} symbols")
         return result
+    
+    def _get_default_indicator_configs(self) -> Dict[str, IndicatorConfig]:
+        """
+        Get default indicator configurations for different timeframes.
+        
+        Returns:
+            Dict mapping interval strings to IndicatorConfig objects
+        """
+        return {
+            '1m': IndicatorConfig.basic_config(),
+            '5m': IndicatorConfig.multi_timeframe_config(),
+            '15m': IndicatorConfig.multi_timeframe_config(),
+            '1h': IndicatorConfig.standard_technical_config(),
+            '1d': IndicatorConfig.standard_technical_config(),
+            '1w': IndicatorConfig.standard_technical_config()
+        }
     
     async def _get_symbol_minute_data(
         self, 
@@ -289,6 +390,167 @@ class FileBasedMinuteMarketDataManager(MarketDataManager):
             
         except Exception:
             return False
+    
+    async def get_ohlc_with_signals(
+        self,
+        symbols: List[str],
+        start: datetime,
+        end: datetime,
+        interval: str = '1m',
+        signals: List[str] = None
+    ) -> Dict[str, pd.DataFrame]:
+        """
+        Get OHLC data with computed technical signals using the indicator builder system.
+        
+        Args:
+            symbols: List of symbol strings
+            start: Start datetime
+            end: End datetime
+            interval: Time interval ('1m', '5m', '15m', '1h', '1d', '1w')
+            signals: List of signal names (deprecated - indicators determined by Gin config)
+            
+        Returns:
+            Dict mapping symbol to DataFrame with OHLCV + indicator columns
+        """
+        # Get base OHLC data
+        ohlc_data = await self.get_ohlc_for_interval(
+            symbols=symbols,
+            start=start,
+            end=end,
+            interval=interval
+        )
+        
+        # Get indicator configuration for this interval
+        indicator_config = self.indicator_configs.get(interval, IndicatorConfig.multi_timeframe_config())
+        available_indicators = indicator_config.get_indicator_names()
+        
+        # Compute indicators for each symbol
+        result = {}
+        for symbol, df in ohlc_data.items():
+            if df.empty:
+                result[symbol] = df
+                continue
+                
+            # Add technical indicators using indicator builder system
+            enhanced_df = self._compute_technical_signals(df.copy(), symbol, interval)
+            result[symbol] = enhanced_df
+            
+            indicator_columns = [col for col in enhanced_df.columns if col not in ['timestamp', 'open', 'high', 'low', 'close', 'volume']]
+            logger.debug(f"Computed {len(indicator_columns)} indicators for {symbol} ({interval}): {len(enhanced_df)} bars")
+        
+        return result
+    
+    def _compute_technical_signals(self, df: pd.DataFrame, symbol: str, interval: str = '1m') -> pd.DataFrame:
+        """
+        Compute technical signals for OHLCV data using the indicator builder system.
+        
+        Args:
+            df: DataFrame with OHLCV columns
+            symbol: Symbol name for the data
+            interval: Time interval for selecting appropriate indicator configuration
+            
+        Returns:
+            DataFrame with added indicator columns
+        """
+        if df.empty:
+            return df
+        
+        try:
+            # Get indicator configuration for this interval
+            indicator_config = self.indicator_configs.get(interval, IndicatorConfig.multi_timeframe_config())
+            
+            # Compute indicators using the adapter - this handles all the conversion and computation
+            indicator_results = self.ohlcv_adapter.compute_indicators_for_timeframe(
+                df, indicator_config, symbol
+            )
+            
+            # Add indicator values as columns to the DataFrame
+            for indicator_name, result in indicator_results.items():
+                if isinstance(result, dict) and 'value' in result:
+                    value = result['value']
+                    status = result.get('status', 'unknown')
+                    
+                    # Only add indicators with valid values
+                    if status == 'ok' and value is not None:
+                        # Broadcast scalar value to match DataFrame length
+                        df[indicator_name] = value
+                    else:
+                        logger.debug(f"Indicator {indicator_name} has invalid value: {value} (status: {status})")
+                        df[indicator_name] = pd.NA
+                else:
+                    # Handle simple values
+                    if result is not None:
+                        df[indicator_name] = result
+                    else:
+                        df[indicator_name] = pd.NA
+            
+            logger.debug(f"Computed {len(indicator_results)} indicators using indicator builder for {interval}")
+            
+        except Exception as e:
+            logger.error(f"Failed to compute indicators using indicator builder: {e}")
+            logger.exception("Full traceback:")
+        
+        return df
+    
+    # Note: Manual technical indicator methods removed.
+    # All technical indicators now computed using the indicator builder system
+    # with configurations defined in _get_default_indicator_configs()
+    
+    async def get_multi_timeframe_data(
+        self,
+        symbols: List[str],
+        start: datetime,
+        end: datetime,
+        intervals: List[str] = None,
+        signals: List[str] = None
+    ) -> Dict[str, Dict[str, pd.DataFrame]]:
+        """
+        Get multi-timeframe data with indicators for multiple symbols.
+        
+        Each interval uses its own indicator configuration as defined in Gin config.
+        
+        Args:
+            symbols: List of symbols
+            start: Start datetime
+            end: End datetime
+            intervals: List of intervals ['1m', '5m', '15m', '1h', '1d', '1w']
+            signals: List of signals (deprecated - indicators determined by Gin config)
+            
+        Returns:
+            Nested dict: {symbol: {interval: DataFrame}}
+        """
+        if not intervals:
+            intervals = ['5m', '15m', '1h', '1d', '1w']
+        
+        result = {}
+        
+        for symbol in symbols:
+            result[symbol] = {}
+            
+            for interval in intervals:
+                try:
+                    # Get OHLC data with indicators for this timeframe
+                    # Each interval will use its own indicator configuration
+                    timeframe_data = await self.get_ohlc_with_signals(
+                        symbols=[symbol],
+                        start=start,
+                        end=end,
+                        interval=interval
+                    )
+                    
+                    if symbol in timeframe_data:
+                        result[symbol][interval] = timeframe_data[symbol]
+                        indicator_count = len([col for col in timeframe_data[symbol].columns if col not in ['timestamp', 'open', 'high', 'low', 'close', 'volume']])
+                        logger.debug(f"Retrieved {interval} data for {symbol}: {len(timeframe_data[symbol])} bars, {indicator_count} indicators")
+                    else:
+                        result[symbol][interval] = pd.DataFrame()  # Empty DataFrame
+                        
+                except Exception as e:
+                    logger.error(f"Failed to get {interval} data for {symbol}: {e}")
+                    result[symbol][interval] = pd.DataFrame()  # Empty DataFrame
+        
+        logger.info(f"Retrieved multi-timeframe data for {len(symbols)} symbols across {len(intervals)} intervals using indicator builder")
+        return result
     
     async def close(self):
         """Clean up resources."""

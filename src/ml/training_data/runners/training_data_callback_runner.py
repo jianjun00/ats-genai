@@ -28,9 +28,10 @@ from dataclasses import dataclass, field
 
 from app.runner import Runner
 from config.environment import Environment, EnvironmentType
-from ml.training_data.callbacks.training_data_callback import DateBasedTrainingDataCallback
+from ml.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from ml.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
 from ml.training_data.dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
+from market_data.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
 
 
 @gin.configurable
@@ -41,11 +42,20 @@ def get_technical_indicators(indicators: List[str] = None) -> List[str]:
 
 @dataclass 
 class TrainingDataConfig:
-    """Simple configuration for training data generation."""
+    """Simple configuration for training data generation with multi-timeframe support."""
     
     # Base timing configuration
-    base_interval_minutes: int = 1
-    training_interval_minutes: int = 60
+    base_interval_minutes: int = 1  # Always 1m base data
+    training_interval_minutes: int = 60  # Generate training examples every hour
+    
+    # Multi-timeframe aggregation configuration
+    timeframes: Dict[str, int] = field(default_factory=lambda: {
+        '5m': 5,     # 5-minute bars
+        '15m': 15,   # 15-minute bars  
+        '1h': 60,    # 1-hour bars
+        '1d': 1440,  # Daily bars (1440 minutes)
+        '1w': 10080  # Weekly bars (10080 minutes)
+    })
     
     # Multi-timeframe sequence configuration
     sequence_lengths: Dict[str, int] = field(default_factory=lambda: {
@@ -53,12 +63,20 @@ class TrainingDataConfig:
         '15m': 52,  # Past 52 x 15-minute intervals (13 hours)
         '1h': 24,   # Past 24 x 1-hour intervals (1 day)
         '1d': 20,   # Past 20 x daily intervals (4 weeks)
+        '1w': 12    # Past 12 x weekly intervals (3 months)
     })
     
     prediction_horizons: Dict[str, int] = field(default_factory=lambda: {
         '1h': 6,    # Next 6 hours
         '1d': 5,    # Next 5 days
+        '1w': 2     # Next 2 weeks
     })
+    
+    # File-based minute data configuration
+    minute_data_base_path: str = "/mnt/d/ats-data/minute-bars"
+    
+    # Output directory structure configuration
+    output_base_path: str = "/mnt/d/ats-data/training"
 
 
 def save_as_riegeli(df: pd.DataFrame, riegeli_file: Path):
@@ -251,16 +269,20 @@ def parse_args():
                        help='Number of 1-hour intervals in sequence (default: 24)')
     parser.add_argument('--sequence-1d', type=int, default=20,
                        help='Number of daily intervals in sequence (default: 20)')
+    parser.add_argument('--sequence-1w', type=int, default=12,
+                       help='Number of weekly intervals in sequence (default: 12)')
     
     # Prediction horizons
     parser.add_argument('--predict-1h', type=int, default=6,
                        help='Number of 1-hour intervals to predict (default: 6)')
     parser.add_argument('--predict-1d', type=int, default=5,
                        help='Number of daily intervals to predict (default: 5)')
+    parser.add_argument('--predict-1w', type=int, default=2,
+                       help='Number of weekly intervals to predict (default: 2)')
     
     # Output configuration
-    parser.add_argument('--output-dir', default='/data/training/sequences',
-                       help='Output directory for training data')
+    parser.add_argument('--output-dir', default='/mnt/d/ats-data/training',
+                       help='Base output directory for training data')
     parser.add_argument('--storage-format', default='riegeli',
                        choices=['riegeli'],
                        help='Storage format for training data (Riegeli only)')
@@ -268,6 +290,10 @@ def parse_args():
                        help='Use SequenceStorageManager for advanced storage')
     parser.add_argument('--compression-level', type=int, default=6,
                        help='Compression level for advanced storage')
+    
+    # Minute data configuration
+    parser.add_argument('--minute-data-path', default='/mnt/d/ats-data/minute-bars',
+                       help='Base path to minute-level OHLC data files')
     
     # Processing options
     parser.add_argument('--debug', action='store_true',
@@ -425,16 +451,27 @@ async def main():
     config = TrainingDataConfig(
         base_interval_minutes=args.base_interval,
         training_interval_minutes=args.training_interval,
+        timeframes={
+            '5m': 5,
+            '15m': 15,
+            '1h': 60,
+            '1d': 1440,
+            '1w': 10080
+        },
         sequence_lengths={
             '5m': args.sequence_5m,
             '15m': args.sequence_15m,
             '1h': args.sequence_1h,
             '1d': args.sequence_1d,
+            '1w': args.sequence_1w,
         },
         prediction_horizons={
             '1h': args.predict_1h,
             '1d': args.predict_1d,
-        }
+            '1w': args.predict_1w,
+        },
+        minute_data_base_path=args.minute_data_path,
+        output_base_path=args.output_dir
     )
     
     # Set up storage manager if using advanced storage
@@ -464,22 +501,47 @@ async def main():
         storage_format=args.storage_format
     )
     
-    # ✅ PURE CALLBACK APPROACH: Create ONLY the callback
-    training_callback = DateBasedTrainingDataCallback(
+    # Create structured output directory: /mnt/d/ats-data/training/run_YYYYMMDD_HHMMSS/
+    from datetime import datetime
+    run_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    structured_output_dir = Path(config.output_base_path) / f"run_{run_timestamp}"
+    structured_output_dir.mkdir(parents=True, exist_ok=True)
+    
+    print(f"📁 Created structured output directory: {structured_output_dir}")
+    print(f"   Run ID: run_{run_timestamp}")
+    print(f"   Expected output pattern:")
+    for symbol in args.symbols:
+        print(f"     {structured_output_dir}/{symbol}/{start_date.strftime('%Y%m%d_000000')}_{end_date.strftime('%Y%m%d_000000')}.riegeli")
+    
+    # Initialize FileBasedMinuteMarketDataManager
+    minute_data_manager = FileBasedMinuteMarketDataManager(
+        env=environment,
+        base_path=config.minute_data_base_path
+    )
+    print(f"📊 Initialized minute data manager: {config.minute_data_base_path}")
+    
+    # ✅ INTERVAL-BASED CALLBACK APPROACH: Create IntervalBasedTrainingDataCallback
+    training_callback = IntervalBasedTrainingDataCallback(
         symbols=args.symbols,
         config=config,
-        output_dir=args.output_dir,
-        save_format='advanced' if args.use_advanced_storage else 'pickle',
-        storage_manager=storage_manager
+        storage_manager=storage_manager,
+        output_dir=str(structured_output_dir)
     )
+    
+    # Inject minute data manager and configuration into callback for multi-timeframe processing
+    training_callback.minute_data_manager = minute_data_manager
+    training_callback.start_date = start_date
+    training_callback.end_date = end_date
+    training_callback.run_timestamp = run_timestamp
     
     # Pass dataset_id to callback for completion tracking
     training_callback.dataset_id = dataset_id
     
-    print(f"🎯 Created PURE callback-based training data generation")
+    print(f"🎯 Created interval-based training data generation with multi-timeframe support")
     print(f"   Callback: {type(training_callback).__name__}")
-    print(f"   NOT creating any TrainingDataRunner class")
-    print(f"   Using existing Runner framework with callback")
+    print(f"   Timeframes: {list(config.timeframes.keys())}")
+    print(f"   Using FileBasedMinuteMarketDataManager for 1m base data")
+    print(f"   Building aggregated timeframes: 5m, 15m, 1h, 1d, 1w from 1m data")
     
     # ✅ Use existing Runner framework with our callback
     runner = Runner(
@@ -491,14 +553,21 @@ async def main():
         base_duration=args.base_duration
     )
     
-    print(f"\n🚀 Starting PURE callback-based training data generation")
+    print(f"\n🚀 Starting interval-based multi-timeframe training data generation")
     print(f"   Symbols: {args.symbols}")
     print(f"   Date range: {start_date} to {end_date}")
     print(f"   Base duration: {args.base_duration}")
-    print(f"   Output: {args.output_dir}")
+    print(f"   Run output: {structured_output_dir}")
     print(f"   Storage: {args.storage_format}")
-    print(f"   Method: Pure callback (no separate runner class)")
+    print(f"   Base data: 1-minute OHLC from {config.minute_data_base_path}")
+    print(f"   Aggregated timeframes: {', '.join(config.timeframes.keys())}")
+    print(f"   Method: IntervalBasedTrainingDataCallback with FileBasedMinuteMarketDataManager")
     print(f"   Registered dataset ID: {dataset_id}")
+    print(f"")
+    print(f"   📁 Output structure:")
+    for symbol in args.symbols:
+        expected_file = structured_output_dir / symbol / f"{start_date.strftime('%Y%m%d_000000')}_{end_date.strftime('%Y%m%d_000000')}.riegeli"
+        print(f"     {expected_file}")
     
     # Track generation timing
     generation_start_time = time.time()
@@ -528,14 +597,23 @@ async def main():
         data_quality_score=1.0  # Would calculate from actual data quality metrics
     )
     
-    print(f"\n✅ Pure callback-based training data generation completed!")
+    print(f"\n✅ Multi-timeframe interval-based training data generation completed!")
     print(f"   Dataset registered and tracked: {dataset_id}")
-    print(f"   All logic handled by callback methods:")
-    print(f"   - handleStart: Initialize training generator")
-    print(f"   - handleStartOfDay: Open daily data collection")
-    print(f"   - handleInterval: Generate training examples")
-    print(f"   - handleEndOfDay: Save daily data")
+    print(f"   Multi-timeframe processing logic handled by callback methods:")
+    print(f"   - handleStart: Initialize FileBasedMinuteMarketDataManager")
+    print(f"   - handleInterval: Generate training examples with multi-timeframe features")
+    print(f"     * Load 1m OHLC data from parquet files")
+    print(f"     * Aggregate to 5m, 15m, 1h, 1d, 1w timeframes")
+    print(f"     * Build sequence features across all timeframes")
+    print(f"     * Save to symbol-specific .riegeli files")
     print(f"   - handleEnd: Final summary and dataset completion")
+    print(f"")
+    print(f"   📁 Generated files:")
+    for symbol in args.symbols:
+        expected_file = structured_output_dir / symbol / f"{start_date.strftime('%Y%m%d_000000')}_{end_date.strftime('%Y%m%d_000000')}.riegeli"
+        expected_metadata = structured_output_dir / symbol / f"{start_date.strftime('%Y%m%d_000000')}_{end_date.strftime('%Y%m%d_000000')}_metadata.json"
+        print(f"     {expected_file}")
+        print(f"     {expected_metadata}")
     
     return 0
 

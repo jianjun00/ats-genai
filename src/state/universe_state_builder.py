@@ -1,9 +1,28 @@
 """
-UniverseStateIntervalBuilder - Business logic for building and transforming universe state.
+UniverseStateBuilder - Business Logic Orchestrator for Universe State Construction.
 
-This module handles the business logic layer for universe state construction,
-including data validation, transformation rules, corporate actions, and
-integration with multiple data sources.
+SINGLE RESPONSIBILITY:
+- Orchestrate complete universe state construction workflow
+
+STRICTLY ONLY:
+- Coordinate data flow between MarketDataManager and IndicatorBuilder
+- Manage rolling windows of InstrumentInterval objects (business logic)  
+- Transform raw OHLC data to business InstrumentInterval objects
+- Handle multi-timeframe aggregation and duration logic
+- Implement data validation and business rules
+- Create and emit UniverseStateInterval objects
+
+DOES NOT:
+- Fetch any raw data from any source (MarketDataManager responsibility)
+- Perform any indicator calculations (IndicatorBuilder responsibility)
+- Persist any results anywhere (UniverseStateManager responsibility)
+- Handle any storage concerns or optimization (UniverseStateManager responsibility)
+
+INTERACTIONS:
+- Uses: MarketDataManager (requests OHLC data), IndicatorBuilder (requests indicator computation)
+- Given: Raw OHLC data from MarketDataManager
+- Returns: UniverseStateInterval objects with computed state to UniverseStateManager
+- That's it - orchestration only
 """
 
 import pandas as pd

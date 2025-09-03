@@ -6,7 +6,30 @@ from signals.indicator_config import IndicatorConfig
 
 class IndicatorBuilder:
     """
-    Builds indicator intervals for a set of instruments using a rolling window of InstrumentIntervals.
+    Pure Indicator Computation Engine - Only computes indicators from provided data.
+    
+    SINGLE RESPONSIBILITY:
+    - Compute technical indicators from InstrumentInterval data that is provided to it
+    
+    STRICTLY ONLY:
+    - Takes rolling cache of InstrumentInterval objects (provided by caller)
+    - Applies indicator classes to compute indicator values
+    - Returns IndicatorInterval objects with computed indicator results
+    - Stateless computation - no side effects
+    
+    DOES NOT:
+    - Fetch any data from any source
+    - Manage any state or rolling windows
+    - Persist any results anywhere
+    - Handle any business logic or orchestration
+    - Decide which indicators to compute (IndicatorConfig decides)
+    - Manage rolling cache (caller provides it)
+    
+    INTERACTIONS:
+    - Used BY: UniverseStateBuilder (provides rolling cache, gets back results)
+    - Given: Dict[int, List[InstrumentInterval]] rolling cache from caller
+    - Returns: Dict[int, IndicatorInterval] with computed indicators
+    - That's it - pure computation only
     """
     def __init__(self, indicator_config: IndicatorConfig):
         self.indicator_config = indicator_config
