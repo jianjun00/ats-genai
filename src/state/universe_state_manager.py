@@ -275,7 +275,200 @@ class UniverseStateManager:
         # Return empty DataFrame with expected columns
         return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume', 'etop', 'ebot', 'pldot'])
 
-    
+    async def get_lagged_signals(
+        self,
+        instrument_id: int,
+        cur_date,
+        lag_periods: int,
+        time_interval: str = '1d',
+        signal_names: List[str] = None
+    ) -> pd.DataFrame:
+        """
+        Get lagged signal/indicator data for a specific instrument and time interval.
+        
+        This method retrieves historical indicator/signal values for multi-timeframe analysis.
+        It supports retrieving signals computed at different time intervals (1m, 5m, 15m, 1h, 1d, 1w)
+        even when the base_duration is 1m.
+        
+        Args:
+            instrument_id: The instrument ID to retrieve signals for
+            cur_date: Current date reference point (exclusive upper bound)
+            lag_periods: Number of periods to look back. The meaning depends on time_interval:
+                        - For '1m': number of 1-minute periods
+                        - For '5m': number of 5-minute periods  
+                        - For '15m': number of 15-minute periods
+                        - For '1h': number of hourly periods
+                        - For '1d': number of daily periods
+                        - For '1w': number of weekly periods
+            time_interval: Time interval for signal aggregation ('1m', '5m', '15m', '1h', '1d', '1w')
+            signal_names: Optional list of specific signal names to retrieve. If None, returns all available signals.
+                         Common signals: ['etop', 'ebot', 'pldot', 'sma_20', 'ema_12', 'rsi_14', 'macd_line']
+            
+        Returns:
+            DataFrame with columns:
+            - timestamp: DateTime index for each signal period
+            - {signal_name}: One column per signal with computed values
+            - {signal_name}_status: Status column for each signal ('ok', 'invalid', etc.)
+            
+            Returns empty DataFrame if no signal data is available for the specified criteria.
+            
+        Example:
+            # Get last 20 five-minute signal periods (1.67 hours of 5m signals)
+            signals_5m = await universe_manager.get_lagged_signals(1001, date(2023, 12, 1), 20, '5m', ['etop', 'ebot'])
+            
+            # Get last 5 daily signal periods (1 week of daily signals)
+            signals_daily = await universe_manager.get_lagged_signals(1001, date(2023, 12, 1), 5, '1d')
+            
+        Notes:
+            - Supports multi-timeframe signal retrieval even with base_duration='1m'
+            - Signal values are aggregated/computed for the specified time_interval
+            - Uses InstrumentIndicatorIntervalDAO for database access
+            - Includes signal status information for validation
+        """
+        # Type validation for all parameters
+        if not isinstance(instrument_id, int) or instrument_id <= 0:
+            raise ValueError(f"instrument_id must be a positive integer, got {instrument_id} (type: {type(instrument_id)})")
+        
+        if not isinstance(lag_periods, int) or lag_periods <= 0:
+            raise ValueError(f"lag_periods must be a positive integer, got {lag_periods} (type: {type(lag_periods)})")
+        
+        if not isinstance(time_interval, str) or not time_interval.strip():
+            raise ValueError(f"time_interval must be a non-empty string, got {time_interval} (type: {type(time_interval)})")
+        
+        # Validate time_interval parameter
+        valid_intervals = {'1m', '5m', '15m', '30m', '1h', '2h', '4h', '1d', '1w'}
+        if time_interval not in valid_intervals:
+            raise ValueError(f"Invalid time_interval '{time_interval}'. Must be one of: {sorted(valid_intervals)}")
+        
+        # Type validation for cur_date
+        if not hasattr(cur_date, 'date') and not hasattr(cur_date, 'year'):
+            raise ValueError(f"cur_date must be a datetime or date object, got {type(cur_date)}")
+        
+        # Normalize cur_date to a date to avoid datetime vs date comparison issues
+        if hasattr(cur_date, 'date'):
+            cur_date = cur_date.date()
+        
+        # Validate signal_names if provided
+        if signal_names is not None:
+            if not isinstance(signal_names, list):
+                raise ValueError(f"signal_names must be a list or None, got {type(signal_names)}")
+            
+            for i, signal_name in enumerate(signal_names):
+                if not isinstance(signal_name, str) or not signal_name.strip():
+                    raise ValueError(f"signal_names[{i}] must be a non-empty string, got {signal_name} (type: {type(signal_name)})")
+        
+        try:
+            from dao.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
+            
+            # Calculate the time range based on interval and lag_periods
+            from datetime import timedelta, datetime
+            
+            # Convert time_interval to timedelta for calculating date range
+            interval_deltas = {
+                '1m': timedelta(minutes=1),
+                '5m': timedelta(minutes=5),
+                '15m': timedelta(minutes=15),
+                '30m': timedelta(minutes=30),
+                '1h': timedelta(hours=1),
+                '2h': timedelta(hours=2),
+                '4h': timedelta(hours=4),
+                '1d': timedelta(days=1),
+                '1w': timedelta(weeks=1)
+            }
+            
+            interval_delta = interval_deltas[time_interval]
+            
+            # Calculate start date for the query (go back enough to get lag_periods)
+            total_lookback = interval_delta * lag_periods * 2  # Extra buffer for market closures
+            start_date = cur_date - total_lookback
+            
+            # Query indicator intervals from the database
+            indicator_dao = InstrumentIndicatorIntervalDAO(self.env)
+            
+            # Get all indicator data for the instrument in the time range
+            indicator_data = await indicator_dao.get_by_instrument_and_date_range(
+                instrument_id=instrument_id,
+                start_date=start_date,
+                end_date=cur_date
+            )
+            
+            if not indicator_data:
+                # Return empty DataFrame with expected structure
+                columns = ['timestamp']
+                if signal_names:
+                    for signal_name in signal_names:
+                        columns.extend([signal_name, f"{signal_name}_status"])
+                else:
+                    # Add common signal columns
+                    common_signals = ['etop', 'ebot', 'pldot', 'sma_20', 'ema_12', 'rsi_14']
+                    for signal_name in common_signals:
+                        columns.extend([signal_name, f"{signal_name}_status"])
+                
+                return pd.DataFrame(columns=columns)
+            
+            # Convert to DataFrame and process
+            df_rows = []
+            for record in indicator_data:
+                # Each record should have: start_date_time, end_date_time, indicator_name, indicator_value, indicator_status
+                row_data = {
+                    'timestamp': record.get('start_date_time') or record.get('end_date_time'),
+                    'indicator_name': record.get('indicator_name'),
+                    'indicator_value': record.get('indicator_value'),
+                    'indicator_status': record.get('indicator_status')
+                }
+                df_rows.append(row_data)
+            
+            if not df_rows:
+                return pd.DataFrame(columns=['timestamp'])
+            
+            # Create DataFrame from records
+            signals_df = pd.DataFrame(df_rows)
+            
+            # Filter by signal names if specified
+            if signal_names:
+                signals_df = signals_df[signals_df['indicator_name'].isin(signal_names)]
+            
+            if signals_df.empty:
+                return pd.DataFrame(columns=['timestamp'])
+            
+            # Pivot to wide format: one column per indicator
+            pivoted_df = signals_df.pivot_table(
+                index='timestamp',
+                columns='indicator_name',
+                values=['indicator_value', 'indicator_status'],
+                aggfunc='last'  # Take last value if duplicates
+            )
+            
+            # Flatten column names
+            pivoted_df.columns = [f"{col[1]}_{col[0].replace('indicator_', '')}" if col[1] else col[0] for col in pivoted_df.columns]
+            pivoted_df = pivoted_df.reset_index()
+            
+            # Sort by timestamp and filter to the requested time interval and lag periods
+            pivoted_df = pivoted_df.sort_values('timestamp')
+            
+            # Filter to only include data before cur_date
+            pivoted_df = pivoted_df[pivoted_df['timestamp'] < pd.Timestamp(cur_date)]
+            
+            # Take the last lag_periods records
+            pivoted_df = pivoted_df.tail(lag_periods)
+            
+            logger.debug(f"Retrieved {len(pivoted_df)} {time_interval} signal periods for instrument {instrument_id}")
+            
+            return pivoted_df
+            
+        except Exception as e:
+            try:
+                self.logger.error(f"Failed to get lagged signals for instrument {instrument_id}: {e}")
+            except:
+                pass
+            
+            # Return empty DataFrame on error
+            columns = ['timestamp']
+            if signal_names:
+                for signal_name in signal_names:
+                    columns.extend([signal_name, f"{signal_name}_status"])
+            
+            return pd.DataFrame(columns=columns)
 
     def _get_instrument_history(self, instrument_id: int) -> pd.DataFrame:
         """

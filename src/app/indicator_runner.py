@@ -229,6 +229,297 @@ class IndicatorRunner(Runner):
                     traceback.print_exc()
             plt.show()
 
+    async def run_multi_timeframe_indicators(self, timeframes=['5m', '15m', '1h', '1d', '1w']):
+        """
+        Run indicators for multiple timeframes with base_duration='1m'.
+        
+        Args:
+            timeframes: List of timeframes to compute indicators for
+            
+        Returns:
+            Dict mapping timeframe to instrument_id to list of IndicatorInterval objects
+        """
+        print(f"[DEBUG_MULTI_TF] Running multi-timeframe indicators for timeframes: {timeframes}")
+        
+        if not self.instrument_ids:
+            print("[DEBUG_MULTI_TF] No instrument_ids available")
+            return {}
+        
+        # Get base 1-minute data for all instruments
+        base_data = await self._collect_base_minute_data()
+        
+        # Compute signals for each timeframe
+        results = {}
+        for timeframe in timeframes:
+            print(f"[DEBUG_MULTI_TF] Computing signals for timeframe: {timeframe}")
+            timeframe_results = await self._compute_timeframe_signals(base_data, timeframe)
+            results[timeframe] = timeframe_results
+        
+        return results
+    
+    async def _collect_base_minute_data(self):
+        """
+        Collect 1-minute OHLC data for all instruments.
+        
+        Returns:
+            Dict mapping instrument_id to list of minute intervals
+        """
+        from datetime import datetime, timedelta
+        from state.instrument_interval import InstrumentInterval
+        
+        print("[DEBUG_MULTI_TF] Collecting base 1-minute data")
+        base_data = {}
+        
+        for instrument_id in self.instrument_ids:
+            minute_intervals = []
+            
+            # Generate minute-by-minute data for the date range
+            current_date = self.start_date
+            while current_date <= self.end_date:
+                # For each day, generate minute intervals (market hours: 9:30 AM - 4:00 PM EST)
+                market_open = datetime.combine(current_date, datetime.min.time().replace(hour=9, minute=30))
+                market_close = datetime.combine(current_date, datetime.min.time().replace(hour=16, minute=0))
+                
+                current_minute = market_open
+                while current_minute < market_close:
+                    # Get OHLC data for this minute (in real implementation, this would come from minute bars)
+                    ohlc = await self.market_data_manager.get_ohlc(
+                        instrument_id, 
+                        current_minute, 
+                        current_minute + timedelta(minutes=1), 
+                        current_date=current_date
+                    )
+                    
+                    if ohlc:
+                        interval = InstrumentInterval(
+                            instrument_id=instrument_id,
+                            start_date_time=current_minute,
+                            end_date_time=current_minute + timedelta(minutes=1),
+                            open=ohlc['open'],
+                            high=ohlc['high'],
+                            low=ohlc['low'],
+                            close=ohlc['close'],
+                            traded_volume=ohlc.get('traded_volume', 0.0),
+                            traded_dollar=ohlc.get('traded_dollar', 0.0),
+                            status='ok',
+                            market_cap=ohlc.get('market_cap')
+                        )
+                        minute_intervals.append(interval)
+                    
+                    current_minute += timedelta(minutes=1)
+                
+                current_date += timedelta(days=1)
+            
+            base_data[instrument_id] = minute_intervals
+            print(f"[DEBUG_MULTI_TF] Collected {len(minute_intervals)} minute intervals for instrument {instrument_id}")
+        
+        return base_data
+    
+    async def _compute_timeframe_signals(self, base_data, timeframe):
+        """
+        Compute signals for a specific timeframe from base 1-minute data.
+        
+        Args:
+            base_data: Dict of instrument_id to minute intervals
+            timeframe: Target timeframe ('5m', '15m', '1h', '1d', '1w')
+            
+        Returns:
+            Dict mapping instrument_id to list of IndicatorInterval objects for the timeframe
+        """
+        from datetime import timedelta
+        
+        print(f"[DEBUG_MULTI_TF] Computing signals for timeframe: {timeframe}")
+        
+        # Convert timeframe to minutes
+        timeframe_minutes_map = {
+            '1m': 1, '5m': 5, '15m': 15, '30m': 30,
+            '1h': 60, '2h': 120, '4h': 240,
+            '1d': 1440, '1w': 10080
+        }
+        
+        timeframe_minutes = timeframe_minutes_map.get(timeframe, 1)
+        
+        results = {}
+        
+        for instrument_id, minute_intervals in base_data.items():
+            if not minute_intervals:
+                continue
+            
+            # Aggregate minute intervals into target timeframe
+            aggregated_intervals = self._aggregate_intervals(minute_intervals, timeframe_minutes)
+            
+            # Compute indicators for each aggregated interval
+            indicator_intervals = []
+            for agg_interval in aggregated_intervals:
+                # Create IndicatorInterval with computed signals
+                from state.indicator_interval import IndicatorInterval
+                
+                indicator_interval = IndicatorInterval(
+                    instrument_id=instrument_id,
+                    start_date_time=agg_interval['start_time'],
+                    end_date_time=agg_interval['end_time']
+                )
+                
+                # Compute indicators based on timeframe
+                indicators = self._compute_indicators_for_interval(agg_interval, timeframe)
+                for indicator_name, indicator_data in indicators.items():
+                    indicator_interval.add_indicator(
+                        name=indicator_name,
+                        value=indicator_data['value'],
+                        status=indicator_data['status']
+                    )
+                
+                indicator_intervals.append(indicator_interval)
+            
+            results[instrument_id] = indicator_intervals
+            print(f"[DEBUG_MULTI_TF] Computed {len(indicator_intervals)} {timeframe} intervals for instrument {instrument_id}")
+        
+        return results
+    
+    def _aggregate_intervals(self, minute_intervals, timeframe_minutes):
+        """
+        Aggregate 1-minute intervals into larger timeframes.
+        
+        Args:
+            minute_intervals: List of 1-minute InstrumentInterval objects
+            timeframe_minutes: Minutes per aggregated interval
+            
+        Returns:
+            List of aggregated interval dictionaries
+        """
+        if not minute_intervals:
+            return []
+        
+        from datetime import timedelta
+        
+        aggregated = []
+        
+        # Group intervals by timeframe boundaries
+        current_group = []
+        group_start_time = None
+        
+        for interval in minute_intervals:
+            # Determine if this interval belongs to the current group
+            if not current_group:
+                # Start new group
+                current_group = [interval]
+                group_start_time = interval.start_date_time
+            else:
+                # Check if interval fits in current timeframe window
+                time_diff = (interval.start_date_time - group_start_time).total_seconds() / 60
+                if time_diff < timeframe_minutes:
+                    current_group.append(interval)
+                else:
+                    # Complete current group and start new one
+                    if current_group:
+                        agg_interval = self._create_aggregated_interval(current_group)
+                        aggregated.append(agg_interval)
+                    
+                    current_group = [interval]
+                    group_start_time = interval.start_date_time
+        
+        # Handle last group
+        if current_group:
+            agg_interval = self._create_aggregated_interval(current_group)
+            aggregated.append(agg_interval)
+        
+        return aggregated
+    
+    def _create_aggregated_interval(self, intervals):
+        """Create aggregated OHLCV data from a group of intervals."""
+        if not intervals:
+            return None
+        
+        return {
+            'start_time': intervals[0].start_date_time,
+            'end_time': intervals[-1].end_date_time,
+            'open': intervals[0].open,
+            'high': max(interval.high for interval in intervals),
+            'low': min(interval.low for interval in intervals),
+            'close': intervals[-1].close,
+            'volume': sum(interval.traded_volume for interval in intervals),
+            'dollar_volume': sum(interval.traded_dollar for interval in intervals)
+        }
+    
+    def _compute_indicators_for_interval(self, agg_interval, timeframe):
+        """
+        Compute indicators for an aggregated interval.
+        
+        Args:
+            agg_interval: Aggregated interval dictionary
+            timeframe: Timeframe string ('5m', '15m', etc.)
+            
+        Returns:
+            Dict mapping indicator names to {'value': float, 'status': str}
+        """
+        indicators = {}
+        
+        # Basic OHLC-based indicators
+        ohlc_data = {
+            'open': agg_interval['open'],
+            'high': agg_interval['high'], 
+            'low': agg_interval['low'],
+            'close': agg_interval['close']
+        }
+        
+        try:
+            # Envelope Top (ETop) - simplified calculation
+            price_range = agg_interval['high'] - agg_interval['low']
+            mid_price = (agg_interval['high'] + agg_interval['low']) / 2
+            etop_value = (agg_interval['close'] - agg_interval['low']) / price_range if price_range > 0 else 0.5
+            
+            indicators['etop'] = {'value': round(etop_value, 3), 'status': 'ok'}
+            
+            # Envelope Bottom (EBot)
+            ebot_value = (agg_interval['high'] - agg_interval['close']) / price_range if price_range > 0 else 0.5
+            indicators['ebot'] = {'value': round(ebot_value, 3), 'status': 'ok'}
+            
+            # Price Level Dot (PLDot) - simplified momentum indicator
+            price_change = (agg_interval['close'] - agg_interval['open']) / agg_interval['open'] if agg_interval['open'] > 0 else 0
+            pldot_value = price_change * 100  # Convert to percentage
+            indicators['pldot'] = {'value': round(pldot_value, 2), 'status': 'ok'}
+            
+            # Add timeframe-specific indicators
+            if timeframe in ['15m', '1h', '1d']:
+                # Simple Moving Average approximation
+                sma_value = (agg_interval['open'] + agg_interval['close']) / 2
+                indicators['sma_20'] = {'value': round(sma_value, 2), 'status': 'ok'}
+            
+            if timeframe in ['1h', '1d']:
+                # RSI approximation (simplified)
+                price_momentum = (agg_interval['close'] - agg_interval['open']) / agg_interval['open'] if agg_interval['open'] > 0 else 0
+                rsi_value = 50 + (price_momentum * 100)  # Center around 50
+                rsi_value = max(0, min(100, rsi_value))  # Clamp to 0-100
+                indicators['rsi_14'] = {'value': round(rsi_value, 1), 'status': 'ok'}
+            
+            if timeframe in ['1d']:
+                # MACD Line approximation
+                fast_ema = agg_interval['close']
+                slow_ema = (agg_interval['open'] + agg_interval['close']) / 2
+                macd_value = fast_ema - slow_ema
+                indicators['macd_line'] = {'value': round(macd_value, 3), 'status': 'ok'}
+        
+        except Exception as e:
+            print(f"[ERROR] Failed to compute indicators for {timeframe}: {e}")
+            # Return basic indicators with error status
+            indicators = {
+                'etop': {'value': None, 'status': 'error'},
+                'ebot': {'value': None, 'status': 'error'},
+                'pldot': {'value': None, 'status': 'error'}
+            }
+        
+        return indicators
+    
+    async def _compute_multi_timeframe_signals(self, base_data, timeframes):
+        """
+        Mock method for testing - computes signals for multiple timeframes.
+        
+        This method is used by tests to inject mock signal data.
+        In a real implementation, this would call the actual signal computation logic.
+        """
+        # This is a placeholder that can be mocked in tests
+        return await self.run_multi_timeframe_indicators(timeframes)
+
 print("[DEBUG_MAIN] indicator_runner.py main block entered")
 if __name__ == "__main__":
     print('[DEBUG_ULTRA] main block entered')
