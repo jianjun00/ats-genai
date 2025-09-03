@@ -87,6 +87,26 @@ kubectl get all -n ats-dev
 kubectl logs -f deployment/service-name -n ats-dev
 ```
 
+### **🌐 API Endpoints Quick Reference**
+```bash
+# ATS-DEV Environment (Development)
+http://localhost:3000/health          # Analytics health check
+http://localhost:3000/eda            # EDA Dashboard interface
+http://localhost:8000/health          # API health check
+
+# ATS-INTG Environment (Integration Testing)  
+http://localhost:4000/health          # Analytics health check
+http://localhost:4000/eda            # EDA Dashboard interface
+http://localhost:4080/metrics        # Prometheus metrics
+http://localhost:4002/               # Grafana dashboards (admin/admin)
+
+# How to find endpoints
+python scripts/run_dev.py status     # Check running services
+./scripts/get_external_access.sh service-name    # Get service endpoints
+```
+
+**📖 Complete API reference**: See [START_HERE.md - API Endpoints](START_HERE.md#🌐-api-endpoints-reference)
+
 ---
 
 ## 🎯 **Success Criteria**

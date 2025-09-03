@@ -89,6 +89,74 @@ python scripts/run_dev.py test
 
 ---
 
+## 🌐 API Endpoints Reference
+
+### ATS-DEV Environment (Development)
+```bash
+# Analytics Service
+http://localhost:3000/health          # Health check endpoint
+http://localhost:3000/eda            # EDA Dashboard interface
+http://localhost:3000/api/           # Analytics API endpoints
+
+# API Service  
+http://localhost:8000/health          # API health check
+http://localhost:8000/api/           # Main API endpoints
+
+# Database
+postgresql://postgres:dev_password@localhost:3432/dev_db
+```
+
+### ATS-INTG Environment (Integration Testing)
+```bash
+# Analytics Service
+http://localhost:4000/health          # Health check endpoint
+http://localhost:4000/eda            # EDA Dashboard interface
+http://localhost:4000/api/           # Analytics API endpoints
+
+# Monitoring & Metrics
+http://localhost:4080/health          # Prometheus metrics health
+http://localhost:4080/metrics        # Prometheus metrics endpoint
+http://localhost:4002/               # Grafana dashboards (admin/admin)
+http://localhost:4091/-/ready        # Prometheus server ready check
+
+# Database
+postgresql://postgres:intg_password@localhost:4432/intg_db
+```
+
+### How to Find Service Endpoints
+```bash
+# Check running services and their ports
+python scripts/run_dev.py status                    # ATS-DEV services
+docker ps | grep -E "(ats-dev|intg)"               # Container status with ports
+
+# Get external access info for any service
+./scripts/get_external_access.sh service-name      # Service endpoint discovery script
+
+# Test endpoints are working
+curl -f http://localhost:3000/health               # ATS-DEV analytics
+curl -f http://localhost:4000/health               # ATS-INTG analytics
+curl -f http://localhost:4080/health               # ATS-INTG metrics
+```
+
+### Common API Usage Patterns
+```bash
+# Health checks (always test these first)
+curl -s http://localhost:3000/health | jq
+curl -s http://localhost:4000/health | jq
+
+# Analytics API example
+curl -s http://localhost:3000/api/datasets | jq
+
+# Metrics collection
+curl -s http://localhost:4080/metrics | grep "ats_"
+
+# Dashboard access (open in browser)
+open http://localhost:3000/eda                     # EDA interface
+open http://localhost:4002/                        # Grafana dashboards
+```
+
+---
+
 ## 👤 Role-Specific Quick Actions
 
 ### 🔧 Backend Engineer
