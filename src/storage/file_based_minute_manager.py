@@ -6,7 +6,7 @@ Manages 1-minute financial data storage using monthly Parquet files instead of d
 Handles overlapping data, missing files, and comprehensive edge cases.
 
 Key Features:
-- Monthly file organization (SYMBOL/YEAR/MONTH/)
+- Monthly file organization (FIRST_LETTER/SYMBOL/YEAR/MONTH/)
 - Overlap detection and resolution
 - Missing file handling
 - Data deduplication
@@ -95,16 +95,17 @@ class FileBasedMinuteManager:
     """
     File-based storage manager for 1-minute financial data using monthly Parquet files.
     
-    File Structure:
+    File Structure (First Letter Organization):
     base_path/
-    ├── AAPL/
-    │   ├── 2024/
-    │   │   ├── 01/
-    │   │   │   ├── AAPL_2024_01.parquet
-    │   │   │   └── .AAPL_2024_01.metadata.json
-    │   │   ├── 02/
-    │   │   │   ├── AAPL_2024_02.parquet
-    │   │   │   └── .AAPL_2024_02.metadata.json
+    ├── A/
+    │   ├── AAPL/
+    │   │   ├── 2024/
+    │   │   │   ├── 01/
+    │   │   │   │   ├── AAPL_2024_01.parquet
+    │   │   │   │   └── .AAPL_2024_01.metadata.json
+    │   │   │   ├── 02/
+    │   │   │   │   ├── AAPL_2024_02.parquet
+    │   │   │   │   └── .AAPL_2024_02.metadata.json
     """
     
     def __init__(
@@ -131,8 +132,9 @@ class FileBasedMinuteManager:
         logger.info(f"FileBasedMinuteManager initialized at {self.base_path}")
     
     def _get_monthly_file_path(self, symbol: str, year: int, month: int) -> Path:
-        """Get path for monthly data file."""
-        symbol_dir = self.base_path / symbol / str(year) / f"{month:02d}"
+        """Get path for monthly data file with first letter organization."""
+        first_letter = symbol[0].upper()
+        symbol_dir = self.base_path / first_letter / symbol / str(year) / f"{month:02d}"
         symbol_dir.mkdir(parents=True, exist_ok=True)
         return symbol_dir / f"{symbol}_{year}_{month:02d}.parquet"
     
@@ -735,7 +737,8 @@ class FileBasedMinuteManager:
         
         # Get files to verify
         if symbol:
-            search_pattern = self.base_path / symbol / "**" / "*.parquet"
+            first_letter = symbol[0].upper()
+            search_pattern = self.base_path / first_letter / symbol / "**" / "*.parquet"
         else:
             search_pattern = self.base_path / "**" / "*.parquet"
         
