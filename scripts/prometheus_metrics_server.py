@@ -36,6 +36,8 @@ import aiohttp
 from aiohttp import web
 import time
 import signal
+import shutil
+import psutil
 # import holidays  # Not available in container - use simple weekend check
 
 # Add src to path for imports
@@ -120,11 +122,61 @@ class PrometheusMetricsServer:
         # Skip US holidays
         return check_date not in self.us_holidays
         
+    def collect_system_metrics(self) -> List[str]:
+        """Collect system metrics including disk usage."""
+        metrics = []
+        
+        try:
+            # Disk usage metrics
+            disk_usage = shutil.disk_usage('/')
+            total_bytes = disk_usage.total
+            free_bytes = disk_usage.free
+            used_bytes = total_bytes - free_bytes
+            usage_percent = (used_bytes / total_bytes) * 100 if total_bytes > 0 else 0
+            
+            metrics.extend([
+                "# HELP ats_filesystem_size_bytes Total filesystem size in bytes",
+                "# TYPE ats_filesystem_size_bytes gauge",
+                f'ats_filesystem_size_bytes{{mountpoint="/"}} {total_bytes}',
+                "# HELP ats_filesystem_free_bytes Free filesystem space in bytes", 
+                "# TYPE ats_filesystem_free_bytes gauge",
+                f'ats_filesystem_free_bytes{{mountpoint="/"}} {free_bytes}',
+                "# HELP ats_filesystem_used_bytes Used filesystem space in bytes",
+                "# TYPE ats_filesystem_used_bytes gauge", 
+                f'ats_filesystem_used_bytes{{mountpoint="/"}} {used_bytes}',
+                "# HELP ats_filesystem_usage_percent Filesystem usage percentage",
+                "# TYPE ats_filesystem_usage_percent gauge",
+                f'ats_filesystem_usage_percent{{mountpoint="/"}} {usage_percent:.2f}'
+            ])
+            
+            # Memory metrics
+            memory = psutil.virtual_memory()
+            metrics.extend([
+                "# HELP ats_memory_total_bytes Total system memory in bytes",
+                "# TYPE ats_memory_total_bytes gauge",
+                f'ats_memory_total_bytes {memory.total}',
+                "# HELP ats_memory_used_bytes Used system memory in bytes",
+                "# TYPE ats_memory_used_bytes gauge", 
+                f'ats_memory_used_bytes {memory.used}',
+                "# HELP ats_memory_usage_percent Memory usage percentage",
+                "# TYPE ats_memory_usage_percent gauge",
+                f'ats_memory_usage_percent {memory.percent}'
+            ])
+            
+        except Exception as e:
+            logger.error(f"Error collecting system metrics: {e}")
+            
+        return metrics
+
     async def collect_metrics(self) -> str:
         """Collect current metrics from database and format for Prometheus."""
         try:
             metrics_lines = []
             timestamp = int(datetime.now().timestamp())
+            
+            # Add system metrics (disk, memory)
+            metrics_lines.extend(self.collect_system_metrics())
+            metrics_lines.append("")  # Empty line separator
             
             # Include API status tracking metrics
             try:
