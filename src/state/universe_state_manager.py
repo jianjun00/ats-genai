@@ -120,133 +120,160 @@ class UniverseStateManager:
               on the aggregated OHLCV data
             - If market_data_manager is not available, falls back to cached universe state data
         """
+        # Type validation for all parameters
+        if not isinstance(instrument_id, int) or instrument_id <= 0:
+            raise ValueError(f"instrument_id must be a positive integer, got {instrument_id} (type: {type(instrument_id)})")
+        
+        if not isinstance(lag_days, int) or lag_days <= 0:
+            raise ValueError(f"lag_days must be a positive integer, got {lag_days} (type: {type(lag_days)})")
+        
+        if not isinstance(time_interval, str) or not time_interval.strip():
+            raise ValueError(f"time_interval must be a non-empty string, got {time_interval} (type: {type(time_interval)})")
+        
+        # Validate time_interval parameter
+        valid_intervals = {'1m', '5m', '15m', '1h', '1d', '1w'}
+        if time_interval not in valid_intervals:
+            raise ValueError(f"Invalid time_interval '{time_interval}'. Must be one of: {sorted(valid_intervals)}")
+        
+        # Assert that market_data_manager is available
+        assert hasattr(self, 'market_data_manager') and self.market_data_manager, (
+            "market_data_manager is required for get_lag_prices() but is not available. "
+            "Ensure UniverseStateManager is initialized with a market_data_manager instance."
+        )
+        
+        # Type validation for cur_date
+        if not hasattr(cur_date, 'date') and not hasattr(cur_date, 'year'):
+            raise ValueError(f"cur_date must be a datetime or date object, got {type(cur_date)}")
+        
         # Normalize cur_date to a date to avoid datetime vs date comparison issues
-        try:
-            from datetime import datetime as _dt
-            if isinstance(cur_date, _dt):
-                cur_date = cur_date.date()
-        except Exception:
-            pass
+        if hasattr(cur_date, 'date'):
+            cur_date = cur_date.date()
         
         # Use market_data_manager to get data for specified time interval
-        if hasattr(self, 'market_data_manager') and self.market_data_manager:
-            try:
-                # Get aggregated data from market_data_manager for the specified interval
-                df = self.market_data_manager.get_ohlcv_data(
-                    instrument_id=instrument_id,
-                    end_date=cur_date,
-                    periods=lag_days,
-                    time_interval=time_interval
-                )
-                if not df.empty:
-                    try:
-                        self.logger.debug(f"[get_lag_prices] market_data_manager: instrument_id={instrument_id} cur_date={cur_date} lag_days={lag_days} interval={time_interval} df.shape={df.shape}")
-                    except Exception:
-                        pass
-                    return df
-            except Exception as e:
+        try:
+            # Get aggregated data from market_data_manager for the specified interval
+            df = self.market_data_manager.get_ohlcv_data(
+                instrument_id=instrument_id,
+                end_date=cur_date,
+                periods=lag_days,
+                time_interval=time_interval
+            )
+            if not df.empty:
                 try:
-                    self.logger.debug(f"[get_lag_prices] market_data_manager failed: {e}, falling back to cached data")
+                    self.logger.debug(f"[get_lag_prices] market_data_manager: instrument_id={instrument_id} cur_date={cur_date} lag_days={lag_days} interval={time_interval} df.shape={df.shape}")
                 except Exception:
                     pass
+                return df
+        except Exception as e:
+            try:
+                self.logger.error(f"[get_lag_prices] market_data_manager failed: {e}")
+            except Exception:
+                pass
+            raise IOError(f"Failed to get lag prices from market_data_manager: {e}")
         
-        # Fallback to existing cached data approach
-        df = self._get_instrument_history(instrument_id)
-        try:
-            self.logger.debug(f"[get_lag_prices] fallback cache: instrument_id={instrument_id} cur_date={cur_date} lag_days={lag_days} interval={time_interval} df.shape={df.shape} cols={list(df.columns)}")
-        except Exception:
-            pass
-        # Determine date column
-        date_series = None
-        if 'date' in df.columns:
-            try:
-                date_series = pd.to_datetime(df['date']).dt.date
-            except Exception:
-                date_series = df['date']
-        elif 'as_of_date' in df.columns:
-            try:
-                date_series = pd.to_datetime(df['as_of_date']).dt.date
-            except Exception:
-                pass
-        elif 'as_of_datetime' in df.columns:
-            try:
-                date_series = pd.to_datetime(df['as_of_datetime']).dt.date
-            except Exception:
-                pass
-        elif 'start_date_time' in df.columns:
-            try:
-                date_series = pd.to_datetime(df['start_date_time']).dt.date
-            except Exception:
-                pass
-        if date_series is None:
-            raise KeyError("No date/as_of_date column found in universe state data")
-        mask = (date_series < cur_date)
-        lag_df = df[mask].copy()
-        # Ensure __date__ is sortable datetime
-        lag_df['__date__'] = pd.to_datetime(date_series[mask])
-        lag_df = lag_df.sort_values('__date__').tail(lag_days)
-        # Derive 'close' from 'close_price' if needed
-        if 'close' not in lag_df.columns and 'close_price' in lag_df.columns:
-            lag_df = lag_df.copy()
-            lag_df['close'] = lag_df['close_price']
-        features = ['open', 'high', 'low', 'close', 'etop', 'ebot', 'pldot']
-        existing = [c for c in features if c in lag_df.columns]
-        out_df = lag_df[existing].reset_index(drop=True)
-        try:
-            self.logger.debug(f"[get_lag_prices] after mask/sort: lag_df.shape={lag_df.shape} existing_features={existing} out_df.shape={out_df.shape}")
-            if out_df.empty:
-                self.logger.warning(
-                    f"[get_lag_prices] No lag data rows for instrument_id={instrument_id} before {cur_date}. Available dates range: "
-                    f"{lag_df['__date__'].min() if '__date__' in lag_df.columns and not lag_df.empty else None} - "
-                    f"{lag_df['__date__'].max() if '__date__' in lag_df.columns and not lag_df.empty else None}"
-                )
-        except Exception:
-            pass
-        return out_df
+        # If we reach here, market_data_manager returned empty data
+        # Return empty DataFrame with expected columns
+        return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume', 'etop', 'ebot', 'pldot'])
 
-    def get_lead_prices(self, instrument_id: int, cur_date, lead_days: int) -> pd.DataFrame:
+    def get_lead_prices(self, instrument_id: int, cur_date, lead_days: int, time_interval: str = '1d') -> pd.DataFrame:
         """
         Return a DataFrame of lead prices for the next lead_days strictly after cur_date.
-        The test expectations are specifically for ['high','low'] columns in order.
+        
+        This method integrates with market_data_manager to provide multi-timeframe lead data aggregation:
+        - Uses 1-minute bars as the base data source
+        - Aggregates into the specified time interval using market_data_manager
+        - Returns consistent OHLCV data like get_lag_prices()
+        
+        Args:
+            instrument_id: The instrument ID to retrieve data for
+            cur_date: Current date reference point (exclusive lower bound)
+            lead_days: Number of periods to look forward. The meaning depends on time_interval:
+                      - For '5m': number of 5-minute periods
+                      - For '15m': number of 15-minute periods  
+                      - For '1h': number of hourly periods
+                      - For '1d': number of daily periods
+                      - For '1w': number of weekly periods
+            time_interval: Time interval for aggregation. Supported values:
+                          - '1m': 1-minute bars (raw data)
+                          - '5m': 5-minute aggregated OHLCV
+                          - '15m': 15-minute aggregated OHLCV
+                          - '1h': 1-hour aggregated OHLCV
+                          - '1d': Daily aggregated OHLCV (default)
+                          - '1w': Weekly aggregated OHLCV
+        
+        Returns:
+            DataFrame with columns:
+            - OHLCV data: ['open', 'high', 'low', 'close', 'volume'] (if available)
+            - Technical indicators: ['etop', 'ebot', 'pldot'] (if computed by universe state builder)
+            - Date columns: varies by data source ('date', 'as_of_date', etc.)
+            
+            Returns empty DataFrame if no data is available for the specified criteria.
+        
+        Notes:
+            - market_data_manager aggregation preserves OHLCV semantics:
+              * open: first minute's open in the interval
+              * high: highest high in the interval
+              * low: lowest low in the interval  
+              * close: last minute's close in the interval
+              * volume: sum of volume in the interval
+            - Technical indicators (etop, ebot, pldot) are computed by universe state builder
+              on the aggregated OHLCV data
         """
+        # Type validation for all parameters
+        if not isinstance(instrument_id, int) or instrument_id <= 0:
+            raise ValueError(f"instrument_id must be a positive integer, got {instrument_id} (type: {type(instrument_id)})")
+        
+        if not isinstance(lead_days, int) or lead_days <= 0:
+            raise ValueError(f"lead_days must be a positive integer, got {lead_days} (type: {type(lead_days)})")
+        
+        if not isinstance(time_interval, str) or not time_interval.strip():
+            raise ValueError(f"time_interval must be a non-empty string, got {time_interval} (type: {type(time_interval)})")
+        
+        # Validate time_interval parameter
+        valid_intervals = {'1m', '5m', '15m', '1h', '1d', '1w'}
+        if time_interval not in valid_intervals:
+            raise ValueError(f"Invalid time_interval '{time_interval}'. Must be one of: {sorted(valid_intervals)}")
+        
+        # Assert that market_data_manager is available
+        assert hasattr(self, 'market_data_manager') and self.market_data_manager, (
+            "market_data_manager is required for get_lead_prices() but is not available. "
+            "Ensure UniverseStateManager is initialized with a market_data_manager instance."
+        )
+        
+        # Type validation for cur_date
+        if not hasattr(cur_date, 'date') and not hasattr(cur_date, 'year'):
+            raise ValueError(f"cur_date must be a datetime or date object, got {type(cur_date)}")
+        
         # Normalize cur_date to a date to avoid datetime vs date comparison issues
+        if hasattr(cur_date, 'date'):
+            cur_date = cur_date.date()
+        
+        # Use market_data_manager to get lead data for specified time interval
         try:
-            from datetime import datetime as _dt
-            if isinstance(cur_date, _dt):
-                cur_date = cur_date.date()
-        except Exception:
-            pass
-        df = self._get_instrument_history(instrument_id)
-        if df.empty:
-            return pd.DataFrame(columns=['high', 'low'])
-        tmp = df.copy()
-        if 'date' not in tmp.columns:
-            if 'as_of_date' in tmp.columns:
-                tmp['date'] = pd.to_datetime(tmp['as_of_date']).dt.date
-            elif 'as_of_datetime' in tmp.columns:
-                tmp['date'] = pd.to_datetime(tmp['as_of_datetime']).dt.date
-            elif 'start_date_time' in tmp.columns:
-                tmp['date'] = pd.to_datetime(tmp['start_date_time']).dt.date
-        # Normalize any existing 'date' column to naive date objects to avoid dtype comparison issues
-        if 'date' in tmp.columns:
+            # Get aggregated lead data from market_data_manager for the specified interval
+            df = self.market_data_manager.get_ohlcv_data(
+                instrument_id=instrument_id,
+                start_date=cur_date,  # For lead prices, we want data AFTER cur_date
+                periods=lead_days,
+                time_interval=time_interval,
+                direction='forward'  # Lead prices look forward
+            )
+            if not df.empty:
+                try:
+                    self.logger.debug(f"[get_lead_prices] market_data_manager: instrument_id={instrument_id} cur_date={cur_date} lead_days={lead_days} interval={time_interval} df.shape={df.shape}")
+                except Exception:
+                    pass
+                return df
+        except Exception as e:
             try:
-                tmp['date'] = pd.to_datetime(tmp['date']).dt.date
+                self.logger.error(f"[get_lead_prices] market_data_manager failed: {e}")
             except Exception:
                 pass
-        if 'date' not in tmp.columns:
-            return pd.DataFrame(columns=['high', 'low'])
-        lead_df = tmp[tmp['date'] > cur_date]
-        if '__date__' not in lead_df.columns:
-            lead_df = lead_df.assign(__date__=lead_df['date'])
-        lead_df = lead_df.sort_values('__date__').head(lead_days)
-        # Only return high, low to satisfy unit tests
-        cols = [c for c in ['high', 'low'] if c in lead_df.columns]
-        out = lead_df[cols].reset_index(drop=True)
-        try:
-            self.logger.debug(f"[get_lead_prices] lead_df.shape={lead_df.shape} out.shape={out.shape}")
-        except Exception:
-            pass
-        return out
+            raise IOError(f"Failed to get lead prices from market_data_manager: {e}")
+        
+        # If we reach here, market_data_manager returned empty data
+        # Return empty DataFrame with expected columns
+        return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume', 'etop', 'ebot', 'pldot'])
 
     
 
@@ -828,6 +855,9 @@ class UniverseStateManager:
         Returns:
             List of timestamp strings sorted by recency
         """
+        # Type validation
+        if limit is not None and (not isinstance(limit, int) or limit <= 0):
+            raise ValueError(f"limit must be a positive integer or None, got {limit} (type: {type(limit)})")
         parquet_files = list(self.states_dir.glob("universe_state_*.parquet"))
         timestamps = []
         
@@ -854,6 +884,9 @@ class UniverseStateManager:
         Returns:
             Number of files removed
         """
+        # Type validation
+        if not isinstance(keep_days, int) or keep_days <= 0:
+            raise ValueError(f"keep_days must be a positive integer, got {keep_days} (type: {type(keep_days)})")
         cutoff_date = datetime.now() - timedelta(days=keep_days)
         cutoff_timestamp = cutoff_date.strftime("%Y%m%d_000000")
         
@@ -900,6 +933,9 @@ class UniverseStateManager:
         Raises:
             FileNotFoundError: If metadata file doesn't exist
         """
+        # Type validation
+        if not isinstance(timestamp, str) or not timestamp.strip():
+            raise ValueError(f"timestamp must be a non-empty string, got {timestamp} (type: {type(timestamp)})")
         # Check cache first
         if timestamp in self._cache_metadata:
             return self._cache_metadata[timestamp]
