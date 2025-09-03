@@ -2,6 +2,44 @@
 
 This file provides focused guidance to Claude Code when working with the ATS fintech platform.
 
+## 🚨 **CRITICAL DEVELOPMENT PRINCIPLES** ⚡
+
+### **🚫 NO MOCK/SYNTHETIC DATA IN NON-TEST CODE**
+- **❌ NEVER use mock data, fake data, synthetic data, demo data** outside of unit tests
+- **❌ NEVER create fallbacks to demo data** when real data is unavailable  
+- **❌ NEVER return 200 OK with fake data** when database queries fail
+- **✅ Demo data ONLY in unit tests** - isolated, controlled test scenarios
+- **✅ Fail fast and clearly** when real data/database is unavailable
+- **✅ Show actual errors** - connection failures, missing data, schema problems
+
+**Why Mock Data Is Dangerous:**
+- Hides database connection problems and query failures
+- Masks data quality issues, missing values, and real-world edge cases
+- Creates false performance metrics (demo data is always fast and perfect)
+- Prevents detection of authentication, permission, and network issues
+- Results in production surprises when real data behaves differently
+
+### **🔄 ENHANCE EXISTING BEFORE CREATING NEW**
+- **❌ NEVER create new files** without checking if existing files can be enhanced
+- **❌ NEVER create new services** without checking if existing services can be extended
+- **❌ NEVER add new containers/ports** without checking if existing infrastructure can handle it
+- **✅ ALWAYS enhance existing services** - add features to current code
+- **✅ ALWAYS reuse existing ports/endpoints** - extend current APIs
+- **✅ ALWAYS consolidate functionality** - reduce complexity, don't add it
+
+**Example: Recent Monitoring Enhancement**
+```
+❌ WRONG: Create new node-exporter service + new port 9100
+✅ CORRECT: Add system metrics to existing ats-intg-prometheus-metrics:8080
+```
+
+### **📁 MODIFY EXISTING FILES FIRST**
+- **❌ NEVER create new scripts** when existing scripts can be modified
+- **❌ NEVER duplicate functionality** in new files
+- **✅ ALWAYS extend existing files** - add methods, enhance classes
+- **✅ ALWAYS look for similar functionality** before writing new code
+- **✅ ALWAYS refactor and consolidate** - remove duplication
+
 ## 🚨 CRITICAL: Be concise about code
 
 **ALWAYS read docs and code about current infra to find best way to reuse existing code:**
@@ -246,6 +284,8 @@ python scripts/run_dev.py logs --service analytics
 - ❌ Installing packages manually in containers
 - ❌ Running services without using run_dev
 - ❌ Managing container lifecycle manually
+- ❌ **Creating new services/ports when existing ones can be enhanced**
+- ❌ **Adding new containers when existing infrastructure can handle the requirement**
 
 **Development:**
 - ❌ Claiming functionality works without tests
@@ -253,6 +293,25 @@ python scripts/run_dev.py logs --service analytics
 - ❌ Skipping integration tests (they're mandatory)
 - ❌ Not testing actual service startup with run_dev
 - ❌ Half-baked implementations (incomplete end-to-end)
+- ❌ **Using mock/synthetic data outside of unit tests**
+- ❌ **Creating new files when existing files can be enhanced**
+
+**Example: Recent Monitoring Enhancement (2025-09-03)**
+```
+❌ WRONG APPROACH:
+- Create new node-exporter-intg container
+- Add new port 9100 for system metrics
+- Add new Prometheus scrape target
+- Increase infrastructure complexity
+
+✅ CORRECT APPROACH:
+- Enhance existing ats-intg-prometheus-metrics service
+- Add system metrics to existing port 8080
+- Reuse existing Prometheus scrape job
+- Consolidate monitoring into existing infrastructure
+
+Result: Same functionality, zero new services, reduced complexity
+```
 
 ## 🎯 Success Criteria
 
@@ -265,6 +324,10 @@ python scripts/run_dev.py logs --service analytics
 - [ ] Completing full end-to-end validation
 - [ ] Reusing existing Docker/service patterns
 - [ ] Using GPU support when needed for ML workloads
+- [ ] **Enhancing existing services instead of creating new ones**
+- [ ] **Using real data only - no mock/synthetic data outside tests**
+- [ ] **Modifying existing files instead of creating new files**
+- [ ] **Consolidating functionality to reduce infrastructure complexity**
 
 ## 🆘 Getting Help
 
@@ -605,21 +668,9 @@ pre-commit run schema-anti-patterns
 
 ## 🚨 **CRITICAL: NO DEMO DATA IN DEVELOPMENT ENVIRONMENTS**
 
+**⬆️ See [CRITICAL DEVELOPMENT PRINCIPLES](#-critical-development-principles-) section above for complete guidelines**
+
 **DEMO DATA HIDES REAL ISSUES AND CREATES FALSE CONFIDENCE**
-
-- ❌ **NEVER use demo/mock data** in development, staging, or production environments
-- ❌ **NEVER create fallbacks to demo data** when real data is unavailable
-- ❌ **NEVER return 200 OK with fake data** when database queries fail
-- ✅ **Demo data ONLY in unit tests** - isolated, controlled test scenarios
-- ✅ **Fail fast and clearly** when real data/database is unavailable
-- ✅ **Show actual errors** - connection failures, missing data, schema problems
-
-**Why Demo Data Is Dangerous:**
-- Hides database connection problems and query failures
-- Masks data quality issues, missing values, and real-world edge cases
-- Creates false performance metrics (demo data is always fast and perfect)
-- Prevents detection of authentication, permission, and network issues
-- Results in production surprises when real data behaves differently
 
 **Correct Error Handling:**
 ```python
