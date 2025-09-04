@@ -97,7 +97,123 @@ tail -50 /mnt/d/ats-logs/minute-bars-backfill.log  # Recent processing activity
 
 ---
 
-## 📊 **Monitoring & Health Checks**
+## 📊 **Real-Time Minute Bar Collection Monitoring**
+
+### **🎯 Primary Dashboard: Grafana**
+```bash
+🌐 URL: http://localhost:4002/d/f9afe708-9be9-4c39-b901-f5c43a0a479f/ats-vendor-monitoring-dashboard-fixed
+📊 Login: admin/admin (change on first login)
+🔧 Data Source: PostgreSQL queries + Prometheus metrics
+```
+
+**Minute Bar Metrics Available:**
+- **Real-time Collection Rate**: Live minute bar collection per vendor/symbol
+- **Processing Stats**: Records processed, success rates, error counts
+- **File Organization**: Daily parquet file creation and organization
+- **Storage Metrics**: File sizes, record counts by instrument type
+
+### **📈 Prometheus Metrics Endpoints**
+```bash
+# Main metrics server (feeds Grafana)
+curl -s http://localhost:4080/metrics | grep "ats_daily_minute"
+
+# Key minute bar metrics:
+ats_daily_minute_backfill_instruments_processed    # Number of instruments processed
+ats_daily_minute_backfill_total_minute_bars         # Total minute bars processed
+ats_daily_minute_backfill_symbols_by_type{type="stock"}     # Stock symbols processed
+ats_daily_minute_backfill_symbols_by_type{type="etf"}       # ETF symbols processed
+ats_daily_minute_backfill_symbols_by_letter{letter="A"}     # Symbols by first letter
+
+# Health check endpoint
+curl -f http://localhost:4080/health
+```
+
+### **🔧 Manual Monitoring Commands**
+```bash
+# Check today's processed minute bar files
+find /mnt/d/ats-data/firstrate-data/daily/$(date +%Y/%m/%d)/ -name "*.parquet" | wc -l
+
+# List key symbols processed today
+ls -la /mnt/d/ats-data/firstrate-data/daily/$(date +%Y/%m/%d)/*/{AAPL,TSLA,SPY,QQQ,MSFT}_*.parquet
+
+# Check file sizes and record counts
+PYTHONPATH=src uv run python -c "
+import pandas as pd
+import glob
+import os
+from datetime import date
+
+today_files = glob.glob(f'/mnt/d/ats-data/firstrate-data/daily/{date.today().strftime(\"%Y/%m/%d\")}/*/*.parquet')
+total_records = 0
+for file_path in today_files[:5]:  # Check first 5 files
+    if os.path.exists(file_path):
+        df = pd.read_parquet(file_path)
+        symbol = os.path.basename(file_path).split('_')[0]
+        print(f'✅ {symbol}: {len(df):,} records ({os.path.getsize(file_path):,} bytes)')
+        total_records += len(df)
+print(f'📊 Sample total: {total_records:,} minute bars')
+"
+
+# Check FirstRate source data
+ls -la /mnt/d/ats-data/firstrate-data/daily/stock/stock_$(date +%Y%m%d)_*.zip
+ls -la /mnt/d/ats-data/firstrate-data/daily/etf/etf_$(date +%Y%m%d)_*.zip
+```
+
+### **🚨 Troubleshooting Minute Bar Collection**
+```bash
+# Restart minute bar collection system
+./scripts/restart_minute_bar_collection.sh
+
+# Fix Grafana dashboard if showing no data (adds working panels)
+python3 scripts/fix_grafana_minute_bar_dashboard.py
+
+# Check collection logs
+tail -50 /mnt/d/ats-logs/minute-bar-restart.log
+
+# Verify FirstRate downloads
+find /mnt/d/ats-data/firstrate-data/daily/ -name "*.zip" -mtime -1
+
+# Test processing manually (key symbols only)
+cd /home/jianjun/ats-genai-model
+PYTHONPATH=src uv run python -c "
+import zipfile, pandas as pd, os
+from pathlib import Path
+zip_path = '/mnt/d/ats-data/firstrate-data/daily/stock/stock_$(date +%Y%m%d)_1min_adj_split.zip'
+if os.path.exists(zip_path):
+    with zipfile.ZipFile(zip_path) as zf:
+        for f in zf.namelist():
+            if 'AAPL' in f.upper():
+                print(f'✅ Found AAPL data: {f}')
+                break
+else:
+    print(f'❌ No zip file: {zip_path}')
+"
+```
+
+### **📋 Database Tables for Direct Queries**
+```bash
+# Connect to ATS-INTG database
+PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db
+
+# Check live minute bar data (WORKING DATA TABLES)
+SELECT vendor, symbol, COUNT(*) as records, MAX(timestamp) as latest_data 
+FROM (
+  SELECT vendor, symbol, timestamp FROM intg_one_minute_live_polygon 
+  UNION ALL 
+  SELECT vendor, symbol, timestamp FROM intg_one_minute_live_tiingo
+) combined GROUP BY vendor, symbol ORDER BY latest_data DESC;
+
+# Check API call status for minute bar collection
+SELECT vendor, status_code, COUNT(*) as calls, AVG(response_time_ms)::int as avg_ms
+FROM intg_api_calls 
+WHERE endpoint LIKE '%minute%' OR endpoint LIKE '%intraday%'
+GROUP BY vendor, status_code 
+ORDER BY vendor, calls DESC;
+```
+
+---
+
+## 📊 **General Monitoring & Health Checks**
 
 ### **Service Health Checks**
 ```bash

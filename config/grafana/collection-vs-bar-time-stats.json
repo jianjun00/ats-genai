@@ -1,0 +1,53 @@
+{
+  "id": 12,
+  "title": "Collection Time vs Bar Time Statistics",
+  "type": "stat",
+  "targets": [
+    {
+      "datasource": "ATS-INTG-PostgreSQL",
+      "rawSql": "SELECT \n  'Avg Collection Delay (min)' as metric,\n  ROUND(AVG(EXTRACT(EPOCH FROM (received_at - timestamp))/60), 2) as value\nFROM (\n  SELECT received_at, timestamp FROM intg_one_minute_live_polygon WHERE received_at >= NOW() - INTERVAL '24 hours'\n  UNION ALL\n  SELECT received_at, timestamp FROM intg_one_minute_live_tiingo WHERE received_at >= NOW() - INTERVAL '24 hours'\n) combined\nUNION ALL\nSELECT \n  'Max Collection Delay (min)' as metric,\n  ROUND(MAX(EXTRACT(EPOCH FROM (received_at - timestamp))/60), 2) as value\nFROM (\n  SELECT received_at, timestamp FROM intg_one_minute_live_polygon WHERE received_at >= NOW() - INTERVAL '24 hours'\n  UNION ALL\n  SELECT received_at, timestamp FROM intg_one_minute_live_tiingo WHERE received_at >= NOW() - INTERVAL '24 hours'\n) combined\nUNION ALL\nSELECT\n  'Bars Collected On Time (<5min)' as metric,\n  COUNT(*) FILTER (WHERE EXTRACT(EPOCH FROM (received_at - timestamp))/60 < 5) * 100.0 / COUNT(*) as value\nFROM (\n  SELECT received_at, timestamp FROM intg_one_minute_live_polygon WHERE received_at >= NOW() - INTERVAL '24 hours'\n  UNION ALL\n  SELECT received_at, timestamp FROM intg_one_minute_live_tiingo WHERE received_at >= NOW() - INTERVAL '24 hours'\n) combined\nUNION ALL\nSELECT\n  'Latest Bar Time' as metric,\n  EXTRACT(EPOCH FROM (NOW() - MAX(timestamp)))/60 as value\nFROM (\n  SELECT timestamp FROM intg_one_minute_live_polygon\n  UNION ALL\n  SELECT timestamp FROM intg_one_minute_live_tiingo\n) combined\nUNION ALL\nSELECT\n  'Latest Collection Time' as metric,\n  EXTRACT(EPOCH FROM (NOW() - MAX(received_at)))/60 as value\nFROM (\n  SELECT received_at FROM intg_one_minute_live_polygon\n  UNION ALL\n  SELECT received_at FROM intg_one_minute_live_tiingo\n) combined",
+      "format": "table"
+    }
+  ],
+  "fieldConfig": {
+    "defaults": {
+      "color": {
+        "mode": "thresholds"
+      },
+      "unit": "short",
+      "thresholds": {
+        "mode": "absolute",
+        "steps": [
+          {"color": "green", "value": 0},
+          {"color": "yellow", "value": 10},
+          {"color": "red", "value": 30}
+        ]
+      }
+    },
+    "overrides": [
+      {
+        "matcher": {"id": "byName", "options": "Bars Collected On Time (<5min)"},
+        "properties": [
+          {"id": "unit", "value": "percent"},
+          {"id": "max", "value": 100},
+          {"id": "min", "value": 0}
+        ]
+      },
+      {
+        "matcher": {"id": "byRegex", "options": ".*Delay.*|.*Time.*"},
+        "properties": [
+          {"id": "unit", "value": "min"}
+        ]
+      }
+    ]
+  },
+  "gridPos": {"h": 4, "w": 24, "x": 0, "y": 60},
+  "options": {
+    "reduceOptions": {
+      "calcs": ["lastNotNull"]
+    },
+    "orientation": "horizontal",
+    "textMode": "value_and_name",
+    "colorMode": "background"
+  }
+}

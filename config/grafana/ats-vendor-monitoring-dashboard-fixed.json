@@ -1,0 +1,213 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "ATS Vendor Monitoring Dashboard (Fixed)",
+    "tags": ["ats", "monitoring", "vendors", "minute-bars", "api"],
+    "timezone": "utc",
+    "panels": [
+      {
+        "id": 1,
+        "title": "API Success Rate by Vendor (24h)",
+        "type": "stat",
+        "targets": [
+          {
+            "datasource": "ATS-INTG-PostgreSQL",
+            "rawSql": "SELECT \n  vendor as \"Vendor\",\n  COUNT(*) FILTER (WHERE status_code BETWEEN 200 AND 299) * 100.0 / COUNT(*) as \"Success Rate\"\nFROM intg_api_calls \nWHERE request_timestamp >= NOW() - INTERVAL '24 hours'\nGROUP BY vendor\nORDER BY vendor",
+            "format": "table"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 85},
+                {"color": "green", "value": 95}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "API Response Time by Vendor (24h)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "datasource": "ATS-INTG-PostgreSQL",
+            "rawSql": "SELECT \n  date_trunc('hour', request_timestamp) as \"time\",\n  vendor,\n  AVG(response_time_ms) as \"avg_response_time\"\nFROM intg_api_calls \nWHERE request_timestamp >= NOW() - INTERVAL '24 hours'\nGROUP BY date_trunc('hour', request_timestamp), vendor\nORDER BY 1,2",
+            "format": "time_series"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "unit": "ms"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Minute Bar Records Collected by Vendor",
+        "type": "timeseries",
+        "targets": [
+          {
+            "datasource": "ATS-INTG-PostgreSQL",
+            "rawSql": "SELECT \n  date_trunc('hour', collection_timestamp) as \"time\",\n  vendor || ' ' || symbol as \"vendor_symbol\",\n  SUM(records_collected) as \"total_records\"\nFROM intg_minute_bar_collection_metrics \nWHERE collection_timestamp >= NOW() - INTERVAL '24 hours'\nGROUP BY date_trunc('hour', collection_timestamp), vendor, symbol\nORDER BY 1,2",
+            "format": "time_series"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Collection Success Rate by Vendor",
+        "type": "gauge",
+        "targets": [
+          {
+            "datasource": "ATS-INTG-PostgreSQL",
+            "rawSql": "SELECT \n  vendor || ' ' || symbol as \"Vendor Symbol\",\n  COUNT(*) FILTER (WHERE collection_success = true) * 100.0 / COUNT(*) as \"Success Rate\"\nFROM intg_minute_bar_collection_metrics \nWHERE collection_timestamp >= NOW() - INTERVAL '24 hours'\nGROUP BY vendor, symbol\nORDER BY vendor, symbol",
+            "format": "table"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 90},
+                {"color": "green", "value": 98}
+              ]
+            },
+            "min": 0,
+            "max": 100,
+            "unit": "percent"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "id": 5,
+        "title": "API Status Code Distribution",
+        "type": "piechart",
+        "targets": [
+          {
+            "datasource": "ATS-INTG-PostgreSQL",
+            "rawSql": "SELECT \n  status_code || ' (' || vendor || ')' as \"Status Code\",\n  COUNT(*) as \"Call Count\"\nFROM intg_api_calls \nWHERE request_timestamp >= NOW() - INTERVAL '24 hours'\nGROUP BY status_code, vendor\nORDER BY COUNT(*) DESC",
+            "format": "table"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "id": 6,
+        "title": "Recent API Errors (Last 4 Hours)",
+        "type": "table",
+        "targets": [
+          {
+            "datasource": "ATS-INTG-PostgreSQL",
+            "rawSql": "SELECT \n  request_timestamp as \"Time\",\n  vendor as \"Vendor\",\n  endpoint as \"Endpoint\",\n  status_code as \"Status\",\n  response_time_ms as \"Response Time (ms)\",\n  error_message as \"Error Message\"\nFROM intg_api_calls \nWHERE request_timestamp >= NOW() - INTERVAL '4 hours'\n  AND status_code >= 400\nORDER BY request_timestamp DESC\nLIMIT 20",
+            "format": "table"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 24}
+      },
+      {
+        "id": 7,
+        "title": "Real-time Data Freshness",
+        "type": "stat",
+        "targets": [
+          {
+            "datasource": "ATS-INTG-PostgreSQL",
+            "rawSql": "SELECT \n  'Tiingo ' || symbol as \"Data Source\",\n  EXTRACT(EPOCH FROM (NOW() - MAX(timestamp)))/60 as \"Minutes Behind\"\nFROM intg_one_minute_live_tiingo\nWHERE timestamp >= NOW() - INTERVAL '1 hour'\nGROUP BY symbol\nUNION ALL\nSELECT \n  'Polygon ' || symbol as \"Data Source\",\n  EXTRACT(EPOCH FROM (NOW() - MAX(timestamp)))/60 as \"Minutes Behind\"\nFROM intg_one_minute_live_polygon\nWHERE timestamp >= NOW() - INTERVAL '1 hour'\nGROUP BY symbol\nORDER BY \"Minutes Behind\"",
+            "format": "table"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 5},
+                {"color": "red", "value": 15}
+              ]
+            },
+            "unit": "min"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 32}
+      },
+      {
+        "id": 8,
+        "title": "Minute Bar Collection Rate (Hourly)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "datasource": "ATS-INTG-PostgreSQL",
+            "rawSql": "SELECT \n  date_trunc('hour', collection_timestamp) as \"time\",\n  vendor || ' ' || symbol as \"vendor_symbol\",\n  COUNT(*) as \"collection_events\",\n  SUM(records_collected) as \"total_records\"\nFROM intg_minute_bar_collection_metrics \nWHERE collection_timestamp >= NOW() - INTERVAL '24 hours'\nGROUP BY date_trunc('hour', collection_timestamp), vendor, symbol\nORDER BY 1,2",
+            "format": "time_series"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "unit": "short",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "fillOpacity": 10
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 32}
+      }
+    ],
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "schemaVersion": 30,
+    "version": 1
+  }
+}

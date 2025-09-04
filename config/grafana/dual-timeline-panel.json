@@ -1,0 +1,60 @@
+{
+  "id": 11,
+  "title": "Bar Timeline: Market Time vs Collection Time",
+  "type": "timeseries",
+  "targets": [
+    {
+      "datasource": "ATS-INTG-PostgreSQL", 
+      "rawSql": "SELECT \n  $__time(timestamp) as time,\n  CONCAT('BAR TIME - ', vendor, ' - ', symbol) as series,\n  volume as value\nFROM intg_one_minute_live_polygon \nWHERE $__timeFilter(timestamp)\nUNION ALL\nSELECT \n  $__time(received_at) as time,\n  CONCAT('COLLECTION TIME - ', vendor, ' - ', symbol) as series,\n  volume as value\nFROM intg_one_minute_live_polygon\nWHERE $__timeFilter(received_at)\nUNION ALL\nSELECT \n  $__time(timestamp) as time,\n  CONCAT('BAR TIME - ', vendor, ' - ', symbol) as series,\n  volume as value\nFROM intg_one_minute_live_tiingo \nWHERE $__timeFilter(timestamp)\nUNION ALL\nSELECT \n  $__time(received_at) as time,\n  CONCAT('COLLECTION TIME - ', vendor, ' - ', symbol) as series,\n  volume as value\nFROM intg_one_minute_live_tiingo\nWHERE $__timeFilter(received_at)\nORDER BY 1,2",
+      "format": "time_series"
+    }
+  ],
+  "fieldConfig": {
+    "defaults": {
+      "color": {
+        "mode": "palette-classic"
+      },
+      "unit": "short",
+      "custom": {
+        "drawStyle": "line",
+        "lineInterpolation": "linear",
+        "barAlignment": 0,
+        "lineWidth": 1,
+        "fillOpacity": 5,
+        "gradientMode": "none",
+        "spanNulls": false,
+        "insertNulls": false,
+        "showPoints": "auto",
+        "pointSize": 3
+      }
+    },
+    "overrides": [
+      {
+        "matcher": {"id": "byRegex", "options": ".*BAR TIME.*"},
+        "properties": [
+          {"id": "custom.drawStyle", "value": "points"},
+          {"id": "custom.pointSize", "value": 6}
+        ]
+      },
+      {
+        "matcher": {"id": "byRegex", "options": ".*COLLECTION TIME.*"},
+        "properties": [
+          {"id": "custom.drawStyle", "value": "line"},
+          {"id": "custom.lineWidth", "value": 2}
+        ]
+      }
+    ]
+  },
+  "gridPos": {"h": 8, "w": 12, "x": 12, "y": 52},
+  "options": {
+    "tooltip": {
+      "mode": "multi",
+      "sort": "none"
+    },
+    "legend": {
+      "displayMode": "table", 
+      "placement": "bottom",
+      "values": ["min", "max", "mean"]
+    }
+  }
+}

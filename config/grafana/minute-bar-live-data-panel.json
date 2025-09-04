@@ -1,0 +1,62 @@
+{
+  "id": 8,
+  "title": "Real-Time Minute Bar Collection (Live Data)",
+  "type": "timeseries", 
+  "targets": [
+    {
+      "datasource": "ATS-INTG-PostgreSQL",
+      "rawSql": "SELECT \n  $__time(timestamp),\n  CONCAT(vendor, ' - ', symbol) as vendor_symbol,\n  volume as records_collected\nFROM intg_one_minute_live_polygon \nWHERE $__timeFilter(timestamp)\nUNION ALL\nSELECT \n  $__time(timestamp),\n  CONCAT(vendor, ' - ', symbol) as vendor_symbol,\n  volume as records_collected\nFROM intg_one_minute_live_tiingo\nWHERE $__timeFilter(timestamp)\nORDER BY 1,2",
+      "format": "time_series"
+    }
+  ],
+  "fieldConfig": {
+    "defaults": {
+      "color": {
+        "mode": "palette-classic"
+      },
+      "unit": "short",
+      "custom": {
+        "drawStyle": "line",
+        "lineInterpolation": "linear",
+        "barAlignment": 0,
+        "lineWidth": 2,
+        "fillOpacity": 10,
+        "gradientMode": "none",
+        "spanNulls": false,
+        "insertNulls": false,
+        "showPoints": "auto",
+        "pointSize": 5
+      }
+    },
+    "overrides": [
+      {
+        "matcher": {"id": "byName", "options": "polygon - AAPL"},
+        "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "blue"}}]
+      },
+      {
+        "matcher": {"id": "byName", "options": "tiingo - AAPL"}, 
+        "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "light-blue"}}]
+      },
+      {
+        "matcher": {"id": "byName", "options": "polygon - TSLA"},
+        "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}]
+      },
+      {
+        "matcher": {"id": "byName", "options": "tiingo - TSLA"},
+        "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "light-red"}}]
+      }
+    ]
+  },
+  "gridPos": {"h": 8, "w": 24, "x": 0, "y": 40},
+  "options": {
+    "tooltip": {
+      "mode": "multi",
+      "sort": "none"
+    },
+    "legend": {
+      "displayMode": "table",
+      "placement": "right",
+      "values": ["min", "max", "mean", "last"]
+    }
+  }
+}

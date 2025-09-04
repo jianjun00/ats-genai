@@ -1,0 +1,53 @@
+{
+  "id": 10,
+  "title": "Data Collection Latency (Bar Time vs Collection Time)",
+  "type": "timeseries",
+  "targets": [
+    {
+      "datasource": "ATS-INTG-PostgreSQL",
+      "rawSql": "SELECT \n  $__time(received_at) as time,\n  CONCAT(vendor, ' - ', symbol) as vendor_symbol,\n  EXTRACT(EPOCH FROM (received_at - timestamp))/60 as collection_delay_minutes\nFROM intg_one_minute_live_polygon \nWHERE $__timeFilter(received_at)\nUNION ALL\nSELECT \n  $__time(received_at) as time,\n  CONCAT(vendor, ' - ', symbol) as vendor_symbol,\n  EXTRACT(EPOCH FROM (received_at - timestamp))/60 as collection_delay_minutes\nFROM intg_one_minute_live_tiingo\nWHERE $__timeFilter(received_at)\nORDER BY 1,2",
+      "format": "time_series"
+    }
+  ],
+  "fieldConfig": {
+    "defaults": {
+      "color": {
+        "mode": "palette-classic"
+      },
+      "unit": "min",
+      "custom": {
+        "drawStyle": "line",
+        "lineInterpolation": "linear",
+        "barAlignment": 0,
+        "lineWidth": 2,
+        "fillOpacity": 10,
+        "gradientMode": "none",
+        "spanNulls": false,
+        "insertNulls": false,
+        "showPoints": "auto",
+        "pointSize": 5
+      },
+      "thresholds": {
+        "mode": "absolute",
+        "steps": [
+          {"color": "green", "value": 0},
+          {"color": "yellow", "value": 5},
+          {"color": "red", "value": 15}
+        ]
+      }
+    },
+    "overrides": []
+  },
+  "gridPos": {"h": 8, "w": 12, "x": 0, "y": 52},
+  "options": {
+    "tooltip": {
+      "mode": "multi",
+      "sort": "none"
+    },
+    "legend": {
+      "displayMode": "table",
+      "placement": "right",
+      "values": ["min", "max", "mean", "last"]
+    }
+  }
+}

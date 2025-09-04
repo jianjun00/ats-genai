@@ -4,17 +4,75 @@
 
 ### **Primary Dashboard: Grafana**
 ```
-🎯 URL: http://localhost:4002/d/cb0f07fd-9f56-486e-8cd6-7c9893e63116/ats-vendor-monitoring-dashboard-postgresql
+🎯 URL: http://localhost:4002/d/f9afe708-9be9-4c39-b901-f5c43a0a479f/ats-vendor-monitoring-dashboard-fixed
 📊 Login: admin/admin
+🔧 Code: config/grafana/ats-vendor-monitoring-dashboard-fixed.json
+📊 Minute Bar Panel: config/grafana/minute-bar-tracking-panel.json
 ```
 
 **What you get:**
 - **Minute Bar Collection per Vendor**: Real-time collection rates by vendor/symbol
+- **Dual Time Dimensions**: Both bar occurring time AND bar collection time
+- **Collection Latency**: Delay between when bar occurred vs when we collected it
 - **API Calls per Vendor with Status Codes**: Breakdown of 200, 429, 500, etc.
 - **Success Rates**: API success percentages by vendor
 - **Response Times**: Average response times by vendor  
 - **Recent Errors**: Latest API failures with details
 - **Professional UI**: Industry-standard monitoring interface
+
+### **🕐 Time Dimensions Explained:**
+- **Bar Occurring Time** (`timestamp`): When the 1-minute bar actually happened in the market
+- **Bar Collection Time** (`received_at`): When our system received and stored the data
+- **Collection Latency**: Time difference between bar occurrence and collection (ideally <5 minutes)
+
+### **🔧 Key Monitoring Commands**
+```bash
+# Check live minute bar data (CURRENT WORKING DATA)
+export PGPASSWORD=intg_password && psql -h localhost -p 4432 -U postgres -d intg_db -c "
+SELECT vendor, symbol, COUNT(*) as records, MAX(timestamp) as latest_data 
+FROM (
+  SELECT vendor, symbol, timestamp FROM intg_one_minute_live_polygon 
+  UNION ALL 
+  SELECT vendor, symbol, timestamp FROM intg_one_minute_live_tiingo
+) combined GROUP BY vendor, symbol ORDER BY latest_data DESC;"
+
+# Check data quality and latency
+export PGPASSWORD=intg_password && psql -h localhost -p 4432 -U postgres -d intg_db -c "
+SELECT vendor, AVG(quality_score)::numeric(4,3) as avg_quality, AVG(data_latency_ms)::int as avg_latency_ms
+FROM (
+  SELECT vendor, quality_score, data_latency_ms FROM intg_one_minute_live_polygon WHERE timestamp >= NOW() - INTERVAL '24 hours'
+  UNION ALL
+  SELECT vendor, quality_score, data_latency_ms FROM intg_one_minute_live_tiingo WHERE timestamp >= NOW() - INTERVAL '24 hours'
+) combined GROUP BY vendor;"
+
+# Count today's processed parquet files
+find /mnt/d/ats-data/firstrate-data/daily/$(date +%Y/%m/%d)/ -name "*.parquet" | wc -l
+
+# Restart minute bar collection  
+./scripts/restart_minute_bar_collection.sh
+
+# Fix Grafana dashboard if panels show no data
+python3 scripts/fix_grafana_minute_bar_dashboard.py
+
+# Fix dashboard time range if showing "No data" (extends to 7 days)
+python3 scripts/update_grafana_time_range.py
+
+# Add dual time dimension panels (bar time vs collection time)
+python3 scripts/add_dual_time_panels.py
+
+# Check collection latency for recent data
+export PGPASSWORD=intg_password && psql -h localhost -p 4432 -U postgres -d intg_db -c "
+SELECT symbol, vendor, 
+       timestamp as bar_time, 
+       received_at as collection_time,
+       EXTRACT(EPOCH FROM (received_at - timestamp))/60 as delay_minutes 
+FROM (
+  SELECT * FROM intg_one_minute_live_polygon 
+  UNION ALL 
+  SELECT * FROM intg_one_minute_live_tiingo
+) combined 
+ORDER BY received_at DESC LIMIT 10;"
+```
 
 ### **Data Source: Prometheus Metrics**
 ```

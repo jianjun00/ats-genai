@@ -1,0 +1,45 @@
+{
+  "id": 7,
+  "title": "Minute Bar Collection Rate (Real-time)",
+  "type": "timeseries",
+  "targets": [
+    {
+      "datasource": "ATS-INTG-PostgreSQL",
+      "rawSql": "SELECT \n  $__time(collection_timestamp),\n  CONCAT(vendor, ' ', symbol) as vendor_symbol,\n  SUM(records_collected) as records_per_minute\nFROM intg_minute_bar_collection_metrics \nWHERE $__timeFilter(collection_timestamp)\nGROUP BY $__timeGroup(collection_timestamp,'1m'), vendor, symbol\nORDER BY 1,2",
+      "format": "time_series"
+    }
+  ],
+  "fieldConfig": {
+    "defaults": {
+      "color": {
+        "mode": "palette-classic"
+      },
+      "unit": "short",
+      "custom": {
+        "drawStyle": "line",
+        "lineInterpolation": "linear",
+        "barAlignment": 0,
+        "lineWidth": 2,
+        "fillOpacity": 10,
+        "gradientMode": "none",
+        "spanNulls": false,
+        "insertNulls": false,
+        "showPoints": "auto",
+        "pointSize": 5
+      }
+    },
+    "overrides": []
+  },
+  "gridPos": {"h": 8, "w": 24, "x": 0, "y": 32},
+  "options": {
+    "tooltip": {
+      "mode": "multi",
+      "sort": "none"
+    },
+    "legend": {
+      "displayMode": "table",
+      "placement": "right",
+      "values": ["min", "max", "mean"]
+    }
+  }
+}

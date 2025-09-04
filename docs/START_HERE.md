@@ -152,7 +152,10 @@ curl -s http://localhost:4080/metrics | grep "ats_"
 
 # Dashboard access (open in browser)
 open http://localhost:3000/eda                     # EDA interface
-open http://localhost:4002/                        # Grafana dashboards
+open http://localhost:4002/                        # Grafana dashboards (admin/admin)
+
+# Real-time minute bar monitoring
+open http://localhost:4002/d/f9afe708-9be9-4c39-b901-f5c43a0a479f/ats-vendor-monitoring-dashboard-fixed
 ```
 
 ---
