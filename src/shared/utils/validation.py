@@ -9,7 +9,6 @@ import gin
 import logging
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
-from pathlib import Path
 
 from .environment_config import Environment, get_config_loader
 

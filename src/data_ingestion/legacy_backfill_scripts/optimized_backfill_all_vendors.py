@@ -24,7 +24,6 @@ import json
 import argparse
 from typing import List, Set, Tuple, Dict
 import concurrent.futures
-from threading import Lock
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
