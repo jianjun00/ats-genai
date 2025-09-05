@@ -49,7 +49,7 @@ class SequenceMetadata:
 @dataclass
 class StorageConfig:
     """Configuration for sequence storage."""
-    primary_format: str = "riegeli"  # riegeli, tfrecord, pickle
+    primary_format: str = "arrayrecord"  # arrayrecord only
     compression_level: int = 6
     chunk_size: int = 1000  # Examples per file
     enable_indexing: bool = True
@@ -131,7 +131,7 @@ class SequenceStorageManager:
         # Determine output files
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         sequence_file = self.sequence_dir / f"sequences_{batch_id}_{timestamp}"
-        metadata_file = self.metadata_dir / f"metadata_{batch_id}_{timestamp}.riegeli"
+        metadata_file = self.metadata_dir / f"metadata_{batch_id}_{timestamp}.arrayrecord"
         
         # Convert examples to storage-optimized format
         sequence_data, metadata_records = self._prepare_data_for_storage(examples)
@@ -142,7 +142,7 @@ class SequenceStorageManager:
         )
         
         # Save metadata using Riegeli (not Parquet)
-        metadata_stats = await self._save_metadata_riegeli(metadata_records, metadata_file)
+        metadata_stats = await self._save_metadata_arrayrecord(metadata_records, metadata_file)
         
         # Update index if enabled
         if self.config.enable_indexing:
@@ -273,8 +273,8 @@ class SequenceStorageManager:
                                  file_path: Path,
                                  format_type: str) -> Dict[str, Any]:
         """Save sequence data using specified format."""
-        if format_type in ["riegeli", "arrayrecord"]:
-            extension = '.arrayrecord' if format_type == "arrayrecord" else '.riegeli'
+        if format_type in ["arrayrecord"]:
+            extension = '.arrayrecord'
             return await self._save_arrayrecord(sequence_data, file_path.with_suffix(extension))
         elif format_type == "tfrecord":
             return await self._save_tfrecord(sequence_data, file_path.with_suffix('.tfrecord'))
@@ -368,10 +368,10 @@ class SequenceStorageManager:
         
         return tf.train.Example(features=tf.train.Features(feature=feature))
     
-    async def _save_metadata_riegeli(self, metadata_records: List[SequenceMetadata], file_path: Path) -> Dict[str, Any]:
+    async def _save_metadata_arrayrecord(self, metadata_records: List[SequenceMetadata], file_path: Path) -> Dict[str, Any]:
         """Save metadata using Riegeli format instead of Parquet."""
         
-        def _write_metadata_riegeli():
+        def _write_metadata_arrayrecord():
             with ArrayRecordWriter(
                 str(file_path),
                 'group_size:1'
@@ -384,18 +384,18 @@ class SequenceStorageManager:
                     data = json.dumps(metadata_dict, default=self._json_serializer).encode()
                     writer.write_record(data)
         
-        await asyncio.get_event_loop().run_in_executor(None, _write_metadata_riegeli)
+        await asyncio.get_event_loop().run_in_executor(None, _write_metadata_arrayrecord)
         
         file_size = file_path.stat().st_size
         return {
-            'format': 'riegeli',
+            'format': 'arrayrecord',
             'file_size': file_size,
             'records_written': len(metadata_records)
         }
     
     async def _update_index(self, batch_id: str, metadata_records: List[SequenceMetadata]):
         """Update search index for efficient querying."""
-        index_file = self.index_dir / f"index_{batch_id}.riegeli"
+        index_file = self.index_dir / f"index_{batch_id}.arrayrecord"
         
         # Create index DataFrame with key fields for fast lookup
         index_data = []
@@ -411,7 +411,7 @@ class SequenceStorageManager:
             })
         
         # Save index using ArrayRecord instead of Parquet
-        def _write_index_riegeli():
+        def _write_index_arrayrecord():
             with ArrayRecordWriter(
                 str(index_file),
                 'group_size:1'
@@ -422,7 +422,7 @@ class SequenceStorageManager:
                     data = json.dumps(index_record, default=self._json_serializer).encode()
                     writer.write_record(data)
         
-        await asyncio.get_event_loop().run_in_executor(None, _write_index_riegeli)
+        await asyncio.get_event_loop().run_in_executor(None, _write_index_arrayrecord)
         
         self.logger.debug(f"Updated Riegeli index for batch {batch_id}")
     
@@ -450,17 +450,17 @@ class SequenceStorageManager:
         sequence_file = sequence_files[0]  # Take the first match
         
         # Determine format and load
-        if sequence_file.suffix == '.riegeli':
-            return await self._load_riegeli(sequence_file)
+        if sequence_file.suffix == '.arrayrecord':
+            return await self._load_arrayrecord(sequence_file)
         elif sequence_file.suffix == '.tfrecord':
             return await self._load_tfrecord(sequence_file)
         else:
             return await self._load_pickle(sequence_file)
     
-    async def _load_riegeli(self, file_path: Path) -> List[Dict]:
+    async def _load_arrayrecord(self, file_path: Path) -> List[Dict]:
         """Load data from Riegeli format."""
         
-        def _read_riegeli():
+        def _read_arrayrecord():
             records = []
             with ArrayRecordReader(str(file_path)) as reader:
                 for record_bytes in reader:
@@ -468,14 +468,14 @@ class SequenceStorageManager:
                     records.append(record)
             return records
         
-        return await asyncio.get_event_loop().run_in_executor(None, _read_riegeli)
+        return await asyncio.get_event_loop().run_in_executor(None, _read_arrayrecord)
     
     async def query_by_symbol(self, symbol: str, 
                              start_date: Optional[datetime] = None,
                              end_date: Optional[datetime] = None) -> List[SequenceMetadata]:
         """Query examples by symbol and date range using metadata."""
         # Load all metadata files
-        metadata_files = list(self.metadata_dir.glob("metadata_*.riegeli"))
+        metadata_files = list(self.metadata_dir.glob("metadata_*.arrayrecord"))
         
         if not metadata_files:
             return []
@@ -528,8 +528,8 @@ class SequenceStorageManager:
         """Get comprehensive storage statistics."""
         stats = {
             'sequence_files': len(list(self.sequence_dir.glob("*"))),
-            'metadata_files': len(list(self.metadata_dir.glob("*.riegeli"))),
-            'index_files': len(list(self.index_dir.glob("*.riegeli"))),
+            'metadata_files': len(list(self.metadata_dir.glob("*.arrayrecord"))),
+            'index_files': len(list(self.index_dir.glob("*.arrayrecord"))),
             'total_size_bytes': 0,
             'format_breakdown': {}
         }

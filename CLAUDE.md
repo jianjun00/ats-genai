@@ -85,6 +85,35 @@ python scripts/run_dev.py setup  # Start required services
 python scripts/run_dev.py test --test tests/integration/
 ```
 
+## 🎭 **Playwright UX Testing (MANDATORY for Frontend Changes)**
+
+### ⚠️ **CRITICAL:** ALWAYS test UX changes with Playwright BEFORE claiming success
+
+```bash
+# 1. Start services for testing
+python scripts/run_dev.py start --service analytics
+python scripts/run_dev.py start --service postgres
+
+# 2. MANDATORY: Test complete user flows 
+PYTHONPATH=src python3 -m pytest tests/browser_tests/test_eda_playwright.py -v --tb=short
+
+# 3. Test specific features (dataset visualization, sequence selection, etc.)
+PYTHONPATH=src python3 -m pytest tests/browser_tests/ -k "training_dataset" -v
+
+# 4. Create new Playwright test for new UX features
+touch tests/browser_tests/test_new_ux_feature.py
+# Write test that exercises complete user workflow
+
+# 5. Run test to verify end-to-end functionality
+PYTHONPATH=src python3 -m pytest tests/browser_tests/test_new_ux_feature.py -v
+```
+
+### UX Testing Requirements:
+- **✅ REQUIRED:** Test complete user workflow from UI interaction to data display
+- **✅ REQUIRED:** Verify API endpoints return expected data structure  
+- **✅ REQUIRED:** Test error cases and edge conditions in UI
+- **❌ FORBIDDEN:** Claiming UX changes work without Playwright verification
+
 ## 📋 **Common Commands**
 
 ### Development Setup
@@ -92,10 +121,14 @@ python scripts/run_dev.py test --test tests/integration/
 # Setup complete development environment
 python scripts/run_dev.py setup
 
-# Testing
+# Testing (MANDATORY for UX/API changes)
 python scripts/run_dev.py test
 python scripts/run_dev.py test --test tests/integration/
 python scripts/run_dev.py test --test tests/unit/
+
+# Playwright Testing (REQUIRED for all UX changes)
+PYTHONPATH=src python3 -m pytest tests/browser_tests/ -v
+PYTHONPATH=src python3 -m pytest tests/ui/ -v --tb=short
 
 # Database operations
 python scripts/run_dev.py query --query "SELECT version()"
@@ -225,6 +258,8 @@ python scripts/run_dev.py query --query "SELECT run_type, parameters, command_li
 - ❌ **Creating new files when existing files can be enhanced**
 - ❌ **Not tracking training data generation runs in dev_runs table**
 - ❌ **Generating training data without gin config tracking**
+- ❌ **CRITICAL: Claiming UX/frontend changes work without Playwright testing**
+- ❌ **Modifying APIs without testing complete user workflow end-to-end**
 
 ## 🎯 **Success Criteria**
 
@@ -244,6 +279,8 @@ python scripts/run_dev.py query --query "SELECT run_type, parameters, command_li
 - [ ] **Tracking all training data generation in dev_runs table**
 - [ ] **Using gin config with proper run metadata tracking**
 - [ ] **Verifying training dataset quality with run_dev training_dataset get command**
+- [ ] **CRITICAL: Testing ALL UX changes with Playwright before claiming success**
+- [ ] **Verifying complete user workflows work end-to-end via browser automation**
 
 ## 🚨 **CRITICAL: Training Data Generation Flow**
 

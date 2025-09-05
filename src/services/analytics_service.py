@@ -262,7 +262,7 @@ class UnifiedAnalyticsService:
                         file_size_mb, technical_indicators, symbols, date_range_start, 
                         date_range_end, created_at
                     FROM {table_name}  
-                    WHERE status = 'completed'
+                    WHERE status IN ('completed', 'generating')
                     ORDER BY created_at DESC
                     LIMIT 50
                     """
@@ -339,11 +339,11 @@ class UnifiedAnalyticsService:
                         # Look for timeframe-specific training data files
                         # Priority order: Riegeli format > numpy files > fallback paths
                         possible_file_paths = [
-                            # New structure: /data/training_data/<run_id>/<timeframe>/<symbol>_<startdatetime>_<enddatetime>.riegeli
-                            f"/data/training_data/*/{timeframe}/{symbol_lower}_*.riegeli",
-                            f"/data/training_data/*/*/{symbol_lower}_*.riegeli",
+                            # New structure: /data/training_data/<run_id>/<timeframe>/<symbol>_<startdatetime>_<enddatetime>.arrayrecord
+                            f"/data/training_data/*/{timeframe}/{symbol_lower}_*.arrayrecord",
+                            f"/data/training_data/*/*/{symbol_lower}_*.arrayrecord",
                             # Legacy numpy files (existing structure)  
-                            f"/data/training/riegeli_aapl_tsla_2025/{symbol_lower}_features.npy",
+                            f"/data/training/arrayrecord_aapl_tsla_2025/{symbol_lower}_features.npy",
                             f"/data/training/{dataset_info['dataset_name'].lower()}/{symbol_lower}_features.npy",
                             f"/data/training/{dataset_id}/{symbol_lower}_features.npy",
                         ]
@@ -429,7 +429,7 @@ class UnifiedAnalyticsService:
                                 "sequence_length": len(ohlc_sequence),
                                 "total_sequences": dataset_info['total_sequences'],
                                 "data": ohlc_sequence,
-                                "source": "riegeli_compatible_numpy" if features_file.endswith('.npy') else "riegeli_format",
+                                "source": "arrayrecord_compatible_numpy" if features_file.endswith('.npy') else "arrayrecord_format",
                                 "file_path": features_file
                             }
                         
@@ -663,18 +663,18 @@ class UnifiedAnalyticsService:
                         if base_path.exists():
                             logger.info(f"Searching for {target_symbol} files in: {base_path}")
                             # Find all Riegeli and ArrayRecord files containing the target symbol
-                            for riegeli_file in list(base_path.rglob("*.riegeli")) + list(base_path.rglob("*.arrayrecord")):
+                            for arrayrecord_file in list(base_path.rglob("*.arrayrecord")):
                                 # Check if file contains our target symbol (case insensitive)
-                                file_name = riegeli_file.name.lower()
-                                file_path_str = str(riegeli_file).lower()
+                                file_name = arrayrecord_file.name.lower()
+                                file_path_str = str(arrayrecord_file).lower()
                                 symbol_lower = target_symbol.lower()
                                 
-                                logger.debug(f"Checking file: {riegeli_file}, symbol_lower: {symbol_lower}")
+                                logger.debug(f"Checking file: {arrayrecord_file}, symbol_lower: {symbol_lower}")
                                 
                                 # Check both filename and path for symbol match
                                 if symbol_lower in file_name or f"/{symbol_lower}/" in file_path_str:
-                                    arrayrecord_files.append(riegeli_file)
-                                    logger.info(f"Found matching file: {riegeli_file}")
+                                    arrayrecord_files.append(arrayrecord_file)
+                                    logger.info(f"Found matching file: {arrayrecord_file}")
                                     break  # Use first match
                     
                     if arrayrecord_files:
