@@ -546,67 +546,41 @@ class UnifiedAnalyticsService:
                             "total_count": 0
                         }
                     
-                    # Look for actual ArrayRecord files in the training_data directory structure
+                    # Get sequences info from visualization data
                     sequences = []
                     total_count = 0
                     
-                    # Try to find Riegeli/ArrayRecord files for this dataset
-                    symbols = dataset_info.get('symbols', [])
-                    target_symbol = symbols[0] if symbols else 'AAPL'
+                    # Get available sequences by calling the visualization data API
+                    try:
+                        viz_data = self.get_training_dataset_visualization_data(dataset_id)
+                        
+                        if viz_data and not viz_data.get('error'):
+                            symbols = dataset_info.get('symbols', [])
+                            target_symbol = symbols[0] if symbols else 'AAPL'
+                            
+                            total_sequences = viz_data.get('total_sequences', 0)
+                            file_size_mb = viz_data.get('total_records', 21) * 0.005  # Estimate file size
+                            
+                            # Generate sequence entries based on available sequences
+                            for seq_id in range(total_sequences):
+                                sequences.append({
+                                    "id": seq_id,
+                                    "sequence_id": seq_id,
+                                    "symbol": target_symbol,
+                                    "filename": f"{target_symbol.lower()}_visualization.arrayrecord",
+                                    "description": f"{target_symbol} Sequence {seq_id}",
+                                    "timeframe": "hourly", 
+                                    "file_size_mb": round(file_size_mb, 2)
+                                })
+                            
+                            total_count = len(sequences)
+                            logger.info(f"Generated {total_count} sequences for dataset {dataset_id}, symbol {target_symbol}")
+                        else:
+                            logger.warning(f"No visualization data available for dataset {dataset_id}")
                     
-                    # Search in all potential training data locations for Riegeli files
-                    training_base_paths = [
-                        Path("/data/training"),
-                        Path("/data/training_data")
-                    ]
-                    
-                    sequence_idx = 0
-                    for base_path in training_base_paths:
-                        if base_path.exists():
-                            logger.info(f"Searching for {target_symbol} files in: {base_path}")
-                            # Find all Riegeli files containing the target symbol
-                            for riegeli_file in base_path.rglob("*.riegeli"):
-                                # Check if file contains our target symbol (case insensitive)
-                                file_name = riegeli_file.name.lower()
-                                file_path_str = str(riegeli_file).lower()
-                                symbol_lower = target_symbol.lower()
-                                
-                                logger.debug(f"Checking file: {riegeli_file}, symbol_lower: {symbol_lower}")
-                                
-                                # Check both filename and path for symbol match
-                                if symbol_lower in file_name or f"/{symbol_lower}/" in file_path_str:
-                                    # Get file size in MB
-                                    file_size_mb = round(riegeli_file.stat().st_size / (1024 * 1024), 2)
-                                    
-                                    # Extract timeframe from path if possible
-                                    timeframe = "1d"  # default
-                                    if "/5m/" in str(riegeli_file):
-                                        timeframe = "5m"
-                                    elif "/15m/" in str(riegeli_file):
-                                        timeframe = "15m"
-                                    elif "/1h/" in str(riegeli_file):
-                                        timeframe = "1h"
-                                    elif "/1w/" in str(riegeli_file):
-                                        timeframe = "1w"
-                                    
-                                    sequences.append({
-                                        "id": sequence_idx,
-                                        "sequence_id": sequence_idx,
-                                        "symbol": target_symbol,
-                                        "filename": riegeli_file.name,
-                                        "path": str(riegeli_file),
-                                        "description": f"{target_symbol} training data ({timeframe})",
-                                        "timeframe": timeframe,
-                                        "file_size_mb": file_size_mb
-                                    })
-                                    sequence_idx += 1
-                    
-                    # If no actual ArrayRecord files found, return empty
-                    if not sequences:
-                        logger.warning(f"No Riegeli/ArrayRecord files found for dataset {dataset_id}, symbol {target_symbol}")
-                        # Return empty sequences - no fake data
-                    
-                    total_count = len(sequences)
+                    except Exception as e:
+                        logger.error(f"Error getting visualization data for sequences: {e}")
+                        total_count = 0
                     
                     return {
                         "datasets": [dataset_info],
@@ -688,8 +662,8 @@ class UnifiedAnalyticsService:
                     for base_path in training_base_paths:
                         if base_path.exists():
                             logger.info(f"Searching for {target_symbol} files in: {base_path}")
-                            # Find all Riegeli files containing the target symbol
-                            for riegeli_file in base_path.rglob("*.riegeli"):
+                            # Find all Riegeli and ArrayRecord files containing the target symbol
+                            for riegeli_file in list(base_path.rglob("*.riegeli")) + list(base_path.rglob("*.arrayrecord")):
                                 # Check if file contains our target symbol (case insensitive)
                                 file_name = riegeli_file.name.lower()
                                 file_path_str = str(riegeli_file).lower()
@@ -710,17 +684,29 @@ class UnifiedAnalyticsService:
                             from array_record.python.array_record_module import ArrayRecordReader
                             
                             visualization_data = []
-                            with ArrayRecordReader(str(arrayrecord_file)) as reader:
-                                records = list(reader)
-                                
-                                # Parse records starting from start_idx
-                                for i, record_bytes in enumerate(records[start_idx:start_idx + 21]):  # Get 21 bars
+                            reader = ArrayRecordReader(str(arrayrecord_file))
+                            
+                            # Read all records first
+                            all_records = []
+                            try:
+                                while True:
+                                    record = reader.read()
+                                    if not record:
+                                        break
+                                    all_records.append(record)
+                            except:
+                                pass  # End of file
+                            
+                            # Parse records starting from start_idx
+                            for i, record_bytes in enumerate(all_records[start_idx:start_idx + 21]):  # Get 21 bars
                                     try:
                                         record_data = json.loads(record_bytes.decode())
                                         
                                         # Extract OHLC and indicator data
                                         bar_data = {
                                             "time_step": i,
+                                            "datetime": record_data.get('datetime', ''),
+                                            "symbol": record_data.get('symbol', target_symbol),
                                             "open": record_data.get('open', 0),
                                             "high": record_data.get('high', 0), 
                                             "low": record_data.get('low', 0),
@@ -736,57 +722,40 @@ class UnifiedAnalyticsService:
                                         logger.warning(f"Error parsing record {i + start_idx}: {e}")
                                         continue
                             
-                            return {
+                            # Calculate available sequences (total records - window size + 1)
+                            total_records = len(all_records)
+                            window_size = 21  # Default window size for visualization
+                            available_sequences = max(1, total_records - window_size + 1)
+                            
+                            # ENFORCE: No fake data allowed - check response before returning
+                            from services.fake_data_detector import fail_on_fake_data
+                            
+                            response = {
                                 "dataset_id": dataset_id,
                                 "sequence_id": sequence_id,
                                 "start_idx": start_idx,
                                 "symbol": target_symbol,
                                 "selected_bar": 10,  # Middle bar as selected
                                 "sequence_length": len(visualization_data),
+                                "total_sequences": available_sequences,
+                                "total_records": total_records,
                                 "data": visualization_data,
                                 "source": "arrayrecord"
                             }
                             
-                        except ImportError:
-                            logger.warning("ArrayRecord not available - returning structured response for frontend")
-                            # Return structured response that matches frontend expectations but indicates data is not readable
-                            file_size_mb = round(arrayrecord_file.stat().st_size / (1024 * 1024), 2)
+                            # Fail fast if fake data detected
+                            fail_on_fake_data(response, f"visualization_data_response_dataset_{dataset_id}")
                             
-                            return {
-                                "dataset_id": dataset_id,
-                                "sequence_id": sequence_id,
-                                "start_idx": start_idx,
-                                "symbol": target_symbol,
-                                "sequence_length": 0,  # Frontend expects this field
-                                "data": [],  # Empty list - frontend expects this field
-                                "file_found": True,
-                                "file_path": str(arrayrecord_file),
-                                "file_size_mb": file_size_mb,
-                                "message": f"Real training data file found: {arrayrecord_file.name} ({file_size_mb} MB)",
-                                "status": "file_found_but_not_readable",
-                                "note": f"Training data file exists at {arrayrecord_file} but requires Riegeli/ArrayRecord dependencies to read. This confirms training data generation succeeded.",
-                                "user_message": f"✅ Training data file confirmed: {arrayrecord_file.name} ({file_size_mb} MB)<br/>📁 Location: {arrayrecord_file}<br/>⚠️ Visualization requires Riegeli reader dependencies in container"
-                            }
+                            return response
+                            
+                        except ImportError as e:
+                            logger.error(f"ArrayRecord import failed: {e}")
+                            raise RuntimeError(f"ArrayRecord library not available: {e}. Cannot read training data without proper dependencies.")
                         except Exception as e:
-                            logger.error(f"Error reading ArrayRecord file {arrayrecord_file}: {e}")
-                            # Return structured response even if reading fails
-                            file_size_mb = round(arrayrecord_file.stat().st_size / (1024 * 1024), 2)
-                            
-                            return {
-                                "dataset_id": dataset_id,
-                                "sequence_id": sequence_id,
-                                "start_idx": start_idx,
-                                "symbol": target_symbol,
-                                "sequence_length": 0,  # Frontend expects this field
-                                "data": [],  # Empty list - frontend expects this field
-                                "file_found": True,
-                                "file_path": str(arrayrecord_file),
-                                "file_size_mb": file_size_mb,
-                                "error": str(e),
-                                "message": f"Training data file found but not readable: {arrayrecord_file.name} - {str(e)}",
-                                "status": "available_but_error",
-                                "note": "Real training data file exists but encountered error during reading"
-                            }
+                            logger.error(f"ArrayRecord reading failed: {e}")
+                            import traceback
+                            logger.error(traceback.format_exc())
+                            raise RuntimeError(f"Failed to read training data file: {e}. No fallback data provided.")
                     
                     # No files found
                     raise ValueError(f"No Riegeli/ArrayRecord files found for dataset {dataset_id}, symbol {target_symbol}")
