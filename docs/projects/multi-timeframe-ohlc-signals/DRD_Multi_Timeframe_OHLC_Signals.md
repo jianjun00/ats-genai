@@ -891,7 +891,8 @@ class TestPerformance:
 ### 7.1 Data Access Security
 
 **Authentication & Authorization:**
-- API key authentication for external access
+- Centralized API key management (see [API Key Management](../../API_KEY_MANAGEMENT.md))
+- Automatic authentication for market data vendors (EODHD, Polygon, Tiingo)
 - Role-based permissions for different user types
 - Audit logging for all data access
 - Rate limiting to prevent abuse

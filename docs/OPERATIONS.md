@@ -400,25 +400,32 @@ ls -la /home/jianjun/ats-genai-data/scripts/  # Check execute permissions
 
 ### **Market Data Vendor API Keys**
 
-| Vendor | Environment Variable | Purpose | Rate Limits |
-|--------|---------------------|---------|-------------|
-| **Polygon** | `POLYGON_API_KEY` | Stock prices, fundamentals, news | 5 calls/min |
-| **Tiingo** | `TIINGO_API_KEY` | Daily prices, fundamentals | 1000 calls/hr |
-| **FMP** | `FMP_API_KEY` | Fundamentals, earnings | 250 calls/day |
-| **Alpha Vantage** | `ALPHA_VANTAGE_API_KEY` | Economic indicators | 25 calls/day |
-| **EODHD** | `EODHD_API_KEY` | EOD prices, fundamentals | 20 calls/min |
-| **FirstRate** | `FIRSTRATE_USER_ID` | Minute-level OHLCV (direct to parquet) | Premium feed |
+**✅ AUTOMATED: The ATS platform uses [centralized API key management](API_KEY_MANAGEMENT.md) - no manual setup required.**
 
-### **API Key Configuration**
+| Vendor | Environment Variable | Purpose | Rate Limits | Status |
+|--------|---------------------|---------|-------------|---------|
+| **EODHD** | `EODHD_API_KEY` | EOD prices, fundamentals, intraday | 20 calls/min | ✅ **Auto-configured** |
+| **Polygon** | `POLYGON_API_KEY` | Stock prices, fundamentals, news | 5 calls/min | ✅ **Auto-configured** |
+| **Tiingo** | `TIINGO_API_KEY` | Daily prices, fundamentals | 1000 calls/hr | ✅ **Auto-configured** |
+| **FMP** | `FMP_API_KEY` | Fundamentals, earnings | 250 calls/day | 📋 Available |
+| **Alpha Vantage** | `ALPHA_VANTAGE_API_KEY` | Economic indicators | 25 calls/day | 📋 Available |
+| **FirstRate** | `FIRSTRATE_USER_ID` | Minute-level OHLCV (direct feed) | Premium | 📋 Available |
+
+### **API Key Usage (Automatic)**
 ```bash
-# Set keys for development scripts
-export POLYGON_API_KEY=your_polygon_key
-export TIINGO_API_KEY=your_tiingo_key
-export FMP_API_KEY=your_fmp_key
-
-# Use with scripts
+# ✅ NO SETUP NEEDED - Keys are managed automatically
+python3 scripts/run_dev.py run --script scripts/populate_30year_eodhd_minute_bars.py
 python3 scripts/run_dev.py run --script scripts/tiingo_30_year_daily_backfill.py
+
+# ✅ Test centralized key management
+python3 scripts/run_dev.py run --script scripts/demo_centralized_keys.py
+
+# 🔧 Override with custom keys (optional)
+export EODHD_API_KEY="your-premium-key"
+python3 scripts/run_dev.py run --script scripts/populate_30year_eodhd_minute_bars.py
 ```
+
+**📖 For complete details, see [API Key Management Documentation](API_KEY_MANAGEMENT.md)**
 
 ---
 

@@ -145,6 +145,7 @@ Complete historical daily price database covering all US stocks and critical mar
 **ATS is a Docker-first fintech platform** for algorithmic trading:
 - **🎯 AI-Powered Portfolio Recommendations** - Hourly ML-driven investment signals
 - **📊 Multi-Vendor Data Infrastructure** - Polygon, Tiingo, Alpha Vantage, FMP integration  
+- **🔑 Centralized API Key Management** - Automatic authentication across all vendors ([docs](API_KEY_MANAGEMENT.md))
 - **🤖 Smart Money Zone Detection** - Institutional flow analysis and pattern recognition
 - **☸️ Enterprise Kubernetes Architecture** - Scalable, reliable, production-ready
 - **🔄 Complete MLOps Pipeline** - Automated training, validation, deployment, monitoring
