@@ -161,7 +161,7 @@ class UniverseStateManager:
             # Get aggregated data from market_data_manager for the specified interval
             df = self.market_data_manager.get_ohlcv_data(
                 instrument_id=instrument_id,
-                end_date=cur_datetime,
+                reference_datetime=cur_datetime,
                 periods=lag_periods,
                 time_interval=time_interval
             )
@@ -267,7 +267,7 @@ class UniverseStateManager:
             # Get aggregated lead data from market_data_manager for the specified interval
             df = self.market_data_manager.get_ohlcv_data(
                 instrument_id=instrument_id,
-                end_date=cur_datetime,  # For lead prices, we want data AFTER cur_datetime
+                reference_datetime=cur_datetime,  # For lead prices, we want data AFTER cur_datetime
                 periods=lead_periods,
                 time_interval=time_interval,
                 direction='forward'  # Lead prices look forward

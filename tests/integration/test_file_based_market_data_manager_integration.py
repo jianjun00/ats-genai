@@ -115,7 +115,7 @@ class TestFileBasedMarketDataManagerIntegration:
         
         result = await manager.get_ohlcv_data(
             instrument_id=12345,
-            end_date=datetime(2025, 9, 5, 15, 0),
+            reference_datetime=datetime(2025, 9, 5, 15, 0),
             periods=10,
             time_interval='5m'
         )
@@ -137,7 +137,7 @@ class TestFileBasedMarketDataManagerIntegration:
             
             result = await manager.get_ohlcv_data(
                 instrument_id=99999,  # Non-existent instrument
-                end_date=datetime(2025, 9, 5, 15, 0),
+                reference_datetime=datetime(2025, 9, 5, 15, 0),
                 periods=10,
                 time_interval='5m'
             )
@@ -167,7 +167,7 @@ class TestFileBasedMarketDataManagerIntegration:
             
             result = await manager.get_ohlcv_data(
                 instrument_id=1001,
-                end_date=datetime(2025, 9, 5, 15, 0),
+                reference_datetime=datetime(2025, 9, 5, 15, 0),
                 periods=3,  # Request exactly 3 periods for predictable testing
                 time_interval='5m',
                 direction='backward'
@@ -251,7 +251,7 @@ class TestFileBasedMarketDataManagerIntegration:
             
             result = await manager.get_ohlcv_data(
                 instrument_id=2001,
-                end_date=end_datetime,
+                reference_datetime=end_datetime,
                 periods=2,  # Request exactly 2 periods for testing
                 time_interval='5m',
                 direction='forward'
@@ -319,7 +319,7 @@ class TestFileBasedMarketDataManagerIntegration:
                 
                 result = await manager.get_ohlcv_data(
                     instrument_id=3001,
-                    end_date=datetime(2025, 9, 5, 15, 0),
+                    reference_datetime=datetime(2025, 9, 5, 15, 0),
                     periods=3,  # Request exactly 3 periods for testing
                     time_interval=interval
                 )
@@ -427,7 +427,7 @@ class TestUniverseStateManagerIntegration:
         # Should call the market_data_manager
         mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
             instrument_id=4001,
-            end_date=datetime(2025, 9, 5, 15, 0),
+            reference_datetime=datetime(2025, 9, 5, 15, 0),
             periods=3,
             time_interval='5m'
         )
@@ -748,7 +748,7 @@ class TestErrorHandlingAndEdgeCases:
             # Should handle exception gracefully
             result = await manager.get_ohlcv_data(
                 instrument_id=8001,
-                end_date=datetime(2025, 9, 5, 15, 0),
+                reference_datetime=datetime(2025, 9, 5, 15, 0),
                 periods=10,
                 time_interval='5m'
             )
@@ -788,7 +788,7 @@ class TestErrorHandlingAndEdgeCases:
             # Should handle invalid interval gracefully
             result = await manager.get_ohlcv_data(
                 instrument_id=9001,
-                end_date=datetime(2025, 9, 5, 15, 0),
+                reference_datetime=datetime(2025, 9, 5, 15, 0),
                 periods=10,
                 time_interval='invalid_interval'
             )
@@ -808,7 +808,7 @@ class TestErrorHandlingAndEdgeCases:
         with pytest.raises(NotImplementedError, match="get_ohlcv_data must be implemented by concrete MarketDataManager classes"):
             manager.get_ohlcv_data(
                 instrument_id=1,
-                end_date=datetime(2025, 9, 5, 15, 0),
+                reference_datetime=datetime(2025, 9, 5, 15, 0),
                 periods=10,
                 time_interval='5m'
             )
@@ -841,7 +841,7 @@ class TestActualDataValidationEdgeCases:
             
             result = await manager.get_ohlcv_data(
                 instrument_id=9001,
-                end_date=datetime(2025, 9, 5, 15, 0),
+                reference_datetime=datetime(2025, 9, 5, 15, 0),
                 periods=3,
                 time_interval='5m'
             )
@@ -890,7 +890,7 @@ class TestActualDataValidationEdgeCases:
             
             result = await manager.get_ohlcv_data(
                 instrument_id=9002,
-                end_date=datetime(2025, 9, 5, 15, 0),
+                reference_datetime=datetime(2025, 9, 5, 15, 0),
                 periods=3,
                 time_interval='5m'
             )

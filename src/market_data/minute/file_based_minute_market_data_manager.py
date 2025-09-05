@@ -513,14 +513,14 @@ class FileBasedMinuteMarketDataManager(MarketDataManager):
         logger.info(f"Retrieved multi-timeframe data for {len(symbols)} symbols across {len(intervals)} intervals")
         return result
     
-    async def get_ohlcv_data(self, instrument_id: int, end_date: datetime, periods: int, 
+    async def get_ohlcv_data(self, instrument_id: int, reference_datetime: datetime, periods: int, 
                            time_interval: str, direction: str = 'backward') -> pd.DataFrame:
         """
         Get OHLCV data for a specific instrument over multiple periods.
         
         Args:
             instrument_id: The instrument ID to retrieve data for
-            end_date: End datetime reference point
+            reference_datetime: Reference datetime point (direction determines if we go back or forward from here)
             periods: Number of periods to retrieve
             time_interval: Time interval ('1m', '5m', '15m', '1h', '1d', '1w')
             direction: 'backward' for historical data, 'forward' for future data
@@ -544,13 +544,13 @@ class FileBasedMinuteMarketDataManager(MarketDataManager):
             
             # Calculate date range based on periods and direction
             if direction == 'forward':
-                # For future data: start from end_date, go forward
-                start_date = end_date
-                end_query_date = end_date + timedelta(minutes=interval_minutes * periods * 2)  # Buffer for weekends/holidays
+                # For future data: start from reference_datetime, go forward
+                start_date = reference_datetime
+                end_query_date = reference_datetime + timedelta(minutes=interval_minutes * periods * 2)  # Buffer for weekends/holidays
             else:
-                # For historical data: end at end_date, go backward
-                start_date = end_date - timedelta(minutes=interval_minutes * periods * 2)  # Buffer for weekends/holidays
-                end_query_date = end_date
+                # For historical data: end at reference_datetime, go backward
+                start_date = reference_datetime - timedelta(minutes=interval_minutes * periods * 2)  # Buffer for weekends/holidays
+                end_query_date = reference_datetime
             
             logger.debug(f"Getting OHLCV data for instrument_id={instrument_id} symbol={symbol} "
                         f"from {start_date} to {end_query_date} interval={time_interval} periods={periods}")
@@ -574,12 +574,12 @@ class FileBasedMinuteMarketDataManager(MarketDataManager):
             
             # Filter based on direction and get the requested number of periods
             if direction == 'forward':
-                # Get periods starting from end_date
-                df = df[df['timestamp'] >= pd.Timestamp(end_date)]
+                # Get periods starting from reference_datetime
+                df = df[df['timestamp'] >= pd.Timestamp(reference_datetime)]
                 df = df.head(periods)
             else:
-                # Get periods ending at end_date
-                df = df[df['timestamp'] < pd.Timestamp(end_date)]
+                # Get periods ending at reference_datetime
+                df = df[df['timestamp'] < pd.Timestamp(reference_datetime)]
                 df = df.tail(periods)
             
             # Ensure we have the expected columns and set timestamp as index

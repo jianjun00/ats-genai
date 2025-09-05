@@ -90,7 +90,7 @@ class TestMultiTimeframeUniverseStateManager:
         # Verify market_data_manager was called correctly
         self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
             instrument_id=self.instrument_id,
-            end_date=self.current_date,
+            reference_datetime=self.current_date,
             periods=52,
             time_interval='5m'
         )
@@ -118,7 +118,7 @@ class TestMultiTimeframeUniverseStateManager:
         
         self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
             instrument_id=self.instrument_id,
-            end_date=self.current_date,
+            reference_datetime=self.current_date,
             periods=52,
             time_interval='15m'
         )
@@ -136,7 +136,7 @@ class TestMultiTimeframeUniverseStateManager:
         
         self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
             instrument_id=self.instrument_id,
-            end_date=self.current_date,
+            reference_datetime=self.current_date,
             periods=24,
             time_interval='1h'
         )
@@ -154,7 +154,7 @@ class TestMultiTimeframeUniverseStateManager:
         
         self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
             instrument_id=self.instrument_id,
-            end_date=self.current_date,
+            reference_datetime=self.current_date,
             periods=20,
             time_interval='1d'
         )
@@ -174,7 +174,7 @@ class TestMultiTimeframeUniverseStateManager:
         # Verify it defaults to '1d'
         self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
             instrument_id=self.instrument_id,
-            end_date=self.current_date,
+            reference_datetime=self.current_date,
             periods=20,
             time_interval='1d'
         )
@@ -247,7 +247,7 @@ class TestMultiTimeframeUniverseStateManager:
         # Verify the datetime was normalized to date for the call
         self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
             instrument_id=self.instrument_id,
-            end_date=current_datetime.date(),  # Should be normalized
+            reference_datetime=current_datetime.date(),  # Should be normalized
             periods=20,
             time_interval='1d'
         )
@@ -273,7 +273,7 @@ class TestMultiTimeframeUniverseStateManager:
             # Verify correct call
             self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
                 instrument_id=self.instrument_id,
-                end_date=self.current_date,
+                reference_datetime=self.current_date,
                 periods=10,
                 time_interval=interval
             )
@@ -332,7 +332,7 @@ class TestMultiTimeframeUniverseStateManager:
             # Verify market_data_manager call matches gin config
             self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
                 instrument_id=self.instrument_id,
-                end_date=self.current_date,
+                reference_datetime=self.current_date,
                 periods=expected_periods,
                 time_interval=timeframe
             )
@@ -360,7 +360,7 @@ class TestMultiTimeframeIntegration:
         mock_market_manager = Mock()
         self.universe_manager.market_data_manager = mock_market_manager
         
-        def mock_get_ohlcv_data(instrument_id, end_date, periods, time_interval):
+        def mock_get_ohlcv_data(instrument_id, reference_datetime, periods, time_interval):
             return mock_data[time_interval]
             
         mock_market_manager.get_ohlcv_data.side_effect = mock_get_ohlcv_data

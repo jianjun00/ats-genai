@@ -46,13 +46,13 @@ class MarketDataManager:
             result[iid] = self.get_ohlc(iid, start, end)
         return result
 
-    def get_ohlcv_data(self, instrument_id: int, end_date: datetime, periods: int, time_interval: str, direction: str = 'backward') -> 'pd.DataFrame':
+    def get_ohlcv_data(self, instrument_id: int, reference_datetime: datetime, periods: int, time_interval: str, direction: str = 'backward') -> 'pd.DataFrame':
         """
         Get OHLCV data for a specific instrument over multiple periods.
         
         Args:
             instrument_id: The instrument ID to retrieve data for
-            end_date: End datetime reference point
+            reference_datetime: Reference datetime point (direction determines if we go back or forward from here)
             periods: Number of periods to retrieve
             time_interval: Time interval ('1m', '5m', '15m', '1h', '1d', '1w')
             direction: 'backward' for historical data, 'forward' for future data
