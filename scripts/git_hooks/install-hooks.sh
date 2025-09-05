@@ -74,7 +74,7 @@ fi
 
 # 2. Check Python files for prohibited content patterns
 python_problem_files=""
-content_prohibited_patterns="fake|mock|synthetic|fallback"
+content_prohibited_patterns="fake|mock|synthetic|fallback|demo"
 
 # Get all Python files being added or modified
 python_files=$(git diff --cached --name-only --diff-filter=AM $against | grep '\.py$')
@@ -110,6 +110,7 @@ $(echo -e "$python_problem_files")
   • mock     - Mock data fallbacks (outside tests)
   • synthetic - Synthetic data creation
   • fallback - Fallback to demo/fake data when real data fails
+  • demo     - Demo data usage or generation
 
 🚨 Why this is dangerous:
   • Hides database connection problems and query failures
@@ -133,6 +134,9 @@ $(echo -e "$python_problem_files")
 
   ❌ data = load_real_data() or fallback_synthetic_data()
   ✅ data = load_real_data(); validate_data_exists(data)
+
+  ❌ if no_data: return demo_dataset()
+  ✅ if no_data: raise ValueError("No market data available for analysis")
 
 🧪 Note: Mock/fake data IS allowed in test files:
   • tests/*, *test*, test_*, *_test.py files are exempt

@@ -38,6 +38,7 @@ Blocks Python files containing these patterns outside of test files:
 - `mock` (e.g., `mock_data()`, `return mock_response()`)
 - `synthetic` (e.g., `synthetic_data()`, `create_synthetic()`)
 - `fallback` (e.g., `fallback_data()`, `fallback_response()`)
+- `demo` (e.g., `demo_dataset()`, `return demo_data()`)
 
 **Why:** Enforces the ATS platform's "REAL DATA ONLY" policy:
 - Prevents hiding database connection problems and query failures
@@ -50,6 +51,7 @@ Blocks Python files containing these patterns outside of test files:
 - ✅ `if data.empty: raise ValueError("No real market data available")` instead of ❌ `if data.empty: data = generate_fake_data()`
 - ✅ `except ConnectionError: logger.error("Database failed"); raise` instead of ❌ `except ConnectionError: return mock_response()`
 - ✅ `data = load_real_data(); validate_data_exists(data)` instead of ❌ `data = load_real_data() or fallback_synthetic_data()`
+- ✅ `if no_data: raise ValueError("No market data available")` instead of ❌ `if no_data: return demo_dataset()`
 
 **Test File Exemption:** Mock/fake data IS allowed in test files:
 - `tests/*`, `*test*`, `test_*`, `*_test.py` files are exempt
@@ -82,9 +84,9 @@ git commit -m "test"  # Blocked: prohibited naming pattern
 
 **Test content validation:**
 ```bash
-echo "def load_data(): return generate_fake_data()" > data_loader.py
+echo "def load_data(): return demo_dataset()" > data_loader.py
 git add data_loader.py
-git commit -m "test"  # Blocked: prohibited content pattern
+git commit -m "test"  # Blocked: prohibited content pattern (demo)
 ```
 
 **Test that test files are exempt:**
