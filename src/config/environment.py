@@ -453,5 +453,9 @@ class Environment:
 
 
 # Global environment instance for easy access
-env = Environment()
+try:
+    env = Environment()
+except RuntimeError:
+    # Environment instance will be created when needed
+    env = None
 

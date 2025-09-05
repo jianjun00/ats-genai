@@ -182,6 +182,62 @@ class CustomFeatureGenerator(FeatureGenerator):
             base_name += f"_lag{config.lag_periods}"
         return [base_name]
 
+class DateTimeFeatureGenerator(FeatureGenerator):
+    """Generates datetime-based features."""
+    
+    def generate(self, data: pd.DataFrame, config: FeatureConfig) -> pd.Series:
+        """Generate datetime-based feature from index."""
+        # Extract datetime information from the index
+        if not isinstance(data.index, pd.DatetimeIndex):
+            raise ValueError("Data must have a DatetimeIndex for datetime features")
+        
+        # Handle timezone conversion more robustly
+        try:
+            import pytz
+            edt_tz = pytz.timezone('US/Eastern')
+            datetime_index_edt = data.index.tz_convert(edt_tz) if data.index.tz else data.index.tz_localize('UTC').tz_convert(edt_tz)
+        except Exception:
+            # Fallback: assume data is already in EDT or use a simple offset
+            # For testing purposes, assume UTC-4 for EDT during summer
+            if data.index.tz:
+                datetime_index_edt = data.index
+            else:
+                # Localize as UTC then convert to EDT (UTC-4)
+                datetime_index_edt = data.index.tz_localize('UTC')
+                # Apply EDT offset manually (UTC-4 hours)
+                datetime_index_edt = datetime_index_edt - pd.Timedelta(hours=4)
+        
+        # Generate requested datetime feature
+        feature_name = config.name
+        if feature_name == 'datetime':
+            # Format datetime string with EDT timezone info
+            if datetime_index_edt.tz:
+                datetime_strings = datetime_index_edt.strftime('%Y-%m-%d %H:%M:%S %Z')
+            else:
+                # If we used manual offset, add EDT label
+                datetime_strings = datetime_index_edt.strftime('%Y-%m-%d %H:%M:%S EDT')
+            return pd.Series(datetime_strings, index=data.index, name='datetime')
+        elif feature_name == 'hour_of_day_edt':
+            return pd.Series(datetime_index_edt.hour, index=data.index, name='hour_of_day_edt')
+        elif feature_name == 'day_of_week':
+            return pd.Series(datetime_index_edt.dayofweek, index=data.index, name='day_of_week')  # 0=Monday, 6=Sunday
+        elif feature_name == 'week_of_month':
+            # Calculate week of month (1-5)
+            return pd.Series((datetime_index_edt.day - 1) // 7 + 1, index=data.index, name='week_of_month')
+        elif feature_name == 'week_of_year':
+            return pd.Series(datetime_index_edt.isocalendar().week, index=data.index, name='week_of_year')
+        elif feature_name == 'year':
+            return pd.Series(datetime_index_edt.year, index=data.index, name='year')
+        else:
+            raise ValueError(f"Unknown datetime feature: {feature_name}")
+    
+    def get_feature_names(self, config: FeatureConfig) -> List[str]:
+        """Get the names of datetime features this generator produces."""
+        base_name = config.name
+        if config.lag_periods > 0:
+            base_name += f"_lag{config.lag_periods}"
+        return [base_name]
+
 @gin.configurable
 class FeatureRegistry:
     """Central registry for feature generators."""
@@ -191,7 +247,8 @@ class FeatureRegistry:
         self.generators = {
             'indicator': IndicatorFeatureGenerator(),
             'transform': TransformFeatureGenerator(),
-            'custom': CustomFeatureGenerator()
+            'custom': CustomFeatureGenerator(),
+            'datetime': DateTimeFeatureGenerator()
         }
     
     def add_feature(self, config: FeatureConfig):

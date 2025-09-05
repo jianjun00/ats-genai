@@ -49,7 +49,7 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 ```bash
 # Your primary interface - use for ALL operations
 python scripts/run_dev.py setup                    # Setup dev environment
-python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_prices"
+python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_instruments"
 python scripts/run_dev.py run --script scripts/data_generation/create_sample_data.py
 python scripts/run_dev.py run --script scripts/training/train_model.py --gpu  # With GPU
 python scripts/run_dev.py start --service postgres # Start database
@@ -99,7 +99,15 @@ python scripts/run_dev.py test --test tests/unit/
 
 # Database operations
 python scripts/run_dev.py query --query "SELECT version()"
-python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_prices"
+python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_instruments"
+
+# Run tracking and metadata
+python scripts/run_dev.py get --run-id <run_id>             # Get run details with gin config tracking
+python scripts/run_dev.py query --query "SELECT id, run_type, status, command_line FROM dev_runs ORDER BY id DESC LIMIT 10"
+
+# Training dataset management
+python scripts/run_dev.py training_dataset get <dataset_id> # Get training dataset details
+python scripts/run_dev.py query --query "SELECT id, dataset_name, symbols, creation_timestamp FROM dev_training_dataset ORDER BY id DESC LIMIT 10"
 ```
 
 ### Service Management
@@ -128,6 +136,73 @@ python scripts/run_dev.py run --script scripts/training/train_model.py --gpu
 python scripts/run_dev.py logs --service analytics
 ```
 
+## 🤖 **Training Data & Run Management**
+
+### **Run Tracking and Gin Configuration**
+```bash
+# Track training data generation runs with gin config
+python scripts/run_dev.py get --run-id 35    # Shows: command_line, gin config, git hash, environment
+# Example output: 
+# command_line: training_data_callback_runner.py --gin-config config/training_data.gin --symbols AAPL TSLA
+# git_commit_hash: f35265c1242abea4509aab15214e5eb9516d7227
+# environment: dev
+
+# List recent runs by type  
+python scripts/run_dev.py query --query "SELECT id, run_type, status, LEFT(command_line, 50) as command FROM dev_runs WHERE run_type = 'training_data_generation' ORDER BY id DESC LIMIT 5"
+
+# View all runs with gin config tracking
+python scripts/run_dev.py query --query "SELECT id, run_type, status, created_at FROM dev_runs ORDER BY id DESC LIMIT 10"
+```
+
+### **Training Dataset Management**
+```bash
+# Get comprehensive training dataset details
+python scripts/run_dev.py training_dataset get 1
+# Shows: dataset_name, symbols, date ranges, sequence info, quality metrics, technical indicators, etc.
+
+# List training datasets with key metrics
+python scripts/run_dev.py query --query "SELECT id, dataset_name, symbols, data_quality_score, file_size_mb, total_sequences FROM dev_training_dataset ORDER BY creation_timestamp DESC"
+
+# Find datasets by symbol
+python scripts/run_dev.py query --query "SELECT id, dataset_name, symbols, creation_timestamp FROM dev_training_dataset WHERE symbols LIKE '%AAPL%'"
+
+# Check dataset quality metrics
+python scripts/run_dev.py query --query "SELECT dataset_name, data_quality_score, feature_completeness, label_completeness FROM dev_training_dataset WHERE data_quality_score > 0.9"
+```
+
+### **Training Data Generation Workflow**
+```bash
+# 1. Generate training data using gin config (tracks metadata automatically)
+python scripts/run_dev.py run --script src/ml/training_data/runners/training_data_callback_runner.py
+
+# 2. Check the run was tracked  
+python scripts/run_dev.py query --query "SELECT MAX(id) as latest_run_id FROM dev_runs WHERE run_type = 'training_data_generation'"
+
+# 3. Get run details including gin config used
+python scripts/run_dev.py get --run-id <latest_run_id>
+
+# 4. Check generated training datasets
+python scripts/run_dev.py query --query "SELECT id, dataset_name, creation_timestamp FROM dev_training_dataset ORDER BY creation_timestamp DESC LIMIT 5"
+
+# 5. Get dataset details
+python scripts/run_dev.py training_dataset get <dataset_id>
+```
+
+### **Multi-Timeframe Training Data Structure**
+```bash
+# Training data is organized in multi-timeframe structure:
+# /mnt/d/ats-data/training/{run_id}/5m/SYMBOL_START_END.riegeli
+# /mnt/d/ats-data/training/{run_id}/15m/SYMBOL_START_END.riegeli  
+# /mnt/d/ats-data/training/{run_id}/1h/SYMBOL_START_END.riegeli
+# /mnt/d/ats-data/training/{run_id}/1d/SYMBOL_START_END.riegeli
+
+# Check training data files for a specific run
+ls -la /mnt/d/ats-data/training/35/*/
+
+# Verify training data structure  
+python scripts/run_dev.py query --query "SELECT run_type, parameters, command_line FROM dev_runs WHERE id = 35"
+```
+
 ## 🚨 **Critical Anti-Patterns to Avoid**
 
 **Infrastructure:**
@@ -148,6 +223,8 @@ python scripts/run_dev.py logs --service analytics
 - ❌ Half-baked implementations (incomplete end-to-end)
 - ❌ **Using mock/synthetic data outside of unit tests**
 - ❌ **Creating new files when existing files can be enhanced**
+- ❌ **Not tracking training data generation runs in dev_runs table**
+- ❌ **Generating training data without gin config tracking**
 
 ## 🎯 **Success Criteria**
 
@@ -164,6 +241,51 @@ python scripts/run_dev.py logs --service analytics
 - [ ] **Using real data only - no mock/synthetic data outside tests**
 - [ ] **Modifying existing files instead of creating new files**
 - [ ] **Consolidating functionality to reduce infrastructure complexity**
+- [ ] **Tracking all training data generation in dev_runs table**
+- [ ] **Using gin config with proper run metadata tracking**
+- [ ] **Verifying training dataset quality with run_dev training_dataset get command**
+
+## 🚨 **CRITICAL: Training Data Generation Flow**
+
+**❌ DO NOT use `dev_daily_prices` - This table is NOT used for training data**
+
+### **Data Flow: Minute Bars → Training Data Generator → Training Datasets**
+
+```
+1. Minute Bar Files (INPUT - Raw Data)
+   ↓
+2. FileBasedMinuteManager (Reads parquet files)
+   ↓  
+3. FileBasedMinuteMarketDataManager (Aggregates timeframes)
+   ↓
+4. Training Data Generator (Creates sequences, features, labels)
+   ↓
+5. Training Datasets (OUTPUT - ML-ready numpy arrays)
+```
+
+**🔹 INPUT: Minute Bar Files (Raw OHLCV Data)**
+- **Location**: `/mnt/d/ats-data/minute-bars/firstrate/` 
+- **Structure**: `{first_letter}/{SYMBOL}/{YYYY}/{MM}/{SYMBOL}_{YYYY}_{MM}.parquet`
+- **Example**: `/mnt/d/ats-data/minute-bars/firstrate/A/AAPL/2025/07/AAPL_2025_07.parquet`
+- **Content**: Raw minute-level OHLCV data from market
+
+**🔹 PROCESSOR: Training Data Infrastructure**
+- **Data Reader**: `FileBasedMinuteManager` - Reads parquet files from disk
+- **Data Manager**: `FileBasedMinuteMarketDataManager` - Provides aggregated timeframes  
+- **Generator**: `src/ml/training_data/runners/training_data_callback_runner.py`
+- **Callback**: `DateBasedTrainingDataCallback` - Processes intervals into sequences
+
+**🔹 OUTPUT: Training Datasets (ML-Ready Sequences)**
+- **Location**: `/data/training/` (container) = `/mnt/d/ats-data/training/` (host)
+- **Format**: Numpy arrays (.npy), Riegeli files, with metadata
+- **Content**: Sequences with features (OHLCV + indicators) and labels (future returns)
+- **Database**: Registered in `dev_training_dataset` table
+- **Tracking**: All runs logged in `dev_runs` table with command_line, git_commit_hash
+
+**❌ Common Mistakes:**
+- **NOT daily prices**: `dev_daily_prices` is not involved
+- **NOT firstrate-data/daily/**: Wrong location - use `minute-bars/firstrate/`
+- **Minute bars ≠ Training data**: Minute bars are INPUT, training data is OUTPUT
 
 ## 📚 **Detailed Documentation**
 

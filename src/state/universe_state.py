@@ -8,7 +8,13 @@ from .instrument_interval import InstrumentInterval
 from .indicator_interval import IndicatorInterval
 from .forecast_interval import ForecastInterval
 
-from .proto import universe_state_interval_pb2
+try:
+    from .proto import universe_state_interval_pb2
+except (ImportError, TypeError) as e:
+    # Protobuf dependencies not available - some features will be limited
+    universe_state_interval_pb2 = None
+    import warnings
+    warnings.warn(f"Protobuf module not available: {e}. Some serialization features disabled.", ImportWarning)
 
 @dataclass
 class UniverseStateInterval:

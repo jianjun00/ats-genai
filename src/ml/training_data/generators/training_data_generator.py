@@ -519,12 +519,27 @@ class ResidualReturnTrainingDataGenerator:
         """Extract market-wide features."""
         features = {}
         
-        # Market timing features
-        features['day_of_week'] = current_date.weekday()
-        features['day_of_month'] = current_date.day
-        features['day_of_year'] = current_date.timetuple().tm_yday
-        features['is_month_end'] = (current_date + timedelta(days=1)).day == 1
-        features['is_quarter_end'] = (current_date.month % 3 == 0) and features['is_month_end']
+        # Import required modules for datetime handling
+        from datetime import timedelta
+        import pytz
+        
+        # Convert to EDT timezone for trading hours
+        edt_tz = pytz.timezone('US/Eastern')
+        current_date_edt = current_date.astimezone(edt_tz) if current_date.tzinfo else edt_tz.localize(current_date)
+        
+        # Core datetime features (as requested)
+        features['datetime'] = current_date_edt.isoformat()  # Full datetime string
+        features['hour_of_day_edt'] = current_date_edt.hour  # Hour of day in EDT (0-23)
+        features['day_of_week'] = current_date_edt.weekday()  # 0=Monday, 6=Sunday
+        features['week_of_month'] = (current_date_edt.day - 1) // 7 + 1  # Week within month (1-5)
+        features['week_of_year'] = current_date_edt.isocalendar()[1]  # ISO week of year (1-53)  
+        features['year'] = current_date_edt.year  # Full year (e.g., 2025)
+        
+        # Legacy market timing features (keep for compatibility)
+        features['day_of_month'] = current_date_edt.day
+        features['day_of_year'] = current_date_edt.timetuple().tm_yday
+        features['is_month_end'] = (current_date_edt + timedelta(days=1)).day == 1
+        features['is_quarter_end'] = (current_date_edt.month % 3 == 0) and features['is_month_end']
         
         # Price level features
         if 'close' in price_data.columns:

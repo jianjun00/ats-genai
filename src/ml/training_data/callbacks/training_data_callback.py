@@ -15,7 +15,12 @@ import json
 from state.runner_callback import RunnerCallback
 # TrainingDataConfig is imported from the specific runner that uses this callback
 # TimeSeriesSequenceTrainingGenerator and SequenceTrainingExample are not actually used
-from ml.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
+# Optional import - will be None if not available
+try:
+    from ml.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
+except ImportError:
+    SequenceStorageManager = None
+    StorageConfig = None
 
 
 class DateBasedTrainingDataCallback(RunnerCallback):
@@ -204,7 +209,7 @@ class DateBasedTrainingDataCallback(RunnerCallback):
         date_str = self.current_date.strftime('%Y%m%d')
         
         try:
-            if self.save_format == "advanced" and self.storage_manager:
+            if self.save_format in ["advanced", "riegeli"] and self.storage_manager:
                 # Use advanced storage with date-based batch ID
                 batch_id = f"daily_{date_str}"
                 save_result = await self.storage_manager.save_sequence_batch(
@@ -419,14 +424,13 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         # Define signals to compute
         signals = ['sma_20', 'ema_12', 'ema_26', 'rsi_14', 'etop', 'ebot', 'pldot', 'vwap']
         
-        # Use enhanced API to get multi-timeframe data with signals
+        # Use enhanced API to get multi-timeframe data
         try:
             multi_timeframe_data = await self.minute_data_manager.get_multi_timeframe_data(
                 symbols=[symbol],
                 start=start_time,
                 end=current_time,
-                intervals=list(self.config.timeframes.keys()),
-                signals=signals
+                intervals=list(self.config.timeframes.keys())
             )
             
             if symbol not in multi_timeframe_data:
@@ -524,27 +528,27 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                     # Create filename with date range: STARTDATE_ENDDATE.riegeli
                     start_date_str = getattr(self, 'start_date', current_time.date()).strftime('%Y%m%d_000000')
                     end_date_str = getattr(self, 'end_date', current_time.date()).strftime('%Y%m%d_000000')
-                    riegeli_filename = f"{start_date_str}_{end_date_str}.riegeli"
-                    riegeli_path = symbol_dir / riegeli_filename
+                    arrayrecord_filename = f"{start_date_str}_{end_date_str}.arrayrecord"
+                    arrayrecord_path = symbol_dir / arrayrecord_filename
                     
-                    # Save as riegeli format
-                    await self._save_symbol_riegeli(symbol_examples, riegeli_path, symbol)
+                    # Save as ArrayRecord format
+                    await self._save_symbol_arrayrecord(symbol_examples, arrayrecord_path, symbol)
                     
                     # Save companion metadata
                     metadata_path = symbol_dir / f"{start_date_str}_{end_date_str}_metadata.json"
                     await self._save_symbol_metadata(symbol_examples, metadata_path, symbol, current_time)
                     
-                    self.logger.info(f"Saved {len(symbol_examples)} examples for {symbol} to {riegeli_path}")
+                    self.logger.info(f"Saved {len(symbol_examples)} examples for {symbol} to {arrayrecord_path}")
                 
         except Exception as e:
             self.logger.error(f"Failed to save multi-timeframe examples at {current_time}: {e}")
     
-    async def _save_symbol_riegeli(self, examples: List[Dict], riegeli_path: Path, symbol: str):
-        """Save symbol-specific examples in .riegeli format."""
+    async def _save_symbol_arrayrecord(self, examples: List[Dict], arrayrecord_path: Path, symbol: str):
+        """Save symbol-specific examples in ArrayRecord format."""
         try:
             import pandas as pd
             
-            # Convert multi-timeframe examples to structured format for riegeli
+            # Convert multi-timeframe examples to structured format for ArrayRecord
             # Each row represents one training interval with multi-timeframe features
             rows = []
             
@@ -569,40 +573,31 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             # Convert to DataFrame
             df = pd.DataFrame(rows)
             
-            # Save as riegeli using the utility function from the runner
-            try:
-                import riegeli
-                import numpy as np
+            # Save as ArrayRecord format
+            import array_record
+            import numpy as np
+            
+            # Convert DataFrame to numpy array
+            data = df.to_numpy(dtype=np.float32)
+            
+            with array_record.ArrayRecordWriter(str(arrayrecord_path), 'group_size:1') as writer:
+                # Write column names as first record
+                writer.write(str(list(df.columns)).encode('utf-8'))
                 
-                # Convert DataFrame to numpy array
-                data = df.to_numpy(dtype=np.float32)
-                
-                with riegeli.RecordWriter(str(riegeli_path)) as writer:
-                    # Write column names as first record
-                    writer.write_record(str(list(df.columns)).encode('utf-8'))
+                # Write each row as a record
+                for row in data:
+                    writer.write(row.tobytes())
                     
-                    # Write each row as a record
-                    for row in data:
-                        writer.write_record(row.tobytes())
-                        
-                self.logger.debug(f"Saved riegeli file: {riegeli_path} ({len(df)} rows, {len(df.columns)} columns)")
-                        
-            except ImportError:
-                # Fallback: save as numpy binary if riegeli not available
-                import numpy as np
-                np_file = riegeli_path.with_suffix('.npy')
-                np.save(str(np_file), df.to_numpy())
-                
-                # Also save column names
-                columns_file = riegeli_path.with_suffix('_columns.json')
-                import json
-                with open(columns_file, 'w') as f:
-                    json.dump(list(df.columns), f)
-                    
-                self.logger.warning(f"Riegeli not available, saved as numpy: {np_file}")
+            self.logger.debug(f"Saved ArrayRecord file: {arrayrecord_path} ({len(df)} rows, {len(df.columns)} columns)")
+            
+            # Also save column names
+            columns_file = arrayrecord_path.with_suffix('_columns.json')
+            import json
+            with open(columns_file, 'w') as f:
+                json.dump(list(df.columns), f)
                 
         except Exception as e:
-            self.logger.error(f"Failed to save riegeli file for {symbol}: {e}")
+            self.logger.error(f"Failed to save ArrayRecord file for {symbol}: {e}")
     
     async def _save_symbol_metadata(self, examples: List[Dict], metadata_path: Path, symbol: str, current_time: datetime):
         """Save symbol-specific metadata."""

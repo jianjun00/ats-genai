@@ -26,19 +26,9 @@ import json
 from dataclasses import dataclass, asdict
 import asyncio
 
-try:
-    import riegeli
-    RIEGELI_AVAILABLE = True
-except ImportError:
-    RIEGELI_AVAILABLE = False
-    logging.warning("Riegeli not available, falling back to TFRecord")
+from array_record.python.array_record_module import ArrayRecordWriter, ArrayRecordReader
 
-try:
-    import tensorflow as tf
-    TFRECORD_AVAILABLE = True
-except ImportError:
-    TFRECORD_AVAILABLE = False
-    logging.warning("TensorFlow not available, using pickle fallback")
+import tensorflow as tf
 
 
 @dataclass
@@ -100,14 +90,7 @@ class SequenceStorageManager:
         
         self.logger = logging.getLogger(__name__)
         
-        # Validate format availability
-        if self.config.primary_format == "riegeli" and not RIEGELI_AVAILABLE:
-            self.logger.warning("Riegeli not available, falling back to tfrecord")
-            self.config.primary_format = "tfrecord"
-        
-        if self.config.primary_format == "tfrecord" and not TFRECORD_AVAILABLE:
-            self.logger.warning("TFRecord not available, falling back to pickle")
-            self.config.primary_format = "pickle"
+        # All required packages must be available - no fallbacks
     
     def _generate_example_id(self, symbol: str, timestamp: datetime) -> str:
         """Generate unique example ID."""
@@ -117,6 +100,15 @@ class SequenceStorageManager:
     def _calculate_checksum(self, data: bytes) -> str:
         """Calculate checksum for data integrity."""
         return hashlib.sha256(data).hexdigest()
+    
+    def _json_serializer(self, obj):
+        """JSON serializer for objects not serializable by default json code."""
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        elif hasattr(obj, '__dict__'):
+            return obj.__dict__
+        else:
+            return str(obj)
     
     async def save_sequence_batch(self, 
                                  examples: List[Any],
@@ -144,9 +136,9 @@ class SequenceStorageManager:
         # Convert examples to storage-optimized format
         sequence_data, metadata_records = self._prepare_data_for_storage(examples)
         
-        # Save sequence data using Riegeli format only
+        # Save sequence data using ArrayRecord format
         sequence_stats = await self._save_sequence_data(
-            sequence_data, sequence_file, "riegeli"
+            sequence_data, sequence_file, "arrayrecord"
         )
         
         # Save metadata using Riegeli (not Parquet)
@@ -206,7 +198,7 @@ class SequenceStorageManager:
             }
             
             # Estimate size for metadata
-            serialized_data = json.dumps(sequence_record, default=str).encode()
+            serialized_data = json.dumps(sequence_record, default=self._json_serializer).encode()
             data_size = len(serialized_data)
             
             # Calculate checksum if enabled
@@ -281,34 +273,33 @@ class SequenceStorageManager:
                                  file_path: Path,
                                  format_type: str) -> Dict[str, Any]:
         """Save sequence data using specified format."""
-        if format_type == "riegeli":
-            return await self._save_riegeli(sequence_data, file_path.with_suffix('.riegeli'))
+        if format_type in ["riegeli", "arrayrecord"]:
+            extension = '.arrayrecord' if format_type == "arrayrecord" else '.riegeli'
+            return await self._save_arrayrecord(sequence_data, file_path.with_suffix(extension))
         elif format_type == "tfrecord":
             return await self._save_tfrecord(sequence_data, file_path.with_suffix('.tfrecord'))
         else:
             return await self._save_pickle(sequence_data, file_path.with_suffix('.pkl'))
     
-    async def _save_riegeli(self, sequence_data: List[Dict], file_path: Path) -> Dict[str, Any]:
-        """Save data using Riegeli format."""
-        if not RIEGELI_AVAILABLE:
-            raise ImportError("Riegeli not available")
+    async def _save_arrayrecord(self, sequence_data: List[Dict], file_path: Path) -> Dict[str, Any]:
+        """Save data using ArrayRecord format."""
         
-        def _write_riegeli():
-            with riegeli.RecordWriter(
+        def _write_arrayrecord():
+            with ArrayRecordWriter(
                 str(file_path),
-                compression=f"brotli:{self.config.compression_level}"
+                'group_size:1'
             ) as writer:
                 for record in sequence_data:
                     # Serialize record to bytes
-                    data = json.dumps(record, default=str).encode()
+                    data = json.dumps(record, default=self._json_serializer).encode()
                     writer.write_record(data)
         
         # Run in thread pool to avoid blocking
-        await asyncio.get_event_loop().run_in_executor(None, _write_riegeli)
+        await asyncio.get_event_loop().run_in_executor(None, _write_arrayrecord)
         
         file_size = file_path.stat().st_size
         return {
-            'format': 'riegeli',
+            'format': 'arrayrecord',
             'file_size': file_size,
             'compression_ratio': self._estimate_compression_ratio(sequence_data, file_size),
             'records_written': len(sequence_data)
@@ -372,27 +363,25 @@ class SequenceStorageManager:
                 feature[key] = tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
             else:
                 # Serialize complex objects as JSON bytes
-                json_bytes = json.dumps(value, default=str).encode()
+                json_bytes = json.dumps(value, default=self._json_serializer).encode()
                 feature[key] = tf.train.Feature(bytes_list=tf.train.BytesList(value=[json_bytes]))
         
         return tf.train.Example(features=tf.train.Features(feature=feature))
     
     async def _save_metadata_riegeli(self, metadata_records: List[SequenceMetadata], file_path: Path) -> Dict[str, Any]:
         """Save metadata using Riegeli format instead of Parquet."""
-        if not RIEGELI_AVAILABLE:
-            raise ImportError("Riegeli not available for metadata storage")
         
         def _write_metadata_riegeli():
-            with riegeli.RecordWriter(
+            with ArrayRecordWriter(
                 str(file_path),
-                compression=f"brotli:{self.config.compression_level}"
+                'group_size:1'
             ) as writer:
                 for record in metadata_records:
                     # Convert metadata record to dictionary and serialize
                     metadata_dict = asdict(record)
                     # Convert datetime to ISO string for JSON serialization
                     metadata_dict['prediction_timestamp'] = metadata_dict['prediction_timestamp'].isoformat()
-                    data = json.dumps(metadata_dict, default=str).encode()
+                    data = json.dumps(metadata_dict, default=self._json_serializer).encode()
                     writer.write_record(data)
         
         await asyncio.get_event_loop().run_in_executor(None, _write_metadata_riegeli)
@@ -421,16 +410,16 @@ class SequenceStorageManager:
                 'file_size': record.file_size
             })
         
-        # Save index using Riegeli instead of Parquet
+        # Save index using ArrayRecord instead of Parquet
         def _write_index_riegeli():
-            with riegeli.RecordWriter(
+            with ArrayRecordWriter(
                 str(index_file),
-                compression=f"brotli:{self.config.compression_level}"
+                'group_size:1'
             ) as writer:
                 for index_record in index_data:
                     # Convert datetime to ISO string for JSON serialization
                     index_record['prediction_timestamp'] = index_record['prediction_timestamp'].isoformat()
-                    data = json.dumps(index_record, default=str).encode()
+                    data = json.dumps(index_record, default=self._json_serializer).encode()
                     writer.write_record(data)
         
         await asyncio.get_event_loop().run_in_executor(None, _write_index_riegeli)
@@ -441,7 +430,7 @@ class SequenceStorageManager:
         """Estimate compression ratio."""
         try:
             # Estimate uncompressed size
-            sample_size = len(json.dumps(data[0], default=str).encode()) if data else 0
+            sample_size = len(json.dumps(data[0], default=self._json_serializer).encode()) if data else 0
             estimated_uncompressed = sample_size * len(data)
             
             if estimated_uncompressed > 0:
@@ -470,12 +459,10 @@ class SequenceStorageManager:
     
     async def _load_riegeli(self, file_path: Path) -> List[Dict]:
         """Load data from Riegeli format."""
-        if not RIEGELI_AVAILABLE:
-            raise ImportError("Riegeli not available")
         
         def _read_riegeli():
             records = []
-            with riegeli.RecordReader(str(file_path)) as reader:
+            with ArrayRecordReader(str(file_path)) as reader:
                 for record_bytes in reader:
                     record = json.loads(record_bytes.decode())
                     records.append(record)
@@ -497,7 +484,7 @@ class SequenceStorageManager:
         def _query_metadata():
             all_records = []
             for file_path in metadata_files:
-                with riegeli.RecordReader(str(file_path)) as reader:
+                with ArrayRecordReader(str(file_path)) as reader:
                     for record_bytes in reader:
                         record = json.loads(record_bytes.decode())
                         # Parse timestamp back to datetime for filtering

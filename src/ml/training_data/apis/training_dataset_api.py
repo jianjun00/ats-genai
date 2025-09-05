@@ -300,9 +300,82 @@ def create_training_dataset_router():
             logger.error(f"Error getting histogram for dataset {dataset_id}: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to get dataset histogram: {str(e)}")
 
+    @router.get("/{dataset_id}/sequences")
+    async def get_dataset_sequences(
+        dataset_id: int,
+        dao: TrainingDatasetDAO = Depends(get_training_dataset_dao)
+    ):
+        """Get available sequence files for a training dataset."""
+        try:
+            dataset = await dao.get_training_dataset(dataset_id)
+            
+            if not dataset:
+                raise HTTPException(status_code=404, detail="Training dataset not found")
+            
+            import os
+            import glob
+            
+            # Get the base directory from features_file_path
+            features_path = dataset.features_file_path
+            if not features_path or not os.path.exists(features_path):
+                return {"sequences": []}
+            
+            base_dir = os.path.dirname(features_path)
+            
+            # Find all sequence files in the dataset directory
+            sequence_files = []
+            for features_file in glob.glob(os.path.join(base_dir, "*_features.npy")):
+                base_name = os.path.basename(features_file).replace("_features.npy", "")
+                labels_file = os.path.join(base_dir, f"{base_name}_labels.npy")
+                metadata_file = os.path.join(base_dir, f"{base_name}_metadata.json")
+                
+                # Extract symbol and timeframe from filename if possible
+                parts = base_name.split("_")
+                symbol = "unknown"
+                timeframe = "unknown"
+                
+                if len(parts) >= 2:
+                    # Look for symbol pattern
+                    for part in parts:
+                        if part.isupper() and len(part) <= 5:
+                            symbol = part
+                            break
+                    
+                    # Look for timeframe pattern
+                    for part in parts:
+                        if part in ["5m", "15m", "1h", "1d", "daily", "hourly", "minute"]:
+                            timeframe = part
+                            break
+                
+                sequence_info = {
+                    "sequence_id": base_name,
+                    "symbol": symbol,
+                    "timeframe": timeframe,
+                    "features_file": features_file,
+                    "labels_file": labels_file if os.path.exists(labels_file) else None,
+                    "metadata_file": metadata_file if os.path.exists(metadata_file) else None,
+                    "file_size_mb": round(os.path.getsize(features_file) / (1024 * 1024), 2)
+                }
+                
+                sequence_files.append(sequence_info)
+            
+            return {
+                "dataset_id": dataset_id,
+                "dataset_name": dataset.dataset_name,
+                "total_sequences": len(sequence_files),
+                "sequences": sorted(sequence_files, key=lambda x: (x["symbol"], x["timeframe"]))
+            }
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting sequences for dataset {dataset_id}: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to get dataset sequences: {str(e)}")
+
     @router.get("/{dataset_id}/visualization-data")
     async def get_dataset_visualization_data(
         dataset_id: int,
+        sequence_id: str = Query(None, description="Sequence ID to visualize (if not provided, uses main dataset)"),
         start_idx: int = Query(0, description="Starting row index"),
         count: int = Query(21, description="Number of rows to return (for 10 before + 1 selected + 10 after)"),
         dao: TrainingDatasetDAO = Depends(get_training_dataset_dao)
@@ -318,11 +391,23 @@ def create_training_dataset_router():
             import numpy as np
             import os
             
-            if not os.path.exists(dataset.features_file_path):
-                raise HTTPException(status_code=404, detail="Features file not found")
+            # Determine which features file to use
+            features_file_path = dataset.features_file_path
+            
+            if sequence_id:
+                # Use specific sequence file
+                base_dir = os.path.dirname(dataset.features_file_path)
+                features_file_path = os.path.join(base_dir, f"{sequence_id}_features.npy")
+                
+                if not os.path.exists(features_file_path):
+                    raise HTTPException(status_code=404, detail=f"Sequence file not found: {sequence_id}")
+            else:
+                # Use main dataset features file
+                if not os.path.exists(features_file_path):
+                    raise HTTPException(status_code=404, detail="Features file not found")
             
             # Load features array [sequences, time_steps, features]
-            features_data = np.load(dataset.features_file_path)
+            features_data = np.load(features_file_path)
             
             # Calculate the selected sequence index and time step within sequence
             sequence_idx = start_idx // dataset.sequence_length

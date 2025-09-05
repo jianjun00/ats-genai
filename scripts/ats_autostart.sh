@@ -51,6 +51,18 @@ start_ats_services() {
         fi
     fi
     
+    # Check if ATS-DEV Analytics is running
+    if is_service_running "ats-dev-analytics"; then
+        log "✅ ATS-DEV Analytics already running"
+    else
+        log "🔧 Starting ATS-DEV Analytics..."
+        if python3 scripts/run_dev.py start --service analytics >> "$LOG_FILE" 2>&1; then
+            log "✅ ATS-DEV Analytics started successfully"
+        else
+            log "⚠️  ATS-DEV Analytics failed to start (may already be running)"
+        fi
+    fi
+    
     # Check if ATS-INTG PostgreSQL is running
     if is_service_running "ats-intg-postgres"; then
         log "✅ ATS-INTG PostgreSQL already running"
@@ -113,6 +125,7 @@ start_ats_services() {
     # Show service URLs
     log "🌐 Service URLs:"
     log "  - ATS-DEV PostgreSQL: localhost:3432"
+    log "  - ATS-DEV Analytics: http://localhost:3000"
     log "  - ATS-INTG PostgreSQL: localhost:4432"
     log "  - ATS-INTG Analytics: http://localhost:4000"
     

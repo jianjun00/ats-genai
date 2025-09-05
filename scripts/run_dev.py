@@ -13,6 +13,8 @@ import argparse
 import os
 import json
 import yaml
+import numpy as np
+import pandas as pd
 from pathlib import Path
 
 class DevCLI:
@@ -247,7 +249,7 @@ class DevCLI:
             -e OPENAI_API_KEY={os.getenv('OPENAI_API_KEY', '')} \
             {env_vars} \
             {image} \
-            {command_to_run}"""
+            bash -c "pip install array-record tensorflow && python {script_path} --symbols $SYMBOLS --start-date $START_DATE --end-date $END_DATE --environment $ENVIRONMENT --output-dir $OUTPUT_DIR --gin-config $GIN_CONFIG --debug" """.format(script_path=script_path)
         
         print(f"🚀 Running: docker run ... {command_to_run}")
         result = subprocess.run(cmd, shell=True)
@@ -516,6 +518,300 @@ class DevCLI:
             print(result)
         return result
     
+    def get_run(self, run_id):
+        """Get run information from runs table"""
+        if not run_id:
+            print("❌ Run ID is required")
+            return False
+        
+        print(f"📊 Getting run information for ID: {run_id}")
+        
+        # Query runs table for the specific run_id
+        runs_table = f"{self.table_prefix}runs"
+        query = f"""
+        SELECT 
+            id,
+            run_type,
+            status,
+            start_time,
+            end_time,
+            command_line,
+            git_commit_hash,
+            git_branch,
+            environment,
+            parameters,
+            created_at,
+            created_by,
+            working_directory,
+            python_version
+        FROM {runs_table} 
+        WHERE id = {run_id}
+        """
+        
+        return self.query_db(query, f"Run details for ID {run_id}")
+    
+    def get_training_dataset(self, dataset_id):
+        """Get training dataset information from training datasets table"""
+        if not dataset_id:
+            print("❌ Dataset ID is required")
+            return False
+        
+        print(f"📊 Getting training dataset information for ID: {dataset_id}")
+        
+        # Query training datasets table for the specific dataset_id
+        datasets_table = f"{self.table_prefix}training_dataset"
+        query = f"""
+        SELECT 
+            id,
+            dataset_name,
+            symbols,
+            date_range_start,
+            date_range_end,
+            sequence_length,
+            feature_count,
+            label_count,
+            file_size_mb,
+            data_quality_score,
+            feature_completeness,
+            label_completeness,
+            creation_timestamp,
+            data_format,
+            time_resolution,
+            visualization_type,
+            time_step_unit,
+            is_time_series,
+            window_size,
+            feature_metadata,
+            technical_indicators,
+            total_sequences
+        FROM {datasets_table} 
+        WHERE id = {dataset_id}
+        """
+        
+        return self.query_db(query, f"Training dataset details for ID {dataset_id}")
+    
+    def sample_training_dataset(self, dataset_id, sample_size):
+        """Sample N rows from a training dataset by ID"""
+        if not dataset_id:
+            print("❌ Dataset ID is required")
+            return False
+            
+        if not sample_size or sample_size <= 0:
+            print("❌ Sample size must be a positive integer")
+            return False
+            
+        print(f"🎯 Sampling {sample_size} rows from training dataset ID: {dataset_id}")
+        
+        # First get dataset information to find file paths
+        datasets_table = f"{self.table_prefix}training_dataset"
+        query = f"""
+        SELECT 
+            id,
+            dataset_name,
+            data_format,
+            total_sequences,
+            feature_count,
+            label_count,
+            symbols,
+            date_range_start,
+            date_range_end,
+            technical_indicators
+        FROM {datasets_table} 
+        WHERE id = {dataset_id}
+        """
+        
+        # Execute query and capture result
+        try:
+            result_process = subprocess.run(
+                f"docker exec -i ats-dev-postgres psql -h localhost -p 5432 -U postgres -d {self.db_name} -t -c \"{query}\"",
+                shell=True, capture_output=True, text=True, timeout=30
+            )
+            
+            if result_process.returncode != 0:
+                print(f"❌ Database query failed: {result_process.stderr}")
+                return False
+                
+            result_lines = result_process.stdout.strip().split('\n')
+            if not result_lines or not result_lines[0].strip():
+                print(f"❌ No training dataset found with ID: {dataset_id}")
+                return False
+                
+            # Parse the result row
+            row_data = [item.strip() for item in result_lines[0].split('|')]
+            if len(row_data) < 10:
+                print(f"❌ Incomplete dataset information for ID: {dataset_id}")
+                return False
+                
+            dataset_name = row_data[1]
+            data_format = row_data[2]
+            total_sequences = int(row_data[3]) if row_data[3].isdigit() else 0
+            feature_count = int(row_data[4]) if row_data[4].isdigit() else 0
+            label_count = int(row_data[5]) if row_data[5].isdigit() else 0
+            symbols = row_data[6]
+            date_range_start = row_data[7]
+            date_range_end = row_data[8]
+            technical_indicators = row_data[9]
+            
+            print(f"📋 Dataset: {dataset_name}")
+            print(f"🔢 Total sequences: {total_sequences}")
+            print(f"📊 Features: {feature_count}, Labels: {label_count}")
+            print(f"🎯 Symbols: {symbols}")
+            print(f"📅 Date range: {date_range_start} to {date_range_end}")
+            print(f"🔧 Technical indicators: {technical_indicators}")
+            
+            if sample_size > total_sequences:
+                print(f"⚠️  Requested sample size ({sample_size}) exceeds total sequences ({total_sequences})")
+                print(f"🔧 Adjusting sample size to {total_sequences}")
+                sample_size = total_sequences
+            
+            # Try to find and sample actual data files
+            return self._sample_dataset_files(dataset_name, None, sample_size, data_format, 
+                                           "", "")
+                                           
+        except subprocess.TimeoutExpired:
+            print("❌ Database query timed out")
+            return False
+        except Exception as e:
+            print(f"❌ Error sampling dataset: {e}")
+            return False
+    
+    def _sample_dataset_files(self, dataset_name, run_id, sample_size, data_format, 
+                            features_file_path, labels_file_path):
+        """Sample data from actual dataset files"""
+        
+        # Define potential file locations
+        training_data_paths = [
+            f"/mnt/d/ats-data/training/{run_id}",
+            f"/mnt/d/ats-data/training_data",
+            f"/data/training/{run_id}",
+            f"./training_data_output"
+        ]
+        
+        print(f"🔍 Searching for training data files...")
+        
+        # Look for files in potential locations
+        for base_path in training_data_paths:
+            if os.path.exists(base_path):
+                print(f"📁 Found training data directory: {base_path}")
+                
+                # Look for files matching dataset pattern
+                for file_path in Path(base_path).rglob("*"):
+                    if dataset_name.replace(" ", "_") in str(file_path) or (run_id and run_id in str(file_path)):
+                        print(f"📄 Found potential dataset file: {file_path}")
+                        
+                        try:
+                            return self._sample_file(file_path, sample_size, data_format)
+                        except Exception as e:
+                            print(f"⚠️  Could not sample {file_path}: {e}")
+                            continue
+                            
+                # Look for numpy files, JSON files, or other common formats
+                for file_ext in ["*.npy", "*.json", "*.csv", "*.parquet"]:
+                    for file_path in Path(base_path).rglob(file_ext):
+                        if any(keyword in str(file_path).lower() for keyword in [
+                            'features', 'labels', 'training', 'dataset', dataset_name.lower()
+                        ]):
+                            print(f"📄 Found potential data file: {file_path}")
+                            try:
+                                return self._sample_file(file_path, sample_size, data_format)
+                            except Exception as e:
+                                print(f"⚠️  Could not sample {file_path}: {e}")
+                                continue
+        
+        print("⚠️  No accessible training data files found")
+        print("💡 Files may be stored in different location or format")
+        return True
+        
+    def _sample_file(self, file_path, sample_size, data_format):
+        """Sample data from a specific file"""
+        file_path = Path(file_path)
+        file_ext = file_path.suffix.lower()
+        
+        print(f"📖 Attempting to sample {sample_size} rows from: {file_path}")
+        
+        try:
+            if file_ext == '.npy':
+                # NumPy array
+                data = np.load(file_path, allow_pickle=True)
+                if len(data) == 0:
+                    print("❌ Empty numpy array")
+                    return False
+                    
+                total_rows = len(data)
+                actual_sample_size = min(sample_size, total_rows)
+                
+                # Random sample
+                indices = np.random.choice(total_rows, size=actual_sample_size, replace=False)
+                sampled_data = data[indices]
+                
+                print(f"✅ Sampled {actual_sample_size} rows from {total_rows} total")
+                print(f"📊 Sample shape: {sampled_data.shape}")
+                print(f"🔢 Data type: {sampled_data.dtype}")
+                
+                # Show first few elements
+                if sampled_data.ndim > 1:
+                    print(f"📋 First row preview: {sampled_data[0]}")
+                else:
+                    print(f"📋 First values preview: {sampled_data[:min(10, len(sampled_data))]}")
+                    
+                return True
+                
+            elif file_ext == '.json':
+                # JSON file
+                import json
+                with open(file_path, 'r') as f:
+                    data = json.load(f)
+                
+                if isinstance(data, list):
+                    total_rows = len(data)
+                    actual_sample_size = min(sample_size, total_rows)
+                    sampled_data = np.random.choice(data, size=actual_sample_size, replace=False)
+                    
+                    print(f"✅ Sampled {actual_sample_size} items from {total_rows} total")
+                    print(f"📋 Sample preview: {sampled_data[:3] if len(sampled_data) > 3 else sampled_data}")
+                elif isinstance(data, dict):
+                    print(f"📋 JSON metadata: {list(data.keys())}")
+                    for key, value in list(data.items())[:5]:
+                        print(f"   {key}: {value}")
+                        
+                return True
+                
+            elif file_ext == '.csv':
+                # CSV file  
+                df = pd.read_csv(file_path)
+                total_rows = len(df)
+                actual_sample_size = min(sample_size, total_rows)
+                
+                sampled_df = df.sample(n=actual_sample_size)
+                print(f"✅ Sampled {actual_sample_size} rows from {total_rows} total")
+                print(f"📊 Columns: {list(df.columns)}")
+                print(f"📋 Sample preview:")
+                print(sampled_df.head())
+                
+                return True
+                
+            elif file_ext == '.parquet':
+                # Parquet file
+                df = pd.read_parquet(file_path)
+                total_rows = len(df)
+                actual_sample_size = min(sample_size, total_rows)
+                
+                sampled_df = df.sample(n=actual_sample_size)
+                print(f"✅ Sampled {actual_sample_size} rows from {total_rows} total")
+                print(f"📊 Columns: {list(df.columns)}")
+                print(f"📋 Sample preview:")
+                print(sampled_df.head())
+                
+                return True
+                
+            else:
+                print(f"❌ Unsupported file format: {file_ext}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Error reading file {file_path}: {e}")
+            return False
+    
     def setup_dev_env(self):
         """Setup complete development environment"""
         print("🏗️  Setting up development environment...")
@@ -540,19 +836,47 @@ class DevCLI:
 
 def main():
     parser = argparse.ArgumentParser(description="Dev CLI for localhost/Docker development operations")
-    parser.add_argument("action", choices=[
-        "run", "start", "stop", "status", "test", "query", "setup", "logs"
-    ], help="Action to perform")
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
+    # Add existing actions as subcommands to avoid conflicts
+    # Main arguments that apply to all commands
     parser.add_argument("--environment", choices=["dev", "intg"], help="Environment to use (auto-detected if not specified)")
     
-    parser.add_argument("--script", "-s", help="Script to run")
-    parser.add_argument("--service", help="Service name")
-    parser.add_argument("--query", "-q", help="SQL query to run")
-    parser.add_argument("--test", "-t", help="Test path or pattern")
-    parser.add_argument("--gpu", action="store_true", help="Enable GPU support")
-    parser.add_argument("--port", "-p", help="Port mapping")
-    parser.add_argument("--env", help="Environment variables (JSON format)")
+    # Legacy support - add old actions as subcommands
+    for action in ["run", "start", "stop", "status", "test", "query", "setup", "logs", "get"]:
+        action_parser = subparsers.add_parser(action, help=f"{action.capitalize()} action")
+        if action == "run":
+            action_parser.add_argument("--script", "-s", required=True, help="Script to run")
+            action_parser.add_argument("--gpu", action="store_true", help="Enable GPU support")
+            action_parser.add_argument("--env", help="Environment variables (JSON format)")
+        elif action == "start":
+            action_parser.add_argument("--service", required=True, help="Service name")
+            action_parser.add_argument("--port", "-p", help="Port mapping")
+            action_parser.add_argument("--gpu", action="store_true", help="Enable GPU support")
+            action_parser.add_argument("--env", help="Environment variables (JSON format)")
+        elif action == "stop":
+            action_parser.add_argument("--service", required=True, help="Service name")
+        elif action == "query":
+            action_parser.add_argument("--query", "-q", required=True, help="SQL query to run")
+        elif action == "test":
+            action_parser.add_argument("--test", "-t", help="Test path or pattern")
+        elif action == "logs":
+            action_parser.add_argument("--service", required=True, help="Service name")
+        elif action == "get":
+            action_parser.add_argument("--run-id", required=True, help="Run ID")
+    
+    # Training dataset subcommand
+    training_parser = subparsers.add_parser("training_dataset", help="Training dataset operations")
+    training_subparsers = training_parser.add_subparsers(dest="training_action", help="Training dataset actions")
+    
+    # training_dataset get subcommand
+    get_parser = training_subparsers.add_parser("get", help="Get training dataset details")
+    get_parser.add_argument("dataset_id", help="Training dataset ID")
+    
+    # training_dataset sample subcommand
+    sample_parser = training_subparsers.add_parser("sample", help="Sample N rows from training dataset")
+    sample_parser.add_argument("dataset_id", help="Training dataset ID")
+    sample_parser.add_argument("sample_size", type=int, help="Number of rows to sample")
     
     args = parser.parse_args()
     
@@ -560,53 +884,59 @@ def main():
     
     # Parse environment variables if provided
     environment = None
-    if args.env:
+    if hasattr(args, 'env') and args.env:
         try:
             environment = json.loads(args.env)
         except json.JSONDecodeError:
             print("❌ Invalid JSON format for --env")
             sys.exit(1)
     
-    if args.action == "run":
-        if not args.script:
-            print("❌ --script required for run action")
+    # Handle commands based on subcommand structure
+    if args.command == "training_dataset":
+        if args.training_action == "get":
+            cli.get_training_dataset(args.dataset_id)
+        elif args.training_action == "sample":
+            cli.sample_training_dataset(args.dataset_id, args.sample_size)
+        else:
+            print("❌ Unknown training_dataset action")
             sys.exit(1)
-        cli.run_docker_job(args.script, gpu=args.gpu, environment=environment)
+    
+    elif args.command == "run":
+        gpu = getattr(args, 'gpu', False)
+        cli.run_docker_job(args.script, gpu=gpu, environment=environment)
         
-    elif args.action == "start":
-        if not args.service:
-            print("❌ --service required for start action")
-            sys.exit(1)
-        cli.start_service(args.service, args.port, args.gpu, environment)
+    elif args.command == "start":
+        port = getattr(args, 'port', None)
+        gpu = getattr(args, 'gpu', False)
+        cli.start_service(args.service, port, gpu, environment)
         
-    elif args.action == "stop":
-        if not args.service:
-            print("❌ --service required for stop action")
-            sys.exit(1)
+    elif args.command == "stop":
         cli.stop_service(args.service)
         
-    elif args.action == "status":
+    elif args.command == "status":
         cli.list_services()
         
-    elif args.action == "test":
+    elif args.command == "test":
         cli.run_test(args.test)
         
-    elif args.action == "query":
-        if not args.query:
-            print("❌ --query required for query action")
-            sys.exit(1)
+    elif args.command == "query":
         cli.query_db(args.query)
         
-    elif args.action == "setup":
+    elif args.command == "setup":
         cli.setup_dev_env()
         
-    elif args.action == "logs":
-        if not args.service:
-            print("❌ --service required for logs action")
-            sys.exit(1)
+    elif args.command == "logs":
         container_name = f"ats-dev-{args.service}"
         cmd = f"docker logs -f {container_name}"
         subprocess.run(cmd, shell=True)
+        
+    elif args.command == "get":
+        cli.get_run(args.run_id)
+        
+    else:
+        print("❌ No command specified. Use --help for available options.")
+        parser.print_help()
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

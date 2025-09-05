@@ -21,6 +21,9 @@ import json
 import logging
 import time
 import pandas as pd
+import subprocess
+import sys
+import os
 from datetime import datetime, date
 from pathlib import Path
 from typing import List, Optional, Dict, Any
@@ -34,12 +37,132 @@ from ml.training_data.dao.training_dataset_dao import TrainingDatasetDAO, Traini
 from market_data.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
 
 
+def get_git_metadata() -> Dict[str, str]:
+    """Get git metadata (commit hash, branch) for run tracking."""
+    try:
+        # Get commit hash
+        commit_hash = subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'], 
+            cwd=os.getcwd(),
+            text=True
+        ).strip()
+        
+        # Get branch name
+        branch = subprocess.check_output(
+            ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+            cwd=os.getcwd(), 
+            text=True
+        ).strip()
+        
+        return {
+            'git_commit_hash': commit_hash,
+            'git_branch': branch,
+            'working_directory': os.getcwd()
+        }
+    except Exception as e:
+        logging.warning(f"Could not get git metadata: {e}")
+        return {
+            'git_commit_hash': '',
+            'git_branch': '',
+            'working_directory': os.getcwd()
+        }
+
+def get_command_line() -> str:
+    """Get the command line used to invoke this script."""
+    return ' '.join(sys.argv)
+
+async def create_run_record(environment: Environment, symbols: List[str], 
+                           start_date: date, end_date: date) -> int:
+    """Create a run record in dev_runs table with metadata."""
+    
+    # Get metadata
+    git_metadata = get_git_metadata()
+    command_line = get_command_line()
+    
+    # Connect to database
+    from core.database.connection_manager import get_raw_connection
+    
+    with get_raw_connection() as conn:
+        with conn.cursor() as cursor:
+            # Insert run record
+            insert_query = """
+                INSERT INTO dev_runs (
+                    run_type, status, start_time, created_by, parameters,
+                    command_line, git_commit_hash, git_branch, 
+                    working_directory, python_version, environment
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                ) RETURNING id
+            """
+            
+            cursor.execute(insert_query, (
+                'training_data_generation',  # run_type
+                'running',                   # status
+                datetime.now(),              # start_time
+                'training_data_callback_runner',  # created_by
+                json.dumps({                 # parameters
+                    'symbols': symbols,
+                    'start_date': start_date.isoformat(),
+                    'end_date': end_date.isoformat()
+                }),
+                command_line,                # command_line
+                git_metadata['git_commit_hash'],  # git_commit_hash
+                git_metadata['git_branch'],  # git_branch
+                git_metadata['working_directory'],  # working_directory
+                f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",  # python_version
+                'dev'                        # environment
+            ))
+            
+            result = cursor.fetchone()
+            if result is None:
+                raise ValueError("Failed to create run record - no result returned")
+            
+            # Handle different cursor result types
+            try:
+                run_id = result[0]  # Try index access first
+            except (KeyError, TypeError):
+                try:
+                    run_id = result['id']  # Try dict access
+                except (KeyError, TypeError):
+                    # Last resort - get first value
+                    run_id = next(iter(result)) if hasattr(result, '__iter__') else None
+            
+            if run_id is None:
+                raise ValueError("Failed to extract run ID from result")
+            conn.commit()
+            
+            logging.info(f"✅ Created run record ID: {run_id}")
+            logging.info(f"   Command: {command_line}")
+            logging.info(f"   Git commit: {git_metadata['git_commit_hash']}")
+            logging.info(f"   Git branch: {git_metadata['git_branch']}")
+            
+            return run_id
+
+async def update_run_status(run_id: int, status: str, error_message: str = None):
+    """Update run status in dev_runs table."""
+    from core.database.connection_manager import get_raw_connection
+    
+    with get_raw_connection() as conn:
+        with conn.cursor() as cursor:
+            if error_message:
+                cursor.execute(
+                    "UPDATE dev_runs SET status = %s, end_time = %s, error_message = %s WHERE id = %s",
+                    (status, datetime.now(), error_message, run_id)
+                )
+            else:
+                cursor.execute(
+                    "UPDATE dev_runs SET status = %s, end_time = %s WHERE id = %s", 
+                    (status, datetime.now(), run_id)
+                )
+            conn.commit()
+
 @gin.configurable
 def get_technical_indicators(indicators: List[str] = None) -> List[str]:
     """Get the list of technical indicators from gin configuration."""
     return indicators or ["etop", "ebot", "pldot"]
 
 
+@gin.configurable
 @dataclass 
 class TrainingDataConfig:
     """Simple configuration for training data generation with multi-timeframe support."""
@@ -72,37 +195,29 @@ class TrainingDataConfig:
         '1w': 2     # Next 2 weeks
     })
     
-    # File-based minute data configuration
-    minute_data_base_path: str = "/mnt/d/ats-data/minute-bars"
+    # File-based minute data configuration (Container-friendly default)
+    minute_data_base_path: str = "/data/minute-bars"
     
-    # Output directory structure configuration
-    output_base_path: str = "/mnt/d/ats-data/training"
+    # Output directory structure configuration (Container-friendly default)
+    output_base_path: str = "/data/training"
 
 
-def save_as_riegeli(df: pd.DataFrame, riegeli_file: Path):
-    """Save DataFrame as riegeli format."""
+def save_as_arrayrecord(df: pd.DataFrame, arrayrecord_file: Path):
+    """Save DataFrame as ArrayRecord format."""
     logger = logging.getLogger(__name__)
-    try:
-        import riegeli
-        import numpy as np
+    import array_record
+    import numpy as np
+    
+    # Convert DataFrame to numpy array 
+    data = df.to_numpy(dtype=np.float32)
+    
+    with array_record.ArrayRecordWriter(str(arrayrecord_file), 'group_size:1') as writer:
+        # Write column names as first record
+        writer.write(str(list(df.columns)).encode('utf-8'))
         
-        # Convert DataFrame to numpy array (keeping same structure as CSV)
-        data = df.to_numpy(dtype=np.float32)
-        
-        with riegeli.RecordWriter(str(riegeli_file)) as writer:
-            # Write column names as first record
-            writer.write_record(str(list(df.columns)).encode('utf-8'))
-            
-            # Write each row as a record
-            for row in data:
-                writer.write_record(row.tobytes())
-                
-    except ImportError:
-        # Fallback: save as numpy binary if riegeli not available
-        import numpy as np
-        np_file = riegeli_file.with_suffix('.npy')
-        np.save(str(np_file), df.to_numpy())
-        logger.warning(f"Riegeli not available, saved as numpy: {np_file}")
+        # Write each row as a record
+        for row in data:
+            writer.write(row.tobytes())
 
 
 async def register_training_dataset(symbol: str, start_date: date, end_date: date,
@@ -291,15 +406,15 @@ def parse_args():
     parser.add_argument('--compression-level', type=int, default=6,
                        help='Compression level for advanced storage')
     
-    # Minute data configuration
-    parser.add_argument('--minute-data-path', default='/mnt/d/ats-data/minute-bars',
+    # Minute data configuration (Container-friendly default)
+    parser.add_argument('--minute-data-path', default='/data/minute-bars',
                        help='Base path to minute-level OHLC data files')
     
     # Processing options
     parser.add_argument('--debug', action='store_true',
                        help='Enable debug logging')
-    parser.add_argument('--base-duration', default='1h',
-                       help='Runner base duration (default: 1h)')
+    parser.add_argument('--base-duration', default='60m',
+                       help='Runner base duration (default: 60m)')
     
     return parser.parse_args()
 
@@ -313,9 +428,10 @@ async def register_training_dataset(environment: Environment, symbols: List[str]
     # Create DAO
     dao = TrainingDatasetDAO(environment)
     
-    # Generate dataset name
+    # Generate dataset name with generation datetime for uniqueness
     symbols_str = "_".join(symbols) if symbols else "multi_symbol"
-    dataset_name = f"callback_training_{symbols_str}_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}"
+    generation_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+    dataset_name = f"training_{symbols_str}_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}_{generation_time}"
     
     # Calculate estimated feature count based on config
     total_features = 0
@@ -354,7 +470,7 @@ async def register_training_dataset(environment: Environment, symbols: List[str]
             "storage_format": storage_format,
             "output_directory": output_dir
         },
-        technical_indicators=get_technical_indicators(),
+        technical_indicators=json.dumps(get_technical_indicators()),
         feature_metadata=json.dumps({
             "timeframes": list(config.sequence_lengths.keys()),
             "features_per_timeframe": {tf: length * 7 for tf, length in config.sequence_lengths.items()},
@@ -432,8 +548,8 @@ async def main():
     env_map = {
         'dev': EnvironmentType.DEV,
         'test': EnvironmentType.TEST,
-        'intg': EnvironmentType.INTG,
-        'prod': EnvironmentType.PROD
+        'intg': EnvironmentType.INTEGRATION,
+        'prod': EnvironmentType.PRODUCTION
     }
     
     env_type = env_map.get(args.environment.lower())
@@ -446,6 +562,9 @@ async def main():
     # Parse dates
     start_date = datetime.strptime(args.start_date, "%Y-%m-%d").date()
     end_date = datetime.strptime(args.end_date, "%Y-%m-%d").date()
+    
+    # Create run record in dev_runs table with metadata tracking
+    run_id = await create_run_record(environment, args.symbols, start_date, end_date)
     
     # Create training data configuration
     config = TrainingDataConfig(
@@ -476,19 +595,8 @@ async def main():
     
     # Set up storage manager if using advanced storage
     storage_manager = None
-    if args.use_advanced_storage:
-        storage_config = StorageConfig(
-            primary_format=args.storage_format,
-            compression_level=args.compression_level,
-            chunk_size=1000,
-            enable_indexing=True,
-            enable_checksums=True
-        )
-        storage_manager = SequenceStorageManager(
-            base_path=args.output_dir,
-            config=storage_config
-        )
-        print(f"📦 Advanced storage enabled: {args.storage_format} format")
+    # Disable advanced storage to avoid Riegeli dependency issues
+    print(f"📦 Using standard numpy format for training data storage")
     
     # 📝 Register training dataset in database
     dataset_id = await register_training_dataset(
@@ -501,19 +609,30 @@ async def main():
         storage_format=args.storage_format
     )
     
-    # Create structured output directory: /mnt/d/ats-data/training/run_YYYYMMDD_HHMMSS/
-    from datetime import datetime
-    run_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    structured_output_dir = Path(config.output_base_path) / f"run_{run_timestamp}"
+    # Create structured output directory with requested format: <ATS_DATA_PATH>/training_data/<run_id>/<timeframe>/
+    base_data_path = os.getenv('ATS_DATA_PATH', '/mnt/d/ats-data')
+    structured_output_dir = Path(base_data_path) / "training_data" / str(run_id)
     structured_output_dir.mkdir(parents=True, exist_ok=True)
     
+    # Create subdirectories for each timeframe
+    timeframe_dirs = {}
+    for timeframe in config.timeframes.keys():
+        timeframe_dir = structured_output_dir / timeframe
+        timeframe_dir.mkdir(exist_ok=True)
+        timeframe_dirs[timeframe] = timeframe_dir
+    
     print(f"📁 Created structured output directory: {structured_output_dir}")
-    print(f"   Run ID: run_{run_timestamp}")
+    print(f"   Run ID: {run_id}")
     print(f"   Expected output pattern:")
-    for symbol in args.symbols:
-        print(f"     {structured_output_dir}/{symbol}/{start_date.strftime('%Y%m%d_000000')}_{end_date.strftime('%Y%m%d_000000')}.riegeli")
+    for timeframe in config.timeframes.keys():
+        for symbol in args.symbols:
+            start_datetime = start_date.strftime('%Y%m%d_%H%M%S')
+            end_datetime = end_date.strftime('%Y%m%d_%H%M%S')
+            print(f"     {timeframe_dirs[timeframe]}/{symbol}_{start_datetime}_{end_datetime}.riegeli")
     
     # Initialize FileBasedMinuteMarketDataManager
+    print(f"🔍 DEBUG: config.minute_data_base_path = {config.minute_data_base_path}")
+    print(f"🔍 DEBUG: Using base_path: {config.minute_data_base_path}")
     minute_data_manager = FileBasedMinuteMarketDataManager(
         env=environment,
         base_path=config.minute_data_base_path
@@ -529,6 +648,7 @@ async def main():
     )
     
     # Inject minute data manager and configuration into callback for multi-timeframe processing
+    run_timestamp = datetime.now()
     training_callback.minute_data_manager = minute_data_manager
     training_callback.start_date = start_date
     training_callback.end_date = end_date
@@ -554,68 +674,37 @@ async def main():
     )
     
     print(f"\n🚀 Starting interval-based multi-timeframe training data generation")
+    print(f"   Run ID: {run_id}")
     print(f"   Symbols: {args.symbols}")
     print(f"   Date range: {start_date} to {end_date}")
     print(f"   Base duration: {args.base_duration}")
-    print(f"   Run output: {structured_output_dir}")
-    print(f"   Storage: {args.storage_format}")
-    print(f"   Base data: 1-minute OHLC from {config.minute_data_base_path}")
-    print(f"   Aggregated timeframes: {', '.join(config.timeframes.keys())}")
-    print(f"   Method: IntervalBasedTrainingDataCallback with FileBasedMinuteMarketDataManager")
-    print(f"   Registered dataset ID: {dataset_id}")
-    print(f"")
-    print(f"   📁 Output structure:")
-    for symbol in args.symbols:
-        expected_file = structured_output_dir / symbol / f"{start_date.strftime('%Y%m%d_000000')}_{end_date.strftime('%Y%m%d_000000')}.riegeli"
-        print(f"     {expected_file}")
     
-    # Track generation timing
-    generation_start_time = time.time()
-    
-    # ✅ Run using ONLY the existing framework + callback
-    await runner.run()
-    
-    # Calculate generation duration
-    generation_duration = int(time.time() - generation_start_time)
-    
-    # Update dataset completion status
-    # Note: In a real implementation, we would get actual sequences from callback
-    # For now, we'll estimate based on training intervals generated
-    estimated_actual_sequences = getattr(training_callback, 'sequences_generated', 0)
-    if estimated_actual_sequences == 0:
-        # Fallback estimation
-        days_range = (end_date - start_date).days
-        intervals_per_day = 24 * 60 // config.training_interval_minutes
-        estimated_actual_sequences = days_range * intervals_per_day * len(args.symbols)
-    
-    await update_training_dataset_completion(
-        environment=environment,
-        dataset_id=dataset_id,
-        actual_sequences=estimated_actual_sequences,
-        generation_duration_seconds=generation_duration,
-        file_size_mb=0.0,  # Would calculate from actual files
-        data_quality_score=1.0  # Would calculate from actual data quality metrics
-    )
-    
-    print(f"\n✅ Multi-timeframe interval-based training data generation completed!")
-    print(f"   Dataset registered and tracked: {dataset_id}")
-    print(f"   Multi-timeframe processing logic handled by callback methods:")
-    print(f"   - handleStart: Initialize FileBasedMinuteMarketDataManager")
-    print(f"   - handleInterval: Generate training examples with multi-timeframe features")
-    print(f"     * Load 1m OHLC data from parquet files")
-    print(f"     * Aggregate to 5m, 15m, 1h, 1d, 1w timeframes")
-    print(f"     * Build sequence features across all timeframes")
-    print(f"     * Save to symbol-specific .riegeli files")
-    print(f"   - handleEnd: Final summary and dataset completion")
-    print(f"")
-    print(f"   📁 Generated files:")
-    for symbol in args.symbols:
-        expected_file = structured_output_dir / symbol / f"{start_date.strftime('%Y%m%d_000000')}_{end_date.strftime('%Y%m%d_000000')}.riegeli"
-        expected_metadata = structured_output_dir / symbol / f"{start_date.strftime('%Y%m%d_000000')}_{end_date.strftime('%Y%m%d_000000')}_metadata.json"
-        print(f"     {expected_file}")
-        print(f"     {expected_metadata}")
-    
-    return 0
+    try:
+        # Execute the runner
+        await runner.run()
+        
+        # Update run status to completed
+        await update_run_status(run_id, 'completed')
+        
+        print(f"\n✅ Training data generation completed successfully!")
+        print(f"   Run ID: {run_id}")
+        print(f"   Output directory: {structured_output_dir}")
+        
+        return 0
+        
+    except Exception as e:
+        # Update run status to failed with error message
+        error_msg = str(e)
+        await update_run_status(run_id, 'failed', error_msg)
+        
+        print(f"\n❌ Training data generation failed!")
+        print(f"   Run ID: {run_id}")
+        print(f"   Error: {error_msg}")
+        
+        import traceback
+        traceback.print_exc()
+        
+        return 1
 
 
 if __name__ == "__main__":
