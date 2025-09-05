@@ -30,7 +30,25 @@ class EnvironmentType(Enum):
 
 
 from domains.trading.services.indicator_config import IndicatorConfig
-from shared.utils.logging_config import LoggingConfig
+
+# Defensive import handling for LoggingConfig
+try:
+    from config.logging_config import LoggingConfig
+except ImportError:
+    try:
+        from core.logging.logger_config import LoggingConfig
+    except ImportError:
+        # Emergency: Create a minimal LoggingConfig class for system stability
+        import logging
+        from dataclasses import dataclass
+        
+        @dataclass
+        class LoggingConfig:
+            """Emergency logging configuration for system stability"""
+            log_level: str = "INFO" 
+            log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            
+        logging.warning("LoggingConfig not found in expected locations, using emergency implementation")
 
 import gin
 

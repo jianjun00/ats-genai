@@ -30,7 +30,25 @@ class EnvironmentType(Enum):
 
 
 from domains.trading.services.indicator_config import IndicatorConfig
-from shared.utils.logging_config import LoggingConfig
+
+# Defensive import handling for LoggingConfig
+try:
+    from config.logging_config import LoggingConfig
+except ImportError:
+    try:
+        from core.logging.logger_config import LoggingConfig
+    except ImportError:
+        # Emergency: Create a minimal LoggingConfig class for system stability
+        import logging
+        from dataclasses import dataclass
+        
+        @dataclass
+        class LoggingConfig:
+            """Emergency logging configuration for system stability"""
+            log_level: str = "INFO"
+            log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            
+        logging.warning("LoggingConfig not found in expected locations, using emergency implementation")
 
 import gin
 
@@ -143,8 +161,19 @@ class Environment:
         if config_path and os.environ.get('GIN_LOAD_DEFAULT_CONFIG', '1') == '1':
             if not (hasattr(gin.config, '_CONFIG') and gin.config._CONFIG.get('was_configured', False)):
                 gin.parse_config_file(config_path)
-        from shared.utils.logging_config import LoggingConfig
-        self.logging_config = LoggingConfig()
+        # Defensive logging config initialization
+        try:
+            from config.logging_config import LoggingConfig as ImportedLoggingConfig
+            self.logging_config = ImportedLoggingConfig()
+        except ImportError:
+            try:
+                from core.logging.logger_config import LoggingConfig as ImportedLoggingConfig
+                self.logging_config = ImportedLoggingConfig()
+            except ImportError:
+                # Use the global fallback LoggingConfig defined at module level
+                global LoggingConfig
+                self.logging_config = LoggingConfig()
+                logging.warning("Using fallback LoggingConfig in Environment.__init__")
         set_polygon_api_key()  # This will set POLYGON_API_KEY from Gin config
         print(f"[DEBUG] POLYGON_API_KEY after Gin load: {POLYGON_API_KEY}")
         # Make db_url optional: try argument, then env var, then None

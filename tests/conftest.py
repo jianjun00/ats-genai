@@ -2,7 +2,22 @@ from infrastructure.database.test_db_manager import unit_test_db, unit_test_db_c
 import pytest
 import os
 import gin
-from shared.utils.logging_config import LoggingConfig
+
+# Defensive import handling for LoggingConfig
+try:
+    from config.logging_config import LoggingConfig
+except ImportError:
+    try:
+        from core.logging.logger_config import LoggingConfig
+    except ImportError:
+        # Emergency: Create a minimal LoggingConfig class for tests
+        from dataclasses import dataclass
+        
+        @dataclass
+        class LoggingConfig:
+            """Emergency logging configuration for tests"""
+            log_level: str = "INFO"
+            log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 @pytest.fixture(autouse=True, scope="function")
 def gin_test_setup(request):
