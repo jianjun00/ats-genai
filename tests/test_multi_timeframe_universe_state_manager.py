@@ -84,7 +84,7 @@ class TestMultiTimeframeUniverseStateManager:
         
         # Call with 5m time interval
         result = self.universe_manager.get_lag_prices(
-            self.instrument_id, self.current_date, lag_days=52, time_interval='5m'
+            self.instrument_id, self.current_date, lag_periods=52, time_interval='5m'
         )
         
         # Verify market_data_manager was called correctly
@@ -113,7 +113,7 @@ class TestMultiTimeframeUniverseStateManager:
         self.mock_market_data_manager.get_ohlcv_data.return_value = self.sample_15m_data
         
         result = self.universe_manager.get_lag_prices(
-            self.instrument_id, self.current_date, lag_days=52, time_interval='15m'
+            self.instrument_id, self.current_date, lag_periods=52, time_interval='15m'
         )
         
         self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
@@ -131,7 +131,7 @@ class TestMultiTimeframeUniverseStateManager:
         self.mock_market_data_manager.get_ohlcv_data.return_value = self.sample_1h_data
         
         result = self.universe_manager.get_lag_prices(
-            self.instrument_id, self.current_date, lag_days=24, time_interval='1h'
+            self.instrument_id, self.current_date, lag_periods=24, time_interval='1h'
         )
         
         self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
@@ -149,7 +149,7 @@ class TestMultiTimeframeUniverseStateManager:
         self.mock_market_data_manager.get_ohlcv_data.return_value = self.sample_1d_data
         
         result = self.universe_manager.get_lag_prices(
-            self.instrument_id, self.current_date, lag_days=20, time_interval='1d'
+            self.instrument_id, self.current_date, lag_periods=20, time_interval='1d'
         )
         
         self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
@@ -168,7 +168,7 @@ class TestMultiTimeframeUniverseStateManager:
         
         # Call without time_interval parameter
         result = self.universe_manager.get_lag_prices(
-            self.instrument_id, self.current_date, lag_days=20
+            self.instrument_id, self.current_date, lag_periods=20
         )
         
         # Verify it defaults to '1d'
@@ -191,7 +191,7 @@ class TestMultiTimeframeUniverseStateManager:
             mock_history.return_value = self.sample_1d_data
             
             result = self.universe_manager.get_lag_prices(
-                self.instrument_id, self.current_date, lag_days=20, time_interval='1d'
+                self.instrument_id, self.current_date, lag_periods=20, time_interval='1d'
             )
             
             # Verify fallback was called
@@ -208,7 +208,7 @@ class TestMultiTimeframeUniverseStateManager:
             mock_history.return_value = self.sample_1d_data.copy()
             
             result = self.universe_manager.get_lag_prices(
-                self.instrument_id, self.current_date, lag_days=20, time_interval='1d'  
+                self.instrument_id, self.current_date, lag_periods=20, time_interval='1d'  
             )
             
             # Verify market_data_manager was attempted
@@ -226,7 +226,7 @@ class TestMultiTimeframeUniverseStateManager:
             mock_history.return_value = self.sample_1d_data
             
             result = self.universe_manager.get_lag_prices(
-                self.instrument_id, self.current_date, lag_days=20, time_interval='1d'
+                self.instrument_id, self.current_date, lag_periods=20, time_interval='1d'
             )
             
             # Should fallback to cached data
@@ -241,7 +241,7 @@ class TestMultiTimeframeUniverseStateManager:
         current_datetime = datetime(2023, 12, 1, 14, 30, 0)
         
         result = self.universe_manager.get_lag_prices(
-            self.instrument_id, current_datetime, lag_days=20, time_interval='1d'
+            self.instrument_id, current_datetime, lag_periods=20, time_interval='1d'
         )
         
         # Verify the datetime was normalized to date for the call
@@ -267,7 +267,7 @@ class TestMultiTimeframeUniverseStateManager:
             self.mock_market_data_manager.get_ohlcv_data.return_value = sample_data
             
             result = self.universe_manager.get_lag_prices(
-                self.instrument_id, self.current_date, lag_days=10, time_interval=interval
+                self.instrument_id, self.current_date, lag_periods=10, time_interval=interval
             )
             
             # Verify correct call
@@ -286,7 +286,7 @@ class TestMultiTimeframeUniverseStateManager:
         self.mock_market_data_manager.get_ohlcv_data.return_value = self.sample_1d_data
         
         result = self.universe_manager.get_lag_prices(
-            self.instrument_id, self.current_date, lag_days=20, time_interval='1d'
+            self.instrument_id, self.current_date, lag_periods=20, time_interval='1d'
         )
         
         # Expected features from training data generation
@@ -322,7 +322,7 @@ class TestMultiTimeframeUniverseStateManager:
             self.mock_market_data_manager.get_ohlcv_data.return_value = sample_data
             
             result = self.universe_manager.get_lag_prices(
-                self.instrument_id, self.current_date, lag_days=expected_periods, time_interval=timeframe
+                self.instrument_id, self.current_date, lag_periods=expected_periods, time_interval=timeframe
             )
             
             # Verify gin config compliance

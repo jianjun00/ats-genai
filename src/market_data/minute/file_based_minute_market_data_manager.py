@@ -14,6 +14,7 @@ import logging
 from market_data.market_data_manager import MarketDataManager
 from storage.file_based_minute_manager import FileBasedMinuteManager
 from config.environment import Environment
+from dao.instrument_xrefs_dao import InstrumentXrefsDAO
 import gin
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ class FileBasedMinuteMarketDataManager(MarketDataManager):
         self.env = env
         self.base_path = Path(base_path)
         self.minute_manager = FileBasedMinuteManager(self.base_path)
+        self.xrefs_dao = InstrumentXrefsDAO(env) if env else None
         self._cache = {}  # Cache for recent queries
         
         logger.info(f"Initialized FileBasedMinuteMarketDataManager with path: {self.base_path}")
@@ -511,6 +513,97 @@ class FileBasedMinuteMarketDataManager(MarketDataManager):
         logger.info(f"Retrieved multi-timeframe data for {len(symbols)} symbols across {len(intervals)} intervals")
         return result
     
+    async def get_ohlcv_data(self, instrument_id: int, end_date: datetime, periods: int, 
+                           time_interval: str, direction: str = 'backward') -> pd.DataFrame:
+        """
+        Get OHLCV data for a specific instrument over multiple periods.
+        
+        Args:
+            instrument_id: The instrument ID to retrieve data for
+            end_date: End datetime reference point
+            periods: Number of periods to retrieve
+            time_interval: Time interval ('1m', '5m', '15m', '1h', '1d', '1w')
+            direction: 'backward' for historical data, 'forward' for future data
+            
+        Returns:
+            DataFrame with columns ['open', 'high', 'low', 'close', 'volume'] and datetime index
+        """
+        if not self.xrefs_dao:
+            logger.warning("No xrefs_dao available for instrument_id to symbol mapping")
+            return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume'])
+        
+        try:
+            # Map instrument_id to symbol
+            symbol = await self.xrefs_dao.get_symbol_by_instrument_id(instrument_id)
+            if not symbol:
+                logger.warning(f"No symbol found for instrument_id {instrument_id}")
+                return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume'])
+            
+            # Convert time_interval to minutes for date range calculation
+            interval_minutes = self._parse_interval_to_minutes(time_interval)
+            
+            # Calculate date range based on periods and direction
+            if direction == 'forward':
+                # For future data: start from end_date, go forward
+                start_date = end_date
+                end_query_date = end_date + timedelta(minutes=interval_minutes * periods * 2)  # Buffer for weekends/holidays
+            else:
+                # For historical data: end at end_date, go backward
+                start_date = end_date - timedelta(minutes=interval_minutes * periods * 2)  # Buffer for weekends/holidays
+                end_query_date = end_date
+            
+            logger.debug(f"Getting OHLCV data for instrument_id={instrument_id} symbol={symbol} "
+                        f"from {start_date} to {end_query_date} interval={time_interval} periods={periods}")
+            
+            # Use existing get_ohlc_for_interval method
+            result = await self.get_ohlc_for_interval(
+                symbols=[symbol],
+                start=start_date,
+                end=end_query_date,
+                interval=time_interval
+            )
+            
+            if symbol not in result or result[symbol].empty:
+                logger.warning(f"No data returned for symbol {symbol}")
+                return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume'])
+            
+            df = result[symbol].copy()
+            
+            # Sort by timestamp 
+            df = df.sort_values('timestamp')
+            
+            # Filter based on direction and get the requested number of periods
+            if direction == 'forward':
+                # Get periods starting from end_date
+                df = df[df['timestamp'] >= pd.Timestamp(end_date)]
+                df = df.head(periods)
+            else:
+                # Get periods ending at end_date
+                df = df[df['timestamp'] < pd.Timestamp(end_date)]
+                df = df.tail(periods)
+            
+            # Ensure we have the expected columns and set timestamp as index
+            expected_columns = ['open', 'high', 'low', 'close', 'volume']
+            
+            # Check if we have all expected columns
+            missing_columns = [col for col in expected_columns if col not in df.columns]
+            if missing_columns:
+                logger.warning(f"Missing columns in data: {missing_columns}")
+                for col in missing_columns:
+                    df[col] = 0.0  # Add missing columns with default values
+            
+            # Select only the expected columns and ensure proper dtypes
+            df = df[expected_columns].copy()
+            for col in expected_columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0)
+            
+            logger.debug(f"Returning {len(df)} rows of OHLCV data for instrument_id={instrument_id}")
+            return df
+            
+        except Exception as e:
+            logger.error(f"Error getting OHLCV data for instrument_id {instrument_id}: {e}")
+            return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume'])
+
     async def close(self):
         """Clean up resources."""
         if hasattr(self.minute_manager, 'close'):
