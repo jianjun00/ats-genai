@@ -21,7 +21,7 @@ cat > "$HOOKS_DIR/pre-commit" << 'EOF'
 #
 # This hook runs multiple checks before allowing commits:
 # 1. Naming pattern validation (unified, simple, enhanced)
-# 2. Python content validation (fake, mock, synthetic, fallback)
+# 2. Python content validation (fake, mock, synthetic, fallback, demo)
 # 3. Non-ASCII filename checks
 # 4. Whitespace error checks
 #
@@ -181,6 +181,7 @@ echo "📍 Location: $HOOKS_DIR/pre-commit"
 echo ""
 echo "🔍 The hook will now check for:"
 echo "  - Files with naming patterns: 'unified', 'simple', 'enhanced'"
+echo "  - Python content patterns: 'fake', 'mock', 'synthetic', 'fallback', 'demo'"
 echo "  - Non-ASCII filenames"
 echo "  - Whitespace errors"
 echo ""
