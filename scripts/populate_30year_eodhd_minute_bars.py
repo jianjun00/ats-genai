@@ -42,6 +42,9 @@ import pyarrow as pa
 # Add src to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
+# Set environment type for Gin config system - use DEV for development
+os.environ['ENVIRONMENT_TYPE'] = 'dev'
+
 try:
     from market_data.agent.eodhd_minute_adapter import EODHDMinuteAdapter, EODHDMinuteBar
     from storage.file_based_minute_manager import FileBasedMinuteManager, MinuteBar
@@ -320,10 +323,21 @@ class EODHD30YearPopulator:
         """Initialize the populator components"""
         logger.info("Initializing EODHD 30-year populator...")
         
-        # Initialize EODHD adapter
-        api_key = os.getenv('EODHD_API_KEY')
+        # Initialize EODHD adapter - use centralized API key management
+        try:
+            from config.environment import env
+            if env:
+                api_key = env.get_api_key('eodhd')
+            else:
+                # Fallback if env not initialized
+                api_key = os.getenv('EODHD_API_KEY')
+        except:
+            # Fallback if import fails
+            api_key = os.getenv('EODHD_API_KEY')
+            
         if not api_key:
-            raise ValueError("EODHD_API_KEY environment variable must be set")
+            logger.error("❌ No EODHD API key available. Set EODHD_API_KEY environment variable.")
+            raise ValueError("EODHD API key required for data collection")
         
         try:
             self.eodhd_adapter = EODHDMinuteAdapter(api_key)
@@ -849,7 +863,8 @@ async def main():
                         help='Comma-separated list of symbols (optional)')
     parser.add_argument('--limit', type=int, 
                         help='Limit number of symbols to process')
-    parser.add_argument('--storage-path', type=str, default='/mnt/d/ats-data',
+    parser.add_argument('--storage-path', type=str, 
+                        default=os.getenv('STORAGE_PATH', '/data'),
                         help='Storage path for minute bar files')
     parser.add_argument('--checkpoint-file', type=str, default='eodhd_30year_checkpoint.json',
                         help='Checkpoint file for resumable processing')
