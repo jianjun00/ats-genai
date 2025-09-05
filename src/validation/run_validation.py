@@ -225,11 +225,36 @@ async def generate_validation_report(env: Environment, start_date: date,
 
 
 def get_api_keys_from_env() -> Dict[str, str]:
-    """Get API keys from environment variables."""
-    return {
-        "polygon": os.getenv("POLYGON_API_KEY"),
-        "tiingo": os.getenv("TIINGO_API_KEY")
-    }
+    """Get API keys using centralized management system with environment fallback."""
+    try:
+        # Use centralized API key management system
+        from config.environment import env
+        
+        if env:
+            api_keys = {
+                "polygon": env.get_api_key('polygon'),
+                "tiingo": env.get_api_key('tiingo')
+            }
+            
+            # Log successful centralized key retrieval
+            logger.info("✅ Using centralized API key management")
+            for vendor, key in api_keys.items():
+                if key:
+                    logger.debug(f"   {vendor.upper()}: {key[:8]}...{key[-4:]}")
+            
+            return api_keys
+        else:
+            raise ImportError("Environment not initialized")
+            
+    except Exception as e:
+        logger.warning(f"⚠️  Centralized API keys not available: {e}")
+        logger.info("🔄 Falling back to environment variable lookup")
+        
+        # Fallback to environment variables
+        return {
+            "polygon": os.getenv("POLYGON_API_KEY"),
+            "tiingo": os.getenv("TIINGO_API_KEY")
+        }
 
 
 def main():

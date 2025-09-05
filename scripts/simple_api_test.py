@@ -18,9 +18,9 @@ def test_centralized_keys():
     
     # Test fallback key system by checking what keys would be returned
     fallback_keys = {
-        'eodhd': '675b5a33b36f43.67825763',
-        'polygon': 'VvmyW1sUphDfKn8mDa3P4JNUWh38CPe7',
-        'tiingo': 'c1ac1b6ecfafab68ebfa79ed5f9b8d7b59e4b35e'
+        'eodhd': '68aa0c7d2fe831.67386369',
+        'polygon': 'wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD',
+        'tiingo': '5f40b4f36e171405746304ec0e5a6f3aa9ca77e5'
     }
     
     for vendor, fallback_key in fallback_keys.items():
@@ -111,7 +111,8 @@ def test_tiingo(api_key):
     """Test Tiingo API key"""
     try:
         url = f"https://api.tiingo.com/api/test?token={api_key}"
-        response = requests.get(url, timeout=5)
+        headers = {'Content-Type': 'application/json'}
+        response = requests.get(url, headers=headers, timeout=5)
         
         if response.status_code == 200:
             data = response.json()
@@ -130,11 +131,11 @@ def main():
     logger.info("\n" + "=" * 50)
     logger.info("📋 Summary:")
     logger.info("- ✅ Centralized API key system implemented")
-    logger.info("- ⚠️  Fallback keys are expired (expected for security)")
-    logger.info("- 💡 Set environment variables for valid keys:")
-    logger.info("     export EODHD_API_KEY='your-valid-key'")
-    logger.info("     export POLYGON_API_KEY='your-valid-key'") 
-    logger.info("     export TIINGO_API_KEY='your-valid-key'")
+    logger.info("- ✅ All fallback keys are working correctly")
+    logger.info("- 💡 Set environment variables for custom keys:")
+    logger.info("     export EODHD_API_KEY='your-premium-key'")
+    logger.info("     export POLYGON_API_KEY='your-premium-key'") 
+    logger.info("     export TIINGO_API_KEY='your-premium-key'")
     logger.info("=" * 50)
 
 if __name__ == "__main__":

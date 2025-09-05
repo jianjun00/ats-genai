@@ -15,22 +15,50 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def update_docker_compose_with_real_keys():
-    """Update docker compose with real API keys for production collection."""
-    logger.info("🔑 Configuring real vendor API keys...")
+    """Update docker compose with real API keys for production collection using centralized system."""
+    logger.info("🔑 Configuring real vendor API keys with centralized management...")
     
-    # Production API Keys (use environment variables for security)
-    api_keys = {
-        'POLYGON_API_KEY': os.getenv('POLYGON_API_KEY', 'POLYGON_KEY_NEEDED'),
-        'TIINGO_API_KEY': os.getenv('TIINGO_API_KEY', 'TIINGO_KEY_NEEDED'), 
-        'EODHD_API_KEY': os.getenv('EODHD_API_KEY', 'EODHD_KEY_NEEDED')
-    }
-    
-    logger.info("🔧 API Key Configuration:")
-    for key, value in api_keys.items():
-        masked_value = value[:8] + "..." + value[-4:] if len(value) > 12 else "NOT_SET"
-        logger.info(f"  {key}: {masked_value}")
-    
-    return api_keys
+    try:
+        # Use centralized API key management system
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+        from config.environment import Environment, EnvironmentType
+        
+        env = Environment(env_type=EnvironmentType.PRODUCTION)
+        
+        # Get keys using centralized system
+        api_keys = {
+            'POLYGON_API_KEY': env.get_api_key('polygon'),
+            'TIINGO_API_KEY': env.get_api_key('tiingo'), 
+            'EODHD_API_KEY': env.get_api_key('eodhd')
+        }
+        
+        logger.info("🔧 API Key Configuration (Centralized System):")
+        for key, value in api_keys.items():
+            if value:
+                masked_value = value[:8] + "..." + value[-4:] if len(value) > 12 else "NOT_SET"
+                logger.info(f"  ✅ {key}: {masked_value}")
+            else:
+                logger.warning(f"  ❌ {key}: NOT_FOUND")
+        
+        return api_keys
+        
+    except Exception as e:
+        logger.warning(f"⚠️  Centralized API key system not available: {e}")
+        logger.info("🔄 Falling back to environment variable lookup")
+        
+        # Fallback to original method
+        api_keys = {
+            'POLYGON_API_KEY': os.getenv('POLYGON_API_KEY', 'POLYGON_KEY_NEEDED'),
+            'TIINGO_API_KEY': os.getenv('TIINGO_API_KEY', 'TIINGO_KEY_NEEDED'), 
+            'EODHD_API_KEY': os.getenv('EODHD_API_KEY', 'EODHD_KEY_NEEDED')
+        }
+        
+        logger.info("🔧 API Key Configuration (Environment Fallback):")
+        for key, value in api_keys.items():
+            masked_value = value[:8] + "..." + value[-4:] if len(value) > 12 else "NOT_SET"
+            logger.info(f"  {key}: {masked_value}")
+        
+        return api_keys
 
 def stop_synthetic_collectors():
     """Stop any running synthetic collectors."""

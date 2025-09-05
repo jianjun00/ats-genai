@@ -192,11 +192,30 @@ def main():
     
     args = parser.parse_args()
     
-    # Get API keys from arguments or environment variables
-    polygon_api_key = args.polygon_api_key or os.getenv("POLYGON_API_KEY")
-    tiingo_api_key = args.tiingo_api_key or os.getenv("TIINGO_API_KEY")
-    alpha_vantage_api_key = args.alpha_vantage_api_key or os.getenv("ALPHA_VANTAGE_API_KEY")
-    fred_api_key = args.fred_api_key or os.getenv("FRED_API_KEY")
+    # Get API keys using centralized management system with fallback
+    def get_api_key_with_fallback(vendor, arg_value, env_var):
+        """Get API key with centralized system fallback."""
+        # First try argument
+        if arg_value:
+            return arg_value
+            
+        try:
+            # Try centralized system
+            from config.environment import env
+            if env:
+                key = env.get_api_key(vendor)
+                if key:
+                    return key
+        except Exception:
+            pass
+            
+        # Fallback to environment variable
+        return os.getenv(env_var)
+    
+    polygon_api_key = get_api_key_with_fallback('polygon', args.polygon_api_key, "POLYGON_API_KEY")
+    tiingo_api_key = get_api_key_with_fallback('tiingo', args.tiingo_api_key, "TIINGO_API_KEY")  
+    alpha_vantage_api_key = get_api_key_with_fallback('alpha_vantage', args.alpha_vantage_api_key, "ALPHA_VANTAGE_API_KEY")
+    fred_api_key = args.fred_api_key or os.getenv("FRED_API_KEY")  # FRED not in centralized system yet
     
     # Run population
     success = asyncio.run(populate_economic_events(
