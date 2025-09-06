@@ -687,6 +687,179 @@ class CumulativeVolumeIndicator(Indicator):
             return {'value': None, 'status': f'calculation_error: {str(e)}'}
 
 
+class BXTrenderIndicator(Indicator):
+    """BX Trender indicator with multiple variants for trend strength analysis."""
+    
+    def __init__(self, period: int = 14, variant: str = 'basic'):
+        super().__init__()
+        self.period = period
+        self.variant = variant  # 'basic', 'directional', 'volume_weighted'
+        self.name = f"BXTrender_{variant}_{period}"
+    
+    def calculate(self, price_history: pd.DataFrame) -> Dict[str, Any]:
+        """Calculate BX Trender with specified variant."""
+        if len(price_history) < self.period + 1:
+            return {'value': None, 'status': 'insufficient_data'}
+        
+        try:
+            if self.variant == 'basic':
+                return self._calculate_basic_bx_trender(price_history)
+            elif self.variant == 'directional':
+                return self._calculate_directional_bx_trender(price_history)
+            elif self.variant == 'volume_weighted':
+                return self._calculate_volume_weighted_bx_trender(price_history)
+            else:
+                return {'value': None, 'status': 'invalid_variant'}
+                
+        except Exception as e:
+            return {'value': None, 'status': f'calculation_error: {str(e)}'}
+    
+    def _calculate_basic_bx_trender(self, price_history: pd.DataFrame) -> Dict[str, Any]:
+        """Basic BX Trender - measures trend strength using price changes."""
+        close_prices = price_history['close']
+        
+        # Calculate price changes
+        price_changes = close_prices.diff()
+        
+        # Separate positive and negative changes
+        gains = price_changes.where(price_changes > 0, 0)
+        losses = -price_changes.where(price_changes < 0, 0)
+        
+        # Calculate moving averages
+        avg_gains = gains.rolling(window=self.period).mean().iloc[-1]
+        avg_losses = losses.rolling(window=self.period).mean().iloc[-1]
+        
+        # BX Trender formula
+        if avg_gains + avg_losses > 0:
+            bx_trender = 100 * (avg_gains / (avg_gains + avg_losses))
+        else:
+            bx_trender = 50.0  # Neutral when no movement
+        
+        # Additional metrics
+        trend_strength = abs(bx_trender - 50) / 50  # 0-1 scale
+        trend_direction = 1 if bx_trender > 50 else (-1 if bx_trender < 50 else 0)
+        
+        return {
+            'value': bx_trender,
+            'bx_trender': bx_trender,
+            'trend_strength': trend_strength,
+            'trend_direction': trend_direction,
+            'avg_gains': avg_gains,
+            'avg_losses': avg_losses,
+            'status': 'valid'
+        }
+    
+    def _calculate_directional_bx_trender(self, price_history: pd.DataFrame) -> Dict[str, Any]:
+        """Directional BX Trender using True Range and Directional Movement."""
+        high = price_history['high']
+        low = price_history['low']
+        close = price_history['close']
+        
+        # True Range calculation
+        tr1 = high - low
+        tr2 = abs(high - close.shift(1))
+        tr3 = abs(low - close.shift(1))
+        true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+        
+        # Directional movement
+        dm_plus = (high - high.shift(1)).where(
+            (high - high.shift(1)) > (low.shift(1) - low), 0
+        ).clip(lower=0)
+        
+        dm_minus = (low.shift(1) - low).where(
+            (low.shift(1) - low) > (high - high.shift(1)), 0
+        ).clip(lower=0)
+        
+        # Smoothed averages
+        tr_smooth = true_range.rolling(window=self.period).sum().iloc[-1]
+        dm_plus_smooth = dm_plus.rolling(window=self.period).sum().iloc[-1]
+        dm_minus_smooth = dm_minus.rolling(window=self.period).sum().iloc[-1]
+        
+        # Directional indicators
+        if tr_smooth > 0:
+            di_plus = 100 * (dm_plus_smooth / tr_smooth)
+            di_minus = 100 * (dm_minus_smooth / tr_smooth)
+        else:
+            di_plus = 0
+            di_minus = 0
+        
+        # BX Trender directional
+        bx_trender = di_plus - di_minus
+        
+        # Normalize to 0-100 scale
+        normalized_bx_trender = 50 + (bx_trender / 2)
+        normalized_bx_trender = max(0, min(100, normalized_bx_trender))
+        
+        # Additional metrics
+        adx = 100 * abs(di_plus - di_minus) / (di_plus + di_minus) if (di_plus + di_minus) > 0 else 0
+        trend_strength = adx / 100
+        trend_direction = 1 if bx_trender > 0 else (-1 if bx_trender < 0 else 0)
+        
+        return {
+            'value': normalized_bx_trender,
+            'bx_trender': bx_trender,
+            'bx_trender_normalized': normalized_bx_trender,
+            'di_plus': di_plus,
+            'di_minus': di_minus,
+            'adx': adx,
+            'trend_strength': trend_strength,
+            'trend_direction': trend_direction,
+            'status': 'valid'
+        }
+    
+    def _calculate_volume_weighted_bx_trender(self, price_history: pd.DataFrame) -> Dict[str, Any]:
+        """Volume-weighted BX Trender."""
+        if 'volume' not in price_history.columns:
+            return {'value': None, 'status': 'no_volume_data'}
+        
+        close_prices = price_history['close']
+        volume = price_history['volume']
+        
+        # Price changes
+        price_change = close_prices.pct_change()
+        
+        # Volume-weighted price changes
+        vw_change = price_change * volume
+        
+        # Separate bullish and bearish volume
+        bullish_volume = volume.where(price_change > 0, 0)
+        bearish_volume = volume.where(price_change < 0, 0)
+        
+        # Moving sums
+        bullish_sum = bullish_volume.rolling(window=self.period).sum().iloc[-1]
+        bearish_sum = bearish_volume.rolling(window=self.period).sum().iloc[-1]
+        
+        # BX Trender with volume
+        total_volume = bullish_sum + bearish_sum
+        if total_volume > 0:
+            bx_trender = 50 + (50 * (bullish_sum - bearish_sum) / total_volume)
+        else:
+            bx_trender = 50.0
+        
+        # Volume momentum
+        recent_volume = volume.tail(5).mean()
+        prev_volume = volume.iloc[-self.period:-5].mean() if len(price_history) >= self.period else recent_volume
+        volume_momentum = (recent_volume - prev_volume) / prev_volume if prev_volume > 0 else 0
+        
+        # Volume-adjusted trend strength
+        volume_ratio = recent_volume / volume.rolling(self.period).mean().iloc[-1] if volume.rolling(self.period).mean().iloc[-1] > 0 else 1
+        trend_strength = abs(bx_trender - 50) / 50 * min(volume_ratio, 2.0)  # Cap at 2x volume weight
+        trend_direction = 1 if bx_trender > 50 else (-1 if bx_trender < 50 else 0)
+        
+        return {
+            'value': bx_trender,
+            'bx_trender': bx_trender,
+            'bullish_volume_ratio': bullish_sum / total_volume if total_volume > 0 else 0.5,
+            'bearish_volume_ratio': bearish_sum / total_volume if total_volume > 0 else 0.5,
+            'volume_momentum': volume_momentum,
+            'volume_ratio': volume_ratio,
+            'trend_strength': trend_strength,
+            'trend_direction': trend_direction,
+            'total_volume': total_volume,
+            'status': 'valid'
+        }
+
+
 class CumulativeDollarsIndicator(Indicator):
     """Cumulative Dollar Volume (price * volume) indicator for liquidity analysis."""
     
@@ -863,6 +1036,14 @@ class ResidualReturnIndicatorConfig(IndicatorConfig):
         config.add_indicator('CumDollars_daily_typical', lambda: CumulativeDollarsIndicator('daily', 'typical'))
         config.add_indicator('CumDollars_daily_close', lambda: CumulativeDollarsIndicator('daily', 'close'))
         config.add_indicator('CumDollars_session_vwap', lambda: CumulativeDollarsIndicator('session', 'vwap'))
+        
+        # BX Trender indicators - all three variants
+        config.add_indicator('BXTrender_basic_14', lambda: BXTrenderIndicator(14, 'basic'))
+        config.add_indicator('BXTrender_basic_21', lambda: BXTrenderIndicator(21, 'basic'))
+        config.add_indicator('BXTrender_directional_14', lambda: BXTrenderIndicator(14, 'directional'))
+        config.add_indicator('BXTrender_directional_21', lambda: BXTrenderIndicator(21, 'directional'))
+        config.add_indicator('BXTrender_volume_weighted_14', lambda: BXTrenderIndicator(14, 'volume_weighted'))
+        config.add_indicator('BXTrender_volume_weighted_21', lambda: BXTrenderIndicator(21, 'volume_weighted'))
         
         return config
     

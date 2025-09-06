@@ -1337,3 +1337,370 @@ class FiveTwoSell(Indicator):
 
     def get_value(self) -> Optional[float]:
         return self.latest_five_two_sell
+
+
+@gin.configurable
+class BXTrenderBasic(Indicator):
+    """
+    BX Trender Basic Indicator: Measures trend strength using price changes.
+    Formula: bx_trender = 100 * (avg_gains / (avg_gains + avg_losses))
+    
+    This indicator provides trend strength on a 0-100 scale where:
+    - Values above 50 indicate bullish trend strength
+    - Values below 50 indicate bearish trend strength
+    - Values near 50 indicate neutral/sideways movement
+    """
+    def __init__(self, period: int = 14):
+        super().__init__()
+        self.period = period
+        self.latest_bx_trender: Optional[float] = None
+        self.trend_strength: Optional[float] = None
+        self.trend_direction: Optional[int] = None
+
+    def update(self, intervals: List[InstrumentInterval]):
+        import logging
+        import math
+        
+        self.update_at = datetime.now()
+        
+        if len(intervals) < self.period + 1:
+            self.status = 'insufficient_data'
+            self.latest_bx_trender = None
+            self.trend_strength = None
+            self.trend_direction = None
+            logging.debug('[BXTrenderBasic] Insufficient data: need %d intervals, got %d', self.period + 1, len(intervals))
+            return
+
+        try:
+            # Validate all intervals
+            for i, interval in enumerate(intervals[-self.period-1:]):
+                if interval.status != 'ok':
+                    self.status = 'invalid_data'
+                    self.latest_bx_trender = None
+                    self.trend_strength = None
+                    self.trend_direction = None
+                    logging.debug('[BXTrenderBasic] Invalid interval status at position %d: %s', i, interval.status)
+                    return
+                
+                if math.isnan(interval.close) or interval.close <= 0:
+                    self.status = 'invalid_data'
+                    self.latest_bx_trender = None
+                    self.trend_strength = None
+                    self.trend_direction = None
+                    logging.debug('[BXTrenderBasic] Invalid close price at position %d: %s', i, interval.close)
+                    return
+
+            # Calculate price changes over the period
+            closes = [interval.close for interval in intervals[-self.period-1:]]
+            price_changes = [closes[i] - closes[i-1] for i in range(1, len(closes))]
+            
+            # Separate gains and losses
+            gains = [change for change in price_changes if change > 0]
+            losses = [-change for change in price_changes if change < 0]
+            
+            # Calculate averages
+            avg_gains = sum(gains) / len(price_changes) if price_changes else 0
+            avg_losses = sum(losses) / len(price_changes) if price_changes else 0
+            
+            # BX Trender formula
+            if avg_gains + avg_losses > 0:
+                self.latest_bx_trender = 100 * (avg_gains / (avg_gains + avg_losses))
+            else:
+                self.latest_bx_trender = 50.0  # Neutral when no movement
+            
+            # Additional metrics
+            self.trend_strength = abs(self.latest_bx_trender - 50) / 50  # 0-1 scale
+            self.trend_direction = 1 if self.latest_bx_trender > 50 else (-1 if self.latest_bx_trender < 50 else 0)
+            
+            self.status = 'ok'
+            logging.debug('[BXTrenderBasic] Calculated BX Trender: %.2f, Strength: %.3f, Direction: %d',
+                         self.latest_bx_trender, self.trend_strength, self.trend_direction)
+            
+        except Exception as e:
+            self.status = 'calculation_error'
+            self.latest_bx_trender = None
+            self.trend_strength = None
+            self.trend_direction = None
+            logging.error('[BXTrenderBasic] Error calculating BX Trender: %s', str(e))
+
+    def get_value(self) -> Optional[float]:
+        return self.latest_bx_trender
+    
+    def get_trend_strength(self) -> Optional[float]:
+        return self.trend_strength
+    
+    def get_trend_direction(self) -> Optional[int]:
+        return self.trend_direction
+
+
+@gin.configurable
+class BXTrenderDirectional(Indicator):
+    """
+    BX Trender Directional Indicator: Uses True Range and Directional Movement for trend analysis.
+    Formula: bx_trender = DI+ - DI- (normalized to 0-100 scale)
+    
+    This indicator combines directional movement concepts with BX Trender methodology:
+    - Uses True Range for volatility normalization
+    - Calculates directional movement indicators (DI+ and DI-)
+    - Provides trend strength through ADX-like calculation
+    """
+    def __init__(self, period: int = 14):
+        super().__init__()
+        self.period = period
+        self.latest_bx_trender: Optional[float] = None
+        self.di_plus: Optional[float] = None
+        self.di_minus: Optional[float] = None
+        self.adx: Optional[float] = None
+        self.trend_strength: Optional[float] = None
+        self.trend_direction: Optional[int] = None
+
+    def update(self, intervals: List[InstrumentInterval]):
+        import logging
+        import math
+        
+        self.update_at = datetime.now()
+        
+        if len(intervals) < self.period + 1:
+            self.status = 'insufficient_data'
+            self._reset_values()
+            logging.debug('[BXTrenderDirectional] Insufficient data: need %d intervals, got %d', self.period + 1, len(intervals))
+            return
+
+        try:
+            # Validate all intervals
+            for i, interval in enumerate(intervals[-self.period-1:]):
+                if interval.status != 'ok':
+                    self.status = 'invalid_data'
+                    self._reset_values()
+                    logging.debug('[BXTrenderDirectional] Invalid interval status at position %d: %s', i, interval.status)
+                    return
+                
+                for field in ['high', 'low', 'close']:
+                    val = getattr(interval, field, None)
+                    if val is None or math.isnan(val) or val <= 0:
+                        self.status = 'invalid_data'
+                        self._reset_values()
+                        logging.debug('[BXTrenderDirectional] Invalid %s at position %d: %s', field, i, val)
+                        return
+
+            # Calculate True Range and Directional Movement over the period
+            tr_sum = 0
+            dm_plus_sum = 0
+            dm_minus_sum = 0
+            
+            for i in range(len(intervals) - self.period, len(intervals)):
+                current = intervals[i]
+                if i > 0:
+                    previous = intervals[i-1]
+                    
+                    # True Range
+                    tr1 = current.high - current.low
+                    tr2 = abs(current.high - previous.close)
+                    tr3 = abs(current.low - previous.close)
+                    tr = max(tr1, tr2, tr3)
+                    tr_sum += tr
+                    
+                    # Directional Movement
+                    up_move = current.high - previous.high
+                    down_move = previous.low - current.low
+                    
+                    if up_move > down_move and up_move > 0:
+                        dm_plus_sum += up_move
+                    elif down_move > up_move and down_move > 0:
+                        dm_minus_sum += down_move
+
+            # Calculate Directional Indicators
+            if tr_sum > 0:
+                self.di_plus = 100 * (dm_plus_sum / tr_sum)
+                self.di_minus = 100 * (dm_minus_sum / tr_sum)
+            else:
+                self.di_plus = 0
+                self.di_minus = 0
+
+            # BX Trender directional
+            raw_bx_trender = self.di_plus - self.di_minus
+            
+            # Normalize to 0-100 scale
+            self.latest_bx_trender = 50 + (raw_bx_trender / 2)
+            self.latest_bx_trender = max(0, min(100, self.latest_bx_trender))
+            
+            # ADX-like trend strength
+            if self.di_plus + self.di_minus > 0:
+                self.adx = 100 * abs(self.di_plus - self.di_minus) / (self.di_plus + self.di_minus)
+            else:
+                self.adx = 0
+                
+            self.trend_strength = self.adx / 100
+            self.trend_direction = 1 if raw_bx_trender > 0 else (-1 if raw_bx_trender < 0 else 0)
+            
+            self.status = 'ok'
+            logging.debug('[BXTrenderDirectional] Calculated: BX=%.2f, DI+=%.2f, DI-=%.2f, ADX=%.2f',
+                         self.latest_bx_trender, self.di_plus, self.di_minus, self.adx)
+            
+        except Exception as e:
+            self.status = 'calculation_error'
+            self._reset_values()
+            logging.error('[BXTrenderDirectional] Error calculating: %s', str(e))
+
+    def _reset_values(self):
+        """Reset all calculated values to None."""
+        self.latest_bx_trender = None
+        self.di_plus = None
+        self.di_minus = None
+        self.adx = None
+        self.trend_strength = None
+        self.trend_direction = None
+
+    def get_value(self) -> Optional[float]:
+        return self.latest_bx_trender
+    
+    def get_di_plus(self) -> Optional[float]:
+        return self.di_plus
+    
+    def get_di_minus(self) -> Optional[float]:
+        return self.di_minus
+    
+    def get_adx(self) -> Optional[float]:
+        return self.adx
+
+
+@gin.configurable
+class BXTrenderVolumeWeighted(Indicator):
+    """
+    BX Trender Volume Weighted Indicator: Incorporates volume into trend strength calculation.
+    Formula: bx_trender = 50 + (50 * (bullish_volume - bearish_volume) / total_volume)
+    
+    This indicator weights trend calculation by volume:
+    - Separates volume into bullish (price up) and bearish (price down) components
+    - Calculates volume-weighted trend strength
+    - Provides enhanced trend signals when supported by volume
+    """
+    def __init__(self, period: int = 14):
+        super().__init__()
+        self.period = period
+        self.latest_bx_trender: Optional[float] = None
+        self.bullish_volume_ratio: Optional[float] = None
+        self.bearish_volume_ratio: Optional[float] = None
+        self.volume_momentum: Optional[float] = None
+        self.trend_strength: Optional[float] = None
+        self.trend_direction: Optional[int] = None
+
+    def update(self, intervals: List[InstrumentInterval]):
+        import logging
+        import math
+        
+        self.update_at = datetime.now()
+        
+        if len(intervals) < self.period + 1:
+            self.status = 'insufficient_data'
+            self._reset_values()
+            logging.debug('[BXTrenderVolumeWeighted] Insufficient data: need %d intervals, got %d', self.period + 1, len(intervals))
+            return
+
+        try:
+            # Validate all intervals and check for volume data
+            for i, interval in enumerate(intervals[-self.period-1:]):
+                if interval.status != 'ok':
+                    self.status = 'invalid_data'
+                    self._reset_values()
+                    logging.debug('[BXTrenderVolumeWeighted] Invalid interval status at position %d: %s', i, interval.status)
+                    return
+                
+                # Check for required fields including volume
+                for field in ['close', 'traded_volume']:
+                    val = getattr(interval, field, None)
+                    if val is None or math.isnan(val):
+                        self.status = 'no_volume_data' if field == 'traded_volume' else 'invalid_data'
+                        self._reset_values()
+                        logging.debug('[BXTrenderVolumeWeighted] Invalid %s at position %d: %s', field, i, val)
+                        return
+                    
+                    if field == 'traded_volume' and val < 0:
+                        self.status = 'invalid_data'
+                        self._reset_values()
+                        logging.debug('[BXTrenderVolumeWeighted] Negative volume at position %d: %s', i, val)
+                        return
+
+            # Calculate volume-weighted trend over the period
+            bullish_volume = 0
+            bearish_volume = 0
+            total_volume = 0
+            
+            recent_volume_sum = 0
+            prev_volume_sum = 0
+            
+            for i in range(len(intervals) - self.period, len(intervals)):
+                current = intervals[i]
+                if i > 0:
+                    previous = intervals[i-1]
+                    
+                    price_change = current.close - previous.close
+                    volume = current.traded_volume
+                    total_volume += volume
+                    
+                    if price_change > 0:
+                        bullish_volume += volume
+                    elif price_change < 0:
+                        bearish_volume += volume
+                    
+                    # Volume momentum calculation
+                    if i >= len(intervals) - 5:  # Recent 5 periods
+                        recent_volume_sum += volume
+                    elif i < len(intervals) - 5:  # Earlier periods
+                        prev_volume_sum += volume
+
+            # Calculate ratios
+            if total_volume > 0:
+                self.bullish_volume_ratio = bullish_volume / total_volume
+                self.bearish_volume_ratio = bearish_volume / total_volume
+                
+                # BX Trender with volume weighting
+                self.latest_bx_trender = 50 + (50 * (bullish_volume - bearish_volume) / total_volume)
+            else:
+                self.bullish_volume_ratio = 0.5
+                self.bearish_volume_ratio = 0.5
+                self.latest_bx_trender = 50.0
+
+            # Volume momentum
+            if prev_volume_sum > 0:
+                self.volume_momentum = (recent_volume_sum - prev_volume_sum) / prev_volume_sum
+            else:
+                self.volume_momentum = 0
+            
+            # Volume-adjusted trend strength
+            recent_avg_volume = recent_volume_sum / min(5, self.period)
+            period_avg_volume = total_volume / self.period if self.period > 0 else 1
+            volume_ratio = recent_avg_volume / period_avg_volume if period_avg_volume > 0 else 1
+            
+            self.trend_strength = abs(self.latest_bx_trender - 50) / 50 * min(volume_ratio, 2.0)  # Cap at 2x
+            self.trend_direction = 1 if self.latest_bx_trender > 50 else (-1 if self.latest_bx_trender < 50 else 0)
+            
+            self.status = 'ok'
+            logging.debug('[BXTrenderVolumeWeighted] Calculated: BX=%.2f, Bull Vol=%.3f, Bear Vol=%.3f, Vol Mom=%.3f',
+                         self.latest_bx_trender, self.bullish_volume_ratio, self.bearish_volume_ratio, self.volume_momentum)
+            
+        except Exception as e:
+            self.status = 'calculation_error'
+            self._reset_values()
+            logging.error('[BXTrenderVolumeWeighted] Error calculating: %s', str(e))
+
+    def _reset_values(self):
+        """Reset all calculated values to None."""
+        self.latest_bx_trender = None
+        self.bullish_volume_ratio = None
+        self.bearish_volume_ratio = None
+        self.volume_momentum = None
+        self.trend_strength = None
+        self.trend_direction = None
+
+    def get_value(self) -> Optional[float]:
+        return self.latest_bx_trender
+    
+    def get_bullish_volume_ratio(self) -> Optional[float]:
+        return self.bullish_volume_ratio
+    
+    def get_bearish_volume_ratio(self) -> Optional[float]:
+        return self.bearish_volume_ratio
+    
+    def get_volume_momentum(self) -> Optional[float]:
+        return self.volume_momentum
