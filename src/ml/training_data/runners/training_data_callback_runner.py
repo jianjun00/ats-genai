@@ -282,14 +282,33 @@ async def register_training_dataset(symbol: str, start_date: date, end_date: dat
             symbols, date_range_start, date_range_end, data_quality_score, feature_completeness,
             label_completeness, generation_duration_seconds, file_size_mb, data_sources, status,
             features_file_path, labels_file_path, metadata_file_path, feature_metadata,
-            technical_indicators, prediction_horizon, created_by, generation_parameters
+            technical_indicators, prediction_horizon, created_by, generation_parameters, file_metadata
         ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-            $17, $18, $19, $20, $21, $22, $23, $24
+            $17, $18, $19, $20, $21, $22, $23, $24, $25
         ) RETURNING id
         """
         
         dataset_name = f"{symbol}_training_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}_{now.strftime('%H%M%S')}"
+        
+        # Create file_metadata structure
+        file_metadata = {
+            "files": [
+                {
+                    "symbol": symbol,
+                    "timeframe": "1h",  # This callback processes hourly data
+                    "file_path": arrayrecord_file.name,
+                    "sequences": metadata['num_rows'],
+                    "file_size_bytes": arrayrecord_file.stat().st_size,
+                    "created_at": now.strftime("%Y-%m-%d %H:%M:%S")
+                }
+            ],
+            "total_sequences": metadata['num_rows'],
+            "total_files": 1,
+            "timeframes": ["1h"],
+            "symbols": [symbol],
+            "generation_date": now.strftime("%Y-%m-%d %H:%M:%S")
+        }
         
         dataset_id = await conn.fetchval(
             dataset_query,
@@ -330,7 +349,8 @@ async def register_training_dataset(symbol: str, start_date: date, end_date: dat
                 "multi_timeframe": True,
                 "arrayrecord_file": str(arrayrecord_file),
                 "parquet_file": str(parquet_file)
-            })  # generation_parameters
+            }),  # generation_parameters
+            json.dumps(file_metadata)  # file_metadata
         )
         
         logger.info(f"✅ Dataset registered with ID: {dataset_id}")

@@ -506,6 +506,16 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         self.training_generator = None
         self.interval_counter = 0
         
+        # Track file metadata for database storage
+        self.file_metadata = {
+            "files": [],
+            "total_sequences": 0,
+            "total_files": 0,
+            "timeframes": [],
+            "symbols": symbols,
+            "generation_date": None
+        }
+        
         self.logger.info(f"IntervalBasedTrainingDataCallback initialized for symbols: {symbols}")
     
     def handleStart(self, runner: Any, current_time: datetime):
@@ -525,19 +535,16 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                 universe_manager=runner.get_universe_state_manager()
             )
         
-        # Create output directory structure with timeframe subdirectories (FIXED)
+        # Create output directory structure with sequence-based subdirectories
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Create timeframe-specific directories for visualization API compatibility
-        expected_timeframes = ['5m', '15m', '1h', '1d', '1w']
-        for timeframe in expected_timeframes:
-            timeframe_dir = Path(self.output_dir) / timeframe
-            timeframe_dir.mkdir(exist_ok=True)
-            self.logger.info(f"Created timeframe directory: {timeframe_dir}")
+        # Store expected timeframes for sequence generation
+        self.expected_timeframes = ['5m', '15m', '1h', '1d', '1w']
         
+        # Create metadata directory
         (self.output_dir / "metadata").mkdir(exist_ok=True)
         
-        self.logger.info("Interval-based multi-timeframe training data generator initialized")
+        self.logger.info("Interval-based sequence-based training data generator initialized")
     
     async def handleInterval(self, runner: Any, current_time: datetime):
         """Generate multi-timeframe training data for current interval."""
@@ -673,44 +680,64 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                 )
                 self.logger.debug(f"Saved {len(examples)} multi-timeframe examples at {current_time}")
             else:
-                # FIXED: Save to timeframe/symbol structure for visualization API compatibility
-                # Pattern: /output_dir/{timeframe}/{SYMBOL}_{STARTDATE}_{ENDDATE}.arrayrecord
+                # Save to sequence-based structure ONLY
+                # Pattern: /output_dir/{SYMBOL_DATERANGE}/timeframes/{SYMBOL_DATERANGE}.arrayrecord
                 
-                # Group examples by symbol and timeframe
-                examples_by_timeframe_symbol = {}
+                # Group examples by symbol (sequences)
+                examples_by_symbol = {}
                 for example in examples:
                     symbol = example['symbol']
-                    # Extract timeframes from the example - this needs to be based on actual data structure
-                    # For now, generate for all expected timeframes
-                    timeframes = ['5m', '15m', '1h', '1d', '1w']  
-                    
-                    for timeframe in timeframes:
-                        key = (timeframe, symbol)
-                        if key not in examples_by_timeframe_symbol:
-                            examples_by_timeframe_symbol[key] = []
-                        examples_by_timeframe_symbol[key].append(example)
+                    if symbol not in examples_by_symbol:
+                        examples_by_symbol[symbol] = []
+                    examples_by_symbol[symbol].append(example)
                 
-                # Save each timeframe/symbol combination to its own .arrayrecord file
-                for (timeframe, symbol), tf_symbol_examples in examples_by_timeframe_symbol.items():
-                    timeframe_dir = Path(self.output_dir) / timeframe
-                    
-                    # Create filename: SYMBOL_STARTDATE_ENDDATE.arrayrecord
+                # Save each symbol as a separate sequence
+                for symbol, symbol_examples in examples_by_symbol.items():
+                    # Create sequence identifier: SYMBOL_STARTDATE_ENDDATE
                     start_date_str = getattr(self, 'start_date', current_time.date()).strftime('%Y%m%d_%H%M%S')
-                    end_date_str = getattr(self, 'end_date', current_time.date()).strftime('%Y%m%d_%H%M%S')
-                    arrayrecord_filename = f"{symbol}_{start_date_str}_{end_date_str}.arrayrecord"
-                    arrayrecord_path = timeframe_dir / arrayrecord_filename
+                    end_date_str = getattr(self, 'end_date', current_time.date()).strftime('%Y%m%d_%H%M%S') 
+                    sequence_id = f"{symbol}_{start_date_str}_{end_date_str}"
                     
-                    # Filter examples for this specific timeframe (extract timeframe-specific data)
-                    timeframe_filtered_examples = self._extract_timeframe_data(tf_symbol_examples, timeframe)
+                    # Create sequence directory structure
+                    sequence_dir = Path(self.output_dir) / sequence_id
+                    sequence_dir.mkdir(parents=True, exist_ok=True)
                     
-                    # Save as ArrayRecord format
-                    await self._save_symbol_arrayrecord(timeframe_filtered_examples, arrayrecord_path, symbol, timeframe)
-                    
-                    # Save companion metadata
-                    metadata_path = timeframe_dir / f"{symbol}_{start_date_str}_{end_date_str}_metadata.json"
-                    await self._save_symbol_metadata(timeframe_filtered_examples, metadata_path, symbol, current_time, timeframe)
-                    
-                    self.logger.info(f"Saved {len(timeframe_filtered_examples)} examples for {symbol} {timeframe} to {arrayrecord_path}")
+                    # Save all timeframes for this sequence
+                    for timeframe in self.expected_timeframes:
+                        timeframe_dir = sequence_dir / timeframe
+                        timeframe_dir.mkdir(exist_ok=True)
+                        
+                        # Create ArrayRecord file: SYMBOL_DATERANGE.arrayrecord
+                        arrayrecord_filename = f"{sequence_id}.arrayrecord"
+                        arrayrecord_path = timeframe_dir / arrayrecord_filename
+                        
+                        # Filter examples for this specific timeframe
+                        timeframe_filtered_examples = self._extract_timeframe_data(symbol_examples, timeframe)
+                        
+                        # Save as ArrayRecord format
+                        await self._save_symbol_arrayrecord(timeframe_filtered_examples, arrayrecord_path, symbol, timeframe)
+                        
+                        # Save companion metadata
+                        metadata_path = timeframe_dir / f"{sequence_id}_metadata.json"
+                        await self._save_symbol_metadata(timeframe_filtered_examples, metadata_path, symbol, current_time, timeframe)
+                        
+                        # Track file metadata for database storage
+                        file_stats = arrayrecord_path.stat()
+                        file_info = {
+                            "symbol": symbol,
+                            "timeframe": timeframe,
+                            "file_path": f"{sequence_id}.arrayrecord",
+                            "sequences": len(timeframe_filtered_examples),
+                            "file_size_bytes": file_stats.st_size,
+                            "created_at": current_time.strftime("%Y-%m-%d %H:%M:%S")
+                        }
+                        self.file_metadata["files"].append(file_info)
+                        
+                        # Update timeframes list
+                        if timeframe not in self.file_metadata["timeframes"]:
+                            self.file_metadata["timeframes"].append(timeframe)
+                        
+                        self.logger.info(f"Saved {len(timeframe_filtered_examples)} examples for {symbol} {timeframe} to {arrayrecord_path}")
                 
         except Exception as e:
             self.logger.error(f"Failed to save multi-timeframe examples at {current_time}: {e}")
@@ -867,7 +894,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             raise RuntimeError(f"Critical error saving metadata for {symbol}: {e}") from e
     
     async def handleEnd(self, runner: Any, current_time: datetime):
-        """Generate final summary for multi-timeframe processing."""
+        """Generate final summary for multi-timeframe processing and update database metadata."""
         self.logger.info(f"Multi-timeframe interval-based generation completed:")
         self.logger.info(f"  - Intervals processed: {self.interval_counter}")
         self.logger.info(f"  - Symbols: {', '.join(self.symbols)}")
@@ -875,7 +902,64 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             self.logger.info(f"  - Timeframes: {', '.join(self.config.timeframes.keys())}")
             self.logger.info(f"  - Sequence lengths: {self.config.sequence_lengths}")
         self.logger.info(f"  - Output directory: {self.output_dir}")
-        self.logger.info(f"  - Output structure: /run_YYYYMMDD_HHMMSS/SYMBOL/STARTDATE_ENDDATE.arrayrecord")
+        self.logger.info(f"  - Output structure: /run_YYYYMMDD_HHMMSS/SEQUENCE_ID/timeframe/SEQUENCE_ID.arrayrecord")
+        
+        # Finalize file metadata
+        self.file_metadata["generation_date"] = current_time.strftime("%Y-%m-%d %H:%M:%S")
+        self.file_metadata["total_files"] = len(self.file_metadata["files"])
+        self.file_metadata["total_sequences"] = sum(f["sequences"] for f in self.file_metadata["files"])
+        
+        self.logger.info(f"📊 Generated file metadata:")
+        self.logger.info(f"  - Total files: {self.file_metadata['total_files']}")
+        self.logger.info(f"  - Total sequences: {self.file_metadata['total_sequences']}")
+        self.logger.info(f"  - Timeframes: {self.file_metadata['timeframes']}")
+        
+        # Update database with file metadata if we have a run_id context
+        await self._update_database_metadata(runner, current_time)
+        
+    async def _update_database_metadata(self, runner: Any, current_time: datetime):
+        """Update the training dataset in database with file metadata."""
+        try:
+            import asyncpg
+            import json
+            from datetime import datetime
+            
+            # Connect to database
+            db_url = "postgresql://postgres:dev_password@localhost:3432/dev_db"
+            conn = await asyncpg.connect(db_url)
+            
+            try:
+                # Find the most recent training dataset for these symbols
+                # This assumes the training dataset was created before this callback runs
+                symbols_str = ','.join(self.symbols)
+                dataset_record = await conn.fetchrow("""
+                    SELECT id, dataset_name FROM dev_training_datasets 
+                    WHERE symbols = $1 
+                    ORDER BY id DESC 
+                    LIMIT 1
+                """, self.symbols)
+                
+                if dataset_record:
+                    dataset_id = dataset_record['id']
+                    dataset_name = dataset_record['dataset_name']
+                    
+                    # Update the dataset with file metadata
+                    await conn.execute("""
+                        UPDATE dev_training_datasets 
+                        SET file_metadata = $1, total_sequences = $2
+                        WHERE id = $3
+                    """, json.dumps(self.file_metadata), self.file_metadata["total_sequences"], dataset_id)
+                    
+                    self.logger.info(f"✅ Updated dataset {dataset_id} ({dataset_name}) with file metadata")
+                    
+                else:
+                    self.logger.warning(f"Could not find training dataset record for symbols {self.symbols}")
+                    
+            finally:
+                await conn.close()
+                
+        except Exception as e:
+            self.logger.error(f"Failed to update database with file metadata: {e}")
         
         # Save final summary
         try:

@@ -1,69 +1,38 @@
 # Gin configuration for multi-timeframe training data generation
 # Uses 1-minute base intervals with multi-timeframe sequences
 
-# Training Data Configuration
-TrainingDataConfig.base_interval_minutes = 1                    # 1-minute base data collection
-TrainingDataConfig.training_interval_minutes = 60              # Generate training examples every hour
-
-# Multi-timeframe configuration
-TrainingDataConfig.timeframes = {
-    '5m': 5,     # 5-minute bars
-    '15m': 15,   # 15-minute bars  
-    '1h': 60,    # 1-hour bars
-    '1d': 1440,  # Daily bars
-    '1w': 10080  # Weekly bars
-}
+# Training Data Configuration - Using constructor parameters
+ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.base_interval_minutes = 1
+ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.training_interval_minutes = 60
 
 # Sequence lengths per timeframe
-TrainingDataConfig.sequence_lengths = {
+ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.sequence_lengths = {
     '5m': 52,    # 52 5-minute intervals
     '15m': 52,   # 52 15-minute intervals
     '1h': 24,    # 24 hourly intervals
     '1d': 20,    # 20 daily intervals
-    '1w': 12     # 12 weekly intervals
 }
 
 # Prediction horizons per timeframe
-TrainingDataConfig.prediction_horizons = {
+ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.prediction_horizons = {
     '1h': 6,     # 6 hours ahead
     '1d': 5,     # 5 days ahead
-    '1w': 2      # 2 weeks ahead
 }
 
-# Output Configuration  
-TrainingDataConfig.minute_data_base_path = "/data/minute-bars"
-TrainingDataConfig.output_base_path = "/data/training"
+# Available timeframes
+ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.timeframes = ['5m', '15m', '1h', '1d']
 
-# Technical Indicators Configuration (NEW: Configurable signal names)
-TrainingDataConfig.signal_names = [
-    "etop",           # Envelope top indicator
-    "ebot",           # Envelope bottom indicator  
-    "pldot",          # Price/location dot indicator
-    "envelope_top",   # Envelope top (alternative name)
-    "envelope_bot",   # Envelope bottom (alternative name)
-    "z1b",            # Z1 bottom indicator
-    "z2b",            # Z2 bottom indicator
-    "z5t",            # Z5 top indicator
-    "z6t",            # Z6 top indicator
-    "sma_20",         # Simple moving average 20
-    "ema_12",         # Exponential moving average 12
-    "rsi_14",         # Relative strength index 14
-    "macd_line",      # MACD line
-    "macd_signal",    # MACD signal line
-    "bb_upper",       # Bollinger band upper
-    "bb_lower",       # Bollinger band lower
-    "bb_middle"       # Bollinger band middle
+# Technical Indicators Configuration
+ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.signal_names = [
+    "etop", "ebot", "pldot", "envelope_top", "envelope_bot",
+    "z1b", "z2b", "z5t", "z6t", "sma_20", "ema_12", "rsi_14",
+    "macd_line", "macd_signal", "bb_upper", "bb_lower", "bb_middle"
 ]
 
 # Feature Types Configuration
-TrainingDataConfig.feature_types = [
-    "ohlcv",           # Open, High, Low, Close, Volume
-    "returns",         # Price returns
-    "volatility",      # Volatility measures
-    "volume_profile",  # Volume-based features
-    "technical",       # Technical indicators (computed locally)
-    "indicators",      # Pre-computed indicators from IndicatorBuilder
-    "market_structure" # Support/resistance, trends
+ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.feature_types = [
+    "ohlcv", "returns", "volatility", "volume_profile", 
+    "technical", "indicators", "market_structure"
 ]
 
 # FileBasedMinuteMarketDataManager Configuration (Container-friendly paths)

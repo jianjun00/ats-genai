@@ -27,6 +27,7 @@ import time
 import numpy as np
 from datetime import datetime, date, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Dict, List, Any, Optional
 from urllib.parse import urlparse, parse_qs
 from dataclasses import asdict
@@ -533,7 +534,7 @@ class UnifiedAnalyticsService:
                     # Get dataset info
                     cursor.execute(f"""
                         SELECT dataset_name, symbols, total_sequences, run_id,
-                               dataset_path, symbol_files
+                               dataset_path, symbol_files, file_metadata
                         FROM {table_name}
                         WHERE id = %s
                     """, (dataset_id,))
@@ -550,33 +551,96 @@ class UnifiedAnalyticsService:
                     sequences = []
                     total_count = 0
                     
-                    # Get available sequences by calling the visualization data API
+                    # Use file_metadata from database for precise sequence information
                     try:
-                        viz_data = self.get_training_dataset_visualization_data(dataset_id)
+                        file_metadata = dataset_info.get('file_metadata', {})
                         
-                        if viz_data and not viz_data.get('error'):
-                            symbols = dataset_info.get('symbols', [])
-                            target_symbol = symbols[0] if symbols else 'AAPL'
+                        if file_metadata and file_metadata.get('files'):
+                            logger.info(f"Using database file_metadata for dataset {dataset_id}")
                             
-                            total_sequences = viz_data.get('total_sequences', 0)
-                            file_size_mb = viz_data.get('total_records', 21) * 0.005  # Estimate file size
+                            sequence_id_counter = 0
+                            files_info = file_metadata.get('files', [])
                             
-                            # Generate sequence entries based on available sequences
-                            for seq_id in range(total_sequences):
+                            # Generate sequence-based menu items from file metadata
+                            # Group files by sequence (symbol+daterange) instead of individual timeframes
+                            sequences_by_id = {}
+                            
+                            for file_info in files_info:
+                                symbol = file_info.get('symbol')
+                                timeframe = file_info.get('timeframe') 
+                                file_path = file_info.get('file_path', '')
+                                file_size_bytes = file_info.get('file_size_bytes', 0)
+                                
+                                # Extract sequence ID from file path (e.g., AAPL_20250701_000000_20250906_000000.arrayrecord)
+                                if file_path.endswith('.arrayrecord'):
+                                    sequence_id = file_path.replace('.arrayrecord', '')
+                                else:
+                                    sequence_id = f"{symbol}_sequence"
+                                
+                                if sequence_id not in sequences_by_id:
+                                    sequences_by_id[sequence_id] = {
+                                        'symbol': symbol,
+                                        'timeframes': {},
+                                        'total_size': 0,
+                                        'file_count': 0
+                                    }
+                                
+                                # Add this timeframe to the sequence
+                                sequences_by_id[sequence_id]['timeframes'][timeframe] = {
+                                    'file_path': file_path,
+                                    'file_size_bytes': file_size_bytes
+                                }
+                                sequences_by_id[sequence_id]['total_size'] += file_size_bytes
+                                sequences_by_id[sequence_id]['file_count'] += 1
+                            
+                            # Create sequence menu items (one per symbol+daterange)
+                            for sequence_id, sequence_info in sequences_by_id.items():
                                 sequences.append({
-                                    "id": seq_id,
-                                    "sequence_id": seq_id,
-                                    "symbol": target_symbol,
-                                    "filename": f"{target_symbol.lower()}_visualization.arrayrecord",
-                                    "description": f"{target_symbol} Sequence {seq_id}",
-                                    "timeframe": "hourly", 
-                                    "file_size_mb": round(file_size_mb, 2)
+                                    "id": sequence_id_counter,
+                                    "sequence_id": sequence_id,
+                                    "symbol": sequence_info['symbol'],
+                                    "timeframes": list(sequence_info['timeframes'].keys()),
+                                    "timeframe_count": len(sequence_info['timeframes']),
+                                    "description": sequence_id,  # Show sequence ID as description
+                                    "file_count": sequence_info['file_count'],
+                                    "total_size_mb": round(sequence_info['total_size'] / (1024 * 1024), 2)
                                 })
+                                sequence_id_counter += 1
+                                    
+                            total_count = len(sequences)
+                            logger.info(f"Generated {total_count} sequence-based menu items from file_metadata for dataset {dataset_id}")
+                            
+                        else:
+                            # Fallback: use filesystem scanning (legacy approach)
+                            logger.warning(f"No file_metadata available for dataset {dataset_id}, using filesystem fallback")
+                            
+                            symbols = dataset_info.get('symbols', [])
+                            if isinstance(symbols, str):
+                                if symbols.startswith('{') and symbols.endswith('}'):
+                                    symbols = [s.strip() for s in symbols.strip('{}').split(',') if s.strip()]
+                                else:
+                                    symbols = [s.strip() for s in symbols.split(',') if s.strip()]
+                            
+                            for symbol in symbols:
+                                try:
+                                    viz_data = self.get_training_dataset_visualization_data(dataset_id, 0, None, symbol)
+                                    if viz_data and not viz_data.get('error'):
+                                        symbol_sequences = viz_data.get('total_sequences', 0)
+                                        
+                                        for seq_id in range(symbol_sequences):
+                                            sequences.append({
+                                                "id": len(sequences),
+                                                "sequence_id": seq_id,
+                                                "symbol": symbol,
+                                                "timeframe": "multi",
+                                                "filename": f"{symbol.lower()}_visualization.arrayrecord",
+                                                "description": f"{symbol} Sequence {seq_id}",
+                                                "file_size_mb": 0.1
+                                            })
+                                except Exception as e:
+                                    logger.error(f"Error processing symbol {symbol}: {e}")
                             
                             total_count = len(sequences)
-                            logger.info(f"Generated {total_count} sequences for dataset {dataset_id}, symbol {target_symbol}")
-                        else:
-                            logger.warning(f"No visualization data available for dataset {dataset_id}")
                     
                     except Exception as e:
                         logger.error(f"Error getting visualization data for sequences: {e}")
@@ -596,7 +660,8 @@ class UnifiedAnalyticsService:
                 "total_count": 0
             }
 
-    def get_training_dataset_visualization_data(self, dataset_id: int, start_idx: int = 0, sequence_id: str = None) -> Dict[str, Any]:
+
+    def get_training_dataset_visualization_data(self, dataset_id: int, start_idx: int = 0, sequence_id: str = None, target_symbol: str = None) -> Dict[str, Any]:
         """Get visualization data for training dataset sequences (OHLC + indicators for Plotly charts)."""
         try:
             from core.database.connection_manager import get_raw_connection
@@ -639,43 +704,65 @@ class UnifiedAnalyticsService:
                     if not symbols:
                         raise ValueError(f"Dataset {dataset_id} missing symbols")
                     
-                    # If sequence_id provided, find specific sequence
-                    if sequence_id is not None:
-                        try:
-                            seq_idx = int(sequence_id)
-                            if seq_idx < len(symbols):
-                                target_symbol = symbols[seq_idx]
-                            else:
+                    # Determine target symbol - use parameter if provided, otherwise logic
+                    if target_symbol is None:
+                        # If sequence_id provided, find specific sequence
+                        if sequence_id is not None:
+                            try:
+                                seq_idx = int(sequence_id)
+                                if seq_idx < len(symbols):
+                                    target_symbol = symbols[seq_idx]
+                                else:
+                                    target_symbol = symbols[0]
+                            except (ValueError, IndexError):
                                 target_symbol = symbols[0]
-                        except (ValueError, IndexError):
-                            target_symbol = symbols[0]
-                    else:
-                        target_symbol = symbols[0]  # Default to first symbol
+                        else:
+                            target_symbol = symbols[0]  # Default to first symbol
                     
-                    # Search for actual Riegeli files in all potential locations
+                    # Search for actual files in all potential locations (container-aware)
                     training_base_paths = [
-                        Path("/data/training"),
-                        Path("/data/training_data")
+                        Path("/data/training_data"),  # Container path
+                        Path("/mnt/d/ats-data/training_data")  # Host path fallback
                     ]
                     
                     arrayrecord_files = []
                     for base_path in training_base_paths:
                         if base_path.exists():
-                            logger.info(f"Searching for {target_symbol} files in: {base_path}")
-                            # Find all Riegeli and ArrayRecord files containing the target symbol
-                            for arrayrecord_file in list(base_path.rglob("*.arrayrecord")):
-                                # Check if file contains our target symbol (case insensitive)
-                                file_name = arrayrecord_file.name.lower()
-                                file_path_str = str(arrayrecord_file).lower()
-                                symbol_lower = target_symbol.lower()
-                                
-                                logger.debug(f"Checking file: {arrayrecord_file}, symbol_lower: {symbol_lower}")
-                                
-                                # Check both filename and path for symbol match
-                                if symbol_lower in file_name or f"/{symbol_lower}/" in file_path_str:
-                                    arrayrecord_files.append(arrayrecord_file)
-                                    logger.info(f"Found matching file: {arrayrecord_file}")
-                                    break  # Use first match
+                            logger.info(f"Searching for {target_symbol} files in run {run_id} at: {base_path}")
+                            # Search specifically in the run_id directory first
+                            run_path = base_path / str(run_id)
+                            if run_path.exists():
+                                logger.info(f"Found run directory: {run_path}")
+                                # Look for files in specific run directory
+                                for arrayrecord_file in list(run_path.rglob("*.arrayrecord")):
+                                    # Check if file contains our target symbol (case insensitive)
+                                    file_name = arrayrecord_file.name.lower()
+                                    symbol_lower = target_symbol.lower()
+                                    
+                                    logger.info(f"Checking file: {arrayrecord_file}, symbol_lower: {symbol_lower}")
+                                    
+                                    # Check filename for symbol match
+                                    if symbol_lower in file_name:
+                                        arrayrecord_files.append(arrayrecord_file)
+                                        logger.info(f"Found matching file for run {run_id}: {arrayrecord_file}")
+                                        break  # Use first match in correct run
+                                        
+                            # If not found in run directory, fallback to general search
+                            if not arrayrecord_files:
+                                logger.warning(f"No files found in run {run_id}, falling back to general search")
+                                for arrayrecord_file in list(base_path.rglob("*.arrayrecord")):
+                                    file_name = arrayrecord_file.name.lower()
+                                    file_path_str = str(arrayrecord_file).lower()
+                                    symbol_lower = target_symbol.lower()
+                                    
+                                    if symbol_lower in file_name or f"/{symbol_lower}/" in file_path_str:
+                                        arrayrecord_files.append(arrayrecord_file)
+                                        logger.info(f"Found fallback file: {arrayrecord_file}")
+                                        break  # Use first match
+                            
+                            # If files found in this base_path, stop searching other base_paths
+                            if arrayrecord_files:
+                                break
                     
                     if arrayrecord_files:
                         # Read actual ArrayRecord data
@@ -688,39 +775,89 @@ class UnifiedAnalyticsService:
                             
                             # Read all records first
                             all_records = []
+                            columns = None
                             try:
+                                record_count = 0
                                 while True:
                                     record = reader.read()
                                     if not record:
                                         break
-                                    all_records.append(record)
-                            except:
-                                pass  # End of file
+                                    
+                                    # First record is column names (UTF-8 decodable)
+                                    if record_count == 0:
+                                        try:
+                                            columns_str = record.decode('utf-8')
+                                            import ast
+                                            columns = ast.literal_eval(columns_str)
+                                            logger.info(f"ArrayRecord columns: {len(columns)} columns")
+                                        except (UnicodeDecodeError, ValueError) as e:
+                                            logger.warning(f"Could not parse columns from first record: {e}")
+                                            # Treat as data record instead
+                                            all_records.append(record)
+                                    else:
+                                        # Subsequent records are binary data
+                                        all_records.append(record)
+                                    
+                                    record_count += 1
+                            except Exception as e:
+                                logger.warning(f"Error reading ArrayRecord: {e}")
+                                pass  # End of file or other error
                             
-                            # Parse records starting from start_idx
+                            logger.info(f"Read {len(all_records)} data records from ArrayRecord")
+                            
+                            # Parse records starting from start_idx - handle binary data properly
                             for i, record_bytes in enumerate(all_records[start_idx:start_idx + 21]):  # Get 21 bars
+                                try:
+                                    # Try to decode as UTF-8 first (for JSON format)
                                     try:
-                                        record_data = json.loads(record_bytes.decode())
+                                        record_str = record_bytes.decode('utf-8')
+                                        record_data = json.loads(record_str)
+                                    except UnicodeDecodeError:
+                                        # Handle binary data - convert to numpy array or structured format
+                                        logger.debug(f"Record {i} is binary data, attempting structured parsing")
                                         
-                                        # Extract OHLC and indicator data
-                                        bar_data = {
-                                            "time_step": i,
-                                            "datetime": record_data.get('datetime', ''),
-                                            "symbol": record_data.get('symbol', target_symbol),
-                                            "open": record_data.get('open', 0),
-                                            "high": record_data.get('high', 0), 
-                                            "low": record_data.get('low', 0),
-                                            "close": record_data.get('close', 0),
-                                            "volume": record_data.get('volume', 0),
-                                            "envelope_top": record_data.get('envelope_top', 0),
-                                            "envelope_bot": record_data.get('envelope_bot', 0),
-                                            "pldot": record_data.get('pldot', 0)
-                                        }
-                                        visualization_data.append(bar_data)
+                                        # For now, create mock data structure for visualization
+                                        # TODO: Implement proper binary ArrayRecord parsing
+                                        import numpy as np
                                         
-                                    except (json.JSONDecodeError, KeyError) as e:
-                                        logger.warning(f"Error parsing record {i + start_idx}: {e}")
-                                        continue
+                                        # Try to interpret as numpy array if we have column info
+                                        if columns and len(record_bytes) % 8 == 0:  # Assume float64
+                                            try:
+                                                data_array = np.frombuffer(record_bytes, dtype=np.float64)
+                                                if len(data_array) >= len(columns):
+                                                    # Map array values to column names
+                                                    record_data = {}
+                                                    for j, col in enumerate(columns[:len(data_array)]):
+                                                        record_data[col] = float(data_array[j]) if j < len(data_array) else 0.0
+                                                else:
+                                                    logger.error(f"Binary data array too short: expected >={len(columns)}, got {len(data_array)}")
+                                                    raise ValueError(f"Insufficient binary data for record {i}: expected columns but data is incomplete")
+                                            except Exception as np_error:
+                                                logger.error(f"Failed to parse binary training data record {i}: {np_error}")
+                                                raise RuntimeError(f"Binary ArrayRecord parsing failed: {np_error}. Unable to process training data without real market data.")
+                                        else:
+                                            logger.error(f"Cannot parse binary record {i}: invalid format (length={len(record_bytes)}, columns={len(columns or [])})")
+                                            raise ValueError(f"Invalid binary ArrayRecord format for record {i}. Real training data parsing required.")
+                                    
+                                    # Extract OHLC and indicator data
+                                    bar_data = {
+                                        "time_step": i,
+                                        "datetime": record_data.get('datetime', ''),
+                                        "symbol": record_data.get('symbol', target_symbol),
+                                        "open": record_data.get('open', 0),
+                                        "high": record_data.get('high', 0), 
+                                        "low": record_data.get('low', 0),
+                                        "close": record_data.get('close', 0),
+                                        "volume": record_data.get('volume', 0),
+                                        "envelope_top": record_data.get('envelope_top', 0),
+                                        "envelope_bot": record_data.get('envelope_bot', 0),
+                                        "pldot": record_data.get('pldot', 0)
+                                    }
+                                    visualization_data.append(bar_data)
+                                    
+                                except (json.JSONDecodeError, KeyError, UnicodeDecodeError) as e:
+                                    logger.warning(f"Error parsing record {i + start_idx}: {e}")
+                                    continue
                             
                             # Calculate available sequences (total records - window size + 1)
                             total_records = len(all_records)
@@ -765,6 +902,206 @@ class UnifiedAnalyticsService:
             # No fake data - re-raise the error
             raise
 
+    def get_training_dataset_sequence_multi_timeframe(self, dataset_id: int, sequence_id: str, row_index: int = 50) -> Dict[str, Any]:
+        """Get multi-timeframe OHLC data for a specific sequence, showing 21 bars centered around row_index."""
+        try:
+            from core.database.connection_manager import get_raw_connection
+            import psycopg2.extras
+            from pathlib import Path
+            import json
+            
+            logger.info(f"Getting multi-timeframe data for dataset {dataset_id}, sequence {sequence_id}")
+            
+            # Determine environment and table name
+            environment = "dev"
+            table_name = f"{environment}_training_datasets"
+            
+            with get_raw_connection() as conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+                    # Get dataset info including file_metadata
+                    cursor.execute(f"""
+                        SELECT dataset_name, symbols, run_id, file_metadata
+                        FROM {table_name}
+                        WHERE id = %s
+                    """, (dataset_id,))
+                    
+                    dataset_info = cursor.fetchone()
+                    if not dataset_info:
+                        return {"error": f"Dataset {dataset_id} not found"}
+                    
+                    file_metadata = dataset_info.get('file_metadata', {})
+                    run_id = dataset_info.get('run_id')
+                    
+                    # Define training base paths (container-aware)
+                    training_base_paths = [
+                        Path("/data/training_data"),  # Container path
+                        Path("/mnt/d/ats-data/training_data")  # Host path fallback
+                    ]
+                    
+                    # Find the sequence directory and read all timeframes
+                    multi_timeframe_data = {}
+                    timeframes = ['5m', '15m', '1h', '1d', '1w']
+                    
+                    for base_path in training_base_paths:
+                        sequence_dir = Path(base_path) / str(run_id) / sequence_id
+                        logger.info(f"Checking sequence directory: {sequence_dir}")
+                        if sequence_dir.exists():
+                            logger.info(f"✅ Found sequence directory: {sequence_dir}")
+                            
+                            for timeframe in timeframes:
+                                timeframe_dir = sequence_dir / timeframe
+                                arrayrecord_file = timeframe_dir / f"{sequence_id}.arrayrecord"
+                                logger.info(f"Checking ArrayRecord file: {arrayrecord_file}")
+                                
+                                if arrayrecord_file.exists():
+                                    try:
+                                        logger.info(f"✅ Found file: {arrayrecord_file}")
+                                        # Read ArrayRecord data for this timeframe
+                                        ohlc_data = self._read_arrayrecord_ohlc(arrayrecord_file)
+                                        if ohlc_data:
+                                            multi_timeframe_data[timeframe] = ohlc_data
+                                            logger.info(f"✅ Loaded {len(ohlc_data)} OHLC bars for {timeframe}")
+                                        else:
+                                            logger.warning(f"⚠️  ArrayRecord file returned no data: {arrayrecord_file}")
+                                    except Exception as e:
+                                        logger.error(f"❌ Failed to read {timeframe} data from {arrayrecord_file}: {e}")
+                                else:
+                                    logger.warning(f"❌ ArrayRecord file not found: {arrayrecord_file}")
+                            
+                            break  # Found sequence directory
+                        else:
+                            logger.warning(f"❌ Sequence directory not found: {sequence_dir}")
+                    
+                    if not multi_timeframe_data:
+                        return {"error": f"No data files found for sequence {sequence_id}"}
+                    
+                    # Apply 21-bar selection logic (10 before + 1 current + 10 after) to all timeframes
+                    logger.info(f"🎯 Applying 21-bar selection logic with row_index={row_index}")
+                    for timeframe, data in multi_timeframe_data.items():
+                        if data and len(data) > 0:
+                            data_len = len(data)
+                            logger.info(f"   {timeframe}: {data_len} bars available")
+                            
+                            # If row_index is beyond data length, use all available data
+                            if row_index >= data_len:
+                                logger.warning(f"   {timeframe}: row_index {row_index} >= data_len {data_len}, using all available data")
+                                start_idx = 0
+                                end_idx = data_len
+                            else:
+                                # Calculate start and end indices for 21-bar window
+                                start_idx = max(0, row_index - 10)
+                                end_idx = min(data_len, row_index + 11)  # +11 to include row_index + 10 bars after
+                                
+                                # Ensure we have 21 bars if possible
+                                if end_idx - start_idx < 21 and data_len >= 21:
+                                    if start_idx == 0:
+                                        # If we're at the beginning, extend end
+                                        end_idx = min(data_len, 21)
+                                    elif end_idx == data_len:
+                                        # If we're at the end, extend start backward
+                                        start_idx = max(0, data_len - 21)
+                                
+                                # Safety check: if we still have insufficient data, use all available
+                                if data_len < 21:
+                                    logger.info(f"   {timeframe}: Only {data_len} bars available, using all data instead of 21-bar window")
+                                    start_idx = 0
+                                    end_idx = data_len
+                            
+                            # Apply the slice
+                            selected_bars = data[start_idx:end_idx]
+                            multi_timeframe_data[timeframe] = selected_bars
+                            
+                            logger.info(f"   {timeframe}: Selected bars {start_idx}-{end_idx-1} ({len(selected_bars)} bars)")
+                            if len(selected_bars) > 0:
+                                actual_row_idx = row_index - start_idx
+                                logger.info(f"   {timeframe}: Target row is now at index {actual_row_idx} in selected data")
+                    
+                    # Prepare table view data (use 1h timeframe)
+                    table_data = []
+                    if '1h' in multi_timeframe_data:
+                        table_data = multi_timeframe_data['1h']  # Use the already-filtered 21 bars
+                        logger.info(f"✅ Table data prepared: {len(table_data)} rows from 1h timeframe (21-bar selection)")
+                    
+                    # Debug: Log detailed response structure
+                    response = {
+                        "sequence_id": sequence_id,
+                        "dataset_name": dataset_info.get('dataset_name'),
+                        "ohlc_data": multi_timeframe_data,
+                        "table_data": table_data,
+                        "available_timeframes": list(multi_timeframe_data.keys()),
+                        "success": True
+                    }
+                    
+                    logger.info(f"🎯 MULTI-TIMEFRAME API RESPONSE DEBUG:")
+                    logger.info(f"   Sequence ID: {response['sequence_id']}")
+                    logger.info(f"   Dataset: {response['dataset_name']}")
+                    logger.info(f"   OHLC timeframes: {list(response['ohlc_data'].keys())}")
+                    logger.info(f"   OHLC data counts: {[(tf, len(data)) for tf, data in response['ohlc_data'].items()]}")
+                    logger.info(f"   Table rows: {len(response['table_data'])}")
+                    logger.info(f"   Success: {response['success']}")
+                    
+                    return response
+                    
+        except Exception as e:
+            logger.error(f"Error getting multi-timeframe sequence data: {e}")
+            return {"error": str(e)}
+
+    def _read_arrayrecord_ohlc(self, file_path: Path) -> List[Dict]:
+        """Read OHLC data from ArrayRecord file."""
+        try:
+            # Try to read ArrayRecord file with proper error handling
+            from array_record.python.array_record_module import ArrayRecordReader
+            
+            ohlc_data = []
+            reader = ArrayRecordReader(str(file_path))
+            record_count = 0
+            while record_count < 1000:  # Limit records for performance
+                try:
+                    record_bytes = reader.read()
+                    if record_bytes is None:
+                        break
+                        
+                    # First record contains column names
+                    if record_count == 0:
+                        columns_str = record_bytes.decode('utf-8')
+                        logger.debug(f"ArrayRecord columns: {columns_str}")
+                        record_count += 1
+                        continue
+                    
+                    # Parse subsequent records as OHLC data
+                    import numpy as np
+                    data_array = np.frombuffer(record_bytes, dtype=np.float32)
+                    
+                    if len(data_array) >= 6:  # Ensure we have OHLCV + timestamp
+                        # Handle NaN values by converting them to None/null
+                        import math
+                        
+                        def safe_float(value):
+                            f = float(value)
+                            return None if math.isnan(f) else f
+                        
+                        ohlc_record = {
+                            "timestamp": safe_float(data_array[0]) if len(data_array) > 0 else None,
+                            "open": safe_float(data_array[1]) if len(data_array) > 1 else None,
+                            "high": safe_float(data_array[2]) if len(data_array) > 2 else None,
+                            "low": safe_float(data_array[3]) if len(data_array) > 3 else None,
+                            "close": safe_float(data_array[4]) if len(data_array) > 4 else None,
+                            "volume": safe_float(data_array[5]) if len(data_array) > 5 else None
+                        }
+                        ohlc_data.append(ohlc_record)
+                    
+                    record_count += 1
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to parse record {record_count}: {e}")
+                    break
+                    
+            reader.close()
+            return ohlc_data
+            
+        except Exception as e:
+            logger.error(f"Failed to read ArrayRecord file {file_path}: {e}")
+            return []
 
     def get_bar_collection_metrics(self) -> Dict[str, Any]:
         """Get metrics about bars collected organized by collection time and bar time."""
@@ -1365,6 +1702,11 @@ class UnifiedAnalyticsService:
                                         <h4 style="margin: 0 0 10px 0; font-size: 14px;">📈 Daily OHLC</h4>
                                         <div id="ohlc-chart-1d" style="height: 300px;"></div>
                                     </div>
+                                    
+                                    <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+                                        <h4 style="margin: 0 0 10px 0; font-size: 14px;">📈 Weekly OHLC</h4>
+                                        <div id="ohlc-chart-1w" style="height: 300px;"></div>
+                                    </div>
                                 </div>
                                 
                                 <!-- Dataset Information -->
@@ -1452,7 +1794,8 @@ class UnifiedAnalyticsService:
                         if (data.sequences && data.sequences.length > 0) {
                             let options = '<option value="">Choose a sequence...</option>';
                             data.sequences.forEach(seq => {
-                                options += `<option value="${seq.sequence_id}">${seq.symbol} - ${seq.timeframe} (${seq.file_size_mb}MB)</option>`;
+                                const timeframeSummary = seq.timeframes ? seq.timeframes.join(', ') : 'multi-timeframe';
+                                options += `<option value="${seq.sequence_id}">${seq.description} (${timeframeSummary}, ${seq.total_size_mb}MB)</option>`;
                             });
                             sequenceSelector.innerHTML = options;
                             sequenceSelector.disabled = false;
@@ -1472,16 +1815,26 @@ class UnifiedAnalyticsService:
                     const sequenceId = document.getElementById('sequence-selector').value;
                     const rowIndex = document.getElementById('row-selector').value || 0;
                     
+                    console.log('🎯 CLIENT DEBUG: Starting visualization load');
+                    console.log(`   Dataset ID: ${datasetId}`);
+                    console.log(`   Sequence ID: ${sequenceId}`);
+                    console.log(`   Row Index: ${rowIndex}`);
+                    
                     if (!datasetId) {
                         alert('Please select a dataset first');
+                        return;
+                    }
+                    
+                    if (!sequenceId) {
+                        alert('Please select a sequence first');
                         return;
                     }
                     
                     // Show loading state
                     document.getElementById('dataset-visualization').style.display = 'block';
                     
-                    // Set loading state for all four timeframe charts
-                    const timeframes = ['5m', '15m', '1h', '1d'];
+                    // Set loading state for all timeframe charts
+                    const timeframes = ['5m', '15m', '1h', '1d', '1w'];
                     timeframes.forEach(tf => {
                         document.getElementById(`ohlc-chart-${tf}`).innerHTML = `<p>Loading ${tf} chart...</p>`;
                     });
@@ -1490,61 +1843,154 @@ class UnifiedAnalyticsService:
                     document.getElementById('sequence-table').innerHTML = '<p>Loading sequence data...</p>';
                     
                     try {
-                        // Fetch sequence data for visualization
-                        let apiUrl = `/api/v1/training-datasets/${datasetId}/visualization-data?start_idx=${rowIndex}`;
-                        if (sequenceId) {
-                            apiUrl += `&sequence_id=${sequenceId}`;
-                        }
+                        // Use NEW multi-timeframe endpoint with row index parameter
+                        const apiUrl = `/api/v1/training-datasets/${datasetId}/sequences/${sequenceId}/multi-timeframe?row_index=${rowIndex}`;
+                        console.log(`🌐 CLIENT DEBUG: Fetching from ${apiUrl} (row index: ${rowIndex})`);
                         
                         const response = await fetch(apiUrl);
-                        const visualizationData = await response.json();
+                        const multiTimeframeData = await response.json();
                         
-                        // Create data structure for charts (maintaining backward compatibility)
-                        const sequenceDataPromises = timeframes.map(async (timeframe) => {
-                            // For now, use the same data for all timeframes
-                            // In future, could enhance API to return different timeframes
-                            return { 
-                                timeframe, 
-                                data: {
-                                    ...visualizationData,
-                                    symbol: sequenceId ? sequenceId.split('_')[0] : 'UNKNOWN'
-                                }
-                            };
-                        });
+                        console.log('✅ CLIENT DEBUG: Multi-timeframe data received');
+                        console.log(`   Success: ${multiTimeframeData.success}`);
+                        console.log(`   Sequence ID: ${multiTimeframeData.sequence_id}`);
+                        console.log(`   Available timeframes: ${multiTimeframeData.available_timeframes}`);
+                        console.log(`   OHLC data keys: ${Object.keys(multiTimeframeData.ohlc_data || {})}`);
+                        console.log(`   Table rows: ${multiTimeframeData.table_data?.length || 0}`);
                         
-                        const sequenceResults = await Promise.all(sequenceDataPromises);
+                        if (multiTimeframeData.error) {
+                            throw new Error(multiTimeframeData.error);
+                        }
                         
-                        // Use the first result for dataset info (all timeframes have same metadata)
-                        const primarySequenceData = sequenceResults[0].data;
+                        if (!multiTimeframeData.success) {
+                            throw new Error('Multi-timeframe data fetch failed');
+                        }
                         
                         // Display dataset info
+                        const symbol = multiTimeframeData.sequence_id ? multiTimeframeData.sequence_id.split('_')[0] : 'UNKNOWN';
                         document.getElementById('dataset-info').innerHTML = `
                             <div style="line-height: 1.6;">
-                                <p><strong>Dataset:</strong> ${primarySequenceData.dataset_name}</p>
-                                <p><strong>Symbol:</strong> ${primarySequenceData.symbol}</p>
-                                <p><strong>Row Index:</strong> ${primarySequenceData.row_index}</p>
-                                <p><strong>Sequence Length:</strong> ${primarySequenceData.sequence_length}</p>
-                                <p><strong>Selected Bar:</strong> ${primarySequenceData.selected_bar}</p>
-                                <p><strong>Data Source:</strong> ${primarySequenceData.source}</p>
-                                ${primarySequenceData.total_sequences ? `<p><strong>Total Sequences:</strong> ${primarySequenceData.total_sequences}</p>` : ''}
+                                <p><strong>Dataset:</strong> ${multiTimeframeData.dataset_name}</p>
+                                <p><strong>Symbol:</strong> ${symbol}</p>
+                                <p><strong>Sequence ID:</strong> ${multiTimeframeData.sequence_id}</p>
+                                <p><strong>Available Timeframes:</strong> ${multiTimeframeData.available_timeframes.join(', ')}</p>
+                                <p><strong>Total OHLC Records:</strong> ${Object.values(multiTimeframeData.ohlc_data || {}).reduce((total, data) => total + data.length, 0)}</p>
                             </div>
                         `;
                         
-                        // Create Plotly OHLC charts for each timeframe
-                        sequenceResults.forEach(({ timeframe, data }) => {
-                            createTimeframeOHLCChart(timeframe, data);
-                        });
+                        console.log('📊 CLIENT DEBUG: Starting Plotly chart creation');
                         
-                        // Create sequence data table (using primary timeframe data)
-                        createSequenceTable(primarySequenceData);
+                        // Create OHLC charts for each timeframe
+                        for (const timeframe of timeframes) {
+                            const chartDiv = document.getElementById('ohlc-chart-' + timeframe);
+                            const ohlcData = multiTimeframeData.ohlc_data[timeframe];
+                            
+                            console.log('📈 CLIENT DEBUG: Processing ' + timeframe + ' chart');
+                            console.log('   Data available: ' + !!ohlcData);
+                            console.log('   Data length: ' + (ohlcData ? ohlcData.length : 0));
+                            
+                            if (ohlcData && ohlcData.length > 0) {
+                                console.log('   Sample data: ', ohlcData[0]);
+                                
+                                // Prepare data for Plotly
+                                const dates = ohlcData.map(bar => new Date(bar.timestamp * 1000));
+                                const opens = ohlcData.map(bar => bar.open);
+                                const highs = ohlcData.map(bar => bar.high);
+                                const lows = ohlcData.map(bar => bar.low);
+                                const closes = ohlcData.map(bar => bar.close);
+                                
+                                console.log('   Prepared ' + dates.length + ' data points for ' + timeframe);
+                                console.log('   Date range: ' + dates[0] + ' to ' + dates[dates.length-1]);
+                                
+                                const plotlyData = [{
+                                    x: dates,
+                                    open: opens,
+                                    high: highs,
+                                    low: lows,
+                                    close: closes,
+                                    type: 'candlestick',
+                                    name: symbol + ' ' + timeframe.toUpperCase(),
+                                    increasing: { line: { color: '#00CC88' }},
+                                    decreasing: { line: { color: '#FF6B6B' }}
+                                }];
+                                
+                                const layout = {
+                                    title: symbol + ' - ' + timeframe.toUpperCase() + ' OHLC',
+                                    xaxis: { title: 'Time' },
+                                    yaxis: { title: 'Price ($)' },
+                                    height: 280,
+                                    margin: { t: 40, b: 40, l: 60, r: 20 },
+                                    showlegend: false
+                                };
+                                
+                                console.log('🎨 CLIENT DEBUG: Creating ' + timeframe + ' Plotly chart');
+                                
+                                try {
+                                    await Plotly.newPlot(chartDiv, plotlyData, layout, {responsive: true});
+                                    console.log('✅ CLIENT DEBUG: ' + timeframe + ' chart created successfully');
+                                } catch (plotlyError) {
+                                    console.error('❌ CLIENT DEBUG: ' + timeframe + ' Plotly error:', plotlyError);
+                                    chartDiv.innerHTML = '<p style="color: red;">Error creating ' + timeframe + ' chart: ' + plotlyError.message + '</p>';
+                                }
+                            } else {
+                                console.log('⚠️  CLIENT DEBUG: No data for ' + timeframe);
+                                chartDiv.innerHTML = '<p style="color: orange;">No ' + timeframe + ' data available</p>';
+                            }
+                        }
+                        
+                        console.log('📋 CLIENT DEBUG: Creating table view');
+                        
+                        // Create table view from 1h data
+                        const tableData = multiTimeframeData.table_data;
+                        if (tableData && tableData.length > 0) {
+                            console.log('✅ CLIENT DEBUG: Table data available: ' + tableData.length + ' rows');
+                            console.log('   Sample table row:', tableData[0]);
+                            
+                            let tableHtml = '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">' +
+                                '<thead>' +
+                                '<tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">' +
+                                '<th style="padding: 8px; text-align: left;">Timestamp</th>' +
+                                '<th style="padding: 8px; text-align: right;">Open</th>' +
+                                '<th style="padding: 8px; text-align: right;">High</th>' +
+                                '<th style="padding: 8px; text-align: right;">Low</th>' +
+                                '<th style="padding: 8px; text-align: right;">Close</th>' +
+                                '<th style="padding: 8px; text-align: right;">Volume</th>' +
+                                '</tr>' +
+                                '</thead>' +
+                                '<tbody>';
+                            
+                            tableData.forEach((row, idx) => {
+                                const date = new Date(row.timestamp * 1000);
+                                const bgColor = idx % 2 === 0 ? 'background: #f9f9f9;' : '';
+                                tableHtml += '<tr style="border-bottom: 1px solid #eee; ' + bgColor + '">' +
+                                    '<td style="padding: 6px;">' + date.toLocaleString() + '</td>' +
+                                    '<td style="padding: 6px; text-align: right;">$' + (row.open?.toFixed(2) || 'N/A') + '</td>' +
+                                    '<td style="padding: 6px; text-align: right;">$' + (row.high?.toFixed(2) || 'N/A') + '</td>' +
+                                    '<td style="padding: 6px; text-align: right;">$' + (row.low?.toFixed(2) || 'N/A') + '</td>' +
+                                    '<td style="padding: 6px; text-align: right;">$' + (row.close?.toFixed(2) || 'N/A') + '</td>' +
+                                    '<td style="padding: 6px; text-align: right;">' + (row.volume?.toLocaleString() || 'N/A') + '</td>' +
+                                    '</tr>';
+                            });
+                            
+                            tableHtml += '</tbody></table>';
+                            document.getElementById('sequence-table').innerHTML = tableHtml;
+                            
+                            console.log('✅ CLIENT DEBUG: Table created with ' + tableData.length + ' rows');
+                        } else {
+                            console.log('⚠️  CLIENT DEBUG: No table data available');
+                            document.getElementById('sequence-table').innerHTML = '<p style="color: orange;">No table data available</p>';
+                        }
+                        
+                        console.log('✅ CLIENT DEBUG: Visualization loading completed');
                         
                     } catch (error) {
+                        console.error('❌ CLIENT DEBUG: Visualization error:', error);
+                        
                         // Set error state for all charts
                         timeframes.forEach(tf => {
                             document.getElementById(`ohlc-chart-${tf}`).innerHTML = `<p style="color: red;">Error loading ${tf} chart: ${error.message}</p>`;
                         });
-                        document.getElementById('dataset-info').innerHTML = '<p style="color: red;">Error loading dataset info</p>';
-                        document.getElementById('sequence-table').innerHTML = '<p style="color: red;">Error loading sequence data</p>';
+                        document.getElementById('dataset-info').innerHTML = `<p style="color: red;">Error loading dataset info: ${error.message}</p>`;
+                        document.getElementById('sequence-table').innerHTML = `<p style="color: red;">Error loading sequence data: ${error.message}</p>`;
                     }
                 }
                 
@@ -1753,7 +2199,9 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             elif self.path.startswith('/api/universe-analytics'):
                 self._serve_universe_analytics()
             elif self.path.startswith('/api/v1/training-datasets'):
-                if '/sequence/' in self.path:
+                if '/multi-timeframe' in self.path:
+                    self._serve_training_dataset_multi_timeframe()
+                elif '/sequence/' in self.path:
                     self._serve_training_dataset_sequence()
                 elif '/sequences' in self.path:
                     self._serve_training_dataset_sequences()
@@ -1957,6 +2405,47 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             }
             self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
     
+    def _serve_training_dataset_multi_timeframe(self):
+        """Serve multi-timeframe OHLC data for a specific sequence."""
+        from urllib.parse import urlparse, parse_qs
+        
+        # Parse URL and query parameters
+        parsed_url = urlparse(self.path)
+        query_params = parse_qs(parsed_url.query)
+        
+        # Extract dataset_id and sequence_id from path like /api/v1/training-datasets/{dataset_id}/sequences/{sequence_id}/multi-timeframe
+        path_parts = parsed_url.path.split('/')
+        try:
+            dataset_id = int(path_parts[4])  # /api/v1/training-datasets/{dataset_id}/sequences/{sequence_id}/multi-timeframe
+            sequence_id = path_parts[6]      # sequence_id
+        except (IndexError, ValueError):
+            self.send_response(400)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Invalid dataset_id or sequence_id"}).encode('utf-8'))
+            return
+        
+        # Extract row_index from query parameters (e.g., ?row_index=50)
+        row_index = int(query_params.get('row_index', [50])[0])
+        logger.info(f"Multi-timeframe request: dataset_id={dataset_id}, sequence_id={sequence_id}, row_index={row_index}")
+        
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        
+        try:
+            # Get multi-timeframe data from the analytics service with row index
+            multi_data = self.analytics_service.get_training_dataset_sequence_multi_timeframe(dataset_id, sequence_id, row_index)
+            self.wfile.write(json.dumps(multi_data, indent=2, default=str).encode('utf-8'))
+        except Exception as e:
+            logger.error(f"Error getting multi-timeframe data for dataset {dataset_id}, sequence {sequence_id}: {e}")
+            error_response = {
+                "error": str(e),
+                "dataset_id": dataset_id,
+                "sequence_id": sequence_id,
+                "message": "Failed to load multi-timeframe data"
+            }
+            self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
     
     def _serve_ray_analytics(self):
         """Serve Ray distributed analytics."""
