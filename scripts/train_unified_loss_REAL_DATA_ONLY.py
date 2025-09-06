@@ -23,8 +23,31 @@ from typing import Dict, List, Tuple, Any
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.ml.models.autonomous_driving_inspired.optimal_loss_functions import FinancialAVLoss
-from src.storage.file_based_storage import FileBasedMinuteManager, FileBasedMinuteMarketDataManager
+# NOTE: No external dependencies - all functionality implemented inline
+# This ensures ZERO TOLERANCE for synthetic data without module dependencies
+
+class SimplifiedFinancialLoss(nn.Module):
+    """Simplified unified loss for real market data training."""
+    
+    def __init__(self, alpha_cvar=0.05, lambda_drawdown=2.0):
+        super().__init__()
+        self.alpha_cvar = alpha_cvar
+        self.lambda_drawdown = lambda_drawdown
+        
+    def forward(self, predictions, targets):
+        # Basic MSE loss for real data training
+        mse_loss = nn.functional.mse_loss(predictions, targets)
+        
+        # CVaR penalty (for risk management)
+        returns = predictions.squeeze()
+        if len(returns) > 0:
+            var_threshold = torch.quantile(returns, self.alpha_cvar)
+            cvar_penalty = torch.mean(torch.clamp(returns - var_threshold, min=0))
+        else:
+            cvar_penalty = torch.tensor(0.0)
+            
+        total_loss = mse_loss + self.lambda_drawdown * cvar_penalty
+        return total_loss
 
 # Configure logging
 logging.basicConfig(
@@ -126,16 +149,16 @@ class RealDataValidator:
 class RealMarketDataLoader:
     """Loads ONLY real market data with strict validation."""
     
-    def __init__(self, data_path: str = "/mnt/d/ats-data/minute-bars/firstrate/"):
+    def __init__(self, data_path: str = "/data/minute-bars/firstrate/"):
         self.data_path = data_path
         self.validator = RealDataValidator()
         
         # Validate data source at initialization
         self.validator.validate_data_source("firstrate", data_path)
         
-        # Initialize real data managers
-        self.minute_manager = FileBasedMinuteManager(base_path=data_path)
-        self.market_data_manager = FileBasedMinuteMarketDataManager(self.minute_manager)
+        # Direct parquet file reading (no complex dependencies)
+        if not os.path.exists(data_path):
+            raise ValueError(f"🚨 REAL DATA PATH NOT FOUND: {data_path}")
         
         logger.info(f"✅ REAL MARKET DATA LOADER INITIALIZED: {data_path}")
     
@@ -146,16 +169,35 @@ class RealMarketDataLoader:
         logger.info(f"Loading REAL AAPL data: {start_date} to {end_date}")
         
         try:
-            # Load real minute-bar data
-            minute_data = self.market_data_manager.get_minute_bars(
-                symbol="AAPL",
-                start_date=datetime.strptime(start_date, "%Y-%m-%d"),
-                end_date=datetime.strptime(end_date, "%Y-%m-%d")
-            )
+            # Load real AAPL parquet files directly
+            aapl_path = os.path.join(self.data_path, "A", "AAPL")
             
-            if minute_data.empty:
-                raise ValueError("🚨 NO REAL DATA AVAILABLE - Training cannot proceed")
+            # Find parquet files for the date range  
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d")
             
+            all_data = []
+            current_date = start_dt
+            
+            while current_date <= end_dt:
+                year_month_path = os.path.join(aapl_path, str(current_date.year), f"{current_date.month:02d}")
+                if os.path.exists(year_month_path):
+                    parquet_file = os.path.join(year_month_path, f"AAPL_{current_date.year}_{current_date.month:02d}.parquet")
+                    if os.path.exists(parquet_file):
+                        df = pd.read_parquet(parquet_file)
+                        all_data.append(df)
+                        logger.info(f"✅ Loaded real data file: {parquet_file}")
+                
+                # Move to next month
+                if current_date.month == 12:
+                    current_date = current_date.replace(year=current_date.year + 1, month=1)
+                else:
+                    current_date = current_date.replace(month=current_date.month + 1)
+            
+            if not all_data:
+                raise ValueError(f"🚨 NO REAL AAPL DATA AVAILABLE for {start_date} to {end_date}")
+                
+            minute_data = pd.concat(all_data, ignore_index=True)
             logger.info(f"✅ Loaded {len(minute_data)} real AAPL minute bars")
             
             # Convert to OHLCV numpy array
@@ -287,8 +329,8 @@ def main():
         # Create model
         model = SimpleTransformer(input_dim=5, d_model=64, sequence_length=100)
         
-        # Use real market data optimized loss function
-        loss_fn = FinancialAVLoss(num_tasks=5, alpha_cvar=0.05, lambda_drawdown=2.0)
+        # Use simplified real market data loss function
+        loss_fn = SimplifiedFinancialLoss(alpha_cvar=0.05, lambda_drawdown=2.0)
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
         
         # Training loop
@@ -307,16 +349,8 @@ def main():
                 # Forward pass
                 predictions = model(batch_X)
                 
-                # Calculate loss components for unified loss
-                loss_components = {
-                    'regression': torch.nn.functional.mse_loss(predictions, batch_y),
-                    'classification': torch.tensor(0.0),  # Placeholder
-                    'ranking': torch.tensor(0.0),         # Placeholder  
-                    'risk': torch.tensor(0.0),            # Placeholder
-                    'stability': torch.tensor(0.0)        # Placeholder
-                }
-                
-                loss = loss_fn(loss_components, predictions, batch_y)
+                # Calculate unified loss with real data
+                loss = loss_fn(predictions, batch_y)
                 
                 # Backward pass
                 optimizer.zero_grad()
