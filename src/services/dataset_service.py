@@ -508,3 +508,256 @@ class DatasetService:
         
         logger.info(f"✅ Validated dataset {dataset_id}: {validation_results['accessible_files']}/{validation_results['total_files']} files accessible")
         return validation_results
+    
+    def get_feature_metadata(self, dataset_id: int) -> Dict[str, Any]:
+        """Retrieve comprehensive feature metadata for dataset."""
+        
+        try:
+            with psycopg2.connect(**self.db_config) as conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    
+                    cur.execute("""
+                        SELECT feature_metadata, dataset_name, technical_indicators
+                        FROM dev_training_dataset 
+                        WHERE id = %s
+                    """, (dataset_id,))
+                    
+                    result = cur.fetchone()
+                    if not result:
+                        return {
+                            'features': [],
+                            'labels': [],
+                            'metadata_version': '1.0',
+                            'data_quality_metrics': {},
+                            'error': f'Dataset {dataset_id} not found'
+                        }
+                    
+                    feature_metadata = result['feature_metadata'] or {}
+                    
+                    # If metadata is empty or old format, generate basic structure
+                    if not feature_metadata or 'features' not in feature_metadata:
+                        feature_metadata = self._generate_basic_feature_metadata(
+                            dataset_id, result['technical_indicators']
+                        )
+                    
+                    # Ensure metadata has required structure
+                    if 'metadata_version' not in feature_metadata:
+                        feature_metadata['metadata_version'] = '1.0'
+                    if 'creation_timestamp' not in feature_metadata:
+                        feature_metadata['creation_timestamp'] = datetime.now().isoformat()
+                    
+                    logger.info(f"✅ Retrieved feature metadata for dataset {dataset_id}: {len(feature_metadata.get('features', []))} features")
+                    return feature_metadata
+                    
+        except Exception as e:
+            logger.error(f"❌ Error retrieving feature metadata for dataset {dataset_id}: {e}")
+            return {
+                'features': [],
+                'labels': [],
+                'metadata_version': '1.0',
+                'data_quality_metrics': {},
+                'error': str(e)
+            }
+    
+    def find_datasets_by_features(self, required_features: List[str], 
+                                feature_types: List[str] = None) -> List[DatasetMetadata]:
+        """Find datasets containing specific features or feature types."""
+        
+        try:
+            with psycopg2.connect(**self.db_config) as conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    
+                    # Build query to search within JSON metadata
+                    query = """
+                        SELECT * FROM dev_training_dataset 
+                        WHERE feature_metadata IS NOT NULL
+                    """
+                    params = []
+                    
+                    # Add feature name search if specified
+                    if required_features:
+                        feature_conditions = []
+                        for feature in required_features:
+                            feature_conditions.append("feature_metadata::text ILIKE %s")
+                            params.append(f'%{feature}%')
+                        query += " AND (" + " OR ".join(feature_conditions) + ")"
+                    
+                    # Add feature type search if specified
+                    if feature_types:
+                        type_conditions = []
+                        for ftype in feature_types:
+                            type_conditions.append("feature_metadata::text ILIKE %s")
+                            params.append(f'%{ftype}%')
+                        query += " AND (" + " OR ".join(type_conditions) + ")"
+                    
+                    query += " ORDER BY data_quality_score DESC, creation_timestamp DESC LIMIT 20"
+                    
+                    cur.execute(query, params)
+                    rows = cur.fetchall()
+                    
+                    datasets = []
+                    for row in rows:
+                        dataset = self._row_to_dataset_metadata(row, [])
+                        if dataset:
+                            datasets.append(dataset)
+                    
+                    logger.info(f"✅ Found {len(datasets)} datasets matching feature criteria")
+                    return datasets
+                    
+        except Exception as e:
+            logger.error(f"❌ Error searching datasets by features: {e}")
+            return []
+    
+    def compare_feature_schemas(self, dataset_id_1: int, dataset_id_2: int) -> Dict[str, Any]:
+        """Compare feature schemas between two datasets for compatibility."""
+        
+        try:
+            metadata_1 = self.get_feature_metadata(dataset_id_1)
+            metadata_2 = self.get_feature_metadata(dataset_id_2)
+            
+            if 'error' in metadata_1 or 'error' in metadata_2:
+                return {
+                    'compatible': False,
+                    'error': f"Could not retrieve metadata for one or both datasets",
+                    'metadata_1_error': metadata_1.get('error'),
+                    'metadata_2_error': metadata_2.get('error')
+                }
+            
+            features_1 = {f['name']: f for f in metadata_1.get('features', [])}
+            features_2 = {f['name']: f for f in metadata_2.get('features', [])}
+            
+            common_features = set(features_1.keys()) & set(features_2.keys())
+            missing_in_dataset_1 = set(features_2.keys()) - set(features_1.keys())
+            missing_in_dataset_2 = set(features_1.keys()) - set(features_2.keys())
+            
+            # Check for type and shape mismatches
+            type_mismatches = []
+            shape_mismatches = []
+            
+            for feature_name in common_features:
+                f1, f2 = features_1[feature_name], features_2[feature_name]
+                
+                if f1.get('data_type') != f2.get('data_type'):
+                    type_mismatches.append({
+                        'feature': feature_name,
+                        'dataset_1_type': f1.get('data_type'),
+                        'dataset_2_type': f2.get('data_type')
+                    })
+                
+                if f1.get('shape') != f2.get('shape'):
+                    shape_mismatches.append({
+                        'feature': feature_name,
+                        'dataset_1_shape': f1.get('shape'),
+                        'dataset_2_shape': f2.get('shape')
+                    })
+            
+            compatible = len(type_mismatches) == 0 and len(shape_mismatches) == 0
+            
+            return {
+                'compatible': compatible,
+                'common_features': list(common_features),
+                'missing_in_dataset_1': list(missing_in_dataset_1),
+                'missing_in_dataset_2': list(missing_in_dataset_2),
+                'type_mismatches': type_mismatches,
+                'shape_mismatches': shape_mismatches,
+                'compatibility_score': len(common_features) / max(len(features_1), len(features_2), 1)
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error comparing feature schemas: {e}")
+            return {
+                'compatible': False,
+                'error': str(e)
+            }
+    
+    def _generate_basic_feature_metadata(self, dataset_id: int, technical_indicators: str) -> Dict[str, Any]:
+        """Generate basic feature metadata structure when detailed metadata is missing."""
+        
+        # Parse technical indicators from comma-separated string
+        indicators = []
+        if technical_indicators:
+            indicators = [ind.strip() for ind in technical_indicators.split(',')]
+        
+        # Generate basic feature entries
+        features = []
+        
+        # Standard OHLCV features
+        ohlcv_features = ['open', 'high', 'low', 'close', 'volume']
+        for feature in ohlcv_features:
+            features.append({
+                'name': feature,
+                'feature_type': 'OHLC' if feature != 'volume' else 'VOLUME_INDICATOR',
+                'data_type': 'float64',
+                'shape': [None, 1],  # Unknown sequence length
+                'description': f'{feature.capitalize()} price data',
+                'visualization_hints': {
+                    'visualization_type': 'CANDLESTICK' if feature != 'volume' else 'BAR_CHART',
+                    'color_scheme': 'green_red' if feature != 'volume' else 'blue',
+                    'is_primary_indicator': feature in ['open', 'high', 'low', 'close']
+                }
+            })
+        
+        # Add technical indicators
+        for indicator in indicators:
+            features.append({
+                'name': indicator,
+                'feature_type': 'PRICE_INDICATOR',
+                'data_type': 'float64',
+                'shape': [None, 1],
+                'description': f'Technical indicator: {indicator}',
+                'visualization_hints': {
+                    'visualization_type': 'LINE_CHART',
+                    'color_scheme': 'blue',
+                    'is_primary_indicator': False
+                }
+            })
+        
+        return {
+            'features': features,
+            'labels': [],
+            'metadata_version': '1.0',
+            'creation_timestamp': datetime.now().isoformat(),
+            'total_features': len(features),
+            'total_labels': 0,
+            'data_quality_metrics': {
+                'feature_completeness': 0.8,  # Conservative estimate
+                'label_completeness': 0.0,
+                'overall_quality_score': 0.8
+            },
+            'note': 'Basic metadata generated from technical indicators - detailed metadata not available'
+        }
+    
+    def _row_to_dataset_metadata(self, row: Dict[str, Any], file_paths: List[str]) -> Optional[DatasetMetadata]:
+        """Convert database row to DatasetMetadata object."""
+        
+        try:
+            return DatasetMetadata(
+                dataset_id=row['id'],
+                dataset_name=row['dataset_name'],
+                dataset_type='training',  # Default type
+                symbols=row['symbols'].split(',') if row['symbols'] else [],
+                total_sequences=row['total_sequences'] or 0,
+                total_records=row['total_sequences'] or 0,  # Approximate
+                feature_count=row['feature_count'] or 0,
+                label_count=row['label_count'] or 0,
+                file_paths=file_paths,
+                base_directory='',  # Will be inferred from file_paths
+                file_format='riegeli',  # Default format
+                data_quality_score=row['data_quality_score'] or 0.0,
+                feature_completeness=row['feature_completeness'] or 0.0,
+                label_completeness=row['label_completeness'] or 0.0,
+                file_size_mb=row['file_size_mb'] or 0.0,
+                technical_indicators=row['technical_indicators'].split(',') if row['technical_indicators'] else [],
+                sequence_length=row['sequence_length'] or 0,
+                timeframes=['1h'],  # Default timeframe
+                date_range_start=row['date_range_start'].isoformat() if row['date_range_start'] else '',
+                date_range_end=row['date_range_end'].isoformat() if row['date_range_end'] else '',
+                creation_timestamp=row['creation_timestamp'] if row['creation_timestamp'] else datetime.now(),
+                last_updated=datetime.now(),
+                run_id=row.get('run_id'),
+                data_source='firstrate',
+                processing_config=row.get('processing_config', {})
+            )
+        except Exception as e:
+            logger.error(f"❌ Error converting row to DatasetMetadata: {e}")
+            return None

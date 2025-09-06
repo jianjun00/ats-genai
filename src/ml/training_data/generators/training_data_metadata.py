@@ -58,6 +58,12 @@ class FeatureMetadata:
     std_value: Optional[float] = None
     null_count: int = 0
     is_primary_key: bool = False
+    
+    # Enhanced metadata fields
+    shape: List[int] = field(default_factory=list)  # Feature shape [sequence_length, feature_dim]
+    outlier_count: int = 0
+    visualization_hints: Dict[str, Any] = field(default_factory=dict)
+    technical_indicator_params: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -75,6 +81,10 @@ class LabelMetadata:
     max_value: Optional[float] = None
     unique_values: Optional[List] = None  # For classification labels
     class_distribution: Optional[Dict] = None  # For classification
+    
+    # Enhanced metadata fields
+    shape: List[int] = field(default_factory=list)  # Label shape [prediction_horizon]
+    outlier_count: int = 0
 
 
 @dataclass
@@ -137,6 +147,10 @@ class TrainingDataMetadataManager:
         data_flat = data.flatten() if data.ndim > 1 else data
         valid_data = data_flat[~np.isnan(data_flat)]
         
+        # Calculate enhanced statistics
+        statistics = self._calculate_enhanced_statistics(valid_data)
+        visualization_hints = self._generate_visualization_hints(name, feature_type, statistics)
+        
         # Determine visualization type based on feature type
         viz_type_map = {
             FeatureType.OHLC: VisualizationType.CANDLESTICK,
@@ -151,6 +165,9 @@ class TrainingDataMetadataManager:
         # Generate description based on feature type and config
         description = self._generate_feature_description(name, feature_type, config or {})
         
+        # Extract technical indicator parameters if present
+        tech_params = self._extract_technical_indicator_params(name, config or {})
+        
         return FeatureMetadata(
             name=name,
             feature_type=feature_type,
@@ -162,11 +179,15 @@ class TrainingDataMetadataManager:
             window_size=config.get('window_size') if config else None,
             parameters=config or {},
             visualization_type=viz_type,
-            min_value=float(valid_data.min()) if len(valid_data) > 0 else None,
-            max_value=float(valid_data.max()) if len(valid_data) > 0 else None,
-            mean_value=float(valid_data.mean()) if len(valid_data) > 0 else None,
-            std_value=float(valid_data.std()) if len(valid_data) > 0 else None,
-            null_count=int(np.isnan(data_flat).sum())
+            min_value=statistics.get('min_value'),
+            max_value=statistics.get('max_value'),
+            mean_value=statistics.get('mean_value'),
+            std_value=statistics.get('std_value'),
+            null_count=int(np.isnan(data_flat).sum()),
+            shape=list(data.shape),
+            outlier_count=statistics.get('outlier_count', 0),
+            visualization_hints=visualization_hints,
+            technical_indicator_params=tech_params
         )
     
     def create_label_metadata(
@@ -180,6 +201,9 @@ class TrainingDataMetadataManager:
         
         data_flat = data.flatten() if data.ndim > 1 else data
         valid_data = data_flat[~np.isnan(data_flat)]
+        
+        # Calculate enhanced statistics
+        statistics = self._calculate_enhanced_statistics(valid_data)
         
         # For classification labels, get unique values and distribution
         unique_values = None
@@ -203,10 +227,12 @@ class TrainingDataMetadataManager:
             lead_periods=config.get('lead_periods', 1) if config else 1,
             parameters=config or {},
             visualization_type=viz_type,
-            min_value=float(valid_data.min()) if len(valid_data) > 0 else None,
-            max_value=float(valid_data.max()) if len(valid_data) > 0 else None,
+            min_value=statistics.get('min_value'),
+            max_value=statistics.get('max_value'),
             unique_values=unique_values,
-            class_distribution=class_distribution
+            class_distribution=class_distribution,
+            shape=list(data.shape),
+            outlier_count=statistics.get('outlier_count', 0)
         )
     
     def create_training_metadata(
@@ -287,9 +313,9 @@ class TrainingDataMetadataManager:
         """Infer feature type from name and configuration."""
         name_lower = name.lower()
         
-        if any(x in name_lower for x in ['open', 'high', 'low', 'close']) and 'ohlc' in name_lower:
+        if any(x in name_lower for x in ['open', 'high', 'low', 'close']):
             return FeatureType.OHLC
-        elif any(x in name_lower for x in ['sma', 'ema', 'price', 'bollinger', 'rsi']):
+        elif any(x in name_lower for x in ['sma', 'ema', 'price', 'bollinger', 'rsi']) and 'normalized' not in name_lower:
             return FeatureType.PRICE_INDICATOR
         elif any(x in name_lower for x in ['volume', 'vwap']):
             return FeatureType.VOLUME_INDICATOR
@@ -403,3 +429,95 @@ class TrainingDataMetadataManager:
         elif isinstance(obj, (datetime, date)):
             return obj.isoformat()
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+    
+    def _calculate_enhanced_statistics(self, valid_data: np.ndarray) -> Dict[str, float]:
+        """Calculate enhanced statistics including outlier detection."""
+        if len(valid_data) == 0:
+            return {'min_value': None, 'max_value': None, 'mean_value': None, 'std_value': None, 'outlier_count': 0}
+        
+        mean_val = float(valid_data.mean())
+        std_val = float(valid_data.std())
+        
+        # Detect outliers using 3-sigma rule
+        outlier_threshold = 3 * std_val
+        outliers = np.abs(valid_data - mean_val) > outlier_threshold
+        outlier_count = int(outliers.sum())
+        
+        return {
+            'min_value': float(valid_data.min()),
+            'max_value': float(valid_data.max()),
+            'mean_value': mean_val,
+            'std_value': std_val,
+            'outlier_count': outlier_count
+        }
+    
+    def _generate_visualization_hints(self, name: str, feature_type: FeatureType, statistics: Dict[str, float]) -> Dict[str, Any]:
+        """Generate visualization hints for feature based on type and statistics."""
+        hints = {
+            'color_scheme': 'blue',
+            'scale_type': 'linear',
+            'is_primary_indicator': False
+        }
+        
+        # Set color scheme based on feature type
+        if feature_type == FeatureType.OHLC:
+            hints['color_scheme'] = 'green_red'
+            hints['is_primary_indicator'] = True
+        elif feature_type == FeatureType.PRICE_INDICATOR:
+            hints['color_scheme'] = 'blue'
+            hints['is_primary_indicator'] = 'price' in name.lower()
+        elif feature_type == FeatureType.VOLUME_INDICATOR:
+            hints['color_scheme'] = 'orange'
+        elif feature_type == FeatureType.RETURN:
+            hints['color_scheme'] = 'green_red'
+            hints['scale_type'] = 'symmetric'
+        
+        # Determine if log scale is appropriate
+        min_val = statistics.get('min_value')
+        max_val = statistics.get('max_value')
+        if min_val is not None and max_val is not None and min_val > 0 and max_val / min_val >= 100:
+            hints['scale_type'] = 'log'
+        
+        return hints
+    
+    def _extract_technical_indicator_params(self, name: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract technical indicator parameters from feature name and config."""
+        params = {}
+        
+        # Import regex at the beginning
+        import re
+        
+        # Common technical indicator patterns
+        if 'sma' in name.lower() or 'ema' in name.lower():
+            # Extract window size from name (e.g., SMA_20, EMA_14)
+            match = re.search(r'(\d+)', name)
+            if match:
+                params['window_size'] = int(match.group(1))
+        
+        elif 'rsi' in name.lower():
+            params['indicator_type'] = 'relative_strength_index'
+            match = re.search(r'(\d+)', name)
+            if match:
+                params['window_size'] = int(match.group(1))
+        
+        elif 'bollinger' in name.lower():
+            params['indicator_type'] = 'bollinger_bands'
+            params['std_dev_multiplier'] = config.get('std_dev_multiplier', 2.0)
+        
+        elif 'envelope' in name.lower():
+            params['indicator_type'] = 'price_envelope'
+            params['percentage'] = config.get('percentage', 2.5)
+        
+        elif any(x in name.lower() for x in ['bx', 'trender']):
+            params['indicator_type'] = 'bx_trender'
+            if 'basic' in name.lower():
+                params['variant'] = 'basic'
+            elif 'directional' in name.lower():
+                params['variant'] = 'directional'
+            elif 'volume' in name.lower():
+                params['variant'] = 'volume_weighted'
+        
+        # Add any additional parameters from config
+        params.update(config.get('indicator_params', {}))
+        
+        return params
