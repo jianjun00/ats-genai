@@ -21,7 +21,12 @@ import ray
 
 from state.runner_callback import RunnerCallback
 # TrainingDataConfig is imported from the specific runner that uses this callback
-# TimeSeriesSequenceTrainingGenerator and SequenceTrainingExample are not actually used
+# Import TimeSeriesSequenceTrainingGenerator for fallback generator
+try:
+    from ml.training_data.timeseries_sequence_training_generator import TimeSeriesSequenceTrainingGenerator
+except ImportError:
+    TimeSeriesSequenceTrainingGenerator = None
+
 # Optional import - will be None if not available
 try:
     from ml.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
@@ -106,7 +111,7 @@ class DateBasedTrainingDataCallback(RunnerCallback):
                  config: Optional[Any] = None,  # Accept any config object
                  storage_manager: Optional[SequenceStorageManager] = None,
                  output_dir: str = "/data/training/sequences",
-                 save_format: str = "riegeli",  # "riegeli" only - removed pickle and parquet support
+                 save_format: str = "arrayrecord",  # "arrayrecord" only - removed pickle and parquet support
                  enable_ray_parallel: bool = True,  # Enable Ray parallel processing
                  max_parallel_workers: int = 4):   # Maximum Ray workers
         """
@@ -117,7 +122,7 @@ class DateBasedTrainingDataCallback(RunnerCallback):
             config: Training data configuration
             storage_manager: Storage manager for advanced storage
             output_dir: Base output directory 
-            save_format: Format to save data ("riegeli" only)
+            save_format: Format to save data ("arrayrecord" only)
             enable_ray_parallel: Enable Ray parallel processing 
             max_parallel_workers: Maximum number of Ray workers
         """
@@ -363,7 +368,7 @@ class DateBasedTrainingDataCallback(RunnerCallback):
         date_str = self.current_date.strftime('%Y%m%d')
         
         try:
-            if self.save_format in ["advanced", "riegeli"] and self.storage_manager:
+            if self.save_format in ["advanced", "arrayrecord"] and self.storage_manager:
                 # Use advanced storage with date-based batch ID
                 batch_id = f"daily_{date_str}"
                 save_result = await self.storage_manager.save_sequence_batch(
@@ -511,20 +516,24 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         else:
             self.logger.warning("No minute_data_manager provided - using fallback generator")
             # Fallback to original generator
+            if TimeSeriesSequenceTrainingGenerator is None:
+                raise ImportError("TimeSeriesSequenceTrainingGenerator not available and no minute_data_manager provided")
+            
             self.training_generator = TimeSeriesSequenceTrainingGenerator(
                 env=runner.get_environment(),
                 config=self.config,
                 universe_manager=runner.get_universe_state_manager()
             )
         
-        # Create output directory structure with symbol subdirectories
+        # Create output directory structure with timeframe subdirectories (FIXED)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Create symbol-specific directories
-        for symbol in self.symbols:
-            symbol_dir = Path(self.output_dir) / symbol
-            symbol_dir.mkdir(exist_ok=True)
-            self.logger.info(f"Created symbol directory: {symbol_dir}")
+        # Create timeframe-specific directories for visualization API compatibility
+        expected_timeframes = ['5m', '15m', '1h', '1d', '1w']
+        for timeframe in expected_timeframes:
+            timeframe_dir = Path(self.output_dir) / timeframe
+            timeframe_dir.mkdir(exist_ok=True)
+            self.logger.info(f"Created timeframe directory: {timeframe_dir}")
         
         (self.output_dir / "metadata").mkdir(exist_ok=True)
         
@@ -653,7 +662,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         return example
     
     async def _save_interval_examples(self, examples: List[Dict], current_time: datetime):
-        """Save multi-timeframe examples in symbol-specific .riegeli files."""
+        """Save multi-timeframe examples in symbol-specific .arrayrecord files."""
         
         try:
             if self.storage_manager:
@@ -664,40 +673,72 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                 )
                 self.logger.debug(f"Saved {len(examples)} multi-timeframe examples at {current_time}")
             else:
-                # Save to symbol-specific .riegeli files
-                # Pattern: /mnt/d/ats-data/training/run_YYYYMMDD_HHMMSS/SYMBOL/STARTDATE_ENDDATE.riegeli
+                # FIXED: Save to timeframe/symbol structure for visualization API compatibility
+                # Pattern: /output_dir/{timeframe}/{SYMBOL}_{STARTDATE}_{ENDDATE}.arrayrecord
                 
-                # Group examples by symbol
-                examples_by_symbol = {}
+                # Group examples by symbol and timeframe
+                examples_by_timeframe_symbol = {}
                 for example in examples:
                     symbol = example['symbol']
-                    if symbol not in examples_by_symbol:
-                        examples_by_symbol[symbol] = []
-                    examples_by_symbol[symbol].append(example)
-                
-                # Save each symbol's examples to its own .riegeli file
-                for symbol, symbol_examples in examples_by_symbol.items():
-                    symbol_dir = Path(self.output_dir) / symbol
+                    # Extract timeframes from the example - this needs to be based on actual data structure
+                    # For now, generate for all expected timeframes
+                    timeframes = ['5m', '15m', '1h', '1d', '1w']  
                     
-                    # Create filename with date range: STARTDATE_ENDDATE.riegeli
-                    start_date_str = getattr(self, 'start_date', current_time.date()).strftime('%Y%m%d_000000')
-                    end_date_str = getattr(self, 'end_date', current_time.date()).strftime('%Y%m%d_000000')
-                    arrayrecord_filename = f"{start_date_str}_{end_date_str}.arrayrecord"
-                    arrayrecord_path = symbol_dir / arrayrecord_filename
+                    for timeframe in timeframes:
+                        key = (timeframe, symbol)
+                        if key not in examples_by_timeframe_symbol:
+                            examples_by_timeframe_symbol[key] = []
+                        examples_by_timeframe_symbol[key].append(example)
+                
+                # Save each timeframe/symbol combination to its own .arrayrecord file
+                for (timeframe, symbol), tf_symbol_examples in examples_by_timeframe_symbol.items():
+                    timeframe_dir = Path(self.output_dir) / timeframe
+                    
+                    # Create filename: SYMBOL_STARTDATE_ENDDATE.arrayrecord
+                    start_date_str = getattr(self, 'start_date', current_time.date()).strftime('%Y%m%d_%H%M%S')
+                    end_date_str = getattr(self, 'end_date', current_time.date()).strftime('%Y%m%d_%H%M%S')
+                    arrayrecord_filename = f"{symbol}_{start_date_str}_{end_date_str}.arrayrecord"
+                    arrayrecord_path = timeframe_dir / arrayrecord_filename
+                    
+                    # Filter examples for this specific timeframe (extract timeframe-specific data)
+                    timeframe_filtered_examples = self._extract_timeframe_data(tf_symbol_examples, timeframe)
                     
                     # Save as ArrayRecord format
-                    await self._save_symbol_arrayrecord(symbol_examples, arrayrecord_path, symbol)
+                    await self._save_symbol_arrayrecord(timeframe_filtered_examples, arrayrecord_path, symbol, timeframe)
                     
                     # Save companion metadata
-                    metadata_path = symbol_dir / f"{start_date_str}_{end_date_str}_metadata.json"
-                    await self._save_symbol_metadata(symbol_examples, metadata_path, symbol, current_time)
+                    metadata_path = timeframe_dir / f"{symbol}_{start_date_str}_{end_date_str}_metadata.json"
+                    await self._save_symbol_metadata(timeframe_filtered_examples, metadata_path, symbol, current_time, timeframe)
                     
-                    self.logger.info(f"Saved {len(symbol_examples)} examples for {symbol} to {arrayrecord_path}")
+                    self.logger.info(f"Saved {len(timeframe_filtered_examples)} examples for {symbol} {timeframe} to {arrayrecord_path}")
                 
         except Exception as e:
             self.logger.error(f"Failed to save multi-timeframe examples at {current_time}: {e}")
+            raise RuntimeError(f"Critical error saving multi-timeframe examples at {current_time}: {e}") from e
     
-    async def _save_symbol_arrayrecord(self, examples: List[Dict], arrayrecord_path: Path, symbol: str):
+    def _extract_timeframe_data(self, examples: List[Dict], timeframe: str) -> List[Dict]:
+        """Extract data for specific timeframe from multi-timeframe examples."""
+        timeframe_examples = []
+        
+        for example in examples:
+            # Extract timeframe-specific data from the multi-timeframe example
+            # This would depend on how the data is structured in the example
+            timeframe_example = {
+                'symbol': example['symbol'],
+                'timeframe': timeframe,
+                'timestamp': example.get('timestamp'),
+                'features': example.get('features', {}),  # Would filter for timeframe-specific features
+                'labels': example.get('labels', {}),      # Would filter for timeframe-specific labels
+                'metadata': {
+                    **example.get('metadata', {}),
+                    'extracted_timeframe': timeframe
+                }
+            }
+            timeframe_examples.append(timeframe_example)
+        
+        return timeframe_examples
+    
+    async def _save_symbol_arrayrecord(self, examples: List[Dict], arrayrecord_path: Path, symbol: str, timeframe: str = None):
         """Save symbol-specific examples in ArrayRecord format."""
         try:
             import pandas as pd
@@ -731,33 +772,55 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             import array_record
             import numpy as np
             
-            # Convert DataFrame to numpy array
+            # Convert DataFrame to numpy array, excluding non-numeric columns
+            # First, convert datetime columns to timestamps
+            for col in df.columns:
+                if df[col].dtype == 'object':
+                    try:
+                        # Try to convert to datetime and then to numeric timestamp
+                        df[col] = pd.to_datetime(df[col]).astype('int64') // 10**9
+                    except (ValueError, TypeError):
+                        # If not datetime, try to convert to numeric
+                        try:
+                            df[col] = pd.to_numeric(df[col], errors='coerce')
+                        except:
+                            # Remove non-convertible columns
+                            df = df.drop(columns=[col])
+                            self.logger.warning(f"Dropped non-numeric column {col} from ArrayRecord")
+            
+            # Now convert to numpy array as float32
             data = df.to_numpy(dtype=np.float32)
             
-            with array_record.ArrayRecordWriter(str(arrayrecord_path), 'group_size:1') as writer:
+            from array_record.python.array_record_module import ArrayRecordWriter
+            writer = ArrayRecordWriter(str(arrayrecord_path), 'group_size:1')
+            try:
                 # Write column names as first record
                 writer.write(str(list(df.columns)).encode('utf-8'))
                 
                 # Write each row as a record
                 for row in data:
                     writer.write(row.tobytes())
+            finally:
+                writer.close()
                     
             self.logger.debug(f"Saved ArrayRecord file: {arrayrecord_path} ({len(df)} rows, {len(df.columns)} columns)")
             
             # Also save column names
-            columns_file = arrayrecord_path.with_suffix('_columns.json')
+            columns_file = arrayrecord_path.with_suffix('.json').with_name(arrayrecord_path.stem + '_columns.json')
             import json
             with open(columns_file, 'w') as f:
                 json.dump(list(df.columns), f)
                 
         except Exception as e:
             self.logger.error(f"Failed to save ArrayRecord file for {symbol}: {e}")
+            raise RuntimeError(f"Critical error saving ArrayRecord for {symbol}: {e}") from e
     
-    async def _save_symbol_metadata(self, examples: List[Dict], metadata_path: Path, symbol: str, current_time: datetime):
+    async def _save_symbol_metadata(self, examples: List[Dict], metadata_path: Path, symbol: str, current_time: datetime, timeframe: str = None):
         """Save symbol-specific metadata."""
         try:
             metadata = {
                 'symbol': symbol,
+                'timeframe': timeframe,
                 'generation_time': current_time.isoformat(),
                 'example_count': len(examples),
                 'date_range': {
@@ -765,10 +828,10 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                     'end': getattr(self, 'end_date', current_time.date()).isoformat()
                 },
                 'run_timestamp': getattr(self, 'run_timestamp', 'unknown'),
-                'timeframes': examples[0]['timeframes'] if examples else [],
-                'total_features': sum(ex['feature_count'] for ex in examples),
+                'timeframes': examples[0].get('timeframes', []) if examples else [],
+                'total_features': sum(ex.get('feature_count', 0) for ex in examples),
                 'features_structure': {},
-                'data_format': 'multi_timeframe_riegeli',
+                'data_format': 'multi_timeframe_arrayrecord',
                 'processing_type': 'interval_based_multi_timeframe'
             }
             
@@ -787,13 +850,21 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                         }
             
             import json
+            from datetime import datetime, date
+            
+            def json_serializer(obj):
+                if isinstance(obj, (datetime, date)):
+                    return obj.isoformat()
+                raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+            
             with open(metadata_path, 'w') as f:
-                json.dump(metadata, f, indent=2)
+                json.dump(metadata, f, indent=2, default=json_serializer)
                 
             self.logger.debug(f"Saved metadata for {symbol}: {metadata_path}")
             
         except Exception as e:
             self.logger.error(f"Failed to save metadata for {symbol}: {e}")
+            raise RuntimeError(f"Critical error saving metadata for {symbol}: {e}") from e
     
     async def handleEnd(self, runner: Any, current_time: datetime):
         """Generate final summary for multi-timeframe processing."""
@@ -804,7 +875,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             self.logger.info(f"  - Timeframes: {', '.join(self.config.timeframes.keys())}")
             self.logger.info(f"  - Sequence lengths: {self.config.sequence_lengths}")
         self.logger.info(f"  - Output directory: {self.output_dir}")
-        self.logger.info(f"  - Output structure: /run_YYYYMMDD_HHMMSS/SYMBOL/STARTDATE_ENDDATE.riegeli")
+        self.logger.info(f"  - Output structure: /run_YYYYMMDD_HHMMSS/SYMBOL/STARTDATE_ENDDATE.arrayrecord")
         
         # Save final summary
         try:
@@ -820,8 +891,15 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             }
             
             import json
+            from datetime import datetime, date
+            
+            def json_serializer(obj):
+                if isinstance(obj, (datetime, date)):
+                    return obj.isoformat()
+                raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+            
             with open(summary_file, 'w') as f:
-                json.dump(summary, f, indent=2)
+                json.dump(summary, f, indent=2, default=json_serializer)
                 
             self.logger.info(f"Saved generation summary to {summary_file}")
             

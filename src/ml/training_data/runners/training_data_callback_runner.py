@@ -221,7 +221,7 @@ def save_as_arrayrecord(df: pd.DataFrame, arrayrecord_file: Path):
 
 
 async def register_training_dataset(symbol: str, start_date: date, end_date: date,
-                                   metadata: Dict[str, Any], riegeli_file: Path, 
+                                   metadata: Dict[str, Any], arrayrecord_file: Path, 
                                    parquet_file: Path, metadata_file: Path,
                                    environment: str = 'dev') -> int:
     """Register training dataset in database."""
@@ -239,9 +239,9 @@ async def register_training_dataset(symbol: str, start_date: date, end_date: dat
     
     try:
         # Calculate file sizes
-        riegeli_size_mb = riegeli_file.stat().st_size / (1024 * 1024)
+        arrayrecord_size_mb = arrayrecord_file.stat().st_size / (1024 * 1024)
         parquet_size_mb = parquet_file.stat().st_size / (1024 * 1024) if parquet_file.exists() else 0
-        total_size_mb = riegeli_size_mb + parquet_size_mb
+        total_size_mb = arrayrecord_size_mb + parquet_size_mb
         
         # Create run record
         run_query = f"""
@@ -309,7 +309,7 @@ async def register_training_dataset(symbol: str, start_date: date, end_date: dat
             total_size_mb,  # file_size_mb
             ["training_data_callback_runner"],  # data_sources array
             "completed",  # status
-            str(riegeli_file),  # features_file_path (use riegeli as primary)
+            str(arrayrecord_file),  # features_file_path (use arrayrecord as primary)
             "",  # labels_file_path (no labels)
             str(metadata_file),  # metadata_file_path
             json.dumps({
@@ -317,7 +317,7 @@ async def register_training_dataset(symbol: str, start_date: date, end_date: dat
                 "datetime_as_features": True,
                 "technical_indicators": metadata.get('technical_indicators', []),
                 "multi_timeframe": True,
-                "riegeli_file": str(riegeli_file),
+                "arrayrecord_file": str(arrayrecord_file),
                 "parquet_file": str(parquet_file)
             }),  # feature_metadata
             metadata.get('technical_indicators', []),  # technical_indicators
@@ -328,7 +328,7 @@ async def register_training_dataset(symbol: str, start_date: date, end_date: dat
                 "datetime_as_features": True,
                 "technical_indicators": metadata.get('technical_indicators', []),
                 "multi_timeframe": True,
-                "riegeli_file": str(riegeli_file),
+                "arrayrecord_file": str(arrayrecord_file),
                 "parquet_file": str(parquet_file)
             })  # generation_parameters
         )
@@ -338,7 +338,7 @@ async def register_training_dataset(symbol: str, start_date: date, end_date: dat
         logger.info(f"   Rows: {metadata['num_rows']:,}")
         logger.info(f"   Features: {metadata['num_features']}")
         logger.info(f"   File size: {total_size_mb:.1f} MB")
-        logger.info(f"   Riegeli file: {riegeli_file}")
+        logger.info(f"   ArrayRecord file: {arrayrecord_file}")
         logger.info(f"   Metadata file: {metadata_file}")
         
         return dataset_id
@@ -398,9 +398,9 @@ def parse_args():
     # Output configuration
     parser.add_argument('--output-dir', default='/mnt/d/ats-data/training',
                        help='Base output directory for training data')
-    parser.add_argument('--storage-format', default='riegeli',
-                       choices=['riegeli'],
-                       help='Storage format for training data (Riegeli only)')
+    parser.add_argument('--storage-format', default='arrayrecord',
+                       choices=['arrayrecord'],
+                       help='Storage format for training data (ArrayRecord only)')
     parser.add_argument('--use-advanced-storage', action='store_true',
                        help='Use SequenceStorageManager for advanced storage')
     parser.add_argument('--compression-level', type=int, default=6,
@@ -531,6 +531,246 @@ async def update_training_dataset_completion(environment: Environment, dataset_i
         await conn.close()
 
 
+async def validate_training_data_pipeline(run_id: int, dataset_id: int, output_dir: Path, 
+                                         symbols: List[str], environment: str) -> bool:
+    """
+    CRITICAL: Validate complete training data pipeline end-to-end.
+    
+    This validation catches the gap where files are created but not usable.
+    Tests:
+    1. Files actually exist on disk
+    2. ArrayRecord files can be read 
+    3. Visualization API can load the data
+    4. Data structure matches expected format
+    
+    Returns True only if complete pipeline works.
+    """
+    logger = logging.getLogger(__name__)
+    validation_errors = []
+    
+    try:
+        logger.info(f"🔍 Starting pipeline validation for dataset {dataset_id}, run {run_id}")
+        
+        # Step 1: Verify files exist AND have correct structure
+        logger.info("Step 1: Checking file existence and structure...")
+        arrayrecord_files = list(output_dir.rglob("*.arrayrecord"))
+        
+        if not arrayrecord_files:
+            validation_errors.append("No ArrayRecord files found in output directory")
+            logger.error(f"❌ No ArrayRecord files in {output_dir}")
+        else:
+            logger.info(f"✅ Found {len(arrayrecord_files)} ArrayRecord files")
+            
+            # CRITICAL: Validate file structure matches visualization API expectations
+            expected_timeframes = ['5m', '15m', '1h', '1d', '1w']
+            structure_valid = True
+            
+            for timeframe in expected_timeframes:
+                # Check if files exist in correct timeframe structure
+                timeframe_pattern = f"*/{timeframe}/*_*.arrayrecord"
+                timeframe_files = list(output_dir.glob(timeframe_pattern))
+                
+                if not timeframe_files:
+                    validation_errors.append(f"No files found for timeframe {timeframe} in expected structure: {output_dir}/*/{timeframe}/")
+                    structure_valid = False
+                    logger.error(f"❌ Missing timeframe directory: {timeframe}")
+                else:
+                    logger.info(f"✅ Found {len(timeframe_files)} files for timeframe {timeframe}")
+                    
+                    # Validate filename format: {SYMBOL}_{start}_{end}.arrayrecord
+                    for file_path in timeframe_files:
+                        filename = file_path.name
+                        if not ('_' in filename and filename.endswith('.arrayrecord')):
+                            validation_errors.append(f"Invalid filename format: {filename} (expected: SYMBOL_START_END.arrayrecord)")
+                            structure_valid = False
+            
+            if not structure_valid:
+                validation_errors.append("File structure doesn't match visualization API expectations")
+                logger.error("❌ CRITICAL: File structure validation failed")
+                logger.error("   Expected: {output_dir}/{run_id}/{timeframe}/{SYMBOL}_{start}_{end}.arrayrecord")
+                logger.error("   Example: output_dir/123/5m/AAPL_20250801_000000_20250802_000000.arrayrecord")
+            
+            # Check file sizes
+            for file_path in arrayrecord_files:
+                file_size = file_path.stat().st_size
+                if file_size == 0:
+                    validation_errors.append(f"Empty ArrayRecord file: {file_path}")
+                    logger.error(f"❌ Empty file: {file_path}")
+                elif file_size < 1024:  # Less than 1KB is suspicious
+                    validation_errors.append(f"Suspiciously small file: {file_path} ({file_size} bytes)")
+                    logger.warning(f"⚠️ Small file: {file_path} ({file_size} bytes)")
+                else:
+                    logger.info(f"✅ File size OK: {file_path.name} ({file_size:,} bytes)")
+        
+        # Step 2: Verify ArrayRecord files can be read
+        logger.info("Step 2: Testing ArrayRecord readability...")
+        try:
+            import array_record
+            from array_record.python.array_record_module import ArrayRecordReader
+            
+            readable_files = 0
+            total_records = 0
+            
+            for file_path in arrayrecord_files[:3]:  # Test first 3 files
+                try:
+                    logger.info(f"Testing ArrayRecord: {file_path.name}")
+                    
+                    with ArrayRecordReader(str(file_path)) as reader:
+                        records = list(reader)
+                        
+                        if not records:
+                            validation_errors.append(f"ArrayRecord file has no records: {file_path}")
+                            logger.error(f"❌ No records: {file_path}")
+                            continue
+                        
+                        # Test first record structure
+                        first_record = records[0]
+                        if not isinstance(first_record, bytes):
+                            validation_errors.append(f"ArrayRecord returns wrong type: {type(first_record)}")
+                            continue
+                        
+                        # Try to parse as JSON
+                        try:
+                            record_data = json.loads(first_record.decode())
+                            if not isinstance(record_data, dict):
+                                validation_errors.append(f"ArrayRecord data not JSON dict: {type(record_data)}")
+                                continue
+                            
+                            # Verify expected structure
+                            if "features" not in record_data:
+                                validation_errors.append(f"ArrayRecord missing 'features': {file_path}")
+                                continue
+                            
+                            readable_files += 1
+                            total_records += len(records)
+                            logger.info(f"✅ ArrayRecord readable: {file_path.name} ({len(records)} records)")
+                            
+                        except json.JSONDecodeError as e:
+                            validation_errors.append(f"ArrayRecord contains invalid JSON: {file_path} - {e}")
+                            logger.error(f"❌ Invalid JSON in {file_path}: {e}")
+                            
+                except Exception as e:
+                    validation_errors.append(f"Cannot read ArrayRecord file {file_path}: {e}")
+                    logger.error(f"❌ ArrayRecord read failed {file_path}: {e}")
+            
+            if readable_files == 0:
+                validation_errors.append("No ArrayRecord files are readable")
+                logger.error("❌ No readable ArrayRecord files")
+            else:
+                logger.info(f"✅ ArrayRecord validation: {readable_files} files, {total_records} total records")
+                
+        except ImportError:
+            validation_errors.append("ArrayRecord package not available - required for pipeline")
+            logger.error("❌ ArrayRecord package missing")
+        
+        # Step 3: Test visualization API integration
+        logger.info("Step 3: Testing visualization API integration...")
+        try:
+            import requests
+            
+            # Test if analytics service is running
+            try:
+                base_url = "http://localhost:3000"
+                health_response = requests.get(f"{base_url}/health", timeout=5)
+                if health_response.status_code != 200:
+                    validation_errors.append("Analytics service not healthy")
+                    logger.error("❌ Analytics service not healthy")
+                    return False  # Cannot test API if service is down
+                    
+            except requests.ConnectionError:
+                validation_errors.append("Analytics service not accessible")
+                logger.error("❌ Analytics service not accessible")
+                return False
+            
+            # Test training datasets API
+            datasets_response = requests.get(f"{base_url}/api/v1/training-datasets", timeout=10)
+            if datasets_response.status_code != 200:
+                validation_errors.append("Training datasets API not working")
+                logger.error("❌ Training datasets API failed")
+            else:
+                datasets_data = datasets_response.json()
+                datasets = datasets_data.get("datasets", [])
+                
+                # Find our dataset
+                our_dataset = next((ds for ds in datasets if ds.get("id") == dataset_id), None)
+                if not our_dataset:
+                    validation_errors.append(f"Generated dataset {dataset_id} not found in API")
+                    logger.error(f"❌ Dataset {dataset_id} not in API")
+                else:
+                    logger.info(f"✅ Dataset {dataset_id} found in API: {our_dataset.get('dataset_name')}")
+                    
+                    # Test sequences API
+                    sequences_response = requests.get(f"{base_url}/api/v1/training-datasets/{dataset_id}/sequences", timeout=10)
+                    if sequences_response.status_code != 200:
+                        validation_errors.append(f"Sequences API failed for dataset {dataset_id}")
+                        logger.error(f"❌ Sequences API failed for dataset {dataset_id}")
+                    else:
+                        sequences_data = sequences_response.json()
+                        sequences = sequences_data.get("sequences", [])
+                        
+                        if not sequences:
+                            validation_errors.append("Sequences API returns empty array - files not accessible")
+                            logger.error("❌ CRITICAL: Sequences API returns empty - files not accessible by API")
+                        else:
+                            logger.info(f"✅ Sequences API working: {len(sequences)} sequences")
+                            
+                            # CRITICAL TEST: Visualization data API
+                            viz_response = requests.get(
+                                f"{base_url}/api/v1/training-datasets/{dataset_id}/visualization-data?start_idx=0", 
+                                timeout=15
+                            )
+                            
+                            if viz_response.status_code != 200:
+                                validation_errors.append("Visualization data API failed")
+                                logger.error("❌ Visualization data API failed")
+                            else:
+                                viz_data = viz_response.json()
+                                data_array = viz_data.get("data", [])
+                                total_records = viz_data.get("total_records", 0)
+                                
+                                if not data_array or total_records == 0:
+                                    validation_errors.append("Visualization API returns empty data - ArrayRecord files not readable by API")
+                                    logger.error("❌ CRITICAL: Visualization API returns empty data")
+                                else:
+                                    logger.info(f"✅ CRITICAL SUCCESS: Visualization API returns data ({len(data_array)} records, {total_records} total)")
+                                    
+                                    # Verify data structure
+                                    if data_array:
+                                        first_record = data_array[0]
+                                        required_fields = ["timestamp", "open", "high", "low", "close", "volume"]
+                                        missing_fields = [f for f in required_fields if f not in first_record]
+                                        
+                                        if missing_fields:
+                                            validation_errors.append(f"Visualization data missing fields: {missing_fields}")
+                                            logger.error(f"❌ Missing fields: {missing_fields}")
+                                        else:
+                                            logger.info("✅ Visualization data structure correct")
+        
+        except Exception as e:
+            validation_errors.append(f"API testing failed: {e}")
+            logger.error(f"❌ API testing failed: {e}")
+        
+        # Summary
+        if validation_errors:
+            logger.error(f"\n❌ VALIDATION FAILED: {len(validation_errors)} errors:")
+            for i, error in enumerate(validation_errors, 1):
+                logger.error(f"   {i}. {error}")
+            return False
+        else:
+            logger.info("\n✅ VALIDATION PASSED: Complete training data pipeline working")
+            logger.info("   Files exist ✅")
+            logger.info("   ArrayRecord readable ✅") 
+            logger.info("   API integration working ✅")
+            logger.info("   Visualization data accessible ✅")
+            return True
+            
+    except Exception as e:
+        logger.error(f"❌ Validation failed with exception: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 async def main():
     """
     Main entry point - PURE CALLBACK APPROACH.
@@ -606,7 +846,8 @@ async def main():
         end_date=end_date,
         config=config,
         output_dir=args.output_dir,
-        storage_format=args.storage_format
+        storage_format=args.storage_format,
+        run_id=run_id
     )
     
     # Create structured output directory with requested format: <ATS_DATA_PATH>/training_data/<run_id>/<timeframe>/
@@ -628,7 +869,7 @@ async def main():
         for symbol in args.symbols:
             start_datetime = start_date.strftime('%Y%m%d_%H%M%S')
             end_datetime = end_date.strftime('%Y%m%d_%H%M%S')
-            print(f"     {timeframe_dirs[timeframe]}/{symbol}_{start_datetime}_{end_datetime}.riegeli")
+            print(f"     {timeframe_dirs[timeframe]}/{symbol}_{start_datetime}_{end_datetime}.arrayrecord")
     
     # Initialize FileBasedMinuteMarketDataManager
     print(f"🔍 DEBUG: config.minute_data_base_path = {config.minute_data_base_path}")
@@ -683,14 +924,36 @@ async def main():
         # Execute the runner
         await runner.run()
         
-        # Update run status to completed
-        await update_run_status(run_id, 'completed')
+        # CRITICAL: Validate generated files before marking as completed
+        print(f"\n🔍 Validating generated training data...")
+        validation_success = await validate_training_data_pipeline(
+            run_id=run_id,
+            dataset_id=dataset_id, 
+            output_dir=structured_output_dir,
+            symbols=args.symbols,
+            environment=args.environment
+        )
         
-        print(f"\n✅ Training data generation completed successfully!")
-        print(f"   Run ID: {run_id}")
-        print(f"   Output directory: {structured_output_dir}")
-        
-        return 0
+        if validation_success:
+            # Update run status to completed only if validation passes
+            await update_run_status(run_id, 'completed')
+            
+            print(f"\n✅ Training data generation and validation completed successfully!")
+            print(f"   Run ID: {run_id}")
+            print(f"   Dataset ID: {dataset_id}")
+            print(f"   Output directory: {structured_output_dir}")
+            print(f"   Files validated: ✅ Exist, ✅ Readable, ✅ API Compatible")
+            
+            return 0
+        else:
+            # Validation failed - mark as failed
+            await update_run_status(run_id, 'failed', 'Training data validation failed - generated files not usable')
+            
+            print(f"\n❌ Training data generation failed validation!")
+            print(f"   Run ID: {run_id}")
+            print(f"   Files were generated but are not usable by the pipeline")
+            
+            return 1
         
     except Exception as e:
         # Update run status to failed with error message

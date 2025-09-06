@@ -54,6 +54,8 @@ RUN apt-get update && \
         ipython \
         feedparser \
         playwright \
+        tensorflow \
+        array-record \
     && pip install --no-cache-dir -e . \
     && playwright install chromium firefox webkit \
     && playwright install-deps

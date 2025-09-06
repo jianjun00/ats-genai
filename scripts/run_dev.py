@@ -559,7 +559,7 @@ class DevCLI:
         print(f"📊 Getting training dataset information for ID: {dataset_id}")
         
         # Query training datasets table for the specific dataset_id
-        datasets_table = f"{self.table_prefix}training_dataset"
+        datasets_table = f"{self.table_prefix}training_datasets"
         query = f"""
         SELECT 
             id,
@@ -574,13 +574,12 @@ class DevCLI:
             data_quality_score,
             feature_completeness,
             label_completeness,
-            creation_timestamp,
-            data_format,
-            time_resolution,
-            visualization_type,
-            time_step_unit,
-            is_time_series,
-            window_size,
+            created_at as creation_timestamp,
+            status,
+            run_id,
+            features_file_path,
+            labels_file_path,
+            metadata_file_path,
             feature_metadata,
             technical_indicators,
             total_sequences
@@ -603,7 +602,7 @@ class DevCLI:
         print(f"🎯 Sampling {sample_size} rows from training dataset ID: {dataset_id}")
         
         # First get dataset information to find file paths
-        datasets_table = f"{self.table_prefix}training_dataset"
+        datasets_table = f"{self.table_prefix}training_datasets"
         query = f"""
         SELECT 
             id,

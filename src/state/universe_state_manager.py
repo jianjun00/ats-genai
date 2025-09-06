@@ -68,9 +68,9 @@ from dao.factor_interval_dao import FactorIntervalDAO
 
 @gin.configurable
 class UniverseStateManager:
-    def get_lag_prices(self, instrument_id: int, cur_date, lag_days: int, time_interval: str = '1d') -> pd.DataFrame:
+    def get_lag_prices(self, instrument_id: int, cur_datetime, lag_periods: int, time_interval: str = '1d') -> pd.DataFrame:
         """
-        Return a DataFrame of features (open, high, low, close, etop, ebot, pldot) for the previous lag_days up to (not including) cur_date.
+        Return a DataFrame of OHLCV features for the previous lag_periods up to (not including) cur_datetime.
         
         This method integrates with market_data_manager to provide multi-timeframe data aggregation:
         - Uses 1-minute bars as the base data source
@@ -79,13 +79,13 @@ class UniverseStateManager:
         
         Args:
             instrument_id: The instrument ID to retrieve data for
-            cur_date: Current date reference point (exclusive upper bound)
-            lag_days: Number of periods to look back. The meaning depends on time_interval:
-                     - For '5m': number of 5-minute periods
-                     - For '15m': number of 15-minute periods  
-                     - For '1h': number of hourly periods
-                     - For '1d': number of daily periods
-                     - For '1w': number of weekly periods
+            cur_datetime: Current datetime reference point (exclusive upper bound)
+            lag_periods: Number of periods to look back. The meaning depends on time_interval:
+                        - For '5m': number of 5-minute periods
+                        - For '15m': number of 15-minute periods  
+                        - For '1h': number of hourly periods
+                        - For '1d': number of daily periods
+                        - For '1w': number of weekly periods
             time_interval: Time interval for aggregation. Supported values:
                           - '1m': 1-minute bars (raw data)
                           - '5m': 5-minute aggregated OHLCV
@@ -97,8 +97,10 @@ class UniverseStateManager:
         Returns:
             DataFrame with columns:
             - OHLCV data: ['open', 'high', 'low', 'close', 'volume'] (if available)
-            - Technical indicators: ['etop', 'ebot', 'pldot'] (if computed by universe state builder)
             - Date columns: varies by data source ('date', 'as_of_date', etc.)
+            
+            NOTE: Technical indicators (etop, ebot, pldot) are NOT included in get_lag_prices().
+            Use get_lagged_signals() method to retrieve technical indicators separately.
             
             Returns empty DataFrame if no data is available for the specified criteria.
             
@@ -124,8 +126,8 @@ class UniverseStateManager:
         if not isinstance(instrument_id, int) or instrument_id <= 0:
             raise ValueError(f"instrument_id must be a positive integer, got {instrument_id} (type: {type(instrument_id)})")
         
-        if not isinstance(lag_days, int) or lag_days <= 0:
-            raise ValueError(f"lag_days must be a positive integer, got {lag_days} (type: {type(lag_days)})")
+        if not isinstance(lag_periods, int) or lag_periods <= 0:
+            raise ValueError(f"lag_periods must be a positive integer, got {lag_periods} (type: {type(lag_periods)})")
         
         if not isinstance(time_interval, str) or not time_interval.strip():
             raise ValueError(f"time_interval must be a non-empty string, got {time_interval} (type: {type(time_interval)})")
@@ -141,26 +143,32 @@ class UniverseStateManager:
             "Ensure UniverseStateManager is initialized with a market_data_manager instance."
         )
         
-        # Type validation for cur_date
-        if not hasattr(cur_date, 'date') and not hasattr(cur_date, 'year'):
-            raise ValueError(f"cur_date must be a datetime or date object, got {type(cur_date)}")
+        # Type validation for cur_datetime
+        if not hasattr(cur_datetime, 'date') and not hasattr(cur_datetime, 'year'):
+            raise ValueError(f"cur_datetime must be a datetime or date object, got {type(cur_datetime)}")
         
-        # Normalize cur_date to a date to avoid datetime vs date comparison issues
-        if hasattr(cur_date, 'date'):
-            cur_date = cur_date.date()
+        # Ensure cur_datetime is a datetime object for precise time operations
+        if not hasattr(cur_datetime, 'hour'):
+            # If it's a date object, convert to datetime at start of day
+            from datetime import datetime
+            if hasattr(cur_datetime, 'date'):
+                cur_datetime = datetime.combine(cur_datetime.date(), datetime.min.time())
+            else:
+                cur_datetime = datetime.combine(cur_datetime, datetime.min.time())
         
         # Use market_data_manager to get data for specified time interval
         try:
             # Get aggregated data from market_data_manager for the specified interval
             df = self.market_data_manager.get_ohlcv_data(
                 instrument_id=instrument_id,
-                end_date=cur_date,
-                periods=lag_days,
-                time_interval=time_interval
+                reference_datetime=cur_datetime,  # Reference point: data BEFORE this datetime
+                periods=lag_periods,
+                time_interval=time_interval,
+                direction='backward'  # Explicitly specify backward direction for lag prices
             )
-            if not df.empty:
+            if df is not None and not df.empty:
                 try:
-                    self.logger.debug(f"[get_lag_prices] market_data_manager: instrument_id={instrument_id} cur_date={cur_date} lag_days={lag_days} interval={time_interval} df.shape={df.shape}")
+                    self.logger.debug(f"[get_lag_prices] market_data_manager: instrument_id={instrument_id} cur_datetime={cur_datetime} lag_periods={lag_periods} interval={time_interval} df.shape={df.shape}")
                 except Exception:
                     pass
                 return df
@@ -172,12 +180,12 @@ class UniverseStateManager:
             raise IOError(f"Failed to get lag prices from market_data_manager: {e}")
         
         # If we reach here, market_data_manager returned empty data
-        # Return empty DataFrame with expected columns
-        return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume', 'etop', 'ebot', 'pldot'])
+        # Return empty DataFrame with only OHLCV columns (technical indicators come from get_lagged_signals)
+        return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume'])
 
-    def get_lead_prices(self, instrument_id: int, cur_date, lead_days: int, time_interval: str = '1d') -> pd.DataFrame:
+    def get_lead_prices(self, instrument_id: int, cur_datetime, lead_periods: int, time_interval: str = '1d') -> pd.DataFrame:
         """
-        Return a DataFrame of lead prices for the next lead_days strictly after cur_date.
+        Return a DataFrame of lead prices for the next lead_periods strictly after cur_datetime.
         
         This method integrates with market_data_manager to provide multi-timeframe lead data aggregation:
         - Uses 1-minute bars as the base data source
@@ -186,13 +194,13 @@ class UniverseStateManager:
         
         Args:
             instrument_id: The instrument ID to retrieve data for
-            cur_date: Current date reference point (exclusive lower bound)
-            lead_days: Number of periods to look forward. The meaning depends on time_interval:
-                      - For '5m': number of 5-minute periods
-                      - For '15m': number of 15-minute periods  
-                      - For '1h': number of hourly periods
-                      - For '1d': number of daily periods
-                      - For '1w': number of weekly periods
+            cur_datetime: Current datetime reference point (exclusive lower bound)
+            lead_periods: Number of periods to look forward. The meaning depends on time_interval:
+                         - For '5m': number of 5-minute periods
+                         - For '15m': number of 15-minute periods  
+                         - For '1h': number of hourly periods
+                         - For '1d': number of daily periods
+                         - For '1w': number of weekly periods
             time_interval: Time interval for aggregation. Supported values:
                           - '1m': 1-minute bars (raw data)
                           - '5m': 5-minute aggregated OHLCV
@@ -204,8 +212,10 @@ class UniverseStateManager:
         Returns:
             DataFrame with columns:
             - OHLCV data: ['open', 'high', 'low', 'close', 'volume'] (if available)
-            - Technical indicators: ['etop', 'ebot', 'pldot'] (if computed by universe state builder)
             - Date columns: varies by data source ('date', 'as_of_date', etc.)
+            
+            NOTE: Technical indicators (etop, ebot, pldot) are NOT included in get_lag_prices().
+            Use get_lagged_signals() method to retrieve technical indicators separately.
             
             Returns empty DataFrame if no data is available for the specified criteria.
         
@@ -223,8 +233,8 @@ class UniverseStateManager:
         if not isinstance(instrument_id, int) or instrument_id <= 0:
             raise ValueError(f"instrument_id must be a positive integer, got {instrument_id} (type: {type(instrument_id)})")
         
-        if not isinstance(lead_days, int) or lead_days <= 0:
-            raise ValueError(f"lead_days must be a positive integer, got {lead_days} (type: {type(lead_days)})")
+        if not isinstance(lead_periods, int) or lead_periods <= 0:
+            raise ValueError(f"lead_periods must be a positive integer, got {lead_periods} (type: {type(lead_periods)})")
         
         if not isinstance(time_interval, str) or not time_interval.strip():
             raise ValueError(f"time_interval must be a non-empty string, got {time_interval} (type: {type(time_interval)})")
@@ -240,27 +250,32 @@ class UniverseStateManager:
             "Ensure UniverseStateManager is initialized with a market_data_manager instance."
         )
         
-        # Type validation for cur_date
-        if not hasattr(cur_date, 'date') and not hasattr(cur_date, 'year'):
-            raise ValueError(f"cur_date must be a datetime or date object, got {type(cur_date)}")
+        # Type validation for cur_datetime
+        if not hasattr(cur_datetime, 'date') and not hasattr(cur_datetime, 'year'):
+            raise ValueError(f"cur_datetime must be a datetime or date object, got {type(cur_datetime)}")
         
-        # Normalize cur_date to a date to avoid datetime vs date comparison issues
-        if hasattr(cur_date, 'date'):
-            cur_date = cur_date.date()
+        # Ensure cur_datetime is a datetime object for precise time operations
+        if not hasattr(cur_datetime, 'hour'):
+            # If it's a date object, convert to datetime at start of day
+            from datetime import datetime
+            if hasattr(cur_datetime, 'date'):
+                cur_datetime = datetime.combine(cur_datetime.date(), datetime.min.time())
+            else:
+                cur_datetime = datetime.combine(cur_datetime, datetime.min.time())
         
         # Use market_data_manager to get lead data for specified time interval
         try:
             # Get aggregated lead data from market_data_manager for the specified interval
             df = self.market_data_manager.get_ohlcv_data(
                 instrument_id=instrument_id,
-                start_date=cur_date,  # For lead prices, we want data AFTER cur_date
-                periods=lead_days,
+                reference_datetime=cur_datetime,  # Reference point: data AFTER this datetime
+                periods=lead_periods,
                 time_interval=time_interval,
-                direction='forward'  # Lead prices look forward
+                direction='forward'  # Explicitly specify forward direction for lead prices
             )
-            if not df.empty:
+            if df is not None and not df.empty:
                 try:
-                    self.logger.debug(f"[get_lead_prices] market_data_manager: instrument_id={instrument_id} cur_date={cur_date} lead_days={lead_days} interval={time_interval} df.shape={df.shape}")
+                    self.logger.debug(f"[get_lead_prices] market_data_manager: instrument_id={instrument_id} cur_datetime={cur_datetime} lead_periods={lead_periods} interval={time_interval} df.shape={df.shape}")
                 except Exception:
                     pass
                 return df
@@ -272,13 +287,13 @@ class UniverseStateManager:
             raise IOError(f"Failed to get lead prices from market_data_manager: {e}")
         
         # If we reach here, market_data_manager returned empty data
-        # Return empty DataFrame with expected columns
-        return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume', 'etop', 'ebot', 'pldot'])
+        # Return empty DataFrame with only OHLCV columns (technical indicators come from get_lagged_signals)
+        return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume'])
 
     async def get_lagged_signals(
         self,
         instrument_id: int,
-        cur_date,
+        cur_datetime,
         lag_periods: int,
         time_interval: str = '1d',
         signal_names: List[str] = None
@@ -292,7 +307,7 @@ class UniverseStateManager:
         
         Args:
             instrument_id: The instrument ID to retrieve signals for
-            cur_date: Current date reference point (exclusive upper bound)
+            cur_datetime: Current datetime reference point (exclusive upper bound)
             lag_periods: Number of periods to look back. The meaning depends on time_interval:
                         - For '1m': number of 1-minute periods
                         - For '5m': number of 5-minute periods  
@@ -340,13 +355,18 @@ class UniverseStateManager:
         if time_interval not in valid_intervals:
             raise ValueError(f"Invalid time_interval '{time_interval}'. Must be one of: {sorted(valid_intervals)}")
         
-        # Type validation for cur_date
-        if not hasattr(cur_date, 'date') and not hasattr(cur_date, 'year'):
-            raise ValueError(f"cur_date must be a datetime or date object, got {type(cur_date)}")
+        # Type validation for cur_datetime
+        if not hasattr(cur_datetime, 'date') and not hasattr(cur_datetime, 'year'):
+            raise ValueError(f"cur_datetime must be a datetime or date object, got {type(cur_datetime)}")
         
-        # Normalize cur_date to a date to avoid datetime vs date comparison issues
-        if hasattr(cur_date, 'date'):
-            cur_date = cur_date.date()
+        # Ensure cur_datetime is a datetime object for precise time operations
+        if not hasattr(cur_datetime, 'hour'):
+            # If it's a date object, convert to datetime at start of day
+            from datetime import datetime
+            if hasattr(cur_datetime, 'date'):
+                cur_datetime = datetime.combine(cur_datetime.date(), datetime.min.time())
+            else:
+                cur_datetime = datetime.combine(cur_datetime, datetime.min.time())
         
         # Validate signal_names if provided
         if signal_names is not None:
@@ -380,7 +400,7 @@ class UniverseStateManager:
             
             # Calculate start date for the query (go back enough to get lag_periods)
             total_lookback = interval_delta * lag_periods * 2  # Extra buffer for market closures
-            start_date = cur_date - total_lookback
+            start_date = cur_datetime - total_lookback
             
             # Query indicator intervals from the database
             indicator_dao = InstrumentIndicatorIntervalDAO(self.env)
@@ -389,7 +409,7 @@ class UniverseStateManager:
             indicator_data = await indicator_dao.get_by_instrument_and_date_range(
                 instrument_id=instrument_id,
                 start_date=start_date,
-                end_date=cur_date
+                end_date=cur_datetime
             )
             
             if not indicator_data:
@@ -446,8 +466,8 @@ class UniverseStateManager:
             # Sort by timestamp and filter to the requested time interval and lag periods
             pivoted_df = pivoted_df.sort_values('timestamp')
             
-            # Filter to only include data before cur_date
-            pivoted_df = pivoted_df[pivoted_df['timestamp'] < pd.Timestamp(cur_date)]
+            # Filter to only include data before cur_datetime
+            pivoted_df = pivoted_df[pivoted_df['timestamp'] < pd.Timestamp(cur_datetime)]
             
             # Take the last lag_periods records
             pivoted_df = pivoted_df.tail(lag_periods)

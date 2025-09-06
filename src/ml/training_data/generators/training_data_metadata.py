@@ -10,6 +10,7 @@ from enum import Enum
 import json
 from pathlib import Path
 import numpy as np
+from datetime import datetime, date
 
 
 class FeatureType(Enum):
@@ -399,4 +400,6 @@ class TrainingDataMetadataManager:
             return float(obj)
         elif isinstance(obj, Enum):
             return obj.value
+        elif isinstance(obj, (datetime, date)):
+            return obj.isoformat()
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")

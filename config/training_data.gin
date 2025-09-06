@@ -34,8 +34,37 @@ TrainingDataConfig.prediction_horizons = {
 TrainingDataConfig.minute_data_base_path = "/data/minute-bars"
 TrainingDataConfig.output_base_path = "/data/training"
 
-# Technical Indicators Configuration
-get_technical_indicators.indicators = ["etop", "ebot", "pldot", "z1b", "z2b", "z5t", "z6t"]
+# Technical Indicators Configuration (NEW: Configurable signal names)
+TrainingDataConfig.signal_names = [
+    "etop",           # Envelope top indicator
+    "ebot",           # Envelope bottom indicator  
+    "pldot",          # Price/location dot indicator
+    "envelope_top",   # Envelope top (alternative name)
+    "envelope_bot",   # Envelope bottom (alternative name)
+    "z1b",            # Z1 bottom indicator
+    "z2b",            # Z2 bottom indicator
+    "z5t",            # Z5 top indicator
+    "z6t",            # Z6 top indicator
+    "sma_20",         # Simple moving average 20
+    "ema_12",         # Exponential moving average 12
+    "rsi_14",         # Relative strength index 14
+    "macd_line",      # MACD line
+    "macd_signal",    # MACD signal line
+    "bb_upper",       # Bollinger band upper
+    "bb_lower",       # Bollinger band lower
+    "bb_middle"       # Bollinger band middle
+]
+
+# Feature Types Configuration
+TrainingDataConfig.feature_types = [
+    "ohlcv",           # Open, High, Low, Close, Volume
+    "returns",         # Price returns
+    "volatility",      # Volatility measures
+    "volume_profile",  # Volume-based features
+    "technical",       # Technical indicators (computed locally)
+    "indicators",      # Pre-computed indicators from IndicatorBuilder
+    "market_structure" # Support/resistance, trends
+]
 
 # FileBasedMinuteMarketDataManager Configuration (Container-friendly paths)
 FileBasedMinuteMarketDataManager.base_path = "/data/minute-bars"
