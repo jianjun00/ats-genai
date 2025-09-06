@@ -10,9 +10,9 @@ import asyncio
 from datetime import date, datetime
 from decimal import Decimal
 
-from domains.market_data.repositories.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental
-from domains.market_data.repositories.fundamentals_polygon_dao import FundamentalsPolygonDAO, PolygonFundamental  
-from domains.market_data.repositories.fundamentals_tiingo_dao import FundamentalsTiingoDAO, TiingoFundamental
+from vendor.fmp.dao.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental
+from vendor.polygon.dao.fundamentals_polygon_dao import FundamentalsPolygonDAO, PolygonFundamental  
+from vendor.tiingo.dao.fundamentals_tiingo_dao import FundamentalsTiingoDAO, TiingoFundamental
 from domains.market_data.services.fundamentals.unified_fundamental_provider import (
     UnifiedFundamentalProvider, 
     ValidationStatus

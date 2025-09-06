@@ -1,0 +1,1 @@
+"""Tests for Financial Modeling Prep integration"""

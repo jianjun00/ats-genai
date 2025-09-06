@@ -1,6 +1,6 @@
 import ray
 from market_data.eod.daily_price_tiingo import fetch_and_insert_symbol, get_instrument_dates
-from dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
+from vendor.tiingo.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
 import aiohttp
 
 @ray.remote

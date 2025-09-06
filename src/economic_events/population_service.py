@@ -11,9 +11,9 @@ from typing import List, Dict, Any, Optional
 
 from config.environment import Environment
 from dao.economic_events_dao import EconomicEventsDAO, EconomicEvent, EconomicEventType, EconomicEventVendorData
-from economic_events.polygon_client import PolygonEconomicEventsClient
-from economic_events.tiingo_client import TiingoEconomicEventsClient
-from economic_events.alpha_vantage_client import AlphaVantageEconomicClient
+from vendor.polygon.economic_events_client import PolygonEconomicEventsClient
+from vendor.tiingo.economic_events_client import TiingoEconomicEventsClient
+from vendor.alpha_vantage.economic_events_client import AlphaVantageEconomicClient
 from economic_events.fred_client import FREDEconomicClient
 
 logger = logging.getLogger(__name__)

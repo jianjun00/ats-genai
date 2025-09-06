@@ -6,7 +6,7 @@ import requests
 import datetime as dt
 import time
 
-from domains.market_data.repositories.daily_prices_polygon_dao import DailyPricesPolygonDAO
+from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
 import argparse
 
 # POLYGON_API_KEY is now managed via Gin and set_polygon_api_key
@@ -14,7 +14,7 @@ BASE_URL = "https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{start}/{
 START_DATE = (dt.datetime.now() - dt.timedelta(days=365*10)).strftime("%Y-%m-%d")
 END_DATE = dt.datetime.now().strftime("%Y-%m-%d")
 
-from domains.instruments.repositories.instrument_polygon_dao import InstrumentPolygonDAO
+from vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
 
 async def get_all_polygon_tickers(env):
     instrument_dao = InstrumentPolygonDAO(env)
@@ -296,7 +296,7 @@ async def main():
         print("[ERROR] No valid tickers with instrument_id found. Exiting.")
         return
 
-    from domains.market_data.repositories.daily_prices_polygon_dao import DailyPricesPolygonDAO
+    from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
     prices_dao = DailyPricesPolygonDAO(env)
     total_success = 0
     total_fail = 0

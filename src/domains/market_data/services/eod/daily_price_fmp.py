@@ -13,7 +13,7 @@ import logging
 from typing import List, Dict, Any
 
 from shared.utils.environment import Environment, EnvironmentType
-from domains.market_data.repositories.daily_prices_fmp_dao import DailyPricesFmpDAO
+from vendor.fmp.dao.daily_prices_fmp_dao import DailyPricesFmpDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 from calendars.exchange_calendar import ExchangeCalendar
 

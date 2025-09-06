@@ -3,8 +3,8 @@ import asyncio
 from datetime import datetime, date
 from shared.utils.environment import Environment, EnvironmentType
 from domains.market_data.services.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
-from domains.market_data.repositories.daily_prices_tiingo_dao import DailyPricesTiingoDAO
-from domains.market_data.repositories.daily_prices_polygon_dao import DailyPricesPolygonDAO
+from vendor.tiingo.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
+from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 from infrastructure.database.repositories.vendors_dao import VendorsDAO

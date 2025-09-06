@@ -167,7 +167,7 @@ class PolygonMinuteCollector(VendorCollector):
     
     def __init__(self, env: Environment):
         super().__init__('polygon', env)
-        from config.polygon import POLYGON_API_KEY
+        from vendor.polygon.config import POLYGON_API_KEY
         self.api_key = POLYGON_API_KEY
     
     async def collect_minute_data(self, symbols: List[str]) -> List[MinutePrice]:

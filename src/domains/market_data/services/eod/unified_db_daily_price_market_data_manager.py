@@ -2,8 +2,8 @@ from datetime import datetime, date
 from typing import List, Dict, Optional
 from .base_daily_price_market_data_manager import BaseDailyPriceMarketDataManager
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-from domains.market_data.repositories.daily_prices_tiingo_dao import DailyPricesTiingoDAO
-from domains.market_data.repositories.daily_prices_polygon_dao import DailyPricesPolygonDAO
+from vendor.tiingo.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
+from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
 from shared.utils.environment import Environment
 from .unify_daily_prices import DatabaseDailyPricesUnifier
 

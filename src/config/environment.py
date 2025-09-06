@@ -150,7 +150,7 @@ class Environment:
         self.gin_config_path = config_path
         # Import Database before parsing Gin config to register it as a configurable
         from config.database import Database
-        from config.polygon import set_polygon_api_key, POLYGON_API_KEY
+        from vendor.polygon.config import set_polygon_api_key, POLYGON_API_KEY
 
         import gin
         if config_path and os.environ.get('GIN_LOAD_DEFAULT_CONFIG', '1') == '1':
@@ -254,7 +254,7 @@ class Environment:
         return None
 
     def get_polygon_api_key(self) -> str:
-        from config.polygon import POLYGON_API_KEY
+        from vendor.polygon.config import POLYGON_API_KEY
         return POLYGON_API_KEY
 
     def _setup_logging(self) -> logging.Logger:

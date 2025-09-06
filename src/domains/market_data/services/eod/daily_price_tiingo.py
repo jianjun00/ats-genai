@@ -11,7 +11,7 @@ import datetime as dt
 import pandas as pd
 import argparse
 from shared.utils.environment import Environment, EnvironmentType
-from domains.market_data.repositories.daily_prices_tiingo_dao import DailyPricesTiingoDAO
+from vendor.tiingo.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 
 def parse_env_type(env_str):

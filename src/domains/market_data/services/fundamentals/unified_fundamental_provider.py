@@ -21,9 +21,9 @@ import logging
 import statistics
 
 from shared.utils.environment import Environment
-from domains.market_data.repositories.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental
-from domains.market_data.repositories.fundamentals_polygon_dao import FundamentalsPolygonDAO, PolygonFundamental
-from domains.market_data.repositories.fundamentals_tiingo_dao import FundamentalsTiingoDAO, TiingoFundamental
+from vendor.fmp.dao.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental
+from vendor.polygon.dao.fundamentals_polygon_dao import FundamentalsPolygonDAO, PolygonFundamental
+from vendor.tiingo.dao.fundamentals_tiingo_dao import FundamentalsTiingoDAO, TiingoFundamental
 
 
 class ValidationStatus(Enum):

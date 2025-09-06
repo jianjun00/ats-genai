@@ -6,8 +6,8 @@ from domains.market_data.services.eod.unify_daily_prices import DatabaseDailyPri
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from infrastructure.database.repositories.vendors_dao import VendorsDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-from domains.market_data.repositories.daily_prices_tiingo_dao import DailyPricesTiingoDAO
-from domains.market_data.repositories.daily_prices_polygon_dao import DailyPricesPolygonDAO
+from vendor.tiingo.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
+from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
 from src.db.test_db_manager import unit_test_db
 
 @pytest.mark.asyncio

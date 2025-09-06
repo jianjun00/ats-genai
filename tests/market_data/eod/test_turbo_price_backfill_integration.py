@@ -95,7 +95,7 @@ async def test_end_to_end_polygon_backfill(unit_test_db):
         assert inserted_count == 2
         
         # Verify data was inserted correctly
-        from domains.market_data.repositories.daily_prices_polygon_dao import DailyPricesPolygonDAO
+        from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
         prices_dao = DailyPricesPolygonDAO(env)
         
         # Get inserted prices
@@ -187,7 +187,7 @@ async def test_end_to_end_tiingo_backfill(unit_test_db):
         assert inserted_count == 1
         
         # Verify data was inserted correctly
-        from domains.market_data.repositories.daily_prices_tiingo_dao import DailyPricesTiingoDAO
+        from vendor.tiingo.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
         prices_dao = DailyPricesTiingoDAO(env)
         
         # Get inserted prices
@@ -270,7 +270,7 @@ async def test_duplicate_handling(unit_test_db):
         assert second_insert == 1
         
         # Verify only one record exists
-        from domains.market_data.repositories.daily_prices_polygon_dao import DailyPricesPolygonDAO
+        from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
         prices_dao = DailyPricesPolygonDAO(env)
         
         prices = await prices_dao.list_prices(test_instrument_id)
@@ -353,7 +353,7 @@ async def test_concurrent_database_operations(unit_test_db):
         assert all(result == 1 for result in results)
         
         # Verify data was inserted correctly for each instrument
-        from domains.market_data.repositories.daily_prices_polygon_dao import DailyPricesPolygonDAO
+        from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
         prices_dao = DailyPricesPolygonDAO(env)
         
         for i, instrument_id in enumerate(instrument_ids):
@@ -434,7 +434,7 @@ async def test_large_batch_processing(unit_test_db):
         assert inserted_count == 100
         
         # Verify all data was inserted
-        from domains.market_data.repositories.daily_prices_polygon_dao import DailyPricesPolygonDAO
+        from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
         prices_dao = DailyPricesPolygonDAO(env)
         
         prices = await prices_dao.list_prices(test_instrument_id)

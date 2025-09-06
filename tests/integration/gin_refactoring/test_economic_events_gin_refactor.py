@@ -47,7 +47,7 @@ def test_polygon_client_gin_refactor():
     import gin
     gin.clear_config()
     
-    from economic_events.polygon_client import PolygonEconomicEventsConfig, PolygonEconomicEventsClient
+    from vendor.polygon.economic_events_client import PolygonEconomicEventsConfig, PolygonEconomicEventsClient
     
     # Test default configuration
     config = PolygonEconomicEventsConfig()
@@ -84,7 +84,7 @@ def test_alpha_vantage_client_gin_refactor():
     import gin
     gin.clear_config()
     
-    from economic_events.alpha_vantage_client import AlphaVantageEconomicConfig, AlphaVantageEconomicClient
+    from vendor.alpha_vantage.economic_events_client import AlphaVantageEconomicConfig, AlphaVantageEconomicClient
     
     # Test default configuration
     config = AlphaVantageEconomicConfig()
@@ -118,7 +118,7 @@ def test_tiingo_client_gin_refactor():
     import gin
     gin.clear_config()
     
-    from economic_events.tiingo_client import TiingoEconomicConfig, TiingoEconomicEventsClient
+    from vendor.tiingo.economic_events_client import TiingoEconomicConfig, TiingoEconomicEventsClient
     
     # Test default configuration
     config = TiingoEconomicConfig()

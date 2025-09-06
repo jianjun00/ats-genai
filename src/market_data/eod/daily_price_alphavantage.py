@@ -13,7 +13,7 @@ import logging
 from typing import List, Dict, Any
 
 from config.environment import Environment, EnvironmentType
-from dao.daily_prices_alphavantage_dao import DailyPricesAlphaVantageDAO
+from vendor.alpha_vantage.dao.daily_prices_alphavantage_dao import DailyPricesAlphaVantageDAO
 from dao.instrument_xrefs_dao import InstrumentXrefsDAO
 from calendars.exchange_calendar import ExchangeCalendar
 

@@ -16,13 +16,13 @@ from datetime import datetime, date, time, timedelta
 from pathlib import Path
 
 from shared.utils.environment import Environment, EnvironmentType
-from domains.instruments.repositories.instrument_polygon_dao import InstrumentPolygonDAO
+from vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 from infrastructure.database.repositories.vendors_dao import VendorsDAO
 
 # Import the existing populate functions
-from domains.instruments.services.populate_instrument_polygon import fetch_and_store_instruments
+from vendor.polygon.services.populate_instrument_polygon import fetch_and_store_instruments
 from domains.instruments.services.populate_unified_instruments import populate_unified_instruments
 
 # Add src to PYTHONPATH

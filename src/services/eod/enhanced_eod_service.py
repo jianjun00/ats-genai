@@ -24,7 +24,7 @@ from core.logging.logger_config import get_logger
 from calendars.exchange_calendar import ExchangeCalendar
 
 # Reuse existing vendor configurations
-from config.polygon import POLYGON_API_KEY
+from vendor.polygon.config import POLYGON_API_KEY
 from market_data.eod.daily_price_tiingo import TIINGO_API_KEY, tiingo_url
 from market_data.eod.daily_price_polygon import download_prices_polygon
 

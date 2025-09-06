@@ -11,15 +11,15 @@ from shared.utils.environment import EnvironmentType, Environment
 # Import all DAOs
 from dao.daily_market_cap_dao import DailyMarketCapDAO
 from domains.market_data.repositories.daily_prices_dao import DailyPricesDAO
-from domains.market_data.repositories.daily_prices_polygon_dao import DailyPricesPolygonDAO
-from domains.market_data.repositories.daily_prices_tiingo_dao import DailyPricesTiingoDAO
+from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+from vendor.tiingo.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
 from infrastructure.database.repositories.db_version_dao import DBVersionDAO
 from infrastructure.database.repositories.dividends_dao import DividendsDAO
 from domains.analytics.repositories.events_dao import EventsDAO
 from domains.market_data.repositories.fundamentals_dao import FundamentalsDAO
 
 
-from domains.instruments.repositories.instrument_polygon_dao import InstrumentPolygonDAO
+from vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from domains.instruments.repositories.secmaster_dao import SecMasterDAO
 from infrastructure.database.repositories.status_code_dao import StatusCodeDAO
