@@ -2,8 +2,8 @@
   "start_date": "2024-01-01",
   "end_date": "2024-12-31",
   "total_symbols": 100,
-  "processed_symbols": 40,
-  "current_symbol": "ABVX",
+  "processed_symbols": 43,
+  "current_symbol": "ACAD",
   "current_date": "2024-01-01",
   "symbols_completed": [
     "A",
@@ -45,12 +45,15 @@
     "ABTS",
     "ABUS",
     "ABVC",
-    "ABVE"
+    "ABVE",
+    "ABVX",
+    "AC",
+    "ACA"
   ],
   "symbols_failed": [],
   "total_bars_stored": 0,
   "total_files_created": 0,
-  "last_update_timestamp": "2025-09-06T12:10:06.152300",
+  "last_update_timestamp": "2025-09-06T13:10:16.333972",
   "errors": [],
   "processing_stats": {},
   "run_id": 91,

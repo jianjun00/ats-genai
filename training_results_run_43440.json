@@ -1,0 +1,101 @@
+{
+  "model_output_path": "unified_loss_transformer_REAL_DATA_ONLY_run_43440_20250906_194057.pth",
+  "training_duration_seconds": 3214.450398,
+  "training_metrics_history": {
+    "epoch_1": {
+      "loss": 0.03448541948477947,
+      "timestamp": "2025-09-06T18:52:16.170716",
+      "total_batches": 516,
+      "batch_size": 32,
+      "num_sequences": 16525
+    },
+    "epoch_2": {
+      "loss": 0.008466334555518287,
+      "timestamp": "2025-09-06T18:54:45.542145",
+      "total_batches": 516,
+      "batch_size": 32,
+      "num_sequences": 16525
+    },
+    "epoch_3": {
+      "loss": 0.004494992724183022,
+      "timestamp": "2025-09-06T19:00:45.293176",
+      "total_batches": 516,
+      "batch_size": 32,
+      "num_sequences": 16525
+    },
+    "epoch_4": {
+      "loss": 0.0031251143679914403,
+      "timestamp": "2025-09-06T19:06:17.467161",
+      "total_batches": 516,
+      "batch_size": 32,
+      "num_sequences": 16525
+    },
+    "epoch_5": {
+      "loss": 0.002450311894423884,
+      "timestamp": "2025-09-06T19:12:32.740474",
+      "total_batches": 516,
+      "batch_size": 32,
+      "num_sequences": 16525
+    },
+    "epoch_6": {
+      "loss": 0.002003641367949502,
+      "timestamp": "2025-09-06T19:18:05.061368",
+      "total_batches": 516,
+      "batch_size": 32,
+      "num_sequences": 16525
+    },
+    "epoch_7": {
+      "loss": 0.0017152439991044704,
+      "timestamp": "2025-09-06T19:23:18.562433",
+      "total_batches": 516,
+      "batch_size": 32,
+      "num_sequences": 16525
+    },
+    "epoch_8": {
+      "loss": 0.001434082727357673,
+      "timestamp": "2025-09-06T19:27:22.976625",
+      "total_batches": 516,
+      "batch_size": 32,
+      "num_sequences": 16525
+    },
+    "epoch_9": {
+      "loss": 0.0012886319161697773,
+      "timestamp": "2025-09-06T19:33:05.474572",
+      "total_batches": 516,
+      "batch_size": 32,
+      "num_sequences": 16525
+    },
+    "epoch_10": {
+      "loss": 0.0011401115784686882,
+      "timestamp": "2025-09-06T19:40:49.420774",
+      "total_batches": 516,
+      "batch_size": 32,
+      "num_sequences": 16525
+    }
+  },
+  "final_evaluation_metrics": {
+    "final_loss": 0.0011401115784686882,
+    "final_mse": 5.168699499336071e-05,
+    "final_mae": 0.0070274206809699535,
+    "correlation_coefficient": -0.029042975877859697,
+    "prediction_variance": 3.5823775402179814e-08,
+    "target_variance": 2.7545262473831347e-06,
+    "model_parameters": 569153,
+    "training_sequences": 16525,
+    "data_source_validation": "FirstRate professional feeds verified",
+    "synthetic_data_detected": false,
+    "data_quality_score": 1.0
+  },
+  "data_validation_summary": {
+    "synthetic_data_detected": false,
+    "real_data_sources": [
+      "FirstRate professional feeds"
+    ],
+    "data_quality_passed": true
+  },
+  "model_architecture": {
+    "type": "SimpleTransformer",
+    "loss_function": "SimplifiedFinancialLoss",
+    "parameters": 569153
+  }
+}
