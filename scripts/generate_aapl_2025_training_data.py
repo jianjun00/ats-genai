@@ -1,3 +1,4 @@
+# 🚨 WARNING: THIS SCRIPT GENERATES SYNTHETIC DATA - FOR TESTING ONLY
 #!/usr/bin/env python3
 """
 Generate AAPL training data for 2025 (Jan 1 - Sep 1)

@@ -209,7 +209,7 @@ class MultiTimeframeFeatureExtractor:
         return features
     
     def extract_volume_features(self, data: pd.DataFrame, timeframe: str) -> Dict[str, float]:
-        """Extract volume-based features."""
+        """Extract volume-based features including Volume Profile analysis."""
         if data.empty or 'volume' not in data.columns:
             return {}
         
@@ -224,6 +224,59 @@ class MultiTimeframeFeatureExtractor:
         if len(volumes) >= 5:
             vol_mean_5 = volumes.tail(5).mean()
             features[f'{timeframe}_volume_ratio_5'] = float(volumes.iloc[-1] / vol_mean_5) if vol_mean_5 > 0 else 1.0
+            
+        # Volume Profile features
+        if len(data) >= 20 and all(col in data.columns for col in ['open', 'high', 'low', 'close', 'volume']):
+            try:
+                from signals.indicator import VolumeProfile
+                
+                # Create mock InstrumentInterval objects for Volume Profile
+                intervals = []
+                for _, row in data.tail(20).iterrows():
+                    # Create a simple mock object with required attributes matching InstrumentInterval
+                    class MockInterval:
+                        def __init__(self, row):
+                            self.open = float(row['open'])
+                            self.high = float(row['high']) 
+                            self.low = float(row['low'])
+                            self.close = float(row['close'])
+                            self.volume = float(row['volume'])
+                            self.traded_volume = float(row['volume'])  # VolumeProfile expects this field name
+                            self.status = 'ok'  # Required by VolumeProfile
+                    
+                    intervals.append(MockInterval(row))
+                
+                # Calculate Volume Profile
+                vp = VolumeProfile(period=20, bin_count=30)
+                vp.update(intervals)
+                
+                # Extract Volume Profile features
+                if vp.latest_poc is not None:
+                    features[f'{timeframe}_volume_profile_poc'] = float(vp.latest_poc)
+                    
+                if vp.latest_val is not None and vp.latest_vah is not None:
+                    features[f'{timeframe}_volume_profile_val'] = float(vp.latest_val)
+                    features[f'{timeframe}_volume_profile_vah'] = float(vp.latest_vah)
+                    features[f'{timeframe}_volume_profile_va_range'] = float(vp.latest_vah - vp.latest_val)
+                    
+                    # Current price relative to Volume Profile levels
+                    current_price = float(data['close'].iloc[-1])
+                    features[f'{timeframe}_volume_profile_price_vs_poc'] = float(current_price - vp.latest_poc) if vp.latest_poc else 0.0
+                    features[f'{timeframe}_volume_profile_price_vs_val'] = float(current_price - vp.latest_val)
+                    features[f'{timeframe}_volume_profile_price_vs_vah'] = float(current_price - vp.latest_vah)
+                    
+                    # Price position within Value Area (0.0 = at VAL, 1.0 = at VAH)
+                    va_range = vp.latest_vah - vp.latest_val
+                    if va_range > 0:
+                        va_position = (current_price - vp.latest_val) / va_range
+                        features[f'{timeframe}_volume_profile_va_position'] = float(max(0.0, min(1.0, va_position)))
+                    
+            except ImportError:
+                # Volume Profile not available, skip these features
+                pass
+            except Exception as e:
+                # Log error but continue with other features
+                pass
             
         if len(volumes) >= 20:
             vol_mean_20 = volumes.tail(20).mean()

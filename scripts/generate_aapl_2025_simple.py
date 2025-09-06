@@ -1,3 +1,4 @@
+# 🚨 WARNING: THIS SCRIPT GENERATES SYNTHETIC DATA - FOR TESTING ONLY
 #!/usr/bin/env python3
 """
 Simple AAPL 2025 training data generation using run_dev infrastructure
