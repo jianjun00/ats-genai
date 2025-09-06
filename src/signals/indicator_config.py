@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Type
 from .indicator import (
     Indicator, PL, OneOneHigh, OneOneLow, OneOneDot, EnvelopeBot, EnvelopeTop,
-    BXTrenderBasic, BXTrenderDirectional, BXTrenderVolumeWeighted
+    BXTrenderBasic, BXTrenderDirectional, BXTrenderVolumeWeighted, VolumeProfile
 )
 from .standard_technical_indicators import SMA, EMA, RSI, VWAP, BollingerBands, MACD, StochasticOscillator
 
@@ -134,6 +134,74 @@ class IndicatorConfig:
         config.add_indicator('BXTrenderDirectional_21', lambda: BXTrenderDirectional(21))
         config.add_indicator('BXTrenderVolumeWeighted_14', lambda: BXTrenderVolumeWeighted(14))
         config.add_indicator('BXTrenderVolumeWeighted_21', lambda: BXTrenderVolumeWeighted(21))
+        
+        return config
+    
+    @classmethod
+    def volume_profile_config(cls) -> 'IndicatorConfig':
+        """Create configuration with Volume Profile indicators for volume analysis."""
+        config = cls()
+        # Volume Profile indicators with different periods and bin counts for comprehensive analysis
+        config.add_indicator('VolumeProfile_20_50', lambda: VolumeProfile(20, 50))
+        config.add_indicator('VolumeProfile_20_30', lambda: VolumeProfile(20, 30))
+        config.add_indicator('VolumeProfile_14_40', lambda: VolumeProfile(14, 40))
+        config.add_indicator('VolumeProfile_30_60', lambda: VolumeProfile(30, 60))
+        config.add_indicator('VolumeProfile_10_25', lambda: VolumeProfile(10, 25))  # Short-term
+        config.add_indicator('VolumeProfile_50_75', lambda: VolumeProfile(50, 75))  # Long-term
+        return config
+    
+    @classmethod
+    def market_structure_config(cls) -> 'IndicatorConfig':
+        """Create configuration focused on market structure analysis."""
+        config = cls()
+        
+        # Volume analysis indicators
+        config.add_indicator('VolumeProfile_20_50', lambda: VolumeProfile(20, 50))
+        config.add_indicator('VolumeProfile_30_40', lambda: VolumeProfile(30, 40))
+        
+        # BX Trender indicators for trend analysis
+        config.add_indicator('BXTrenderBasic_14', lambda: BXTrenderBasic(14))
+        config.add_indicator('BXTrenderDirectional_14', lambda: BXTrenderDirectional(14))
+        config.add_indicator('BXTrenderVolumeWeighted_14', lambda: BXTrenderVolumeWeighted(14))
+        
+        # Support/resistance levels
+        config.add_indicator('OneOneHigh', OneOneHigh)
+        config.add_indicator('OneOneLow', OneOneLow)
+        
+        return config
+    
+    @classmethod
+    def institutional_config(cls) -> 'IndicatorConfig':
+        """Create institutional-grade configuration with advanced volume analysis."""
+        config = cls()
+        
+        # Comprehensive Volume Profile analysis
+        config.add_indicator('VolumeProfile_intraday', lambda: VolumeProfile(20, 50, 70.0))
+        config.add_indicator('VolumeProfile_swing', lambda: VolumeProfile(50, 75, 70.0))
+        config.add_indicator('VolumeProfile_position', lambda: VolumeProfile(100, 100, 68.0))
+        
+        # Advanced BX Trender analysis
+        config.add_indicator('BXTrenderBasic_short', lambda: BXTrenderBasic(14))
+        config.add_indicator('BXTrenderBasic_medium', lambda: BXTrenderBasic(21))
+        config.add_indicator('BXTrenderDirectional_short', lambda: BXTrenderDirectional(14))
+        config.add_indicator('BXTrenderDirectional_medium', lambda: BXTrenderDirectional(21))
+        config.add_indicator('BXTrenderVolumeWeighted_short', lambda: BXTrenderVolumeWeighted(14))
+        config.add_indicator('BXTrenderVolumeWeighted_medium', lambda: BXTrenderVolumeWeighted(21))
+        
+        # Standard technical indicators
+        config.add_indicator('SMA_20', lambda: SMA(20))
+        config.add_indicator('SMA_50', lambda: SMA(50))
+        config.add_indicator('EMA_21', lambda: EMA(21))
+        config.add_indicator('EMA_55', lambda: EMA(55))
+        config.add_indicator('RSI_14', lambda: RSI(14))
+        config.add_indicator('VWAP', VWAP)
+        config.add_indicator('BB_20', lambda: BollingerBands(20, 2.0))
+        
+        # Support/resistance
+        config.add_indicator('OneOneHigh', OneOneHigh)
+        config.add_indicator('OneOneLow', OneOneLow)
+        config.add_indicator('EnvelopeTop', EnvelopeTop)
+        config.add_indicator('EnvelopeBot', EnvelopeBot)
         
         return config
     

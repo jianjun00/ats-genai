@@ -1,7 +1,7 @@
 import gin
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any, Tuple
 from state.factor_interval import FactorInterval
 from state.instrument_interval import InstrumentInterval
 from state.indicator_interval import IndicatorInterval
@@ -1704,3 +1704,340 @@ class BXTrenderVolumeWeighted(Indicator):
     
     def get_volume_momentum(self) -> Optional[float]:
         return self.volume_momentum
+
+
+@gin.configurable
+class VolumeProfile(Indicator):
+    """
+    Volume Profile Indicator for Market Structure Analysis.
+    
+    Analyzes volume distribution across price levels to identify:
+    - Point of Control (POC): Price level with highest volume
+    - Value Area High/Low (VAH/VAL): Price range containing specified % of volume
+    - Profile shape and market bias
+    
+    This indicator provides institutional-grade volume analysis for identifying
+    true areas of price acceptance/rejection based on actual trading activity.
+    """
+    def __init__(self, period: int = 20, bin_count: int = 50, value_area_pct: float = 70.0):
+        super().__init__()
+        self.period = period
+        self.bin_count = bin_count
+        self.value_area_pct = value_area_pct
+        
+        # Results storage
+        self.latest_poc: Optional[float] = None
+        self.latest_vah: Optional[float] = None
+        self.latest_val: Optional[float] = None
+        self.profile_shape: Optional[str] = None
+        self.market_bias: Optional[str] = None
+        self.total_volume: Optional[float] = None
+        self.volume_concentration: Optional[float] = None
+        self.volume_distribution: Optional[Dict[float, float]] = None
+        self.active_bins: Optional[int] = None
+
+    def update(self, intervals: List[InstrumentInterval]):
+        import logging
+        import math
+        import numpy as np
+        
+        self.update_at = datetime.now()
+        
+        if len(intervals) < self.period:
+            self.status = 'insufficient_data'
+            self._reset_values()
+            logging.debug('[VolumeProfile] Insufficient data: need %d intervals, got %d', self.period, len(intervals))
+            return
+
+        try:
+            # Validate all intervals
+            for i, interval in enumerate(intervals[-self.period:]):
+                if interval.status != 'ok':
+                    self.status = 'invalid_data'
+                    self._reset_values()
+                    logging.debug('[VolumeProfile] Invalid interval status at position %d: %s', i, interval.status)
+                    return
+                
+                # Check for required fields
+                for field in ['open', 'high', 'low', 'close', 'traded_volume']:
+                    val = getattr(interval, field, None)
+                    if val is None or math.isnan(val):
+                        self.status = 'invalid_data'
+                        self._reset_values()
+                        logging.debug('[VolumeProfile] Invalid %s at position %d: %s', field, i, val)
+                        return
+                    
+                    if field == 'traded_volume' and val <= 0:
+                        self.status = 'invalid_data'
+                        self._reset_values()
+                        logging.debug('[VolumeProfile] Non-positive volume at position %d: %s', i, val)
+                        return
+                    
+                    if field != 'traded_volume' and val <= 0:
+                        self.status = 'invalid_data'
+                        self._reset_values()
+                        logging.debug('[VolumeProfile] Non-positive price at position %d: %s', i, val)
+                        return
+
+            # Calculate volume profile
+            result = self._calculate_volume_profile(intervals[-self.period:])
+            
+            self.latest_poc = result['poc']
+            self.latest_vah = result['vah']
+            self.latest_val = result['val']
+            self.profile_shape = result['shape']
+            self.market_bias = result['bias']
+            self.total_volume = result['total_volume']
+            self.volume_concentration = result['volume_concentration']
+            self.volume_distribution = result['volume_distribution']
+            self.active_bins = result['active_bins']
+            
+            self.status = 'ok'
+            logging.debug('[VolumeProfile] Calculated: POC=%.2f, VAH=%.2f, VAL=%.2f, Shape=%s, Bias=%s',
+                         self.latest_poc, self.latest_vah, self.latest_val, self.profile_shape, self.market_bias)
+            
+        except Exception as e:
+            self.status = 'calculation_error'
+            self._reset_values()
+            logging.error('[VolumeProfile] Error calculating Volume Profile: %s', str(e))
+
+    def _calculate_volume_profile(self, intervals: List[InstrumentInterval]) -> Dict[str, Any]:
+        """Perform complete volume profile calculation."""
+        import numpy as np
+        
+        # Extract price data
+        all_prices = []
+        for interval in intervals:
+            all_prices.extend([interval.open, interval.high, interval.low, interval.close])
+        
+        price_min, price_max = min(all_prices), max(all_prices)
+        price_range = price_max - price_min
+        
+        if price_range == 0:
+            # All prices are the same
+            return {
+                'poc': price_min,
+                'vah': price_min,
+                'val': price_min,
+                'shape': 'balanced',
+                'bias': 'neutral',
+                'total_volume': sum(interval.traded_volume for interval in intervals),
+                'volume_concentration': 1.0,
+                'volume_distribution': {price_min: sum(interval.traded_volume for interval in intervals)},
+                'active_bins': 1
+            }
+        
+        # Create price bins
+        bin_size = price_range / self.bin_count
+        bins = []
+        for i in range(self.bin_count):
+            bin_start = price_min + i * bin_size
+            bin_end = price_min + (i + 1) * bin_size
+            bins.append((bin_start, bin_end))
+        
+        # Initialize volume distribution
+        volume_dist = {self._bin_center(bin_range): 0.0 for bin_range in bins}
+        
+        # Aggregate volume into bins
+        for interval in intervals:
+            prices = [interval.open, interval.high, interval.low, interval.close]
+            volume_per_price = interval.traded_volume / 4  # Equal distribution across OHLC
+            
+            for price in prices:
+                bin_center = self._find_bin_for_price(price, bins)
+                if bin_center is not None:
+                    volume_dist[bin_center] += volume_per_price
+        
+        # Remove empty bins
+        volume_dist = {price: volume for price, volume in volume_dist.items() if volume > 0}
+        
+        if not volume_dist:
+            raise ValueError("No volume distribution calculated")
+        
+        # Calculate POC (Point of Control)
+        poc = max(volume_dist.items(), key=lambda x: x[1])[0]
+        
+        # Calculate Value Area
+        total_volume = sum(volume_dist.values())
+        target_volume = total_volume * (self.value_area_pct / 100.0)
+        
+        val, vah = self._calculate_value_area(volume_dist, poc, target_volume)
+        
+        # Classify profile shape and bias
+        shape = self._classify_profile_shape(volume_dist)
+        bias = self._determine_market_bias(volume_dist, poc, total_volume)
+        
+        # Calculate additional metrics
+        max_volume = max(volume_dist.values())
+        volume_concentration = max_volume / total_volume if total_volume > 0 else 0
+        
+        return {
+            'poc': poc,
+            'vah': vah,
+            'val': val,
+            'shape': shape,
+            'bias': bias,
+            'total_volume': total_volume,
+            'volume_concentration': volume_concentration,
+            'volume_distribution': volume_dist,
+            'active_bins': len(volume_dist)
+        }
+    
+    def _bin_center(self, bin_range: Tuple[float, float]) -> float:
+        """Calculate center price of bin."""
+        return (bin_range[0] + bin_range[1]) / 2
+    
+    def _find_bin_for_price(self, price: float, bins: List[Tuple[float, float]]) -> Optional[float]:
+        """Find which bin contains the given price."""
+        for bin_start, bin_end in bins:
+            if bin_start <= price < bin_end:
+                return (bin_start + bin_end) / 2
+        
+        # Handle edge case where price equals max value
+        if price == bins[-1][1]:
+            return (bins[-1][0] + bins[-1][1]) / 2
+        
+        return None
+    
+    def _calculate_value_area(self, volume_dist: Dict[float, float], poc: float, target_volume: float) -> Tuple[float, float]:
+        """Calculate Value Area High and Low around POC."""
+        sorted_prices = sorted(volume_dist.keys())
+        poc_index = sorted_prices.index(poc)
+        
+        # Initialize with POC
+        included_volume = volume_dist[poc]
+        va_low_index = poc_index
+        va_high_index = poc_index
+        
+        # Expand outward alternating between higher and lower prices
+        while included_volume < target_volume:
+            # Check which direction has more volume
+            higher_volume = 0
+            lower_volume = 0
+            
+            if va_high_index + 1 < len(sorted_prices):
+                higher_volume = volume_dist[sorted_prices[va_high_index + 1]]
+            
+            if va_low_index - 1 >= 0:
+                lower_volume = volume_dist[sorted_prices[va_low_index - 1]]
+            
+            # Expand in direction with more volume
+            if higher_volume >= lower_volume and va_high_index + 1 < len(sorted_prices):
+                va_high_index += 1
+                included_volume += volume_dist[sorted_prices[va_high_index]]
+            elif va_low_index - 1 >= 0:
+                va_low_index -= 1
+                included_volume += volume_dist[sorted_prices[va_low_index]]
+            else:
+                break  # Cannot expand further
+        
+        return sorted_prices[va_low_index], sorted_prices[va_high_index]
+    
+    def _classify_profile_shape(self, volume_dist: Dict[float, float]) -> str:
+        """Classify the shape of volume profile."""
+        if len(volume_dist) < 3:
+            return 'undefined'
+        
+        volumes = list(volume_dist.values())
+        
+        # Simple peak counting
+        peak_count = 0
+        sorted_volumes = sorted(enumerate(volumes), key=lambda x: x[1], reverse=True)
+        max_volume = sorted_volumes[0][1]
+        
+        # Count significant peaks
+        for i, volume in enumerate(volumes):
+            if volume > max_volume * 0.3:  # Significant peak threshold
+                is_peak = True
+                # Check if it's a local maximum
+                if i > 0 and volumes[i-1] >= volume:
+                    is_peak = False
+                if i < len(volumes) - 1 and volumes[i+1] >= volume:
+                    is_peak = False
+                if is_peak:
+                    peak_count += 1
+        
+        # Classification rules
+        if peak_count == 1:
+            return 'balanced'
+        elif peak_count == 2:
+            return 'double_distribution'
+        elif peak_count > 2:
+            return 'rotational'
+        else:
+            return 'trending'
+    
+    def _determine_market_bias(self, volume_dist: Dict[float, float], poc: float, total_volume: float) -> str:
+        """Determine market bias based on volume distribution around POC."""
+        if total_volume == 0:
+            return 'neutral'
+        
+        volume_above = sum(volume for price, volume in volume_dist.items() if price > poc)
+        volume_below = sum(volume for price, volume in volume_dist.items() if price < poc)
+        
+        volume_ratio = (volume_above - volume_below) / total_volume
+        
+        if volume_ratio > 0.1:  # 10% more volume above POC
+            return 'bullish'
+        elif volume_ratio < -0.1:  # 10% more volume below POC
+            return 'bearish'
+        else:
+            return 'neutral'
+
+    def _reset_values(self):
+        """Reset all calculated values to None."""
+        self.latest_poc = None
+        self.latest_vah = None
+        self.latest_val = None
+        self.profile_shape = None
+        self.market_bias = None
+        self.total_volume = None
+        self.volume_concentration = None
+        self.volume_distribution = None
+        self.active_bins = None
+
+    def get_value(self) -> Optional[float]:
+        """Return Point of Control (POC) as primary indicator value."""
+        return self.latest_poc
+    
+    def get_poc(self) -> Optional[float]:
+        """Get Point of Control price level."""
+        return self.latest_poc
+    
+    def get_value_area_high(self) -> Optional[float]:
+        """Get Value Area High price level."""
+        return self.latest_vah
+    
+    def get_value_area_low(self) -> Optional[float]:
+        """Get Value Area Low price level."""
+        return self.latest_val
+    
+    def get_value_area(self) -> Optional[Tuple[float, float]]:
+        """Get Value Area as (VAL, VAH) tuple."""
+        if self.latest_val is not None and self.latest_vah is not None:
+            return (self.latest_val, self.latest_vah)
+        return None
+    
+    def get_profile_shape(self) -> Optional[str]:
+        """Get classified profile shape."""
+        return self.profile_shape
+    
+    def get_market_bias(self) -> Optional[str]:
+        """Get market bias based on volume distribution."""
+        return self.market_bias
+    
+    def get_total_volume(self) -> Optional[float]:
+        """Get total volume in the profile."""
+        return self.total_volume
+    
+    def get_volume_concentration(self) -> Optional[float]:
+        """Get volume concentration ratio (0-1)."""
+        return self.volume_concentration
+    
+    def get_volume_distribution(self) -> Optional[Dict[float, float]]:
+        """Get complete volume distribution."""
+        return self.volume_distribution
+    
+    def get_active_bins(self) -> Optional[int]:
+        """Get number of active bins with volume."""
+        return self.active_bins

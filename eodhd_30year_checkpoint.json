@@ -2,8 +2,8 @@
   "start_date": "2024-01-01",
   "end_date": "2024-12-31",
   "total_symbols": 100,
-  "processed_symbols": 27,
-  "current_symbol": "ABL",
+  "processed_symbols": 28,
+  "current_symbol": "ABLV",
   "current_date": "2024-01-01",
   "symbols_completed": [
     "A",
@@ -32,12 +32,13 @@
     "ABCL",
     "ABEO",
     "ABEV",
-    "ABG"
+    "ABG",
+    "ABL"
   ],
   "symbols_failed": [],
   "total_bars_stored": 0,
   "total_files_created": 0,
-  "last_update_timestamp": "2025-09-06T07:44:44.041040",
+  "last_update_timestamp": "2025-09-06T08:04:16.866448",
   "errors": [],
   "processing_stats": {},
   "run_id": 91,
