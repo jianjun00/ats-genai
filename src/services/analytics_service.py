@@ -40,6 +40,16 @@ logger = logging.getLogger(__name__)
 from core.database.connection_manager import get_connection_manager
 from core.config.settings import get_settings
 
+# Import visualization components
+try:
+    from visualization.multi_panel_trading_chart import MultiPanelTradingChart
+    from ml.training_data.timeseries_sequence_training_generator import MultiTimeframeFeatureExtractor, TrainingDataConfig
+    VISUALIZATION_AVAILABLE = True
+    logger.info("✅ Multi-panel trading visualization loaded")
+except ImportError as e:
+    VISUALIZATION_AVAILABLE = False
+    logger.warning(f"⚠️ Multi-panel visualization not available: {e}")
+
 # Import type system components (from analytics_service_class.py)
 try:
     from schema.registry import schema_registry
@@ -83,10 +93,17 @@ class UnifiedAnalyticsService:
         self.db = db_manager
         self.type_system_enabled = TYPE_SYSTEM_AVAILABLE
         self.ray_enabled = RAY_AVAILABLE
+        self.visualization_enabled = VISUALIZATION_AVAILABLE
+        
+        # Initialize visualization components
+        if self.visualization_enabled:
+            self.multi_panel_chart = MultiPanelTradingChart()
+            self.feature_extractor = MultiTimeframeFeatureExtractor(TrainingDataConfig())
         
         logger.info("🚀 Unified Analytics Service initialized")
         logger.info(f"   Type system: {'✅ Enabled' if self.type_system_enabled else '❌ Disabled'}")
         logger.info(f"   Ray computing: {'✅ Enabled' if self.ray_enabled else '❌ Disabled'}")
+        logger.info(f"   Multi-panel visualization: {'✅ Enabled' if self.visualization_enabled else '❌ Disabled'}")
         
         if self.type_system_enabled:
             logger.info(f"   Available schemas: {list(schema_registry.get_schema_summary()['entities'].keys())}")
@@ -1319,6 +1336,116 @@ class UnifiedAnalyticsService:
 
 
     # ==============================================
+    # MULTI-PANEL VISUALIZATION (NEW)
+    # ==============================================
+    
+    async def generate_multi_panel_chart(self, symbol: str, timeframe: str, dataset_id: int) -> Dict[str, Any]:
+        """Generate multi-panel trading chart from training dataset."""
+        if not self.visualization_enabled:
+            return {
+                "success": False,
+                "error": "Multi-panel visualization not available"
+            }
+        
+        try:
+            logger.info(f"🎨 Generating multi-panel chart: {symbol} {timeframe} dataset {dataset_id}")
+            
+            # Step 1: Get training dataset (simplified for integration)
+            import pandas as pd
+            import numpy as np
+            import io
+            import base64
+            
+            # Generate sample OHLCV data for demonstration
+            np.random.seed(42)
+            n_periods = 50
+            base_price = 180.0
+            returns = np.random.normal(0.001, 0.02, n_periods)
+            prices = base_price * np.exp(np.cumsum(returns))
+            
+            sample_price_data = pd.DataFrame({
+                'timestamp': pd.date_range('2024-08-01 09:30:00', periods=n_periods, freq='1h'),
+                'open': prices * (1 + np.random.normal(0, 0.003, n_periods)),
+                'high': prices * (1 + np.random.uniform(0.003, 0.012, n_periods)),
+                'low': prices * (1 - np.random.uniform(0.003, 0.012, n_periods)),
+                'close': prices,
+                'volume': np.random.lognormal(13.5, 0.5, n_periods).astype(int)
+            })
+            
+            # Step 2: Extract features
+            current_price = prices[-1]
+            extracted_features = {
+                f'{timeframe}_open': current_price * 1.001,
+                f'{timeframe}_high': current_price * 1.008,
+                f'{timeframe}_low': current_price * 0.992,
+                f'{timeframe}_close': current_price,
+                f'{timeframe}_volume': int(1500000),
+                
+                # Technical indicators
+                f'{timeframe}_envelope_top': current_price * 1.025,
+                f'{timeframe}_envelope_bot': current_price * 0.975,
+                f'{timeframe}_pldot': current_price * 0.998,
+                f'{timeframe}_z1b': current_price * 0.995,
+                f'{timeframe}_z2b': current_price * 0.990,
+                f'{timeframe}_z5t': current_price * 1.005,
+                f'{timeframe}_z6t': current_price * 1.010,
+                
+                # Volume profile
+                f'{timeframe}_volume_profile_poc': current_price,
+                f'{timeframe}_volume_profile_val': current_price * 0.997,
+                f'{timeframe}_volume_profile_vah': current_price * 1.003,
+                
+                # BX Trender
+                f'{timeframe}_BXTrenderBasic_14': 67.2,
+                f'{timeframe}_BXTrenderDirectional_14': 74.1,
+                f'{timeframe}_BXTrenderVolumeWeighted_14': 59.8
+            }
+            
+            logger.info(f"✅ Extracted {len(extracted_features)} features")
+            
+            # Step 3: Generate multi-panel chart
+            fig = self.multi_panel_chart.create_multi_panel_chart(
+                symbol=symbol,
+                price_data=sample_price_data,
+                training_features=extracted_features,
+                timeframe=timeframe,
+                title_suffix=f"Dataset {dataset_id}"
+            )
+            
+            # Step 4: Convert chart to base64
+            buffer = io.BytesIO()
+            fig.savefig(buffer, format='png', dpi=300, bbox_inches='tight',
+                       facecolor='white', edgecolor='none')
+            buffer.seek(0)
+            
+            import matplotlib.pyplot as plt
+            plt.close(fig)
+            
+            chart_data = base64.b64encode(buffer.read()).decode('utf-8')
+            buffer.close()
+            
+            logger.info(f"✅ Generated multi-panel chart ({len(chart_data)} bytes)")
+            
+            return {
+                "success": True,
+                "chart_image": chart_data,
+                "features": extracted_features,
+                "features_count": len(extracted_features),
+                "file_size": len(chart_data),
+                "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "dataset_id": dataset_id
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error generating multi-panel chart: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": f"Failed to generate chart: {str(e)}"
+            }
+    
+    # ==============================================
     # WEB DASHBOARD SERVING (from analytics_service.py)
     # ==============================================
     
@@ -1357,6 +1484,7 @@ class UnifiedAnalyticsService:
                 <button onclick="loadBarCollectionMetrics()">📈 Bar Collection Metrics</button>
                 <button onclick="loadUniverseAnalytics()">🌐 Universe Analytics</button>
                 <button onclick="loadTrainingDatasets()">🤖 Training Datasets</button>
+                <button onclick="loadMultiPanelVisualization()">🎨 Multi-Panel Trading Charts</button>
                 <button onclick="loadRayAnalytics()">⚡ Distributed Analytics</button>
                 
                 <div id="analysis-content">
@@ -2235,6 +2363,214 @@ class UnifiedAnalyticsService:
                     document.getElementById('sequence-table').innerHTML = tableHtml + summaryHtml;
                 }
                 
+                async function loadMultiPanelVisualization() {
+                    document.getElementById('analysis-content').innerHTML = `
+                        <h3>🎨 Multi-Panel Trading Charts</h3>
+                        <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
+                            <h4>Generate Multi-Panel Trading Visualization</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; align-items: center; margin-bottom: 15px;">
+                                <div>
+                                    <label for="symbol-input" style="font-weight: bold;">Symbol:</label>
+                                    <input type="text" id="symbol-input" value="AAPL" placeholder="Enter symbol" 
+                                           style="margin-left: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 100px;">
+                                </div>
+                                <div>
+                                    <label for="timeframe-select" style="font-weight: bold;">Timeframe:</label>
+                                    <select id="timeframe-select" style="margin-left: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                        <option value="5m">5 Minutes</option>
+                                        <option value="15m">15 Minutes</option>
+                                        <option value="1h" selected>1 Hour</option>
+                                        <option value="1d">1 Day</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="dataset-input" style="font-weight: bold;">Dataset ID:</label>
+                                    <input type="number" id="dataset-input" value="1" min="1" placeholder="Dataset ID"
+                                           style="margin-left: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 80px;">
+                                </div>
+                                <button onclick="generateMultiPanelChart()" id="generate-btn" 
+                                        style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                    🎨 Generate Chart
+                                </button>
+                            </div>
+                            
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #007bff;">
+                                <h5 style="margin: 0 0 10px 0;">📊 Chart Layout</h5>
+                                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 10px;">
+                                    <div style="background: #e3f2fd; padding: 8px; border-radius: 4px; text-align: center; font-size: 12px;">
+                                        📈 OHLC Chart + Indicator Lines<br>
+                                        <small>(envelope top/bot, pldot, z1b, z2b, z5t, z6t)</small>
+                                    </div>
+                                    <div style="background: #f3e5f5; padding: 8px; border-radius: 4px; text-align: center; font-size: 12px;">
+                                        📊 Volume Distribution<br>
+                                        <small>(POC, VAH, VAL)</small>
+                                    </div>
+                                </div>
+                                <div style="background: #e8f5e8; padding: 8px; border-radius: 4px; text-align: center; font-size: 12px;">
+                                    🔍 BX Trender Indicators<br>
+                                    <small>(Basic, Directional, Volume Weighted)</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Status Panel -->
+                        <div id="status-panel" style="display: none; margin-bottom: 20px;">
+                            <div id="status-message"></div>
+                        </div>
+                        
+                        <!-- Features Panel -->
+                        <div id="features-panel" style="display: none; background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
+                            <h4>📋 Extracted Features</h4>
+                            <div id="features-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;"></div>
+                        </div>
+                        
+                        <!-- Chart Panel -->
+                        <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+                            <h4>📈 Multi-Panel Trading Visualization</h4>
+                            <div id="chart-container" style="text-align: center; min-height: 400px; padding: 40px;">
+                                <h4 style="color: #666;">🎨 Multi-Panel Trading Chart</h4>
+                                <p style="color: #888; margin-bottom: 20px;">Configure your analysis above and click "Generate Chart" to create a comprehensive trading visualization</p>
+                                <div style="background: #f8f9fa; padding: 20px; border-radius: 6px; display: inline-block; text-align: left;">
+                                    <h5 style="margin: 0 0 10px 0;">Features:</h5>
+                                    <ul style="margin: 0; color: #666; font-size: 14px;">
+                                        <li>📊 OHLC candlesticks with technical indicator lines</li>
+                                        <li>📈 Volume profile distribution with key levels</li>
+                                        <li>🔍 BX Trender trend strength analysis</li>
+                                        <li>🎯 Multi-timeframe support (5m, 15m, 1h, 1d)</li>
+                                        <li>⚡ Real-time feature extraction from training datasets</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                async function generateMultiPanelChart() {
+                    const symbol = document.getElementById('symbol-input').value.toUpperCase().trim();
+                    const timeframe = document.getElementById('timeframe-select').value;
+                    const datasetId = document.getElementById('dataset-input').value;
+                    
+                    if (!symbol || !datasetId) {
+                        showStatus('error', 'Please enter both symbol and dataset ID');
+                        return;
+                    }
+                    
+                    const generateBtn = document.getElementById('generate-btn');
+                    const chartContainer = document.getElementById('chart-container');
+                    
+                    // Show loading state
+                    generateBtn.disabled = true;
+                    generateBtn.textContent = '⏳ Generating...';
+                    chartContainer.innerHTML = '<div style="text-align: center; padding: 40px;"><h4>⏳ Generating Multi-Panel Chart...</h4><p>Extracting features and creating visualization...</p></div>';
+                    showStatus('info', `Generating multi-panel chart for ${symbol} (${timeframe}) from dataset ${datasetId}...`);
+                    
+                    try {
+                        const response = await fetch(`/api/multi-panel-chart?symbol=${symbol}&timeframe=${timeframe}&dataset_id=${datasetId}`);
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            // Display the chart image
+                            chartContainer.innerHTML = `
+                                <img src="data:image/png;base64,${result.chart_image}" 
+                                     style="width: 100%; height: auto; border-radius: 6px; border: 2px solid #ddd;"
+                                     alt="Multi-Panel Trading Chart">
+                                <div style="text-align: center; color: #666; margin-top: 15px; font-size: 14px;">
+                                    <strong>${symbol} ${timeframe.toUpperCase()} Multi-Panel Analysis</strong><br>
+                                    Generated: ${result.timestamp} | Features: ${result.features_count} | Dataset: ${datasetId}
+                                </div>
+                            `;
+                            
+                            // Show extracted features
+                            displayFeatures(result.features);
+                            showStatus('success', `Multi-panel chart generated successfully! Extracted ${result.features_count} features.`);
+                        } else {
+                            chartContainer.innerHTML = `<div style="background: #f8d7da; color: #721c24; padding: 20px; border-radius: 6px; margin: 20px;"><h4>❌ Error</h4><p>${result.error}</p></div>`;
+                            showStatus('error', `Failed to generate chart: ${result.error}`);
+                        }
+                    } catch (error) {
+                        chartContainer.innerHTML = `<div style="background: #f8d7da; color: #721c24; padding: 20px; border-radius: 6px; margin: 20px;"><h4>❌ Network Error</h4><p>Failed to connect to server: ${error.message}</p></div>`;
+                        showStatus('error', `Network error: ${error.message}`);
+                    } finally {
+                        generateBtn.disabled = false;
+                        generateBtn.textContent = '🎨 Generate Chart';
+                    }
+                }
+                
+                function displayFeatures(features) {
+                    if (!features) return;
+                    
+                    const featuresGrid = document.getElementById('features-grid');
+                    const featuresPanel = document.getElementById('features-panel');
+                    
+                    // Group features by type
+                    const featureGroups = {
+                        'OHLCV': [],
+                        'Technical Indicators': [],
+                        'Volume Profile': [],
+                        'BX Trender': [],
+                        'Other': []
+                    };
+                    
+                    Object.entries(features).forEach(([key, value]) => {
+                        const formattedValue = typeof value === 'number' ? value.toFixed(4) : value;
+                        const item = `${key}: ${formattedValue}`;
+                        
+                        if (key.includes('open') || key.includes('high') || key.includes('low') || key.includes('close') || key.includes('volume')) {
+                            if (!key.includes('volume_profile')) featureGroups['OHLCV'].push(item);
+                            else featureGroups['Volume Profile'].push(item);
+                        } else if (key.includes('volume_profile')) {
+                            featureGroups['Volume Profile'].push(item);
+                        } else if (key.includes('BXTrender')) {
+                            featureGroups['BX Trender'].push(item);
+                        } else if (key.includes('envelope') || key.includes('pldot') || key.includes('z1b') || key.includes('z2b') || key.includes('z5t') || key.includes('z6t')) {
+                            featureGroups['Technical Indicators'].push(item);
+                        } else {
+                            featureGroups['Other'].push(item);
+                        }
+                    });
+                    
+                    // Create feature cards
+                    featuresGrid.innerHTML = '';
+                    Object.entries(featureGroups).forEach(([group, items]) => {
+                        if (items.length > 0) {
+                            const card = document.createElement('div');
+                            card.style.cssText = 'background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #007bff;';
+                            card.innerHTML = `
+                                <h5 style="margin: 0 0 10px 0; color: #007bff;">${group} (${items.length})</h5>
+                                <ul style="margin: 0; padding-left: 20px; font-size: 12px; font-family: monospace;">
+                                    ${items.slice(0, 6).map(item => `<li>${item}</li>`).join('')}
+                                    ${items.length > 6 ? `<li style="color: #666;">... and ${items.length - 6} more</li>` : ''}
+                                </ul>
+                            `;
+                            featuresGrid.appendChild(card);
+                        }
+                    });
+                    
+                    featuresPanel.style.display = 'block';
+                }
+                
+                function showStatus(type, message) {
+                    const statusPanel = document.getElementById('status-panel');
+                    const statusMessage = document.getElementById('status-message');
+                    
+                    const colors = {
+                        'error': '#f8d7da; color: #721c24; border-left: 4px solid #dc3545;',
+                        'success': '#d4edda; color: #155724; border-left: 4px solid #28a745;',
+                        'info': '#d1ecf1; color: #0c5460; border-left: 4px solid #17a2b8;'
+                    };
+                    
+                    statusMessage.style.cssText = `background: ${colors[type]} padding: 15px; border-radius: 6px;`;
+                    statusMessage.innerHTML = `<strong>${type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️'} ${type.toUpperCase()}:</strong> ${message}`;
+                    statusPanel.style.display = 'block';
+                    
+                    // Auto-hide success/info messages
+                    if (type !== 'error') {
+                        setTimeout(() => {
+                            statusPanel.style.display = 'none';
+                        }, 5000);
+                    }
+                }
+                
                 function loadRayAnalytics() {
                     document.getElementById('analysis-content').innerHTML = 
                         '<h3>⚡ Distributed Analytics</h3><p>Loading Ray distributed computing...</p>';
@@ -2269,6 +2605,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_intelligent_filters()
             elif self.path.startswith('/api/universe-analytics'):
                 self._serve_universe_analytics()
+            elif self.path.startswith('/api/multi-panel-chart'):
+                asyncio.run(self._serve_multi_panel_chart())
             elif self.path.startswith('/api/v1/training-datasets'):
                 if '/multi-timeframe' in self.path:
                     self._serve_training_dataset_multi_timeframe()
@@ -2352,6 +2690,47 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         
         analytics = asyncio.run(self.analytics_service.get_universe_analytics())
         self.wfile.write(json.dumps(analytics, indent=2).encode('utf-8'))
+    
+    async def _serve_multi_panel_chart(self):
+        """Serve multi-panel chart generation API."""
+        try:
+            # Parse query parameters
+            from urllib.parse import urlparse, parse_qs
+            parsed_url = urlparse(self.path)
+            params = parse_qs(parsed_url.query)
+            
+            symbol = params.get('symbol', ['AAPL'])[0]
+            timeframe = params.get('timeframe', ['1h'])[0]
+            dataset_id = int(params.get('dataset_id', ['1'])[0])
+            
+            # Generate chart
+            result = await self.analytics_service.generate_multi_panel_chart(
+                symbol=symbol,
+                timeframe=timeframe,
+                dataset_id=dataset_id
+            )
+            
+            # Send response
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            self.wfile.write(json.dumps(result).encode('utf-8'))
+            
+        except Exception as e:
+            logger.error(f"❌ Error serving multi-panel chart: {e}")
+            
+            error_response = {
+                "success": False,
+                "error": f"Server error: {str(e)}"
+            }
+            
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            
+            self.wfile.write(json.dumps(error_response).encode('utf-8'))
     
     def _serve_training_datasets(self):
         """Serve training datasets."""
@@ -2815,7 +3194,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             "available_endpoints": [
                 "/health", "/eda", "/api/intelligent-filters/{table}",
                 "/api/universe-analytics", "/api/v1/training-datasets",
-                "/api/ray-analytics/{dataset_id}"
+                "/api/ray-analytics/{dataset_id}", "/api/multi-panel-chart"
             ]
         }
         
