@@ -602,7 +602,7 @@ class DevCLI:
         print(f"🎯 Sampling {sample_size} rows from training dataset ID: {dataset_id}")
         
         # First get dataset information to find file paths
-        datasets_table = f"{self.table_prefix}training_datasets"
+        datasets_table = f"{self.table_prefix}training_dataset"
         query = f"""
         SELECT 
             id,
