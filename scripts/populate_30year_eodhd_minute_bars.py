@@ -277,8 +277,12 @@ class EODHD30YearPopulator:
         
         # Initialize storage manager for D: drive (if available)
         try:
+            # Use EODHD-specific storage path to avoid mixing with other vendors
+            eodhd_storage_path = self.storage_path / "minute-bars" / "eodhd"
+            eodhd_storage_path.mkdir(parents=True, exist_ok=True)
+            
             self.file_manager = FileBasedMinuteManager(
-                base_path=str(self.storage_path / "minute-bars"),
+                base_path=str(eodhd_storage_path),
                 max_concurrent_operations=max_concurrent,
                 backup_enabled=True,
                 compression='snappy'
@@ -604,7 +608,7 @@ class EODHD30YearPopulator:
             
             # Check which files exist
             for year, month in expected_months:
-                file_path = self.file_manager.get_file_path(symbol, year, month)
+                file_path = self.file_manager._get_monthly_file_path(symbol, year, month)
                 if file_path.exists():
                     analysis['existing'].append((year, month))
                 else:
@@ -616,6 +620,123 @@ class EODHD30YearPopulator:
             analysis['missing'] = [(start_date.year, start_date.month)]
         
         return analysis
+    
+    async def populate_missing_data_only(self, 
+                                        symbol: str, 
+                                        start_date: date, 
+                                        end_date: date) -> Dict:
+        """Populate only missing data gaps for a symbol (incremental backfill)"""
+        
+        symbol_stats = {
+            'symbol': symbol,
+            'bars_collected': 0,
+            'bars_stored': 0,
+            'files_created': 0,
+            'api_calls': 0,
+            'processing_time': 0,
+            'errors': [],
+            'months_processed': 0,
+            'months_skipped': 0
+        }
+        
+        start_time = datetime.now()
+        logger.info(f"Starting incremental backfill for {symbol}: {start_date} to {end_date}")
+        
+        # Analyze existing data to find gaps
+        analysis = await self.analyze_existing_data(symbol, start_date, end_date)
+        missing_months = analysis['missing']
+        existing_months = analysis['existing']
+        
+        if not missing_months:
+            logger.info(f"✅ {symbol}: No missing data - skipping")
+            symbol_stats['months_skipped'] = len(existing_months)
+            return symbol_stats
+        
+        logger.info(f"📝 {symbol}: Processing {len(missing_months)} missing months, "
+                   f"skipping {len(existing_months)} existing months")
+        
+        try:
+            async with self.eodhd_adapter:
+                # Process only missing months
+                for year, month in missing_months:
+                    month_start = date(year, month, 1)
+                    # Get last day of month
+                    if month == 12:
+                        month_end = date(year + 1, 1, 1) - timedelta(days=1)
+                    else:
+                        month_end = date(year, month + 1, 1) - timedelta(days=1)
+                    
+                    logger.info(f"📊 Fetching {symbol} data for {year}-{month:02d}")
+                    
+                    # Fetch data for this specific month only
+                    month_bars = await self.eodhd_adapter.fetch_minute_bars_async(
+                        symbol,
+                        datetime.combine(month_start, datetime.min.time()),
+                        datetime.combine(month_end, datetime.min.time())
+                    )
+                    
+                    month_api_calls = (month_end - month_start).days + 1
+                    symbol_stats['api_calls'] += month_api_calls
+                    self.stats['total_api_calls'] += month_api_calls
+                    
+                    if month_bars:
+                        # Convert to MinuteBar format
+                        minute_bars = []
+                        for bar in month_bars:
+                            minute_bar = MinuteBar(
+                                symbol=bar.symbol,
+                                timestamp=bar.timestamp,
+                                open=bar.open,
+                                high=bar.high,
+                                low=bar.low,
+                                close=bar.close,
+                                volume=bar.volume,
+                                vendor="eodhd",  # Explicitly mark as EODHD data
+                                quality_score=0.9
+                            )
+                            minute_bars.append(minute_bar)
+                        
+                        # Store month data
+                        store_result = await self.file_manager.store_minute_data(
+                            symbol,
+                            minute_bars,
+                            overlap_strategy='skip'  # Skip overlaps for incremental
+                        )
+                        
+                        symbol_stats['bars_collected'] += len(month_bars)
+                        symbol_stats['bars_stored'] += store_result.get('stored', 0)
+                        symbol_stats['files_created'] += store_result.get('files_created', 0)
+                        symbol_stats['months_processed'] += 1
+                        
+                        logger.info(f"✅ {symbol} {year}-{month:02d}: {len(month_bars)} bars collected, "
+                                   f"{store_result.get('stored', 0)} stored")
+                    else:
+                        logger.warning(f"⚠️ {symbol} {year}-{month:02d}: No data available")
+                    
+                    # Rate limiting between months
+                    await asyncio.sleep(1.0)
+                
+        except Exception as e:
+            error_msg = f"Error in incremental backfill for {symbol}: {e}"
+            logger.error(error_msg)
+            symbol_stats['errors'].append({
+                'timestamp': datetime.now().isoformat(),
+                'error': str(e)
+            })
+            self.stats['errors'].append(error_msg)
+        
+        # Update global stats
+        self.stats['total_bars_collected'] += symbol_stats['bars_collected']
+        self.stats['total_bars_stored'] += symbol_stats['bars_stored'] 
+        self.stats['total_files_created'] += symbol_stats['files_created']
+        
+        symbol_stats['processing_time'] = (datetime.now() - start_time).total_seconds()
+        
+        logger.info(f"🏁 {symbol} incremental backfill complete: "
+                   f"{symbol_stats['months_processed']} months processed, "
+                   f"{symbol_stats['months_skipped']} months skipped")
+        
+        return symbol_stats
     
     async def run_full_population(self, 
                                   start_date: date,
@@ -646,22 +767,8 @@ class EODHD30YearPopulator:
                 self.checkpoint.current_symbol = symbol
                 await self.save_checkpoint(self.checkpoint)
                 
-                # Pre-analysis for gap detection
-                if self.gap_analysis:
-                    data_analysis = await self.analyze_existing_data(symbol, start_date, end_date)
-                    existing_count = len(data_analysis['existing'])
-                    missing_count = len(data_analysis['missing'])
-                    
-                    if missing_count == 0 and existing_count > 0:
-                        logger.info(f"✅ {symbol}: Complete ({existing_count} months), skipping")
-                        self.checkpoint.symbols_completed.append(symbol)
-                        self.checkpoint.processed_symbols += 1
-                        self.stats['symbols_completed'] += 1
-                        continue
-                    elif missing_count > 0:
-                        logger.info(f"📝 {symbol}: {missing_count} missing months, {existing_count} existing")
-                
-                symbol_stats = await self.populate_symbol_data(symbol, start_date, end_date)
+                # Use incremental backfill - only process missing data
+                symbol_stats = await self.populate_missing_data_only(symbol, start_date, end_date)
                 
                 if symbol_stats['errors']:
                     self.checkpoint.symbols_failed.append(symbol)

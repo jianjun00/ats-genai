@@ -1,20 +1,20 @@
 {
-  "start_date": "2024-08-01",
-  "end_date": "2024-08-01",
+  "start_date": "2024-09-01",
+  "end_date": "2024-09-30",
   "total_symbols": 1,
   "processed_symbols": 1,
-  "current_symbol": "AAPL",
-  "current_date": "2024-08-01",
+  "current_symbol": "TSLA",
+  "current_date": "2024-09-01",
   "symbols_completed": [
-    "AAPL"
+    "TSLA"
   ],
   "symbols_failed": [],
   "total_bars_stored": 0,
   "total_files_created": 0,
-  "last_update_timestamp": "2025-09-05T19:16:28.287904",
+  "last_update_timestamp": "2025-09-05T20:40:07.671096",
   "errors": [],
   "processing_stats": {},
-  "run_id": 78,
+  "run_id": 85,
   "missing_months": [],
   "existing_months": []
 }
