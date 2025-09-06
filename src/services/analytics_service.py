@@ -834,9 +834,10 @@ class UnifiedAnalyticsService:
                                     
                                     # Look for 5m OHLCV columns
                                     for seq_idx in range(52):  # 5m has 52 time steps according to config
-                                        # Calculate Unix timestamp for this bar
+                                        # Calculate Unix timestamp for this bar in Eastern Time
                                         from datetime import datetime, timezone, timedelta
-                                        base_dt = datetime(2025, 7, 1, 9, 0, 0, tzinfo=timezone.utc)
+                                        from zoneinfo import ZoneInfo
+                                        base_dt = datetime(2025, 7, 1, 2, 0, 0, tzinfo=ZoneInfo("America/New_York"))
                                         bar_dt = base_dt + timedelta(minutes=seq_idx * 5)
                                         
                                         bar_data = {
@@ -1133,9 +1134,10 @@ class UnifiedAnalyticsService:
                 
                 # Create OHLC records for this timeframe
                 for i in range(sequence_length):
-                    # Calculate timestamp as Unix epoch seconds
+                    # Calculate timestamp as Unix epoch seconds in Eastern Time
                     from datetime import datetime, timezone, timedelta
-                    base_date = datetime(2025, 7, 1, 9, 0, 0, tzinfo=timezone.utc)
+                    from zoneinfo import ZoneInfo
+                    base_date = datetime(2025, 7, 1, 2, 0, 0, tzinfo=ZoneInfo("America/New_York"))
                     # Add time based on timeframe and index
                     if timeframe_prefix == '5m':
                         timestamp_dt = base_date + timedelta(minutes=i * 5)
