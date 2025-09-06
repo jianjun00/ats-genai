@@ -1,0 +1,188 @@
+# Docker Compose for Self-Hosted LLM Models
+# This configuration deploys local LLM models with GPU support
+
+version: '3.8'
+
+services:
+  # FinGPT Sentiment Analysis Model
+  fingpt-model:
+    image: pytorch/pytorch:2.1.0-cuda11.8-cudnn8-runtime
+    container_name: ats-fingpt-model
+    restart: unless-stopped
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=0
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTHONPATH=/app
+      - MODEL_TYPE=fingpt
+      - MODEL_ID=FinGPT/fingpt-sentiment_llama2-7b_lora
+      - BASE_MODEL=NousResearch/Llama-2-7b-hf
+      - PRECISION=fp16
+      - MAX_LENGTH=2048
+      - DEVICE=cuda:0
+    volumes:
+      - ../../src:/app
+      - ~/.cache/huggingface:/root/.cache/huggingface
+      - ./models:/app/models
+    ports:
+      - "8001:8001"  # FinGPT API port
+    networks:
+      - llm-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: >
+      bash -c "
+        pip install -r /app/requirements-local-llm.txt &&
+        python /app/infrastructure/llm/model_server.py --model-type fingpt --port 8001
+      "
+
+  # Llama 3.1 8B Model  
+  llama-8b-model:
+    image: pytorch/pytorch:2.1.0-cuda11.8-cudnn8-runtime
+    container_name: ats-llama-8b-model
+    restart: unless-stopped
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=0
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTHONPATH=/app
+      - MODEL_TYPE=llama
+      - MODEL_ID=meta-llama/Meta-Llama-3.1-8B-Instruct
+      - PRECISION=fp16
+      - MAX_LENGTH=8192
+      - DEVICE=cuda:0
+      - ENABLE_QUANTIZATION=true
+    volumes:
+      - ../../src:/app
+      - ~/.cache/huggingface:/root/.cache/huggingface
+      - ./models:/app/models
+    ports:
+      - "8002:8002"  # Llama 8B API port
+    networks:
+      - llm-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+        limits:
+          memory: 32G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: >
+      bash -c "
+        pip install -r /app/requirements-local-llm.txt &&
+        python /app/infrastructure/llm/model_server.py --model-type llama --port 8002
+      "
+
+  # Llama 3.1 70B Model (for high-memory systems)
+  llama-70b-model:
+    image: pytorch/pytorch:2.1.0-cuda11.8-cudnn8-runtime
+    container_name: ats-llama-70b-model
+    restart: unless-stopped
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=all
+      - PYTHONPATH=/app
+      - MODEL_TYPE=llama
+      - MODEL_ID=meta-llama/Meta-Llama-3.1-70B-Instruct
+      - PRECISION=int4  # Use quantization for 70B model
+      - MAX_LENGTH=8192
+      - DEVICE=auto
+      - ENABLE_QUANTIZATION=true
+    volumes:
+      - ../../src:/app
+      - ~/.cache/huggingface:/root/.cache/huggingface
+      - ./models:/app/models
+    ports:
+      - "8003:8003"  # Llama 70B API port
+    networks:
+      - llm-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+        limits:
+          memory: 128G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 60s
+      timeout: 30s
+      retries: 2
+    command: >
+      bash -c "
+        pip install -r /app/requirements-local-llm.txt &&
+        python /app/infrastructure/llm/model_server.py --model-type llama --port 8003
+      "
+    profiles:
+      - high-memory  # Only start with --profile high-memory
+
+  # Model Load Balancer and Health Monitor
+  model-gateway:
+    image: nginx:alpine
+    container_name: ats-model-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"  # Gateway port
+    volumes:
+      - ./nginx-llm.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - llm-network
+    depends_on:
+      - fingpt-model
+      - llama-8b-model
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Model Performance Monitor
+  model-monitor:
+    build:
+      context: ../../
+      dockerfile: deployment/local-models/Dockerfile.monitor
+    container_name: ats-model-monitor
+    restart: unless-stopped
+    environment:
+      - PYTHONPATH=/app
+      - MONITOR_ENDPOINTS=http://fingpt-model:8001,http://llama-8b-model:8002
+      - METRICS_PORT=9090
+      - CHECK_INTERVAL=30
+    volumes:
+      - ../../src:/app
+      - ./monitoring-data:/app/data
+    ports:
+      - "9090:9090"  # Metrics port
+    networks:
+      - llm-network
+    depends_on:
+      - fingpt-model
+      - llama-8b-model
+
+networks:
+  llm-network:
+    driver: bridge
+    name: ats-llm-network
+
+volumes:
+  model-cache:
+    driver: local
+  monitoring-data:
+    driver: local
