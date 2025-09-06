@@ -100,6 +100,71 @@ class LocalModelClient:
     """
 ```
 
+### **📋 News Analytics Dashboard Architecture (NEW)**
+```python
+# News analytics service integration
+class NewsAnalyticsService:
+    """
+    📋 PLANNED: News visualization and analysis service
+    - Integration with existing analytics service dashboard
+    - News-signal correlation analysis
+    - OHLC chart generation with news events overlay
+    - Event-centered data retrieval (±10 days/hours)
+    """
+
+# OHLC price service backend  
+class OHLCPriceService:
+    """
+    📋 PLANNED: High-performance price data service
+    - REST API endpoints: /api/ohlc/{symbol}
+    - Timeframe support: 1h, 1d intervals
+    - Date range queries with caching
+    - Sub-100ms response time target
+    """
+
+# News event training dataset generator
+class NewsEventDatasetGenerator:
+    """
+    📋 PLANNED: ML training dataset generation
+    - Event-centered data extraction (±10 days/hours)
+    - Storage: /mnt/d/ats-data/news/training_data/
+    - Formats: Numpy arrays, Parquet files
+    - Metadata: News content, signals, price movements
+    """
+```
+
+### **🗄️ Extended Database Schema (NEW)**
+```sql
+-- News event training datasets metadata
+CREATE TABLE dev_news_training_datasets (
+    id SERIAL PRIMARY KEY,
+    news_id VARCHAR(255) NOT NULL,
+    ticker VARCHAR(10) NOT NULL,
+    dataset_path VARCHAR(500) NOT NULL,
+    start_date TIMESTAMPTZ NOT NULL,
+    end_date TIMESTAMPTZ NOT NULL,
+    daily_records INTEGER,
+    hourly_records INTEGER,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    FOREIGN KEY (news_id, ticker) REFERENCES dev_trading_signals(news_id, ticker)
+);
+
+-- OHLC data cache for news visualization
+CREATE TABLE dev_ohlc_cache (
+    id SERIAL PRIMARY KEY,
+    ticker VARCHAR(10) NOT NULL,
+    timeframe VARCHAR(2) NOT NULL, -- '1h', '1d'
+    timestamp TIMESTAMPTZ NOT NULL,
+    open_price DECIMAL(12,4),
+    high_price DECIMAL(12,4), 
+    low_price DECIMAL(12,4),
+    close_price DECIMAL(12,4),
+    volume BIGINT,
+    cached_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(ticker, timeframe, timestamp)
+);
+```
+
 ---
 
 ## 🏗️ **System Architecture Deep Dive**

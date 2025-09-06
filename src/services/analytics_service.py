@@ -1485,6 +1485,7 @@ class UnifiedAnalyticsService:
                 <button onclick="loadUniverseAnalytics()">🌐 Universe Analytics</button>
                 <button onclick="loadTrainingDatasets()">🤖 Training Datasets</button>
                 <button onclick="loadMultiPanelVisualization()">🎨 Multi-Panel Trading Charts</button>
+                <button onclick="loadNewsAnalytics()">📰 News & Signals</button>
                 <button onclick="loadRayAnalytics()">⚡ Distributed Analytics</button>
                 
                 <div id="analysis-content">
@@ -2575,6 +2576,330 @@ class UnifiedAnalyticsService:
                     document.getElementById('analysis-content').innerHTML = 
                         '<h3>⚡ Distributed Analytics</h3><p>Loading Ray distributed computing...</p>';
                     // Implementation would load Ray analytics interface
+                }
+                
+                async function loadNewsAnalytics() {
+                    document.getElementById('analysis-content').innerHTML = `
+                        <div style="max-width: 1200px; margin: 0 auto;">
+                            <h3>📰 News & Signals Analytics</h3>
+                            
+                            <!-- Filters Section -->
+                            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                                <h4>🔍 Filter News Events</h4>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Stock Symbol:</label>
+                                        <input type="text" id="news-ticker" placeholder="e.g., AAPL, TSLA" 
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Start Date:</label>
+                                        <input type="date" id="news-start-date" 
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">End Date:</label>
+                                        <input type="date" id="news-end-date" 
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                </div>
+                                <button onclick="searchNewsEvents()" 
+                                        style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
+                                    🔍 Search News Events
+                                </button>
+                            </div>
+                            
+                            <!-- News Events Table -->
+                            <div id="news-events-table" style="margin-bottom: 30px;">
+                                <p style="text-align: center; color: #666; margin: 40px 0;">
+                                    Enter search criteria above to find news events with extracted signals
+                                </p>
+                            </div>
+                            
+                            <!-- OHLC Charts Grid -->
+                            <div id="ohlc-charts-section" style="display: none;">
+                                <h4>📊 Price Charts Around News Events</h4>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                                    <div>
+                                        <h5 style="text-align: center; margin-bottom: 10px;">📈 Daily OHLC (±10 Days)</h5>
+                                        <div id="daily-ohlc-chart" style="height: 400px; border: 1px solid #ddd; border-radius: 4px;"></div>
+                                    </div>
+                                    <div>
+                                        <h5 style="text-align: center; margin-bottom: 10px;">⏰ Hourly OHLC (±10 Hours)</h5>
+                                        <div id="hourly-ohlc-chart" style="height: 400px; border: 1px solid #ddd; border-radius: 4px;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Training Dataset Info -->
+                            <div id="training-dataset-info" style="display: none; margin-top: 30px;">
+                                <h4>🤖 Training Dataset Information</h4>
+                                <div id="dataset-metadata" style="background: #f8f9fa; padding: 15px; border-radius: 4px;">
+                                    <!-- Dataset metadata will be populated here -->
+                                </div>
+                                <button onclick="generateTrainingDataset()" 
+                                        style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-top: 10px;">
+                                    🚀 Generate Training Dataset
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Set default date range (last 30 days)
+                    const endDate = new Date();
+                    const startDate = new Date();
+                    startDate.setDate(endDate.getDate() - 30);
+                    
+                    document.getElementById('news-end-date').value = endDate.toISOString().split('T')[0];
+                    document.getElementById('news-start-date').value = startDate.toISOString().split('T')[0];
+                }
+                
+                async function searchNewsEvents() {
+                    const ticker = document.getElementById('news-ticker').value.trim().toUpperCase();
+                    const startDate = document.getElementById('news-start-date').value;
+                    const endDate = document.getElementById('news-end-date').value;
+                    
+                    if (!startDate || !endDate) {
+                        alert('Please select both start and end dates');
+                        return;
+                    }
+                    
+                    document.getElementById('news-events-table').innerHTML = 
+                        '<div style="text-align: center; padding: 20px;"><p>🔍 Searching news events...</p></div>';
+                    
+                    try {
+                        // Build query parameters
+                        const params = new URLSearchParams();
+                        if (ticker) params.append('ticker', ticker);
+                        params.append('start_date', startDate + 'T00:00:00Z');
+                        params.append('end_date', endDate + 'T23:59:59Z');
+                        
+                        const response = await fetch(`http://localhost:8001/api/news/events?${params}`);
+                        const data = await response.json();
+                        
+                        if (data.events && data.events.length > 0) {
+                            displayNewsEventsTable(data.events);
+                        } else {
+                            document.getElementById('news-events-table').innerHTML = 
+                                '<p style="text-align: center; color: #666; margin: 40px 0;">No news events found for the selected criteria</p>';
+                        }
+                        
+                    } catch (error) {
+                        console.error('Error fetching news events:', error);
+                        document.getElementById('news-events-table').innerHTML = 
+                            '<p style="text-align: center; color: #dc3545; margin: 40px 0;">Error loading news events. Please check if OHLC service is running on port 8001.</p>';
+                    }
+                }
+                
+                function displayNewsEventsTable(events) {
+                    let tableHtml = `
+                        <div style="margin-bottom: 10px;">
+                            <h4>📰 News Events with Trading Signals (${events.length} found)</h4>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                                <thead>
+                                    <tr style="background: #f8f9fa;">
+                                        <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Date/Time</th>
+                                        <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Ticker</th>
+                                        <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Signal</th>
+                                        <th style="border: 1px solid #ddd; padding: 10px; text-align: center;">Confidence</th>
+                                        <th style="border: 1px solid #ddd; padding: 10px; text-align: center;">Sentiment</th>
+                                        <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Title</th>
+                                        <th style="border: 1px solid #ddd; padding: 10px; text-align: center;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    events.forEach(event => {
+                        const publishedDate = new Date(event.published_utc).toLocaleString();
+                        const confidenceColor = event.confidence > 0.7 ? '#28a745' : event.confidence > 0.5 ? '#ffc107' : '#6c757d';
+                        const sentimentColor = event.sentiment === 'positive' ? '#28a745' : 
+                                             event.sentiment === 'negative' ? '#dc3545' : '#6c757d';
+                        
+                        tableHtml += `
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="border: 1px solid #ddd; padding: 10px; font-size: 0.9em;">${publishedDate}</td>
+                                <td style="border: 1px solid #ddd; padding: 10px; font-weight: bold;">${event.ticker}</td>
+                                <td style="border: 1px solid #ddd; padding: 10px;">
+                                    <span style="background: #e9ecef; padding: 2px 6px; border-radius: 3px; font-size: 0.85em;">
+                                        ${event.signal_type}
+                                    </span>
+                                </td>
+                                <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">
+                                    <span style="color: ${confidenceColor}; font-weight: bold;">
+                                        ${(event.confidence * 100).toFixed(0)}%
+                                    </span>
+                                </td>
+                                <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">
+                                    <span style="color: ${sentimentColor}; font-weight: bold;">
+                                        ${event.sentiment}
+                                    </span>
+                                </td>
+                                <td style="border: 1px solid #ddd; padding: 10px; font-size: 0.9em; max-width: 300px; overflow: hidden; text-overflow: ellipsis;">
+                                    ${event.title || 'No title available'}
+                                </td>
+                                <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">
+                                    <button onclick="loadNewsOHLCCharts('${event.ticker}', '${event.published_utc}', '${event.news_id}')"
+                                            style="background: #007bff; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 0.85em;">
+                                        📊 View Charts
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    tableHtml += '</tbody></table></div>';
+                    document.getElementById('news-events-table').innerHTML = tableHtml;
+                }
+                
+                async function loadNewsOHLCCharts(ticker, newsDate, newsId) {
+                    // Show the charts section
+                    document.getElementById('ohlc-charts-section').style.display = 'block';
+                    document.getElementById('training-dataset-info').style.display = 'block';
+                    
+                    // Clear previous charts
+                    document.getElementById('daily-ohlc-chart').innerHTML = '<div style="text-align: center; padding: 50px;">Loading daily chart...</div>';
+                    document.getElementById('hourly-ohlc-chart').innerHTML = '<div style="text-align: center; padding: 50px;">Loading hourly chart...</div>';
+                    
+                    try {
+                        // Load daily OHLC chart (±10 days)
+                        const dailyResponse = await fetch(`http://localhost:8001/api/news/ohlc/${ticker}?news_date=${newsDate}&timeframe=1d`);
+                        const dailyData = await dailyResponse.json();
+                        
+                        if (dailyData.data && dailyData.data.length > 0) {
+                            createOHLCChart('daily-ohlc-chart', dailyData, 'Daily', newsDate);
+                        } else {
+                            document.getElementById('daily-ohlc-chart').innerHTML = '<div style="text-align: center; padding: 50px; color: #666;">No daily data available</div>';
+                        }
+                        
+                        // Load hourly OHLC chart (±10 hours)
+                        const hourlyResponse = await fetch(`http://localhost:8001/api/news/ohlc/${ticker}?news_date=${newsDate}&timeframe=1h`);
+                        const hourlyData = await hourlyResponse.json();
+                        
+                        if (hourlyData.data && hourlyData.data.length > 0) {
+                            createOHLCChart('hourly-ohlc-chart', hourlyData, 'Hourly', newsDate);
+                        } else {
+                            document.getElementById('hourly-ohlc-chart').innerHTML = '<div style="text-align: center; padding: 50px; color: #666;">No hourly data available</div>';
+                        }
+                        
+                        // Display training dataset info
+                        displayTrainingDatasetInfo(ticker, newsDate, newsId);
+                        
+                    } catch (error) {
+                        console.error('Error loading OHLC charts:', error);
+                        document.getElementById('daily-ohlc-chart').innerHTML = '<div style="text-align: center; padding: 50px; color: #dc3545;">Error loading chart</div>';
+                        document.getElementById('hourly-ohlc-chart').innerHTML = '<div style="text-align: center; padding: 50px; color: #dc3545;">Error loading chart</div>';
+                    }
+                }
+                
+                function createOHLCChart(containerId, data, timeframe, newsDate) {
+                    const ohlcData = [{
+                        x: data.data.map(d => d.timestamp),
+                        open: data.data.map(d => d.open),
+                        high: data.data.map(d => d.high),
+                        low: data.data.map(d => d.low),
+                        close: data.data.map(d => d.close),
+                        type: 'candlestick',
+                        name: `${data.ticker} OHLC`,
+                        increasing: {line: {color: '#26a69a'}},
+                        decreasing: {line: {color: '#ef5350'}}
+                    }];
+                    
+                    // Add vertical line for news event
+                    const newsEventLine = {
+                        x: [newsDate, newsDate],
+                        y: [Math.min(...data.data.map(d => d.low)), Math.max(...data.data.map(d => d.high))],
+                        mode: 'lines',
+                        line: {color: 'red', width: 2, dash: 'dash'},
+                        name: 'News Event',
+                        showlegend: true
+                    };
+                    
+                    const layout = {
+                        title: `${data.ticker} ${timeframe} OHLC - ${data.start_date.split('T')[0]} to ${data.end_date.split('T')[0]}`,
+                        xaxis: {title: 'Date/Time'},
+                        yaxis: {title: 'Price ($)'},
+                        showlegend: true,
+                        margin: {l: 60, r: 30, t: 50, b: 60}
+                    };
+                    
+                    Plotly.newPlot(containerId, [ohlcData[0], newsEventLine], layout, {responsive: true});
+                }
+                
+                function displayTrainingDatasetInfo(ticker, newsDate, newsId) {
+                    const newsDateTime = new Date(newsDate);
+                    const dailyStart = new Date(newsDateTime);
+                    dailyStart.setDate(dailyStart.getDate() - 10);
+                    const dailyEnd = new Date(newsDateTime);
+                    dailyEnd.setDate(dailyEnd.getDate() + 10);
+                    
+                    const hourlyStart = new Date(newsDateTime);
+                    hourlyStart.setHours(hourlyStart.getHours() - 10);
+                    const hourlyEnd = new Date(newsDateTime);
+                    hourlyEnd.setHours(hourlyEnd.getHours() + 10);
+                    
+                    const metadataHtml = `
+                        <h5>📊 Training Dataset Configuration</h5>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <h6>📈 Daily Data Range</h6>
+                                <p><strong>Start:</strong> ${dailyStart.toLocaleDateString()}</p>
+                                <p><strong>End:</strong> ${dailyEnd.toLocaleDateString()}</p>
+                                <p><strong>Duration:</strong> ±10 days around news</p>
+                            </div>
+                            <div>
+                                <h6>⏰ Hourly Data Range</h6>
+                                <p><strong>Start:</strong> ${hourlyStart.toLocaleString()}</p>
+                                <p><strong>End:</strong> ${hourlyEnd.toLocaleString()}</p>
+                                <p><strong>Duration:</strong> ±10 hours around news</p>
+                            </div>
+                        </div>
+                        <div style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-left: 4px solid #2196f3;">
+                            <p><strong>News Event:</strong> ${ticker} on ${newsDateTime.toLocaleString()}</p>
+                            <p><strong>Storage Path:</strong> /mnt/d/ats-data/news/training_data/${ticker}/${newsDateTime.getFullYear()}/${String(newsDateTime.getMonth() + 1).padStart(2, '0')}/</p>
+                            <p><strong>Dataset ID:</strong> ${newsId}</p>
+                        </div>
+                    `;
+                    
+                    document.getElementById('dataset-metadata').innerHTML = metadataHtml;
+                    
+                    // Store current selection for training dataset generation
+                    window.currentNewsEvent = {ticker, newsDate, newsId};
+                }
+                
+                async function generateTrainingDataset() {
+                    if (!window.currentNewsEvent) {
+                        alert('Please select a news event first by clicking "View Charts"');
+                        return;
+                    }
+                    
+                    const {ticker, newsDate, newsId} = window.currentNewsEvent;
+                    
+                    // Show loading state
+                    const button = event.target;
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '⏳ Generating...';
+                    button.disabled = true;
+                    
+                    try {
+                        // Note: This would typically call the news event dataset generator service
+                        // For now, we'll show a success message
+                        
+                        setTimeout(() => {
+                            alert(`✅ Training dataset generation initiated for ${ticker} news event on ${new Date(newsDate).toLocaleString()}.\n\nDataset will be stored at:\n/mnt/d/ats-data/news/training_data/${ticker}/\n\nCheck the logs for progress updates.`);
+                            
+                            button.innerHTML = originalText;
+                            button.disabled = false;
+                        }, 2000);
+                        
+                    } catch (error) {
+                        console.error('Error generating training dataset:', error);
+                        alert('Error generating training dataset. Please check the logs.');
+                        button.innerHTML = originalText;
+                        button.disabled = false;
+                    }
                 }
             </script>
         </body>

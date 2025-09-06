@@ -84,6 +84,20 @@ Based on historic analysis:
 - **Daily Signal Generation**: ~105-125 trading signals per day
 - **Processing Time**: <1 second per day (real-time capability)
 
+### **📊 News Analytics Dashboard Requirements**
+**News Visualization & Analysis Tab**:
+- **Filter Interface**: Stock symbol, date range selection
+- **News-Signal Table**: News articles with extracted signals and metadata
+- **OHLC Visualization**: Daily and hourly charts surrounding news events
+- **Event-Centered Analysis**: 10 days before/after news + 10 hours before/after news
+- **Training Dataset Integration**: News event datasets for ML model training
+
+**Training Dataset Generation**:
+- **News Event Datasets**: OHLC data surrounding news events (±10 days/hours)
+- **Storage Location**: `/mnt/d/ats-data/news/training_data/`
+- **Backfill Processing**: Separate job for generating training data from historic news
+- **Real-time Generation**: Training datasets for new news events as they occur
+
 ---
 
 ## 🎯 **Business Requirements**
@@ -205,6 +219,34 @@ Based on historic analysis:
   - Position sizing recommendations
   - Trading action generation (buy/sell/hold/hedge)
   - Integration with ATS execution engine
+
+### **FR-9: News Analytics Dashboard**
+- **Description**: Interactive dashboard for news signal analysis and visualization
+- **Acceptance Criteria**:
+  - News tab integrated into existing analytics service dashboard
+  - Stock symbol and date range filtering capabilities
+  - News-signal correlation table with metadata display
+  - OHLC charts with daily and hourly timeframes
+  - Event-centered visualization (±10 days/hours around news)
+  - Training dataset integration and download capabilities
+
+### **FR-10: OHLC Price Service Backend**
+- **Description**: High-performance price data service for news visualization
+- **Acceptance Criteria**:
+  - REST API endpoints for OHLC data retrieval
+  - Support for multiple timeframes (1h, 1d)
+  - Date range queries with efficient caching
+  - Integration with existing market data infrastructure
+  - Sub-100ms response time for chart data requests
+
+### **FR-11: News Event Training Dataset Generation**
+- **Description**: Generate ML training datasets centered around news events
+- **Acceptance Criteria**:
+  - Extract OHLC data ±10 days and ±10 hours around each news event
+  - Store datasets in structured format at `/mnt/d/ats-data/news/training_data/`
+  - Support both backfill processing and real-time generation
+  - Include news metadata, signals, and price movements
+  - Generate datasets compatible with existing ML training pipeline
 
 ---
 
