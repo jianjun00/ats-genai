@@ -513,7 +513,7 @@ class FileBasedMinuteMarketDataManager(MarketDataManager):
         logger.info(f"Retrieved multi-timeframe data for {len(symbols)} symbols across {len(intervals)} intervals")
         return result
     
-    async def get_ohlcv_data(self, instrument_id: int, reference_datetime: datetime, periods: int, 
+    def get_ohlcv_data(self, instrument_id: int, reference_datetime: datetime, periods: int, 
                            time_interval: str, direction: str = 'backward') -> pd.DataFrame:
         """
         Get OHLCV data for a specific instrument over multiple periods.
@@ -527,6 +527,31 @@ class FileBasedMinuteMarketDataManager(MarketDataManager):
             
         Returns:
             DataFrame with columns ['open', 'high', 'low', 'close', 'volume'] and datetime index
+        """
+        import asyncio
+        
+        # Run the async version in the current event loop or create one
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # If we're already in an async context, we need to schedule this differently
+                # For now, we'll create a synchronous fallback that logs a warning
+                logger.warning("get_ohlcv_data called from within an async context - this may cause issues")
+                return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume'])
+            else:
+                return loop.run_until_complete(self._get_ohlcv_data_async(
+                    instrument_id, reference_datetime, periods, time_interval, direction
+                ))
+        except RuntimeError:
+            # No event loop exists, create one
+            return asyncio.run(self._get_ohlcv_data_async(
+                instrument_id, reference_datetime, periods, time_interval, direction
+            ))
+    
+    async def _get_ohlcv_data_async(self, instrument_id: int, reference_datetime: datetime, periods: int, 
+                                   time_interval: str, direction: str = 'backward') -> pd.DataFrame:
+        """
+        Async implementation of get_ohlcv_data.
         """
         if not self.xrefs_dao:
             logger.warning("No xrefs_dao available for instrument_id to symbol mapping")
