@@ -65,6 +65,18 @@ The Training Dataset Management System provides centralized metadata management 
   - Quality-aware analysis recommendations
   - Comprehensive reporting
 
+#### **R7: Comprehensive Feature Metadata Tracking**
+- **Description**: Track detailed metadata for each feature including shape, type, description, and statistics
+- **Implementation**: Enhanced `TrainingDataMetadata` system in `src/ml/training_data/generators/training_data_metadata.py:120`
+- **Key Features**:
+  - Feature shape and data type tracking (int32, float64, etc.)
+  - Statistical metadata (min, max, mean, std, null_count)
+  - Semantic descriptions and visualization hints
+  - Technical indicator parameters and configurations
+  - Snapshot consistency across dataset versions
+- **Database Storage**: Structured JSON in `feature_metadata` column of `dev_training_dataset`
+- **API Access**: Dataset service provides metadata retrieval APIs
+
 ### **🏗️ ARCHITECTURE REQUIREMENTS**
 
 #### **AR1: Clean Separation of Concerns**
@@ -132,7 +144,8 @@ CREATE TABLE dev_training_dataset (
     date_range_start DATE NOT NULL,
     date_range_end DATE NOT NULL,
     creation_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    processing_config JSONB
+    processing_config JSONB,
+    feature_metadata JSONB -- Enhanced feature metadata with shape, type, description
 );
 ```
 
@@ -186,6 +199,22 @@ CREATE TABLE dev_training_dataset_files (
 - **File System Checks**: os.path.exists() for each file
 - **Return Format**: {valid: bool, accessible_files: int, total_files: int, missing_files: List[str]}
 - **Error Reporting**: Detailed missing file information
+
+##### **`get_feature_metadata(dataset_id) -> Dict[str, Any]`**
+- **Location**: `src/services/dataset_service.py:350` (NEW)
+- **Purpose**: Retrieve comprehensive feature metadata for dataset
+- **Database Query**: Extract feature_metadata JSON from dev_training_dataset
+- **Return Format**: Complete FeatureMetadata objects with shape, type, statistics
+- **Validation**: Verify metadata completeness and consistency
+- **Error Handling**: Return empty metadata structure on missing data
+
+##### **`update_feature_metadata(dataset_id, metadata) -> bool`**
+- **Location**: `src/services/dataset_service.py:380` (NEW)  
+- **Purpose**: Update feature metadata for existing dataset
+- **Validation**: Verify metadata schema and required fields
+- **Database Operation**: UPDATE feature_metadata column with JSON
+- **Versioning**: Track metadata updates with timestamps
+- **Error Handling**: Rollback on validation failures
 
 ### **🎯 CLIENT LAYER IMPLEMENTATION**
 
@@ -377,6 +406,146 @@ def _estimate_memory_usage(self, record_count: int, feature_count: int, dtype: n
   - Error handling and validation
   - Memory management and sampling
 
+### **📊 FEATURE METADATA IMPLEMENTATION**
+
+#### **Feature Metadata Schema**
+
+The feature metadata is stored as structured JSON in the `feature_metadata` column with the following schema:
+
+```json
+{
+  "features": [
+    {
+      "name": "feature_name",
+      "feature_type": "OHLC|PRICE_INDICATOR|VOLUME_INDICATOR|RETURN|CLASSIFICATION|BINARY|NORMALIZED|INT|FLOAT",
+      "data_type": "float64|int32|bool|object",
+      "shape": [sequence_length, feature_dimension],
+      "description": "Human-readable description",
+      "source_column": "original_column_name",
+      "parameters": {
+        "window_size": 14,
+        "lag_periods": 5,
+        "technical_indicator_params": {}
+      },
+      "statistics": {
+        "min_value": 0.0,
+        "max_value": 100.0,
+        "mean_value": 50.0,
+        "std_value": 15.0,
+        "null_count": 0,
+        "outlier_count": 5
+      },
+      "visualization_hints": {
+        "visualization_type": "LINE_CHART|CANDLESTICK|HISTOGRAM|BAR_CHART",
+        "color_scheme": "green_red",
+        "scale_type": "linear|log",
+        "is_primary_indicator": true
+      }
+    }
+  ],
+  "labels": [
+    {
+      "name": "label_name", 
+      "label_type": "return|classification|price",
+      "data_type": "float64|int32",
+      "shape": [prediction_horizon],
+      "description": "Target variable description",
+      "lead_periods": 1,
+      "statistics": {
+        "min_value": -0.1,
+        "max_value": 0.15,
+        "mean_value": 0.001,
+        "std_value": 0.02,
+        "class_distribution": {"up": 0.52, "down": 0.48}
+      }
+    }
+  ],
+  "metadata_version": "1.0",
+  "creation_timestamp": "2025-09-06T19:30:00Z",
+  "total_features": 45,
+  "total_labels": 3,
+  "data_quality_metrics": {
+    "feature_completeness": 0.98,
+    "label_completeness": 0.95,
+    "overall_quality_score": 0.96
+  }
+}
+```
+
+#### **Feature Metadata Generation Process**
+
+##### **TrainingDataMetadataManager Enhancement**
+- **Location**: `src/ml/training_data/generators/training_data_metadata.py:120`
+- **Enhanced Methods**:
+  - `create_enhanced_feature_metadata()` - Generate complete feature metadata with statistics
+  - `calculate_feature_statistics()` - Compute min, max, mean, std, null counts
+  - `infer_visualization_hints()` - Determine optimal visualization for each feature type
+  - `validate_metadata_consistency()` - Ensure metadata matches actual data structure
+
+##### **Integration with Training Data Generation**
+- **Location**: `src/ml/training_data/callbacks/training_data_callback.py:200`
+- **Process**:
+  1. Extract feature arrays during training data generation
+  2. Generate metadata for each feature using TrainingDataMetadataManager
+  3. Store metadata snapshot in database with dataset registration
+  4. Validate metadata consistency across timeframes
+  5. Update feature_metadata column with complete JSON structure
+
+#### **Dataset Service API Extensions**
+
+##### **Feature Metadata Retrieval**
+```python
+# Location: src/services/dataset_service.py:350
+def get_feature_metadata(self, dataset_id: int) -> Dict[str, Any]:
+    """
+    Retrieve comprehensive feature metadata for dataset.
+    
+    Returns:
+        {
+            'features': List[FeatureMetadata],
+            'labels': List[LabelMetadata], 
+            'metadata_version': str,
+            'data_quality_metrics': Dict[str, float]
+        }
+    """
+```
+
+##### **Feature Search and Filtering**
+```python  
+# Location: src/services/dataset_service.py:380
+def find_datasets_by_features(self, required_features: List[str], 
+                            feature_types: List[str] = None) -> List[DatasetMetadata]:
+    """
+    Find datasets containing specific features or feature types.
+    
+    Args:
+        required_features: List of required feature names
+        feature_types: List of FeatureType enums to filter by
+    
+    Returns:
+        List of datasets ranked by feature completeness
+    """
+```
+
+##### **Feature Comparison and Compatibility**
+```python
+# Location: src/services/dataset_service.py:420  
+def compare_feature_schemas(self, dataset_id_1: int, dataset_id_2: int) -> Dict[str, Any]:
+    """
+    Compare feature schemas between two datasets for compatibility.
+    
+    Returns:
+        {
+            'compatible': bool,
+            'common_features': List[str],
+            'missing_in_dataset_1': List[str], 
+            'missing_in_dataset_2': List[str],
+            'type_mismatches': List[Dict],
+            'shape_mismatches': List[Dict]
+        }
+    """
+```
+
 ### **🔍 CODE REFERENCES & CRITICAL SECTIONS**
 
 #### **Key Implementation Files**
@@ -484,6 +653,15 @@ config = {
 - [x] Memory management and batch size optimization
 - [x] Multiple file format support (.npy, .parquet)
 - [x] Comprehensive test suite (unit, integration, client tests)
+- [x] Basic feature metadata tracking system
+- [x] TrainingDataMetadata infrastructure with FeatureType enums
+
+### **🔄 IN PROGRESS / ENHANCED COMPONENTS**
+- [ ] **Enhanced Feature Metadata Tracking**: Comprehensive shape, type, description metadata
+- [ ] **Dataset Service API Extensions**: Feature metadata retrieval and comparison APIs
+- [ ] **Training Data Integration**: Automatic metadata generation during training data creation
+- [ ] **Metadata Validation**: Consistency checks and schema validation
+- [ ] **Feature Search Capabilities**: Find datasets by required features or types
 
 ### **🚀 PRODUCTION READINESS**
 The dataset service is **production ready** with:

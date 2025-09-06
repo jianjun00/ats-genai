@@ -26,6 +26,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from src.clients.dataset_client import DatasetClient
 from src.services.dataset_service import DatasetMetadata
+from src.services.model_tracker import ModelTracker
 
 # Import existing classes from the real data training script
 from scripts.train_unified_loss_REAL_DATA_ONLY import (
@@ -58,6 +59,9 @@ class DatasetServiceTrainingPipeline:
         
         # Initialize data validator
         self.data_validator = RealDataValidator()
+        
+        # Initialize model tracker
+        self.model_tracker = ModelTracker()
         
         logger.info("✅ Dataset Service Training Pipeline initialized")
     
@@ -158,6 +162,16 @@ class DatasetServiceTrainingPipeline:
             parameters=training_config
         )
         
+        # Start model tracking
+        model_name = f"unified_loss_transformer_{training_config['symbols'][0]}"
+        self.model_tracker.start_model_tracking(
+            model_name=model_name,
+            training_run_id=run_id,
+            dataset_config=training_config,
+            tags=['unified_loss', 'transformer', 'financial'] + training_config['symbols'],
+            description=f"Unified loss transformer for {training_config['symbols']} using dataset service"
+        )
+        
         try:
             # Create dataset loader
             dataset_loader = self.dataset_client.create_data_loader(training_config)
@@ -169,9 +183,21 @@ class DatasetServiceTrainingPipeline:
                 sequence_length=training_config['sequence_length']
             )
             
-            # Count model parameters
+            # Count model parameters and track architecture
             model_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
             logger.info(f"📊 Model has {model_parameters:,} trainable parameters")
+            
+            # Track model architecture
+            architecture_config = {
+                'input_dim': training_config['input_dim'],
+                'd_model': training_config['d_model'],
+                'sequence_length': training_config['sequence_length'],
+                'parameter_count': model_parameters,
+                'loss_function': 'SimplifiedFinancialLoss',
+                'optimizer': 'Adam',
+                'learning_rate': training_config['learning_rate']
+            }
+            self.model_tracker.track_architecture(model, architecture_config)
             
             # Create loss function and optimizer
             loss_fn = SimplifiedFinancialLoss(
@@ -236,6 +262,16 @@ class DatasetServiceTrainingPipeline:
                     
                     logger.info(f"Epoch {epoch + 1}/{num_epochs}, Avg Loss: {avg_loss:.6f} ({len(epoch_losses)} batches)")
                     
+                    # Track training step
+                    self.model_tracker.track_training_step(
+                        epoch=epoch + 1,
+                        loss=avg_loss,
+                        metrics={
+                            'batches_processed': batch_count,
+                            'batch_size': training_config['batch_size']
+                        }
+                    )
+                    
                     # Update training progress in runs table
                     self.job_tracker.update_training_progress(
                         epoch=epoch + 1,
@@ -255,6 +291,13 @@ class DatasetServiceTrainingPipeline:
             final_metrics['training_history'] = training_history
             final_metrics['model_parameters'] = model_parameters
             
+            # Register model in model registry
+            model_id = self.model_tracker.register_model(
+                model=model,
+                final_metrics=final_metrics,
+                additional_tags=['dataset_service_integration']
+            )
+            
             # Save model with comprehensive metadata
             model_path = f"unified_loss_transformer_dataset_service_run_{run_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pth"
             
@@ -269,6 +312,7 @@ class DatasetServiceTrainingPipeline:
                 },
                 'final_metrics': final_metrics,
                 'run_id': run_id,
+                'model_id': model_id,  # Add model registry ID
                 'data_source_validation': 'Dataset service managed - zero synthetic data',
                 'model_parameters': model_parameters
             }
@@ -285,6 +329,7 @@ class DatasetServiceTrainingPipeline:
             return {
                 'success': True,
                 'run_id': run_id,
+                'model_id': model_id,  # Add model registry ID
                 'model_path': model_path,
                 'final_metrics': final_metrics,
                 'dataset_info': {

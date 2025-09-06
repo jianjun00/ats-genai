@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from events.api import router as events_router
+from api.model_registry_endpoints import model_registry_bp
 import gin
 
 # Import environment-specific configuration system
@@ -102,6 +103,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 # Include the events router with a prefix
 app.include_router(events_router, prefix="/api/v1", tags=["events"])
+
+# Include model registry endpoints
+app.include_router(model_registry_bp, tags=["models"])
 
 @app.get("/")
 async def root():
