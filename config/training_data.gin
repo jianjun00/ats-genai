@@ -26,7 +26,8 @@ ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.timef
 ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.signal_names = [
     "etop", "ebot", "pldot", "envelope_top", "envelope_bot",
     "z1b", "z2b", "z5t", "z6t", "sma_20", "ema_12", "rsi_14",
-    "macd_line", "macd_signal", "bb_upper", "bb_lower", "bb_middle"
+    "macd_line", "macd_signal", "bb_upper", "bb_lower", "bb_middle",
+    "BXTrenderBasic_14", "BXTrenderDirectional_14", "BXTrenderVolumeWeighted_14"
 ]
 
 # Feature Types Configuration
