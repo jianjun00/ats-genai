@@ -5,6 +5,7 @@ Tests the specific issues that were fixed
 """
 
 import asyncio
+import pytest
 from playwright.async_api import async_playwright
 
 @pytest.mark.asyncio

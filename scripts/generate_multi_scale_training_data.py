@@ -1,3 +1,4 @@
+# 🚨 WARNING: THIS SCRIPT GENERATES SYNTHETIC DATA - FOR TESTING ONLY
 #!/usr/bin/env python3
 """
 Multi-Scale Training Data Generation Script

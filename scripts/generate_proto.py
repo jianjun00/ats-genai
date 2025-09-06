@@ -1,3 +1,4 @@
+# 🚨 WARNING: THIS SCRIPT GENERATES SYNTHETIC DATA - FOR TESTING ONLY
 #!/usr/bin/env python3
 """
 Generate Protocol Buffer Python bindings for training schema definitions.

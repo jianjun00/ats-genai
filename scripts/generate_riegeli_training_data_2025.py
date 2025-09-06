@@ -1,3 +1,4 @@
+# 🚨 WARNING: THIS SCRIPT GENERATES SYNTHETIC DATA - FOR TESTING ONLY
 #!/usr/bin/env python3
 """
 Generate Riegeli-only training data for AAPL and TSLA from 2025-01-01

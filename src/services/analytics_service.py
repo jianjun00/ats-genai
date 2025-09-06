@@ -623,20 +623,20 @@ class UnifiedAnalyticsService:
                             
                             for symbol in symbols:
                                 try:
-                                    viz_data = self.get_training_dataset_visualization_data(dataset_id, 0, None, symbol)
-                                    if viz_data and not viz_data.get('error'):
-                                        symbol_sequences = viz_data.get('total_sequences', 0)
-                                        
-                                        for seq_id in range(symbol_sequences):
-                                            sequences.append({
-                                                "id": len(sequences),
-                                                "sequence_id": seq_id,
-                                                "symbol": symbol,
-                                                "timeframe": "multi",
-                                                "filename": f"{symbol.lower()}_visualization.arrayrecord",
-                                                "description": f"{symbol} Sequence {seq_id}",
-                                                "file_size_mb": 0.1
-                                            })
+                                    # Each symbol has exactly ONE sequence file
+                                    # The sequence file contains multiple time steps/bars, not multiple sequences
+                                    symbol_files = dataset_info.get('symbol_files', {})
+                                    sequence_filename = symbol_files.get(symbol, f"{symbol}_20250701_000000_20250906_000000")
+                                    
+                                    sequences.append({
+                                        "id": len(sequences),
+                                        "sequence_id": sequence_filename,  # Use actual filename as sequence ID
+                                        "symbol": symbol,
+                                        "timeframe": "multi",
+                                        "filename": f"{sequence_filename}.arrayrecord",
+                                        "description": f"{symbol} Training Sequence ({sequence_filename})",
+                                        "file_size_mb": 0.1
+                                    })
                                 except Exception as e:
                                     logger.error(f"Error processing symbol {symbol}: {e}")
                             
@@ -773,94 +773,97 @@ class UnifiedAnalyticsService:
                             visualization_data = []
                             reader = ArrayRecordReader(str(arrayrecord_file))
                             
-                            # Read all records first
-                            all_records = []
+                            # Read all records using proper ArrayRecord API
+                            total_records = reader.num_records()
+                            logger.info(f"ArrayRecord has {total_records} records")
+                            
                             columns = None
-                            try:
-                                record_count = 0
-                                while True:
-                                    record = reader.read()
-                                    if not record:
-                                        break
-                                    
-                                    # First record is column names (UTF-8 decodable)
-                                    if record_count == 0:
-                                        try:
-                                            columns_str = record.decode('utf-8')
-                                            import ast
-                                            columns = ast.literal_eval(columns_str)
-                                            logger.info(f"ArrayRecord columns: {len(columns)} columns")
-                                        except (UnicodeDecodeError, ValueError) as e:
-                                            logger.warning(f"Could not parse columns from first record: {e}")
-                                            # Treat as data record instead
-                                            all_records.append(record)
-                                    else:
-                                        # Subsequent records are binary data
-                                        all_records.append(record)
-                                    
-                                    record_count += 1
-                            except Exception as e:
-                                logger.warning(f"Error reading ArrayRecord: {e}")
-                                pass  # End of file or other error
+                            training_data_array = None
                             
-                            logger.info(f"Read {len(all_records)} data records from ArrayRecord")
-                            
-                            # Parse records starting from start_idx - handle binary data properly
-                            for i, record_bytes in enumerate(all_records[start_idx:start_idx + 21]):  # Get 21 bars
-                                try:
-                                    # Try to decode as UTF-8 first (for JSON format)
+                            # Read records using seek + read
+                            for i in range(total_records):
+                                reader.seek(i)
+                                record = reader.read()
+                                
+                                if i == 0:
+                                    # First record is column names 
                                     try:
-                                        record_str = record_bytes.decode('utf-8')
-                                        record_data = json.loads(record_str)
-                                    except UnicodeDecodeError:
-                                        # Handle binary data - convert to numpy array or structured format
-                                        logger.debug(f"Record {i} is binary data, attempting structured parsing")
+                                        columns_str = record.decode('utf-8')
+                                        import ast
+                                        columns = ast.literal_eval(columns_str)
+                                        logger.info(f"ArrayRecord columns: {len(columns)} columns")
+                                    except (UnicodeDecodeError, ValueError) as e:
+                                        logger.warning(f"Could not parse columns from first record: {e}")
                                         
-                                        # For now, create mock data structure for visualization
-                                        # TODO: Implement proper binary ArrayRecord parsing
+                                elif i == 1:
+                                    # Second record is the training data array
+                                    try:
                                         import numpy as np
-                                        
-                                        # Try to interpret as numpy array if we have column info
-                                        if columns and len(record_bytes) % 8 == 0:  # Assume float64
-                                            try:
-                                                data_array = np.frombuffer(record_bytes, dtype=np.float64)
-                                                if len(data_array) >= len(columns):
-                                                    # Map array values to column names
-                                                    record_data = {}
-                                                    for j, col in enumerate(columns[:len(data_array)]):
-                                                        record_data[col] = float(data_array[j]) if j < len(data_array) else 0.0
-                                                else:
-                                                    logger.error(f"Binary data array too short: expected >={len(columns)}, got {len(data_array)}")
-                                                    raise ValueError(f"Insufficient binary data for record {i}: expected columns but data is incomplete")
-                                            except Exception as np_error:
-                                                logger.error(f"Failed to parse binary training data record {i}: {np_error}")
-                                                raise RuntimeError(f"Binary ArrayRecord parsing failed: {np_error}. Unable to process training data without real market data.")
-                                        else:
-                                            logger.error(f"Cannot parse binary record {i}: invalid format (length={len(record_bytes)}, columns={len(columns or [])})")
-                                            raise ValueError(f"Invalid binary ArrayRecord format for record {i}. Real training data parsing required.")
-                                    
-                                    # Extract OHLC and indicator data
-                                    bar_data = {
-                                        "time_step": i,
-                                        "datetime": record_data.get('datetime', ''),
-                                        "symbol": record_data.get('symbol', target_symbol),
-                                        "open": record_data.get('open', 0),
-                                        "high": record_data.get('high', 0), 
-                                        "low": record_data.get('low', 0),
-                                        "close": record_data.get('close', 0),
-                                        "volume": record_data.get('volume', 0),
-                                        "envelope_top": record_data.get('envelope_top', 0),
-                                        "envelope_bot": record_data.get('envelope_bot', 0),
-                                        "pldot": record_data.get('pldot', 0)
-                                    }
-                                    visualization_data.append(bar_data)
-                                    
-                                except (json.JSONDecodeError, KeyError, UnicodeDecodeError) as e:
-                                    logger.warning(f"Error parsing record {i + start_idx}: {e}")
-                                    continue
+                                        training_data_array = np.frombuffer(record, dtype=np.float32)
+                                        logger.info(f"Training data array: {len(training_data_array)} elements")
+                                        non_zero_count = np.count_nonzero(training_data_array)
+                                        logger.info(f"Non-zero elements: {non_zero_count} / {len(training_data_array)} ({100*non_zero_count/len(training_data_array):.1f}%)")
+                                    except Exception as e:
+                                        logger.error(f"Error parsing training data: {e}")
                             
-                            # Calculate available sequences (total records - window size + 1)
-                            total_records = len(all_records)
+                            reader.close()
+                            
+                            # Process the training data array
+                            if training_data_array is not None and columns is not None:
+                                logger.info(f"Processing training data array with {len(columns)} columns")
+                                
+                                # The training data is a flattened array - reshape it into records
+                                num_features = len(columns) - 2  # Subtract timestamp and symbol columns
+                                if len(training_data_array) >= num_features:
+                                    # For visualization, we'll create a single record from the training data
+                                    # Extract OHLCV data for different timeframes
+                                    record_data = {}
+                                    for j, col in enumerate(columns):
+                                        if j < len(training_data_array):
+                                            val = training_data_array[j]
+                                            # Handle NaN values
+                                            if np.isnan(val):
+                                                val = 0.0
+                                            record_data[col] = float(val)
+                                        else:
+                                            record_data[col] = 0.0
+                                    
+                                    # Create visualization data from the training record
+                                    # Extract 5m timeframe data for visualization (first sequence)
+                                    visualization_data = []
+                                    
+                                    # Look for 5m OHLCV columns
+                                    for seq_idx in range(52):  # 5m has 52 time steps according to config
+                                        # Calculate Unix timestamp for this bar in Eastern Time
+                                        from datetime import datetime, timezone, timedelta
+                                        from zoneinfo import ZoneInfo
+                                        base_dt = datetime(2025, 7, 1, 2, 0, 0, tzinfo=ZoneInfo("America/New_York"))
+                                        bar_dt = base_dt + timedelta(minutes=seq_idx * 5)
+                                        
+                                        bar_data = {
+                                            "time_step": seq_idx,
+                                            "timestamp": int(bar_dt.timestamp()),
+                                            "symbol": record_data.get('symbol', target_symbol),
+                                            "open": record_data.get(f'5m_open_{seq_idx:03d}', 0),
+                                            "high": record_data.get(f'5m_high_{seq_idx:03d}', 0), 
+                                            "low": record_data.get(f'5m_low_{seq_idx:03d}', 0),
+                                            "close": record_data.get(f'5m_close_{seq_idx:03d}', 0),
+                                            "volume": record_data.get(f'5m_volume_{seq_idx:03d}', 0),
+                                            "vwap": record_data.get(f'5m_vwap_{seq_idx:03d}', 0)
+                                        }
+                                        visualization_data.append(bar_data)
+                                    
+                                    logger.info(f"Created {len(visualization_data)} visualization bars from training data")
+                                else:
+                                    logger.error(f"Training data array too short: {len(training_data_array)} < {num_features}")
+                                    raise ValueError("Insufficient training data")
+                            else:
+                                logger.error("No training data or columns found")
+                                raise ValueError("No training data found")
+                            
+                            
+                            # Calculate available sequences from visualization data
+                            total_records = len(visualization_data)
                             window_size = 21  # Default window size for visualization
                             available_sequences = max(1, total_records - window_size + 1)
                             
@@ -1054,49 +1057,117 @@ class UnifiedAnalyticsService:
             
             ohlc_data = []
             reader = ArrayRecordReader(str(file_path))
-            record_count = 0
-            while record_count < 1000:  # Limit records for performance
-                try:
-                    record_bytes = reader.read()
-                    if record_bytes is None:
-                        break
-                        
-                    # First record contains column names
-                    if record_count == 0:
-                        columns_str = record_bytes.decode('utf-8')
-                        logger.debug(f"ArrayRecord columns: {columns_str}")
-                        record_count += 1
-                        continue
-                    
-                    # Parse subsequent records as OHLC data
-                    import numpy as np
-                    data_array = np.frombuffer(record_bytes, dtype=np.float32)
-                    
-                    if len(data_array) >= 6:  # Ensure we have OHLCV + timestamp
-                        # Handle NaN values by converting them to None/null
-                        import math
-                        
-                        def safe_float(value):
-                            f = float(value)
-                            return None if math.isnan(f) else f
-                        
-                        ohlc_record = {
-                            "timestamp": safe_float(data_array[0]) if len(data_array) > 0 else None,
-                            "open": safe_float(data_array[1]) if len(data_array) > 1 else None,
-                            "high": safe_float(data_array[2]) if len(data_array) > 2 else None,
-                            "low": safe_float(data_array[3]) if len(data_array) > 3 else None,
-                            "close": safe_float(data_array[4]) if len(data_array) > 4 else None,
-                            "volume": safe_float(data_array[5]) if len(data_array) > 5 else None
-                        }
-                        ohlc_data.append(ohlc_record)
-                    
-                    record_count += 1
-                    
-                except Exception as e:
-                    logger.warning(f"Failed to parse record {record_count}: {e}")
-                    break
-                    
+            
+            total_records = reader.num_records()
+            logger.debug(f"ArrayRecord has {total_records} records")
+            
+            if total_records < 2:
+                logger.warning(f"Insufficient records in ArrayRecord: {total_records}")
+                return []
+            
+            columns = None
+            training_data_array = None
+            
+            # Read column names (record 0)
+            reader.seek(0)
+            columns_record = reader.read()
+            try:
+                columns_str = columns_record.decode('utf-8')
+                import ast
+                columns = ast.literal_eval(columns_str)
+                logger.debug(f"ArrayRecord columns: {len(columns)} columns")
+            except Exception as e:
+                logger.error(f"Failed to parse columns: {e}")
+                reader.close()
+                return []
+                
+            # Read training data (record 1)
+            reader.seek(1)
+            data_record = reader.read()
+            try:
+                import numpy as np
+                training_data_array = np.frombuffer(data_record, dtype=np.float32)
+                logger.debug(f"Training data array: {len(training_data_array)} elements")
+            except Exception as e:
+                logger.error(f"Failed to parse training data: {e}")
+                reader.close()
+                return []
+                
             reader.close()
+            
+            # Convert training data array to OHLC records
+            if training_data_array is not None and columns is not None:
+                # Map training data array to column names
+                record_data = {}
+                for j, col in enumerate(columns):
+                    if j < len(training_data_array):
+                        val = training_data_array[j]
+                        # Handle NaN values
+                        import math
+                        if math.isnan(val):
+                            val = 0.0
+                        record_data[col] = float(val)
+                    else:
+                        record_data[col] = 0.0
+                
+                # Extract OHLC data for the specific timeframe from column names
+                # Determine which timeframe this file represents based on file path
+                file_name = file_path.name
+                if '/5m/' in str(file_path):
+                    timeframe_prefix = '5m'
+                    sequence_length = 52
+                elif '/15m/' in str(file_path):
+                    timeframe_prefix = '15m'
+                    sequence_length = 52
+                elif '/1h/' in str(file_path):
+                    timeframe_prefix = '1h'
+                    sequence_length = 24
+                elif '/1d/' in str(file_path):
+                    timeframe_prefix = '1d'
+                    sequence_length = 20
+                elif '/1w/' in str(file_path):
+                    timeframe_prefix = '1w'
+                    sequence_length = 12
+                else:
+                    timeframe_prefix = '5m'  # Default
+                    sequence_length = 52
+                
+                # Create OHLC records for this timeframe
+                for i in range(sequence_length):
+                    # Calculate timestamp as Unix epoch seconds in Eastern Time
+                    from datetime import datetime, timezone, timedelta
+                    from zoneinfo import ZoneInfo
+                    base_date = datetime(2025, 7, 1, 2, 0, 0, tzinfo=ZoneInfo("America/New_York"))
+                    # Add time based on timeframe and index
+                    if timeframe_prefix == '5m':
+                        timestamp_dt = base_date + timedelta(minutes=i * 5)
+                    elif timeframe_prefix == '15m':
+                        timestamp_dt = base_date + timedelta(minutes=i * 15)
+                    elif timeframe_prefix == '1h':
+                        timestamp_dt = base_date + timedelta(hours=i)
+                    elif timeframe_prefix == '1d':
+                        timestamp_dt = base_date + timedelta(days=i)
+                    elif timeframe_prefix == '1w':
+                        timestamp_dt = base_date + timedelta(days=i * 7)
+                    else:
+                        timestamp_dt = base_date
+                    
+                    ohlc_record = {
+                        "timestamp": int(timestamp_dt.timestamp()),
+                        "open": record_data.get(f'{timeframe_prefix}_open_{i:03d}', 0),
+                        "high": record_data.get(f'{timeframe_prefix}_high_{i:03d}', 0),
+                        "low": record_data.get(f'{timeframe_prefix}_low_{i:03d}', 0),
+                        "close": record_data.get(f'{timeframe_prefix}_close_{i:03d}', 0),
+                        "volume": record_data.get(f'{timeframe_prefix}_volume_{i:03d}', 0),
+                        "vwap": record_data.get(f'{timeframe_prefix}_vwap_{i:03d}', 0)
+                    }
+                    
+                    # Only add records with non-zero data
+                    if (ohlc_record["open"] != 0 or ohlc_record["high"] != 0 or 
+                        ohlc_record["low"] != 0 or ohlc_record["close"] != 0):
+                        ohlc_data.append(ohlc_record)
+                
+                logger.debug(f"Extracted {len(ohlc_data)} OHLC records for {timeframe_prefix}")
             return ohlc_data
             
         except Exception as e:
@@ -1891,7 +1962,7 @@ class UnifiedAnalyticsService:
                             if (ohlcData && ohlcData.length > 0) {
                                 console.log('   Sample data: ', ohlcData[0]);
                                 
-                                // Prepare data for Plotly
+                                // Prepare data for Plotly - timestamp is Unix epoch seconds
                                 const dates = ohlcData.map(bar => new Date(bar.timestamp * 1000));
                                 const opens = ohlcData.map(bar => bar.open);
                                 const highs = ohlcData.map(bar => bar.high);

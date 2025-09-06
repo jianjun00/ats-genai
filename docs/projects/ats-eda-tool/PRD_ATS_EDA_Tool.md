@@ -41,12 +41,20 @@ The ATS EDA Tool now implements a **unified metadata system** that automatically
 - **Background Computation**: Statistics computed automatically in background without user intervention
 
 #### **🎯 Training Datasets - Sequence-Based Architecture** *(Updated September 6, 2025)*
+
+**🚨 CRITICAL: Sequence vs. Bar Distinction**
+- **1 ArrayRecord File = 1 Sequence** (not multiple sequences)
+- **1 Sequence = Multiple Time Steps/Bars** (e.g., 52 bars for 5m timeframe)
+- **Sequence Selection** = Choosing which ArrayRecord file to visualize
+- **Bar Selection** = Choosing which row/time step within that sequence to center the 21-bar window
+
+**Architecture Details:**
 - **Sequence-Based Organization**: Training data organized by sequences rather than timeframes for better ML workflow integration
 - **Directory Structure**: `/mnt/d/ats-data/training_data/{run_id}/{SYMBOL_DATERANGE}/timeframes/` 
-  - Example: `/mnt/d/ats-data/training_data/76/AAPL_20250701_000000_20250906_000000/5m/AAPL_20250701_000000_20250906_000000.arrayrecord`
-- **🆕 Sequence Selection Interface**: Dropdown menu shows sequences like "AAPL_20250701_000000_20250906_000000" as selectable items
+  - Example: `/mnt/d/ats-data/training_data/89/AAPL_20250701_000000_20250906_000000/5m/AAPL_20250701_000000_20250906_000000.arrayrecord`
+- **🆕 Sequence Selection Interface**: Dropdown menu shows sequences like "AAPL_20250701_000000_20250906_000000" as selectable items (each represents one ArrayRecord file)
 - **🆕 Multi-Timeframe Visualization**: When sequence selected, automatically loads all timeframes (5m, 15m, 1h, 1d, 1w) for comprehensive OHLC visualization
-- **🆕 21-Bar Context Window**: Interactive row selection shows 10 bars before + 1 current + 10 bars after target row for contextual analysis
+- **🆕 21-Bar Context Window**: Interactive row selection shows 10 bars before + 1 current + 10 bars after target row for contextual analysis within the selected sequence
 - **🆕 Interactive Row Selection**: Numeric input field allows precise row index selection within sequence data for targeted visualization
 - **Table View Integration**: 1h timeframe specifically used for tabular data display with feature matrices
 - **Specialized Metadata**: Training-specific metadata including model inputs, backtesting results, portfolio optimization data
@@ -337,9 +345,12 @@ python scripts/run_metadata_cli.py export --run-id 42 --output audit.json
   - Time-series visualization for temporal training datasets
   - Anomaly highlighting with detailed anomaly descriptions
   - **🆕 Interactive OHLC Visualization with Row Selection** *(Fully Implemented - September 6, 2025)*:
-    - **Sequence Selection Interface**: Dropdown menus for dataset and sequence selection with dynamic population
-    - **21-Bar Context Window**: Mathematical selection showing 10 bars before + 1 current + 10 bars after selected row
-    - **Row Index Input Control**: Numeric input field (0-1000+) for precise row targeting within sequences
+    - **🚨 Sequence Selection Interface**: Dropdown menus for dataset and **ArrayRecord file** selection:
+      - **Each Sequence = One ArrayRecord File** (e.g., `AAPL_20250701_000000_20250906_000000.arrayrecord`)
+      - **NOT multiple sequences per symbol** - exactly 1 sequence file per symbol per dataset
+      - **Dynamic Population**: Shows actual filenames like `AAPL_20250701_000000_20250906_000000`, `TSLA_20250701_000000_20250906_000000`
+    - **21-Bar Context Window**: Mathematical selection showing 10 bars before + 1 current + 10 bars after selected row **within the chosen sequence file**
+    - **Row Index Input Control**: Numeric input field (0-sequence_length) for precise **bar targeting within the selected sequence file**
     - **Multi-Timeframe Charts**: Simultaneous display of 5m, 15m, 1h, 1d, 1w Plotly candlestick charts
     - **Dynamic Data Visualization**: OHLC candlestick charts with volume integration for all timeframes
     - **Technical Indicators Support**: envelope top/bottom, pldot, z1b, z2b, z5t, z6t indicators ready for overlay
@@ -618,6 +629,44 @@ curl -s "http://localhost:3000/api/v1/training-datasets/39/sequences" | python3 
 - **Technique**: Verify file creation, API responses, and EDA interface functionality
 - **Application**: Confirmed ArrayRecord files are discoverable by sequences endpoint
 
+**🆕 6. Timestamp Format Consistency (September 6, 2025)**
+- **Lesson**: Frontend "Invalid Date" errors occur when API returns string timestamps instead of numeric
+- **Root Cause**: JavaScript Date parser fails with partial ISO strings like "2025-07-01T09:00:00" (missing timezone)
+- **Solution**: API must return Unix epoch seconds (integers) for reliable browser parsing
+- **Implementation**: `"timestamp": int(datetime.timestamp())` → frontend uses `new Date(timestamp * 1000)`
+- **Critical**: Never return string timestamps from API - always use numeric Unix seconds
+
+**🆕 7. Variable Scope in Multi-Function Contexts (September 6, 2025)**
+- **Lesson**: `name 'timeframe' is not defined` errors occur when variables from calling context aren't available
+- **Root Cause**: Helper functions reference variables that exist in parent scope but not in function scope
+- **Solution**: Pass required parameters explicitly or use consistent variable naming
+- **Implementation**: Changed `timeframe` to `timeframe_prefix` in `_read_arrayrecord_ohlc` function
+- **Critical**: Always define variables within function scope, don't rely on parent context
+
+**🆕 8. Date Calculation Edge Cases (September 6, 2025)**
+- **Lesson**: `datetime.replace(minute=base.minute + offset)` fails when offset > 59 minutes
+- **Root Cause**: `replace()` method validates ranges, minute parameter must be 0-59
+- **Solution**: Use `timedelta` for date arithmetic instead of direct field replacement
+- **Implementation**: `base_date + timedelta(minutes=i * 5)` instead of `replace(minute=...)`
+- **Critical**: Use `timedelta` for all date/time calculations to avoid range validation errors
+
+**🆕 9. Multi-Timeframe API Data Flow (September 6, 2025)**
+- **Lesson**: Multi-timeframe visualization requires coordinated data processing across 5 timeframes
+- **Architecture**: Single API call returns all timeframes (5m, 15m, 1h, 1d, 1w) with consistent structure
+- **Critical Path**: 
+  ```
+  Frontend Request → Multi-timeframe endpoint → ArrayRecord reader → 
+  Timestamp calculation → 21-bar selection → All timeframes returned
+  ```
+- **Error Propagation**: Failure in any timeframe affects entire visualization
+- **Solution**: Robust error handling per timeframe with graceful degradation
+
+**🆕 10. Service Restart Required for Code Changes (September 6, 2025)**
+- **Lesson**: Analytics service caches code and doesn't pick up changes without restart
+- **Technique**: Always restart service after code changes: `run_dev.py stop/start --service analytics`
+- **Testing**: Verify fixes with direct API calls before browser testing
+- **Critical**: Code changes in analytics service require full container restart to take effect
+
 #### **✅ Implementation Verification**
 - **ArrayRecord Files Created**: ✅ ArrayRecord files created in timeframe directories: `{run_id}/{5m,15m,1h,1d,1w}/{SYMBOL}_{start}_{end}.arrayrecord`
 - **API Discovery Working**: ✅ Sequences endpoint returns ArrayRecord file paths
@@ -855,11 +904,20 @@ The ATS EDA Tool now implements a comprehensive sequence selection and visualiza
 
 #### **🎲 Sequence Selection Architecture**
 
+**🚨 CRITICAL ARCHITECTURAL UNDERSTANDING:**
+- **Sequence = ArrayRecord File** (e.g., `AAPL_20250701_000000_20250906_000000.arrayrecord`)
+- **Each Sequence Contains Multiple Bars/Time Steps** (e.g., 52 bars for 5m timeframe)
+- **Sequence Selection = Choosing Which File to Open**
+- **Row Index = Choosing Which Bar Within That File to Center the 21-bar window**
+
 **Core Components:**
-- **Dataset Selection Dropdown**: Shows training datasets with comprehensive metadata (`Dataset 63: training_AAPL_20250801_20250801_20250906_033339`)
-- **Sequence Selection Dropdown**: Dynamically populated with sequences from selected dataset (`AAPL_20250801_000000_20250801_000000 (5m, 15m, 1h, 1d, 1w, 0.62MB)`)
-- **Row Index Input Field**: Numeric input allowing precise selection within sequence data (default: 50, range: 0-1000+)
-- **Visualize Button**: Triggers multi-timeframe chart generation and table population
+- **Dataset Selection Dropdown**: Shows training datasets with comprehensive metadata (`Dataset 65: AAPL_TSLA_20250701_20250906_Run89`)
+- **Sequence Selection Dropdown**: Dynamically populated with **ArrayRecord files** from selected dataset:
+  - `AAPL_20250701_000000_20250906_000000` (represents one sequence file)
+  - `TSLA_20250701_000000_20250906_000000` (represents another sequence file)
+  - **NOT multiple sequences per symbol** - each symbol has exactly one sequence file
+- **Row Index Input Field**: Numeric input selecting which **bar within the sequence** to center (default: 50, range: 0-sequence_length)
+- **Visualize Button**: Triggers multi-timeframe chart generation showing 21-bar window around selected row
 
 **API Integration Pattern:**
 ```javascript
@@ -1641,6 +1699,296 @@ GET /api/v1/training-datasets/{dataset_id}/visualization-data?start_idx=50&seque
 - **Multi-Symbol Support**: Single dataset record tracks multiple symbols
 - **File Path Organization**: Structured file paths under run-based directories
 - **Sequence File Discovery**: API support for dynamic sequence file enumeration
+
+---
+
+## 🔌 API Documentation
+
+### **Core Analytics Service Endpoints**
+
+The ATS EDA Tool exposes a comprehensive REST API for accessing training datasets, sequences, and visualization data. All endpoints are accessible through the analytics service running on port 3000.
+
+#### **1. Health Check**
+- **Endpoint**: `GET /health`
+- **Location**: `http://localhost:3000/health`
+- **Input**: None
+- **Output**:
+```json
+{
+  "status": "healthy",
+  "service": "ats-unified-analytics", 
+  "timestamp": "2025-09-06T12:34:56.789Z",
+  "features": {
+    "type_system": true,
+    "ray_computing": true,
+    "universe_analytics": true,
+    "training_datasets": true
+  }
+}
+```
+
+#### **2. Training Datasets List**
+- **Endpoint**: `GET /api/v1/training-datasets`
+- **Location**: `http://localhost:3000/api/v1/training-datasets`
+- **Input**: None
+- **Output**:
+```json
+{
+  "datasets": [
+    {
+      "id": 65,
+      "dataset_name": "AAPL_TSLA_20250701_20250906_Run89",
+      "total_sequences": 2,
+      "sequence_length": 0,
+      "feature_count": 0,
+      "label_count": 0,
+      "data_quality_score": 0.95,
+      "feature_completeness": 0.98,
+      "label_completeness": 0.97,
+      "file_size_mb": 50.0,
+      "technical_indicators": "",
+      "symbols": ["AAPL", "TSLA"],
+      "date_range_start": "2025-07-01",
+      "date_range_end": "2025-09-06",
+      "created_at": "2025-09-06T06:12:14.440657+00:00"
+    }
+  ],
+  "total_count": 15
+}
+```
+
+#### **3. Dataset Sequences**
+- **Endpoint**: `GET /api/v1/training-datasets/{dataset_id}/sequences`
+- **Location**: `http://localhost:3000/api/v1/training-datasets/65/sequences`
+- **Input**: 
+  - `dataset_id` (path parameter): Training dataset ID
+- **Output**:
+```json
+{
+  "datasets": [
+    {
+      "id": 65,
+      "dataset_name": "AAPL_TSLA_20250701_20250906_Run89"
+    }
+  ],
+  "sequences": [
+    {
+      "id": 0,
+      "sequence_id": "AAPL_20250701_000000_20250906_000000",
+      "symbol": "AAPL",
+      "timeframe": "multi",
+      "filename": "AAPL_20250701_000000_20250906_000000.arrayrecord",
+      "description": "AAPL Training Sequence (AAPL_20250701_000000_20250906_000000)",
+      "file_size_mb": 0.1
+    }
+  ],
+  "total_count": 2
+}
+```
+
+#### **4. Sequence Visualization Data**
+- **Endpoint**: `GET /api/v1/training-datasets/{dataset_id}/visualization-data`
+- **Location**: `http://localhost:3000/api/v1/training-datasets/65/visualization-data?sequence_id=AAPL_20250701_000000_20250906_000000`
+- **Input**: 
+  - `dataset_id` (path parameter): Training dataset ID
+  - `sequence_id` (query parameter): Sequence identifier
+  - `start_idx` (query parameter, optional): Starting row index (default: 0)
+- **Output**:
+```json
+{
+  "dataset_id": 65,
+  "sequence_id": "AAPL_20250701_000000_20250906_000000",
+  "start_idx": 0,
+  "symbol": "AAPL",
+  "selected_bar": 10,
+  "sequence_length": 52,
+  "total_sequences": 32,
+  "total_records": 52,
+  "data": [
+    {
+      "time_step": 0,
+      "timestamp": 1719914400,
+      "symbol": 0.0,
+      "open": 232.97000122070312,
+      "high": 233.02000427246094,
+      "low": 232.85000610351562,
+      "close": 232.97500610351562,
+      "volume": 220303.0,
+      "vwap": 0.0
+    }
+  ],
+  "source": "training_data"
+}
+```
+
+#### **5. Multi-Timeframe Chart Data**
+- **Endpoint**: `GET /api/v1/training-datasets/{dataset_id}/sequences/{sequence_id}/multi-timeframe`
+- **Location**: `http://localhost:3000/api/v1/training-datasets/65/sequences/AAPL_20250701_000000_20250906_000000/multi-timeframe?row_index=25`
+- **Input**: 
+  - `dataset_id` (path parameter): Training dataset ID
+  - `sequence_id` (path parameter): Sequence identifier
+  - `row_index` (query parameter, optional): Target row for 21-bar window (default: 25)
+- **Output**:
+```json
+{
+  "dataset_id": 65,
+  "sequence_id": "AAPL_20250701_000000_20250906_000000",
+  "row_index": 25,
+  "context_window": {
+    "start": 15,
+    "end": 35,
+    "target": 25
+  },
+  "ohlc_data": {
+    "5m": [
+      {
+        "timestamp": 1719914400,
+        "open": 232.97,
+        "high": 233.02,
+        "low": 232.85,
+        "close": 232.98,
+        "volume": 220303,
+        "vwap": 0.0
+      }
+    ],
+    "15m": [...],
+    "1h": [...],
+    "1d": [...],
+    "1w": [...]
+  }
+}
+```
+
+#### **6. Main EDA Interface**
+- **Endpoint**: `GET /eda`
+- **Location**: `http://localhost:3000/eda`
+- **Input**: None
+- **Output**: HTML page with interactive EDA interface
+
+#### **7. Ray Distributed Analytics** 
+- **Endpoint**: `GET /api/ray-analytics/{dataset_id}`
+- **Location**: `http://localhost:3000/api/ray-analytics/65`
+- **Input**: 
+  - `dataset_id` (path parameter): Dataset ID for distributed processing
+- **Output**: Ray-powered analytics results
+
+#### **8. Universe Analytics**
+- **Endpoint**: `GET /api/universe-analytics`
+- **Location**: `http://localhost:3000/api/universe-analytics`
+- **Input**: Query parameters for universe analysis
+- **Output**: Cross-instrument analysis results
+
+#### **9. Intelligent Filters**
+- **Endpoint**: `GET /api/intelligent-filters/{table}`
+- **Location**: `http://localhost:3000/api/intelligent-filters/dev_daily_prices`
+- **Input**: 
+  - `table` (path parameter): Database table name
+- **Output**: Type-aware filter suggestions
+
+### **Key API Features**
+
+#### **🔢 Timestamp Format**
+- **All timestamps returned as Unix epoch seconds (integer)**
+- **Frontend converts to JavaScript Date objects**: `new Date(timestamp * 1000)`
+- **Eliminates "Invalid Date" parsing errors in browsers**
+
+#### **📊 Multi-Timeframe Support**
+- **Simultaneous data for all timeframes**: 5m, 15m, 1h, 1d, 1w
+- **Consistent data structure across timeframes**
+- **Optimized for Plotly.js chart rendering**
+
+#### **🎯 21-Bar Context Windows**
+- **Mathematical precision**: 10 bars before + 1 current + 10 bars after
+- **Configurable center point via row_index parameter**
+- **Visual highlighting of target bar in charts**
+
+#### **🗄️ ArrayRecord Integration**
+- **Native support for training data files**
+- **Automatic file discovery via run_id linkage**
+- **Robust error handling for missing files**
+
+### **🔄 Critical Data Flow Architecture**
+
+#### **Complete Multi-Timeframe Visualization Pipeline**
+
+```
+1. User Interface
+   ↓ (Dataset 65, Sequence AAPL_20250701_000000_20250906_000000, Row 50)
+   
+2. Frontend JavaScript
+   ↓ GET /api/v1/training-datasets/65/sequences/AAPL_20250701_000000_20250906_000000/multi-timeframe?row_index=50
+   
+3. Analytics Service Router
+   ↓ _serve_training_dataset_multi_timeframe()
+   
+4. Multi-Timeframe Handler  
+   ↓ get_training_dataset_sequence_multi_timeframe(dataset_id=65, sequence_id="AAPL_20250701_000000_20250906_000000", row_index=50)
+   
+5. Database Lookup
+   ↓ SELECT run_id FROM dev_training_datasets WHERE id = 65
+   ↓ Returns: run_id = 89
+   
+6. File System Search
+   ↓ /data/training_data/89/AAPL_20250701_000000_20250906_000000/
+   ↓ Check: 5m/, 15m/, 1h/, 1d/, 1w/ directories
+   
+7. ArrayRecord Reading (Per Timeframe)
+   ↓ _read_arrayrecord_ohlc(file_path) for each timeframe
+   ↓ • Parse column names (record 0)
+   ↓ • Parse training data array (record 1) 
+   ↓ • Map data to OHLCV columns using timeframe_prefix
+   ↓ • Calculate Unix timestamps: int(datetime.timestamp())
+   
+8. 21-Bar Context Window Selection
+   ↓ For each timeframe: Select bars [row_index-10 : row_index+11]
+   ↓ Target row 50 → Select bars 40-60 (21 bars total)
+   
+9. Response Assembly
+   ↓ {
+   ↓   "success": true,
+   ↓   "sequence_id": "AAPL_20250701_000000_20250906_000000", 
+   ↓   "ohlc_data": {
+   ↓     "5m": [{"timestamp": 1751360400, "open": 232.97, ...}],
+   ↓     "15m": [...],
+   ↓     "1h": [...],
+   ↓     "1d": [...],
+   ↓     "1w": [...]
+   ↓   },
+   ↓   "table_data": [...] // 1h timeframe for table view
+   ↓ }
+   
+10. Frontend Chart Rendering
+    ↓ For each timeframe in ["5m", "15m", "1h", "1d", "1w"]:
+    ↓ • Convert timestamps: new Date(timestamp * 1000)
+    ↓ • Create Plotly candlestick chart
+    ↓ • Render in respective div: ohlc-chart-{timeframe}
+```
+
+#### **Critical Error Points and Solutions**
+
+| **Error Point** | **Issue** | **Solution** | **Code Location** |
+|---|---|---|---|
+| **Timestamp Parsing** | "Invalid Date to Invalid Date" | Return Unix epoch seconds instead of ISO strings | `src/services/analytics_service.py:1154` |
+| **Variable Scope** | `name 'timeframe' is not defined` | Use `timeframe_prefix` in function scope | `src/services/analytics_service.py:1140` |
+| **Date Calculation** | `minute must be in 0..59` | Use `timedelta` instead of `replace()` | `src/services/analytics_service.py:1141` |
+| **ArrayRecord Reading** | No data returned | Proper file path detection and error handling | `src/services/analytics_service.py:1088` |
+| **Service Caching** | Code changes not applied | Restart analytics service after changes | `scripts/run_dev.py stop/start --service analytics` |
+
+### **Error Handling**
+
+All endpoints return consistent error responses:
+```json
+{
+  "error": "Error description",
+  "message": "Detailed error message", 
+  "timestamp": "2025-09-06T12:34:56.789Z"
+}
+```
+
+Common HTTP status codes:
+- `200 OK`: Successful response
+- `404 Not Found`: Dataset/sequence not found
+- `500 Internal Server Error`: Server-side processing error
 
 ### Future Enhancements (Post-MVP)
 - Real-time streaming data visualization
