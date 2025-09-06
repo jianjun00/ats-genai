@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, Query, Path
 from pydantic import BaseModel
 import traceback
 
-from ..services.model_registry_service import ModelRegistryService, ModelMetadata
+from services.model_registry_service import ModelRegistryService, ModelMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +129,55 @@ async def list_models(
         )
     except Exception as e:
         logger.error(f"❌ Error listing models: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                'error': 'Internal server error',
+                'message': str(e)
+            }
+        )
+
+@model_registry_bp.get('/statistics')
+async def get_statistics():
+    """Get comprehensive model registry statistics."""
+    
+    try:
+        stats = registry_service.get_model_statistics()
+        
+        if 'error' in stats:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    'error': 'Statistics unavailable',
+                    'message': stats['error']
+                }
+            )
+        
+        # Format statistics for API response
+        formatted_stats = {
+            'overview': {
+                'total_models': stats['overview'].get('total_models', 0),
+                'unique_model_types': stats['overview'].get('unique_model_types', 0),
+                'unique_training_runs': stats['overview'].get('unique_training_runs', 0),
+                'avg_model_size_mb': round(stats['overview'].get('avg_model_size_mb', 0.0), 2),
+                'avg_parameter_count': int(stats['overview'].get('avg_parameter_count', 0)),
+                'avg_final_loss': round(stats['overview'].get('avg_final_loss', 0.0), 6),
+                'earliest_model': stats['overview'].get('earliest_model'),
+                'latest_model': stats['overview'].get('latest_model')
+            },
+            'distributions': {
+                'model_types': stats.get('model_type_distribution', {}),
+                'deployment_status': stats.get('deployment_status_distribution', {})
+            },
+            'generated_at': datetime.now().isoformat()
+        }
+        
+        return formatted_stats
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error retrieving statistics: {e}")
         raise HTTPException(
             status_code=500,
             detail={
@@ -340,54 +389,7 @@ async def update_deployment_status(
             }
         )
 
-@model_registry_bp.get('/statistics')
-async def get_statistics():
-    """Get comprehensive model registry statistics."""
-    
-    try:
-        stats = registry_service.get_model_statistics()
-        
-        if 'error' in stats:
-            raise HTTPException(
-                status_code=503,
-                detail={
-                    'error': 'Statistics unavailable',
-                    'message': stats['error']
-                }
-            )
-        
-        # Format statistics for API response
-        formatted_stats = {
-            'overview': {
-                'total_models': stats['overview'].get('total_models', 0),
-                'unique_model_types': stats['overview'].get('unique_model_types', 0),
-                'unique_training_runs': stats['overview'].get('unique_training_runs', 0),
-                'avg_model_size_mb': round(stats['overview'].get('avg_model_size_mb', 0.0), 2),
-                'avg_parameter_count': int(stats['overview'].get('avg_parameter_count', 0)),
-                'avg_final_loss': round(stats['overview'].get('avg_final_loss', 0.0), 6),
-                'earliest_model': stats['overview'].get('earliest_model'),
-                'latest_model': stats['overview'].get('latest_model')
-            },
-            'distributions': {
-                'model_types': stats.get('model_type_distribution', {}),
-                'deployment_status': stats.get('deployment_status_distribution', {})
-            },
-            'generated_at': datetime.now().isoformat()
-        }
-        
-        return formatted_stats
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Error retrieving statistics: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                'error': 'Internal server error',
-                'message': str(e)
-            }
-        )
+# Removed duplicate statistics function - moved to earlier position before /{model_id} route
 
 @model_registry_bp.get('/{model_id}/validate')
 async def validate_model_input(model_id: int = Path(...)):

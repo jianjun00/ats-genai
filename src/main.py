@@ -8,6 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from events.api import router as events_router
 from api.model_registry_endpoints import model_registry_bp
+from api.datasets_api import datasets_router
 import gin
 
 # Import environment-specific configuration system
@@ -106,6 +107,9 @@ app.include_router(events_router, prefix="/api/v1", tags=["events"])
 
 # Include model registry endpoints
 app.include_router(model_registry_bp, tags=["models"])
+
+# Include dataset service endpoints with feature metadata APIs
+app.include_router(datasets_router, prefix="/api/v1", tags=["datasets"])
 
 @app.get("/")
 async def root():

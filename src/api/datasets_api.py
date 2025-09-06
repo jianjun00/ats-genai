@@ -4,15 +4,19 @@ Datasets API for EDA table functionality
 Provides endpoints for database table discovery and basic EDA
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Path
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import asyncpg
 import logging
 
+# Import dataset service for feature metadata functionality  
+from services.dataset_service import DatasetService
+
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+# Rename to avoid conflict with main datasets router
+datasets_router = APIRouter()
 
 # Response Models
 class DatasetInfo(BaseModel):
@@ -38,6 +42,25 @@ class DatasetDistributionsResponse(BaseModel):
     columns: Dict[str, ColumnStats]
     distributions: Dict[str, Any] = {}
 
+# Feature Metadata Response Models
+class FeatureMetadataResponse(BaseModel):
+    features: List[Dict[str, Any]]
+    labels: List[Dict[str, Any]]
+    metadata_version: str
+    data_quality_metrics: Dict[str, Any]
+
+class DatasetSearchResponse(BaseModel):
+    datasets: List[Dict[str, Any]]
+    total_count: int
+
+class FeatureComparisonResponse(BaseModel):
+    compatible: bool
+    common_features: List[str]
+    missing_in_dataset_1: List[str]
+    missing_in_dataset_2: List[str]
+    type_mismatches: List[Dict[str, Any]]
+    shape_mismatches: List[Dict[str, Any]]
+
 async def get_db_connection():
     """Get database connection with environment detection"""
     try:
@@ -59,7 +82,7 @@ async def get_db_connection():
             database='dev_db'
         )
 
-@router.get("/", response_model=DatasetListResponse)
+@datasets_router.get("/", response_model=DatasetListResponse)
 async def list_datasets():
     """List available database tables for EDA"""
     try:
@@ -118,7 +141,7 @@ async def list_datasets():
         logger.error(f"Error listing datasets: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to list datasets: {str(e)}")
 
-@router.get("/{table_name}/distributions", response_model=DatasetDistributionsResponse)
+@datasets_router.get("/{table_name}/distributions", response_model=DatasetDistributionsResponse)
 async def get_table_distributions(table_name: str):
     """Get column statistics and distributions for a table"""
     try:
@@ -224,3 +247,162 @@ async def get_table_distributions(table_name: str):
     except Exception as e:
         logger.error(f"Error getting table distributions for {table_name}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get table distributions: {str(e)}")
+
+# Initialize dataset service for feature metadata operations
+dataset_service = None
+
+def get_dataset_service():
+    """Get or create dataset service instance"""
+    global dataset_service
+    if dataset_service is None:
+        db_config = {
+            'host': 'localhost',
+            'port': 3432,
+            'database': 'dev_db',
+            'user': 'postgres',
+            'password': 'dev_password'
+        }
+        dataset_service = DatasetService(db_config)
+    return dataset_service
+
+# Feature Metadata API Endpoints
+
+@datasets_router.get("/training-datasets/{dataset_id}/feature-metadata", response_model=FeatureMetadataResponse)
+async def get_training_dataset_feature_metadata(dataset_id: int = Path(..., description="Training dataset ID")):
+    """Retrieve comprehensive feature metadata for a training dataset"""
+    try:
+        service = get_dataset_service()
+        metadata = service.get_feature_metadata(dataset_id)
+        
+        if 'error' in metadata:
+            raise HTTPException(status_code=404, detail=metadata['error'])
+            
+        return FeatureMetadataResponse(**metadata)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving feature metadata for dataset {dataset_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve feature metadata: {str(e)}")
+
+@datasets_router.get("/training-datasets/search", response_model=DatasetSearchResponse)  
+async def search_datasets_by_features(
+    features: List[str] = Query(..., description="Required feature names"),
+    feature_types: Optional[List[str]] = Query(None, description="Feature types to filter by")
+):
+    """Find training datasets containing specific features or feature types"""
+    try:
+        service = get_dataset_service()
+        datasets = service.find_datasets_by_features(features, feature_types)
+        
+        # Convert DatasetMetadata objects to dictionaries
+        dataset_dicts = []
+        for dataset in datasets:
+            dataset_dict = {
+                'id': dataset.id,
+                'dataset_name': dataset.dataset_name,
+                'symbols': dataset.symbols,
+                'total_sequences': dataset.total_sequences,
+                'sequence_length': dataset.sequence_length,
+                'feature_count': dataset.feature_count,
+                'label_count': dataset.label_count,
+                'data_quality_score': dataset.data_quality_score,
+                'creation_timestamp': dataset.creation_timestamp.isoformat() if dataset.creation_timestamp else None
+            }
+            dataset_dicts.append(dataset_dict)
+        
+        return DatasetSearchResponse(
+            datasets=dataset_dicts,
+            total_count=len(dataset_dicts)
+        )
+        
+    except Exception as e:
+        logger.error(f"Error searching datasets by features {features}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to search datasets: {str(e)}")
+
+@datasets_router.get("/training-datasets/{dataset_id_1}/compare/{dataset_id_2}", response_model=FeatureComparisonResponse)
+async def compare_training_dataset_features(
+    dataset_id_1: int = Path(..., description="First dataset ID"),
+    dataset_id_2: int = Path(..., description="Second dataset ID")
+):
+    """Compare feature schemas between two training datasets for compatibility"""
+    try:
+        service = get_dataset_service()
+        comparison = service.compare_feature_schemas(dataset_id_1, dataset_id_2)
+        
+        return FeatureComparisonResponse(**comparison)
+        
+    except Exception as e:
+        logger.error(f"Error comparing datasets {dataset_id_1} and {dataset_id_2}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to compare datasets: {str(e)}")
+
+@datasets_router.get("/training-datasets", response_model=DatasetListResponse)
+async def list_training_datasets():
+    """List all available training datasets with basic metadata"""
+    try:
+        service = get_dataset_service()
+        datasets = service.list_datasets()
+        
+        # Convert to DatasetInfo format
+        dataset_infos = []
+        for dataset in datasets:
+            dataset_infos.append(DatasetInfo(
+                name=dataset.dataset_name,
+                row_count=dataset.total_sequences,
+                column_count=dataset.feature_count + dataset.label_count,
+                table_type="training_dataset"
+            ))
+        
+        return DatasetListResponse(
+            datasets=dataset_infos,
+            total_count=len(dataset_infos)
+        )
+        
+    except Exception as e:
+        logger.error(f"Error listing training datasets: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list training datasets: {str(e)}")
+
+@datasets_router.get("/training-datasets/{dataset_id}", response_model=Dict[str, Any])
+async def get_training_dataset_details(dataset_id: int = Path(..., description="Training dataset ID")):
+    """Get detailed information about a specific training dataset"""
+    try:
+        service = get_dataset_service()
+        dataset = service.get_dataset(dataset_id)
+        
+        if not dataset:
+            raise HTTPException(status_code=404, detail=f"Training dataset {dataset_id} not found")
+        
+        # Convert DatasetMetadata to dictionary with feature metadata
+        result = {
+            'id': dataset.id,
+            'dataset_name': dataset.dataset_name,
+            'symbols': dataset.symbols,
+            'total_sequences': dataset.total_sequences,
+            'sequence_length': dataset.sequence_length,
+            'feature_count': dataset.feature_count,
+            'label_count': dataset.label_count,
+            'data_quality_score': dataset.data_quality_score,
+            'creation_timestamp': dataset.creation_timestamp.isoformat() if dataset.creation_timestamp else None,
+            'date_range_start': dataset.date_range_start.isoformat() if dataset.date_range_start else None,
+            'date_range_end': dataset.date_range_end.isoformat() if dataset.date_range_end else None,
+            'file_size_mb': dataset.file_size_mb,
+            'feature_completeness': dataset.feature_completeness,
+            'label_completeness': dataset.label_completeness
+        }
+        
+        # Add feature metadata if available
+        try:
+            feature_metadata = service.get_feature_metadata(dataset_id)
+            if 'error' not in feature_metadata:
+                result['feature_metadata'] = feature_metadata
+        except Exception as e:
+            logger.warning(f"Could not retrieve feature metadata for dataset {dataset_id}: {e}")
+            result['feature_metadata'] = None
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving training dataset {dataset_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve training dataset: {str(e)}")

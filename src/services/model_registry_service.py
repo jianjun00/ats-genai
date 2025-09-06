@@ -150,7 +150,7 @@ class ModelRegistryService:
     """Centralized model registry for tracking all training models."""
     
     def __init__(self, db_config: Optional[Dict[str, Any]] = None, 
-                 model_storage_path: str = "/mnt/d/ats-data/models"):
+                 model_storage_path: str = "/tmp/ats-models"):
         """Initialize model registry service."""
         
         self.db_config = db_config or self._get_default_db_config()

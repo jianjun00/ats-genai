@@ -319,7 +319,7 @@ class DevCLI:
             "api": {
                 "image": "dragonflyer762/ats-genai:latest", 
                 "port": "8000:8000",
-                "command": "python src/api/main.py"
+                "command": "uvicorn src.main:app --host 0.0.0.0 --port 8000"
             }
         }
         

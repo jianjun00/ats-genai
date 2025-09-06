@@ -45,7 +45,7 @@ services:
     networks:
       - ats-network
 
-  # ATS Analytics Service - Dev
+  # ATS Analytics Service - Dev  
   analytics-dev:
     image: dragonflyer762/ats-genai:latest
     container_name: ats-dev-analytics
@@ -77,7 +77,7 @@ services:
       - /mnt/d/ats-backup:/backup
       - /mnt/d/ats-logs:/logs
     working_dir: /workspace
-    command: python3 src/analytics/unified_analytics_service.py
+    command: uvicorn src.main:app --host 0.0.0.0 --port 3000
     depends_on:
       postgres-dev:
         condition: service_healthy

@@ -2932,8 +2932,21 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_universe_analytics()
             elif self.path.startswith('/api/multi-panel-chart'):
                 asyncio.run(self._serve_multi_panel_chart())
+            elif self.path.startswith('/api/v1/datasets/training-datasets'):
+                if '/search' in self.path:
+                    self._serve_training_dataset_search()
+                elif '/feature-metadata' in self.path:
+                    self._serve_training_dataset_feature_metadata() 
+                elif '/compare/' in self.path:
+                    self._serve_training_dataset_feature_comparison()
+                else:
+                    self._serve_training_dataset_details()
             elif self.path.startswith('/api/v1/training-datasets'):
-                if '/multi-timeframe' in self.path:
+                if '/feature-metadata' in self.path:
+                    self._serve_training_dataset_feature_metadata()
+                elif '/compare/' in self.path:
+                    self._serve_training_dataset_feature_comparison()
+                elif '/multi-timeframe' in self.path:
                     self._serve_training_dataset_multi_timeframe()
                 elif '/sequence/' in self.path:
                     self._serve_training_dataset_sequence()
@@ -3222,6 +3235,240 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             }
             self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
     
+    def _serve_training_dataset_feature_metadata(self):
+        """Serve comprehensive feature metadata for a training dataset."""
+        from urllib.parse import urlparse
+        
+        # Extract dataset_id from either path pattern
+        path_parts = urlparse(self.path).path.split('/')
+        dataset_id = None
+        
+        try:
+            if 'datasets/training-datasets' in self.path:
+                # /api/v1/datasets/training-datasets/{dataset_id}/feature-metadata
+                dataset_id = int(path_parts[5])
+            else:
+                # /api/v1/training-datasets/{dataset_id}/feature-metadata  
+                dataset_id = int(path_parts[4])
+        except (IndexError, ValueError):
+            self.send_response(400)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Invalid dataset_id"}).encode('utf-8'))
+            return
+            
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        
+        try:
+            # Get dataset service and retrieve feature metadata
+            from services.dataset_service import DatasetService
+            
+            db_config = {
+                'host': 'postgres-dev',
+                'port': 5432,
+                'database': 'dev_db', 
+                'user': 'postgres',
+                'password': 'dev_password'
+            }
+            
+            dataset_service = DatasetService(db_config)
+            metadata = dataset_service.get_feature_metadata(dataset_id)
+            
+            self.wfile.write(json.dumps(metadata).encode('utf-8'))
+            
+        except Exception as e:
+            logger.error(f"Error retrieving feature metadata: {e}")
+            error_response = {"error": f"Failed to retrieve feature metadata: {str(e)}"}
+            self.wfile.write(json.dumps(error_response).encode('utf-8'))
+    
+    def _serve_training_dataset_search(self):
+        """Search training datasets by required features."""
+        from urllib.parse import urlparse, parse_qs
+        
+        parsed_url = urlparse(self.path)
+        query_params = parse_qs(parsed_url.query)
+        
+        # Get required features and feature types from query parameters
+        features = query_params.get('features', [])
+        feature_types = query_params.get('feature_types', None)
+        
+        if not features:
+            self.send_response(400)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Missing required 'features' query parameter"}).encode('utf-8'))
+            return
+            
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        
+        try:
+            from services.dataset_service import DatasetService
+            
+            db_config = {
+                'host': 'postgres-dev',
+                'port': 5432,
+                'database': 'dev_db',
+                'user': 'postgres', 
+                'password': 'dev_password'
+            }
+            
+            dataset_service = DatasetService(db_config)
+            datasets = dataset_service.find_datasets_by_features(features, feature_types)
+            
+            # Convert DatasetMetadata objects to dictionaries
+            dataset_dicts = []
+            for dataset in datasets:
+                dataset_dict = {
+                    'id': dataset.id,
+                    'dataset_name': dataset.dataset_name,
+                    'symbols': dataset.symbols,
+                    'total_sequences': dataset.total_sequences,
+                    'sequence_length': dataset.sequence_length,
+                    'feature_count': dataset.feature_count,
+                    'label_count': dataset.label_count,
+                    'data_quality_score': dataset.data_quality_score,
+                    'creation_timestamp': dataset.creation_timestamp.isoformat() if dataset.creation_timestamp else None
+                }
+                dataset_dicts.append(dataset_dict)
+            
+            response = {
+                'datasets': dataset_dicts,
+                'total_count': len(dataset_dicts)
+            }
+            
+            self.wfile.write(json.dumps(response).encode('utf-8'))
+            
+        except Exception as e:
+            logger.error(f"Error searching datasets by features: {e}")
+            error_response = {"error": f"Failed to search datasets: {str(e)}"}
+            self.wfile.write(json.dumps(error_response).encode('utf-8'))
+    
+    def _serve_training_dataset_feature_comparison(self):
+        """Compare feature schemas between two training datasets."""
+        from urllib.parse import urlparse
+        
+        path_parts = urlparse(self.path).path.split('/')
+        
+        try:
+            if 'datasets/training-datasets' in self.path:
+                # /api/v1/datasets/training-datasets/{dataset_id_1}/compare/{dataset_id_2}
+                dataset_id_1 = int(path_parts[5])
+                dataset_id_2 = int(path_parts[7])
+            else:
+                # /api/v1/training-datasets/{dataset_id_1}/compare/{dataset_id_2}
+                dataset_id_1 = int(path_parts[4])
+                dataset_id_2 = int(path_parts[6])
+        except (IndexError, ValueError):
+            self.send_response(400)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Invalid dataset IDs"}).encode('utf-8'))
+            return
+            
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        
+        try:
+            from services.dataset_service import DatasetService
+            
+            db_config = {
+                'host': 'postgres-dev',
+                'port': 5432, 
+                'database': 'dev_db',
+                'user': 'postgres',
+                'password': 'dev_password'
+            }
+            
+            dataset_service = DatasetService(db_config)
+            comparison = dataset_service.compare_feature_schemas(dataset_id_1, dataset_id_2)
+            
+            self.wfile.write(json.dumps(comparison).encode('utf-8'))
+            
+        except Exception as e:
+            logger.error(f"Error comparing datasets: {e}")
+            error_response = {"error": f"Failed to compare datasets: {str(e)}"}
+            self.wfile.write(json.dumps(error_response).encode('utf-8'))
+    
+    def _serve_training_dataset_details(self):
+        """Get detailed information about a specific training dataset."""
+        from urllib.parse import urlparse
+        
+        # Extract dataset_id from path like /api/v1/datasets/training-datasets/{dataset_id}
+        path_parts = urlparse(self.path).path.split('/')
+        
+        try:
+            dataset_id = int(path_parts[5])  # /api/v1/datasets/training-datasets/{dataset_id}
+        except (IndexError, ValueError):
+            self.send_response(400)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Invalid dataset_id"}).encode('utf-8'))
+            return
+            
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        
+        try:
+            from services.dataset_service import DatasetService
+            
+            db_config = {
+                'host': 'postgres-dev',
+                'port': 5432,
+                'database': 'dev_db',
+                'user': 'postgres',
+                'password': 'dev_password'
+            }
+            
+            dataset_service = DatasetService(db_config)
+            dataset = dataset_service.get_dataset_metadata(dataset_id)
+            
+            if not dataset:
+                self.send_response(404)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": f"Training dataset {dataset_id} not found"}).encode('utf-8'))
+                return
+            
+            # Convert DatasetMetadata to dictionary with feature metadata
+            result = {
+                'id': dataset.id,
+                'dataset_name': dataset.dataset_name,
+                'symbols': dataset.symbols,
+                'total_sequences': dataset.total_sequences,
+                'sequence_length': dataset.sequence_length,
+                'feature_count': dataset.feature_count,
+                'label_count': dataset.label_count,
+                'data_quality_score': dataset.data_quality_score,
+                'creation_timestamp': dataset.creation_timestamp.isoformat() if dataset.creation_timestamp else None,
+                'date_range_start': dataset.date_range_start.isoformat() if dataset.date_range_start else None,
+                'date_range_end': dataset.date_range_end.isoformat() if dataset.date_range_end else None,
+                'file_size_mb': dataset.file_size_mb,
+                'feature_completeness': dataset.feature_completeness,
+                'label_completeness': dataset.label_completeness
+            }
+            
+            # Add feature metadata if available
+            try:
+                feature_metadata = dataset_service.get_feature_metadata(dataset_id)
+                if 'error' not in feature_metadata:
+                    result['feature_metadata'] = feature_metadata
+            except Exception as e:
+                logger.warning(f"Could not retrieve feature metadata for dataset {dataset_id}: {e}")
+                result['feature_metadata'] = None
+            
+            self.wfile.write(json.dumps(result).encode('utf-8'))
+            
+        except Exception as e:
+            logger.error(f"Error retrieving training dataset: {e}")
+            error_response = {"error": f"Failed to retrieve training dataset: {str(e)}"}
+            self.wfile.write(json.dumps(error_response).encode('utf-8'))
+
     def _serve_ray_analytics(self):
         """Serve Ray distributed analytics."""
         # Extract dataset ID from path
