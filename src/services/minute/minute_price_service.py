@@ -12,11 +12,11 @@ from fastapi import FastAPI, BackgroundTasks
 from dataclasses import dataclass
 
 # Import environment-specific configuration system
-from config.environment_config import load_gin_config, get_current_env, get_env_info
-from config.validation import validate_current_config
+from core.config.environment_config import load_gin_config, get_current_env, get_env_info
+from core.config.validation import validate_current_config
 
 # Reuse existing ATS framework
-from config.environment import Environment
+from core.config.environment import Environment
 from dao.base.base_dao import BaseDAO
 from core.logging.logger_config import get_logger
 from market_data.eod.daily_price_tiingo import TIINGO_API_KEY

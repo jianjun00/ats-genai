@@ -17,7 +17,7 @@ from enum import Enum
 import statistics
 import yfinance as yf
 
-from config.environment import Environment
+from core.config.environment import Environment
 
 
 class ValidationStatus(Enum):

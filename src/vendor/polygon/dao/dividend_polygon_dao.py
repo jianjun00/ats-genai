@@ -1,5 +1,5 @@
 import asyncpg
-from config.environment import Environment
+from core.config.environment import Environment
 
 class DividendPolygonDAO:
     def __init__(self, env: Environment):

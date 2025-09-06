@@ -24,7 +24,7 @@ import threading
 from typing import List, Dict, Any
 
 # Test infrastructure
-from config.environment import Environment, EnvironmentType
+from core.config.environment import Environment, EnvironmentType
 
 
 class TestRunDatasetStatusConsistency:

@@ -4,7 +4,7 @@ from .base_daily_price_market_data_manager import BaseDailyPriceMarketDataManage
 from dao.instrument_xrefs_dao import InstrumentXrefsDAO
 from vendor.tiingo.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
 from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
-from config.environment import Environment
+from core.config.environment import Environment
 from .unify_daily_prices import DatabaseDailyPricesUnifier
 
 class UnifiedDBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):

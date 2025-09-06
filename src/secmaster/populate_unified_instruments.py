@@ -1,6 +1,6 @@
 import argparse
 import asyncio
-from config.environment import Environment, EnvironmentType
+from core.config.environment import Environment, EnvironmentType
 from vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
 from dao.instruments_dao import InstrumentsDAO
 from dao.instrument_xrefs_dao import InstrumentXrefsDAO
@@ -119,7 +119,7 @@ async def populate_unified_instruments(polygon_dao, instruments_dao, xrefs_dao, 
         import asyncio
         import nest_asyncio
         nest_asyncio.apply()
-        from config.environment import Environment
+        from core.config.environment import Environment
         from vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
         from dao.instruments_dao import InstrumentsDAO
         from dao.instrument_xrefs_dao import InstrumentXrefsDAO

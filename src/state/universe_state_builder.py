@@ -36,7 +36,7 @@ except Exception:
 from typing import Dict, List
 import logging
 from datetime import datetime
-from config.environment import Environment
+from core.config.environment import Environment
 from state.instrument_interval import InstrumentInterval
 from .factor_interval import FactorInterval
 from state.indicator_interval import IndicatorInterval

@@ -1,6 +1,6 @@
 # universe_db.py
 # Utility functions for multi-universe membership using universe and universe_membership tables
-from config.environment import Environment
+from core.config.environment import Environment
 from dao.universe_dao import UniverseDAO
 from dao.universe_membership_dao import UniverseMembershipDAO
 from datetime import date

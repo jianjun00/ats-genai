@@ -20,8 +20,8 @@ import uvicorn
 import gin
 
 # Import environment-specific configuration system
-from config.environment_config import load_gin_config, get_current_env, get_env_info
-from config.validation import validate_current_config
+from core.config.environment_config import load_gin_config, get_current_env, get_env_info
+from core.config.validation import validate_current_config
 
 from analytics.portfolio_analytics import (
     PortfolioAnalyticsEngine,

@@ -2,7 +2,7 @@ import asyncpg
 import numpy as np
 from datetime import datetime, date, timedelta
 from dotenv import load_dotenv
-from config.environment import Environment
+from core.config.environment import Environment
 
 load_dotenv()
 
@@ -534,7 +534,7 @@ if __name__ == "__main__":
     parser.add_argument('--start_date', required=True)
     parser.add_argument('--end_date', required=True)
     args = parser.parse_args()
-    from config.environment import Environment
+    from core.config.environment import Environment
     environment = Environment()
     unifier = DatabaseDailyPricesUnifier(environment)
     asyncio.run(unifier.unify_daily_prices(args.symbol, (args.start_date, args.end_date)))

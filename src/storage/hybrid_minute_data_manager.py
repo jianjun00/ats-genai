@@ -30,7 +30,7 @@ except ImportError:
     PYARROW_AVAILABLE = False
 from concurrent.futures import ThreadPoolExecutor
 
-from config.environment import env
+from core.config.environment import env
 
 logger = logging.getLogger(__name__)
 

@@ -14,7 +14,7 @@ import asyncpg
 import pandas as pd
 import numpy as np
 
-from config.environment import env
+from core.config.environment import env
 from market_data.agent.polygon_minute_adapter import PolygonMinuteAdapter, MinuteBar
 
 logger = logging.getLogger(__name__)

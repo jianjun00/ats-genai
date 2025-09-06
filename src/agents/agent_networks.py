@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 import logging
 import gin
 
-from config.feature_flags import require_feature, feature_gate, is_enabled
+from core.config.feature_flags import require_feature, feature_gate, is_enabled
 
 logger = logging.getLogger(__name__)
 

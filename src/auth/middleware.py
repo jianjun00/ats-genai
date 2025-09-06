@@ -6,7 +6,7 @@ import asyncpg
 import logging
 import gin
 
-from config.environment import Environment
+from core.config.environment import Environment
 from .models import AuthContext, APIKeyTier
 from .api_key_manager import APIKeyManager
 

@@ -10,8 +10,8 @@ from events.api import router as events_router
 import gin
 
 # Import environment-specific configuration system
-from config.environment_config import load_gin_config, get_current_env, get_env_info
-from config.validation import validate_current_config
+from core.config.environment_config import load_gin_config, get_current_env, get_env_info
+from core.config.validation import validate_current_config
 
 @gin.configurable
 @dataclass
@@ -176,7 +176,7 @@ async def get_configuration_info():
 async def check_db_connection() -> bool:
     try:
         # Import here to avoid circular imports
-        from config.environment import Environment
+        from core.config.environment import Environment
         import asyncpg
         
         # Create a new environment instance which will use the Gin config

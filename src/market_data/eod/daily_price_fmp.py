@@ -12,7 +12,7 @@ import argparse
 import logging
 from typing import List, Dict, Any
 
-from config.environment import Environment, EnvironmentType
+from core.config.environment import Environment, EnvironmentType
 from vendor.fmp.dao.daily_prices_fmp_dao import DailyPricesFmpDAO
 from dao.instrument_xrefs_dao import InstrumentXrefsDAO
 from calendars.exchange_calendar import ExchangeCalendar

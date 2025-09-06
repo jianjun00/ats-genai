@@ -22,7 +22,7 @@ import logging
 logger = logging.getLogger(__name__)
 from dateutil import parser as date_parser
 import gin
-from config.database import Database
+from core.config.database import Database
 
 @gin.configurable
 class DatabaseTestManager:
@@ -390,7 +390,7 @@ async def unit_test_db(request):
     """
     import gin
     import uuid
-    from config.database import Database
+    from core.config.database import Database
     test_file = str(request.fspath) if hasattr(request, 'fspath') else "nofile"
     # Take only first 8 chars of file name to keep DB name short
     test_file_base = os.path.splitext(os.path.basename(test_file))[0]
@@ -487,7 +487,7 @@ async def unit_test_db_clean(request):
     """
     import gin
     import uuid
-    from config.database import Database
+    from core.config.database import Database
     test_file = str(request.fspath) if hasattr(request, 'fspath') else "nofile"
     # Take only first 8 chars of file name to keep DB name short
     test_file_base = os.path.splitext(os.path.basename(test_file))[0]

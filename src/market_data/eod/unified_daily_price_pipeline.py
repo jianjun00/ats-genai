@@ -17,7 +17,7 @@ import os
 import subprocess
 
 from market_data.eod.unified_daily_price_validator import UnifiedDailyPriceValidator, ValidationStatus
-from config.environment import Environment
+from core.config.environment import Environment
 
 
 class UnifiedDailyPricePipeline:

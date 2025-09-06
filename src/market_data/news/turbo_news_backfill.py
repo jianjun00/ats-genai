@@ -404,7 +404,7 @@ async def main():
     args = parser.parse_args()
     
     # Setup environment
-    from config.environment import Environment
+    from core.config.environment import Environment
     env = Environment(gin_config_path=args.gin_config)
     
     # Get API keys

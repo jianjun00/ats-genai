@@ -33,7 +33,7 @@ from domains.trading.services.indicator_config import IndicatorConfig
 
 # Defensive import handling for LoggingConfig
 try:
-    from config.logging_config import LoggingConfig
+    from core.config.logging_config import LoggingConfig
 except ImportError:
     try:
         from core.logging.logger_config import LoggingConfig
@@ -163,7 +163,7 @@ class Environment:
                 gin.parse_config_file(config_path)
         # Defensive logging config initialization
         try:
-            from config.logging_config import LoggingConfig as ImportedLoggingConfig
+            from core.config.logging_config import LoggingConfig as ImportedLoggingConfig
             self.logging_config = ImportedLoggingConfig()
         except ImportError:
             try:

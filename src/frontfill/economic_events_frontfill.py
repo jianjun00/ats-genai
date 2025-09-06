@@ -9,7 +9,7 @@ from datetime import datetime, date, timedelta
 from typing import Dict, Any, List, Tuple, Optional
 
 from frontfill.base_frontfill_job import BaseFrontfillJob, FrontfillConfig, CheckpointType
-from config.environment import Environment
+from core.config.environment import Environment
 from vendor.polygon.economic_events_client import PolygonEconomicEventsClient
 from vendor.tiingo.economic_events_client import TiingoEconomicEventsClient
 from vendor.alpha_vantage.economic_events_client import AlphaVantageEconomicClient

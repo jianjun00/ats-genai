@@ -59,7 +59,7 @@ def download_prices_polygon(ticker, start, end, api_key, logging=False, log_star
 
 async def insert_prices(prices, instrument_id, shares_outstanding, dao: DailyPricesPolygonDAO, env=None):
     if env is None:
-        from config.environment import Environment
+        from core.config.environment import Environment
         import argparse
         parser = argparse.ArgumentParser()
         parser.add_argument('--gin_config', type=str, default='config/app.gin')
@@ -118,7 +118,7 @@ async def run_ingestion(tickers, start_date, end_date, environment=None, instrum
     """
     import ray
     from market_data.eod.daily_polygon_ray_utils import ray_ingest_polygon_instrument
-    from config.environment import Environment
+    from core.config.environment import Environment
     import requests
 
     if environment:
@@ -268,7 +268,7 @@ async def main():
     args = parser.parse_args()
 
     print(f"[DEBUG] CLI arg --gin_config: {args.gin_config}")
-    from config.environment import Environment
+    from core.config.environment import Environment
     env = Environment(gin_config_path=args.gin_config)
     print(f"[DEBUG] env.get_polygon_api_key(): {env.get_polygon_api_key()}")
     instrument_dao = InstrumentPolygonDAO(env)

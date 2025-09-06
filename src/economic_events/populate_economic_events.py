@@ -11,8 +11,8 @@ import argparse
 from datetime import datetime, date, timedelta
 from typing import Optional
 
-from config.environment import Environment, EnvironmentType
-from config.database import get_connection_pool
+from core.config.environment import Environment, EnvironmentType
+from core.config.database import get_connection_pool
 from economic_events.population_service import EconomicEventsPopulationService
 
 # Configure logging
@@ -201,7 +201,7 @@ def main():
             
         try:
             # Try centralized system
-            from config.environment import env
+            from core.config.environment import env
             if env:
                 key = env.get_api_key(vendor)
                 if key:

@@ -9,7 +9,7 @@ import json
 import os
 from datetime import datetime
 
-from config.environment import Environment
+from core.config.environment import Environment
 from src.market_data.agent.instrument_data_agent import InstrumentDataAgent
 
 

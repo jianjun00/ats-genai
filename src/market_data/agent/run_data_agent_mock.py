@@ -12,7 +12,7 @@ import time
 from datetime import date, datetime, timedelta
 
 from src.market_data.agent.mock_metrics_helper import MockMetricsHelper
-from config.environment import Environment
+from core.config.environment import Environment
 
 from src.market_data.agent.data_agent_orchestrator import DataAgentOrchestrator
 from src.market_data.agent.base_adapter import VendorAdapter

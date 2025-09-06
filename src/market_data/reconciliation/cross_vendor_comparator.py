@@ -15,7 +15,7 @@ from typing import Dict, List
 from dataclasses import dataclass
 
 # Add src to path for imports
-from config.environment import Environment
+from core.config.environment import Environment
 from market_data.reconciliation.majority_voting_reconciler import (
     MajorityVotingReconciler,
     VendorPrice

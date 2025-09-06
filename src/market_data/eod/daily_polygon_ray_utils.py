@@ -7,7 +7,7 @@ def ray_ingest_polygon_instrument(gin_config_path, ticker, instrument_id, shares
     return asyncio.run(ray_ingest_polygon_instrument_async(gin_config_path, ticker, instrument_id, shares_outstanding, start_date, end_date, api_key, logging, log_tickers, log_dir))
 
 async def ray_ingest_polygon_instrument_async(gin_config_path, ticker, instrument_id, shares_outstanding, start_date, end_date, api_key, logging, log_tickers, log_dir):
-    from config.environment import Environment
+    from core.config.environment import Environment
     from market_data.eod.daily_price_polygon import download_prices_polygon, insert_prices
     env = Environment(gin_config_path=gin_config_path)
     prices_dao = DailyPricesPolygonDAO(env)

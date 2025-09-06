@@ -4,7 +4,7 @@ from .factor_interval_dao import FactorIntervalDAO
 import asyncpg
 from typing import Optional, Dict
 from state.universe_state import UniverseStateInterval
-from config.environment import Environment
+from core.config.environment import Environment
 from datetime import datetime
 
 class UniverseStateIntervalDAO:

@@ -12,7 +12,7 @@ from datetime import date, datetime, timedelta
 from typing import List, Dict, Optional, NamedTuple
 from dataclasses import dataclass
 from enum import Enum
-from config.environment import Environment
+from core.config.environment import Environment
 import gin
 
 class ValidationLevel(Enum):

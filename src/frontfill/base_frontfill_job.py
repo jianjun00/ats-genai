@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional, Set, Tuple
 from dataclasses import dataclass
 
-from config.environment import Environment
+from core.config.environment import Environment
 from frontfill.checkpoint_manager import CheckpointManager, CheckpointType, JobStatus, Checkpoint
 
 logger = logging.getLogger(__name__)

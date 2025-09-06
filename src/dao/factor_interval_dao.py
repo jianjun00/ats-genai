@@ -1,6 +1,6 @@
 import asyncpg
 from typing import Optional, List
-from config.environment import Environment
+from core.config.environment import Environment
 
 class FactorIntervalDAO:
     def __init__(self, env: Environment):

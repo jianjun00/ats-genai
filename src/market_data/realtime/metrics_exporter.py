@@ -14,7 +14,7 @@ from datetime import datetime
 from prometheus_client import start_http_server, Gauge, Counter, Histogram, Info
 import time
 
-from config.environment import Environment
+from core.config.environment import Environment
 
 logger = logging.getLogger(__name__)
 

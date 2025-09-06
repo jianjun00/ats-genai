@@ -5,7 +5,7 @@ import gin
 
 # Defensive import handling for LoggingConfig
 try:
-    from config.logging_config import LoggingConfig
+    from core.config.logging_config import LoggingConfig
 except ImportError:
     try:
         from core.logging.logger_config import LoggingConfig
@@ -38,8 +38,8 @@ def gin_test_setup(request):
         # If gin config fails, provide minimal configuration
         print(f"Warning: Could not load gin config {gin_cfg}: {e}")
         # Set up minimal required configuration
-        gin.bind_parameter('config.environment.Environment.env_type', 'TEST')
-        gin.bind_parameter('config.environment.Environment.db_url', 'postgresql://test_user:test_password@localhost:5432/test_db')
+        gin.bind_parameter('core.config.environment.Environment.env_type', 'TEST')
+        gin.bind_parameter('core.config.environment.Environment.db_url', 'postgresql://test_user:test_password@localhost:5432/test_db')
     
     yield
     

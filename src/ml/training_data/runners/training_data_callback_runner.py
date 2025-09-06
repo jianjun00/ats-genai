@@ -30,7 +30,7 @@ from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, field
 
 from app.runner import Runner
-from config.environment import Environment, EnvironmentType
+from core.config.environment import Environment, EnvironmentType
 from ml.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from ml.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
 from ml.training_data.dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord

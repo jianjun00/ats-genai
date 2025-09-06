@@ -8,7 +8,7 @@ import asyncio
 import json
 from datetime import datetime
 
-from config.environment import Environment
+from core.config.environment import Environment
 from src.dao.instruments_dao import InstrumentsDAO
 from src.dao.instrument_xrefs_dao import InstrumentXrefsDAO
 from src.dao.instrument_polygon_dao import InstrumentPolygonDAO

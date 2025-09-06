@@ -13,7 +13,7 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Tuple, NamedTuple
 from dataclasses import dataclass
-from config.environment import Environment
+from core.config.environment import Environment
 # import matplotlib.pyplot as plt
 # import seaborn as sns
 # from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score

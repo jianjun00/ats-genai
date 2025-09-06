@@ -1,6 +1,6 @@
 import pytest
 import asyncpg
-from config.environment import Environment
+from core.config.environment import Environment
 
 @pytest.fixture(autouse=True, scope="function")
 async def auto_backup_restore_all_intg_tables(event_loop):

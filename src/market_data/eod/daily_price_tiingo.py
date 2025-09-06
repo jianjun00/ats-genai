@@ -10,7 +10,7 @@ import asyncpg
 import datetime as dt
 import pandas as pd
 import argparse
-from config.environment import Environment, EnvironmentType
+from core.config.environment import Environment, EnvironmentType
 from vendor.tiingo.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
 from dao.instrument_xrefs_dao import InstrumentXrefsDAO
 

@@ -10,7 +10,7 @@ import argparse
 import gin
 import sys
 import logging
-from config.environment import Environment, EnvironmentType
+from core.config.environment import Environment, EnvironmentType
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -156,7 +156,7 @@ async def main():
     
     try:
         # Import Database before parsing Gin config
-        from config.database import Database
+        from core.config.database import Database
         
         gin.parse_config_file(gin_config_path)
         logger.info(f"Successfully parsed Gin config: {gin_config_path}")

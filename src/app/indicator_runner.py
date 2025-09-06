@@ -533,7 +533,7 @@ if __name__ == "__main__":
         'PL': PL
     })
     print('[DEBUG_ULTRA] after IndicatorConfig')
-    from config.environment import Environment, EnvironmentType
+    from core.config.environment import Environment, EnvironmentType
     print('[DEBUG_ULTRA] after import Environment, EnvironmentType')
     env_map = {
         'test': EnvironmentType.TEST,

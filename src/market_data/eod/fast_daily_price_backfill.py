@@ -29,7 +29,7 @@ class PolygonWorker:
     async def fetch_symbol_data(self, symbol: str, start_date: str, end_date: str, instrument_id: int) -> List[Dict[str, Any]]:
         """Fetch 5-year data for a single symbol with optimized batching."""
         import aiohttp
-        from config.environment import Environment
+        from core.config.environment import Environment
         
         # Recreate environment in worker
         env = Environment()
@@ -237,7 +237,7 @@ async def main():
         )
     
     # Setup environment
-    from config.environment import Environment
+    from core.config.environment import Environment
     env = Environment(gin_config_path=args.gin_config)
     
     # Get API keys

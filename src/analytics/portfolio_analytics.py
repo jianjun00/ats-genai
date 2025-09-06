@@ -14,7 +14,7 @@ from dataclasses import dataclass, asdict
 import asyncpg
 import redis.asyncio as redis
 
-from config.environment import Environment
+from core.config.environment import Environment
 
 @dataclass
 class PortfolioMetrics:

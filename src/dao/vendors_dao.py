@@ -1,4 +1,4 @@
-from config.environment import Environment
+from core.config.environment import Environment
 import asyncpg
 
 class VendorsDAO:

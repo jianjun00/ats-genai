@@ -27,7 +27,7 @@ from ml.training_data.timeseries_sequence_training_generator import (
     SequenceWindowBuilder,
     TimeSeriesSequenceTrainingGenerator
 )
-from config.environment import Environment
+from core.config.environment import Environment
 from dao.instrument_xrefs_dao import InstrumentXrefsDAO
 
 

@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 from app.indicator_runner import IndicatorRunner
 from state.universe_state_manager import UniverseStateManager
 from state.indicator_interval import IndicatorInterval
-from config.environment import Environment
+from core.config.environment import Environment
 from signals.indicator_config import IndicatorConfig
 
 

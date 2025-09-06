@@ -10,7 +10,7 @@ import asyncpg
 from datetime import datetime, date
 import logging
 import json
-from config.environment import Environment
+from core.config.environment import Environment
 
 logger = logging.getLogger(__name__)
 

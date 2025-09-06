@@ -32,7 +32,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
 from ml.training_data.callbacks.training_data_callback import DateBasedTrainingDataCallback
 from ml.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
-from config.environment import Environment, EnvironmentType
+from core.config.environment import Environment, EnvironmentType
 from app.runner import Runner
 
 # Configure logging

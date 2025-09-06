@@ -307,7 +307,7 @@ class HistoricalDatabaseInserter:
         
         try:
             # Use environment-aware table naming
-            from config.environment import Environment
+            from core.config.environment import Environment
             env = Environment()
             
             if vendor == 'polygon':
@@ -512,7 +512,7 @@ class Historical30YearBackfill:
         )
         
         try:
-            from config.environment import Environment
+            from core.config.environment import Environment
             env = Environment()
             table_name = env.get_table_name('instrument')
             
@@ -543,7 +543,7 @@ class Historical30YearBackfill:
         )
         
         try:
-            from config.environment import Environment
+            from core.config.environment import Environment
             env = Environment()
             table_name = env.get_table_name('instrument')
             

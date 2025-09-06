@@ -4,7 +4,7 @@ from typing import List, Dict, Optional
 from .base_daily_price_market_data_manager import BaseDailyPriceMarketDataManager
 from dao.instrument_xrefs_dao import InstrumentXrefsDAO
 from dao.daily_prices_dao import DailyPricesDAO
-from config.environment import Environment
+from core.config.environment import Environment
 
 class DBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
     """

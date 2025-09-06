@@ -16,7 +16,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-from config.environment import Environment
+from core.config.environment import Environment
 from signals.feature_registry import FeatureRegistry
 from signals.label_registry import LabelRegistry
 from modeling.configurable_train_data_generator import (
@@ -242,7 +242,7 @@ async def generate_tsla_aapl_training_data():
     prediction_horizon = 5  # 5-day prediction horizon from gin config
     
     # Create environment-based output directory
-    from config.environment import EnvironmentType
+    from core.config.environment import EnvironmentType
     
     if env.env_type == EnvironmentType.DEV:
         env_name = "ats-dev"

@@ -31,7 +31,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
-from config.environment import Environment, EnvironmentType
+from core.config.environment import Environment, EnvironmentType
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

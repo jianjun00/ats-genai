@@ -5,7 +5,7 @@ import asyncpg
 from typing import Optional, List
 from datetime import datetime, timedelta
 
-from config.environment import Environment
+from core.config.environment import Environment
 from .models import APIKey, APIKeyTier, APIKeyStatus
 
 

@@ -33,7 +33,7 @@ from domains.trading.services.indicator_config import IndicatorConfig
 
 # Defensive import handling for LoggingConfig
 try:
-    from config.logging_config import LoggingConfig
+    from core.config.logging_config import LoggingConfig
 except ImportError:
     try:
         from core.logging.logger_config import LoggingConfig
@@ -149,14 +149,14 @@ class Environment:
         print(f"[GIN DEBUG] Using Gin config: {config_path}, env_type={getattr(self, 'env_type', None)}")
         self.gin_config_path = config_path
         # Import Database before parsing Gin config to register it as a configurable
-        from config.database import Database
+        from core.config.database import Database
         from vendor.polygon.config import set_polygon_api_key, POLYGON_API_KEY
 
         import gin
         if config_path and os.environ.get('GIN_LOAD_DEFAULT_CONFIG', '1') == '1':
             if not (hasattr(gin.config, '_CONFIG') and gin.config._CONFIG.get('was_configured', False)):
                 gin.parse_config_file(config_path)
-        from config.logging_config import LoggingConfig
+        from core.config.logging_config import LoggingConfig
         self.logging_config = LoggingConfig()
         set_polygon_api_key()  # This will set POLYGON_API_KEY from Gin config
         print(f"[DEBUG] POLYGON_API_KEY after Gin load: {POLYGON_API_KEY}")

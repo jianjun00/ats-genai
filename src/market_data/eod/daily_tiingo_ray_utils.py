@@ -10,7 +10,7 @@ def ray_ingest_instrument(env_dict, instrument_id, symbol, start_date, end_date,
 
 async def _ray_ingest_instrument(env_dict, instrument_id, symbol, start_date, end_date, ok_status_id, no_data_status_id):
     # Reconstruct Environment and DAO inside Ray task
-    from config.environment import Environment
+    from core.config.environment import Environment
     env = Environment(
         gin_config_path=env_dict.get('gin_config_path'),
         env_type=env_dict.get('env_type'),

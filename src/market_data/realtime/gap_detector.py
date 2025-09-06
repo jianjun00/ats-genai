@@ -16,7 +16,7 @@ from typing import Dict, List
 from dataclasses import dataclass
 import pytz
 
-from config.environment import Environment
+from core.config.environment import Environment
 
 logger = logging.getLogger(__name__)
 

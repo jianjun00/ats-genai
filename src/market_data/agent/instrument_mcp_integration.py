@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 from typing import Dict, Any
 
-from config.environment import Environment
+from core.config.environment import Environment
 from market_data.agent.instrument_data_agent import InstrumentDataAgent
 
 logger = logging.getLogger("instrument_mcp_integration")

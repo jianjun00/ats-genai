@@ -14,7 +14,7 @@ import sys
 sys.path.insert(0, 'src')
 
 from dao.instrument_xrefs_dao import InstrumentXrefsDAO
-from config.environment import Environment
+from core.config.environment import Environment
 
 
 @pytest.fixture

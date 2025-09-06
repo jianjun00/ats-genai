@@ -27,7 +27,7 @@ import json
 from typing import Dict, List, Any
 
 # Import test subjects
-from config.environment import Environment, EnvironmentType
+from core.config.environment import Environment, EnvironmentType
 from market_data.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
 from ml.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 

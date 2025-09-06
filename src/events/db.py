@@ -1,4 +1,4 @@
-from config.environment import Environment
+from core.config.environment import Environment
 from dao.events_dao import EventsDAO
 from dao.instruments_dao import InstrumentsDAO
 from .schemas import EventIn
