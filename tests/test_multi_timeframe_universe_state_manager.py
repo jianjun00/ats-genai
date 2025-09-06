@@ -90,9 +90,10 @@ class TestMultiTimeframeUniverseStateManager:
         # Verify market_data_manager was called correctly
         self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
             instrument_id=self.instrument_id,
-            reference_datetime=self.current_date,
+            reference_datetime=datetime.combine(self.current_date, datetime.min.time()),
             periods=52,
-            time_interval='5m'
+            time_interval='5m',
+            direction='backward'
         )
         
         # Verify result structure
@@ -118,9 +119,10 @@ class TestMultiTimeframeUniverseStateManager:
         
         self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
             instrument_id=self.instrument_id,
-            reference_datetime=self.current_date,
+            reference_datetime=datetime.combine(self.current_date, datetime.min.time()),
             periods=52,
-            time_interval='15m'
+            time_interval='15m',
+            direction='backward'
         )
         
         assert not result.empty
@@ -136,9 +138,10 @@ class TestMultiTimeframeUniverseStateManager:
         
         self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
             instrument_id=self.instrument_id,
-            reference_datetime=self.current_date,
+            reference_datetime=datetime.combine(self.current_date, datetime.min.time()),
             periods=24,
-            time_interval='1h'
+            time_interval='1h',
+            direction='backward'
         )
         
         assert not result.empty
@@ -154,9 +157,10 @@ class TestMultiTimeframeUniverseStateManager:
         
         self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
             instrument_id=self.instrument_id,
-            reference_datetime=self.current_date,
+            reference_datetime=datetime.combine(self.current_date, datetime.min.time()),
             periods=20,
-            time_interval='1d'
+            time_interval='1d',
+            direction='backward'
         )
         
         assert not result.empty
@@ -174,64 +178,53 @@ class TestMultiTimeframeUniverseStateManager:
         # Verify it defaults to '1d'
         self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
             instrument_id=self.instrument_id,
-            reference_datetime=self.current_date,
+            reference_datetime=datetime.combine(self.current_date, datetime.min.time()),
             periods=20,
-            time_interval='1d'
+            time_interval='1d',
+            direction='backward'
         )
         
         assert not result.empty
         
     def test_get_lag_prices_market_data_manager_unavailable(self):
-        """Test fallback when market_data_manager is not available."""
+        """Test error when market_data_manager is not available."""
         # Remove market_data_manager
         self.universe_manager.market_data_manager = None
         
-        # Mock the fallback method
-        with patch.object(self.universe_manager, '_get_instrument_history') as mock_history:
-            mock_history.return_value = self.sample_1d_data
-            
-            result = self.universe_manager.get_lag_prices(
+        # Should raise AssertionError
+        with pytest.raises(AssertionError, match="market_data_manager is required for get_lag_prices"):
+            self.universe_manager.get_lag_prices(
                 self.instrument_id, self.current_date, lag_periods=20, time_interval='1d'
             )
             
-            # Verify fallback was called
-            mock_history.assert_called_once_with(self.instrument_id)
-            assert not result.empty
-            
     def test_get_lag_prices_market_data_manager_error(self):
-        """Test fallback when market_data_manager raises exception."""
+        """Test error handling when market_data_manager raises exception."""
         # Setup market_data_manager to raise exception
         self.mock_market_data_manager.get_ohlcv_data.side_effect = Exception("Connection error")
         
-        # Mock the fallback method
-        with patch.object(self.universe_manager, '_get_instrument_history') as mock_history:
-            mock_history.return_value = self.sample_1d_data.copy()
-            
-            result = self.universe_manager.get_lag_prices(
+        # Should raise IOError
+        with pytest.raises(IOError, match="Failed to get lag prices from market_data_manager: Connection error"):
+            self.universe_manager.get_lag_prices(
                 self.instrument_id, self.current_date, lag_periods=20, time_interval='1d'  
             )
             
-            # Verify market_data_manager was attempted
-            self.mock_market_data_manager.get_ohlcv_data.assert_called_once()
-            
-            # Verify fallback was called
-            mock_history.assert_called_once_with(self.instrument_id)
-            assert not result.empty
+        # Verify market_data_manager was attempted
+        self.mock_market_data_manager.get_ohlcv_data.assert_called_once()
             
     def test_get_lag_prices_empty_result(self):
         """Test behavior when market_data_manager returns empty DataFrame."""
-        self.mock_market_data_manager.get_ohlcv_data.return_value = pd.DataFrame()
+        # Setup market_data_manager to return empty DataFrame with correct columns
+        empty_df = pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume'])
+        self.mock_market_data_manager.get_ohlcv_data.return_value = empty_df
         
-        with patch.object(self.universe_manager, '_get_instrument_history') as mock_history:
-            mock_history.return_value = self.sample_1d_data
-            
-            result = self.universe_manager.get_lag_prices(
-                self.instrument_id, self.current_date, lag_periods=20, time_interval='1d'
-            )
-            
-            # Should fallback to cached data
-            mock_history.assert_called_once_with(self.instrument_id)
-            assert not result.empty
+        result = self.universe_manager.get_lag_prices(
+            self.instrument_id, self.current_date, lag_periods=20, time_interval='1d'
+        )
+        
+        # Should return the empty DataFrame with correct columns
+        assert result.empty
+        expected_columns = ['open', 'high', 'low', 'close', 'volume']
+        assert list(result.columns) == expected_columns
             
     def test_get_lag_prices_datetime_normalization(self):
         """Test that datetime inputs are properly normalized to date."""
@@ -247,9 +240,10 @@ class TestMultiTimeframeUniverseStateManager:
         # Verify the datetime was normalized to date for the call
         self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
             instrument_id=self.instrument_id,
-            reference_datetime=current_datetime.date(),  # Should be normalized
+            reference_datetime=current_datetime,  # Should be datetime object
             periods=20,
-            time_interval='1d'
+            time_interval='1d',
+            direction='backward'
         )
         
         assert not result.empty
@@ -273,9 +267,10 @@ class TestMultiTimeframeUniverseStateManager:
             # Verify correct call
             self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
                 instrument_id=self.instrument_id,
-                reference_datetime=self.current_date,
+                reference_datetime=datetime.combine(self.current_date, datetime.min.time()),
                 periods=10,
-                time_interval=interval
+                time_interval=interval,
+                direction='backward'
             )
             
             assert not result.empty, f"Failed for interval: {interval}"
@@ -332,9 +327,10 @@ class TestMultiTimeframeUniverseStateManager:
             # Verify market_data_manager call matches gin config
             self.mock_market_data_manager.get_ohlcv_data.assert_called_once_with(
                 instrument_id=self.instrument_id,
-                reference_datetime=self.current_date,
+                reference_datetime=datetime.combine(self.current_date, datetime.min.time()),
                 periods=expected_periods,
-                time_interval=timeframe
+                time_interval=timeframe,
+                direction='backward'
             )
 
 
@@ -360,7 +356,7 @@ class TestMultiTimeframeIntegration:
         mock_market_manager = Mock()
         self.universe_manager.market_data_manager = mock_market_manager
         
-        def mock_get_ohlcv_data(instrument_id, reference_datetime, periods, time_interval):
+        def mock_get_ohlcv_data(instrument_id, reference_datetime, periods, time_interval, direction='backward'):
             return mock_data[time_interval]
             
         mock_market_manager.get_ohlcv_data.side_effect = mock_get_ohlcv_data
