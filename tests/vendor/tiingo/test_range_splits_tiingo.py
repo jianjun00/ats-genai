@@ -106,7 +106,7 @@ async def test_insert_splits_tiingo_inserts_valid_splits():
         }
     ]
     await insert_splits_tiingo(splits, dao)
-    assert len(dao.inserted) == 1
+    assert len(core.dao.inserted) == 1
     s = dao.inserted[0]
     assert s['symbol'] == 'AAPL'
     assert s['execution_date'] == date(2023, 1, 15)

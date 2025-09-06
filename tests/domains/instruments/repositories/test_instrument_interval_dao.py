@@ -24,7 +24,7 @@ async def test_instrument_interval_dao_crud(unit_test_db):
     # Actually use UniverseStateIntervalDAO to insert parent
     from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
     parent_dao = UniverseStateIntervalDAO(env)
-    parent_id = await parent_dao.create(42, "5m", datetime(2025,8,7,9,30), datetime(2025,8,7,9,35))
+    parent_id = await parent_core.dao.create(42, "5m", datetime(2025,8,7,9,30), datetime(2025,8,7,9,35))
     # Now insert child
     id = await dao.create(parent_id, instrument_id, open_, high, low, close, traded_volume, traded_dollar, status, market_cap)
     row = await dao.get(id)

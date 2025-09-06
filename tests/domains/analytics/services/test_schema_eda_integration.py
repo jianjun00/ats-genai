@@ -584,7 +584,7 @@ class TestEndToEndSchemaEDAWorkflow:
         with patch('src.modeling.factor_models.ResidualReturnCalculator') as mock_calc, \
              patch('src.modeling.event_features.EventCalendar'), \
              patch('src.modeling.event_features.EventSequenceExtractor'), \
-             patch('src.dao.training_schema_dao.TrainingSchemaDAO'), \
+             patch('src.core.dao.training_schema_core.dao.TrainingSchemaDAO'), \
              patch('src.state.universe_state_manager.UniverseStateManager') as mock_universe:
             
             # Setup mocks

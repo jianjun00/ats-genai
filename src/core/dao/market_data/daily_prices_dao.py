@@ -11,7 +11,7 @@ from datetime import datetime, date
 import pandas as pd
 from sqlalchemy import text
 
-from dao.base.base_dao import BaseDAO
+from core.dao.base.base_dao import BaseDAO
 from core.validation.data_validators import MarketDataValidator, ValidationResult
 from core.logging.logger_config import get_logger
 

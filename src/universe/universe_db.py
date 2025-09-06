@@ -1,8 +1,8 @@
 # universe_db.py
 # Utility functions for multi-universe membership using universe and universe_membership tables
 from core.config.environment import Environment
-from dao.universe_dao import UniverseDAO
-from dao.universe_membership_dao import UniverseMembershipDAO
+from core.dao.universe_dao import UniverseDAO
+from core.dao.universe_membership_dao import UniverseMembershipDAO
 from datetime import date
 from typing import List, Optional
 
@@ -43,7 +43,7 @@ class UniverseDB:
 
     async def update_universe_membership_end(self, universe_id: int, symbol: str, end_at: date):
         # Map symbol to instrument_id before calling DAO
-        from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+        from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
         xrefs_dao = InstrumentXrefsDAO(self.env)
         instrument_id = await xrefs_dao.resolve_instrument_id(symbol)
         await self.universe_membership_dao.update_membership_end(universe_id=universe_id, instrument_id=instrument_id, end_at=end_at)

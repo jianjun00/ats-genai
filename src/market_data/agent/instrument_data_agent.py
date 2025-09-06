@@ -17,9 +17,9 @@ from pathlib import Path
 
 from core.config.environment import Environment, EnvironmentType
 from vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
-from dao.instruments_dao import InstrumentsDAO
-from dao.instrument_xrefs_dao import InstrumentXrefsDAO
-from dao.vendors_dao import VendorsDAO
+from core.dao.instruments_dao import InstrumentsDAO
+from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
+from core.dao.vendors_dao import VendorsDAO
 
 # Import the existing populate functions
 from vendor.polygon.services.populate_instrument_polygon import fetch_and_store_instruments

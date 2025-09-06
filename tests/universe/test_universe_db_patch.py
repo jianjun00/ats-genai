@@ -10,7 +10,7 @@ async def test_get_universe_members(monkeypatch):
         def __init__(self, env):
             self.env = env
             self.table_name = 'instruments'
-    monkeypatch.setattr('dao.instruments_dao.InstrumentsDAO', FakeInstrumentsDAO)
+    monkeypatch.setattr('core.dao.instruments_core.dao.InstrumentsDAO', FakeInstrumentsDAO)
 
     # Patch asyncpg.create_pool to return a pool that returns our fake symbol mapping
     class FakeConn:
@@ -37,8 +37,8 @@ async def test_get_universe_members(monkeypatch):
     db = UniverseDB(env=env)
     db.universe_membership_dao = MagicMock()
     # Memberships now return instrument_id only
-    db.universe_membership_dao.get_active_memberships = AsyncMock(return_value=[{'instrument_id': 1}, {'instrument_id': 2}])
+    db.universe_membership_core.dao.get_active_memberships = AsyncMock(return_value=[{'instrument_id': 1}, {'instrument_id': 2}])
 
     members = await db.get_universe_members(1, date(2025, 7, 24))
     assert members == [1, 2]
-    db.universe_membership_dao.get_active_memberships.assert_awaited_once_with(1, date(2025, 7, 24))
+    db.universe_membership_core.dao.get_active_memberships.assert_awaited_once_with(1, date(2025, 7, 24))

@@ -199,7 +199,7 @@ async def test_process_data_point(orchestrator):
     await orchestrator._process_data_point(data_point)
     
     # Check if record was stored
-    records = await orchestrator.dao.list_for_instrument("AAPL")
+    records = await orchestrator.core.dao.list_for_instrument("AAPL")
     assert len(records) == 1
     assert records[0].instrument_id == "AAPL"
     # Convert datetime to date for comparison if needed

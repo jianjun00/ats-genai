@@ -13,7 +13,7 @@ from datetime import datetime
 import sys
 sys.path.insert(0, 'src')
 
-from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
 from core.config.environment import Environment
 
 
@@ -74,9 +74,9 @@ class TestInstrumentXrefsDAOCore:
             assert result == 'AAPL'
             
             # Verify database calls
-            mock_create_pool.assert_called_once_with(dao.db_url)
+            mock_create_pool.assert_called_once_with(core.dao.db_url)
             mock_conn.fetchrow.assert_called_once_with(
-                f"SELECT vendor_symbol FROM {dao.table_name} WHERE instrument_id = $1 LIMIT 1",
+                f"SELECT vendor_symbol FROM {core.dao.table_name} WHERE instrument_id = $1 LIMIT 1",
                 1001
             )
             mock_pool.close.assert_called_once()
@@ -112,11 +112,11 @@ class TestInstrumentXrefsDAOCore:
         dao = InstrumentXrefsDAO(mock_env)
         
         with patch('asyncpg.create_pool') as mock_create_pool, \
-             patch('dao.vendors_dao.VendorsDAO') as mock_vendors_dao_class:
+             patch('core.dao.vendors_core.dao.VendorsDAO') as mock_vendors_dao_class:
             
             # Setup vendor DAO mock
             mock_vendors_dao = Mock()
-            mock_vendors_dao.get_vendor_by_name = AsyncMock(return_value={'id': 1, 'name': 'ticker'})
+            mock_vendors_core.dao.get_vendor_by_name = AsyncMock(return_value={'id': 1, 'name': 'ticker'})
             mock_vendors_dao_class.return_value = mock_vendors_dao
             
             # Setup database mocks
@@ -137,11 +137,11 @@ class TestInstrumentXrefsDAOCore:
             assert result == 'TSLA'
             
             # Verify vendor lookup was called
-            mock_vendors_dao.get_vendor_by_name.assert_called_once_with("ticker")
+            mock_vendors_core.dao.get_vendor_by_name.assert_called_once_with("ticker")
             
             # Verify database query with vendor_id
             mock_conn.fetchrow.assert_called_once_with(
-                f"SELECT vendor_symbol FROM {dao.table_name} WHERE instrument_id = $1 AND vendor_id = $2",
+                f"SELECT vendor_symbol FROM {core.dao.table_name} WHERE instrument_id = $1 AND vendor_id = $2",
                 1002, 1  # vendor_id from mocked vendor lookup
             )
     
@@ -269,7 +269,7 @@ class TestInstrumentXrefsDAOIntegrationScenarios:
             
             # Run multiple lookups concurrently
             instrument_ids = [1001, 1002, 1003, 1004, 1005]
-            tasks = [dao.get_symbol_by_instrument_id(iid) for iid in instrument_ids]
+            tasks = [core.dao.get_symbol_by_instrument_id(iid) for iid in instrument_ids]
             
             results = await asyncio.gather(*tasks)
             
@@ -291,7 +291,7 @@ class TestInstrumentXrefsDAOIntegrationScenarios:
         assert isinstance(manager.xrefs_dao, InstrumentXrefsDAO)
         
         # Verify DAO has correct environment reference
-        assert manager.xrefs_dao.env == mock_env
+        assert manager.xrefs_core.dao.env == mock_env
     
     def test_dao_not_initialized_without_environment(self):
         """Test that DAO is not initialized without environment."""
@@ -338,7 +338,7 @@ class TestInstrumentXrefsDAOPerformance:
         
         # The get_symbol_by_instrument_id query should use LIMIT 1 for efficiency
         # This is already tested in other tests, but we can verify the pattern
-        expected_query = f"SELECT vendor_symbol FROM {dao.table_name} WHERE instrument_id = $1 LIMIT 1"
+        expected_query = f"SELECT vendor_symbol FROM {core.dao.table_name} WHERE instrument_id = $1 LIMIT 1"
         
         # This query pattern should be efficient for single lookups
         assert "LIMIT 1" in expected_query

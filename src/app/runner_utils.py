@@ -46,7 +46,7 @@ async def run_file_daily_price_ohlcv(
     await runner.run()
 
     # Fetch universe state intervals from DB using DAO
-    from dao.universe_state_interval_dao import UniverseStateIntervalDAO
+    from core.dao.universe_state_interval_dao import UniverseStateIntervalDAO
     dao = UniverseStateIntervalDAO(env)
     universe_id = env.get_universe_id()
     

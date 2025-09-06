@@ -6,7 +6,7 @@ from typing import List, Dict, Optional
 from .base_daily_price_market_data_manager import BaseDailyPriceMarketDataManager
 from .unify_daily_prices import FileDailyPricesUnifier
 
-from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
 from core.config.environment import Environment
 
 class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
@@ -66,7 +66,7 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
         if not self.symbols:
             print(f"[DEBUG][_load_symbol_mappings] WARNING: self.symbols is empty, skipping mapping.")
         # Look up vendor_id for 'ticker' using VendorsDAO
-        from dao.vendors_dao import VendorsDAO
+        from core.dao.vendors_dao import VendorsDAO
         vendors_dao = VendorsDAO(self.env)
         vendor_row = await vendors_dao.get_vendor_by_name('ticker')
         ticker_vendor_id = vendor_row['id'] if vendor_row else None

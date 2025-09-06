@@ -55,7 +55,7 @@ from domains.trading.services.enhanced_indicators import calculate_all_technical
 from modeling.factor_models import ResidualReturnCalculator
 from modeling.event_features import EventSequenceExtractor, EventCalendar, flatten_event_features_for_model
 from src.schema.training_schema import TrainingDatasetSchema, FeatureSchema, LabelSchema, DatasetMetadata, FeatureType, DataType, ValidationResult
-from src.dao.training_schema_dao import TrainingSchemaDAO
+from core.dao.training_schema_dao import TrainingSchemaDAO
 
 logger = logging.getLogger(__name__)
 

@@ -254,7 +254,7 @@ async def main():
     }
     
     # Get all symbols to process
-    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+    from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
     xrefs_dao = InstrumentXrefsDAO(env)
     
     # Get symbols with instrument_ids

@@ -7,7 +7,7 @@ from db.test_db_manager import unit_test_db_clean
 from shared.utils.environment import Environment, EnvironmentType
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-from vendor.tiingo.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
+from vendor.tiingo.core.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
 import asyncio
 
 # Helper to run the main logic from daily_tiingo.py (should be refactored for direct import)

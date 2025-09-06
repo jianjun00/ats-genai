@@ -8,9 +8,9 @@ using DAOs for data access and implementing complex business rules.
 from typing import Dict, Any, List, Optional
 from datetime import date, timedelta
 
-from dao.exchange_dao import ExchangeDAO
-from dao.instrument_xref_dao import InstrumentXrefDAO
-from dao.vendor_dao import VendorDAO
+from core.dao.exchange_dao import ExchangeDAO
+from core.dao.instrument_xref_dao import InstrumentXrefDAO
+from core.dao.vendor_dao import VendorDAO
 from core.logging.logger_config import get_logger
 from core.exceptions.custom_exceptions import DatabaseError, DataValidationError
 

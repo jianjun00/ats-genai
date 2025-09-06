@@ -1,6 +1,6 @@
 import datetime
 import pytest
-from calendars.exchange_calendar import ExchangeCalendar
+from core.calendars.exchange_calendar import ExchangeCalendar
 
 @pytest.mark.parametrize("exchange,known_holiday,known_trading,known_next,known_prior", [
     ("NYSE", datetime.date(2025, 1, 1), datetime.date(2025, 1, 2), datetime.date(2025, 1, 2), datetime.date(2024, 12, 31)),

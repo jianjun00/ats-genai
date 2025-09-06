@@ -63,7 +63,7 @@ FileBasedMinuteMarketDataManager.indicator_configs = {
 }
 
 # Standard Technical Indicators Configuration
-IndicatorConfig.standard_technical_config.indicators = {
+IndicatorConfig.standard_technical_core.config.indicators = {
     'SMA_20': @SMA(20),
     'EMA_20': @EMA(20),
     'RSI_14': @RSI(14),
@@ -74,7 +74,7 @@ IndicatorConfig.standard_technical_config.indicators = {
 }
 
 # Multi-timeframe Configuration  
-IndicatorConfig.multi_timeframe_config.indicators = {
+IndicatorConfig.multi_timeframe_core.config.indicators = {
     'SMA_20': @SMA(20),
     'EMA_20': @EMA(20), 
     'RSI_14': @RSI(14),
@@ -84,7 +84,7 @@ IndicatorConfig.multi_timeframe_config.indicators = {
 }
 
 # Basic Configuration (for high-frequency 1m data)
-IndicatorConfig.basic_config.indicators = {
+IndicatorConfig.basic_core.config.indicators = {
     'OneOneDot': @OneOneDot(),
     'OneOneHigh': @OneOneHigh(),
     'OneOneLow': @OneOneLow()

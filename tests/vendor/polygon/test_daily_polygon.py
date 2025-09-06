@@ -3,8 +3,8 @@ import asyncio
 from datetime import datetime, timezone
 from shared.utils.environment import Environment, EnvironmentType
 from db.test_db_manager import unit_test_db
-from vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
-from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+from vendor.polygon.core.dao.instrument_polygon_dao import InstrumentPolygonDAO
+from vendor.polygon.core.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
 from domains.market_data.services.eod import daily_price_polygon
 import os
 
@@ -18,7 +18,7 @@ async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch, polygon_v
 
     # Insert a test instrument into the canonical instruments table
     test_symbol = "AAPL"
-    test_instrument_id = await instrument_dao.create_instrument(
+    test_instrument_id = await instrument_core.dao.create_instrument(
         symbol=test_symbol,
         name="Apple Inc.",
         exchange="NASDAQ",
@@ -31,7 +31,7 @@ async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch, polygon_v
     # Insert xref for AAPL/Polygon
     from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
     xrefs_dao = InstrumentXrefsDAO(env)
-    await xrefs_dao.create_xref(
+    await xrefs_core.dao.create_xref(
         instrument_id=test_instrument_id,
         vendor_id=polygon_vendor_id,
         symbol=test_symbol,
@@ -62,7 +62,7 @@ async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch, polygon_v
         # Process each ticker serially instead of using Ray
         for ticker in tickers:
             # Get instrument ID from ticker
-            instrument_id = await instrument_dao.get_instrument_id_by_symbol(ticker)
+            instrument_id = await instrument_core.dao.get_instrument_id_by_symbol(ticker)
             if not instrument_id:
                 print(f"No instrument found for {ticker}")
                 continue
@@ -90,7 +90,7 @@ async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch, polygon_v
                     date = datetime.fromtimestamp(timestamp_ms / 1000, tz=timezone.utc).date()
                     
                     # Insert price data
-                    await prices_dao.insert_price(
+                    await prices_core.dao.insert_price(
                         instrument_id=instrument_id,
                         date=date,
                         open=result.get('o'),
@@ -115,5 +115,5 @@ async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch, polygon_v
         polygon_api_key="testkey"
     )
     # Check that a price was inserted
-    rows = await prices_dao.list_prices(test_instrument_id)
+    rows = await prices_core.dao.list_prices(test_instrument_id)
     assert any(row['open'] == 100.0 and row['close'] == 105.0 for row in rows)

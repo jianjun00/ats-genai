@@ -13,18 +13,18 @@ bind = ['enable_metrics', False]
 bind = ['strict_validation', True]
 
 # import app.indicator_runner  # Temporarily disabled due to protobuf dependency issues
-import config.environment
+import core.config.environment
 # import signals.indicator  # Temporarily disabled due to dependency on app.indicator_runner
 
 # Configure the environment for testing
 # Define macros for environment types
 TEST = "TEST"
 
-config.environment.Environment.env_type = %TEST
-config.environment.Environment.db_url = "postgresql://test_user:test_password@localhost:5432/test_db"
-config.environment.Environment.logging_config = @config.logging_config.LoggingConfig()
-config.logging_config.LoggingConfig.log_level = "DEBUG"
-config.logging_config.LoggingConfig.log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+core.config.environment.Environment.env_type = %TEST
+core.config.environment.Environment.db_url = "postgresql://test_user:test_password@localhost:5432/test_db"
+core.config.environment.Environment.logging_config = @core.config.logging_config.LoggingConfig()
+core.config.logging_config.LoggingConfig.log_level = "DEBUG"
+core.config.logging_config.LoggingConfig.log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 # Configure the indicator runner (temporarily disabled due to dependency issues)
 # app.indicator_runner.IndicatorRunner.indicator_config = [

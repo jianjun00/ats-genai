@@ -17,7 +17,7 @@ from core.config.validation import validate_current_config
 
 # Reuse existing ATS framework
 from core.config.environment import Environment
-from dao.base.base_dao import BaseDAO
+from core.dao.base.base_dao import BaseDAO
 from core.logging.logger_config import get_logger
 from market_data.eod.daily_price_tiingo import TIINGO_API_KEY
 from market_data.eod.daily_price_fmp import *  # Reuse FMP patterns
@@ -105,7 +105,7 @@ class MinutePriceDAO(BaseDAO):
         full_table_name = self.env.get_table_name(self.table_name)
         
         # Use existing instrument resolution
-        from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+        from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
         instrument_dao = InstrumentXrefsDAO(self.env)
         
         inserted_count = 0

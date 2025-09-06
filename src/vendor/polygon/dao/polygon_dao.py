@@ -10,8 +10,8 @@ from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, date
 from sqlalchemy import text
 
-from dao.base.vendor_dao import MarketDataVendorDAO, VendorType
-from dao.market_data.daily_prices_dao import DailyPricesDAO
+from core.dao.base.vendor_dao import MarketDataVendorDAO, VendorType
+from core.dao.market_data.daily_prices_dao import DailyPricesDAO
 from core.logging.logger_config import get_logger
 
 

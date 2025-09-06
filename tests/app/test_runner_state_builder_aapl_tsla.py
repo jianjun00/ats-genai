@@ -151,7 +151,7 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
         import asyncpg
         pool = await asyncpg.create_pool(env.get_database_url())
         async with pool.acquire() as conn:
-            await conn.execute(f"DELETE FROM {dao.table_name} WHERE date >= $1 AND date <= $2 AND symbol IN ($3, $4)", test_dates[0], test_dates[-1], 'AAPL', 'TSLA')
+            await conn.execute(f"DELETE FROM {core.dao.table_name} WHERE date >= $1 AND date <= $2 AND symbol IN ($3, $4)", test_dates[0], test_dates[-1], 'AAPL', 'TSLA')
         await pool.close()
         for d in test_dates:
             await dao.insert_price(d, instrument_ids['AAPL'], 155, 158, 148, 154, 10000)
@@ -191,7 +191,7 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
         import asyncpg
         pool = await asyncpg.create_pool(env.get_database_url())
         async with pool.acquire() as conn:
-            await conn.execute(f"DELETE FROM {dao.table_name} WHERE date >= $1 AND date <= $2 AND symbol IN ($3, $4)", test_dates[0], test_dates[-1], 'AAPL', 'TSLA')
+            await conn.execute(f"DELETE FROM {core.dao.table_name} WHERE date >= $1 AND date <= $2 AND symbol IN ($3, $4)", test_dates[0], test_dates[-1], 'AAPL', 'TSLA')
         await pool.close()
 
 

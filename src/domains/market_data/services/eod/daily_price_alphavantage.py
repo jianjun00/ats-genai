@@ -15,7 +15,7 @@ from typing import List, Dict, Any
 from shared.utils.environment import Environment, EnvironmentType
 from domains.market_data.repositories.daily_prices_alphavantage_dao import DailyPricesAlphaVantageDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-from calendars.exchange_calendar import ExchangeCalendar
+from core.calendars.exchange_calendar import ExchangeCalendar
 
 logger = logging.getLogger(__name__)
 

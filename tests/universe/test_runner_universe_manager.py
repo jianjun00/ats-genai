@@ -35,15 +35,15 @@ async def test_runner_universe_manager_sod_eod_real_db(unit_test_db):
         await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol, type, start_at) VALUES ($1, $2, $3, $4, $5)", aapl_id, vendor_id, 'AAPL', 'primary', date(2025, 1, 1))
         await conn.execute(f"INSERT INTO {env.get_table_name('instrument_xrefs')} (instrument_id, vendor_id, symbol, type, start_at) VALUES ($1, $2, $3, $4, $5)", tsla_id, vendor_id, 'TSLA', 'primary', date(2025, 1, 1))
     universe_name = "RUNNER_SOD_EOD"
-    universe_id = await universe_dao.create_universe(universe_name, "desc")
+    universe_id = await universe_core.dao.create_universe(universe_name, "desc")
     # Build instrument_id to symbol mapping for assertions
     instrument_id_to_symbol = {aapl_id: 'AAPL', tsla_id: 'TSLA'}
     # Membership changes
-    await membership_dao.add_membership_full(universe_id, aapl_id, start_at=date(2025, 7, 1))
-    await membership_dao.add_membership_full(universe_id, tsla_id, start_at=date(2025, 7, 1))
+    await membership_core.dao.add_membership_full(universe_id, aapl_id, start_at=date(2025, 7, 1))
+    await membership_core.dao.add_membership_full(universe_id, tsla_id, start_at=date(2025, 7, 1))
     async with pool.acquire() as conn:
         await conn.execute(f"UPDATE {env.get_table_name('universe_membership')} SET end_at=$1 WHERE universe_id=$2 AND instrument_id=$3", date(2025, 7, 2), universe_id, aapl_id)
-    await membership_dao.add_membership_full(universe_id, aapl_id, start_at=date(2025, 7, 3))
+    await membership_core.dao.add_membership_full(universe_id, aapl_id, start_at=date(2025, 7, 3))
     async with pool.acquire() as conn:
         await conn.execute(f"UPDATE {env.get_table_name('universe_membership')} SET end_at=$1 WHERE universe_id=$2 AND instrument_id=$3 AND end_at IS NULL", date(2025, 7, 3), universe_id, tsla_id)
     # Run SOD/EOD for each day and check instrument ids
@@ -56,7 +56,7 @@ async def test_runner_universe_manager_sod_eod_real_db(unit_test_db):
     runner_object.market_data_manager = DailyPriceMarketDataManager(env=env)
     sod_instruments = {}
     async def capture_sod(runner_object, current_time):
-        memberships = await membership_dao.get_active_memberships(universe_id, current_time.date())
+        memberships = await membership_core.dao.get_active_memberships(universe_id, current_time.date())
         ids = [instrument_id_to_symbol.get(row['instrument_id']) for row in memberships]
         sod_instruments[current_time.date()] = set(ids)
     runner_object.universe_manager.update_for_sod = capture_sod

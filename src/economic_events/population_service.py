@@ -10,7 +10,7 @@ from datetime import date
 from typing import List, Dict, Any, Optional
 
 from core.config.environment import Environment
-from dao.economic_events_dao import EconomicEventsDAO, EconomicEvent, EconomicEventType, EconomicEventVendorData
+from core.dao.economic_events_dao import EconomicEventsDAO, EconomicEvent, EconomicEventType, EconomicEventVendorData
 from vendor.polygon.economic_events_client import PolygonEconomicEventsClient
 from vendor.tiingo.economic_events_client import TiingoEconomicEventsClient
 from vendor.alpha_vantage.economic_events_client import AlphaVantageEconomicClient

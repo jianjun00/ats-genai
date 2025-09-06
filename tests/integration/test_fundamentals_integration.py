@@ -10,9 +10,9 @@ import asyncio
 from datetime import date, datetime
 from decimal import Decimal
 
-from vendor.fmp.dao.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental
-from vendor.polygon.dao.fundamentals_polygon_dao import FundamentalsPolygonDAO, PolygonFundamental  
-from vendor.tiingo.dao.fundamentals_tiingo_dao import FundamentalsTiingoDAO, TiingoFundamental
+from vendor.fmp.core.dao.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental
+from vendor.polygon.core.dao.fundamentals_polygon_dao import FundamentalsPolygonDAO, PolygonFundamental  
+from vendor.tiingo.core.dao.fundamentals_tiingo_dao import FundamentalsTiingoDAO, TiingoFundamental
 from domains.market_data.services.fundamentals.unified_fundamental_provider import (
     UnifiedFundamentalProvider, 
     ValidationStatus
@@ -207,15 +207,15 @@ class TestUnifiedFundamentalProviderIntegration:
         tiingo_dao = FundamentalsTiingoDAO(dev_environment)
         
         # Cleanup any existing test data
-        await fmp_dao.delete_fundamental(sample_fmp_test_data.symbol, sample_fmp_test_data.date)
-        await polygon_dao.delete_fundamental(sample_polygon_test_data.symbol, sample_polygon_test_data.date)
-        await tiingo_dao.delete_fundamental(sample_tiingo_test_data.symbol, sample_tiingo_test_data.date)
+        await fmp_core.dao.delete_fundamental(sample_fmp_test_data.symbol, sample_fmp_test_data.date)
+        await polygon_core.dao.delete_fundamental(sample_polygon_test_data.symbol, sample_polygon_test_data.date)
+        await tiingo_core.dao.delete_fundamental(sample_tiingo_test_data.symbol, sample_tiingo_test_data.date)
         
         try:
             # Insert test data across all vendors
-            await fmp_dao.insert_fundamental(sample_fmp_test_data)
-            await polygon_dao.insert_fundamental(sample_polygon_test_data)
-            await tiingo_dao.insert_fundamental(sample_tiingo_test_data)
+            await fmp_core.dao.insert_fundamental(sample_fmp_test_data)
+            await polygon_core.dao.insert_fundamental(sample_polygon_test_data)
+            await tiingo_core.dao.insert_fundamental(sample_tiingo_test_data)
             
             # Test unified fundamental retrieval
             unified_result = await provider.get_unified_fundamental(sample_fmp_test_data.symbol, sample_fmp_test_data.date)
@@ -238,9 +238,9 @@ class TestUnifiedFundamentalProviderIntegration:
             
         finally:
             # Cleanup test data
-            await fmp_dao.delete_fundamental(sample_fmp_test_data.symbol, sample_fmp_test_data.date)
-            await polygon_dao.delete_fundamental(sample_polygon_test_data.symbol, sample_polygon_test_data.date)
-            await tiingo_dao.delete_fundamental(sample_tiingo_test_data.symbol, sample_tiingo_test_data.date)
+            await fmp_core.dao.delete_fundamental(sample_fmp_test_data.symbol, sample_fmp_test_data.date)
+            await polygon_core.dao.delete_fundamental(sample_polygon_test_data.symbol, sample_polygon_test_data.date)
+            await tiingo_core.dao.delete_fundamental(sample_tiingo_test_data.symbol, sample_tiingo_test_data.date)
     
     @pytest.mark.asyncio
     

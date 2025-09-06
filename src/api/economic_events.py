@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from core.config.environment import Environment
 from core.config.database import get_connection_pool
-from dao.economic_events_dao import EconomicEventsDAO
+from core.dao.economic_events_dao import EconomicEventsDAO
 
 router = APIRouter(prefix="/economic-events", tags=["Economic Events"])
 

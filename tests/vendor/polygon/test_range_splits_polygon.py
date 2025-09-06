@@ -3,7 +3,7 @@ import asyncio
 from unittest.mock import patch, MagicMock
 from datetime import date
 from vendor.polygon.services.range_splits_polygon import insert_splits_polygon, parse_date, date_chunks, main as range_main
-from infrastructure.database.repositories.stock_splits_polygon_dao import StockSplitsPolygonDAO
+from core.dao.stock_splits_polygon_dao import StockSplitsPolygonDAO
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -37,7 +37,7 @@ async def test_insert_splits_polygon_inserts_valid_splits():
         }
     ]
     await insert_splits_polygon(splits, dao)
-    assert len(dao.inserted) == 1
+    assert len(core.dao.inserted) == 1
     s = dao.inserted[0]
     assert s['symbol'] == 'AAPL'
     assert s['execution_date'] == date(2023, 1, 15)
@@ -96,4 +96,4 @@ async def test_chunked_fetch_and_aggregation(monkeypatch):
     # Test DAO insert
     dao = DummyDAO()
     await insert_splits_polygon(all_splits, dao)
-    assert len(dao.inserted) == 2
+    assert len(core.dao.inserted) == 2

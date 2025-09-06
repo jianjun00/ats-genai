@@ -1,5 +1,5 @@
 from typing import List, Dict, Any
-from src.config.environment import Environment
+from core.config.environment import Environment
 
 class DailyPricesQuandlDAO:
     def __init__(self, env: Environment):

@@ -40,7 +40,7 @@ from core.config.environment import Environment
 from state.instrument_interval import InstrumentInterval
 from .factor_interval import FactorInterval
 from state.indicator_interval import IndicatorInterval
-from dao.daily_market_cap_dao import DailyMarketCapDAO
+from core.dao.daily_market_cap_dao import DailyMarketCapDAO
 
 from signals.indicator_builder import IndicatorBuilder
 from signals.indicator_config import IndicatorConfig
@@ -271,7 +271,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         self.rolling_window = getattr(self.env, 'indicator_rolling_window', 20)
 
         # Durations
-        from calendars.time_duration import TimeDuration
+        from core.calendars.time_duration import TimeDuration
         base_duration_str = base_duration
         self.base_duration = TimeDuration(base_duration_str)
         target_durations_str = target_durations

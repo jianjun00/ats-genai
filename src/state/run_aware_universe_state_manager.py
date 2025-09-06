@@ -29,10 +29,10 @@ from .universe_state_manager import UniverseStateManager, UniverseStateMetadata
 from core.run_context import RunContext, get_current_run_context
 
 import gin
-from dao.universe_state_interval_dao import UniverseStateIntervalDAO
-from dao.instrument_interval_dao import InstrumentIntervalDAO
-from dao.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
-from dao.factor_interval_dao import FactorIntervalDAO
+from core.dao.universe_state_interval_dao import UniverseStateIntervalDAO
+from core.dao.instrument_interval_dao import InstrumentIntervalDAO
+from core.dao.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
+from core.dao.factor_interval_dao import FactorIntervalDAO
 
 logger = logging.getLogger(__name__)
 

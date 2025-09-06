@@ -88,7 +88,7 @@ async def insert_prices(prices, instrument_id, shares_outstanding, dao: DailyPri
 
 import argparse
 
-from calendars.exchange_calendar import ExchangeCalendar
+from core.calendars.exchange_calendar import ExchangeCalendar
 
 async def get_existing_dates_polygon(dao: DailyPricesPolygonDAO, instrument_id, start_date, end_date):
     all_prices = await dao.list_prices(instrument_id)
@@ -132,7 +132,7 @@ async def run_ingestion(tickers, start_date, end_date, environment=None, instrum
     if instrument_dao is None:
         instrument_dao = InstrumentPolygonDAO(env)
     if xrefs_dao is None:
-        from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+        from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
         xrefs_dao = InstrumentXrefsDAO(env)
     ray.init(ignore_reinit_error=True)
     env_dict = env.__dict__
@@ -173,7 +173,7 @@ async def run_ingestion(tickers, start_date, end_date, environment=None, instrum
     if prices_dao is None:
         prices_dao = DailyPricesPolygonDAO(env)
     if xrefs_dao is None:
-        from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+        from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
         xrefs_dao = InstrumentXrefsDAO(env)
     nyse_cal = ExchangeCalendar('NYSE')
     if isinstance(start_date, str):
@@ -272,7 +272,7 @@ async def main():
     env = Environment(gin_config_path=args.gin_config)
     print(f"[DEBUG] env.get_polygon_api_key(): {env.get_polygon_api_key()}")
     instrument_dao = InstrumentPolygonDAO(env)
-    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+    from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
     xrefs_dao = InstrumentXrefsDAO(env)
     # Determine tickers to process
     if args.tickers:

@@ -10,7 +10,7 @@ from datetime import datetime
 async def test_factor_interval_dao_crud(unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     parent_dao = UniverseStateIntervalDAO(env)
-    interval_id = await parent_dao.create(42, "5m", datetime(2025,8,7,9,30), datetime(2025,8,7,9,35))
+    interval_id = await parent_core.dao.create(42, "5m", datetime(2025,8,7,9,30), datetime(2025,8,7,9,35))
     dao = FactorIntervalDAO(env)
     # Insert
     factor_id = await dao.create(interval_id, "momentum", 1.23)

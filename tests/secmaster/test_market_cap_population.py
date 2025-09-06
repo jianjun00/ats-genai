@@ -18,7 +18,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
 from shared.utils.environment import Environment, EnvironmentType
-from infrastructure.database.repositories.daily_market_cap_dao import DailyMarketCapDAO
+from core.dao.daily_market_cap_dao import DailyMarketCapDAO
 
 
 class TestMarketCapPopulation:

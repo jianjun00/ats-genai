@@ -2,8 +2,8 @@ import pytest
 from datetime import datetime, date
 from shared.utils.environment import Environment, EnvironmentType
 from domains.market_data.services.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
-from vendor.tiingo.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
-from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+from vendor.tiingo.core.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
+from vendor.polygon.core.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 from src.db.test_db_manager import unit_test_db
@@ -17,36 +17,36 @@ async def test_unified_mgr(unit_test_db):
     tiingo_dao = DailyPricesTiingoDAO(env)
     polygon_dao = DailyPricesPolygonDAO(env)
     symbol = "AAPL"
-    instrument_id = await instruments_dao.create_instrument(symbol=symbol)
-    from infrastructure.database.repositories.vendors_dao import VendorsDAO
+    instrument_id = await instruments_core.dao.create_instrument(symbol=symbol)
+    from dao.vendors_dao import VendorsDAO
     vendors_dao = VendorsDAO(env)
-    tiingo_vendor = await vendors_dao.get_vendor_by_name("tiingo")
+    tiingo_vendor = await vendors_core.dao.get_vendor_by_name("tiingo")
     if tiingo_vendor is None:
-        await vendors_dao.create_vendor("tiingo")
-        tiingo_vendor = await vendors_dao.get_vendor_by_name("tiingo")
-    polygon_vendor = await vendors_dao.get_vendor_by_name("polygon")
+        await vendors_core.dao.create_vendor("tiingo")
+        tiingo_vendor = await vendors_core.dao.get_vendor_by_name("tiingo")
+    polygon_vendor = await vendors_core.dao.get_vendor_by_name("polygon")
     if polygon_vendor is None:
-        await vendors_dao.create_vendor("polygon")
-        polygon_vendor = await vendors_dao.get_vendor_by_name("polygon")
+        await vendors_core.dao.create_vendor("polygon")
+        polygon_vendor = await vendors_core.dao.get_vendor_by_name("polygon")
     test_date = date(2025, 7, 18)
-    await xrefs_dao.create_xref(
+    await xrefs_core.dao.create_xref(
         instrument_id=instrument_id,
         vendor_id=tiingo_vendor['id'],
         symbol=symbol,
         start_at=test_date
     )
-    await xrefs_dao.create_xref(
+    await xrefs_core.dao.create_xref(
         instrument_id=instrument_id,
         vendor_id=polygon_vendor['id'],
         symbol=symbol,
         start_at=test_date
     )
     # Add ticker xref for symbol resolution
-    ticker_vendor = await vendors_dao.get_vendor_by_name("ticker")
+    ticker_vendor = await vendors_core.dao.get_vendor_by_name("ticker")
     if ticker_vendor is None:
-        await vendors_dao.create_vendor("ticker")
-        ticker_vendor = await vendors_dao.get_vendor_by_name("ticker")
-    await xrefs_dao.create_xref(
+        await vendors_core.dao.create_vendor("ticker")
+        ticker_vendor = await vendors_core.dao.get_vendor_by_name("ticker")
+    await xrefs_core.dao.create_xref(
         instrument_id=instrument_id,
         vendor_id=ticker_vendor['id'],
         symbol=symbol,
@@ -54,13 +54,13 @@ async def test_unified_mgr(unit_test_db):
         type="equity"
     )
 
-    await tiingo_dao.insert_price(
+    await tiingo_core.dao.insert_price(
         date=test_date,
         instrument_id=instrument_id,
         open_=100.0, high=110.0, low=99.0, close=105.0,
         adj_close=105.0, volume=1000000, status_id=None
     )
-    await polygon_dao.insert_price(
+    await polygon_core.dao.insert_price(
         date=test_date,
         instrument_id=instrument_id,
         open_=101.0, high=111.0, low=98.0, close=106.0,

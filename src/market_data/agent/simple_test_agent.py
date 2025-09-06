@@ -9,9 +9,9 @@ import json
 from datetime import datetime
 
 from core.config.environment import Environment
-from src.dao.instruments_dao import InstrumentsDAO
-from src.dao.instrument_xrefs_dao import InstrumentXrefsDAO
-from src.dao.instrument_polygon_dao import InstrumentPolygonDAO
+from core.dao.instruments_dao import InstrumentsDAO
+from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
+from core.dao.instrument_polygon_dao import InstrumentPolygonDAO
 
 
 async def test_dao_methods():

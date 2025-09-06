@@ -42,7 +42,7 @@ async def get_existing_dates(dao: DailyPricesTiingoDAO, instrument_id, start_dat
     all_prices = await dao.list_prices(instrument_id)
     return set(row['date'] for row in all_prices if start_date <= row['date'] <= end_date)
 
-from calendars.exchange_calendar import ExchangeCalendar
+from core.calendars.exchange_calendar import ExchangeCalendar
 
 def get_missing_date_ranges(existing_dates, start_date, end_date):
     # Returns a list of (range_start, range_end) for missing contiguous NYSE trading dates
@@ -64,7 +64,7 @@ def get_missing_date_ranges(existing_dates, start_date, end_date):
     ranges.append((range_start, prev))
     return ranges
 
-from calendars.exchange_calendar import ExchangeCalendar
+from core.calendars.exchange_calendar import ExchangeCalendar
 
 async def get_status_id(pool, code, env):
     status_code_table = env.get_table_name('status_code')

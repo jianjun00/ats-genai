@@ -3,7 +3,7 @@ from datetime import datetime, date
 from unittest.mock import Mock
 from state.universe_state_builder import UniverseStateIntervalBuilder
 from db.test_db_manager import unit_test_db_clean
-from calendars.time_duration import TimeDuration
+from core.calendars.time_duration import TimeDuration
 from domains.trading.services.indicator_config import IndicatorConfig
 from src.state.factor_interval import FactorInterval
 from state.instrument_interval import InstrumentInterval

@@ -157,7 +157,7 @@ async def apply_events_to_membership(pool, universe_id, events, env=None):
         env = Environment()
     universe_membership_table = env.get_table_name('universe_membership')
     membership_changes_table = env.get_table_name('universe_membership_changes')
-    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+    from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
     xrefs_dao = InstrumentXrefsDAO(env)
     async with pool.acquire() as conn:
         for event in events:

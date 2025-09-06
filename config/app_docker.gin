@@ -11,7 +11,7 @@ bind = ['enable_metrics', False]
 bind = ['strict_validation', True]
 
 import app.indicator_runner
-import config.environment
+import core.config.environment
 import signals.indicator
 
 # Configure the environment for Docker
@@ -19,20 +19,20 @@ import signals.indicator
 DOCKER = "DOCKER"
 
 # Configure database parameters
-config.database.Database.host = 'timescaledb'
-config.database.Database.port = 5432
-config.database.Database.user = 'postgres'
-config.database.Database.password = 'REPLACE_WITH_ACTUAL_DB_PASSWORD'
-config.database.Database.database = 'trading_db'
-config.database.Database.base_database = 'trading_db'
-config.database.Database.pool_min_size = 1
-config.database.Database.pool_max_size = 10
-config.database.Database.command_timeout = 60
+core.config.database.Database.host = 'timescaledb'
+core.config.database.Database.port = 5432
+core.config.database.Database.user = 'postgres'
+core.config.database.Database.password = 'REPLACE_WITH_ACTUAL_DB_PASSWORD'
+core.config.database.Database.database = 'trading_db'
+core.config.database.Database.base_database = 'trading_db'
+core.config.database.Database.pool_min_size = 1
+core.config.database.Database.pool_max_size = 10
+core.config.database.Database.command_timeout = 60
 
 # Configure environment
-config.environment.Environment.env_type = %DOCKER
-config.environment.Environment.logging_config = @config.logging_config.LoggingConfig()
-config.logging_config.LoggingConfig.log_level = "DEBUG"
-config.logging_config.LoggingConfig.log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+core.config.environment.Environment.env_type = %DOCKER
+core.config.environment.Environment.logging_config = @core.config.logging_config.LoggingConfig()
+core.config.logging_config.LoggingConfig.log_level = "DEBUG"
+core.config.logging_config.LoggingConfig.log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 # Configure the indicator runner

@@ -11,9 +11,9 @@ from datetime import datetime
 async def test_instrument_indicator_interval_dao_crud(unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     parent_dao = UniverseStateIntervalDAO(env)
-    interval_id = await parent_dao.create(42, "5m", datetime(2025,8,7,9,30), datetime(2025,8,7,9,35))
+    interval_id = await parent_core.dao.create(42, "5m", datetime(2025,8,7,9,30), datetime(2025,8,7,9,35))
     inst_dao = InstrumentIntervalDAO(env)
-    inst_id = await inst_dao.create(interval_id, 101, 100.0, 110.0, 90.0, 105.0, 1000.0, 105000.0, "ok", 1e9)
+    inst_id = await inst_core.dao.create(interval_id, 101, 100.0, 110.0, 90.0, 105.0, 1000.0, 105000.0, "ok", 1e9)
     dao = InstrumentIndicatorIntervalDAO(env)
     # Insert
     ind_id = await dao.create(inst_id, "rsi", 55.5, "ok")

@@ -3,18 +3,18 @@ import asyncio
 from datetime import datetime, date
 from shared.utils.environment import Environment, EnvironmentType
 from domains.market_data.services.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
-from vendor.tiingo.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
-from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+from vendor.tiingo.core.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
+from vendor.polygon.core.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-from infrastructure.database.repositories.vendors_dao import VendorsDAO
+from core.dao.vendors_dao import VendorsDAO
 from src.db.test_db_manager import unit_test_db
 
 async def get_or_create_vendor(vendors_dao, name, description=None):
     """Helper function to get a vendor by name or create it if it doesn't exist"""
-    vendor = await vendors_dao.get_vendor_by_name(name)
+    vendor = await vendors_core.dao.get_vendor_by_name(name)
     if not vendor:
-        vendor_id = await vendors_dao.create_vendor(name=name, description=description)
+        vendor_id = await vendors_core.dao.create_vendor(name=name, description=description)
         return {"id": vendor_id, "name": name}
     return vendor
 
@@ -30,7 +30,7 @@ async def test_unified_manager_returns_unified_price(unit_test_db):
 
     # Create instrument and xref
     symbol = "AAPL"
-    instrument_id = await instruments_dao.create_instrument(symbol=symbol)
+    instrument_id = await instruments_core.dao.create_instrument(symbol=symbol)
     
     # Get or create vendor IDs for tiingo, polygon, and ticker
     vendors_dao = VendorsDAO(env)
@@ -41,19 +41,19 @@ async def test_unified_manager_returns_unified_price(unit_test_db):
     # Create xrefs with vendor_id and start_at
     from datetime import date
     today = date.today()
-    await xrefs_dao.create_xref(instrument_id=instrument_id, vendor_id=tiingo_vendor['id'], symbol=symbol, start_at=today)
-    await xrefs_dao.create_xref(instrument_id=instrument_id, vendor_id=polygon_vendor['id'], symbol=symbol, start_at=today)
-    await xrefs_dao.create_xref(instrument_id=instrument_id, vendor_id=ticker_vendor['id'], symbol=symbol, start_at=today)
+    await xrefs_core.dao.create_xref(instrument_id=instrument_id, vendor_id=tiingo_vendor['id'], symbol=symbol, start_at=today)
+    await xrefs_core.dao.create_xref(instrument_id=instrument_id, vendor_id=polygon_vendor['id'], symbol=symbol, start_at=today)
+    await xrefs_core.dao.create_xref(instrument_id=instrument_id, vendor_id=ticker_vendor['id'], symbol=symbol, start_at=today)
 
     # Insert prices into tiingo and polygon tables for the same date
     test_date = date(2025, 7, 18)
-    await tiingo_dao.insert_price(
+    await tiingo_core.dao.insert_price(
         date=test_date,
         instrument_id=instrument_id,
         open_=100.0, high=110.0, low=99.0, close=105.0,
         adj_close=105.0, volume=1000000, status_id=None
     )
-    await polygon_dao.insert_price(
+    await polygon_core.dao.insert_price(
         date=test_date,
         instrument_id=instrument_id,
         open_=101.0, high=111.0, low=98.0, close=106.0,

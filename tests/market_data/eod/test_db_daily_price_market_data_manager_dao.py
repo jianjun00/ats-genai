@@ -16,8 +16,8 @@ class TestDBDailyPriceMarketDataManagerDAO:
     def mock_xrefs_dao(self):
         """Create a mock InstrumentXrefsDAO."""
         mock_dao = AsyncMock(spec=InstrumentXrefsDAO)
-        mock_dao.resolve_instrument_id_by_symbol.return_value = 1
-        mock_dao.get_symbol_by_instrument_id_vendor_name.return_value = "AAPL"
+        mock_core.dao.resolve_instrument_id_by_symbol.return_value = 1
+        mock_core.dao.get_symbol_by_instrument_id_vendor_name.return_value = "AAPL"
         return mock_dao
 
     @pytest.fixture
@@ -33,7 +33,7 @@ class TestDBDailyPriceMarketDataManagerDAO:
         with patch('market_data.eod.db_daily_price_market_data_manager.DailyPricesDAO') as mock_prices_dao:
             # Create an AsyncMock for the prices_dao
             mock_prices_dao_instance = AsyncMock()
-            mock_prices_dao.return_value = mock_prices_dao_instance
+            mock_prices_core.dao.return_value = mock_prices_dao_instance
             
             manager = DBDailyPriceMarketDataManager(
                 env=mock_env,
@@ -73,7 +73,7 @@ class TestDBDailyPriceMarketDataManagerDAO:
     async def test_get_ohlc_resolves_symbol_with_dao(self, mock_db_manager, mock_xrefs_dao):
         """Test that get_ohlc resolves symbols using the InstrumentXrefsDAO."""
         # Setup mock data
-        mock_db_manager.prices_dao.list_prices_for_instruments_and_date.return_value = [{
+        mock_db_manager.prices_core.dao.list_prices_for_instruments_and_date.return_value = [{
             'instrument_id': 1,
             'date': date(2025, 1, 1),
             'open': 150.0,
@@ -92,7 +92,7 @@ class TestDBDailyPriceMarketDataManagerDAO:
         mock_xrefs_dao.get_symbol_by_instrument_id_vendor_name.assert_called_once_with(1, vendor_name="ticker")
         
         # Verify price DAO was called with resolved instrument ID
-        mock_db_manager.prices_dao.list_prices_for_instruments_and_date.assert_called_once_with(
+        mock_db_manager.prices_core.dao.list_prices_for_instruments_and_date.assert_called_once_with(
             [1], start_date.date()
         )
         
@@ -105,7 +105,7 @@ class TestDBDailyPriceMarketDataManagerDAO:
     async def test_get_ohlc_batch_resolves_symbols_with_dao(self, mock_db_manager, mock_xrefs_dao):
         """Test that get_ohlc_batch resolves symbols using the InstrumentXrefsDAO."""
         # Setup mock data for list_prices_for_instruments_and_date
-        mock_db_manager.prices_dao.list_prices_for_instruments_and_date.return_value = [
+        mock_db_manager.prices_core.dao.list_prices_for_instruments_and_date.return_value = [
             {
                 'instrument_id': 1,
                 'date': date(2025, 1, 1),
@@ -133,7 +133,7 @@ class TestDBDailyPriceMarketDataManagerDAO:
         result = await mock_db_manager.get_ohlc_batch(instrument_ids, start_date, end_date)
         
         # Verify price DAO was called with instrument IDs
-        mock_db_manager.prices_dao.list_prices_for_instruments_and_date.assert_called_once_with(
+        mock_db_manager.prices_core.dao.list_prices_for_instruments_and_date.assert_called_once_with(
             instrument_ids, start_date.date()
         )
         

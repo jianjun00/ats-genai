@@ -2,7 +2,7 @@ import pytest
 import datetime
 from shared.utils.environment import EnvironmentType
 from db.test_db_manager import unit_test_db
-from infrastructure.database.repositories.vendors.polygon_dao import PolygonDAO
+from core.dao.vendors.polygon_dao import PolygonDAO
 from shared.utils.environment import Environment
 
 

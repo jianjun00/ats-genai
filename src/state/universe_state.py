@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Dict
 from datetime import datetime
 from typing import List
-from calendars.time_duration import TimeDuration
+from core.calendars.time_duration import TimeDuration
 from .factor_interval import FactorInterval
 from .instrument_interval import InstrumentInterval
 from .indicator_interval import IndicatorInterval
@@ -144,7 +144,7 @@ class UniverseStateInterval:
         """
         Deserialize a UniverseStateInterval from a protobuf message.
         """
-        from calendars.time_duration import TimeDuration
+        from core.calendars.time_duration import TimeDuration
         from state.factor_interval import FactorInterval
         from state.instrument_interval import InstrumentInterval
         from state.indicator_interval import IndicatorInterval

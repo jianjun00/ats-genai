@@ -9,24 +9,24 @@ import asyncpg
 from shared.utils.environment import EnvironmentType, Environment
 
 # Import all DAOs
-from infrastructure.database.repositories.daily_market_cap_dao import DailyMarketCapDAO
+from core.dao.daily_market_cap_dao import DailyMarketCapDAO
 from domains.market_data.repositories.daily_prices_dao import DailyPricesDAO
-from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
-from vendor.tiingo.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
-from infrastructure.database.repositories.db_version_dao import DBVersionDAO
-from infrastructure.database.repositories.dividends_dao import DividendsDAO
+from vendor.polygon.core.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+from vendor.tiingo.core.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
+from core.dao.db_version_dao import DBVersionDAO
+from core.dao.dividends_dao import DividendsDAO
 from domains.analytics.repositories.events_dao import EventsDAO
 from domains.market_data.repositories.fundamentals_dao import FundamentalsDAO
 
 
-from vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
+from vendor.polygon.core.dao.instrument_polygon_dao import InstrumentPolygonDAO
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from domains.instruments.repositories.secmaster_dao import SecMasterDAO
-from infrastructure.database.repositories.status_code_dao import StatusCodeDAO
-from infrastructure.database.repositories.stock_splits_dao import StockSplitsDAO
+from core.dao.status_code_dao import StatusCodeDAO
+from core.dao.stock_splits_dao import StockSplitsDAO
 from domains.trading.repositories.universe_dao import UniverseDAO
 from domains.trading.repositories.universe_membership_dao import UniverseMembershipDAO
-from infrastructure.database.repositories.vendors_dao import VendorsDAO
+from core.dao.vendors_dao import VendorsDAO
 
 import pytest_asyncio
 from db.test_db_manager import unit_test_db
@@ -51,7 +51,7 @@ async def test_instruments_dao_crud(unit_test_db):
             pool = await asyncpg.create_pool(env.get_database_url())
             try:
                 async with pool.acquire() as conn:
-                    await conn.execute(f"DELETE FROM {dao.table_name} WHERE symbol = $1", symbol)
+                    await conn.execute(f"DELETE FROM {core.dao.table_name} WHERE symbol = $1", symbol)
             finally:
                 await pool.close()
     # Create
@@ -75,16 +75,16 @@ async def test_daily_market_cap_dao_crud(unit_test_db):
     instruments_dao = InstrumentsDAO(env)
     symbol = "TESTMCAP"
     # Clean up if exists
-    instruments = await instruments_dao.list_instruments()
+    instruments = await instruments_core.dao.list_instruments()
     for inst in instruments:
         if inst['symbol'] == symbol:
             pool = await asyncpg.create_pool(env.get_database_url())
             try:
                 async with pool.acquire() as conn:
-                    await conn.execute(f"DELETE FROM {instruments_dao.table_name} WHERE symbol = $1", symbol)
+                    await conn.execute(f"DELETE FROM {instruments_core.dao.table_name} WHERE symbol = $1", symbol)
             finally:
                 await pool.close()
-    instrument_id = await instruments_dao.create_instrument(symbol=symbol, name="Test MarketCap Instrument", type_="stock")
+    instrument_id = await instruments_core.dao.create_instrument(symbol=symbol, name="Test MarketCap Instrument", type_="stock")
     assert instrument_id is not None
 
     dao = DailyMarketCapDAO(env)
@@ -94,7 +94,7 @@ async def test_daily_market_cap_dao_crud(unit_test_db):
     pool = await asyncpg.create_pool(env.get_database_url())
     try:
         async with pool.acquire() as conn:
-            await conn.execute(f"DELETE FROM {dao.table_name} WHERE date = $1 AND instrument_id = $2", test_date, instrument_id)
+            await conn.execute(f"DELETE FROM {core.dao.table_name} WHERE date = $1 AND instrument_id = $2", test_date, instrument_id)
     finally:
         await pool.close()
     # Insert
@@ -114,8 +114,8 @@ async def test_daily_market_cap_dao_crud(unit_test_db):
     pool = await asyncpg.create_pool(env.get_database_url())
     try:
         async with pool.acquire() as conn:
-            await conn.execute(f"DELETE FROM {dao.table_name} WHERE instrument_id = $1", instrument_id)
-            await conn.execute(f"DELETE FROM {instruments_dao.table_name} WHERE id = $1", instrument_id)
+            await conn.execute(f"DELETE FROM {core.dao.table_name} WHERE instrument_id = $1", instrument_id)
+            await conn.execute(f"DELETE FROM {instruments_core.dao.table_name} WHERE id = $1", instrument_id)
     finally:
         await pool.close()
 
@@ -128,16 +128,16 @@ async def test_daily_prices_dao_crud(unit_test_db):
     instruments_dao = InstrumentsDAO(env)
     symbol = "TESTPRC"
     # Clean up if exists
-    instruments = await instruments_dao.list_instruments()
+    instruments = await instruments_core.dao.list_instruments()
     for inst in instruments:
         if inst['symbol'] == symbol:
             pool = await asyncpg.create_pool(env.get_database_url())
             try:
                 async with pool.acquire() as conn:
-                    await conn.execute(f"DELETE FROM {instruments_dao.table_name} WHERE symbol = $1", symbol)
+                    await conn.execute(f"DELETE FROM {instruments_core.dao.table_name} WHERE symbol = $1", symbol)
             finally:
                 await pool.close()
-    instrument_id = await instruments_dao.create_instrument(symbol=symbol, name="Test Price Instrument", type_="stock")
+    instrument_id = await instruments_core.dao.create_instrument(symbol=symbol, name="Test Price Instrument", type_="stock")
     assert instrument_id is not None
 
     dao = DailyPricesDAO(env)
@@ -160,7 +160,7 @@ async def test_universe_dao_crud(unit_test_db):
     pool = await asyncpg.create_pool(env.get_database_url())
     try:
         async with pool.acquire() as conn:
-            await conn.execute(f"TRUNCATE {dao.table_name} RESTART IDENTITY CASCADE")
+            await conn.execute(f"TRUNCATE {core.dao.table_name} RESTART IDENTITY CASCADE")
     finally:
         await pool.close()
     # Create
@@ -200,7 +200,7 @@ async def test_universe_membership_dao_universe_isolation(unit_test_db):
     pool = await asyncpg.create_pool(env.get_database_url())
     try:
         async with pool.acquire() as conn:
-            await conn.execute(f"DELETE FROM {dao.table_name} WHERE universe_id IN ($1, $2) AND symbol IN ($3, $4)", universe_id_1, universe_id_2, symbol_1, symbol_2)
+            await conn.execute(f"DELETE FROM {core.dao.table_name} WHERE universe_id IN ($1, $2) AND symbol IN ($3, $4)", universe_id_1, universe_id_2, symbol_1, symbol_2)
     finally:
         await pool.close()
 
@@ -214,7 +214,7 @@ async def test_universe_membership_dao_universe_isolation(unit_test_db):
                 WHERE table_name = $1
                 ORDER BY ordinal_position
             """, dao.table_name)
-            print(f"[SCHEMA DEBUG] Columns for {dao.table_name}:")
+            print(f"[SCHEMA DEBUG] Columns for {core.dao.table_name}:")
             for row in rows:
                 print(f"    {row['column_name']}: {row['data_type']}")
     finally:
@@ -231,16 +231,16 @@ async def test_universe_membership_dao_universe_isolation(unit_test_db):
 
     # Insert required vendor for xrefs
     vendors_dao = VendorsDAO(env)
-    vendor_id = await vendors_dao.create_vendor(name="TestVendor", description="Test vendor for xref")
+    vendor_id = await vendors_core.dao.create_vendor(name="TestVendor", description="Test vendor for xref")
 
     # Insert required instruments and xrefs for test symbols
     instruments_dao = InstrumentsDAO(env)
     instrument_list_date = datetime(2010, 1, 1).date()
-    instrument_id_1 = await instruments_dao.create_instrument(symbol=symbol_1, name="Test Member 1", type_="stock", list_date=instrument_list_date)
-    instrument_id_2 = await instruments_dao.create_instrument(symbol=symbol_2, name="Test Member 2", type_="stock", list_date=instrument_list_date)
-    xrefs_dao = __import__('dao.instrument_xrefs_dao', fromlist=['InstrumentXrefsDAO']).InstrumentXrefsDAO(env)
-    await xrefs_dao.create_xref(instrument_id_1, vendor_id, symbol_1, instrument_list_date)
-    await xrefs_dao.create_xref(instrument_id_2, vendor_id, symbol_2, instrument_list_date)
+    instrument_id_1 = await instruments_core.dao.create_instrument(symbol=symbol_1, name="Test Member 1", type_="stock", list_date=instrument_list_date)
+    instrument_id_2 = await instruments_core.dao.create_instrument(symbol=symbol_2, name="Test Member 2", type_="stock", list_date=instrument_list_date)
+    xrefs_dao = __import__('core.dao.instrument_xrefs_dao', fromlist=['InstrumentXrefsDAO']).InstrumentXrefsDAO(env)
+    await xrefs_core.dao.create_xref(instrument_id_1, vendor_id, symbol_1, instrument_list_date)
+    await xrefs_core.dao.create_xref(instrument_id_2, vendor_id, symbol_2, instrument_list_date)
 
     # Add memberships with instrument_id
     await dao.add_membership(universe_id_1, symbol=symbol_1, instrument_id=instrument_id_1, start_at=instrument_list_date)
@@ -267,14 +267,14 @@ async def test_universe_membership_dao_active_memberships(unit_test_db):
     end_at = datetime(2025, 7, 25, 0, 0, 0)
     # Setup: Create vendor, instruments, and xrefs for both symbols
     vendors_dao = VendorsDAO(env)
-    vendor_id = await vendors_dao.create_vendor(name="TestVendor", description="Test vendor for xref")
+    vendor_id = await vendors_core.dao.create_vendor(name="TestVendor", description="Test vendor for xref")
     instruments_dao = InstrumentsDAO(env)
     instrument_list_date = datetime(2010, 1, 1).date()
-    instrument_id_active = await instruments_dao.create_instrument(symbol=symbol_active, name="Active Member", type_="stock", list_date=instrument_list_date)
-    instrument_id_inactive = await instruments_dao.create_instrument(symbol=symbol_inactive, name="Inactive Member", type_="stock", list_date=instrument_list_date)
-    xrefs_dao = __import__('dao.instrument_xrefs_dao', fromlist=['InstrumentXrefsDAO']).InstrumentXrefsDAO(env)
-    await xrefs_dao.create_xref(instrument_id_active, vendor_id, symbol_active, instrument_list_date)
-    await xrefs_dao.create_xref(instrument_id_inactive, vendor_id, symbol_inactive, instrument_list_date)
+    instrument_id_active = await instruments_core.dao.create_instrument(symbol=symbol_active, name="Active Member", type_="stock", list_date=instrument_list_date)
+    instrument_id_inactive = await instruments_core.dao.create_instrument(symbol=symbol_inactive, name="Inactive Member", type_="stock", list_date=instrument_list_date)
+    xrefs_dao = __import__('core.dao.instrument_xrefs_dao', fromlist=['InstrumentXrefsDAO']).InstrumentXrefsDAO(env)
+    await xrefs_core.dao.create_xref(instrument_id_active, vendor_id, symbol_active, instrument_list_date)
+    await xrefs_core.dao.create_xref(instrument_id_inactive, vendor_id, symbol_inactive, instrument_list_date)
     # Insert required universe for memberships
     pool = await asyncpg.create_pool(env.get_database_url())
     try:
@@ -286,7 +286,7 @@ async def test_universe_membership_dao_active_memberships(unit_test_db):
     pool = await asyncpg.create_pool(env.get_database_url())
     try:
         async with pool.acquire() as conn:
-            await conn.execute(f"DELETE FROM {dao.table_name} WHERE universe_id = $1 AND symbol IN ($2, $3)", universe_id, symbol_active, symbol_inactive)
+            await conn.execute(f"DELETE FROM {core.dao.table_name} WHERE universe_id = $1 AND symbol IN ($2, $3)", universe_id, symbol_active, symbol_inactive)
     finally:
         await pool.close()
     # Debug: Print schema of the membership table before inserting
@@ -299,7 +299,7 @@ async def test_universe_membership_dao_active_memberships(unit_test_db):
                 WHERE table_name = $1
                 ORDER BY ordinal_position
             """, dao.table_name)
-            print(f"[SCHEMA DEBUG] Columns for {dao.table_name}:")
+            print(f"[SCHEMA DEBUG] Columns for {core.dao.table_name}:")
             for row in rows:
                 print(f"    {row['column_name']}: {row['data_type']}")
     finally:
@@ -338,7 +338,7 @@ async def test_universe_membership_dao_crud(unit_test_db):
             # Start a transaction
             async with conn.transaction():
                 # Clean up any existing data
-                await conn.execute(f"DELETE FROM {dao.table_name} WHERE universe_id = $1", universe_id)
+                await conn.execute(f"DELETE FROM {core.dao.table_name} WHERE universe_id = $1", universe_id)
                 
                 # Clean up and insert universe
                 universe_table = env.get_table_name('universe')
@@ -350,12 +350,12 @@ async def test_universe_membership_dao_crud(unit_test_db):
                 
                 # Clean up and insert instrument
                 instruments_dao = InstrumentsDAO(env)
-                await conn.execute(f"DELETE FROM {instruments_dao.table_name} WHERE symbol = $1", symbol)
+                await conn.execute(f"DELETE FROM {instruments_core.dao.table_name} WHERE symbol = $1", symbol)
                 
                 # Insert instrument with list_date matching our test data
                 instrument_id = await conn.fetchval(
                     f"""
-                    INSERT INTO {instruments_dao.table_name} 
+                    INSERT INTO {instruments_core.dao.table_name} 
                     (symbol, name, type, list_date, created_at, updated_at)
                     VALUES ($1, $2, $3, $4, NOW(), NOW())
                     RETURNING id
@@ -368,7 +368,7 @@ async def test_universe_membership_dao_crud(unit_test_db):
                 vendor_name = "TestVendor"
                 vendor_id = await conn.fetchval(
                     f"""
-                    INSERT INTO {vendors_dao.table_name} 
+                    INSERT INTO {vendors_core.dao.table_name} 
                     (name, description, created_at, updated_at)
                     VALUES ($1, $2, NOW(), NOW())
                     ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
@@ -382,7 +382,7 @@ async def test_universe_membership_dao_crud(unit_test_db):
                 ticker_vendor_id = await conn.fetchval(
                     f"""
                     WITH ins AS (
-                        INSERT INTO {vendors_dao.table_name} 
+                        INSERT INTO {vendors_core.dao.table_name} 
                         (name, description, created_at, updated_at)
                         VALUES ($1, $2, NOW(), NOW())
                         ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
@@ -390,7 +390,7 @@ async def test_universe_membership_dao_crud(unit_test_db):
                     )
                     SELECT id FROM ins
                     UNION ALL
-                    SELECT id FROM {vendors_dao.table_name} WHERE name = $1
+                    SELECT id FROM {vendors_core.dao.table_name} WHERE name = $1
                     LIMIT 1
                     """,
                     'ticker', 'Ticker symbol vendor'
@@ -399,7 +399,7 @@ async def test_universe_membership_dao_crud(unit_test_db):
                 
                 # Verify vendor was inserted/retrieved
                 vendor_check = await conn.fetchrow(
-                    f"SELECT * FROM {vendors_dao.table_name} WHERE name = $1", 
+                    f"SELECT * FROM {vendors_core.dao.table_name} WHERE name = $1", 
                     'ticker'
                 )
                 print(f"[DEBUG] Ticker vendor check: {vendor_check}")
@@ -449,7 +449,7 @@ async def test_universe_membership_dao_crud(unit_test_db):
                 # Debug: Manually resolve instrument_id to see what's happening
                 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
                 xrefs_dao = InstrumentXrefsDAO(env)
-                resolved_id = await xrefs_dao.resolve_instrument_id(
+                resolved_id = await xrefs_core.dao.resolve_instrument_id(
                     symbol=symbol,
                     vendor_id=ticker_vendor_id,
                     at_date=start_at
@@ -460,7 +460,7 @@ async def test_universe_membership_dao_crud(unit_test_db):
                 print("[DEBUG] Adding membership with explicit instrument_id")
                 await conn.execute(
                     f"""
-                    INSERT INTO {dao.table_name} 
+                    INSERT INTO {core.dao.table_name} 
                     (universe_id, symbol, start_at, instrument_id)
                     VALUES ($1, $2, $3, $4)
                     """,
@@ -504,16 +504,16 @@ async def test_daily_prices_polygon_dao_crud(unit_test_db):
     # Create test instrument
     instruments_dao = InstrumentsDAO(env)
     symbol = "TESTPOLY"
-    instruments = await instruments_dao.list_instruments()
+    instruments = await instruments_core.dao.list_instruments()
     for inst in instruments:
         if inst['symbol'] == symbol:
             pool = await asyncpg.create_pool(env.get_database_url())
             try:
                 async with pool.acquire() as conn:
-                    await conn.execute(f"DELETE FROM {instruments_dao.table_name} WHERE symbol = $1", symbol)
+                    await conn.execute(f"DELETE FROM {instruments_core.dao.table_name} WHERE symbol = $1", symbol)
             finally:
                 await pool.close()
-    instrument_id = await instruments_dao.create_instrument(symbol=symbol, name="Test Poly Instrument", type_="stock")
+    instrument_id = await instruments_core.dao.create_instrument(symbol=symbol, name="Test Poly Instrument", type_="stock")
     assert instrument_id is not None
 
     dao = DailyPricesPolygonDAO(env)
@@ -536,16 +536,16 @@ async def test_daily_prices_tiingo_dao_crud(unit_test_db):
     # Create test instrument
     instruments_dao = InstrumentsDAO(env)
     symbol = "TESTTIINGO"
-    instruments = await instruments_dao.list_instruments()
+    instruments = await instruments_core.dao.list_instruments()
     for inst in instruments:
         if inst['symbol'] == symbol:
             pool = await asyncpg.create_pool(env.get_database_url())
             try:
                 async with pool.acquire() as conn:
-                    await conn.execute(f"DELETE FROM {instruments_dao.table_name} WHERE symbol = $1", symbol)
+                    await conn.execute(f"DELETE FROM {instruments_core.dao.table_name} WHERE symbol = $1", symbol)
             finally:
                 await pool.close()
-    instrument_id = await instruments_dao.create_instrument(symbol=symbol, name="Test Tiingo Instrument", type_="stock")
+    instrument_id = await instruments_core.dao.create_instrument(symbol=symbol, name="Test Tiingo Instrument", type_="stock")
     assert instrument_id is not None
 
     dao = DailyPricesTiingoDAO(env)
@@ -600,9 +600,9 @@ async def test_universe_membership_dao_get_membership_changes(unit_test_db):
         universe_id = row['id']
         # Create instrument for symbol
         instruments_dao = InstrumentsDAO(env)
-        await instruments_dao.create_instrument(symbol=symbol, name="Test UMC Instrument", type_="stock")
+        await instruments_core.dao.create_instrument(symbol=symbol, name="Test UMC Instrument", type_="stock")
         # Insert a membership change (resolve instrument_id for symbol)
-        inst_row = await conn.fetchrow(f"SELECT id FROM {instruments_dao.table_name} WHERE symbol = $1", symbol)
+        inst_row = await conn.fetchrow(f"SELECT id FROM {instruments_core.dao.table_name} WHERE symbol = $1", symbol)
         instrument_id = inst_row['id'] if inst_row else None
         assert instrument_id is not None, f"Instrument for symbol {symbol} must exist"
         await conn.execute(f"INSERT INTO {membership_changes_table} (universe_id, symbol, instrument_id, action, effective_date, reason) VALUES ($1, $2, $3, $4, $5, $6)", universe_id, symbol, instrument_id, action, effective_date, reason)

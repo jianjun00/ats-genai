@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from infrastructure.database.repositories.status_code_dao import StatusCodeDAO
+from core.dao.status_code_dao import StatusCodeDAO
 from shared.utils.environment import Environment
 
 
@@ -47,7 +47,7 @@ class TestStatusCodeDAO:
         mock_pool.acquire.return_value = async_context_manager
         mock_pool.close = AsyncMock()
         
-        with patch('dao.status_code_dao.asyncpg') as mock_asyncpg:
+        with patch('core.dao.status_code_core.dao.asyncpg') as mock_asyncpg:
             # Make create_pool an async function that returns the mock pool
             async def create_pool_mock(*args, **kwargs):
                 return mock_pool
@@ -84,7 +84,7 @@ class TestStatusCodeDAO:
         mock_pool.close = AsyncMock()
         mock_connection.fetchrow.return_value = {'code': 'OK', 'description': 'Operation successful'}
         
-        with patch('dao.status_code_dao.asyncpg') as mock_asyncpg:
+        with patch('core.dao.status_code_core.dao.asyncpg') as mock_asyncpg:
             # Make create_pool an async function that returns the mock pool
             async def create_pool_mock(*args, **kwargs):
                 return mock_pool
@@ -125,7 +125,7 @@ class TestStatusCodeDAO:
         mock_pool.close = AsyncMock()
         mock_connection.fetch.return_value = expected_statuses
         
-        with patch('dao.status_code_dao.asyncpg') as mock_asyncpg:
+        with patch('core.dao.status_code_core.dao.asyncpg') as mock_asyncpg:
             # Make create_pool an async function that returns the mock pool
             async def create_pool_mock(*args, **kwargs):
                 return mock_pool
@@ -173,7 +173,7 @@ class TestStatusCodeDAO:
         mock_pool.acquire.return_value = async_context_manager
         mock_pool.close = AsyncMock()
         
-        with patch('dao.status_code_dao.asyncpg') as mock_asyncpg:
+        with patch('core.dao.status_code_core.dao.asyncpg') as mock_asyncpg:
             # Make create_pool an async function that returns the mock pool
             async def create_pool_mock(*args, **kwargs):
                 return mock_pool

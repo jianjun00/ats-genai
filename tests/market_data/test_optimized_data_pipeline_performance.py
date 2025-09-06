@@ -39,11 +39,11 @@ class TestOptimizedDataPipelinePerformance:
         
         # Mock the DAO to simulate database calls
         mock_dao = AsyncMock()
-        mock_dao.get_symbol_by_instrument_id_vendor_name = AsyncMock(side_effect=lambda iid, **kwargs: f"TEST{iid:03d}")
-        mock_dao.get_symbols_by_instrument_ids_batch = AsyncMock(return_value={iid: f"TEST{iid:03d}" for iid in sample_instrument_ids})
+        mock_core.dao.get_symbol_by_instrument_id_vendor_name = AsyncMock(side_effect=lambda iid, **kwargs: f"TEST{iid:03d}")
+        mock_core.dao.get_symbols_by_instrument_ids_batch = AsyncMock(return_value={iid: f"TEST{iid:03d}" for iid in sample_instrument_ids})
         
         # Patch DAO creation
-        with pytest.mock.patch('dao.instrument_xrefs_dao.InstrumentXrefsDAO', return_value=mock_dao):
+        with pytest.mock.patch('core.dao.instrument_xrefs_core.dao.InstrumentXrefsDAO', return_value=mock_dao):
             # Test individual calls (old method)
             start_time = time.time()
             individual_results = {}
@@ -89,9 +89,9 @@ class TestOptimizedDataPipelinePerformance:
             return f"TEST{iid:03d}"
         
         mock_dao = AsyncMock()
-        mock_dao.get_symbol_by_instrument_id_vendor_name = mock_resolve_symbol
+        mock_core.dao.get_symbol_by_instrument_id_vendor_name = mock_resolve_symbol
         
-        with pytest.mock.patch('dao.instrument_xrefs_dao.InstrumentXrefsDAO', return_value=mock_dao):
+        with pytest.mock.patch('core.dao.instrument_xrefs_core.dao.InstrumentXrefsDAO', return_value=mock_dao):
             # First call - should hit database
             symbol1 = await manager.resolve_symbol(1)
             assert call_count == 1
@@ -178,9 +178,9 @@ class TestOptimizedDataPipelinePerformance:
         
         with pytest.mock.patch('asyncpg.create_pool', return_value=mock_pool):
             # Mock instrument resolution
-            with pytest.mock.patch('dao.instrument_xrefs_dao.InstrumentXrefsDAO') as mock_dao_class:
+            with pytest.mock.patch('core.dao.instrument_xrefs_core.dao.InstrumentXrefsDAO') as mock_dao_class:
                 mock_dao = AsyncMock()
-                mock_dao.resolve_instrument_id_by_symbol.side_effect = {"AAPL": 1, "MSFT": 2}.get
+                mock_core.dao.resolve_instrument_id_by_symbol.side_effect = {"AAPL": 1, "MSFT": 2}.get
                 mock_dao_class.return_value = mock_dao
                 
                 # Test batch processing
@@ -216,9 +216,9 @@ class TestDataPipelineMemoryEfficiency:
         
         # Mock DAO
         mock_dao = AsyncMock()
-        mock_dao.get_symbol_by_instrument_id_vendor_name = AsyncMock(side_effect=lambda iid, **kwargs: f"TEST{iid:03d}")
+        mock_core.dao.get_symbol_by_instrument_id_vendor_name = AsyncMock(side_effect=lambda iid, **kwargs: f"TEST{iid:03d}")
         
-        with pytest.mock.patch('dao.instrument_xrefs_dao.InstrumentXrefsDAO', return_value=mock_dao):
+        with pytest.mock.patch('core.dao.instrument_xrefs_core.dao.InstrumentXrefsDAO', return_value=mock_dao):
             # Fill cache with many entries
             large_instrument_ids = list(range(1, 1001))  # 1000 instruments
             

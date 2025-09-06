@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime
-from calendars.time_duration import TimeDuration
+from core.calendars.time_duration import TimeDuration
 from state.instrument_interval import InstrumentInterval
 
 

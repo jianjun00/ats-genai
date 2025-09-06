@@ -23,16 +23,16 @@ async def test_end_to_end_polygon_backfill(unit_test_db):
     # Setup test data: create test instrument
     from domains.instruments.repositories.instruments_dao import InstrumentsDAO
     from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-    from infrastructure.database.repositories.vendors_dao import VendorsDAO
+    from dao.vendors_dao import VendorsDAO
     
     instruments_dao = InstrumentsDAO(env)
     xrefs_dao = InstrumentXrefsDAO(env)
     vendors_dao = VendorsDAO(env)
     
     # Create Polygon vendor if it doesn't exist
-    polygon_vendor = await vendors_dao.get_vendor_by_name("polygon")
+    polygon_vendor = await vendors_core.dao.get_vendor_by_name("polygon")
     if not polygon_vendor:
-        polygon_vendor_id = await vendors_dao.create_vendor(
+        polygon_vendor_id = await vendors_core.dao.create_vendor(
             "polygon", 
             description="Polygon.io",
             api_key_env_var="POLYGON_API_KEY"
@@ -41,7 +41,7 @@ async def test_end_to_end_polygon_backfill(unit_test_db):
         polygon_vendor_id = polygon_vendor["id"]
     
     # Create test instrument
-    test_instrument_id = await instruments_dao.create_instrument(
+    test_instrument_id = await instruments_core.dao.create_instrument(
         symbol="TESTPOLY",
         name="Test Polygon Corp",
         exchange="NASDAQ",
@@ -51,7 +51,7 @@ async def test_end_to_end_polygon_backfill(unit_test_db):
     )
     
     # Create instrument cross-reference
-    await xrefs_dao.create_xref(
+    await xrefs_core.dao.create_xref(
         instrument_id=test_instrument_id,
         vendor_id=polygon_vendor_id,
         symbol="TESTPOLY",
@@ -95,11 +95,11 @@ async def test_end_to_end_polygon_backfill(unit_test_db):
         assert inserted_count == 2
         
         # Verify data was inserted correctly
-        from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+        from vendor.polygon.core.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
         prices_dao = DailyPricesPolygonDAO(env)
         
         # Get inserted prices
-        prices = await prices_dao.list_prices(test_instrument_id)
+        prices = await prices_core.dao.list_prices(test_instrument_id)
         assert len(prices) == 2
         
         # Verify price data
@@ -124,16 +124,16 @@ async def test_end_to_end_tiingo_backfill(unit_test_db):
     # Setup test data: create test instrument
     from domains.instruments.repositories.instruments_dao import InstrumentsDAO
     from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-    from infrastructure.database.repositories.vendors_dao import VendorsDAO
+    from dao.vendors_dao import VendorsDAO
     
     instruments_dao = InstrumentsDAO(env)
     xrefs_dao = InstrumentXrefsDAO(env)
     vendors_dao = VendorsDAO(env)
     
     # Create Tiingo vendor if it doesn't exist
-    tiingo_vendor = await vendors_dao.get_vendor_by_name("tiingo")
+    tiingo_vendor = await vendors_core.dao.get_vendor_by_name("tiingo")
     if not tiingo_vendor:
-        tiingo_vendor_id = await vendors_dao.create_vendor(
+        tiingo_vendor_id = await vendors_core.dao.create_vendor(
             "tiingo",
             description="Tiingo.com",
             api_key_env_var="TIINGO_API_KEY"
@@ -142,7 +142,7 @@ async def test_end_to_end_tiingo_backfill(unit_test_db):
         tiingo_vendor_id = tiingo_vendor["id"]
     
     # Create test instrument
-    test_instrument_id = await instruments_dao.create_instrument(
+    test_instrument_id = await instruments_core.dao.create_instrument(
         symbol="TESTTIINGO",
         name="Test Tiingo Corp",
         exchange="NYSE",
@@ -152,7 +152,7 @@ async def test_end_to_end_tiingo_backfill(unit_test_db):
     )
     
     # Create instrument cross-reference
-    await xrefs_dao.create_xref(
+    await xrefs_core.dao.create_xref(
         instrument_id=test_instrument_id,
         vendor_id=tiingo_vendor_id,
         symbol="TESTTIINGO",
@@ -187,11 +187,11 @@ async def test_end_to_end_tiingo_backfill(unit_test_db):
         assert inserted_count == 1
         
         # Verify data was inserted correctly
-        from vendor.tiingo.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
+        from vendor.tiingo.core.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
         prices_dao = DailyPricesTiingoDAO(env)
         
         # Get inserted prices
-        prices = await prices_dao.list_prices(test_instrument_id)
+        prices = await prices_core.dao.list_prices(test_instrument_id)
         assert len(prices) == 1
         
         # Verify price data
@@ -211,15 +211,15 @@ async def test_duplicate_handling(unit_test_db):
     
     # Setup test data
     from domains.instruments.repositories.instruments_dao import InstrumentsDAO
-    from infrastructure.database.repositories.vendors_dao import VendorsDAO
+    from dao.vendors_dao import VendorsDAO
     
     instruments_dao = InstrumentsDAO(env)
     vendors_dao = VendorsDAO(env)
     
     # Create Polygon vendor if it doesn't exist
-    polygon_vendor = await vendors_dao.get_vendor_by_name("polygon")
+    polygon_vendor = await vendors_core.dao.get_vendor_by_name("polygon")
     if not polygon_vendor:
-        polygon_vendor_id = await vendors_dao.create_vendor(
+        polygon_vendor_id = await vendors_core.dao.create_vendor(
             "polygon", 
             description="Polygon.io",
             api_key_env_var="POLYGON_API_KEY"
@@ -228,7 +228,7 @@ async def test_duplicate_handling(unit_test_db):
         polygon_vendor_id = polygon_vendor["id"]
     
     # Create test instrument
-    test_instrument_id = await instruments_dao.create_instrument(
+    test_instrument_id = await instruments_core.dao.create_instrument(
         symbol="TESTDUP",
         name="Test Duplicate Corp",
         exchange="NYSE",
@@ -270,10 +270,10 @@ async def test_duplicate_handling(unit_test_db):
         assert second_insert == 1
         
         # Verify only one record exists
-        from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+        from vendor.polygon.core.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
         prices_dao = DailyPricesPolygonDAO(env)
         
-        prices = await prices_dao.list_prices(test_instrument_id)
+        prices = await prices_core.dao.list_prices(test_instrument_id)
         assert len(prices) == 1  # Should still be only 1 record
 
 
@@ -286,15 +286,15 @@ async def test_concurrent_database_operations(unit_test_db):
     
     # Setup test data
     from domains.instruments.repositories.instruments_dao import InstrumentsDAO
-    from infrastructure.database.repositories.vendors_dao import VendorsDAO
+    from dao.vendors_dao import VendorsDAO
     
     instruments_dao = InstrumentsDAO(env)
     vendors_dao = VendorsDAO(env)
     
     # Create vendors if they don't exist
-    polygon_vendor = await vendors_dao.get_vendor_by_name("polygon")
+    polygon_vendor = await vendors_core.dao.get_vendor_by_name("polygon")
     if not polygon_vendor:
-        polygon_vendor_id = await vendors_dao.create_vendor(
+        polygon_vendor_id = await vendors_core.dao.create_vendor(
             "polygon", 
             description="Polygon.io",
             api_key_env_var="POLYGON_API_KEY"
@@ -305,7 +305,7 @@ async def test_concurrent_database_operations(unit_test_db):
     # Create test instruments
     instrument_ids = []
     for i in range(3):
-        instrument_id = await instruments_dao.create_instrument(
+        instrument_id = await instruments_core.dao.create_instrument(
             symbol=f"TESTCONC{i}",
             name=f"Test Concurrent Corp {i}",
             exchange="NYSE",
@@ -353,11 +353,11 @@ async def test_concurrent_database_operations(unit_test_db):
         assert all(result == 1 for result in results)
         
         # Verify data was inserted correctly for each instrument
-        from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+        from vendor.polygon.core.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
         prices_dao = DailyPricesPolygonDAO(env)
         
         for i, instrument_id in enumerate(instrument_ids):
-            prices = await prices_dao.list_prices(instrument_id)
+            prices = await prices_core.dao.list_prices(instrument_id)
             assert len(prices) == 1
             
             price = prices[0]
@@ -375,15 +375,15 @@ async def test_large_batch_processing(unit_test_db):
     
     # Setup test data
     from domains.instruments.repositories.instruments_dao import InstrumentsDAO
-    from infrastructure.database.repositories.vendors_dao import VendorsDAO
+    from dao.vendors_dao import VendorsDAO
     
     instruments_dao = InstrumentsDAO(env)
     vendors_dao = VendorsDAO(env)
     
     # Create Polygon vendor if it doesn't exist
-    polygon_vendor = await vendors_dao.get_vendor_by_name("polygon")
+    polygon_vendor = await vendors_core.dao.get_vendor_by_name("polygon")
     if not polygon_vendor:
-        polygon_vendor_id = await vendors_dao.create_vendor(
+        polygon_vendor_id = await vendors_core.dao.create_vendor(
             "polygon", 
             description="Polygon.io",
             api_key_env_var="POLYGON_API_KEY"
@@ -392,7 +392,7 @@ async def test_large_batch_processing(unit_test_db):
         polygon_vendor_id = polygon_vendor["id"]
     
     # Create test instrument
-    test_instrument_id = await instruments_dao.create_instrument(
+    test_instrument_id = await instruments_core.dao.create_instrument(
         symbol="TESTBATCH",
         name="Test Batch Corp",
         exchange="NYSE",
@@ -434,10 +434,10 @@ async def test_large_batch_processing(unit_test_db):
         assert inserted_count == 100
         
         # Verify all data was inserted
-        from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+        from vendor.polygon.core.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
         prices_dao = DailyPricesPolygonDAO(env)
         
-        prices = await prices_dao.list_prices(test_instrument_id)
+        prices = await prices_core.dao.list_prices(test_instrument_id)
         assert len(prices) == 100
         
         # Verify data integrity (check first and last records)

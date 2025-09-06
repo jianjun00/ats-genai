@@ -54,7 +54,7 @@ class BaseDailyPriceMarketDataManager(MarketDataManager, ABC):
                 return cached_symbol
         
         # Cache miss or expired - fetch from database
-        from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+        from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
         xrefs_dao = InstrumentXrefsDAO(self.env)
         symbol = await xrefs_dao.get_symbol_by_instrument_id_vendor_name(instrument_id, vendor_name="ticker")
         
@@ -87,7 +87,7 @@ class BaseDailyPriceMarketDataManager(MarketDataManager, ABC):
         
         # Fetch uncached symbols from database
         if uncached_ids:
-            from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+            from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
             xrefs_dao = InstrumentXrefsDAO(self.env)
             
             # Batch database query for all uncached IDs

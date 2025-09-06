@@ -28,7 +28,7 @@ from ml.training_data.timeseries_sequence_training_generator import (
     TimeSeriesSequenceTrainingGenerator
 )
 from core.config.environment import Environment
-from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
 
 
 @pytest.fixture
@@ -128,9 +128,9 @@ class TestFileBasedMarketDataManagerIntegration:
     @pytest.mark.asyncio 
     async def test_get_ohlcv_data_instrument_not_found(self, mock_env):
         """Test get_ohlcv_data when instrument_id has no symbol mapping."""
-        with patch('dao.instrument_xrefs_dao.InstrumentXrefsDAO') as mock_dao_class:
+        with patch('core.dao.instrument_xrefs_core.dao.InstrumentXrefsDAO') as mock_dao_class:
             mock_dao = Mock()
-            mock_dao.get_symbol_by_instrument_id = AsyncMock(return_value=None)
+            mock_core.dao.get_symbol_by_instrument_id = AsyncMock(return_value=None)
             mock_dao_class.return_value = mock_dao
             
             manager = FileBasedMinuteMarketDataManager(mock_env, "/tmp/test")
@@ -147,15 +147,15 @@ class TestFileBasedMarketDataManagerIntegration:
             assert list(result.columns) == ['open', 'high', 'low', 'close', 'volume']
             
             # Should have called the DAO
-            mock_dao.get_symbol_by_instrument_id.assert_called_once_with(99999)
+            mock_core.dao.get_symbol_by_instrument_id.assert_called_once_with(99999)
     
     @pytest.mark.asyncio
     async def test_get_ohlcv_data_successful_retrieval(self, mock_env, sample_5m_data):
         """Test successful OHLCV data retrieval with actual value validation."""
-        with patch('dao.instrument_xrefs_dao.InstrumentXrefsDAO') as mock_dao_class:
+        with patch('core.dao.instrument_xrefs_core.dao.InstrumentXrefsDAO') as mock_dao_class:
             # Setup mocks
             mock_dao = Mock()
-            mock_dao.get_symbol_by_instrument_id = AsyncMock(return_value="AAPL")
+            mock_core.dao.get_symbol_by_instrument_id = AsyncMock(return_value="AAPL")
             mock_dao_class.return_value = mock_dao
             
             manager = FileBasedMinuteMarketDataManager(mock_env, "/tmp/test")
@@ -221,7 +221,7 @@ class TestFileBasedMarketDataManagerIntegration:
                 print(f"   Sample computed values: Open={first_period['open']}, High={first_period['high']}, Low={first_period['low']}, Close={first_period['close']}, Volume={first_period['volume']}")
             
             # Verify DAO was called
-            mock_dao.get_symbol_by_instrument_id.assert_called_once_with(1001)
+            mock_core.dao.get_symbol_by_instrument_id.assert_called_once_with(1001)
             
             # Verify get_ohlc_for_interval was called with correct parameters
             manager.get_ohlc_for_interval.assert_called_once()
@@ -232,9 +232,9 @@ class TestFileBasedMarketDataManagerIntegration:
     @pytest.mark.asyncio
     async def test_get_ohlcv_data_forward_direction(self, mock_env, sample_5m_data):
         """Test forward direction with actual price trend validation."""
-        with patch('dao.instrument_xrefs_dao.InstrumentXrefsDAO') as mock_dao_class:
+        with patch('core.dao.instrument_xrefs_core.dao.InstrumentXrefsDAO') as mock_dao_class:
             mock_dao = Mock()
-            mock_dao.get_symbol_by_instrument_id = AsyncMock(return_value="TSLA")
+            mock_core.dao.get_symbol_by_instrument_id = AsyncMock(return_value="TSLA")
             mock_dao_class.return_value = mock_dao
             
             manager = FileBasedMinuteMarketDataManager(mock_env, "/tmp/test")
@@ -292,9 +292,9 @@ class TestFileBasedMarketDataManagerIntegration:
         """Test multi-timeframe aggregation with actual value validation."""
         intervals_to_test = ['1m', '5m', '15m', '1h']
         
-        with patch('dao.instrument_xrefs_dao.InstrumentXrefsDAO') as mock_dao_class:
+        with patch('core.dao.instrument_xrefs_core.dao.InstrumentXrefsDAO') as mock_dao_class:
             mock_dao = Mock()
-            mock_dao.get_symbol_by_instrument_id = AsyncMock(return_value="SPY")
+            mock_core.dao.get_symbol_by_instrument_id = AsyncMock(return_value="SPY")
             mock_dao_class.return_value = mock_dao
             
             manager = FileBasedMinuteMarketDataManager(mock_env, "/tmp/test")
@@ -464,7 +464,7 @@ class TestUniverseStateManagerIntegration:
         universe_manager.market_data_manager.get_ohlcv_data = Mock(return_value=pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume']))
         
         # Mock the instrument indicator DAO with actual computed technical indicator values
-        with patch('dao.instrument_indicator_interval_dao.InstrumentIndicatorIntervalDAO') as mock_indicator_dao_class:
+        with patch('core.dao.instrument_indicator_interval_core.dao.InstrumentIndicatorIntervalDAO') as mock_indicator_dao_class:
             mock_indicator_dao = Mock()
             
             # ✅ CREATE DETERMINISTIC TECHNICAL INDICATOR DATA FOR VALIDATION
@@ -485,7 +485,7 @@ class TestUniverseStateManagerIntegration:
                 {'timestamp': datetime(2025, 9, 5, 14, 40), 'indicator_name': 'pldot', 'indicator_value': 0.69, 'status': 'ok'},
             ]
             
-            mock_indicator_dao.get_by_instrument_and_date_range = AsyncMock(return_value=mock_indicator_records)
+            mock_indicator_core.dao.get_by_instrument_and_date_range = AsyncMock(return_value=mock_indicator_records)
             mock_indicator_dao_class.return_value = mock_indicator_dao
             
             # Test get_lagged_signals
@@ -498,7 +498,7 @@ class TestUniverseStateManagerIntegration:
             )
             
             # Should call indicator DAO, not market_data_manager
-            mock_indicator_dao.get_by_instrument_and_date_range.assert_called_once()
+            mock_indicator_core.dao.get_by_instrument_and_date_range.assert_called_once()
             
             # market_data_manager should NOT be called for signals
             universe_manager.market_data_manager.get_ohlcv_data.assert_not_called()
@@ -737,10 +737,10 @@ class TestErrorHandlingAndEdgeCases:
     @pytest.mark.asyncio
     async def test_market_data_manager_error_handling(self, mock_env):
         """Test error handling with actual empty DataFrame validation."""
-        with patch('dao.instrument_xrefs_dao.InstrumentXrefsDAO') as mock_dao_class:
+        with patch('core.dao.instrument_xrefs_core.dao.InstrumentXrefsDAO') as mock_dao_class:
             # Mock DAO to raise exception
             mock_dao = Mock()
-            mock_dao.get_symbol_by_instrument_id = AsyncMock(side_effect=Exception("Database connection failed"))
+            mock_core.dao.get_symbol_by_instrument_id = AsyncMock(side_effect=Exception("Database connection failed"))
             mock_dao_class.return_value = mock_dao
             
             manager = FileBasedMinuteMarketDataManager(mock_env, "/tmp/test")
@@ -778,9 +778,9 @@ class TestErrorHandlingAndEdgeCases:
     @pytest.mark.asyncio
     async def test_invalid_time_interval(self, mock_env):
         """Test handling of invalid time intervals."""
-        with patch('dao.instrument_xrefs_dao.InstrumentXrefsDAO') as mock_dao_class:
+        with patch('core.dao.instrument_xrefs_core.dao.InstrumentXrefsDAO') as mock_dao_class:
             mock_dao = Mock()
-            mock_dao.get_symbol_by_instrument_id = AsyncMock(return_value="AAPL")
+            mock_core.dao.get_symbol_by_instrument_id = AsyncMock(return_value="AAPL")
             mock_dao_class.return_value = mock_dao
             
             manager = FileBasedMinuteMarketDataManager(mock_env, "/tmp/test")
@@ -820,9 +820,9 @@ class TestActualDataValidationEdgeCases:
     @pytest.mark.asyncio
     async def test_ohlcv_data_with_gaps_and_missing_values(self, mock_env):
         """Test handling of data with gaps and missing values."""
-        with patch('dao.instrument_xrefs_dao.InstrumentXrefsDAO') as mock_dao_class:
+        with patch('core.dao.instrument_xrefs_core.dao.InstrumentXrefsDAO') as mock_dao_class:
             mock_dao = Mock()
-            mock_dao.get_symbol_by_instrument_id = AsyncMock(return_value="GAPPY")
+            mock_core.dao.get_symbol_by_instrument_id = AsyncMock(return_value="GAPPY")
             mock_dao_class.return_value = mock_dao
             
             manager = FileBasedMinuteMarketDataManager(mock_env, "/tmp/test")
@@ -869,9 +869,9 @@ class TestActualDataValidationEdgeCases:
     @pytest.mark.asyncio
     async def test_extreme_price_movements_validation(self, mock_env):
         """Test validation of extreme but valid price movements."""
-        with patch('dao.instrument_xrefs_dao.InstrumentXrefsDAO') as mock_dao_class:
+        with patch('core.dao.instrument_xrefs_core.dao.InstrumentXrefsDAO') as mock_dao_class:
             mock_dao = Mock()
-            mock_dao.get_symbol_by_instrument_id = AsyncMock(return_value="VOLATILE")
+            mock_core.dao.get_symbol_by_instrument_id = AsyncMock(return_value="VOLATILE")
             mock_dao_class.return_value = mock_dao
             
             manager = FileBasedMinuteMarketDataManager(mock_env, "/tmp/test")

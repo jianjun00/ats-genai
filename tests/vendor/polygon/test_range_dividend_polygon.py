@@ -47,7 +47,7 @@ async def test_insert_dividends_polygon_inserts_valid_dividends():
         }
     ]
     await insert_dividends_polygon(dividends, dao)
-    assert len(dao.inserted) == 1
+    assert len(core.dao.inserted) == 1
     d = dao.inserted[0]
     assert d['symbol'] == 'AAPL'
     assert d['ex_dividend_date'] == date(2023, 1, 15)

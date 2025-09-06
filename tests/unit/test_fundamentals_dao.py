@@ -11,9 +11,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import date, datetime
 from decimal import Decimal
 
-from vendor.fmp.dao.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental
-from vendor.polygon.dao.fundamentals_polygon_dao import FundamentalsPolygonDAO, PolygonFundamental  
-from vendor.tiingo.dao.fundamentals_tiingo_dao import FundamentalsTiingoDAO, TiingoFundamental
+from vendor.fmp.core.dao.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental
+from vendor.polygon.core.dao.fundamentals_polygon_dao import FundamentalsPolygonDAO, PolygonFundamental  
+from vendor.tiingo.core.dao.fundamentals_tiingo_dao import FundamentalsTiingoDAO, TiingoFundamental
 from shared.utils.environment import Environment
 
 
@@ -585,9 +585,9 @@ class TestUnifiedFundamentalProvider:
         from domains.market_data.services.fundamentals.unified_fundamental_provider import UnifiedFundamental, ValidationStatus
         
         # Mock DAO responses
-        mock_unified_provider.fmp_dao.get_fundamental = AsyncMock(return_value=sample_vendor_fundamentals[0])
-        mock_unified_provider.polygon_dao.get_fundamental = AsyncMock(return_value=sample_vendor_fundamentals[1])
-        mock_unified_provider.tiingo_dao.get_fundamental = AsyncMock(return_value=sample_vendor_fundamentals[2])
+        mock_unified_provider.fmp_core.dao.get_fundamental = AsyncMock(return_value=sample_vendor_fundamentals[0])
+        mock_unified_provider.polygon_core.dao.get_fundamental = AsyncMock(return_value=sample_vendor_fundamentals[1])
+        mock_unified_provider.tiingo_core.dao.get_fundamental = AsyncMock(return_value=sample_vendor_fundamentals[2])
         
         # Test getting unified fundamental
         result = await mock_unified_provider.get_unified_fundamental("AAPL", date(2023, 12, 31))
@@ -611,9 +611,9 @@ class TestUnifiedFundamentalProvider:
         from domains.market_data.services.fundamentals.unified_fundamental_provider import ValidationStatus
         
         # Mock DAO responses - only 2 out of 3 vendors have data
-        mock_unified_provider.fmp_dao.get_fundamental = AsyncMock(return_value=sample_vendor_fundamentals[0])
-        mock_unified_provider.polygon_dao.get_fundamental = AsyncMock(return_value=sample_vendor_fundamentals[1])
-        mock_unified_provider.tiingo_dao.get_fundamental = AsyncMock(return_value=None)
+        mock_unified_provider.fmp_core.dao.get_fundamental = AsyncMock(return_value=sample_vendor_fundamentals[0])
+        mock_unified_provider.polygon_core.dao.get_fundamental = AsyncMock(return_value=sample_vendor_fundamentals[1])
+        mock_unified_provider.tiingo_core.dao.get_fundamental = AsyncMock(return_value=None)
         
         # Test getting unified fundamental
         result = await mock_unified_provider.get_unified_fundamental("AAPL", date(2023, 12, 31))
@@ -628,9 +628,9 @@ class TestUnifiedFundamentalProvider:
     async def test_get_unified_fundamental_no_data(self, mock_unified_provider):
         """Test getting unified fundamental when no vendors have data"""
         # Mock DAO responses - no data from any vendor
-        mock_unified_provider.fmp_dao.get_fundamental = AsyncMock(return_value=None)
-        mock_unified_provider.polygon_dao.get_fundamental = AsyncMock(return_value=None)
-        mock_unified_provider.tiingo_dao.get_fundamental = AsyncMock(return_value=None)
+        mock_unified_provider.fmp_core.dao.get_fundamental = AsyncMock(return_value=None)
+        mock_unified_provider.polygon_core.dao.get_fundamental = AsyncMock(return_value=None)
+        mock_unified_provider.tiingo_core.dao.get_fundamental = AsyncMock(return_value=None)
         
         # Test getting unified fundamental
         result = await mock_unified_provider.get_unified_fundamental("NONEXISTENT", date(2023, 12, 31))
@@ -644,9 +644,9 @@ class TestUnifiedFundamentalProvider:
         from domains.market_data.services.fundamentals.unified_fundamental_provider import ValidationStatus
         
         # Mock DAO responses - only FMP has data
-        mock_unified_provider.fmp_dao.get_fundamental = AsyncMock(return_value=sample_vendor_fundamentals[0])
-        mock_unified_provider.polygon_dao.get_fundamental = AsyncMock(return_value=None)
-        mock_unified_provider.tiingo_dao.get_fundamental = AsyncMock(return_value=None)
+        mock_unified_provider.fmp_core.dao.get_fundamental = AsyncMock(return_value=sample_vendor_fundamentals[0])
+        mock_unified_provider.polygon_core.dao.get_fundamental = AsyncMock(return_value=None)
+        mock_unified_provider.tiingo_core.dao.get_fundamental = AsyncMock(return_value=None)
         
         # Test getting unified fundamental
         result = await mock_unified_provider.get_unified_fundamental("AAPL", date(2023, 12, 31))
@@ -711,9 +711,9 @@ class TestUnifiedFundamentalProvider:
     async def test_dao_error_handling(self, mock_unified_provider):
         """Test handling of DAO errors"""
         # Mock DAO to raise exception
-        mock_unified_provider.fmp_dao.get_fundamental = AsyncMock(side_effect=Exception("DAO Error"))
-        mock_unified_provider.polygon_dao.get_fundamental = AsyncMock(return_value=None)
-        mock_unified_provider.tiingo_dao.get_fundamental = AsyncMock(return_value=None)
+        mock_unified_provider.fmp_core.dao.get_fundamental = AsyncMock(side_effect=Exception("DAO Error"))
+        mock_unified_provider.polygon_core.dao.get_fundamental = AsyncMock(return_value=None)
+        mock_unified_provider.tiingo_core.dao.get_fundamental = AsyncMock(return_value=None)
         
         # Should handle DAO errors gracefully
         result = await mock_unified_provider.get_unified_fundamental("AAPL", date(2023, 12, 31))
@@ -725,9 +725,9 @@ class TestUnifiedFundamentalProvider:
     async def test_list_symbols_with_data(self, mock_unified_provider):
         """Test listing symbols that have fundamental data"""
         # Mock DAO responses
-        mock_unified_provider.fmp_dao.get_symbols_with_data = AsyncMock(return_value=["AAPL", "GOOGL", "MSFT"])
-        mock_unified_provider.polygon_dao.get_symbols_with_data = AsyncMock(return_value=["AAPL", "GOOGL", "TSLA"])
-        mock_unified_provider.tiingo_dao.get_symbols_with_data = AsyncMock(return_value=["AAPL", "MSFT", "TSLA"])
+        mock_unified_provider.fmp_core.dao.get_symbols_with_data = AsyncMock(return_value=["AAPL", "GOOGL", "MSFT"])
+        mock_unified_provider.polygon_core.dao.get_symbols_with_data = AsyncMock(return_value=["AAPL", "GOOGL", "TSLA"])
+        mock_unified_provider.tiingo_core.dao.get_symbols_with_data = AsyncMock(return_value=["AAPL", "MSFT", "TSLA"])
         
         # Test getting combined symbol list
         result = await mock_unified_provider.list_symbols_with_data()

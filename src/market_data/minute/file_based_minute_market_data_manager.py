@@ -14,7 +14,7 @@ import logging
 from market_data.market_data_manager import MarketDataManager
 from storage.file_based_minute_manager import FileBasedMinuteManager
 from core.config.environment import Environment
-from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
 import gin
 
 logger = logging.getLogger(__name__)

@@ -386,7 +386,7 @@ async def main():
     }
     
     # Get symbols
-    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+    from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
     xrefs_dao = InstrumentXrefsDAO(env)
     
     symbols_data = []

@@ -58,7 +58,7 @@ async def test_db_daily_price_manager_symbol_mapping(monkeypatch, unit_test_db):
     
     # Patch the DAO constructors to return our mocks
     with patch('market_data.eod.db_daily_price_market_data_manager.InstrumentXrefsDAO', return_value=mock_xrefs_dao), \
-         patch('dao.vendors_dao.VendorsDAO', return_value=mock_vendors_dao):
+         patch('core.dao.vendors_core.dao.VendorsDAO', return_value=mock_vendors_dao):
         
         # Initialize the manager
         mgr = DBDailyPriceMarketDataManager(env, symbols=['AAPL', 'TSLA'])
@@ -84,7 +84,7 @@ async def test_db_daily_price_manager_get_ohlc(monkeypatch, unit_test_db):
     
     # Patch the DAO constructors to return our mocks
     with patch('market_data.eod.db_daily_price_market_data_manager.InstrumentXrefsDAO', return_value=mock_xrefs_dao), \
-         patch('dao.vendors_dao.VendorsDAO', return_value=mock_vendors_dao), \
+         patch('core.dao.vendors_core.dao.VendorsDAO', return_value=mock_vendors_dao), \
          patch('market_data.eod.db_daily_price_market_data_manager.DailyPricesDAO', return_value=mock_prices_dao):
         
         # Initialize the manager
@@ -114,7 +114,7 @@ async def test_db_daily_price_manager_get_ohlc_batch(monkeypatch, unit_test_db):
     
     # Patch the DAO constructors to return our mocks
     with patch('market_data.eod.db_daily_price_market_data_manager.InstrumentXrefsDAO', return_value=mock_xrefs_dao), \
-         patch('dao.vendors_dao.VendorsDAO', return_value=mock_vendors_dao), \
+         patch('core.dao.vendors_core.dao.VendorsDAO', return_value=mock_vendors_dao), \
          patch('market_data.eod.db_daily_price_market_data_manager.DailyPricesDAO', return_value=mock_prices_dao):
         
         # Initialize the manager
@@ -142,7 +142,7 @@ async def test_db_daily_price_manager_missing_symbol(monkeypatch, unit_test_db):
     
     # Patch the DAO constructors to return our mocks
     with patch('market_data.eod.db_daily_price_market_data_manager.InstrumentXrefsDAO', return_value=mock_xrefs_dao), \
-         patch('dao.vendors_dao.VendorsDAO', return_value=mock_vendors_dao), \
+         patch('core.dao.vendors_core.dao.VendorsDAO', return_value=mock_vendors_dao), \
          patch('market_data.eod.db_daily_price_market_data_manager.DailyPricesDAO', return_value=mock_prices_dao):
         
         # Initialize the manager
@@ -173,7 +173,7 @@ async def test_db_daily_price_manager_missing_price(monkeypatch, unit_test_db):
     
     # Patch the DAO constructors to return our mocks
     with patch('market_data.eod.db_daily_price_market_data_manager.InstrumentXrefsDAO', return_value=mock_xrefs_dao), \
-         patch('dao.vendors_dao.VendorsDAO', return_value=mock_vendors_dao), \
+         patch('core.dao.vendors_core.dao.VendorsDAO', return_value=mock_vendors_dao), \
          patch('market_data.eod.db_daily_price_market_data_manager.DailyPricesDAO', return_value=mock_prices_dao):
         
         # Initialize the manager

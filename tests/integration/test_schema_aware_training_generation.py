@@ -105,7 +105,7 @@ class TestSchemaAwareTrainingGeneration:
         with patch('src.modeling.factor_models.ResidualReturnCalculator') as mock_calc, \
              patch('src.modeling.event_features.EventCalendar') as mock_calendar, \
              patch('src.modeling.event_features.EventSequenceExtractor') as mock_extractor, \
-             patch('src.dao.training_schema_dao.TrainingSchemaDAO') as mock_dao:
+             patch('src.core.dao.training_schema_core.dao.TrainingSchemaDAO') as mock_dao:
             
             # Setup mocks
             mock_calc.return_value.calculate_residual_returns.return_value = pd.DataFrame({
@@ -116,7 +116,7 @@ class TestSchemaAwareTrainingGeneration:
             })
             
             mock_dao_instance = AsyncMock()
-            mock_dao.return_value = mock_dao_instance
+            mock_core.dao.return_value = mock_dao_instance
             mock_dao_instance.register_schema.return_value = "schema_hash_123"
             
             # Create generator
@@ -167,7 +167,7 @@ class TestSchemaAwareTrainingGeneration:
         with patch('src.modeling.factor_models.ResidualReturnCalculator') as mock_calc, \
              patch('src.modeling.event_features.EventCalendar'), \
              patch('src.modeling.event_features.EventSequenceExtractor'), \
-             patch('src.dao.training_schema_dao.TrainingSchemaDAO'):
+             patch('src.core.dao.training_schema_core.dao.TrainingSchemaDAO'):
             
             mock_calc.return_value.calculate_residual_returns.return_value = pd.DataFrame({
                 'instrument_id': [1],
@@ -206,7 +206,7 @@ class TestSchemaAwareTrainingGeneration:
         with patch('src.modeling.factor_models.ResidualReturnCalculator') as mock_calc, \
              patch('src.modeling.event_features.EventCalendar'), \
              patch('src.modeling.event_features.EventSequenceExtractor'), \
-             patch('src.dao.training_schema_dao.TrainingSchemaDAO'):
+             patch('src.core.dao.training_schema_core.dao.TrainingSchemaDAO'):
             
             mock_calc.return_value.calculate_residual_returns.return_value = pd.DataFrame({
                 'instrument_id': [1],
@@ -266,7 +266,7 @@ class TestSchemaAwareTrainingGeneration:
         with patch('src.modeling.factor_models.ResidualReturnCalculator') as mock_calc, \
              patch('src.modeling.event_features.EventCalendar'), \
              patch('src.modeling.event_features.EventSequenceExtractor'), \
-             patch('src.dao.training_schema_dao.TrainingSchemaDAO'):
+             patch('src.core.dao.training_schema_core.dao.TrainingSchemaDAO'):
             
             mock_calc.return_value.calculate_residual_returns.return_value = pd.DataFrame({
                 'instrument_id': [1, 1, 1],
@@ -305,7 +305,7 @@ class TestSchemaAwareTrainingGeneration:
         with patch('src.modeling.factor_models.ResidualReturnCalculator') as mock_calc, \
              patch('src.modeling.event_features.EventCalendar'), \
              patch('src.modeling.event_features.EventSequenceExtractor'), \
-             patch('src.dao.training_schema_dao.TrainingSchemaDAO'):
+             patch('src.core.dao.training_schema_core.dao.TrainingSchemaDAO'):
             
             mock_calc.return_value.calculate_residual_returns.return_value = pd.DataFrame({
                 'instrument_id': [1],
@@ -337,7 +337,7 @@ class TestSchemaAwareTrainingGeneration:
         with patch('src.modeling.factor_models.ResidualReturnCalculator') as mock_calc, \
              patch('src.modeling.event_features.EventCalendar'), \
              patch('src.modeling.event_features.EventSequenceExtractor'), \
-             patch('src.dao.training_schema_dao.TrainingSchemaDAO'):
+             patch('src.core.dao.training_schema_core.dao.TrainingSchemaDAO'):
             
             # Mock multiple instruments
             conn = mock_connection_pool.acquire.return_value.__aenter__.return_value
@@ -376,7 +376,7 @@ class TestSchemaAwareTrainingGeneration:
         with patch('src.modeling.factor_models.ResidualReturnCalculator') as mock_calc, \
              patch('src.modeling.event_features.EventCalendar'), \
              patch('src.modeling.event_features.EventSequenceExtractor'), \
-             patch('src.dao.training_schema_dao.TrainingSchemaDAO') as mock_dao_class:
+             patch('src.core.dao.training_schema_core.dao.TrainingSchemaDAO') as mock_dao_class:
             
             mock_calc.return_value.calculate_residual_returns.return_value = pd.DataFrame({
                 'instrument_id': [1],
@@ -429,7 +429,7 @@ class TestSchemaValidationEdgeCases:
         with patch('src.modeling.factor_models.ResidualReturnCalculator') as mock_calc, \
              patch('src.modeling.event_features.EventCalendar'), \
              patch('src.modeling.event_features.EventSequenceExtractor'), \
-             patch('src.dao.training_schema_dao.TrainingSchemaDAO'):
+             patch('src.core.dao.training_schema_core.dao.TrainingSchemaDAO'):
             
             # Return empty residual returns
             mock_calc.return_value.calculate_residual_returns.return_value = pd.DataFrame()
@@ -459,7 +459,7 @@ class TestSchemaValidationEdgeCases:
         with patch('src.modeling.factor_models.ResidualReturnCalculator') as mock_calc, \
              patch('src.modeling.event_features.EventCalendar'), \
              patch('src.modeling.event_features.EventSequenceExtractor'), \
-             patch('src.dao.training_schema_dao.TrainingSchemaDAO'):
+             patch('src.core.dao.training_schema_core.dao.TrainingSchemaDAO'):
             
             generator = ResidualReturnTrainingDataGenerator(
                 mock_connection_pool, mock_environment, mock_universe_state_manager
@@ -525,7 +525,7 @@ class TestEndToEndSchemaWorkflow:
         with patch('src.modeling.factor_models.ResidualReturnCalculator') as mock_calc, \
              patch('src.modeling.event_features.EventCalendar'), \
              patch('src.modeling.event_features.EventSequenceExtractor'), \
-             patch('src.dao.training_schema_dao.TrainingSchemaDAO') as mock_dao_class:
+             patch('src.core.dao.training_schema_core.dao.TrainingSchemaDAO') as mock_dao_class:
             
             # Setup realistic residual returns
             mock_calc.return_value.calculate_residual_returns.return_value = pd.DataFrame({

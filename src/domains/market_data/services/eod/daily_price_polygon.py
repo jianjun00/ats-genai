@@ -88,7 +88,7 @@ async def insert_prices(prices, instrument_id, shares_outstanding, dao: DailyPri
 
 import argparse
 
-from calendars.exchange_calendar import ExchangeCalendar
+from core.calendars.exchange_calendar import ExchangeCalendar
 
 async def get_existing_dates_polygon(dao: DailyPricesPolygonDAO, instrument_id, start_date, end_date):
     all_prices = await dao.list_prices(instrument_id)

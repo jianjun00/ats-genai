@@ -2,13 +2,13 @@ from typing import List, Dict, Optional
 from datetime import datetime, date, time
 
 from market_data.market_data_manager import MarketDataManager
-from dao.daily_prices_dao import DailyPricesDAO
-from calendars.exchange_calendar import ExchangeCalendar
+from core.dao.daily_prices_dao import DailyPricesDAO
+from core.calendars.exchange_calendar import ExchangeCalendar
 from state.instrument_interval import InstrumentInterval
 
 class DailyPriceMarketDataManager(MarketDataManager):
     def __init__(self, env, exchange="NYSE", start_date: Optional[date]=None):
-        from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+        from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
         self.env = env
         self.exchange = exchange
         self.calendar = ExchangeCalendar(self.exchange)

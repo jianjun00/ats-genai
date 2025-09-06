@@ -105,7 +105,7 @@ class TestUniverseStateIntervalBuilder:
         builder = UniverseStateIntervalBuilder(env=env, base_duration='5m', target_durations='5m,15m,60m')
         # Patch DAO to avoid DB
         from unittest.mock import AsyncMock
-        builder.market_cap_dao.list_market_caps_for_date = AsyncMock(return_value=[{'instrument_id': 1, 'market_cap': 1000.0}, {'instrument_id': 2, 'market_cap': 2000.0}])
+        builder.market_cap_core.dao.list_market_caps_for_date = AsyncMock(return_value=[{'instrument_id': 1, 'market_cap': 1000.0}, {'instrument_id': 2, 'market_cap': 2000.0}])
         # Mock runner
         class DummyRunner:
             class DummyUniverseManager:

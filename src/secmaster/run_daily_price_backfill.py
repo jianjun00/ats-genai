@@ -29,7 +29,7 @@ async def run_backfill(env, start_date, end_date, limit=None, tickers=None):
         tickers: Optional list of specific tickers to process
     """
     from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
-    from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+    from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
     from market_data.eod.daily_price_polygon import download_prices_polygon, insert_prices
     
     # Initialize DAOs

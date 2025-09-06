@@ -191,6 +191,6 @@ if __name__ == "__main__":
             env.get_database_url.return_value = 'test_url'
             
             dao = DailyPricesAlphaVantageDAO(env)
-            self.assertEqual(dao.table_name, 'test_table')
+            self.assertEqual(core.dao.table_name, 'test_table')
     
     unittest.main()

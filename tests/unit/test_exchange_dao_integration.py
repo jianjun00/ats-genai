@@ -11,7 +11,7 @@ from datetime import date, datetime
 
 from domains.instruments.repositories.exchange_dao import ExchangeDAO
 from domains.instruments.repositories.instrument_xref_dao import InstrumentXrefDAO  
-from infrastructure.database.repositories.vendor_dao import VendorDAO
+from core.dao.vendor_dao import VendorDAO
 from services.exchange_service import ExchangeService
 from core.exceptions.custom_exceptions import DataValidationError, DatabaseError
 from core.validation.data_validators import ValidationResult
@@ -155,13 +155,13 @@ class TestExchangeDAOIntegration:
         
         # Test that these methods are callable (not abstract)
         import inspect
-        assert inspect.ismethod(dao._create_impl)
-        assert inspect.ismethod(dao._read_impl)
-        assert inspect.ismethod(dao._update_impl)
-        assert inspect.ismethod(dao._delete_impl)
-        assert inspect.ismethod(dao._list_all_impl)
-        assert inspect.ismethod(dao._count_impl)
-        assert inspect.ismethod(dao._bulk_insert_impl)
+        assert inspect.ismethod(core.dao._create_impl)
+        assert inspect.ismethod(core.dao._read_impl)
+        assert inspect.ismethod(core.dao._update_impl)
+        assert inspect.ismethod(core.dao._delete_impl)
+        assert inspect.ismethod(core.dao._list_all_impl)
+        assert inspect.ismethod(core.dao._count_impl)
+        assert inspect.ismethod(core.dao._bulk_insert_impl)
         
         # Test validation is implemented
         test_data = {
@@ -186,9 +186,9 @@ class TestExchangeDAOIntegration:
         assert not hasattr(service, 'cursor')
         assert not hasattr(service, 'session')
     
-    @patch('dao.vendor_dao.VendorDAO.get_exchange_vendor_id')
+    @patch('core.dao.vendor_core.dao.VendorDAO.get_exchange_vendor_id')
     @patch('services.exchange_service.ExchangeService._get_instrument_by_symbol')
-    @patch('dao.instrument_xref_dao.InstrumentXrefDAO.get_current_exchange')
+    @patch('core.dao.instrument_xref_core.dao.InstrumentXrefDAO.get_current_exchange')
     def test_exchange_service_business_logic_separation(self, mock_get_current, 
                                                        mock_get_instrument, 
                                                        mock_get_vendor_id):
@@ -221,20 +221,20 @@ class TestExchangeDAOIntegration:
         vendor_dao = VendorDAO()
         
         # All DAOs should have complete schema definitions
-        exchange_schema = exchange_dao.get_schema()
+        exchange_schema = exchange_core.dao.get_schema()
         assert 'columns' in exchange_schema
         assert 'id' in exchange_schema['columns']
         assert 'exchange_code' in exchange_schema['columns']
         assert 'created_at' in exchange_schema['columns']
         
-        xref_schema = xref_dao.get_schema()
+        xref_schema = xref_core.dao.get_schema()
         assert 'columns' in xref_schema
         assert 'instrument_id' in xref_schema['columns']
         assert 'vendor_id' in xref_schema['columns']
         assert 'start_date' in xref_schema['columns']
         assert 'end_date' in xref_schema['columns']
         
-        vendor_schema = vendor_dao.get_schema()
+        vendor_schema = vendor_core.dao.get_schema()
         assert 'columns' in vendor_schema
         assert 'vendor_id' in vendor_schema['columns']
         assert 'vendor_name' in vendor_schema['columns']
@@ -262,9 +262,9 @@ class TestExchangeDAOIntegration:
         vendor_dao = VendorDAO()
         
         # Base table names should be simple
-        assert exchange_dao.base_table_name == "exchanges"
-        assert xref_dao.base_table_name == "instrument_xrefs"
-        assert vendor_dao.base_table_name == "vendors"
+        assert exchange_core.dao.base_table_name == "exchanges"
+        assert xref_core.dao.base_table_name == "instrument_xrefs"
+        assert vendor_core.dao.base_table_name == "vendors"
         
         # Full table names should be environment-prefixed (via settings)
         # We can't test the exact prefix without settings, but structure should be consistent
@@ -277,7 +277,7 @@ class TestExchangeSystemIntegration:
     """Integration tests for the complete exchange vendor system."""
     
     @patch('services.exchange_service.ExchangeService._get_instrument_by_symbol')
-    @patch('dao.vendor_dao.VendorDAO.get_exchange_vendor_id')
+    @patch('core.dao.vendor_core.dao.VendorDAO.get_exchange_vendor_id')
     def test_exchange_service_validation_system_health(self, mock_vendor_id, mock_get_instrument):
         """Test that ExchangeService can validate system health."""
         mock_vendor_id.return_value = 1

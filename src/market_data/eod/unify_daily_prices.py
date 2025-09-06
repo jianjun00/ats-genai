@@ -119,7 +119,7 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
         else:
             start_date = end_date = asof
 
-        from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+        from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
         xrefs_dao = InstrumentXrefsDAO(self.environment)
         
         # Use the standard method which uses 'ticker' vendor
@@ -205,7 +205,7 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
         else:
             start_date = end_date = asof
 
-        from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+        from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
         xrefs_dao = InstrumentXrefsDAO(self.environment)
         
         # Resolve all instrument IDs in batch

@@ -10,7 +10,7 @@ os.environ["PYTHONPATH"] = f"{SRC_DIR}:{os.environ.get('PYTHONPATH','')}" if os.
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from calendars.time_duration import TimeDuration
+from core.calendars.time_duration import TimeDuration
 from state.universe_state import UniverseStateInterval
 from state.instrument_interval import InstrumentInterval
 from state.forecast_interval import ForecastInterval

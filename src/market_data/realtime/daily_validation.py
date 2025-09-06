@@ -17,7 +17,7 @@ from dataclasses import dataclass
 import pytz
 
 from core.config.environment import Environment
-from calendars.market_calendar_utils import get_previous_trading_day
+from core.calendars.market_calendar_utils import get_previous_trading_day
 
 logger = logging.getLogger(__name__)
 

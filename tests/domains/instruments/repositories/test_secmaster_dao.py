@@ -50,7 +50,7 @@ class TestSecMasterDAO:
         ]
         mock_connection.fetch.return_value = test_rows
         
-        with patch(\'domains.market_data.repositories.secmaster_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.secmaster_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_spy_membership_events()
         
         assert len(result) == 2
@@ -81,7 +81,7 @@ class TestSecMasterDAO:
         
         mock_connection.fetch.return_value = []
         
-        with patch(\'domains.market_data.repositories.secmaster_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.secmaster_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_spy_membership_events()
         
         assert result == []
@@ -110,7 +110,7 @@ class TestSecMasterDAO:
         test_date = date(2023, 12, 15)
         test_instrument_ids = [1, 2, 3]
         
-        with patch(\'domains.market_data.repositories.secmaster_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.secmaster_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.batch_last_close_prices(test_date, test_instrument_ids)
         
         expected_result = {1: 150.25, 2: 2500.50, 3: 85.75}
@@ -144,7 +144,7 @@ class TestSecMasterDAO:
         test_date = date(2023, 12, 15)
         test_instrument_ids = [1, 2, 3]
         
-        with patch(\'domains.market_data.repositories.secmaster_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.secmaster_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.batch_last_close_prices(test_date, test_instrument_ids)
         
         expected_result = {1: 150.25, 3: 85.75}  # instrument_id 2 is missing
@@ -173,7 +173,7 @@ class TestSecMasterDAO:
         test_date = date(2023, 12, 15)
         test_instrument_ids = [1, 2]
         
-        with patch(\'domains.market_data.repositories.secmaster_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.secmaster_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.batch_market_caps(test_date, test_instrument_ids)
         
         expected_result = {1: 2500000000.0, 2: 1800000000.0}
@@ -202,7 +202,7 @@ class TestSecMasterDAO:
         test_instrument_id = 123
         test_date = date(2023, 12, 15)
         
-        with patch(\'domains.market_data.repositories.secmaster_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.secmaster_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_last_close_price(test_instrument_id, test_date)
         
         assert result == 150.75
@@ -231,7 +231,7 @@ class TestSecMasterDAO:
         test_instrument_id = 999
         test_date = date(2023, 12, 15)
         
-        with patch(\'domains.market_data.repositories.secmaster_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.secmaster_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_last_close_price(test_instrument_id, test_date)
         
         assert result is None
@@ -254,7 +254,7 @@ class TestSecMasterDAO:
         test_instrument_id = 123
         test_date = date(2023, 12, 15)
         
-        with patch(\'domains.market_data.repositories.secmaster_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.secmaster_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_market_cap(test_instrument_id, test_date)
         
         assert result == 2500000000.0
@@ -283,7 +283,7 @@ class TestSecMasterDAO:
         test_instrument_id = 123
         test_date = date(2023, 12, 15)
         
-        with patch(\'domains.market_data.repositories.secmaster_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.secmaster_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_average_dollar_volume(test_instrument_id, test_date)
         
         assert result == 50000000.0
@@ -317,7 +317,7 @@ class TestSecMasterDAO:
         test_date = date(2023, 12, 15)
         custom_window = 90  # 90-day window
         
-        with patch(\'domains.market_data.repositories.secmaster_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.secmaster_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_average_dollar_volume(test_instrument_id, test_date, custom_window)
         
         assert result == 75000000.0
@@ -344,7 +344,7 @@ class TestSecMasterDAO:
         test_instrument_id = 999
         test_date = date(2023, 12, 15)
         
-        with patch(\'domains.market_data.repositories.secmaster_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.secmaster_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_average_dollar_volume(test_instrument_id, test_date)
         
         assert result is None
@@ -354,7 +354,7 @@ class TestSecMasterDAO:
     async def test_database_connection_error(self, dao):
         """Test handling of database connection errors."""
         connection_error = Exception("Connection failed")
-        with patch(\'domains.market_data.repositories.secmaster_dao.asyncpg.create_pool\', new_callable=AsyncMock, side_effect=connection_error):
+        with patch(\'domains.market_data.repositories.secmaster_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, side_effect=connection_error):
             with pytest.raises(Exception, match="Connection failed"):
                 await dao.get_spy_membership_events()
     
@@ -376,7 +376,7 @@ class TestSecMasterDAO:
         malicious_date = "2023-01-01'; DROP TABLE test_daily_prices; --"
         malicious_ids = [1, 2, 3]
         
-        with patch(\'domains.market_data.repositories.secmaster_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.secmaster_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             await dao.batch_last_close_prices(malicious_date, malicious_ids)
         
         # Verify that parameters were passed safely, not concatenated into SQL
@@ -423,7 +423,7 @@ class TestSecMasterDAO:
         
         mock_connection.fetch.return_value = []
         
-        with patch(\'domains.market_data.repositories.secmaster_dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch(\'domains.market_data.repositories.secmaster_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
             result_prices = await dao.batch_last_close_prices(test_date, empty_ids)
             result_market_caps = await dao.batch_market_caps(test_date, empty_ids)
         

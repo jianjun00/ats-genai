@@ -85,13 +85,13 @@ class TestUniverseStateManager:
             metadata['end_date_time'] = datetime.datetime.fromisoformat(metadata['end_date_time'])
         assert isinstance(metadata['start_date_time'], datetime.datetime)
         assert isinstance(metadata['end_date_time'], datetime.datetime)
-        state_manager._interval_dao.create = AsyncMock(return_value=42)
+        state_manager._interval_core.dao.create = AsyncMock(return_value=42)
         result = await state_manager.save_universe_state(sample_universe_data, valid_timestamp, metadata)
         # Assert that the DAO was called with datetime objects
-        args, kwargs = state_manager._interval_dao.create.call_args
+        args, kwargs = state_manager._interval_core.dao.create.call_args
         assert isinstance(kwargs['start_date_time'], datetime.datetime)
         assert isinstance(kwargs['end_date_time'], datetime.datetime)
-        state_manager._interval_dao.create.assert_called_once_with(
+        state_manager._interval_core.dao.create.assert_called_once_with(
             universe_id=1,
             duration='1d',
             start_date_time=datetime.datetime(2023, 12, 1, 0, 0, 0),
@@ -119,9 +119,9 @@ class TestUniverseStateManager:
                 'end_date_time': '2023-12-01T23:59:59'
             })
         from unittest.mock import AsyncMock
-        state_manager._interval_dao.create = AsyncMock(return_value=42)
+        state_manager._interval_core.dao.create = AsyncMock(return_value=42)
         result = await state_manager.save_universe_state(sample_universe_data, valid_timestamp, metadata)
-        state_manager._interval_dao.create.assert_called_once_with(
+        state_manager._interval_core.dao.create.assert_called_once_with(
             universe_id=1,
             duration='1d',
             start_date_time='2023-12-01T00:00:00',
@@ -164,7 +164,7 @@ class TestUniverseStateManager:
     @pytest.mark.asyncio
     async def test_save_universe_state_success(self, state_manager, sample_universe_data, valid_timestamp):
         """Test successful universe state saving to DB."""
-        state_manager._interval_dao.create.return_value = 42
+        state_manager._interval_core.dao.create.return_value = 42
         db_uri = await state_manager.save_universe_state(
             sample_universe_data, 
             valid_timestamp,
@@ -519,7 +519,7 @@ class TestUniverseStateManager:
         from unittest.mock import AsyncMock
         # Ensure DAO create returns a concrete ID
         if hasattr(state_manager, "_interval_dao") and isinstance(state_manager._interval_dao, AsyncMock):
-            state_manager._interval_dao.create.return_value = 123
+            state_manager._interval_core.dao.create.return_value = 123
 
         # Save with required metadata
         db_uri = await state_manager.save_universe_state(

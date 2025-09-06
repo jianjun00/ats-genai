@@ -14,8 +14,8 @@ from typing import List, Dict, Any
 
 from core.config.environment import Environment, EnvironmentType
 from vendor.alpha_vantage.dao.daily_prices_alphavantage_dao import DailyPricesAlphaVantageDAO
-from dao.instrument_xrefs_dao import InstrumentXrefsDAO
-from calendars.exchange_calendar import ExchangeCalendar
+from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
+from core.calendars.exchange_calendar import ExchangeCalendar
 
 logger = logging.getLogger(__name__)
 

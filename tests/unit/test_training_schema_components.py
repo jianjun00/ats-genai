@@ -533,7 +533,7 @@ class TestSchemaUtilityFunctions:
     @pytest.mark.asyncio
     async def test_create_schema_dao_factory(self):
         """Test DAO factory function."""
-        with patch('src.dao.training_schema_dao.Environment') as mock_env_class:
+        with patch('src.core.dao.training_schema_core.dao.Environment') as mock_env_class:
             mock_env_instance = MagicMock()
             mock_env_class.return_value = mock_env_instance
             

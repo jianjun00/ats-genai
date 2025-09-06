@@ -12,7 +12,7 @@ import pandas as pd
 import argparse
 from core.config.environment import Environment, EnvironmentType
 from vendor.tiingo.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
-from dao.instrument_xrefs_dao import InstrumentXrefsDAO
+from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
 
 def parse_env_type(env_str):
     env_map = {
@@ -42,7 +42,7 @@ async def get_existing_dates(dao: DailyPricesTiingoDAO, instrument_id, start_dat
     all_prices = await dao.list_prices(instrument_id)
     return set(row['date'] for row in all_prices if start_date <= row['date'] <= end_date)
 
-from calendars.exchange_calendar import ExchangeCalendar
+from core.calendars.exchange_calendar import ExchangeCalendar
 
 def get_missing_date_ranges(existing_dates, start_date, end_date):
     # Returns a list of (range_start, range_end) for missing contiguous NYSE trading dates
@@ -64,7 +64,7 @@ def get_missing_date_ranges(existing_dates, start_date, end_date):
     ranges.append((range_start, prev))
     return ranges
 
-from calendars.exchange_calendar import ExchangeCalendar
+from core.calendars.exchange_calendar import ExchangeCalendar
 
 async def get_status_id(pool, code, env):
     status_code_table = env.get_table_name('status_code')
@@ -280,7 +280,7 @@ async def ingest_ticker(env, dao, instrument_id, ticker, start_date, end_date, o
 # --- MAIN FUNCTION AND ENTRYPOINT ---
 async def get_instrument_dates(env, instrument_id):
     # Returns (list_date, delist_date) as date objects or None
-    from dao.instruments_dao import InstrumentsDAO
+    from core.dao.instruments_dao import InstrumentsDAO
     instruments_dao = InstrumentsDAO(env)
     row = await instruments_dao.get_instrument(instrument_id)
     print(f"[DEBUG] get_instrument_dates row for {instrument_id}: {row}")

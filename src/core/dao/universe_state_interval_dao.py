@@ -16,7 +16,7 @@ class UniverseStateIntervalDAO:
         instrument_indicator_intervals, and factor_intervals from the DB and construct a
         fully populated UniverseStateInterval.
         """
-        from calendars.time_duration import TimeDuration
+        from core.calendars.time_duration import TimeDuration
         from state.universe_state import UniverseStateInterval
         from state.instrument_interval import InstrumentInterval
         from state.indicator_interval import IndicatorInterval
@@ -89,7 +89,7 @@ class UniverseStateIntervalDAO:
             instrument_indicator_intervals=instrument_indicator_intervals
         )
     def _row_to_interval(self, row: dict):
-        from calendars.time_duration import TimeDuration
+        from core.calendars.time_duration import TimeDuration
         from state.universe_state import UniverseStateInterval
         from datetime import datetime
         # Parse duration

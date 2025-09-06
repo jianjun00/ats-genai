@@ -24,7 +24,7 @@ async def test_add_and_get_universe_members_real_db(unit_test_db):
         await conn.execute(f"DELETE FROM {env.get_table_name('universe')}")
 
     # --- Setup vendor, instrument, and instrument_xref for AAPL ---
-    from infrastructure.database.repositories.vendors_dao import VendorsDAO
+    from dao.vendors_dao import VendorsDAO
     from domains.instruments.repositories.instruments_dao import InstrumentsDAO
     from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
     vendor_name = "TEST_VENDOR"
@@ -37,7 +37,7 @@ async def test_add_and_get_universe_members_real_db(unit_test_db):
         if row:
             vendor_id = row['id']
         else:
-            vendor_id = await vendors_dao.create_vendor(vendor_name, description="Test Vendor")
+            vendor_id = await vendors_core.dao.create_vendor(vendor_name, description="Test Vendor")
     # Insert or get instrument
     symbol = "AAPL"
     instrument_id = None
@@ -47,12 +47,12 @@ async def test_add_and_get_universe_members_real_db(unit_test_db):
             instrument_id = row['id']
         else:
             instrument_list_date = date(2010, 1, 1)
-            instrument_id = await instruments_dao.create_instrument(symbol, name=f"{symbol} Inc.", exchange="NASDAQ", type_="EQUITY", currency="USD", list_date=instrument_list_date)
+            instrument_id = await instruments_core.dao.create_instrument(symbol, name=f"{symbol} Inc.", exchange="NASDAQ", type_="EQUITY", currency="USD", list_date=instrument_list_date)
     # Insert xref
     xref_start = date(2025, 7, 1)
-    existing = await xrefs_dao.find_xref(vendor_id, symbol)
+    existing = await xrefs_core.dao.find_xref(vendor_id, symbol)
     if not existing:
-        await xrefs_dao.create_xref(instrument_id, vendor_id, symbol, type="EQUITY", start_at=instrument_list_date)
+        await xrefs_core.dao.create_xref(instrument_id, vendor_id, symbol, type="EQUITY", start_at=instrument_list_date)
 
     # Add universe
     universe_name = "TEST_REALDB"
@@ -61,7 +61,7 @@ async def test_add_and_get_universe_members_real_db(unit_test_db):
 
     # Add membership (now vendor/instrument/xref exist)
     # Add membership (pass vendor_id to ensure match)
-    await db.universe_membership_dao.add_membership_full(universe_id=universe_id, instrument_id=instrument_id, start_at=date(2025, 7, 25), end_at=None)
+    await db.universe_membership_core.dao.add_membership_full(universe_id=universe_id, instrument_id=instrument_id, start_at=date(2025, 7, 25), end_at=None)
 
     # Retrieve members (UniverseDB.get_universe_members does not take vendor_id, but membership resolution will now work)
     members = await db.get_universe_members(universe_id, date(2025, 7, 25))
@@ -92,7 +92,7 @@ async def test_universe_manager_multiday_multiinstrument_real_db(unit_test_db):
         await conn.execute(f"DELETE FROM {env.get_table_name('universe_membership')}")
         await conn.execute(f"DELETE FROM {env.get_table_name('universe')}")
     # --- Setup vendor, instruments, and instrument_xrefs for test isolation ---
-    from infrastructure.database.repositories.vendors_dao import VendorsDAO
+    from dao.vendors_dao import VendorsDAO
     from domains.instruments.repositories.instruments_dao import InstrumentsDAO
     from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 
@@ -109,7 +109,7 @@ async def test_universe_manager_multiday_multiinstrument_real_db(unit_test_db):
         if row:
             vendor_id = row['id']
         else:
-            vendor_id = await vendors_dao.create_vendor(vendor_name, description="Test Vendor")
+            vendor_id = await vendors_core.dao.create_vendor(vendor_name, description="Test Vendor")
     # Insert or get instruments
     symbols = ["AAPL", "TSLA"]
     instrument_ids = {}
@@ -120,18 +120,18 @@ async def test_universe_manager_multiday_multiinstrument_real_db(unit_test_db):
         if row:
             instrument_ids[symbol] = row['id']
         else:
-            instrument_ids[symbol] = await instruments_dao.create_instrument(symbol, name=f"{symbol} Inc.", exchange="NASDAQ", type_="EQUITY", currency="USD")
+            instrument_ids[symbol] = await instruments_core.dao.create_instrument(symbol, name=f"{symbol} Inc.", exchange="NASDAQ", type_="EQUITY", currency="USD")
     # Insert xrefs for each symbol
     from datetime import date
     xref_start = date(2025, 7, 1)
     for symbol in symbols:
         # Check if xref already exists
-        existing = await xrefs_dao.find_xref(vendor_id, symbol)
+        existing = await xrefs_core.dao.find_xref(vendor_id, symbol)
         if not existing:
-            await xrefs_dao.create_xref(instrument_ids[symbol], vendor_id, symbol, type="EQUITY", start_at=xref_start)
+            await xrefs_core.dao.create_xref(instrument_ids[symbol], vendor_id, symbol, type="EQUITY", start_at=xref_start)
     # Debug: print all xrefs for vendor_id and symbols
     for symbol in symbols:
-        xref = await xrefs_dao.find_xref(vendor_id, symbol)
+        xref = await xrefs_core.dao.find_xref(vendor_id, symbol)
         print(f"[DEBUG] xref for vendor_id={vendor_id}, symbol={symbol}: {xref}")
     import asyncio
     await asyncio.sleep(0)  # Yield control to ensure all inserts are committed
@@ -139,13 +139,13 @@ async def test_universe_manager_multiday_multiinstrument_real_db(unit_test_db):
     universe_name = "TEST_MULTI_DAY"
     universe_id = await db.add_universe(universe_name, "desc")
     # Day 1: Add AAPL & TSLA
-    await db.universe_membership_dao.add_membership_full(universe_id=universe_id, instrument_id=instrument_ids["AAPL"], start_at=date(2025, 7, 1), end_at=None)
-    await db.universe_membership_dao.add_membership_full(universe_id=universe_id, instrument_id=instrument_ids["TSLA"], start_at=date(2025, 7, 1), end_at=None)
+    await db.universe_membership_core.dao.add_membership_full(universe_id=universe_id, instrument_id=instrument_ids["AAPL"], start_at=date(2025, 7, 1), end_at=None)
+    await db.universe_membership_core.dao.add_membership_full(universe_id=universe_id, instrument_id=instrument_ids["TSLA"], start_at=date(2025, 7, 1), end_at=None)
     # Day 2: Remove AAPL (set end_at)
     async with pool.acquire() as conn:
         await conn.execute(f"UPDATE {env.get_table_name('universe_membership')} SET end_at=$1 WHERE universe_id=$2 AND instrument_id=$3", date(2025, 7, 2), universe_id, instrument_ids["AAPL"])
     # Day 3: Remove TSLA, add AAPL back
-    await db.universe_membership_dao.add_membership_full(universe_id=universe_id, instrument_id=instrument_ids["AAPL"], start_at=date(2025, 7, 3), end_at=None)
+    await db.universe_membership_core.dao.add_membership_full(universe_id=universe_id, instrument_id=instrument_ids["AAPL"], start_at=date(2025, 7, 3), end_at=None)
     async with pool.acquire() as conn:
         await conn.execute(f"UPDATE {env.get_table_name('universe_membership')} SET end_at=$1 WHERE universe_id=$2 AND instrument_id=$3 AND end_at IS NULL", date(2025, 7, 3), universe_id, instrument_ids["TSLA"])
     # Verify membership for each day

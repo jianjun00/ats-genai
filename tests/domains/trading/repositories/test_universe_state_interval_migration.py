@@ -63,7 +63,7 @@ async def test_universe_state_interval_dao_insert_succeeds_without_blob(unit_tes
                 await conn_chk.execute("SELECT setval($1, $2, true)", seq, max_id)
             udao = UniverseDAO(env)
             universe_name = f"test_universe_{datetime.utcnow().timestamp()}"
-            universe_id = await udao.create_universe(universe_name, description="for interval test")
+            universe_id = await ucore.dao.create_universe(universe_name, description="for interval test")
     finally:
         await conn_chk.close()
     assert universe_id is not None
@@ -73,7 +73,7 @@ async def test_universe_state_interval_dao_insert_succeeds_without_blob(unit_tes
     end_dt = start_dt + timedelta(days=1)
 
     usi_dao = UniverseStateIntervalDAO(env)
-    interval_id = await usi_dao.create(
+    interval_id = await usi_core.dao.create(
         universe_id=universe_id,
         duration="1D",
         start_date_time=start_dt,

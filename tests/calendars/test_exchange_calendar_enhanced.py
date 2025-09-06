@@ -1,6 +1,6 @@
 import datetime
 import pytest
-from calendars.exchange_calendar import ExchangeCalendar
+from core.calendars.exchange_calendar import ExchangeCalendar
 from unittest.mock import patch, Mock
 
 

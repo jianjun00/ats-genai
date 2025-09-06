@@ -286,7 +286,7 @@ class TestMultiTimeframeIndicatorSignals:
         )
         
         # Mock the DAO to return test data
-        with patch('dao.instrument_indicator_interval_dao.InstrumentIndicatorIntervalDAO') as MockDAO:
+        with patch('core.dao.instrument_indicator_interval_core.dao.InstrumentIndicatorIntervalDAO') as MockDAO:
             mock_dao_instance = AsyncMock()
             MockDAO.return_value = mock_dao_instance
             
@@ -359,7 +359,7 @@ class TestMultiTimeframeIndicatorSignals:
         
         intervals_to_test = ['1m', '5m', '15m', '1h', '1d', '1w']
         
-        with patch('dao.instrument_indicator_interval_dao.InstrumentIndicatorIntervalDAO') as MockDAO:
+        with patch('core.dao.instrument_indicator_interval_core.dao.InstrumentIndicatorIntervalDAO') as MockDAO:
             mock_dao_instance = AsyncMock()
             MockDAO.return_value = mock_dao_instance
             mock_dao_instance.get_by_instrument_and_date_range.return_value = []
@@ -443,7 +443,7 @@ class TestMultiTimeframeIndicatorSignals:
         )
         
         # Mock comprehensive signal data spanning multiple timeframes
-        with patch('dao.instrument_indicator_interval_dao.InstrumentIndicatorIntervalDAO') as MockDAO:
+        with patch('core.dao.instrument_indicator_interval_core.dao.InstrumentIndicatorIntervalDAO') as MockDAO:
             mock_dao_instance = AsyncMock()
             MockDAO.return_value = mock_dao_instance
             

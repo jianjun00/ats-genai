@@ -17,7 +17,7 @@ def vendors_dirs():
 
 import pytest_asyncio
 from shared.utils.environment import Environment, EnvironmentType
-from infrastructure.database.repositories.vendors_dao import VendorsDAO
+from core.dao.vendors_dao import VendorsDAO
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 
@@ -32,17 +32,17 @@ async def manager(vendors_dirs, unit_test_db):
     xrefs_dao = InstrumentXrefsDAO(env)
     
     # Add ticker vendor
-    ticker_vendor_id = await vendors_dao.create_vendor("ticker")
+    ticker_vendor_id = await vendors_core.dao.create_vendor("ticker")
     
     # Add instruments
-    aapl_id = await instruments_dao.create_instrument("AAPL", "Apple Inc.")
-    tsla_id = await instruments_dao.create_instrument("TSLA", "Tesla Inc.")
+    aapl_id = await instruments_core.dao.create_instrument("AAPL", "Apple Inc.")
+    tsla_id = await instruments_core.dao.create_instrument("TSLA", "Tesla Inc.")
     
     # Add xrefs for ticker vendor
     from datetime import date
     today = date.today()
-    await xrefs_dao.create_xref(aapl_id, ticker_vendor_id, "AAPL", start_at=today)
-    await xrefs_dao.create_xref(tsla_id, ticker_vendor_id, "TSLA", start_at=today)
+    await xrefs_core.dao.create_xref(aapl_id, ticker_vendor_id, "AAPL", start_at=today)
+    await xrefs_core.dao.create_xref(tsla_id, ticker_vendor_id, "TSLA", start_at=today)
     
     # Only test AAPL and TSLA (should exist in both dirs)
     mgr = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env, symbols=["AAPL", "TSLA"])
@@ -152,12 +152,12 @@ async def test_tiingo_list_date_parsing(tmp_path, unit_test_db):
         mock_xrefs_dao.get_symbol_by_instrument_id_vendor_name = AsyncMock(return_value="AAPL")
         
         mock_vendors_dao = MagicMock()
-        mock_vendors_dao.get_vendor_by_name = AsyncMock(return_value={"id": 1, "name": "ticker"})
+        mock_vendors_core.dao.get_vendor_by_name = AsyncMock(return_value={"id": 1, "name": "ticker"})
         
         print("[DEBUG][test_tiingo_list_date_parsing] Setting up mocks...")
         
-        with patch('dao.instrument_xrefs_dao.InstrumentXrefsDAO', return_value=mock_xrefs_dao), \
-             patch('dao.vendors_dao.VendorsDAO', return_value=mock_vendors_dao):
+        with patch('core.dao.instrument_xrefs_core.dao.InstrumentXrefsDAO', return_value=mock_xrefs_dao), \
+             patch('core.dao.vendors_core.dao.VendorsDAO', return_value=mock_vendors_dao):
             
             print("[DEBUG][test_tiingo_list_date_parsing] Creating FileDailyPriceMarketDataManager...")
             mgr = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env, symbols=["AAPL"])

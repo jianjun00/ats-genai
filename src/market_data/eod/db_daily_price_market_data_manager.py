@@ -2,8 +2,8 @@ import logging
 from datetime import datetime, date
 from typing import List, Dict, Optional
 from .base_daily_price_market_data_manager import BaseDailyPriceMarketDataManager
-from dao.instrument_xrefs_dao import InstrumentXrefsDAO
-from dao.daily_prices_dao import DailyPricesDAO
+from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
+from core.dao.daily_prices_dao import DailyPricesDAO
 from core.config.environment import Environment
 
 class DBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
@@ -29,7 +29,7 @@ class DBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
     async def _load_symbol_mappings(self):
         if self.symbols is None:
             # Infer all symbols from DB (universe membership preferred if available)
-            from dao.universe_membership_dao import UniverseMembershipDAO
+            from core.dao.universe_membership_dao import UniverseMembershipDAO
             um_dao = UniverseMembershipDAO(self.env)
             memberships = await um_dao.list_all_members()
             found = set(m['symbol'].upper() for m in memberships)
