@@ -73,7 +73,7 @@ class Environment:
                 return value
         except Exception:
             pass
-        # Fallback: configparser (if present)
+        # Alternative: configparser (if present)
         if hasattr(self, 'config'):
             section, sep, option = full_key.partition('.')
             if sep and self.config.has_section(section) and self.config.has_option(section, option):
@@ -353,13 +353,13 @@ class Environment:
 
     def get_api_key(self, service: str) -> Optional[str]:
         """
-        Get API key for specified service with comprehensive fallback strategy.
+        Get API key for specified service from environment or gin config.
         
         Args:
             service: Service name (e.g., 'polygon', 'tiingo', 'eodhd')
             
         Returns:
-            API key or None if not found
+            API key or None if not found (requires explicit configuration)
         """
         # Try multiple sources in priority order:
         # 1. Environment variable (standard pattern)
@@ -375,22 +375,7 @@ class Environment:
         if config_key and config_key != f"your_{service}_api_key_here":
             return config_key
             
-        # 3. Known working fallback keys from documentation and tests
-        fallback_keys = {
-            'eodhd': '68aa0c7d2fe831.67386369',  # From test files - working key
-            'polygon': 'wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD',  # From docker-compose - working key
-            'tiingo': '5f40b4f36e171405746304ec0e5a6f3aa9ca77e5'  # From docker-compose
-        }
-        
-        fallback_key = fallback_keys.get(service.lower())
-        if fallback_key:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.info(f"ℹ️  Using documented {service.upper()} API key from codebase.")
-            logger.debug(f"    To override: export {env_var}='your-custom-{service}-api-key'")
-            return fallback_key
-            
-        # 4. No key found at all
+        # 3. No hardcoded keys - explicit configuration required
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"❌ No API key found for {service.upper()}!")

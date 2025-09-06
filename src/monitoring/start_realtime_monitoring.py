@@ -357,24 +357,9 @@ class MonitoringSystem:
             }
             
         except Exception as e:
-            logger.info(f"📊 Database unavailable, using mock data: {str(e)[:50]}...")
-            return self._get_mock_data()
+            logger.error(f"❌ Database connection failed for monitoring metrics: {str(e)[:100]}")
+            raise RuntimeError(f"Unable to retrieve monitoring metrics: database connection failed. {e}")
     
-    def _get_mock_data(self):
-        """Generate mock data for testing."""
-        return {
-            "freshness_metrics": [
-                {"vendor": "tiingo", "symbol": "AAPL", "seconds_since_last_update": 45, "quality_score": 0.92, "records_last_hour": 58},
-                {"vendor": "tiingo", "symbol": "TSLA", "seconds_since_last_update": 120, "quality_score": 0.89, "records_last_hour": 55},
-                {"vendor": "polygon", "symbol": "AAPL", "seconds_since_last_update": 30, "quality_score": 0.94, "records_last_hour": 60},
-                {"vendor": "polygon", "symbol": "TSLA", "seconds_since_last_update": 350, "quality_score": 0.87, "records_last_hour": 52}
-            ],
-            "quality_metrics": [
-                {"vendor": "tiingo", "quality_score": 0.905},
-                {"vendor": "polygon", "quality_score": 0.905}
-            ],
-            "data_source": "mock"
-        }
     
     async def get_metrics_endpoint(self, request):
         """API endpoint for metrics."""
