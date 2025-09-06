@@ -21,6 +21,7 @@ import random
 from typing import Dict, Any, List, Optional, Union, Callable
 from datetime import datetime, timedelta
 from enum import Enum
+from dataclasses import dataclass
 
 from infrastructure.llm.multi_provider_client import (
     MultiProviderLLMClient, LLMProvider, LLMResponse, 

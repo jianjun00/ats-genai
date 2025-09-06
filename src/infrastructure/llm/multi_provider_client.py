@@ -20,7 +20,7 @@ import hashlib
 import redis.asyncio as redis
 
 from core.config.environment import Environment
-from shared.exceptions.base import ATSBaseException
+from core.exceptions.custom_exceptions import ATSBaseException
 
 
 class LLMProvider(Enum):
