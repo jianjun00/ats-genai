@@ -578,6 +578,45 @@ class EODHD30YearPopulator:
         symbol_stats['processing_time'] = (datetime.now() - start_time).total_seconds()
         return symbol_stats
     
+    async def analyze_existing_data(self, symbol: str, start_date: date, end_date: date) -> Dict:
+        """Analyze existing data for a symbol to identify gaps"""
+        analysis = {
+            'existing': [],
+            'missing': [],
+            'total_expected_months': 0
+        }
+        
+        try:
+            # Generate expected month-year combinations
+            current_date = start_date.replace(day=1)
+            end_month = end_date.replace(day=1)
+            
+            expected_months = []
+            while current_date <= end_month:
+                expected_months.append((current_date.year, current_date.month))
+                # Move to next month
+                if current_date.month == 12:
+                    current_date = current_date.replace(year=current_date.year + 1, month=1)
+                else:
+                    current_date = current_date.replace(month=current_date.month + 1)
+            
+            analysis['total_expected_months'] = len(expected_months)
+            
+            # Check which files exist
+            for year, month in expected_months:
+                file_path = self.file_manager.get_file_path(symbol, year, month)
+                if file_path.exists():
+                    analysis['existing'].append((year, month))
+                else:
+                    analysis['missing'].append((year, month))
+                    
+        except Exception as e:
+            logger.warning(f"Error analyzing existing data for {symbol}: {e}")
+            # Return empty analysis on error
+            analysis['missing'] = [(start_date.year, start_date.month)]
+        
+        return analysis
+    
     async def run_full_population(self, 
                                   start_date: date,
                                   end_date: date,

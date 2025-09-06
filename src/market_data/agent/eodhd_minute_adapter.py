@@ -9,7 +9,7 @@ import os
 import requests
 import asyncio
 import aiohttp
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 import logging
@@ -65,11 +65,11 @@ class EODHDMinuteAdapter(VendorAdapter):
         if self.session:
             await self.session.close()
     
-    def get_minute_bars_url(self, symbol: str, date_str: str) -> str:
-        """Construct URL for 1-minute intraday data."""
+    def get_minute_bars_url(self, symbol: str, start_timestamp: int, end_timestamp: int) -> str:
+        """Construct URL for 1-minute intraday data using Unix timestamps."""
         return (
             f"{self.base_url}/intraday/{symbol}.US"
-            f"?api_token={self.api_key}&interval=1m&from={date_str}&to={date_str}&fmt=json"
+            f"?api_token={self.api_key}&interval=1m&from={start_timestamp}&to={end_timestamp}&fmt=json"
         )
     
     async def fetch_minute_bars_async(
@@ -98,8 +98,14 @@ class EODHDMinuteAdapter(VendorAdapter):
         
         # EODHD requires daily requests for minute data
         while current_date <= end_date_only:
-            date_str = current_date.strftime("%Y-%m-%d")
-            day_bars = await self._fetch_single_day(symbol, date_str)
+            # Calculate Unix timestamps for start and end of day
+            start_of_day = datetime.combine(current_date, datetime.min.time())
+            end_of_day = datetime.combine(current_date, datetime.max.time())
+            
+            start_timestamp = int(start_of_day.timestamp())
+            end_timestamp = int(end_of_day.timestamp())
+            
+            day_bars = await self._fetch_single_day(symbol, start_timestamp, end_timestamp, current_date)
             bars.extend(day_bars)
             
             current_date += timedelta(days=1)
@@ -109,9 +115,10 @@ class EODHDMinuteAdapter(VendorAdapter):
         
         return bars
     
-    async def _fetch_single_day(self, symbol: str, date_str: str) -> List[EODHDMinuteBar]:
-        """Fetch data for a single day."""
-        url = self.get_minute_bars_url(symbol, date_str)
+    async def _fetch_single_day(self, symbol: str, start_timestamp: int, end_timestamp: int, date: date) -> List[EODHDMinuteBar]:
+        """Fetch data for a single day using Unix timestamps."""
+        date_str = date.strftime("%Y-%m-%d")  # For logging only
+        url = self.get_minute_bars_url(symbol, start_timestamp, end_timestamp)
         
         try:
             async with self.session.get(url) as response:
@@ -122,7 +129,7 @@ class EODHDMinuteAdapter(VendorAdapter):
                     # Rate limit exceeded
                     logger.warning(f"Rate limit exceeded for {symbol} on {date_str}")
                     await asyncio.sleep(60)  # Wait 1 minute
-                    return await self._fetch_single_day(symbol, date_str)
+                    return await self._fetch_single_day(symbol, start_timestamp, end_timestamp, date)
                 elif response.status == 404:
                     # No data available
                     logger.debug(f"No data for {symbol} on {date_str}")
@@ -177,8 +184,15 @@ class EODHDMinuteAdapter(VendorAdapter):
         end_date_only = end_date.date()
         
         while current_date <= end_date_only:
-            date_str = current_date.strftime("%Y-%m-%d")
-            url = self.get_minute_bars_url(symbol, date_str)
+            # Calculate Unix timestamps for start and end of day
+            start_of_day = datetime.combine(current_date, datetime.min.time())
+            end_of_day = datetime.combine(current_date, datetime.max.time())
+            
+            start_timestamp = int(start_of_day.timestamp())
+            end_timestamp = int(end_of_day.timestamp())
+            
+            date_str = current_date.strftime("%Y-%m-%d")  # For logging only
+            url = self.get_minute_bars_url(symbol, start_timestamp, end_timestamp)
             
             try:
                 response = requests.get(url)
