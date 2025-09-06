@@ -860,6 +860,258 @@ class BXTrenderIndicator(Indicator):
         }
 
 
+class VolumeProfileIndicator(Indicator):
+    """Volume Profile indicator for market structure analysis through volume distribution."""
+    
+    def __init__(self, period: int = 20, bin_count: int = 50, value_area_pct: float = 70.0):
+        super().__init__()
+        self.period = period
+        self.bin_count = bin_count
+        self.value_area_pct = value_area_pct
+        self.name = f"VolumeProfile_{period}_{bin_count}"
+    
+    def calculate(self, price_history: pd.DataFrame) -> Dict[str, Any]:
+        """Calculate volume profile with POC, Value Area, and distribution analysis."""
+        if len(price_history) < self.period:
+            return {'value': None, 'status': 'insufficient_data'}
+        
+        # Validate required columns
+        required_columns = ['open', 'high', 'low', 'close', 'volume']
+        if not all(col in price_history.columns for col in required_columns):
+            return {'value': None, 'status': 'missing_columns'}
+        
+        try:
+            # Use last 'period' rows for analysis
+            data = price_history.tail(self.period).copy()
+            
+            # Validate data quality
+            for col in required_columns:
+                if data[col].isna().any() or (data[col] <= 0).any():
+                    return {'value': None, 'status': 'invalid_data'}
+            
+            # Calculate volume profile using vectorized operations
+            result = self._calculate_vectorized_profile(data)
+            
+            return {
+                'value': result['poc'],                    # Main value (POC)
+                'poc': result['poc'],                      # Point of Control
+                'vah': result['vah'],                      # Value Area High  
+                'val': result['val'],                      # Value Area Low
+                'value_area_volume_pct': self.value_area_pct,
+                'volume_distribution_summary': result['distribution_summary'],
+                'profile_shape': result['shape'],          # Shape classification
+                'dominant_side': result['bias'],           # Market bias
+                'total_volume': result['total_volume'],
+                'price_range': result['price_range'],
+                'avg_volume_per_bin': result['avg_volume_per_bin'],
+                'volume_concentration': result['volume_concentration'],
+                'status': 'valid'
+            }
+            
+        except Exception as e:
+            return {'value': None, 'status': f'calculation_error: {str(e)}'}
+    
+    def _calculate_vectorized_profile(self, data: pd.DataFrame) -> Dict[str, Any]:
+        """Vectorized volume profile calculation using pandas/numpy."""
+        import numpy as np
+        
+        # Calculate price range and create bins
+        all_prices = np.concatenate([data['open'], data['high'], data['low'], data['close']])
+        price_min, price_max = all_prices.min(), all_prices.max()
+        price_range = price_max - price_min
+        
+        if price_range == 0:
+            # All prices are the same - create single bin
+            poc = price_min
+            return {
+                'poc': float(poc),
+                'vah': float(poc),
+                'val': float(poc),
+                'distribution_summary': {'total_bins': 1, 'active_bins': 1},
+                'shape': 'balanced',
+                'bias': 'neutral',
+                'total_volume': float(data['volume'].sum()),
+                'price_range': (float(price_min), float(price_max)),
+                'avg_volume_per_bin': float(data['volume'].sum()),
+                'volume_concentration': 1.0
+            }
+        
+        # Create price bins with small overlap to handle edge cases
+        bin_edges = np.linspace(price_min, price_max, self.bin_count + 1)
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+        
+        # Initialize volume distribution
+        volume_dist = np.zeros(self.bin_count)
+        
+        # Distribute volume across OHLC prices for each bar
+        for _, row in data.iterrows():
+            prices = [row['open'], row['high'], row['low'], row['close']]
+            volume_per_price = row['volume'] / 4  # Equal distribution across OHLC
+            
+            for price in prices:
+                # Find appropriate bin (use digitize for efficiency)
+                bin_idx = np.digitize(price, bin_edges) - 1
+                bin_idx = np.clip(bin_idx, 0, self.bin_count - 1)
+                volume_dist[bin_idx] += volume_per_price
+        
+        # Calculate Point of Control (POC)
+        poc_idx = np.argmax(volume_dist)
+        poc = bin_centers[poc_idx]
+        
+        # Calculate Value Area by expanding from POC
+        total_volume = volume_dist.sum()
+        target_volume = total_volume * (self.value_area_pct / 100.0)
+        
+        # Find Value Area by expanding from POC
+        included_volume = volume_dist[poc_idx]
+        va_low_idx = poc_idx
+        va_high_idx = poc_idx
+        
+        # Expand bidirectionally from POC
+        while included_volume < target_volume and (va_low_idx > 0 or va_high_idx < self.bin_count - 1):
+            # Determine which direction to expand (choose higher volume)
+            expand_low = False
+            expand_high = False
+            
+            if va_low_idx > 0 and va_high_idx < self.bin_count - 1:
+                # Both directions available - choose higher volume
+                low_volume = volume_dist[va_low_idx - 1]
+                high_volume = volume_dist[va_high_idx + 1]
+                expand_low = low_volume >= high_volume
+                expand_high = not expand_low
+            elif va_low_idx > 0:
+                expand_low = True
+            elif va_high_idx < self.bin_count - 1:
+                expand_high = True
+            
+            if expand_low:
+                va_low_idx -= 1
+                included_volume += volume_dist[va_low_idx]
+            elif expand_high:
+                va_high_idx += 1
+                included_volume += volume_dist[va_high_idx]
+        
+        val = bin_centers[va_low_idx]
+        vah = bin_centers[va_high_idx]
+        
+        # Calculate additional metrics
+        active_bins = np.count_nonzero(volume_dist)
+        avg_volume_per_bin = total_volume / active_bins if active_bins > 0 else 0
+        
+        # Volume concentration (how concentrated the volume is)
+        max_volume = np.max(volume_dist)
+        volume_concentration = max_volume / total_volume if total_volume > 0 else 0
+        
+        # Classify profile shape
+        profile_shape = self._classify_shape_vectorized(volume_dist, poc_idx)
+        
+        # Determine market bias based on volume distribution
+        bias = self._determine_bias_vectorized(volume_dist, bin_centers, poc)
+        
+        # Create distribution summary (top 10 volume levels)
+        top_volume_indices = np.argsort(volume_dist)[-10:][::-1]
+        distribution_summary = {
+            'total_bins': self.bin_count,
+            'active_bins': int(active_bins),
+            'top_volume_levels': [
+                {
+                    'price': float(bin_centers[i]),
+                    'volume': float(volume_dist[i]),
+                    'volume_pct': float(volume_dist[i] / total_volume * 100) if total_volume > 0 else 0
+                }
+                for i in top_volume_indices if volume_dist[i] > 0
+            ]
+        }
+        
+        return {
+            'poc': float(poc),
+            'vah': float(vah),
+            'val': float(val),
+            'distribution_summary': distribution_summary,
+            'shape': profile_shape,
+            'bias': bias,
+            'total_volume': float(total_volume),
+            'price_range': (float(price_min), float(price_max)),
+            'avg_volume_per_bin': float(avg_volume_per_bin),
+            'volume_concentration': float(volume_concentration)
+        }
+    
+    def _classify_shape_vectorized(self, volume_dist: np.ndarray, poc_idx: int) -> str:
+        """Classify volume profile shape using statistical analysis."""
+        if len(volume_dist) < 5:
+            return 'undefined'
+        
+        try:
+            from scipy import stats
+            from scipy.signal import find_peaks
+            
+            # Remove zero volumes for statistical analysis
+            non_zero_volumes = volume_dist[volume_dist > 0]
+            if len(non_zero_volumes) < 3:
+                return 'undefined'
+            
+            # Calculate statistical measures
+            skewness = stats.skew(non_zero_volumes)
+            kurtosis = stats.kurtosis(non_zero_volumes)
+            
+            # Find peaks in the distribution
+            peaks, _ = find_peaks(volume_dist, prominence=np.max(volume_dist) * 0.1)
+            peak_count = len(peaks)
+            
+            # Classification rules
+            if abs(skewness) < 0.5 and kurtosis > 1.0 and peak_count == 1:
+                return 'balanced'
+            elif abs(skewness) > 1.0:
+                return 'trending'  
+            elif peak_count >= 2:
+                return 'double_distribution' if peak_count == 2 else 'rotational'
+            else:
+                return 'balanced'
+                
+        except ImportError:
+            # Fallback without scipy
+            peak_count = self._simple_peak_count(volume_dist)
+            if peak_count == 1:
+                return 'balanced'
+            elif peak_count >= 2:
+                return 'rotational'
+            else:
+                return 'trending'
+    
+    def _simple_peak_count(self, volume_dist: np.ndarray) -> int:
+        """Simple peak counting without scipy dependencies."""
+        peaks = 0
+        for i in range(1, len(volume_dist) - 1):
+            if volume_dist[i] > volume_dist[i-1] and volume_dist[i] > volume_dist[i+1]:
+                # Local maximum found
+                if volume_dist[i] > np.max(volume_dist) * 0.1:  # Significant peak
+                    peaks += 1
+        return peaks
+    
+    def _determine_bias_vectorized(self, volume_dist: np.ndarray, bin_centers: np.ndarray, poc: float) -> str:
+        """Determine market bias based on volume distribution around POC."""
+        total_volume = np.sum(volume_dist)
+        if total_volume == 0:
+            return 'neutral'
+        
+        # Calculate volume above and below POC
+        above_poc_mask = bin_centers > poc
+        below_poc_mask = bin_centers < poc
+        
+        volume_above = np.sum(volume_dist[above_poc_mask])
+        volume_below = np.sum(volume_dist[below_poc_mask])
+        
+        # Determine bias based on volume distribution
+        volume_ratio = (volume_above - volume_below) / total_volume
+        
+        if volume_ratio > 0.1:  # 10% more volume above POC
+            return 'bullish'
+        elif volume_ratio < -0.1:  # 10% more volume below POC
+            return 'bearish'
+        else:
+            return 'neutral'
+
+
 class CumulativeDollarsIndicator(Indicator):
     """Cumulative Dollar Volume (price * volume) indicator for liquidity analysis."""
     
@@ -1044,6 +1296,12 @@ class ResidualReturnIndicatorConfig(IndicatorConfig):
         config.add_indicator('BXTrender_directional_21', lambda: BXTrenderIndicator(21, 'directional'))
         config.add_indicator('BXTrender_volume_weighted_14', lambda: BXTrenderIndicator(14, 'volume_weighted'))
         config.add_indicator('BXTrender_volume_weighted_21', lambda: BXTrenderIndicator(21, 'volume_weighted'))
+        
+        # Volume Profile indicators - multiple configurations for comprehensive market structure analysis
+        config.add_indicator('VolumeProfile_20_50', lambda: VolumeProfileIndicator(20, 50))
+        config.add_indicator('VolumeProfile_20_30', lambda: VolumeProfileIndicator(20, 30))
+        config.add_indicator('VolumeProfile_14_40', lambda: VolumeProfileIndicator(14, 40))
+        config.add_indicator('VolumeProfile_30_60', lambda: VolumeProfileIndicator(30, 60))
         
         return config
     
