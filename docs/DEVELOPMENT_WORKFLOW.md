@@ -197,6 +197,97 @@ PYTHONPATH=src pytest tests/system/ -v --tb=short
 
 ---
 
+## 🚨 **Critical Testing Standards & Practices**
+
+### **⚡ MANDATORY: Thorough Testing Over Superficial Validation**
+
+**CRITICAL PRINCIPLE: Test actual computed values, not just structural relationships.**
+
+#### ❌ **Superficial Testing (DANGEROUS)**
+```python
+# BAD: Only checking relationships
+def test_ohlc_data():
+    result = get_market_data()
+    assert result['high'] >= result['low']  # Structural only
+    assert result['close'] > 0  # Basic validation
+    # ❌ PROBLEM: Passes with ANY structurally valid data
+```
+
+#### ✅ **Thorough Value Testing (REQUIRED)**  
+```python
+# GOOD: Checking exact computed values
+def test_ohlc_data():
+    # Use deterministic test data with known outcomes
+    test_data = create_deterministic_minute_bars()
+    result = aggregate_to_5m(test_data)
+    
+    # Validate EXACT computed values with mathematical precision
+    assert abs(result['open'] - 100.25) < 0.01
+    assert abs(result['high'] - 102.75) < 0.01
+    assert abs(result['close'] - 101.50) < 0.01
+    # ✅ RESULT: Catches real aggregation bugs
+```
+
+### **🎯 Lead vs Lag Price Testing Example**
+
+**The user correctly identified that both `get_lead_prices` and `get_lag_prices` call the same `get_ohlcv_data` method with the same `cur_datetime`. This required comprehensive validation that they return DIFFERENT data.**
+
+#### Critical Test Requirements:
+```python
+def test_lead_vs_lag_return_different_data():
+    # SAME reference point
+    reference_datetime = datetime(2025, 9, 6, 14, 30, 0)
+    
+    # Different directions should yield different data
+    lag_result = get_lag_prices(ref_datetime, periods=5)    # backward
+    lead_result = get_lead_prices(ref_datetime, periods=5)   # forward
+    
+    # CRITICAL: Must return different values (different time periods)
+    lag_closes = lag_result['close'].tolist()
+    lead_closes = lead_result['close'].tolist()
+    
+    assert lag_closes != lead_closes, "MUST return different time periods"
+    assert avg(lead_closes) > avg(lag_closes), "Future > historical (with trend)"
+    
+    # Validate EXACT expected values from deterministic test data
+    assert lag_closes == [98.50, 99.25, 100.10], "Historical data"  
+    assert lead_closes == [102.80, 103.45, 104.20], "Future data"
+```
+
+### **🔧 Interface Consistency Testing**
+
+**CRITICAL: Async/Sync interface mismatches cause runtime failures.**
+
+```python
+# Base interface defines synchronous method
+class MarketDataManager:
+    def get_ohlcv_data(self, instrument_id, reference_datetime, periods):
+        # Synchronous interface
+
+# Implementation MUST match interface
+class FileBasedMinuteMarketDataManager(MarketDataManager):
+    def get_ohlcv_data(self, instrument_id, reference_datetime, periods):
+        # ✅ CORRECT: Synchronous (matches base class)
+        return asyncio.run(self._get_ohlcv_data_async(...))
+    
+    # ❌ WRONG: async def get_ohlcv_data(...)  # Interface violation!
+```
+
+**Test interface consistency:**
+```python
+def test_interface_consistency():
+    # Verify UniverseStateManager can call without await
+    manager = FileBasedMinuteMarketDataManager(env, path)
+    universe_manager = UniverseStateManager(env)
+    universe_manager.market_data_manager = manager
+    
+    # This must work synchronously (no await needed)
+    result = universe_manager.get_lag_prices(instrument_id, datetime, periods=3)
+    assert not result.empty
+```
+
+---
+
 ## 🚨 **Critical Testing Lessons Learned**
 
 **Based on real failures and hard-learned lessons from UI interface testing incidents.**
@@ -263,8 +354,7 @@ curl -s http://localhost:4000/interface
 
 ### 📋 **Testing Checklist (MANDATORY)**
 
-Before claiming ANY interface fix is complete:
-
+#### Interface/UI Testing:
 - [ ] **Identified Correct Interface** - Confirmed exact URL user is accessing
 - [ ] **Reproduced Original Issue** - Saw the problem with my own eyes
 - [ ] **Browser Tested** - Opened interface in actual browser
@@ -274,6 +364,25 @@ Before claiming ANY interface fix is complete:
 - [ ] **User Workflow** - Completed full user workflow successfully
 - [ ] **Automated Test Created** - Created test script to prevent regression
 - [ ] **Before/After Documentation** - Clear evidence of what changed
+
+#### Data/Algorithm Testing:
+- [ ] **Exact Value Validation** - Test computed values, not just relationships
+- [ ] **Deterministic Test Data** - Use predictable inputs with known outcomes
+- [ ] **Edge Case Coverage** - Test boundary conditions and error cases
+- [ ] **Mathematical Precision** - Validate aggregations within tolerance (±0.01)
+- [ ] **Direction/Parameter Testing** - Verify different inputs yield different outputs
+- [ ] **Interface Consistency** - Ensure async/sync signatures match base classes
+- [ ] **Integration Testing** - Test with real dependencies, not just mocks
+- [ ] **Performance Validation** - Verify operations complete in reasonable time
+
+#### System Integration Testing:
+- [ ] **End-to-End Workflow** - Complete user journey from start to finish
+- [ ] **Database Schema Validation** - Confirm table/column names match code
+- [ ] **External Service Integration** - APIs, file systems, message queues
+- [ ] **Error Handling Coverage** - Test failure scenarios and recovery
+- [ ] **Performance Under Load** - Test with realistic data volumes
+- [ ] **Security Validation** - No secrets logged, proper authentication
+- [ ] **Regression Prevention** - New tests prevent previously fixed bugs
 
 ---
 
@@ -302,7 +411,16 @@ PYTHONPATH=src pytest tests/performance/ -v
 # Update relevant docs for new features
 ```
 
-### Anti-Patterns to Avoid
+### Testing Anti-Patterns to Avoid
+- **❌ Superficial relationship testing** instead of exact value validation
+- **❌ Testing with random data** that makes validation unpredictable
+- **❌ Assuming methods work differently** without thorough validation
+- **❌ Interface signature mismatches** (async implementation with sync base class)
+- **❌ Testing only success paths** without error conditions
+- **❌ Mock-only testing** without real integration verification
+- **❌ Claiming functionality works** without user scenario validation
+
+### Development Anti-Patterns to Avoid  
 - **❌ Using manual operations** for dev work
 - **❌ Setting environment variables manually**
 - **❌ Creating new deployment patterns** when existing work
@@ -357,26 +475,44 @@ uv run python src/script.py
 - You verify specific measurable changes (element counts, data types, etc.)
 - You create automated tests that catch regressions
 - You document what was actually observed, not what should happen
+- **You validate computed values with mathematical precision**
+- **You test that different inputs produce different outputs**  
+- **You verify interface contracts are correctly implemented**
 
 **Testing is complete when:**
 - User confirms the issue is resolved
 - Automated tests prevent regression
 - Other team members can verify the fix using your test instructions
 - The solution works in the real user environment, not just development
+- **Exact computed values match expected mathematical outcomes**
+- **Edge cases and error conditions are covered**
+- **System integration works with real dependencies**
 
 ---
 
 ## 💡 **Key Development Insights**
 
+### UI/Interface Testing
 1. **Browser is Truth** - If it doesn't work in browser, it doesn't work
 2. **User Experience is Truth** - If user says it doesn't work, it doesn't work
 3. **APIs ≠ UI** - API returning 200 doesn't mean UI displays correctly
 4. **Files ≠ Function** - File existing doesn't mean code executes
 5. **Tools Have Limits** - curl can't test JavaScript, DOM manipulation, or user workflows
-6. **Real Data Reveals Truth** - Mock data hides production problems
-7. **Tests First Prevent Issues** - TDD catches problems before they reach users
 
-**Remember**: The user is the ultimate test. If they say it doesn't work, it doesn't work—regardless of what your tests show.
+### Algorithm/Data Testing
+6. **Computed Values Matter** - Test exact mathematical outcomes, not just relationships
+7. **Different Inputs Must Yield Different Outputs** - Validate that methods actually behave differently
+8. **Interface Contracts Are Critical** - Async/sync mismatches cause runtime failures
+9. **Deterministic Data Enables Validation** - Random test data makes thorough testing impossible
+10. **Integration Reveals Interface Issues** - Mock-only testing misses critical bugs
+
+### General Principles  
+11. **Real Data Reveals Truth** - Mock data hides production problems
+12. **Tests First Prevent Issues** - TDD catches problems before they reach users
+13. **Question Assumptions** - "Both methods call the same function with same parameters - do they really return different data?"
+14. **Mathematical Precision Matters** - ±0.01 tolerance for financial calculations
+
+**Remember**: The user is the ultimate test. If they say it doesn't work, it doesn't work—regardless of what your tests show. When they question your implementation logic, listen carefully—they might be identifying critical gaps in your validation.
 
 ---
 
