@@ -166,7 +166,7 @@ class UniverseStateManager:
                 time_interval=time_interval,
                 direction='backward'  # Explicitly specify backward direction for lag prices
             )
-            if not df.empty:
+            if df is not None and not df.empty:
                 try:
                     self.logger.debug(f"[get_lag_prices] market_data_manager: instrument_id={instrument_id} cur_datetime={cur_datetime} lag_periods={lag_periods} interval={time_interval} df.shape={df.shape}")
                 except Exception:
@@ -273,7 +273,7 @@ class UniverseStateManager:
                 time_interval=time_interval,
                 direction='forward'  # Explicitly specify forward direction for lead prices
             )
-            if not df.empty:
+            if df is not None and not df.empty:
                 try:
                     self.logger.debug(f"[get_lead_prices] market_data_manager: instrument_id={instrument_id} cur_datetime={cur_datetime} lead_periods={lead_periods} interval={time_interval} df.shape={df.shape}")
                 except Exception:
