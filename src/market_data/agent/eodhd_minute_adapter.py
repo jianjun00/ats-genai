@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, date
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 import logging
+import pytz
 
 from .base_adapter import VendorAdapter
 from .models import InstrumentMetadata
@@ -152,7 +153,9 @@ class EODHDMinuteAdapter(VendorAdapter):
             try:
                 # EODHD timestamp format: "2024-01-01 09:30:00"
                 timestamp_str = f"{item['datetime']}"
-                timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+                # Parse as naive datetime then localize to UTC (EODHD uses UTC timestamps)
+                naive_timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+                timestamp = pytz.UTC.localize(naive_timestamp)
                 
                 bar = EODHDMinuteBar(
                     symbol=symbol,
