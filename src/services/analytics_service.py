@@ -910,6 +910,15 @@ class UnifiedAnalyticsService:
                             # Fail fast if fake data detected
                             fail_on_fake_data(response, f"visualization_data_response_dataset_{dataset_id}")
                             
+                            # Sanitize response to prevent NaN/Infinity JSON serialization errors
+                            try:
+                                from core.sanitizers.json_sanitizer import validate_api_response
+                                response = validate_api_response(response)
+                                logger.info("✅ Visualization API response sanitized for JSON safety")
+                            except Exception as sanitizer_error:
+                                logger.warning(f"Visualization response sanitization failed: {sanitizer_error}")
+                                # Continue with original response if sanitization fails
+                            
                             return response
                             
                         except ImportError as e:
@@ -1043,13 +1052,70 @@ class UnifiedAnalyticsService:
                                 actual_row_idx = row_index - start_idx
                                 logger.info(f"   {timeframe}: Target row is now at index {actual_row_idx} in selected data")
                     
-                    # Prepare table view data (use 1h timeframe)
+                    # Prepare comprehensive table view data with all training features
                     table_data = []
-                    if '1h' in multi_timeframe_data:
-                        table_data = multi_timeframe_data['1h']  # Use the already-filtered 21 bars
-                        logger.info(f"✅ Table data prepared: {len(table_data)} rows from 1h timeframe (21-bar selection)")
+                    feature_matrix = []
                     
-                    # Debug: Log detailed response structure
+                    # Try to get comprehensive training data from ArrayRecord
+                    for base_path in training_base_paths:
+                        if not table_data:  # Only process first successful path
+                            arrayrecord_path = Path(base_path) / str(run_id) / sequence_id / "1h" / f"{sequence_id}.arrayrecord"
+                            if arrayrecord_path.exists():
+                                try:
+                                    from array_record.python.array_record_module import ArrayRecordReader
+                                    import ast
+                                    import numpy as np
+                                    
+                                    reader = ArrayRecordReader(str(arrayrecord_path))
+                                    
+                                    # Read column names
+                                    reader.seek(0)
+                                    columns_record = reader.read()
+                                    columns = ast.literal_eval(columns_record.decode('utf-8'))
+                                    
+                                    # Read training data
+                                    reader.seek(1)
+                                    data_record = reader.read()
+                                    training_array = np.frombuffer(data_record, dtype=np.float32)
+                                    
+                                    reader.close()
+                                    
+                                    # Create comprehensive feature matrix
+                                    if len(training_array) == len(columns):
+                                        # Create a single row with all features
+                                        feature_row = {}
+                                        for i, col_name in enumerate(columns):
+                                            val = training_array[i]
+                                            # Handle NaN values to prevent JSON serialization errors
+                                            import math
+                                            if math.isnan(val):
+                                                # Special handling for specific fields
+                                                if 'symbol' in col_name.lower():
+                                                    # Symbol fields should be strings, not numeric
+                                                    # Extract symbol from sequence_id (e.g., "AAPL_20250701_000000_20250906_000000" -> "AAPL")
+                                                    symbol = sequence_id.split('_')[0] if sequence_id else 'UNKNOWN'
+                                                    feature_row[col_name] = symbol
+                                                else:
+                                                    val = 0.0
+                                                    feature_row[col_name] = float(val)
+                                            else:
+                                                feature_row[col_name] = float(val)
+                                        
+                                        feature_matrix.append(feature_row)
+                                        logger.info(f"✅ Comprehensive feature data: {len(columns)} features extracted from ArrayRecord")
+                                    
+                                except Exception as e:
+                                    logger.error(f"Error reading comprehensive training data: {e}")
+                    
+                    # Use comprehensive features if available, otherwise fall back to OHLC
+                    if feature_matrix:
+                        table_data = feature_matrix
+                        logger.info(f"✅ Table data prepared: {len(table_data)} rows with {len(table_data[0])} features each")
+                    elif '1h' in multi_timeframe_data:
+                        table_data = multi_timeframe_data['1h']  # Fallback to OHLC data
+                        logger.info(f"✅ Table data prepared (fallback): {len(table_data)} rows from 1h timeframe")
+                    
+                    # Create response and sanitize for JSON safety
                     response = {
                         "sequence_id": sequence_id,
                         "dataset_name": dataset_info.get('dataset_name'),
@@ -1058,6 +1124,15 @@ class UnifiedAnalyticsService:
                         "available_timeframes": list(multi_timeframe_data.keys()),
                         "success": True
                     }
+                    
+                    # Sanitize response to prevent NaN/Infinity JSON serialization errors
+                    try:
+                        from core.sanitizers.json_sanitizer import validate_api_response
+                        response = validate_api_response(response)
+                        logger.info("✅ API response sanitized for JSON safety")
+                    except Exception as sanitizer_error:
+                        logger.warning(f"Response sanitization failed: {sanitizer_error}")
+                        # Continue with original response if sanitization fails
                     
                     logger.info(f"🎯 MULTI-TIMEFRAME API RESPONSE DEBUG:")
                     logger.info(f"   Sequence ID: {response['sequence_id']}")
