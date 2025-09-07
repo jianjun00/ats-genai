@@ -31,33 +31,6 @@ except ImportError:
     Environment = None
 
 
-@dataclass
-class SequenceTrainingExample:
-    """Training example with multi-timeframe sequence features."""
-    
-    instrument_id: int
-    symbol: str
-    prediction_timestamp: datetime
-    
-    # Base features (scalar)
-    base_features: Dict[str, float]
-    
-    # Sequence features (arrays) - configurable length per timeframe
-    sequence_5m: List[Dict[str, float]]   # Past N x 5-minute OHLCV (configurable)
-    sequence_15m: List[Dict[str, float]]  # Past N x 15-minute OHLCV (configurable)
-    sequence_1h: List[Dict[str, float]]   # Past N x 1-hour features (configurable)
-    sequence_1d: List[Dict[str, float]]   # Past N x daily features (configurable)
-    
-    # Multi-timeframe aggregated features
-    timeframe_features: Dict[str, Dict[str, float]]  # {timeframe: {feature: value}}
-    
-    # Target labels (future M intervals) - configurable horizon per timeframe
-    future_1h: List[Dict[str, float]]    # Next M x 1-hour targets (configurable)
-    future_1d: List[Dict[str, float]]    # Next M x daily targets (configurable)
-    
-    # Metadata (actual lengths used)
-    sequence_length: Dict[str, int]       # Actual sequence lengths used
-    prediction_horizon: Dict[str, int]    # Actual prediction horizons used
 
 
 @gin.configurable
@@ -67,8 +40,6 @@ class TrainingDataConfig:
     def __init__(self,
                  base_interval_minutes: int = 1,
                  training_interval_minutes: int = 60,
-                 sequence_lengths: Optional[Dict[str, int]] = None,
-                 prediction_horizons: Optional[Dict[str, int]] = None,
                  timeframes: Optional[List[str]] = None,
                  feature_types: Optional[List[str]] = None,
                  signal_names: Optional[List[str]] = None):
@@ -78,26 +49,12 @@ class TrainingDataConfig:
         Args:
             base_interval_minutes: Base data collection interval (1 minute)
             training_interval_minutes: Training data generation interval (60 minutes)
-            sequence_lengths: Number of past intervals per timeframe
-            prediction_horizons: Number of future intervals to predict
             timeframes: List of timeframes to generate features for
             feature_types: Types of features to extract
             signal_names: List of technical indicator signal names to retrieve from UniverseStateManager
         """
         self.base_interval_minutes = base_interval_minutes
         self.training_interval_minutes = training_interval_minutes
-        
-        self.sequence_lengths = sequence_lengths or {
-            '5m': 52,   # Past 52 x 5-minute intervals (4.3 hours)
-            '15m': 52,  # Past 52 x 15-minute intervals (13 hours)  
-            '1h': 24,   # Past 24 x 1-hour intervals (1 day)
-            '1d': 20,   # Past 20 x daily intervals (4 weeks)
-        }
-        
-        self.prediction_horizons = prediction_horizons or {
-            '1h': 6,    # Next 6 hours
-            '1d': 5,    # Next 5 days
-        }
         
         self.timeframes = timeframes or ['1m', '5m', '15m', '1h', '1d', '1w', '1M']
         
@@ -350,89 +307,83 @@ class SequenceWindowBuilder:
         self.logger = logging.getLogger(__name__)
     
     async def get_timeframe_data(self, instrument_id: int, center_datetime: datetime, 
-                          timeframe: str, window_size: int, is_future: bool = False) -> List[Dict[str, float]]:
+                          timeframe: str, is_future: bool = False) -> Dict[str, float]:
         """
-        Get data for a specific timeframe around center_datetime.
+        Get current data point for a specific timeframe at center_datetime.
         
         Args:
             instrument_id: Target instrument
-            center_datetime: Center datetime for the window
+            center_datetime: Center datetime for the data point
             timeframe: Timeframe string (e.g., '5m', '1h', '1d')
-            window_size: Number of intervals to retrieve
-            is_future: Whether to get future data (lead) or past data (lag)
+            is_future: Whether to get future data (lead) or current data (lag)
         """
         try:
             if is_future:
-                # Get future OHLCV data using lead_prices (technical indicators not available for future)
-                data_df = self.universe_manager.get_lead_prices(instrument_id, center_datetime, window_size)
+                # Get current future data point (1 interval ahead)
+                data_df = self.universe_manager.get_lead_prices(instrument_id, center_datetime, 1)
             else:
-                # Get historical OHLCV data using lag_prices
-                ohlcv_df = self.universe_manager.get_lag_prices(instrument_id, center_datetime, window_size)
+                # Get current historical data point
+                ohlcv_df = self.universe_manager.get_lag_prices(instrument_id, center_datetime, 1)
                 
-                # Get technical indicators using get_lagged_signals with configured signal names
+                # Get technical indicators for current point
                 signals_df = await self.universe_manager.get_lagged_signals(
                     instrument_id=instrument_id,
                     cur_datetime=center_datetime,
-                    lag_periods=window_size,
+                    lag_periods=1,
                     time_interval=timeframe,
                     signal_names=self.config.signal_names
                 )
                 
-                # Merge OHLCV and signals data on timestamp/date
+                # Merge OHLCV and signals data
                 if not ohlcv_df.empty and not signals_df.empty:
-                    # Align data by index/timestamp
                     data_df = ohlcv_df.copy()
                     
-                    # Add technical indicators columns to OHLCV data
+                    # Add technical indicators columns
                     for col in signals_df.columns:
                         if col != 'timestamp':
-                            # Map signal column names to match expected format
                             signal_col = col.replace('_value', '').replace('_status', '')
                             if '_value' in col:
-                                data_df[signal_col] = signals_df[col].iloc[-len(data_df):].values if len(signals_df) >= len(data_df) else np.nan
+                                data_df[signal_col] = signals_df[col].iloc[-1] if len(signals_df) >= 1 else np.nan
                 else:
                     data_df = ohlcv_df
             
             if data_df.empty:
-                return []
+                return {}
             
-            # Extract features for each interval
-            sequence_data = []
-            for idx, row in data_df.iterrows():
-                interval_features = self.feature_extractor.extract_all_features(
-                    pd.DataFrame([row]), timeframe
-                )
-                sequence_data.append(interval_features)
+            # Extract features for the single data point
+            single_point_features = self.feature_extractor.extract_all_features(
+                data_df, timeframe
+            )
             
-            return sequence_data
+            return single_point_features
             
         except Exception as e:
             self.logger.warning(f"Failed to get {timeframe} data for instrument {instrument_id}: {e}")
-            return []
+            return {}
     
-    async def build_sequence_features(self, instrument_id: int, prediction_timestamp: datetime) -> Dict[str, List[Dict[str, float]]]:
-        """Build sequence features for all configured timeframes."""
-        sequence_features = {}
+    async def build_timeframe_features(self, instrument_id: int, prediction_timestamp: datetime) -> Dict[str, Dict[str, float]]:
+        """Build single-point features for all configured timeframes."""
+        timeframe_features = {}
         
-        # Build past sequences using the full datetime (not just date)
-        for timeframe, sequence_length in self.config.sequence_lengths.items():
-            sequence_data = await self.get_timeframe_data(
-                instrument_id, prediction_timestamp, timeframe, sequence_length, is_future=False
+        # Build current features for each timeframe
+        for timeframe in self.config.timeframes:
+            features = await self.get_timeframe_data(
+                instrument_id, prediction_timestamp, timeframe, is_future=False
             )
-            sequence_features[f'sequence_{timeframe}'] = sequence_data
+            timeframe_features[timeframe] = features
         
-        return sequence_features
+        return timeframe_features
     
-    async def build_prediction_targets(self, instrument_id: int, prediction_timestamp: datetime) -> Dict[str, List[Dict[str, float]]]:
-        """Build prediction targets for configured horizons."""
+    async def build_prediction_targets(self, instrument_id: int, prediction_timestamp: datetime) -> Dict[str, Dict[str, float]]:
+        """Build single-point prediction targets for configured timeframes."""
         targets = {}
         
-        # Build future targets using the full datetime (not just date)
-        for timeframe, horizon_length in self.config.prediction_horizons.items():
-            target_data = await self.get_timeframe_data(
-                instrument_id, prediction_timestamp, timeframe, horizon_length, is_future=True
+        # Build future targets for each timeframe (single point)
+        for timeframe in self.config.timeframes:
+            target_features = await self.get_timeframe_data(
+                instrument_id, prediction_timestamp, timeframe, is_future=True
             )
-            targets[f'future_{timeframe}'] = target_data
+            targets[f'future_{timeframe}'] = target_features
         
         return targets
 
@@ -538,7 +489,7 @@ class TimeSeriesSequenceTrainingGenerator:
     
     async def generate_training_example(self, 
                                        symbol: str, 
-                                       prediction_timestamp: datetime) -> Optional[SequenceTrainingExample]:
+                                       prediction_timestamp: datetime) -> Optional[Dict]:
         """
         Generate a single training example for the given symbol and timestamp.
         
@@ -547,7 +498,7 @@ class TimeSeriesSequenceTrainingGenerator:
             prediction_timestamp: Timestamp to generate prediction for
             
         Returns:
-            SequenceTrainingExample or None if insufficient data
+            Dict with single-point features per timeframe or None if insufficient data
         """
         instrument_id = await self.get_instrument_id(symbol)
         if not instrument_id:
@@ -555,38 +506,29 @@ class TimeSeriesSequenceTrainingGenerator:
             return None
         
         try:
-            # Generate all feature components
+            # Generate base features
             base_features = self.generate_base_features(instrument_id, prediction_timestamp)
-            timeframe_features = self.generate_timeframe_features(instrument_id, prediction_timestamp)
             
-            # Build sequence features
-            sequence_features = await self.sequence_builder.build_sequence_features(instrument_id, prediction_timestamp)
+            # Build single-point timeframe features
+            timeframe_features = await self.sequence_builder.build_timeframe_features(instrument_id, prediction_timestamp)
             
-            # Build prediction targets
+            # Build single-point prediction targets
             targets = await self.sequence_builder.build_prediction_targets(instrument_id, prediction_timestamp)
             
-            # Validate minimum data requirements
-            min_sequence_length = min(len(seq) for seq in sequence_features.values())
-            if min_sequence_length < 5:  # Require at least 5 data points
-                self.logger.warning(f"Insufficient sequence data for {symbol} at {prediction_timestamp}")
+            # Validate that we have data for at least one timeframe
+            if not any(timeframe_features.values()):
+                self.logger.warning(f"No timeframe data available for {symbol} at {prediction_timestamp}")
                 return None
             
-            # Create training example
-            example = SequenceTrainingExample(
-                instrument_id=instrument_id,
-                symbol=symbol,
-                prediction_timestamp=prediction_timestamp,
-                base_features=base_features,
-                sequence_5m=sequence_features.get('sequence_5m', []),
-                sequence_15m=sequence_features.get('sequence_15m', []),
-                sequence_1h=sequence_features.get('sequence_1h', []),
-                sequence_1d=sequence_features.get('sequence_1d', []),
-                timeframe_features=timeframe_features,
-                future_1h=targets.get('future_1h', []),
-                future_1d=targets.get('future_1d', []),
-                sequence_length={tf: len(seq) for tf, seq in sequence_features.items()},
-                prediction_horizon={tf: len(tgt) for tf, tgt in targets.items()}
-            )
+            # Create simple training example dict
+            example = {
+                'instrument_id': instrument_id,
+                'symbol': symbol,
+                'prediction_timestamp': prediction_timestamp,
+                'base_features': base_features,
+                'timeframe_features': timeframe_features,
+                'prediction_targets': targets
+            }
             
             return example
             
@@ -598,7 +540,7 @@ class TimeSeriesSequenceTrainingGenerator:
                                        symbols: List[str],
                                        start_date: date,
                                        end_date: date,
-                                       min_examples_per_symbol: int = 50) -> List[SequenceTrainingExample]:
+                                       min_examples_per_symbol: int = 50) -> List[Dict]:
         """
         Generate training dataset for multiple symbols over a date range.
         
@@ -609,7 +551,7 @@ class TimeSeriesSequenceTrainingGenerator:
             min_examples_per_symbol: Minimum examples required per symbol
             
         Returns:
-            List of SequenceTrainingExample objects
+            List of training example dictionaries
         """
         self.logger.info(f"Generating training dataset for {len(symbols)} symbols from {start_date} to {end_date}")
         
