@@ -4,7 +4,7 @@ Pure Callback-Based Training Data Generation with Dataset Registration
 
 This implements training data generation PURELY as a callback,
 not as a separate runner class. Uses the existing Runner framework
-with DateBasedTrainingDataCallback to handle all training data logic.
+with IntervalBasedTrainingDataCallback to handle all training data logic.
 
 Features:
 - Automatic training dataset registration in database
@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 
 from app.runner import Runner
 from shared.utils.environment import Environment, EnvironmentType
-from domains.ml.services.training_data.callbacks.training_data_callback import DateBasedTrainingDataCallback
+from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.services.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
 from domains.ml.services.training_data.dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
 
@@ -465,7 +465,7 @@ async def main():
     )
     
     # ✅ PURE CALLBACK APPROACH: Create ONLY the callback
-    training_callback = DateBasedTrainingDataCallback(
+    training_callback = IntervalBasedTrainingDataCallback(
         symbols=args.symbols,
         config=config,
         output_dir=args.output_dir,

@@ -4,7 +4,7 @@ Pure Callback-Based Training Data Generation with Dataset Registration
 
 This implements training data generation PURELY as a callback,
 not as a separate runner class. Uses the existing Runner framework
-with DateBasedTrainingDataCallback to handle all training data logic.
+with IntervalBasedTrainingDataCallback to handle all training data logic.
 
 Features:
 - Automatic training dataset registration in database
