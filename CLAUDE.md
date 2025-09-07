@@ -206,7 +206,7 @@ python scripts/run_dev.py query --query "SELECT dataset_name, data_quality_score
 ### **Training Data Generation Workflow**
 ```bash
 # 1. Generate training data using gin config (tracks metadata automatically)
-python scripts/run_dev.py run --script src/ml/training_data/runners/training_data_callback_runner.py
+python scripts/run_dev.py run --script src/domains/ml/services/training_data/runners/training_data_callback_runner.py
 
 # 2. Check the run was tracked  
 python scripts/run_dev.py query --query "SELECT MAX(id) as latest_run_id FROM dev_runs WHERE run_type = 'training_data_generation'"
@@ -221,16 +221,21 @@ python scripts/run_dev.py query --query "SELECT id, dataset_name, creation_times
 python scripts/run_dev.py training_dataset get <dataset_id>
 ```
 
-### **Multi-Timeframe Training Data Structure**
+### **Training Data Structure (ArrayRecord Format Only)**
 ```bash
-# Training data is organized in multi-timeframe structure:
-# /mnt/d/ats-data/training/{run_id}/5m/SYMBOL_START_END.riegeli
-# /mnt/d/ats-data/training/{run_id}/15m/SYMBOL_START_END.riegeli  
-# /mnt/d/ats-data/training/{run_id}/1h/SYMBOL_START_END.riegeli
-# /mnt/d/ats-data/training/{run_id}/1d/SYMBOL_START_END.riegeli
+# Training data is organized in multi-timeframe structure using ArrayRecord format:
+# /mnt/d/ats-data/training-data/{dataset_id}/SYMBOL_STARTDATE_STARTTIME_ENDDATE_ENDTIME/{timeframe}/SYMBOL_STARTDATE_STARTTIME_ENDDATE_ENDTIME.arrayrecord
+# 
+# Example structure:
+# /mnt/d/ats-data/training-data/89/TSLA_20250701_000000_20250906_000000/5m/TSLA_20250701_000000_20250906_000000.arrayrecord
+# /mnt/d/ats-data/training-data/89/TSLA_20250701_000000_20250906_000000/15m/TSLA_20250701_000000_20250906_000000.arrayrecord
+# /mnt/d/ats-data/training-data/89/TSLA_20250701_000000_20250906_000000/1h/TSLA_20250701_000000_20250906_000000.arrayrecord
+# /mnt/d/ats-data/training-data/89/TSLA_20250701_000000_20250906_000000/1d/TSLA_20250701_000000_20250906_000000.arrayrecord
 
-# Check training data files for a specific run
-ls -la /mnt/d/ats-data/training/35/*/
+# Container path mapping: /data/training_data (container) = /mnt/d/ats-data/training-data (host)
+
+# Check training data files for a specific dataset
+ls -la /mnt/d/ats-data/training-data/89/*/
 
 # Verify training data structure  
 python scripts/run_dev.py query --query "SELECT run_type, parameters, command_line FROM dev_runs WHERE id = 35"
@@ -309,12 +314,13 @@ python scripts/run_dev.py query --query "SELECT run_type, parameters, command_li
 **🔹 PROCESSOR: Training Data Infrastructure**
 - **Data Reader**: `FileBasedMinuteManager` - Reads parquet files from disk
 - **Data Manager**: `FileBasedMinuteMarketDataManager` - Provides aggregated timeframes  
-- **Generator**: `src/ml/training_data/runners/training_data_callback_runner.py`
+- **Generator**: `src/domains/ml/services/training_data/runners/training_data_callback_runner.py`
 - **Callback**: `DateBasedTrainingDataCallback` - Processes intervals into sequences
 
 **🔹 OUTPUT: Training Datasets (ML-Ready Sequences)**
-- **Location**: `/data/training/` (container) = `/mnt/d/ats-data/training/` (host)
-- **Format**: Numpy arrays (.npy), Riegeli files, with metadata
+- **Location**: `/data/training_data/` (container) = `/mnt/d/ats-data/training-data/` (host)
+- **Format**: ArrayRecord format only (.arrayrecord files)
+- **Structure**: `{dataset_id}/SYMBOL_STARTDATE_STARTTIME_ENDDATE_ENDTIME/{timeframe}/SYMBOL_STARTDATE_STARTTIME_ENDDATE_ENDTIME.arrayrecord`
 - **Content**: Sequences with features (OHLCV + indicators) and labels (future returns)
 - **Database**: Registered in `dev_training_dataset` table
 - **Tracking**: All runs logged in `dev_runs` table with command_line, git_commit_hash
