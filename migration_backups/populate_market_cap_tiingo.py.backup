@@ -9,14 +9,10 @@ import asyncio
 import argparse
 import logging
 import aiohttp
-import time
 from datetime import date
 from typing import Optional, List, Dict, Any
 
 from shared.utils.environment import Environment, EnvironmentType
-from shared.utils.vendor_api_keys import get_tiingo_api_key
-from shared.utils.database_connections import get_database_pool, get_table_name
-from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
 from infrastructure.database.repositories.daily_market_cap_dao import DailyMarketCapDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 
@@ -24,11 +20,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger("populate_market_cap_tiingo")
 
 class TiingoMarketCapFetcher:
-    def __init__(self, api_key: str = None):
-        self.api_key = api_key or get_tiingo_api_key()
+    def __init__(self, api_key: str):
+        self.api_key = api_key
         self.base_url = "https://api.tiingo.com"
-        self.stats = BackfillStats()
-        self.rate_limiter = VendorRateLimiters.tiingo()
         
     async def fetch_fundamentals(self, session: aiohttp.ClientSession, symbol: str) -> Optional[Dict[str, Any]]:
         """
@@ -219,8 +213,8 @@ async def populate_market_cap_from_tiingo(
                 logger.info(f"Inserted market cap ${market_cap:,.0f} for {symbol}")
                 total_success += 1
                 
-                # Use shared rate limiter
-                await self.rate_limiter.wait_if_needed()
+                # Rate limiting - Tiingo has rate limits
+                await asyncio.sleep(0.2)
                 
             except Exception as e:
                 logger.error(f"Failed to process {symbol}: {e}")
@@ -296,10 +290,10 @@ async def main():
     if args.db_name:
         os.environ["DB_NAME"] = args.db_name
     
-    # Get Tiingo API key using shared utilities
-    tiingo_api_key = get_tiingo_api_key()
+    # Get Tiingo API key
+    tiingo_api_key = os.environ.get("TIINGO_API_KEY")
     if not tiingo_api_key:
-        logger.error("TIINGO_API_KEY not found. Please set environment variable or configure in gin files.")
+        logger.error("TIINGO_API_KEY environment variable is required")
         return 1
     
     # Determine Gin config file
@@ -340,17 +334,12 @@ async def main():
             symbol_list = [s.strip().upper() for s in args.symbols.split(',') if s.strip()]
         
         # Run market cap population
-        fetcher = TiingoMarketCapFetcher(tiingo_api_key)
-        
         success = await populate_market_cap_from_tiingo(
             env, 
             tiingo_api_key, 
             limit=args.limit, 
             symbols=symbol_list
         )
-        
-        # Log comprehensive statistics
-        fetcher.stats.log_progress(logger)
         
         if success:
             logger.info("Market cap population completed successfully")
