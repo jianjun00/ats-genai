@@ -186,6 +186,95 @@ async def get_statistics():
             }
         )
 
+@model_registry_bp.get('/search')
+async def search_models(
+    features: str = Query(..., description="Comma-separated list of required features"),
+    sequence_length: Optional[int] = Query(None)
+):
+    """Search models by input signature compatibility."""
+    
+    try:
+        # Parse feature list
+        feature_list = [f.strip() for f in features.split(',')]
+        
+        # Search compatible models
+        models = registry_service.search_models_by_input_signature(
+            required_features=feature_list,
+            sequence_length=sequence_length
+        )
+        
+        # Format response
+        compatible_models = []
+        for model in models:
+            compatibility_info = {
+                'model_id': model.model_id,
+                'model_name': model.model_name,
+                'model_version': model.model_version,
+                'model_type': model.model_type,
+                'final_loss': model.final_loss,
+                'deployment_status': model.deployment_status,
+                
+                # Input compatibility info
+                'input_compatibility': {
+                    'sequence_length': model.input_signature.sequence_length,
+                    'feature_count': model.input_signature.feature_count,
+                    'matched_features': [f for f in feature_list if f in model.input_signature.feature_names],
+                    'required_technical_indicators': model.input_signature.required_technical_indicators
+                },
+                
+                'creation_timestamp': model.creation_timestamp.isoformat() if model.creation_timestamp else None
+            }
+            compatible_models.append(compatibility_info)
+        
+        return {
+            'compatible_models': compatible_models,
+            'search_criteria': {
+                'required_features': feature_list,
+                'sequence_length': sequence_length
+            },
+            'total_found': len(compatible_models)
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error searching models: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                'error': 'Internal server error',
+                'message': str(e)
+            }
+        )
+
+@model_registry_bp.get('/types')
+async def get_model_types():
+    """Get list of available model types."""
+    
+    try:
+        models = registry_service.list_models(limit=1000)  # Get all models
+        
+        model_types = set()
+        type_counts = {}
+        
+        for model in models:
+            model_types.add(model.model_type)
+            type_counts[model.model_type] = type_counts.get(model.model_type, 0) + 1
+        
+        return {
+            'model_types': sorted(list(model_types)),
+            'type_distribution': type_counts,
+            'total_types': len(model_types)
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error retrieving model types: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                'error': 'Internal server error',
+                'message': str(e)
+            }
+        )
+
 @model_registry_bp.get('/{model_id}')
 async def get_model(model_id: int = Path(...)):
     """Get detailed model information by ID."""
@@ -275,64 +364,7 @@ async def get_model(model_id: int = Path(...)):
             }
         )
 
-@model_registry_bp.get('/search')
-async def search_models(
-    features: str = Query(..., description="Comma-separated list of required features"),
-    sequence_length: Optional[int] = Query(None)
-):
-    """Search models by input signature compatibility."""
-    
-    try:
-        # Parse feature list
-        feature_list = [f.strip() for f in features.split(',')]
-        
-        # Search compatible models
-        models = registry_service.search_models_by_input_signature(
-            required_features=feature_list,
-            sequence_length=sequence_length
-        )
-        
-        # Format response
-        compatible_models = []
-        for model in models:
-            compatibility_info = {
-                'model_id': model.model_id,
-                'model_name': model.model_name,
-                'model_version': model.model_version,
-                'model_type': model.model_type,
-                'final_loss': model.final_loss,
-                'deployment_status': model.deployment_status,
-                
-                # Input compatibility info
-                'input_compatibility': {
-                    'sequence_length': model.input_signature.sequence_length,
-                    'feature_count': model.input_signature.feature_count,
-                    'matched_features': [f for f in feature_list if f in model.input_signature.feature_names],
-                    'required_technical_indicators': model.input_signature.required_technical_indicators
-                },
-                
-                'creation_timestamp': model.creation_timestamp.isoformat() if model.creation_timestamp else None
-            }
-            compatible_models.append(compatibility_info)
-        
-        return {
-            'compatible_models': compatible_models,
-            'search_criteria': {
-                'required_features': feature_list,
-                'sequence_length': sequence_length
-            },
-            'total_found': len(compatible_models)
-        }
-        
-    except Exception as e:
-        logger.error(f"❌ Error searching models: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                'error': 'Internal server error',
-                'message': str(e)
-            }
-        )
+# Removed duplicate search function - moved to earlier position before /{model_id} route
 
 @model_registry_bp.put('/{model_id}/deployment')
 async def update_deployment_status(
