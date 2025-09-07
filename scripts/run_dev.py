@@ -862,7 +862,7 @@ class DevCLI:
             print(f"❌ Error reading file {file_path}: {e}")
             return False
     
-    def read_arrayrecord(self, file_path, sample_size=5):
+    def read_arrayrecord(self, file_path, sample_size=5, full_display=False, columns_filter=None):
         """Read and sample an ArrayRecord file directly"""
         if not os.path.exists(file_path):
             print(f"❌ File not found: {file_path}")
@@ -889,12 +889,141 @@ class DevCLI:
             record_indices = sorted(random.sample(range(total_records), actual_sample_size)) if total_records > actual_sample_size else list(range(actual_sample_size))
             
             print(f"\n📋 ArrayRecord contents:")
-            for i, record_idx in enumerate(record_indices):
+            
+            # Read all records to decode properly
+            all_records = []
+            columns = None  # Store column names for full display
+            
+            for record_idx in record_indices:
                 reader.seek(record_idx)
                 record = reader.read()
-                
+                all_records.append((record_idx, record))
+            
+            for i, (record_idx, record) in enumerate(all_records):
                 print(f"\n🔍 Record {record_idx}:")
-                if isinstance(record, np.ndarray):
+                
+                if isinstance(record, bytes):
+                    if record_idx == 0:  # First record is typically column names
+                        try:
+                            columns_str = record.decode('utf-8')
+                            
+                            # Try JSON first, then evaluate as Python list
+                            try:
+                                import json
+                                columns = json.loads(columns_str)
+                            except:
+                                # It's probably a Python list representation
+                                import ast
+                                columns = ast.literal_eval(columns_str)
+                            
+                            print(f"   📋 Column names record ({len(columns):,} columns)")
+                            print(f"   🔢 First 10 columns: {columns[:10]}")
+                            print(f"   🔚 Last 10 columns: {columns[-10:]}")
+                            
+                            # Analyze column types
+                            timeframe_counts = {}
+                            feature_types = {}
+                            for col in columns:
+                                if '_' in col:
+                                    parts = col.split('_')
+                                    if len(parts) >= 2:
+                                        timeframe = parts[0]
+                                        feature_type = parts[1]
+                                        timeframe_counts[timeframe] = timeframe_counts.get(timeframe, 0) + 1
+                                        feature_types[feature_type] = feature_types.get(feature_type, 0) + 1
+                            
+                            print(f"   📊 Timeframes: {dict(list(timeframe_counts.items())[:10])}")
+                            print(f"   📈 Feature types: {dict(list(feature_types.items())[:10])}")
+                            
+                        except Exception as e:
+                            print(f"   ❌ Error decoding column names: {e}")
+                            print(f"   📄 Raw bytes (first 200): {record[:200]}")
+                            
+                    else:  # Other records are training data
+                        print(f"   📊 Training data record ({len(record):,} bytes)")
+                        
+                        # Try to decode as float32 array (most common)
+                        try:
+                            float_array = np.frombuffer(record, dtype=np.float32)
+                            print(f"   🔢 Float32 array: {len(float_array):,} elements")
+                            
+                            non_zero = np.count_nonzero(float_array)
+                            print(f"   📈 Non-zero elements: {non_zero:,}/{len(float_array):,} ({100*non_zero/len(float_array):.1f}%)")
+                            
+                            if non_zero > 0:
+                                # Show non-zero value statistics
+                                non_zero_values = float_array[float_array != 0]
+                                print(f"   📊 Non-zero range: {non_zero_values.min():.4f} to {non_zero_values.max():.4f}")
+                                print(f"   📋 Sample non-zero values: {non_zero_values[:20]}")
+                                
+                                # Look for price-like data (typical range for OHLCV data)
+                                price_like = non_zero_values[(non_zero_values > 0.1) & (non_zero_values < 10000)]
+                                if len(price_like) > 0:
+                                    print(f"   💰 Price-like values: {len(price_like):,} found")
+                                    print(f"   💹 Price range: ${price_like.min():.2f} - ${price_like.max():.2f}")
+                                    print(f"   📈 Sample prices: {price_like[:10]}")
+                                
+                                # Check for volume-like data (typically large integers)
+                                volume_like = non_zero_values[non_zero_values > 10000]
+                                if len(volume_like) > 0:
+                                    print(f"   📊 Volume-like values: {len(volume_like):,} found")
+                                    print(f"   📈 Volume range: {volume_like.min():,.0f} - {volume_like.max():,.0f}")
+                                
+                                # Full column-by-column display if requested
+                                if full_display and columns and len(columns) == len(float_array):
+                                    print(f"\n   📋 Full Column-Value Mapping:")
+                                    
+                                    # Apply column filter if specified
+                                    if columns_filter:
+                                        import fnmatch
+                                        filter_patterns = [p.strip() for p in columns_filter.split(',')]
+                                        filtered_indices = []
+                                        for idx, col in enumerate(columns):
+                                            if any(fnmatch.fnmatch(col.lower(), pattern.lower()) for pattern in filter_patterns):
+                                                filtered_indices.append(idx)
+                                        display_columns = [(i, columns[i], float_array[i]) for i in filtered_indices]
+                                        print(f"   🔍 Showing {len(display_columns)} columns matching '{columns_filter}'")
+                                    else:
+                                        display_columns = [(i, col, float_array[i]) for i, col in enumerate(columns)]
+                                        print(f"   🔍 Showing all {len(display_columns)} columns:")
+                                    
+                                    # Display columns in organized groups
+                                    current_group = ""
+                                    for idx, col_name, value in display_columns:
+                                        # Group by timeframe for better readability  
+                                        if '_' in col_name:
+                                            group = col_name.split('_')[0] + '_' + col_name.split('_')[1] if len(col_name.split('_')) > 1 else col_name.split('_')[0]
+                                        else:
+                                            group = "metadata"
+                                            
+                                        if group != current_group:
+                                            print(f"\n      📊 {group.upper()} Features:")
+                                            current_group = group
+                                        
+                                        # Format value display
+                                        if np.isnan(value) or value == 0.0:
+                                            value_str = f"{value:>10}"
+                                        elif abs(value) > 1000000:
+                                            value_str = f"{value:>10,.0f}"  # Large numbers (volume)
+                                        elif abs(value) > 1:
+                                            value_str = f"{value:>10.2f}"   # Price-like values
+                                        else:
+                                            value_str = f"{value:>10.4f}"   # Small values/ratios
+                                            
+                                        print(f"         {col_name:<25} = {value_str}")
+                                        
+                                        # Stop if too many columns to avoid overwhelming output
+                                        if not columns_filter and idx > 100:
+                                            remaining = len(display_columns) - idx - 1
+                                            if remaining > 0:
+                                                print(f"         ... and {remaining} more columns (use --columns to filter)")
+                                            break
+                                
+                        except Exception as e:
+                            print(f"   ❌ Error decoding as float32: {e}")
+                            print(f"   📄 Raw bytes (first 100): {record[:100]}")
+                
+                elif isinstance(record, np.ndarray):
                     print(f"   📐 Shape: {record.shape}")
                     print(f"   🔢 Dtype: {record.dtype}")
                     non_zero = np.count_nonzero(record)
@@ -903,14 +1032,9 @@ class DevCLI:
                     if len(record) > 0:
                         print(f"   📋 First 10 values: {record[:10]}")
                         if non_zero > 0:
-                            # Show some non-zero values
                             non_zero_indices = np.nonzero(record)[0][:10]
                             non_zero_values = record[non_zero_indices]
                             print(f"   📊 Sample non-zero values: {non_zero_values}")
-                            
-                            # Statistics for non-zero values
-                            if len(non_zero_values) > 1:
-                                print(f"   📈 Non-zero stats: min={non_zero_values.min():.4f}, max={non_zero_values.max():.4f}, mean={non_zero_values.mean():.4f}")
                     
                 elif isinstance(record, (list, tuple)):
                     print(f"   📏 Length: {len(record)}")
@@ -986,6 +1110,8 @@ def main():
         elif action == "arrayrecord":
             action_parser.add_argument("--file", "-f", required=True, help="ArrayRecord file path to read")
             action_parser.add_argument("--sample-size", "-n", type=int, default=5, help="Number of records to sample (default: 5)")
+            action_parser.add_argument("--full", action="store_true", help="Show all columns and their full values (verbose output)")
+            action_parser.add_argument("--columns", "-c", help="Show only specific columns (comma-separated, supports wildcards like '*open*')")
         elif action == "test":
             action_parser.add_argument("--test", "-t", help="Test path or pattern")
         elif action == "logs":
@@ -1051,7 +1177,9 @@ def main():
         cli.query_db(args.query)
         
     elif args.command == "arrayrecord":
-        cli.read_arrayrecord(args.file, args.sample_size)
+        columns_filter = getattr(args, 'columns', None)
+        full_display = getattr(args, 'full', False)
+        cli.read_arrayrecord(args.file, args.sample_size, full_display, columns_filter)
         
     elif args.command == "setup":
         cli.setup_dev_env()
