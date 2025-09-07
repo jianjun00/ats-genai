@@ -16,11 +16,11 @@ import aiohttp
 import pandas as pd
 
 # Reuse existing ATS framework
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 from core.dao.base.base_dao import BaseDAO
 from core.dao.market_data.daily_prices_dao import DailyPricesDAO
 from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
-from core.logging.logger_config import get_logger
+from core.platform.logging.logger_config import get_logger
 from core.calendars.exchange_calendar import ExchangeCalendar
 
 # Reuse existing vendor configurations

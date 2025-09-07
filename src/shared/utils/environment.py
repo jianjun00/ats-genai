@@ -36,7 +36,7 @@ try:
     from core.config.logging_config import LoggingConfig
 except ImportError:
     try:
-        from core.logging.logger_config import LoggingConfig
+        from core.platform.logging.logger_config import LoggingConfig
     except ImportError:
         # Emergency: Create a minimal LoggingConfig class for system stability
         import logging
@@ -167,7 +167,7 @@ class Environment:
             self.logging_config = ImportedLoggingConfig()
         except ImportError:
             try:
-                from core.logging.logger_config import LoggingConfig as ImportedLoggingConfig
+                from core.platform.logging.logger_config import LoggingConfig as ImportedLoggingConfig
                 self.logging_config = ImportedLoggingConfig()
             except ImportError:
                 # Use the global fallback LoggingConfig defined at module level

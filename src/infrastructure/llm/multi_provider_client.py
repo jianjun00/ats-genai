@@ -19,8 +19,8 @@ from enum import Enum
 import hashlib
 import redis.asyncio as redis
 
-from core.config.environment import Environment
-from core.exceptions.custom_exceptions import ATSBaseException
+from core.platform.config.environment import Environment
+from core.security.exceptions.custom_exceptions import ATSBaseException
 
 
 class LLMProvider(Enum):

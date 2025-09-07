@@ -52,8 +52,8 @@ import asyncpg
 import json
 from typing import Dict, List, Optional, Any
 
-from core.config.environment import Environment
-from src.schema.training_schema import TrainingDatasetSchema, ValidationResult
+from core.platform.config.environment import Environment
+from schema.training_schema import TrainingDatasetSchema, ValidationResult
 
 
 class TrainingSchemaDAO:

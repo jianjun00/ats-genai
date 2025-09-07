@@ -12,7 +12,7 @@ from typing import Dict, Any, List, Tuple
 import pandas as pd
 
 from frontfill.base_frontfill_job import BaseFrontfillJob, FrontfillConfig, CheckpointType
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 import asyncpg
 
 logger = logging.getLogger(__name__)

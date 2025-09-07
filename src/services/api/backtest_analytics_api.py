@@ -317,7 +317,7 @@ async def list_backtests(
     """List available backtest runs with filtering"""
     try:
         # Query the database for actual backtest runs
-        from core.database.connection_manager import get_raw_connection
+        from core.platform.database.connection_manager import get_raw_connection
         import psycopg2.extras
 
         with get_raw_connection() as conn:
@@ -465,7 +465,7 @@ async def get_forecasts(
     """Get support/resistance forecasts with confidence levels"""
     try:
         # Fetch actual forecast data from the database
-        from core.database.connection_manager import get_raw_connection
+        from core.platform.database.connection_manager import get_raw_connection
         import psycopg2.extras
 
         with get_raw_connection() as conn:

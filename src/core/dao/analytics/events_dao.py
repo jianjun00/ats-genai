@@ -1,4 +1,4 @@
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 import asyncpg
 from typing import Optional, List
 

@@ -16,8 +16,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import gin
 
-from core.config.environment import Environment
-from core.config.database import Database
+from core.platform.config.environment import Environment
+from core.platform.config.database import Database
 
 # Gin configurable data configuration
 @gin.configurable

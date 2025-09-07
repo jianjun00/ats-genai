@@ -10,7 +10,7 @@ import pandas as pd
 from typing import Dict, Any, List, Optional
 import logging
 from datetime import datetime
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 from state.universe_state_manager import UniverseStateManager
 from state.universe_state_builder import (
     UniverseStateIntervalBuilder, 

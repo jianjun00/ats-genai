@@ -15,7 +15,7 @@ from typing import Dict, List, Any, Optional
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # Core imports
-from core.database.connection_manager import get_connection_manager
+from core.platform.database.connection_manager import get_connection_manager
 
 # Visualization imports
 from visualization.multi_panel_trading_chart import MultiPanelTradingChart

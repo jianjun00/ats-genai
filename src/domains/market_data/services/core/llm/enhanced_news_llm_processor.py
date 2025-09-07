@@ -26,7 +26,7 @@ from dataclasses import dataclass, asdict
 from infrastructure.llm.multi_provider_client import MultiProviderLLMClient
 from domains.market_data.services.llm.news_llm_processor import NewsArticle
 from domains.market_data.agents.specialized_agents import EnhancedMultiAgentOrchestrator
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 
 logger = logging.getLogger(__name__)
 

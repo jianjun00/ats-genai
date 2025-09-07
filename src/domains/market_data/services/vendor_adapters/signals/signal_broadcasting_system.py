@@ -29,7 +29,7 @@ import websockets
 from collections import defaultdict
 
 import asyncpg
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 
 logger = logging.getLogger(__name__)
 

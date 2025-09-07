@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
-from core.config.settings import get_settings
+from core.platform.config.settings import get_settings
 
 
 class StructuredFormatter(logging.Formatter):

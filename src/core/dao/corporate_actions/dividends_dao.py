@@ -10,7 +10,7 @@ from datetime import datetime, date
 from sqlalchemy import text
 
 from core.dao.base.base_dao import BaseDAO
-from core.logging.logger_config import get_logger
+from core.platform.logging.logger_config import get_logger
 
 
 class DividendsDAO(BaseDAO):

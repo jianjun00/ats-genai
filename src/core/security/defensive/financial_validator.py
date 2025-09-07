@@ -26,7 +26,7 @@ import statistics
 
 # Defensive imports with graceful degradation
 try:
-    from core.config.environment import Environment
+    from core.platform.config.environment import Environment
 except ImportError:
     try:
         from shared.utils.environment import Environment

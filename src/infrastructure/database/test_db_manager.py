@@ -379,7 +379,7 @@ import pytest
 import asyncpg
 from pathlib import Path
 from src.db.migration_manager import MigrationManager
-from core.config.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
 @pytest_asyncio.fixture
 async def unit_test_db(request):

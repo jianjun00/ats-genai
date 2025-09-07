@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from enum import Enum
 import json
 
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 
 logger = logging.getLogger(__name__)
 

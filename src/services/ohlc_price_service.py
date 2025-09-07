@@ -20,8 +20,8 @@ from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.responses import JSONResponse
 import uvicorn
 
-from core.config.environment import Environment
-from core.config.database import Database
+from core.platform.config.environment import Environment
+from core.platform.config.database import Database
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

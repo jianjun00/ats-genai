@@ -12,7 +12,7 @@ import random
 from datetime import date, datetime
 from typing import List, Optional
 from dataclasses import dataclass
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 import gin
 
 @dataclass

@@ -16,9 +16,9 @@ from core.config.environment_config import load_gin_config, get_current_env, get
 from core.config.validation import validate_current_config
 
 # Reuse existing ATS framework
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 from core.dao.base.base_dao import BaseDAO
-from core.logging.logger_config import get_logger
+from core.platform.logging.logger_config import get_logger
 from market_data.eod.daily_price_tiingo import TIINGO_API_KEY
 from market_data.eod.daily_price_fmp import *  # Reuse FMP patterns
 

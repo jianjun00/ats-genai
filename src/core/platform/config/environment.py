@@ -36,7 +36,7 @@ try:
     from core.config.logging_config import LoggingConfig
 except ImportError:
     try:
-        from core.logging.logger_config import LoggingConfig
+        from core.platform.logging.logger_config import LoggingConfig
     except ImportError:
         # Emergency: Create a minimal LoggingConfig class for system stability
         import logging
@@ -149,7 +149,7 @@ class Environment:
         print(f"[GIN DEBUG] Using Gin config: {config_path}, env_type={getattr(self, 'env_type', None)}")
         self.gin_config_path = config_path
         # Import Database before parsing Gin config to register it as a configurable
-        from core.config.database import Database
+        from core.platform.config.database import Database
         from vendor.polygon.config import set_polygon_api_key, POLYGON_API_KEY
 
         import gin

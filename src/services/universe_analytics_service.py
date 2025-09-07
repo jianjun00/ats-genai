@@ -14,7 +14,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, asdict
 import json
 
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 
 
 @dataclass

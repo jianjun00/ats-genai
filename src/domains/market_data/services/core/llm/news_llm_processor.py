@@ -21,7 +21,7 @@ import numpy as np
 
 from shared.types.base import BaseModel
 from shared.exceptions.base import ATSBaseException
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 
 
 @dataclass

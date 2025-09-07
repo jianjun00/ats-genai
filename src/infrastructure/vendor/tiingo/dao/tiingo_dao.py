@@ -12,7 +12,7 @@ from sqlalchemy import text
 
 from core.dao.base.vendor_dao import MarketDataVendorDAO, VendorType
 from core.dao.market_data.daily_prices_dao import DailyPricesDAO
-from core.logging.logger_config import get_logger
+from core.platform.logging.logger_config import get_logger
 
 
 class TiingoDAO(MarketDataVendorDAO):

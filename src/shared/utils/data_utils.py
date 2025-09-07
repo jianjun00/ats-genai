@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Union
 from decimal import Decimal, ROUND_HALF_UP
 import warnings
 
-from core.validation.data_validators import ValidationResult
+from core.security.validation.data_validators import ValidationResult
 
 
 def clean_numeric_data(
@@ -446,7 +446,7 @@ def validate_data_consistency(
     Returns:
         Validation result
     """
-    from core.validation.data_validators import ValidationResult
+    from core.security.validation.data_validators import ValidationResult
     
     result = ValidationResult(is_valid=True)
     

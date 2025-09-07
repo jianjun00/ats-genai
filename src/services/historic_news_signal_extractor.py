@@ -24,7 +24,7 @@ from dataclasses import dataclass, asdict
 import traceback
 
 import asyncpg
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 from infrastructure.llm.hybrid_llm_client import HybridLLMClient
 from infrastructure.llm.local_model_client import LocalModelClient
 

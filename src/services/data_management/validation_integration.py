@@ -10,7 +10,7 @@ from datetime import datetime, date, timedelta
 from typing import Dict, Any, List
 from dataclasses import dataclass
 
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 from validation.daily_prices_validator import DailyPricesValidator
 from validation.missing_data_handler import MissingDataHandler
 from frontfill.checkpoint_manager import CheckpointManager

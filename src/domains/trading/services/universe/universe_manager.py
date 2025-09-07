@@ -2,7 +2,7 @@ import asyncpg
 import gin
 from typing import List
 from datetime import date
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 from .universe_db import UniverseDB
 from dataclasses import dataclass
 

@@ -36,8 +36,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import core components
-from core.database.connection_manager import get_connection_manager
-from core.config.settings import get_settings
+from core.platform.database.connection_manager import get_connection_manager
+from core.platform.config.settings import get_settings
 
 # Import type system components (from analytics_service_class.py)
 try:
@@ -246,7 +246,7 @@ class UnifiedAnalyticsService:
     def get_training_datasets(self):
         """Get training datasets from database for dual-tab functionality."""
         try:
-            from core.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             
             environment = os.getenv('ENVIRONMENT', 'dev')
             table_name = f"{environment}_training_datasets"

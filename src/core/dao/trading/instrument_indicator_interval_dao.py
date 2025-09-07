@@ -1,6 +1,6 @@
 import asyncpg
 from typing import Optional, List
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 
 class InstrumentIndicatorIntervalDAO:
     def __init__(self, env: Environment):

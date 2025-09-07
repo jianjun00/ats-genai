@@ -9,7 +9,7 @@ import logging
 from datetime import date
 from typing import List, Dict, Any, Optional
 
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 from core.dao.economic_events_dao import EconomicEventsDAO, EconomicEvent, EconomicEventType, EconomicEventVendorData
 from vendor.polygon.economic_events_client import PolygonEconomicEventsClient
 from vendor.tiingo.economic_events_client import TiingoEconomicEventsClient

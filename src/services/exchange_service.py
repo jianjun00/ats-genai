@@ -11,8 +11,8 @@ from datetime import date, timedelta
 from core.dao.exchange_dao import ExchangeDAO
 from core.dao.instrument_xref_dao import InstrumentXrefDAO
 from core.dao.vendor_dao import VendorDAO
-from core.logging.logger_config import get_logger
-from core.exceptions.custom_exceptions import DatabaseError, DataValidationError
+from core.platform.logging.logger_config import get_logger
+from core.security.exceptions.custom_exceptions import DatabaseError, DataValidationError
 
 
 class ExchangeService:

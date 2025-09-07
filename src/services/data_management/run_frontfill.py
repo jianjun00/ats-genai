@@ -10,7 +10,7 @@ import argparse
 import os
 from typing import Dict
 
-from core.config.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from frontfill.frontfill_orchestrator import run_frontfill_orchestrator
 
 # Configure logging

@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 
-from core.config.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from market_data.market_data_manager import MarketDataManager
 from market_data.eod.daily_price_market_data_manager import DailyPriceMarketDataManager
 from secmaster.security_master import SecurityMaster

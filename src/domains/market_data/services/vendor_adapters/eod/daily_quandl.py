@@ -1,6 +1,6 @@
 import os
 import asyncio
-from core.config.environment import EnvironmentType
+from core.platform.config.environment import EnvironmentType
 from domains.market_data.services.eod.daily_prices_quandl_dao import DailyPricesQuandlDAO
 import requests
 from datetime import datetime, timedelta
