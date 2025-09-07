@@ -1,9 +1,9 @@
 # PRD: ATS Exploratory Data Analysis (EDA) Tool
 
-**Document Version**: 2.1  
-**Date**: September 6, 2025  
+**Document Version**: 2.2  
+**Date**: September 7, 2025  
 **Owner**: Data Infrastructure Team  
-**Status**: ✅ **IMPLEMENTED** - Sequence Selection & 21-Bar Visualization System with Full Multi-Timeframe Support  
+**Status**: ✅ **IMPLEMENTED** - Timestamp-Based Multi-Timeframe Navigation with 1-Hour Table Display  
 
 ---
 
@@ -19,7 +19,7 @@ The ATS EDA Tool is a comprehensive data exploration and visualization platform 
 - **✅ Database-Driven Path Resolution**: Intelligent ArrayRecord file discovery using run_id linkage for precise training data location
 - **✅ 🆕 Sequence Selection System**: Interactive dropdown interface for precise training sequence targeting and visualization
 - **✅ 🆕 21-Bar Context Windows**: Mathematical bar selection providing contextual analysis (10 before + 1 current + 10 after)
-- **✅ 🆕 Multi-Timeframe OHLC Visualization**: Simultaneous 5-chart display (5m, 15m, 1h, 1d, 1w) with real-time updates
+- **✅ 🆕 Timestamp-Based Multi-Timeframe Visualization**: 1-hour navigation drives synchronized 4-chart display (5m, 15m, 1d, 1w) with temporal alignment
 - **✅ 🆕 Interactive Row Targeting**: Precise row index selection within training sequences for targeted analysis
 - **✅ 🆕 Production-Ready Robustness**: Comprehensive error handling, NaN sanitization, and automated test coverage
 - **✅ Data Quality Assurance**: Identify missing data, outliers, and inconsistencies across 30+ years of financial data
@@ -919,48 +919,75 @@ The ATS EDA Tool now implements a comprehensive sequence selection and visualiza
 - **Row Index Input Field**: Numeric input selecting which **bar within the sequence** to center (default: 50, range: 0-sequence_length)
 - **Visualize Button**: Triggers multi-timeframe chart generation showing 21-bar window around selected row
 
-**API Integration Pattern:**
+**NEW API Integration Pattern** *(🚨 UPDATED - September 7, 2025)*:
 ```javascript
-// Client-side sequence selection flow
-const apiUrl = `/api/v1/training-datasets/${datasetId}/sequences/${sequenceId}/multi-timeframe?row_index=${rowIndex}`;
-const response = await fetch(apiUrl);
-const multiTimeframeData = await response.json();
+// Step 1: Navigate through 1-hour bars (table navigation)
+const navigationUrl = `/api/v1/training-datasets/${datasetId}/sequences/${sequenceId}/1h?row_index=${rowIndex}`;
+const navigationResponse = await fetch(navigationUrl);
+const navigationData = await navigationResponse.json();
+
+// Step 2: Get multi-timeframe data using 1-hour timestamp
+const timestamp = navigationData.timestamp; // Unix timestamp from 1-hour bar
+const multiUrl = `/api/v1/training-datasets/${datasetId}/sequences/${sequenceId}/multi-timeframe?timestamp=${timestamp}`;
+const multiResponse = await fetch(multiUrl);
+const multiTimeframeData = await multiResponse.json();
+
+// Step 3: Update table with 1-hour data, charts with multi-timeframe data
+updateTable(navigationData.table_data); // Always 1-hour bars
+updateCharts(multiTimeframeData.ohlc_data); // 5m, 15m, 1d, 1w synchronized to timestamp
 ```
 
-#### **📊 21-Bar Context Window Implementation**
+#### **📊 21-Bar Context Window Implementation** *(🚨 UPDATED - September 7, 2025)*
 
-**Mathematical Logic:**
-- **Target Row**: User-selected row index within the sequence data  
-- **Context Window**: `[row_index - 10, row_index + 10]` = 21 bars total
-- **Edge Case Handling**: 
-  - If `row_index < 10`: Extend forward to maintain 21 bars
-  - If `row_index > data_length - 10`: Extend backward to maintain 21 bars
-  - If `data_length < 21`: Use all available data with graceful degradation
+**NEW: Timestamp-Based 21-Bar Selection Logic**
 
-**Server-Side Selection Algorithm:**
+**1-Hour Navigation Logic:**
+- **Target Row**: User-selected row index within 1-hour sequence data  
+- **Context Window**: `[row_index - 10, row_index + 10]` = 21 1-hour bars for table display
+- **Timestamp Extraction**: Selected 1-hour bar provides target timestamp for multi-timeframe lookup
+
+**Multi-Timeframe Synchronization Logic:**
+- **Target Timestamp**: Unix timestamp from selected 1-hour bar (e.g., 1751360400)
+- **Timeframe-Specific Windows**: Each timeframe finds 21 bars centered around target timestamp:
+  - **5m**: 21 bars × 5 minutes = 105-minute window around timestamp
+  - **15m**: 21 bars × 15 minutes = 315-minute window around timestamp  
+  - **1d**: 21 bars × 1 day = 21-day window around timestamp
+  - **1w**: 21 bars × 1 week = 21-week window around timestamp
+
+**NEW Server-Side Selection Algorithm:**
 ```python
-# Multi-timeframe 21-bar selection logic
-def apply_21_bar_selection(multi_timeframe_data, row_index):
-    for timeframe, data in multi_timeframe_data.items():
-        if row_index >= len(data):
-            # Use all available data if row_index beyond bounds
-            start_idx = 0
-            end_idx = len(data)
-        else:
-            # Calculate 21-bar window
-            start_idx = max(0, row_index - 10)
-            end_idx = min(len(data), row_index + 11)
-            
-            # Ensure 21 bars if possible
-            if end_idx - start_idx < 21 and len(data) >= 21:
-                if start_idx == 0:
-                    end_idx = min(len(data), 21)
-                elif end_idx == len(data):
-                    start_idx = max(0, len(data) - 21)
+# 1-Hour Navigation (for table display)
+def get_1h_navigation(sequence_data_1h, row_index):
+    # Apply 21-bar selection to 1-hour data
+    start_idx = max(0, row_index - 10)
+    end_idx = min(len(sequence_data_1h), row_index + 11)
+    table_data = sequence_data_1h[start_idx:end_idx]
+    target_timestamp = sequence_data_1h[row_index]['timestamp']
+    return {'table_data': table_data, 'timestamp': target_timestamp}
+
+# Multi-Timeframe Coordination (for chart display)
+def get_multi_timeframe_by_timestamp(all_timeframes_data, target_timestamp):
+    result = {}
+    for timeframe, data in all_timeframes_data.items():
+        if timeframe == '1h':
+            continue  # Skip 1h - already handled by navigation
         
-        multi_timeframe_data[timeframe] = data[start_idx:end_idx]
-    return multi_timeframe_data
+        # Find bar closest to target timestamp
+        closest_idx = find_closest_timestamp_index(data, target_timestamp)
+        
+        # Apply 21-bar selection around that timestamp
+        start_idx = max(0, closest_idx - 10)
+        end_idx = min(len(data), closest_idx + 11)
+        result[timeframe] = data[start_idx:end_idx]
+    
+    return result
 ```
+
+**Key Architectural Benefits:**
+- **Temporal Consistency**: All charts show the same time period from different resolutions
+- **Table Navigation**: 1-hour bars provide intuitive time navigation for users
+- **Multi-Resolution Analysis**: See market behavior across multiple timeframes simultaneously
+- **Timestamp Accuracy**: Precise temporal alignment across all visualizations
 
 #### **🖥️ Multi-Timeframe Chart Display**
 
@@ -1821,13 +1848,35 @@ The ATS EDA Tool exposes a comprehensive REST API for accessing training dataset
 }
 ```
 
-#### **5. Multi-Timeframe Chart Data**
-- **Endpoint**: `GET /api/v1/training-datasets/{dataset_id}/sequences/{sequence_id}/multi-timeframe`
-- **Location**: `http://localhost:3000/api/v1/training-datasets/65/sequences/AAPL_20250701_000000_20250906_000000/multi-timeframe?row_index=25`
+#### **5. Multi-Timeframe Chart Data** *(🚨 CRITICAL ARCHITECTURAL CHANGE - September 7, 2025)*
+
+**NEW: Timestamp-Based Multi-Timeframe Navigation Architecture**
+
+The multi-timeframe navigation has been redesigned to use timestamp-based coordination instead of row-index synchronization across timeframes.
+
+**Primary Navigation Endpoint (1-Hour Based):**
+- **Endpoint**: `GET /api/v1/training-datasets/{dataset_id}/sequences/{sequence_id}/1h?row_index={position}`
+- **Location**: `http://localhost:3000/api/v1/training-datasets/65/sequences/AAPL_20250701_000000_20250906_000000/1h?row_index=25`
+- **Purpose**: Navigate through 1-hour bars, table view always shows 1-hour timeframe (10 bars before + 1 current + 10 bars after)
+- **Input**: 
+  - `dataset_id` (path parameter): Training dataset ID
+  - `sequence_id` (path parameter): Sequence identifier (symbol and date range)
+  - `row_index` (query parameter): Position in 1-hour sequence for navigation (default: 25)
+- **Output**: 1-hour bar data with timestamp for multi-timeframe coordination
+
+**Multi-Timeframe Data Endpoint (Timestamp-Based):**
+- **Endpoint**: `GET /api/v1/training-datasets/{dataset_id}/sequences/{sequence_id}/multi-timeframe?timestamp={unix_timestamp}`
+- **Location**: `http://localhost:3000/api/v1/training-datasets/65/sequences/AAPL_20250701_000000_20250906_000000/multi-timeframe?timestamp=1751360400`
+- **Purpose**: Retrieve synchronized 21-bar windows for all timeframes (5m, 15m, 1d, 1w) based on 1-hour timestamp
 - **Input**: 
   - `dataset_id` (path parameter): Training dataset ID
   - `sequence_id` (path parameter): Sequence identifier
-  - `row_index` (query parameter, optional): Target row for 21-bar window (default: 25)
+  - `timestamp` (query parameter): Unix timestamp from selected 1-hour bar
+- **Navigation Logic**: 
+  - **1-hour navigation**: User navigates through 1-hour bars using row_index (Next/Previous buttons)
+  - **Timestamp extraction**: Selected 1-hour bar provides timestamp for other timeframes
+  - **Multi-timeframe lookup**: Use timestamp to find 10 bars before + 1 current + 10 bars after for each timeframe
+  - **Table display**: Always shows 1-hour data (21 bars centered around selected position)
 - **Output**:
 ```json
 {
@@ -1892,15 +1941,20 @@ The ATS EDA Tool exposes a comprehensive REST API for accessing training dataset
 - **Frontend converts to JavaScript Date objects**: `new Date(timestamp * 1000)`
 - **Eliminates "Invalid Date" parsing errors in browsers**
 
-#### **📊 Multi-Timeframe Support**
-- **Simultaneous data for all timeframes**: 5m, 15m, 1h, 1d, 1w
-- **Consistent data structure across timeframes**
+#### **📊 Multi-Timeframe Support** *(Updated September 7, 2025)*
+- **🚨 NEW: Timestamp-Based Coordination**: All timeframes synchronized via 1-hour timestamp
+- **Navigation Timeframe**: 1-hour bars used for primary navigation (Next/Previous buttons)
+- **Table Display**: Always shows 1-hour data (21 bars: 10 before + 1 current + 10 after)
+- **Chart Timeframes**: 5m, 15m, 1d, 1w charts synchronized to 1-hour timestamp
+- **Consistent data structure**: All timeframes return OHLC + technical indicators
 - **Optimized for Plotly.js chart rendering**
 
-#### **🎯 21-Bar Context Windows**
-- **Mathematical precision**: 10 bars before + 1 current + 10 bars after
-- **Configurable center point via row_index parameter**
-- **Visual highlighting of target bar in charts**
+#### **🎯 21-Bar Context Windows** *(Updated September 7, 2025)*
+- **1-Hour Navigation**: row_index selects position in 1-hour sequence (10 before + 1 current + 10 after)
+- **Timestamp Extraction**: Selected 1-hour bar provides timestamp for multi-timeframe lookup
+- **Multi-Timeframe Synchronization**: All other timeframes (5m, 15m, 1d, 1w) show 21 bars centered around 1-hour timestamp
+- **Table Display**: 1-hour data always shown in table (21 bars)
+- **Visual highlighting**: Target bar highlighted in all timeframe charts
 
 #### **🗄️ ArrayRecord Integration**
 - **Native support for training data files**
@@ -1909,59 +1963,75 @@ The ATS EDA Tool exposes a comprehensive REST API for accessing training dataset
 
 ### **🔄 Critical Data Flow Architecture**
 
-#### **Complete Multi-Timeframe Visualization Pipeline**
+#### **Complete Multi-Timeframe Visualization Pipeline** *(🚨 UPDATED - September 7, 2025)*
+
+**NEW: Timestamp-Based Multi-Timeframe Coordination**
 
 ```
-1. User Interface
-   ↓ (Dataset 65, Sequence AAPL_20250701_000000_20250906_000000, Row 50)
+1. User Interface Navigation
+   ↓ (User clicks Next/Previous, Dataset 65, Sequence AAPL_20250701_000000_20250906_000000, Row 50)
    
-2. Frontend JavaScript
-   ↓ GET /api/v1/training-datasets/65/sequences/AAPL_20250701_000000_20250906_000000/multi-timeframe?row_index=50
+2. Frontend JavaScript - 1-Hour Navigation
+   ↓ GET /api/v1/training-datasets/65/sequences/AAPL_20250701_000000_20250906_000000/1h?row_index=50
    
-3. Analytics Service Router
-   ↓ _serve_training_dataset_multi_timeframe()
+3. Analytics Service Router - 1H Handler
+   ↓ _serve_training_dataset_1h_navigation()
    
-4. Multi-Timeframe Handler  
-   ↓ get_training_dataset_sequence_multi_timeframe(dataset_id=65, sequence_id="AAPL_20250701_000000_20250906_000000", row_index=50)
+4. 1-Hour Data Retrieval
+   ↓ get_training_dataset_1h_navigation(dataset_id=65, sequence_id="AAPL_20250701_000000_20250906_000000", row_index=50)
+   ↓ Returns: 1-hour bar with timestamp=1751360400, table_data (21 1-hour bars)
    
-5. Database Lookup
+5. Frontend JavaScript - Multi-Timeframe Request
+   ↓ GET /api/v1/training-datasets/65/sequences/AAPL_20250701_000000_20250906_000000/multi-timeframe?timestamp=1751360400
+   
+6. Analytics Service Router - Multi-Timeframe Handler
+   ↓ _serve_training_dataset_multi_timeframe_by_timestamp()
+   
+7. Multi-Timeframe Coordination
+   ↓ get_training_dataset_multi_timeframe_by_timestamp(dataset_id=65, sequence_id="AAPL_20250701_000000_20250906_000000", timestamp=1751360400)
+   
+8. Database Lookup
    ↓ SELECT run_id FROM dev_training_datasets WHERE id = 65
    ↓ Returns: run_id = 89
    
-6. File System Search
+9. File System Search (Multi-Timeframe)
    ↓ /data/training_data/89/AAPL_20250701_000000_20250906_000000/
-   ↓ Check: 5m/, 15m/, 1h/, 1d/, 1w/ directories
+   ↓ Read files: 5m/, 15m/, 1d/, 1w/ directories (exclude 1h - already retrieved)
    
-7. ArrayRecord Reading (Per Timeframe)
-   ↓ _read_arrayrecord_ohlc(file_path) for each timeframe
-   ↓ • Parse column names (record 0)
-   ↓ • Parse training data array (record 1) 
-   ↓ • Map data to OHLCV columns using timeframe_prefix
-   ↓ • Calculate Unix timestamps: int(datetime.timestamp())
+10. ArrayRecord Reading (Multi-Timeframe)
+    ↓ _read_arrayrecord_ohlc_by_timestamp(file_path, target_timestamp) for each timeframe
+    ↓ • Parse column names (record 0)
+    ↓ • Parse training data array (record 1) 
+    ↓ • Map data to OHLCV columns using timeframe_prefix
+    ↓ • Calculate Unix timestamps: int(datetime.timestamp())
+    
+11. Timestamp-Based 21-Bar Selection
+    ↓ For each timeframe (5m, 15m, 1d, 1w):
+    ↓ • Find bar closest to target_timestamp=1751360400
+    ↓ • Select 10 bars before + 1 current + 10 bars after that timestamp
+    ↓ • Different timeframes show different time ranges but same center point
    
-8. 21-Bar Context Window Selection
-   ↓ For each timeframe: Select bars [row_index-10 : row_index+11]
-   ↓ Target row 50 → Select bars 40-60 (21 bars total)
+12. Multi-Timeframe Response Assembly
+    ↓ {
+    ↓   "success": true,
+    ↓   "sequence_id": "AAPL_20250701_000000_20250906_000000",
+    ↓   "timestamp": 1751360400, // Selected 1-hour timestamp
+    ↓   "ohlc_data": {
+    ↓     "5m": [{"timestamp": 1751360100, "open": 232.97, ...}], // 21 bars around timestamp
+    ↓     "15m": [{"timestamp": 1751359800, "open": 232.95, ...}], // 21 bars around timestamp  
+    ↓     "1d": [{"timestamp": 1751270400, "open": 230.50, ...}], // 21 bars around timestamp
+    ↓     "1w": [{"timestamp": 1750665600, "open": 228.75, ...}]  // 21 bars around timestamp
+    ↓   },
+    ↓   "table_data": [...] // Always 1h timeframe data (from step 4)
+    ↓ }
    
-9. Response Assembly
-   ↓ {
-   ↓   "success": true,
-   ↓   "sequence_id": "AAPL_20250701_000000_20250906_000000", 
-   ↓   "ohlc_data": {
-   ↓     "5m": [{"timestamp": 1751360400, "open": 232.97, ...}],
-   ↓     "15m": [...],
-   ↓     "1h": [...],
-   ↓     "1d": [...],
-   ↓     "1w": [...]
-   ↓   },
-   ↓   "table_data": [...] // 1h timeframe for table view
-   ↓ }
-   
-10. Frontend Chart Rendering
-    ↓ For each timeframe in ["5m", "15m", "1h", "1d", "1w"]:
-    ↓ • Convert timestamps: new Date(timestamp * 1000)
-    ↓ • Create Plotly candlestick chart
-    ↓ • Render in respective div: ohlc-chart-{timeframe}
+13. Frontend Chart & Table Rendering
+    ↓ • Table Display: Update sequence-table with 1h data (21 bars)
+    ↓ • For each timeframe in ["5m", "15m", "1d", "1w"]:
+    ↓   - Convert timestamps: new Date(timestamp * 1000)
+    ↓   - Create Plotly candlestick chart synchronized to 1h timestamp
+    ↓   - Render in respective div: ohlc-chart-{timeframe}
+    ↓ • Navigation Controls: Update position info and enable Next/Previous
 ```
 
 #### **Critical Error Points and Solutions**
