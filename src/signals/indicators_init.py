@@ -1,16 +1,8 @@
 """
-Indicator Module - Compatibility Layer.
+Signals package for technical indicators and signal generation.
 
-This module now serves as a compatibility layer, importing all indicators
-from their specialized modules while maintaining backward compatibility.
-
-The indicators have been reorganized into logical groups:
-- base_indicator.py: Base classes (UniverseState, Indicator)
-- price_indicators.py: Price/level indicators (PL, OneOne*, Envelope*)
-- volume_indicators.py: Volume-based indicators (Cumulative*, VolumeProfile)
-- trend_indicators.py: Trend/zone indicators (L11, H11, Z*, BXTrenderBasic)
-- signal_indicators.py: Signal generators (Five* series)
-- advanced_indicators.py: Advanced trend analysis (BXTrender variants)
+This package provides a comprehensive suite of technical indicators
+organized by functionality for better maintainability.
 """
 
 # Import base classes
@@ -39,7 +31,7 @@ from .advanced_indicators import (
     BXTrenderDirectional, BXTrenderVolumeWeighted
 )
 
-# Maintain backward compatibility - all classes available at module level
+# Export all indicators for backward compatibility
 __all__ = [
     # Base classes
     'UniverseState', 'Indicator',
