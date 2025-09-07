@@ -13,6 +13,7 @@ import argparse
 import os
 import json
 import yaml
+import random
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -709,8 +710,8 @@ class DevCLI:
                             print(f"⚠️  Could not sample {file_path}: {e}")
                             continue
                             
-                # Look for numpy files, JSON files, or other common formats
-                for file_ext in ["*.npy", "*.json", "*.csv", "*.parquet"]:
+                # Look for numpy files, JSON files, ArrayRecord files, or other common formats
+                for file_ext in ["*.npy", "*.json", "*.csv", "*.parquet", "*.arrayrecord"]:
                     for file_path in Path(base_path).rglob(file_ext):
                         if any(keyword in str(file_path).lower() for keyword in [
                             'features', 'labels', 'training', 'dataset', dataset_name.lower()
@@ -808,12 +809,132 @@ class DevCLI:
                 
                 return True
                 
+            elif file_ext == '.arrayrecord':
+                # ArrayRecord file
+                try:
+                    from array_record.python.array_record_module import ArrayRecordReader
+                    
+                    reader = ArrayRecordReader(str(file_path))
+                    total_records = reader.num_records()
+                    
+                    if total_records == 0:
+                        print("❌ Empty ArrayRecord file")
+                        return False
+                    
+                    actual_sample_size = min(sample_size, total_records)
+                    
+                    print(f"✅ Sampling {actual_sample_size} records from {total_records} total")
+                    
+                    # Sample random records
+                    import random
+                    record_indices = sorted(random.sample(range(total_records), actual_sample_size))
+                    
+                    print(f"📋 ArrayRecord sample preview:")
+                    for i, record_idx in enumerate(record_indices[:3]):  # Show first 3 samples
+                        reader.seek(record_idx)
+                        record = reader.read()
+                        
+                        print(f"   Record {record_idx}: {type(record)}")
+                        if isinstance(record, np.ndarray):
+                            print(f"      Shape: {record.shape}, Dtype: {record.dtype}")
+                            non_zero = np.count_nonzero(record)
+                            print(f"      Non-zero elements: {non_zero}/{len(record)}")
+                            if len(record) > 0:
+                                print(f"      Sample values: {record[:10]}")
+                        else:
+                            print(f"      Content: {str(record)[:100]}")
+                    
+                    reader.close()
+                    return True
+                    
+                except ImportError:
+                    print("❌ ArrayRecord module not available. Install with: pip install array_record")
+                    return False
+                except Exception as e:
+                    print(f"❌ Error reading ArrayRecord file: {e}")
+                    return False
+                
             else:
                 print(f"❌ Unsupported file format: {file_ext}")
                 return False
                 
         except Exception as e:
             print(f"❌ Error reading file {file_path}: {e}")
+            return False
+    
+    def read_arrayrecord(self, file_path, sample_size=5):
+        """Read and sample an ArrayRecord file directly"""
+        if not os.path.exists(file_path):
+            print(f"❌ File not found: {file_path}")
+            return False
+        
+        print(f"📖 Reading ArrayRecord file: {file_path}")
+        
+        try:
+            from array_record.python.array_record_module import ArrayRecordReader
+            
+            reader = ArrayRecordReader(str(file_path))
+            total_records = reader.num_records()
+            
+            if total_records == 0:
+                print("❌ Empty ArrayRecord file")
+                return False
+            
+            actual_sample_size = min(sample_size, total_records)
+            
+            print(f"📊 Total records: {total_records}")
+            print(f"✅ Sampling {actual_sample_size} records:")
+            
+            # Sample random records
+            record_indices = sorted(random.sample(range(total_records), actual_sample_size)) if total_records > actual_sample_size else list(range(actual_sample_size))
+            
+            print(f"\n📋 ArrayRecord contents:")
+            for i, record_idx in enumerate(record_indices):
+                reader.seek(record_idx)
+                record = reader.read()
+                
+                print(f"\n🔍 Record {record_idx}:")
+                if isinstance(record, np.ndarray):
+                    print(f"   📐 Shape: {record.shape}")
+                    print(f"   🔢 Dtype: {record.dtype}")
+                    non_zero = np.count_nonzero(record)
+                    print(f"   📈 Non-zero elements: {non_zero:,}/{len(record):,} ({non_zero/len(record)*100:.1f}%)")
+                    
+                    if len(record) > 0:
+                        print(f"   📋 First 10 values: {record[:10]}")
+                        if non_zero > 0:
+                            # Show some non-zero values
+                            non_zero_indices = np.nonzero(record)[0][:10]
+                            non_zero_values = record[non_zero_indices]
+                            print(f"   📊 Sample non-zero values: {non_zero_values}")
+                            
+                            # Statistics for non-zero values
+                            if len(non_zero_values) > 1:
+                                print(f"   📈 Non-zero stats: min={non_zero_values.min():.4f}, max={non_zero_values.max():.4f}, mean={non_zero_values.mean():.4f}")
+                    
+                elif isinstance(record, (list, tuple)):
+                    print(f"   📏 Length: {len(record)}")
+                    print(f"   📋 Content sample: {record[:10]}")
+                elif isinstance(record, dict):
+                    print(f"   🗂️  Dictionary keys: {list(record.keys())[:10]}")
+                    for key, value in list(record.items())[:3]:
+                        print(f"      {key}: {value}")
+                else:
+                    print(f"   📄 Type: {type(record)}")
+                    print(f"   📋 Content: {str(record)[:200]}")
+            
+            reader.close()
+            print(f"\n✅ Successfully read ArrayRecord file with {total_records:,} records")
+            return True
+            
+        except ImportError:
+            print("❌ ArrayRecord module not available. Install with:")
+            print("   pip install array_record")
+            return False
+        except Exception as e:
+            print(f"❌ Error reading ArrayRecord file: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def setup_dev_env(self):
@@ -847,7 +968,7 @@ def main():
     parser.add_argument("--environment", choices=["dev", "intg"], help="Environment to use (auto-detected if not specified)")
     
     # Legacy support - add old actions as subcommands
-    for action in ["run", "start", "stop", "status", "test", "query", "setup", "logs", "get"]:
+    for action in ["run", "start", "stop", "status", "test", "query", "setup", "logs", "get", "arrayrecord"]:
         action_parser = subparsers.add_parser(action, help=f"{action.capitalize()} action")
         if action == "run":
             action_parser.add_argument("--script", "-s", required=True, help="Script to run")
@@ -862,6 +983,9 @@ def main():
             action_parser.add_argument("--service", required=True, help="Service name")
         elif action == "query":
             action_parser.add_argument("--query", "-q", required=True, help="SQL query to run")
+        elif action == "arrayrecord":
+            action_parser.add_argument("--file", "-f", required=True, help="ArrayRecord file path to read")
+            action_parser.add_argument("--sample-size", "-n", type=int, default=5, help="Number of records to sample (default: 5)")
         elif action == "test":
             action_parser.add_argument("--test", "-t", help="Test path or pattern")
         elif action == "logs":
@@ -925,6 +1049,9 @@ def main():
         
     elif args.command == "query":
         cli.query_db(args.query)
+        
+    elif args.command == "arrayrecord":
+        cli.read_arrayrecord(args.file, args.sample_size)
         
     elif args.command == "setup":
         cli.setup_dev_env()
