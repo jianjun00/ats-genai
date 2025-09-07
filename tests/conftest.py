@@ -4,20 +4,24 @@ import os
 import gin
 
 # Defensive import handling for LoggingConfig
+LoggingConfig = None
 try:
     from core.config.logging_config import LoggingConfig
-except ImportError:
+except (ImportError, KeyError):
     try:
         from core.logging.logger_config import LoggingConfig
-    except ImportError:
-        # Emergency: Create a minimal LoggingConfig class for tests
-        from dataclasses import dataclass
-        
-        @dataclass
-        class LoggingConfig:
-            """Emergency logging configuration for tests"""
-            log_level: str = "INFO"
-            log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    except (ImportError, KeyError):
+        try:
+            from core.platform.logging.logger_config import LoggingConfig
+        except (ImportError, KeyError):
+            # Emergency: Create a minimal LoggingConfig class for tests
+            from dataclasses import dataclass
+            
+            @dataclass
+            class LoggingConfig:
+                """Emergency logging configuration for tests"""
+                log_level: str = "INFO"
+                log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 @pytest.fixture(autouse=True, scope="function")
 def gin_test_setup(request):

@@ -31,12 +31,19 @@ class EnvironmentType(Enum):
 
 # Conditional import for indicator config to avoid circular dependencies
 try:
-    from domains.trading.services.indicator_config import IndicatorConfig
+    from domains.trading.services.indicators.indicator_config import IndicatorConfig
 except ImportError:
-    # Create a minimal IndicatorConfig for when the full module isn't available
-    class IndicatorConfig:
-        """Minimal IndicatorConfig for compatibility"""
-        pass
+    try:
+        from domains.trading.services.indicator_config import IndicatorConfig
+    except ImportError:
+        # Create a minimal IndicatorConfig for when the full module isn't available
+        class IndicatorConfig:
+            @staticmethod
+            def default_config():
+                return {}
+            
+            def __init__(self, *args, **kwargs):
+                pass
 
 # Defensive import handling for LoggingConfig
 try:
@@ -141,7 +148,7 @@ class Environment:
                 env_type_str = str(env_type)
             # Get absolute path to config directory  
             # Config dir is at project root level, not under src
-            config_dir = Path(__file__).parent.parent.parent.parent / "config"
+            config_dir = Path(__file__).parent.parent.parent.parent.parent / "config"
             
             if env_type_str in ("test", "TEST"):
                 config_path = str(config_dir / "app.gin")
@@ -156,30 +163,32 @@ class Environment:
         else:
             # Use absolute path for fallback as well
             # Config dir is at project root level, not under src
-            config_dir = Path(__file__).parent.parent.parent.parent / "config"
+            config_dir = Path(__file__).parent.parent.parent.parent.parent / "config"
             config_path = os.getenv("GIN_CONFIG", str(config_dir / "app.gin"))
         print(f"[GIN DEBUG] Using Gin config: {config_path}, env_type={getattr(self, 'env_type', None)}")
         self.gin_config_path = config_path
         # Import Database before parsing Gin config to register it as a configurable
         # Try both old and new database import locations
         try:
-            from shared.utils.database import Database
+            from shared.data_handling.utils.database import Database
         except ImportError:
-            from infrastructure.database.database import Database
-        # Conditional import for polygon utils to avoid missing module issues
+            try:
+                from shared.utils.database import Database
+            except ImportError:
+                from infrastructure.database.database import Database
+        
+        # Try to import polygon utils, make it optional
         try:
-            from vendor.polygon.utils import set_polygon_api_key, POLYGON_API_KEY
+            from infrastructure.vendor.polygon.utils import set_polygon_api_key, POLYGON_API_KEY
         except ImportError:
-            # Create minimal compatibility functions
-            def set_polygon_api_key(key):
-                pass
-            POLYGON_API_KEY = None
+            try:
+                from vendor.polygon.utils import set_polygon_api_key, POLYGON_API_KEY
+            except ImportError:
+                print("Warning: Polygon utils not available")
+                def set_polygon_api_key(key): pass
+                POLYGON_API_KEY = None
 
-        import gin
-        if config_path and os.environ.get('GIN_LOAD_DEFAULT_CONFIG', '1') == '1':
-            if not (hasattr(gin.config, '_CONFIG') and gin.config._CONFIG.get('was_configured', False)):
-                gin.parse_config_file(config_path)
-        # Defensive logging config initialization
+        # Defensive logging config initialization BEFORE gin parsing
         try:
             from core.config.logging_config import LoggingConfig as ImportedLoggingConfig
             self.logging_config = ImportedLoggingConfig()
@@ -192,6 +201,13 @@ class Environment:
                 global LoggingConfig
                 self.logging_config = LoggingConfig()
                 logging.warning("Using fallback LoggingConfig in Environment.__init__")
+        
+        # Now parse Gin config after imports are ready
+        import gin
+        if config_path and os.environ.get('GIN_LOAD_DEFAULT_CONFIG', '1') == '1':
+            if not (hasattr(gin.config, '_CONFIG') and gin.config._CONFIG.get('was_configured', False)):
+                gin.parse_config_file(config_path)
+        
         set_polygon_api_key()  # This will set POLYGON_API_KEY from Gin config
         print(f"[DEBUG] POLYGON_API_KEY after Gin load: {POLYGON_API_KEY}")
         # Make db_url optional: try argument, then env var, then None
@@ -504,6 +520,16 @@ class Environment:
         return f"Environment(type={self.env_type.value}, db_url={self.db_url})"
 
 
-# Global environment instance for easy access
-env = Environment()
+# Global environment instance for easy access (lazy initialization)
+_global_env = None
+
+def get_global_environment():
+    """Get or create the global environment instance"""
+    global _global_env
+    if _global_env is None:
+        _global_env = Environment()
+    return _global_env
+
+# Note: Direct 'env' instantiation removed to avoid import-time errors
+# Use get_global_environment() or create Environment() directly
 

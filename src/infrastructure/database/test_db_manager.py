@@ -16,13 +16,13 @@ import pytest_asyncio
 import uuid
 from typing import Dict, List, Any
 from contextlib import asynccontextmanager
-from shared.utils.environment import Environment, EnvironmentType  
+from shared.data_handling.utils.environment import Environment, EnvironmentType  
 from infrastructure.database.migration_manager import MigrationManager
 import logging
 logger = logging.getLogger(__name__)
 from dateutil import parser as date_parser
 import gin
-from shared.utils.database import Database
+from shared.data_handling.utils.database import Database
 
 @gin.configurable
 class DatabaseTestManager:
@@ -378,8 +378,8 @@ import pytest_asyncio
 import pytest
 import asyncpg
 from pathlib import Path
-from src.db.migration_manager import MigrationManager
-from core.platform.config.environment import Environment, EnvironmentType
+from infrastructure.database.migration_manager import MigrationManager
+from shared.data_handling.utils.environment import Environment, EnvironmentType
 
 @pytest_asyncio.fixture
 async def unit_test_db(request):
@@ -390,7 +390,7 @@ async def unit_test_db(request):
     """
     import gin
     import uuid
-    from shared.utils.database import Database
+    from shared.data_handling.utils.database import Database
     test_file = str(request.fspath) if hasattr(request, 'fspath') else "nofile"
     # Take only first 8 chars of file name to keep DB name short
     test_file_base = os.path.splitext(os.path.basename(test_file))[0]
@@ -487,7 +487,7 @@ async def unit_test_db_clean(request):
     """
     import gin
     import uuid
-    from shared.utils.database import Database
+    from shared.data_handling.utils.database import Database
     test_file = str(request.fspath) if hasattr(request, 'fspath') else "nofile"
     # Take only first 8 chars of file name to keep DB name short
     test_file_base = os.path.splitext(os.path.basename(test_file))[0]

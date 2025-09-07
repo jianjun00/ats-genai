@@ -30,13 +30,13 @@ bind = ['strict_validation', True]
 # universe.universe_manager.UniverseManager.universe_id = 1
 
 # Database - updated for clean architecture structure
-shared.utils.database.Database.host = 'localhost'
-shared.utils.database.Database.port = 5432
-shared.utils.database.Database.user = 'postgres'
-shared.utils.database.Database.password = 'REPLACE_WITH_ACTUAL_DB_PASSWORD'
-shared.utils.database.Database.database = 'test_db'
-shared.utils.database.Database.base_database = 'test_db'
-shared.utils.database.Database.pool_min_size = 1
-shared.utils.database.Database.pool_max_size = 10
-shared.utils.database.Database.command_timeout = 60
+shared.data_handling.utils.database.Database.host = 'localhost'
+shared.data_handling.utils.database.Database.port = 5432
+shared.data_handling.utils.database.Database.user = 'postgres'
+shared.data_handling.utils.database.Database.password = 'REPLACE_WITH_ACTUAL_DB_PASSWORD'
+shared.data_handling.utils.database.Database.database = 'test_db'
+shared.data_handling.utils.database.Database.base_database = 'test_db'
+shared.data_handling.utils.database.Database.pool_min_size = 1
+shared.data_handling.utils.database.Database.pool_max_size = 10
+shared.data_handling.utils.database.Database.command_timeout = 60
 bind = ['DatabaseTestManager.database_name', 'test_db']
