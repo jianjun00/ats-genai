@@ -41,8 +41,8 @@ from core.platform.config.settings import get_settings
 
 # Import type system components (from analytics_service_class.py)
 try:
-    from schema.registry import schema_registry
-    from schema.types import FieldSemantics
+    from domains.ml.schema.registry import schema_registry
+    from domains.ml.schema.types import FieldSemantics
     TYPE_SYSTEM_AVAILABLE = True
     logger.info("✅ Type system components loaded")
 except ImportError as e:

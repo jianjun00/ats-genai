@@ -126,7 +126,7 @@ class IndicatorRunner(Runner):
                 if ohlc is None:
                     continue
                 # Construct InstrumentInterval for this day
-                from state.instrument_interval import InstrumentInterval
+                from domains.trading.services.state.instrument_interval import InstrumentInterval
                 interval = InstrumentInterval(
                     instrument_id=instrument_id,
                     start_date_time=datetime.combine(d, datetime.min.time()),
@@ -265,7 +265,7 @@ class IndicatorRunner(Runner):
             Dict mapping instrument_id to list of minute intervals
         """
         from datetime import datetime, timedelta
-        from state.instrument_interval import InstrumentInterval
+        from domains.trading.services.state.instrument_interval import InstrumentInterval
         
         print("[DEBUG_MULTI_TF] Collecting base 1-minute data")
         base_data = {}
@@ -352,7 +352,7 @@ class IndicatorRunner(Runner):
             indicator_intervals = []
             for agg_interval in aggregated_intervals:
                 # Create IndicatorInterval with computed signals
-                from state.indicator_interval import IndicatorInterval
+                from domains.trading.services.state.indicator_interval import IndicatorInterval
                 
                 indicator_interval = IndicatorInterval(
                     instrument_id=instrument_id,

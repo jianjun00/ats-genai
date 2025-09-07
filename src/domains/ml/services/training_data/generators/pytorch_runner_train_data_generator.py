@@ -7,7 +7,7 @@ Train Data Generator using IndicatorRunner
 - Intended for integration with pytorch_multi_instrument_train.py
 """
 from app.indicator_runner import IndicatorRunner
-from state.universe_state_builder import UniverseStateIntervalBuilder
+from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from shared.utils.environment import Environment, EnvironmentType
 
 # --- CONFIG ---

@@ -1,6 +1,6 @@
 from typing import List, Optional
-from state.universe_state_manager import UniverseStateManager
-from state.universe_state_builder import UniverseStateIntervalBuilder
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
+from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from market_data.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
 from app.runner import Runner
 

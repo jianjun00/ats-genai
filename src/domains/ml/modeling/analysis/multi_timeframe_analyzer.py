@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from enum import Enum
 import logging
 
-from state.universe_state_manager import UniverseStateManager
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from signals.enhanced_indicators import calculate_all_technical_indicators, ResidualReturnIndicatorConfig
 from modeling.llm_pattern_recognition import LLMPatternRecognizer, PatternAnalysis, LLMProvider
 

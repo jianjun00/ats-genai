@@ -16,7 +16,7 @@ import gin
 
 # Optional imports - will be None if not available
 try:
-    from state.universe_state_manager import UniverseStateManager
+    from domains.trading.services.state.universe_state_manager import UniverseStateManager
 except ImportError:
     UniverseStateManager = None
     

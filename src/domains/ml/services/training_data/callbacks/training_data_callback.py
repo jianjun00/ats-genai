@@ -12,7 +12,7 @@ from typing import Any, Optional, List, Dict, Union
 from pathlib import Path
 import json
 
-from state.runner_callback import RunnerCallback
+from domains.trading.services.state.runner_callback import RunnerCallback
 # TrainingDataConfig is imported from the specific runner that uses this callback
 # TimeSeriesSequenceTrainingGenerator and SequenceTrainingExample are not actually used
 from domains.ml.services.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig

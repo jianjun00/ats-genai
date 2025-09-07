@@ -11,7 +11,7 @@ from dataclasses import dataclass
 import logging
 import asyncpg
 
-from state.universe_state_manager import UniverseStateManager
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from modeling.factor_models import ResidualReturnCalculator
 from ml.training_data.generators.training_data_generator import ResidualReturnTrainingDataGenerator
 from modeling.interpretability_framework import ResidualReturnInterpreter

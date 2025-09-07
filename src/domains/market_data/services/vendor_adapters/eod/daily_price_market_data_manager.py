@@ -4,7 +4,7 @@ from datetime import datetime, date, time
 from domains.market_data.services.market_data_manager import MarketDataManager
 from domains.market_data.repositories.daily_prices_dao import DailyPricesDAO
 from core.calendars.exchange_calendar import ExchangeCalendar
-from state.instrument_interval import InstrumentInterval
+from domains.trading.services.state.instrument_interval import InstrumentInterval
 
 class DailyPriceMarketDataManager(MarketDataManager):
     def __init__(self, env, exchange="NYSE", start_date: Optional[date]=None):

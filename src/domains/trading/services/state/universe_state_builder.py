@@ -28,7 +28,7 @@ INTERACTIONS:
 import pandas as pd
 import gin
 try:
-    from state.runner_callback import RunnerCallback
+    from domains.trading.services.state.runner_callback import RunnerCallback
 except Exception:
     # Fallback minimal base when runner_callback is not available in test context
     class RunnerCallback:
@@ -37,9 +37,9 @@ from typing import Dict, List
 import logging
 from datetime import datetime
 from core.platform.config.environment import Environment
-from state.instrument_interval import InstrumentInterval
+from domains.trading.services.state.instrument_interval import InstrumentInterval
 from .factor_interval import FactorInterval
-from state.indicator_interval import IndicatorInterval
+from domains.trading.services.state.indicator_interval import IndicatorInterval
 from core.dao.daily_market_cap_dao import DailyMarketCapDAO
 
 from signals.indicator_builder import IndicatorBuilder
@@ -59,7 +59,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         Build UniverseStateInterval for base_duration and each target duration, passing each to UniverseStateIntervalManager.
         Maintains rolling window cache of InstrumentIntervals and builds indicators via IndicatorBuilder.
         """
-        from state.universe_state import UniverseStateInterval
+        from domains.trading.services.state.universe_state import UniverseStateInterval
         self.logger.debug(f"UniverseStateIntervalBuilder.handleInterval called at {current_time}")
         durations = self.target_durations
         if not durations:

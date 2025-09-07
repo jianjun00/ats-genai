@@ -6,14 +6,14 @@ from core.platform.config.environment import Environment, EnvironmentType
 from market_data.market_data_manager import MarketDataManager
 from market_data.eod.daily_price_market_data_manager import DailyPriceMarketDataManager
 from secmaster.security_master import SecurityMaster
-from state.universe_state_manager import UniverseStateManager
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from state.run_aware_universe_state_manager import RunAwareUniverseStateManager
 from core.calendars.time_duration import TimeDuration
 from universe.universe_manager import UniverseManager
 from core.run_context import RunContext, create_run_context
 from core.run_aware_logging import setup_run_aware_logging, get_run_aware_logger
 
-from state.runner_callback import RunnerCallback
+from domains.trading.services.state.runner_callback import RunnerCallback
 
 import gin
 

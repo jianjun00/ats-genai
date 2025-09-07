@@ -25,7 +25,7 @@ import os
 from domains.trading.services.feature_registry import FeatureRegistry
 from domains.trading.services.label_registry import LabelRegistry  
 from domains.trading.services.indicator_factory import IndicatorFactory
-from state.runner_callback import RunnerCallback
+from domains.trading.services.state.runner_callback import RunnerCallback
 from modeling.training_data_metadata import (
     TrainingDataMetadataManager, 
     TrainingDataMetadata

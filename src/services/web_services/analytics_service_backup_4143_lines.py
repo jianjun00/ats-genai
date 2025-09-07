@@ -52,8 +52,8 @@ except ImportError as e:
 
 # Import type system components (from analytics_service_class.py)
 try:
-    from schema.registry import schema_registry
-    from schema.types import FieldSemantics
+    from domains.ml.schema.registry import schema_registry
+    from domains.ml.schema.types import FieldSemantics
     TYPE_SYSTEM_AVAILABLE = True
     logger.info("✅ Type system components loaded")
 except ImportError as e:
@@ -1420,8 +1420,8 @@ class UnifiedAnalyticsService:
     # NEWS EVENTS ANALYSIS
     # ==============================================
     
-    def get_news_events(self, limit: int = 100, symbol: str = None) -> Dict[str, Any]:
-        """Get recent news events from Polygon and Tiingo sources."""
+    def get_news_events(self, limit: int = 100, symbol: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
+        """Get recent news events from Polygon and Tiingo sources with optional filters."""
         try:
             from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
@@ -1450,11 +1450,20 @@ class UnifiedAnalyticsService:
                         WHERE 1=1
                     """
                     
+                    # Build dynamic filters for Polygon news
+                    params = []
+                    
                     if symbol:
                         polygon_query += " AND %s = ANY(tickers)"
-                        params = [symbol.upper()]
-                    else:
-                        params = []
+                        params.append(symbol.upper())
+                    
+                    if start_date:
+                        polygon_query += " AND published_utc >= %s"
+                        params.append(start_date)
+                    
+                    if end_date:
+                        polygon_query += " AND published_utc <= %s"
+                        params.append(end_date)
                     
                     polygon_query += " ORDER BY published_utc DESC LIMIT %s"
                     params.append(limit // 2)
@@ -1499,17 +1508,26 @@ class UnifiedAnalyticsService:
                         WHERE 1=1
                     """
                     
+                    # Build dynamic filters for Tiingo news
+                    tiingo_params = []
+                    
                     if symbol:
                         tiingo_query += " AND %s = ANY(tickers)"
-                        params = [symbol.upper()]
-                    else:
-                        params = []
+                        tiingo_params.append(symbol.upper())
+                    
+                    if start_date:
+                        tiingo_query += " AND published_date >= %s"
+                        tiingo_params.append(start_date)
+                    
+                    if end_date:
+                        tiingo_query += " AND published_date <= %s"
+                        tiingo_params.append(end_date)
                     
                     tiingo_query += " ORDER BY published_date DESC LIMIT %s"
-                    params.append(limit // 2)
+                    tiingo_params.append(limit // 2)
                     
                     try:
-                        cursor.execute(tiingo_query, params)
+                        cursor.execute(tiingo_query, tiingo_params)
                         tiingo_news = cursor.fetchall()
                         
                         for news in tiingo_news:
@@ -1550,7 +1568,12 @@ class UnifiedAnalyticsService:
                         'total_events': total_events,
                         'unique_symbols': len(unique_symbols),
                         'sources': sources_count,
-                        'symbol_filter': symbol,
+                        'filters': {
+                            'symbol': symbol,
+                            'start_date': start_date,
+                            'end_date': end_date,
+                            'limit': limit
+                        },
                         'query_timestamp': datetime.now().isoformat()
                     }
                     
@@ -2071,19 +2094,69 @@ class UnifiedAnalyticsService:
                 }
                 
                 async function loadNewsEvents() {
+                    // IMPORTANT: Get filter values BEFORE wiping out the content
+                    const symbolFilter = document.getElementById('symbol-filter')?.value || '';
+                    const startDateFilter = document.getElementById('start-date-filter')?.value || '';
+                    const endDateFilter = document.getElementById('end-date-filter')?.value || '';
+                    const limit = 50;
+                    
+                    // Now show loading message
                     document.getElementById('analysis-content').innerHTML = 
                         '<h3>📰 News Events</h3><p>Loading news events from Polygon and Tiingo...</p>';
                     
                     try {
-                        // Fetch news events
-                        const response = await fetch('/api/news-events?limit=50');
+                        
+                        // Build query parameters
+                        const params = new URLSearchParams();
+                        params.append('limit', limit);
+                        if (symbolFilter) params.append('symbol', symbolFilter);
+                        if (startDateFilter) params.append('start_date', startDateFilter);
+                        if (endDateFilter) params.append('end_date', endDateFilter);
+                        
+                        // Fetch news events with filters
+                        const response = await fetch(`/api/news-events?${params.toString()}`);
                         const data = await response.json();
                         
                         let html = ''; // Declare html at function level to avoid scoping issues
                         
                         if (data.success && data.events) {
+                            const appliedFilters = data.filters || {};
                             html = `
                                 <h3>📰 News Events Analysis</h3>
+                                
+                                <!-- Filter Controls -->
+                                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                                    <h4 style="margin: 0 0 15px 0;">🔍 Filter News Events</h4>
+                                    <div style="display: grid; grid-template-columns: auto auto auto auto; gap: 15px; align-items: end;">
+                                        <div>
+                                            <label for="symbol-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">Symbol:</label>
+                                            <input type="text" id="symbol-filter" placeholder="e.g., AAPL" 
+                                                   value="${appliedFilters.symbol || ''}"
+                                                   style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 100px;">
+                                        </div>
+                                        <div>
+                                            <label for="start-date-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">Start Date:</label>
+                                            <input type="date" id="start-date-filter" 
+                                                   value="${appliedFilters.start_date || ''}"
+                                                   style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                                        </div>
+                                        <div>
+                                            <label for="end-date-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">End Date:</label>
+                                            <input type="date" id="end-date-filter" 
+                                                   value="${appliedFilters.end_date || ''}"
+                                                   style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                                        </div>
+                                        <div>
+                                            <button onclick="loadNewsEvents()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                                Apply Filters
+                                            </button>
+                                            <button onclick="clearNewsFilters()" style="padding: 10px 15px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 5px;">
+                                                Clear
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
                                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                                     <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
                                         <h4 style="margin: 0; color: #007bff;">Total Events</h4>
@@ -2180,6 +2253,20 @@ class UnifiedAnalyticsService:
                         document.getElementById('analysis-content').innerHTML = 
                             '<h3>📰 News Events</h3><p style="color: red;">Error loading news events: ' + error.message + '</p>';
                     }
+                }
+                
+                function clearNewsFilters() {
+                    // Clear all filter inputs
+                    const symbolFilter = document.getElementById('symbol-filter');
+                    const startDateFilter = document.getElementById('start-date-filter');
+                    const endDateFilter = document.getElementById('end-date-filter');
+                    
+                    if (symbolFilter) symbolFilter.value = '';
+                    if (startDateFilter) startDateFilter.value = '';
+                    if (endDateFilter) endDateFilter.value = '';
+                    
+                    // Reload news events without filters
+                    loadNewsEvents();
                 }
                 
                 async function loadTrainingDatasets() {
@@ -4056,6 +4143,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         # Get parameters
         limit = int(query_params.get('limit', [100])[0])
         symbol = query_params.get('symbol', [None])[0]
+        start_date = query_params.get('start_date', [None])[0]
+        end_date = query_params.get('end_date', [None])[0]
         
         # Limit the results to reasonable bounds
         limit = min(limit, 500)  # Max 500 events
@@ -4067,7 +4156,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         
         try:
             # Get news events from the analytics service
-            news_data = self.analytics_service.get_news_events(limit=limit, symbol=symbol)
+            news_data = self.analytics_service.get_news_events(limit=limit, symbol=symbol, start_date=start_date, end_date=end_date)
             self.wfile.write(json.dumps(news_data, indent=2, default=str).encode('utf-8'))
             
         except Exception as e:

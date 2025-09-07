@@ -145,9 +145,9 @@ class UniverseStateInterval:
         Deserialize a UniverseStateInterval from a protobuf message.
         """
         from core.business.calendars.time_duration import TimeDuration
-        from state.factor_interval import FactorInterval
-        from state.instrument_interval import InstrumentInterval
-        from state.indicator_interval import IndicatorInterval
+        from domains.trading.services.state.factor_interval import FactorInterval
+        from domains.trading.services.state.instrument_interval import InstrumentInterval
+        from domains.trading.services.state.indicator_interval import IndicatorInterval
         from datetime import datetime
         duration = TimeDuration(msg.duration.value)
         start_date_time = datetime.fromisoformat(msg.start_date_time)
@@ -208,7 +208,7 @@ class UniverseStateInterval:
         # Rebuild forecasts from the special 'forecast' indicator map if present
         instrument_forecast_intervals = {}
         if 'forecast' in instrument_indicator_intervals:
-            from state.forecast_interval import ForecastInterval
+            from domains.trading.services.state.forecast_interval import ForecastInterval
             for iid, ind_int in instrument_indicator_intervals['forecast'].items():
                 # Sort keys like t+1, t+2
                 keys = sorted(ind_int.indicators.keys(), key=lambda k: int(k.split('+')[1]) if '+' in k else 0)

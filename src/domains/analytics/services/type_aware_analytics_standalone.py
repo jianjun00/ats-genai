@@ -16,8 +16,8 @@ except ImportError:
     FASTAPI_AVAILABLE = False
 
 # Import type system components
-from schema.registry import schema_registry
-from schema.types import FieldSemantics
+from domains.ml.schema.registry import schema_registry
+from domains.ml.schema.types import FieldSemantics
 from services.analytics_service import AnalyticsService
 
 logger = logging.getLogger(__name__)
