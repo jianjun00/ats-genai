@@ -1,0 +1,66 @@
+{
+  "timestamp": "2025-09-06T19:36:04.288066",
+  "test_results": [
+    {
+      "name": "Critical Bug Detection (Identical Files)",
+      "test_method": "test_critical_bug_detection_identical_files",
+      "description": "Detects if all timeframe files are identical",
+      "expected_result": "FAIL (confirms bug exists)",
+      "actual_result": "FAIL",
+      "command": "python3 -m pytest tests/integration/test_arrayrecord_timeframe_separation.py::TestArrayRecordTimeframeSeparation::test_critical_bug_detection_identical_files -v --tb=short --no-header -q",
+      "stdout": "============================= test session starts ==============================\ncollected 1 item\n\ntests/integration/test_arrayrecord_timeframe_separation.py F             [100%]\n\n=================================== FAILURES ===================================\n_ TestArrayRecordTimeframeSeparation.test_critical_bug_detection_identical_files _\ntests/integration/test_arrayrecord_timeframe_separation.py:138: in test_critical_bug_detection_identical_files\n    assert len(unique_hashes) == len(timeframes), (\nE   AssertionError: CRITICAL BUG: All timeframe files are identical! Expected 5 unique files, got 1 unique hashes. Hashes: {'5m': 'cb95fa70e6a240b9ed95637407d401bd', '15m': 'cb95fa70e6a240b9ed95637407d401bd', '1h': 'cb95fa70e6a240b9ed95637407d401bd', '1d': 'cb95fa70e6a240b9ed95637407d401bd', '1w': 'cb95fa70e6a240b9ed95637407d401bd'}\nE   assert 1 == 5\nE    +  where 1 = len({'cb95fa70e6a240b9ed95637407d401bd'})\nE    +  and   5 = len(['5m', '15m', '1h', '1d', '1w'])\n=========================== short test summary info ============================\nFAILED tests/integration/test_arrayrecord_timeframe_separation.py::TestArrayRecordTimeframeSeparation::test_critical_bug_detection_identical_files\n============================== 1 failed in 0.12s ===============================\n",
+      "stderr": "",
+      "returncode": 1
+    },
+    {
+      "name": "Timeframe Column Isolation",
+      "test_method": "test_timeframe_column_isolation",
+      "description": "Validates each timeframe contains only its own features",
+      "expected_result": "FAIL (mixed timeframe features)",
+      "actual_result": "FAIL",
+      "command": "python3 -m pytest tests/integration/test_arrayrecord_timeframe_separation.py::TestArrayRecordTimeframeSeparation::test_timeframe_column_isolation -v --tb=short --no-header -q",
+      "stdout": "============================= test session starts ==============================\ncollected 1 item\n\ntests/integration/test_arrayrecord_timeframe_separation.py F             [100%]\n\n=================================== FAILURES ===================================\n______ TestArrayRecordTimeframeSeparation.test_timeframe_column_isolation ______\ntests/integration/test_arrayrecord_timeframe_separation.py:180: in test_timeframe_column_isolation\n    assert len(other_timeframe_features) == 0, (\nE   AssertionError: 5m ArrayRecord contains features from other timeframes: ['15m_open_000', '15m_open_001', '15m_open_002', '15m_open_003', '15m_open_004', '15m_open_005', '15m_open_006', '15m_open_007', '15m_open_008', '15m_open_009']... (648 total)\nE   assert 648 == 0\nE    +  where 648 = len(['15m_open_000', '15m_open_001', '15m_open_002', '15m_open_003', '15m_open_004', '15m_open_005', ...])\n=========================== short test summary info ============================\nFAILED tests/integration/test_arrayrecord_timeframe_separation.py::TestArrayRecordTimeframeSeparation::test_timeframe_column_isolation\n============================== 1 failed in 0.09s ===============================\n",
+      "stderr": "",
+      "returncode": 1
+    },
+    {
+      "name": "Expected Feature Counts",
+      "test_method": "test_expected_feature_counts_by_timeframe",
+      "description": "Checks if feature counts are reasonable for isolated timeframes",
+      "expected_result": "FAIL (962 features instead of <100)",
+      "actual_result": "FAIL",
+      "command": "python3 -m pytest tests/integration/test_arrayrecord_timeframe_separation.py::TestArrayRecordTimeframeSeparation::test_expected_feature_counts_by_timeframe -v --tb=short --no-header -q",
+      "stdout": "============================= test session starts ==============================\ncollected 1 item\n\ntests/integration/test_arrayrecord_timeframe_separation.py F             [100%]\n\n=================================== FAILURES ===================================\n_ TestArrayRecordTimeframeSeparation.test_expected_feature_counts_by_timeframe _\ntests/integration/test_arrayrecord_timeframe_separation.py:288: in test_expected_feature_counts_by_timeframe\n    assert actual_count < 100, (\nE   AssertionError: 5m ArrayRecord has 962 features, which suggests mixed timeframes. Expected < 100 features for isolated timeframe.\nE   assert 962 < 100\n=========================== short test summary info ============================\nFAILED tests/integration/test_arrayrecord_timeframe_separation.py::TestArrayRecordTimeframeSeparation::test_expected_feature_counts_by_timeframe\n============================== 1 failed in 0.12s ===============================\n",
+      "stderr": "",
+      "returncode": 1
+    },
+    {
+      "name": "Single Value Per Feature",
+      "test_method": "test_single_value_per_feature_requirement",
+      "description": "Validates each feature has single value, not sequences",
+      "expected_result": "Should PASS (data structure requirement)",
+      "actual_result": "PASS",
+      "command": "python3 -m pytest tests/integration/test_arrayrecord_timeframe_separation.py::TestArrayRecordTimeframeSeparation::test_single_value_per_feature_requirement -v --tb=short --no-header -q",
+      "stdout": "============================= test session starts ==============================\ncollected 1 item\n\ntests/integration/test_arrayrecord_timeframe_separation.py .             [100%]\n\n============================== 1 passed in 0.08s ===============================\n",
+      "stderr": "",
+      "returncode": 0
+    },
+    {
+      "name": "File Existence",
+      "test_method": "test_arrayrecord_files_exist",
+      "description": "Verifies all timeframe files exist",
+      "expected_result": "Should PASS (files exist but are incorrect)",
+      "actual_result": "PASS",
+      "command": "python3 -m pytest tests/integration/test_arrayrecord_timeframe_separation.py::TestArrayRecordTimeframeSeparation::test_arrayrecord_files_exist -v --tb=short --no-header -q",
+      "stdout": "============================= test session starts ==============================\ncollected 1 item\n\ntests/integration/test_arrayrecord_timeframe_separation.py .             [100%]\n\n============================== 1 passed in 0.08s ===============================\n",
+      "stderr": "",
+      "returncode": 0
+    }
+  ],
+  "summary": {
+    "total_tests": 5,
+    "passed": 2,
+    "failed": 3,
+    "bug_confirmed": true
+  }
+}

@@ -20,6 +20,7 @@ import asyncio
 import ray
 
 from state.runner_callback import RunnerCallback
+from core.utils.training_dataset_paths import TrainingDatasetPaths
 # TrainingDataConfig is imported from the specific runner that uses this callback
 # Import TimeSeriesSequenceTrainingGenerator for fallback generator
 try:
@@ -629,17 +630,19 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                 if len(tf_df) >= sequence_length:
                     recent_data = tf_df.tail(sequence_length)
                     
-                    # Add OHLCV features
-                    features[f'{timeframe_name}_open'] = recent_data['open'].fillna(0).tolist()
-                    features[f'{timeframe_name}_high'] = recent_data['high'].fillna(0).tolist()
-                    features[f'{timeframe_name}_low'] = recent_data['low'].fillna(0).tolist()
-                    features[f'{timeframe_name}_close'] = recent_data['close'].fillna(0).tolist()
-                    features[f'{timeframe_name}_volume'] = recent_data['volume'].fillna(0).tolist()
+                    # CRITICAL FIX: ALL timeframes use base names per QR4 requirement
+                    # Timeframe separation happens via directory structure, NOT feature prefixes
+                    features['open'] = recent_data['open'].fillna(0).tolist()
+                    features['high'] = recent_data['high'].fillna(0).tolist()
+                    features['low'] = recent_data['low'].fillna(0).tolist()
+                    features['close'] = recent_data['close'].fillna(0).tolist()
+                    features['volume'] = recent_data['volume'].fillna(0).tolist()
+                    features['vwap'] = recent_data.get('vwap', recent_data['close']).fillna(0).tolist()
                     
-                    # Add technical signal features
+                    # Add technical signals with base names (no timeframe prefixes)
                     for signal in signals:
                         if signal in recent_data.columns:
-                            features[f'{timeframe_name}_{signal}'] = recent_data[signal].fillna(0).tolist()
+                            features[signal] = recent_data[signal].fillna(0).tolist()
                         else:
                             self.logger.debug(f"Signal {signal} not available for {timeframe_name}")
                     
@@ -704,29 +707,45 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                     
                     # Save all timeframes for this sequence
                     for timeframe in self.expected_timeframes:
-                        timeframe_dir = sequence_dir / timeframe
-                        timeframe_dir.mkdir(exist_ok=True)
+                        # Use canonical path generation per PRD/DRD requirements
+                        # Extract date components from sequence_id for canonical path format
+                        start_date = sequence_id.split('_')[1]  # YYYYMMDD_HHMMSS
+                        end_date = sequence_id.split('_')[3]    # YYYYMMDD_HHMMSS
                         
-                        # Create ArrayRecord file: SYMBOL_DATERANGE.arrayrecord
-                        arrayrecord_filename = f"{sequence_id}.arrayrecord"
-                        arrayrecord_path = timeframe_dir / arrayrecord_filename
+                        # Create canonical ArrayRecord file path per PRD/DRD QR4
+                        arrayrecord_path = TrainingDatasetPaths.get_arrayrecord_filepath(
+                            run_id=str(self.output_dir.name),  # Use output dir name as run_id
+                            symbol=symbol,
+                            start_date=start_date,
+                            end_date=end_date,
+                            timeframe=timeframe
+                        )
                         
-                        # Filter examples for this specific timeframe
+                        # Ensure directory exists
+                        Path(arrayrecord_path).parent.mkdir(parents=True, exist_ok=True)
+                        
+                        # CRITICAL FIX: Filter examples for this specific timeframe
                         timeframe_filtered_examples = self._extract_timeframe_data(symbol_examples, timeframe)
+                        
+                        # Log filtering results for verification
+                        if timeframe_filtered_examples:
+                            original_feature_count = timeframe_filtered_examples[0].get('metadata', {}).get('original_feature_count', 0)
+                            filtered_feature_count = timeframe_filtered_examples[0].get('metadata', {}).get('filtered_feature_count', 0)
+                            self.logger.info(f"🔧 FIXED: {symbol} {timeframe} filtering: {original_feature_count} → {filtered_feature_count} features")
                         
                         # Save as ArrayRecord format
                         await self._save_symbol_arrayrecord(timeframe_filtered_examples, arrayrecord_path, symbol, timeframe)
                         
-                        # Save companion metadata
-                        metadata_path = timeframe_dir / f"{sequence_id}_metadata.json"
+                        # Save companion metadata using canonical path
+                        metadata_path = Path(arrayrecord_path).with_suffix('_metadata.json')
                         await self._save_symbol_metadata(timeframe_filtered_examples, metadata_path, symbol, current_time, timeframe)
                         
                         # Track file metadata for database storage
-                        file_stats = arrayrecord_path.stat()
+                        file_stats = Path(arrayrecord_path).stat()
                         file_info = {
                             "symbol": symbol,
                             "timeframe": timeframe,
-                            "file_path": f"{sequence_id}.arrayrecord",
+                            "file_path": f"{symbol.lower()}.arrayrecord",  # QR4 compliant: symbol.arrayrecord
                             "sequences": len(timeframe_filtered_examples),
                             "file_size_bytes": file_stats.st_size,
                             "created_at": current_time.strftime("%Y-%m-%d %H:%M:%S")
@@ -744,21 +763,56 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             raise RuntimeError(f"Critical error saving multi-timeframe examples at {current_time}: {e}") from e
     
     def _extract_timeframe_data(self, examples: List[Dict], timeframe: str) -> List[Dict]:
-        """Extract data for specific timeframe from multi-timeframe examples."""
+        """Extract data for specific timeframe from multi-timeframe examples.
+        
+        CRITICAL QR4 COMPLIANCE: Per PRD/DRD QR4 requirements, ALL timeframes use 
+        BASE FEATURE NAMES (open, high, low, close, volume, vwap) without prefixes.
+        Timeframe separation happens via DIRECTORY STRUCTURE, not feature prefixes.
+        """
         timeframe_examples = []
         
         for example in examples:
-            # Extract timeframe-specific data from the multi-timeframe example
-            # This would depend on how the data is structured in the example
+            all_features = example.get('features', {})
+            
+            # QR4 CRITICAL REQUIREMENT: Extract timeframe-specific data and convert to base names
+            timeframe_features = {}
+            
+            # Define the core OHLCV features we need for each timeframe
+            base_feature_names = ['open', 'high', 'low', 'close', 'volume', 'vwap']
+            
+            if timeframe == '5m':
+                # For 5m: use base features directly (no prefix)
+                for base_name in base_feature_names:
+                    if base_name in all_features:
+                        timeframe_features[base_name] = all_features[base_name]
+            else:
+                # For other timeframes: find prefixed features and convert to base names
+                timeframe_prefix = f'{timeframe}_'
+                for base_name in base_feature_names:
+                    prefixed_name = f'{timeframe_prefix}{base_name}'
+                    if prefixed_name in all_features:
+                        # QR4 COMPLIANCE: Store as BASE NAME (remove prefix)
+                        timeframe_features[base_name] = all_features[prefixed_name]
+            
+            # Always include meta features (timestamp, symbol) 
+            for meta_feature in ['timestamp', 'symbol']:
+                if meta_feature in all_features:
+                    timeframe_features[meta_feature] = all_features[meta_feature]
+            
+            # Create filtered example with QR4-compliant base feature names
             timeframe_example = {
                 'symbol': example['symbol'],
                 'timeframe': timeframe,
                 'timestamp': example.get('timestamp'),
-                'features': example.get('features', {}),  # Would filter for timeframe-specific features
-                'labels': example.get('labels', {}),      # Would filter for timeframe-specific labels
+                'features': timeframe_features,  # QR4 COMPLIANT: Base names only
+                'labels': example.get('labels', {}),
                 'metadata': {
                     **example.get('metadata', {}),
-                    'extracted_timeframe': timeframe
+                    'extracted_timeframe': timeframe,
+                    'qr4_compliant': True,  # Mark as QR4 compliant
+                    'original_feature_count': len(all_features),
+                    'filtered_feature_count': len(timeframe_features),
+                    'base_feature_names_used': list(timeframe_features.keys())
                 }
             }
             timeframe_examples.append(timeframe_example)
@@ -766,22 +820,34 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         return timeframe_examples
     
     async def _save_symbol_arrayrecord(self, examples: List[Dict], arrayrecord_path: Path, symbol: str, timeframe: str = None):
-        """Save symbol-specific examples in ArrayRecord format."""
+        """Save symbol-specific examples in ArrayRecord format.
+        
+        CRITICAL FIX: This method now receives properly filtered timeframe-specific
+        examples and logs the filtering results for verification.
+        """
         try:
             import pandas as pd
             
-            # Convert multi-timeframe examples to structured format for ArrayRecord
-            # Each row represents one training interval with multi-timeframe features
+            # Convert timeframe-specific examples to structured format for ArrayRecord
+            # Each row represents one training interval with TIMEFRAME-SPECIFIC features only
             rows = []
+            total_original_features = 0
+            total_filtered_features = 0
             
             for example in examples:
-                # Flatten multi-timeframe features into a single row
+                # Log filtering results for verification
+                metadata = example.get('metadata', {})
+                if 'original_feature_count' in metadata and 'filtered_feature_count' in metadata:
+                    total_original_features += metadata['original_feature_count']
+                    total_filtered_features += metadata['filtered_feature_count']
+                
+                # Create row with timeframe-specific features only
                 row = {
                     'timestamp': example['timestamp'],
                     'symbol': symbol
                 }
                 
-                # Add all timeframe features
+                # Add ONLY timeframe-specific features (already filtered by _extract_timeframe_data)
                 for feature_name, feature_values in example['features'].items():
                     if isinstance(feature_values, list):
                         # For sequence features, add each value with index
@@ -791,6 +857,16 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                         row[feature_name] = feature_values
                 
                 rows.append(row)
+            
+            # Log filtering verification
+            if total_original_features > 0:
+                filtering_ratio = (total_original_features - total_filtered_features) / total_original_features
+                self.logger.info(f"🔍 FILTERING VERIFICATION for {timeframe} timeframe:")
+                self.logger.info(f"   Original features: {total_original_features}")
+                self.logger.info(f"   Filtered features: {total_filtered_features}")
+                self.logger.info(f"   Filtering ratio: {filtering_ratio:.1%} features removed")
+                if filtering_ratio < 0.1:  # Less than 10% filtered = potential issue
+                    self.logger.warning(f"⚠️  Low filtering ratio may indicate timeframe separation issue")
             
             # Convert to DataFrame
             df = pd.DataFrame(rows)

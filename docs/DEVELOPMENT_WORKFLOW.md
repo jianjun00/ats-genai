@@ -49,6 +49,47 @@ PYTHONPATH=src pytest tests/unit/test_database_schema_validation.py -v
 pre-commit run schema-anti-patterns
 ```
 
+### **🚨 SINGLE SOURCE OF TRUTH - NO DUPLICATE LOGIC**
+
+**DUPLICATE LOGIC WITH VARIATIONS IS FORBIDDEN**
+
+**Every critical path, file structure, or business logic must have exactly ONE canonical implementation:**
+
+**❌ BAD: Duplicate logic with variations**
+```python
+# File 1: Inconsistent path generation
+def get_training_path_v1(symbol, date_range):
+    return f"/data/training/{symbol}_{date_range}"
+
+# File 2: Slightly different path generation  
+def get_training_path_v2(symbol, start, end):
+    return f"/mnt/d/ats-data/training/{symbol}_{start}_{end}"
+
+# File 3: Another variation
+def create_dataset_dir(symbol, dates):
+    return f"/data/datasets/{symbol}-{dates}"
+```
+
+**✅ CORRECT: Single canonical implementation**
+```python
+# Single source of truth in src/core/paths/training_dataset_paths.py
+@staticmethod
+def get_training_dataset_basedir(run_id: str, symbol: str, date_range: str) -> str:
+    """Canonical training dataset directory structure per PRD/DRD requirements"""
+    return f"/data/training/{run_id}/{symbol}_{date_range}"
+
+def get_timeframe_file_path(basedir: str, timeframe: str, symbol: str) -> str:
+    """Canonical ArrayRecord file path per QR4 requirements"""
+    return f"{basedir}/{timeframe}/{symbol}.arrayrecord"
+```
+
+**Rules:**
+- ✅ **One function per responsibility** - no variations
+- ✅ **Import and reuse** - never reimplement  
+- ✅ **Document the canonical location** in code comments
+- ❌ **Never create "similar but different" functions**
+- ❌ **Never copy-paste with modifications**
+
 **Schema validation will catch:**
 - ❌ Wrong table names (`dev_training_datasets` vs `dev_training_dataset`)
 - ❌ Wrong column names (`created_at` vs `creation_timestamp`)  

@@ -1,0 +1,112 @@
+{
+  "dataset_path": "/mnt/d/ats-data/training_data/89/AAPL_20250701_000000_20250906_000000",
+  "analysis_timestamp": "2025-09-07T02:36:06",
+  "bug_detected": true,
+  "file_analysis": {
+    "5m": {
+      "size": 131072,
+      "hash": "cb95fa70e6a240b9ed95637407d401bd",
+      "column_count": 962,
+      "record_count": 1,
+      "timeframe_dist_counts": {
+        "5m": 312,
+        "15m": 312,
+        "1h": 144,
+        "1d": 120,
+        "1w": 72,
+        "unknown": 2
+      },
+      "feature_type_counts": {
+        "price": 640,
+        "volume": 320,
+        "technical": 0,
+        "meta": 2,
+        "unknown": 0
+      }
+    },
+    "15m": {
+      "size": 131072,
+      "hash": "cb95fa70e6a240b9ed95637407d401bd",
+      "column_count": 962,
+      "record_count": 1,
+      "timeframe_dist_counts": {
+        "5m": 312,
+        "15m": 312,
+        "1h": 144,
+        "1d": 120,
+        "1w": 72,
+        "unknown": 2
+      },
+      "feature_type_counts": {
+        "price": 640,
+        "volume": 320,
+        "technical": 0,
+        "meta": 2,
+        "unknown": 0
+      }
+    },
+    "1h": {
+      "size": 131072,
+      "hash": "cb95fa70e6a240b9ed95637407d401bd",
+      "column_count": 962,
+      "record_count": 1,
+      "timeframe_dist_counts": {
+        "5m": 312,
+        "15m": 312,
+        "1h": 144,
+        "1d": 120,
+        "1w": 72,
+        "unknown": 2
+      },
+      "feature_type_counts": {
+        "price": 640,
+        "volume": 320,
+        "technical": 0,
+        "meta": 2,
+        "unknown": 0
+      }
+    },
+    "1d": {
+      "size": 131072,
+      "hash": "cb95fa70e6a240b9ed95637407d401bd",
+      "column_count": 962,
+      "record_count": 1,
+      "timeframe_dist_counts": {
+        "5m": 312,
+        "15m": 312,
+        "1h": 144,
+        "1d": 120,
+        "1w": 72,
+        "unknown": 2
+      },
+      "feature_type_counts": {
+        "price": 640,
+        "volume": 320,
+        "technical": 0,
+        "meta": 2,
+        "unknown": 0
+      }
+    },
+    "1w": {
+      "size": 131072,
+      "hash": "cb95fa70e6a240b9ed95637407d401bd",
+      "column_count": 962,
+      "record_count": 1,
+      "timeframe_dist_counts": {
+        "5m": 312,
+        "15m": 312,
+        "1h": 144,
+        "1d": 120,
+        "1w": 72,
+        "unknown": 2
+      },
+      "feature_type_counts": {
+        "price": 640,
+        "volume": 320,
+        "technical": 0,
+        "meta": 2,
+        "unknown": 0
+      }
+    }
+  }
+}

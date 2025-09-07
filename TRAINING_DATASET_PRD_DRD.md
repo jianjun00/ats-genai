@@ -115,6 +115,19 @@ The Training Dataset Management System provides centralized metadata management 
 - Memory estimation accuracy: ±10% of actual usage
 - Batch size optimization for training performance
 
+#### **QR4: CRITICAL - Timeframe Data Separation** 🚨
+- **Each timeframe ArrayRecord must contain ONLY features for that timeframe**
+- **Single value per feature**: Each feature has ONE value, not historical sequences
+- **Timeframe isolation**: 
+  - `5m/symbol.arrayrecord` contains ONLY `open, high, low, close, volume, vwap` (no prefixes)
+  - `1h/symbol.arrayrecord` contains ONLY `open, high, low, close, volume, vwap` (no prefixes)  
+  - `1d/symbol.arrayrecord` contains ONLY `open, high, low, close, volume, vwap` (no prefixes)
+- **Training methodology**: Take N sequential rows from each timeframe and join by timestamp
+- **NO cross-timeframe features**: 5m files must not contain 1h, 1d, 1w features
+- **Column structure**: `[timestamp, symbol, open, high, low, close, volume, vwap]` per timeframe
+- **Data alignment**: All timeframes must have timestamp alignment for joining
+- **Validation**: Mandatory tests to verify timeframe isolation in generated datasets
+
 ---
 
 ## 🔧 **DETAILED REQUIREMENTS DOCUMENT (DRD)**
