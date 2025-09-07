@@ -417,12 +417,12 @@ class Environment:
     # --- Duration-related methods migrated from UniverseStateBuilder ---
     def get_base_duration(self) -> 'TimeDuration':
         # Default to 5 minutes if not set in config
-        from core.calendars.time_duration import TimeDuration
+        from core.business.calendars.time_duration import TimeDuration
         duration_str = self.get('universe.base_duration', '5m')
         return TimeDuration(duration_str)
 
     def get_target_durations(self) -> 'List[TimeDuration]':
-        from core.calendars.time_duration import TimeDuration
+        from core.business.calendars.time_duration import TimeDuration
         durations_str = self.get('universe.target_durations', '5m')
         durations = [d.strip() for d in durations_str.split(',')]
         return [TimeDuration(d) for d in durations]

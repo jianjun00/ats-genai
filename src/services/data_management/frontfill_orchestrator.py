@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import signal
 
 from core.platform.config.environment import Environment
-from core.platform.config.database import get_connection_pool
+from core.config.database import get_connection_pool
 from frontfill.checkpoint_manager import CheckpointManager
 from frontfill.daily_prices_frontfill import create_daily_prices_frontfill_jobs
 from frontfill.news_frontfill import create_news_frontfill_jobs

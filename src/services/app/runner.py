@@ -8,10 +8,10 @@ from market_data.eod.daily_price_market_data_manager import DailyPriceMarketData
 from secmaster.security_master import SecurityMaster
 from state.universe_state_manager import UniverseStateManager
 from state.run_aware_universe_state_manager import RunAwareUniverseStateManager
-from core.calendars.time_duration import TimeDuration
+from core.business.calendars.time_duration import TimeDuration
 from universe.universe_manager import UniverseManager
-from core.run_context import RunContext, create_run_context
-from core.run_aware_logging import setup_run_aware_logging, get_run_aware_logger
+from core.shared.run_context import RunContext, create_run_context
+from core.shared.run_aware_logging import setup_run_aware_logging, get_run_aware_logger
 
 from state.runner_callback import RunnerCallback
 
@@ -138,7 +138,7 @@ class Runner:
         'eod' at the last second of each trading day,
         'end' at the last second of the end date.
         """
-        from core.calendars.exchange_calendar import ExchangeCalendar
+        from core.business.calendars.exchange_calendar import ExchangeCalendar
         exchange = getattr(self.market_data_manager, 'exchange', 'NYSE')
         cal = ExchangeCalendar(exchange)
         trading_days = list(cal.all_trading_days(self.start_date.date(), self.end_date.date()))

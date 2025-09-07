@@ -271,7 +271,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         self.rolling_window = getattr(self.env, 'indicator_rolling_window', 20)
 
         # Durations
-        from core.calendars.time_duration import TimeDuration
+        from core.business.calendars.time_duration import TimeDuration
         base_duration_str = base_duration
         self.base_duration = TimeDuration(base_duration_str)
         target_durations_str = target_durations

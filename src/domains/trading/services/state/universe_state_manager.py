@@ -61,10 +61,10 @@ class UniverseStateMetadata:
 
 
 import gin
-from core.dao.universe_state_interval_dao import UniverseStateIntervalDAO
-from core.dao.instrument_interval_dao import InstrumentIntervalDAO
-from core.dao.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
-from core.dao.factor_interval_dao import FactorIntervalDAO
+from core.dao.trading.universe_state_interval_dao import UniverseStateIntervalDAO
+from core.dao.trading.instrument_interval_dao import InstrumentIntervalDAO
+from core.dao.trading.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
+from core.dao.trading.factor_interval_dao import FactorIntervalDAO
 
 @gin.configurable
 class UniverseStateManager:
@@ -378,7 +378,7 @@ class UniverseStateManager:
                     raise ValueError(f"signal_names[{i}] must be a non-empty string, got {signal_name} (type: {type(signal_name)})")
         
         try:
-            from core.dao.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
+            from core.dao.trading.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
             
             # Calculate the time range based on interval and lag_periods
             from datetime import timedelta, datetime

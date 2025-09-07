@@ -12,8 +12,8 @@ from datetime import datetime, date, timedelta
 from typing import Optional
 
 from core.platform.config.environment import Environment, EnvironmentType
-from core.platform.config.database import get_connection_pool
-from economic_events.population_service import EconomicEventsPopulationService
+from core.platform.database.connection_manager import get_connection_pool
+from domains.analytics.services.economic_events.population_service import EconomicEventsPopulationService
 
 # Configure logging
 logging.basicConfig(

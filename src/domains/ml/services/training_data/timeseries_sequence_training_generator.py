@@ -21,7 +21,7 @@ except ImportError:
     UniverseStateManager = None
     
 try:
-    from core.calendars.time_duration import TimeDuration
+    from core.business.calendars.time_duration import TimeDuration
 except ImportError:
     TimeDuration = None
     

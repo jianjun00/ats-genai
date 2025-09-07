@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta
 from typing import Dict, Optional
 
 from core.platform.config.environment import Environment, EnvironmentType
-from core.platform.config.database import get_connection_pool
+from core.config.database import get_connection_pool
 from validation.daily_prices_validator import DailyPricesValidator
 from validation.missing_data_handler import MissingDataHandler
 

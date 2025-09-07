@@ -25,6 +25,19 @@ class TrainingDatasetPaths:
     # Base directory for all training datasets
     BASE_TRAINING_DATA_DIR = "/mnt/d/ats-data/training_data"
     
+    @classmethod
+    def set_base_directory(cls, base_dir: str):
+        """
+        Set the base directory for training datasets.
+        
+        This allows overriding the default path for containerized environments
+        where /mnt/d is not accessible.
+        
+        Args:
+            base_dir: New base directory path (e.g., "/data/training_data")
+        """
+        cls.BASE_TRAINING_DATA_DIR = base_dir
+    
     # Supported timeframes in order
     TIMEFRAMES = ["5m", "15m", "1h", "1d", "1w"]
     

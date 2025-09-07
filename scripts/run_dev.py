@@ -170,31 +170,31 @@ class DevCLI:
             print(f"❌ Exception running command: {e}")
             return None
     
-    def run_docker_job(self, script_path, job_name=None, gpu=False, environment=None):
+    def run_docker_job(self, script_command, job_name=None, gpu=False):
         """Run a job using Docker instead of Kubernetes"""
-        # Handle command with arguments (e.g., "python script.py arg1 arg2")
-        if script_path.startswith('python '):
-            # Extract the actual script path for existence check
-            parts = script_path.split()
-            actual_script = parts[1] if len(parts) > 1 else script_path
+        # Handle full command with arguments (e.g., "python script.py --arg1 value1 --arg2 value2")
+        if script_command.startswith('python '):
+            # Extract the actual script path for existence check (first argument after python)
+            parts = script_command.split()
+            if len(parts) < 2:
+                print(f"❌ Invalid python command: {script_command}")
+                return False
+            actual_script = parts[1]
             if not os.path.exists(actual_script):
                 print(f"❌ Script not found: {actual_script}")
                 return False
-            command_to_run = script_path
+            command_to_run = script_command
         else:
-            # Single script path
-            if not os.path.exists(script_path):
-                print(f"❌ Script not found: {script_path}")
+            # Single script path - add python prefix
+            if not os.path.exists(script_command):
+                print(f"❌ Script not found: {script_command}")
                 return False
-            command_to_run = f"python {script_path}"
+            command_to_run = f"python {script_command}"
             
-        print(f"🐳 Running Docker job: {script_path}")
+        print(f"🐳 Running Docker job: {script_command}")
         
         # Build Docker command
         gpu_flag = "--gpus all" if gpu else ""
-        env_vars = ""
-        if environment:
-            env_vars = " ".join([f"-e {k}={v}" for k, v in environment.items()])
         
         # Use our official image
         image = "dragonflyer762/ats-genai:latest"
@@ -204,7 +204,6 @@ class DevCLI:
         
         # Add network connection to PostgreSQL if it exists
         network_link = ""
-        db_port_for_container = self.db_port  # Default to host port
         if self.environment == 'intg':
             postgres_check = subprocess.run("docker ps -q -f name=ats-intg-postgres", shell=True, capture_output=True)
             if postgres_check.stdout.strip():
@@ -248,9 +247,8 @@ class DevCLI:
             -e ALPHA_VANTAGE_API_KEY={os.getenv('ALPHA_VANTAGE_API_KEY', '9GI0NZ3V4VNFX271')} \
             -e FIRSTRATE_USER_ID={os.getenv('FIRSTRATE_USER_ID', 'ats-genai-user')} \
             -e OPENAI_API_KEY={os.getenv('OPENAI_API_KEY', '')} \
-            {env_vars} \
             {image} \
-            bash -c "pip install array-record tensorflow && python {script_path} --symbols $SYMBOLS --start-date $START_DATE --end-date $END_DATE --environment $ENVIRONMENT --output-dir $OUTPUT_DIR --gin-config $GIN_CONFIG --debug" """.format(script_path=script_path)
+            bash -c "pip install array-record tensorflow && {command_to_run}" """
         
         print(f"🚀 Running: docker run ... {command_to_run}")
         result = subprocess.run(cmd, shell=True)
@@ -262,7 +260,7 @@ class DevCLI:
             print(f"❌ Job failed with exit code: {result.returncode}")
             return False
     
-    def start_service(self, service_name, port=None, gpu=False, environment=None):
+    def start_service(self, service_name, port=None, gpu=False):
         """Start a service using Docker"""
         print(f"🚀 Starting service: {service_name}")
         
@@ -1095,14 +1093,12 @@ def main():
     for action in ["run", "start", "stop", "status", "test", "query", "setup", "logs", "get", "arrayrecord"]:
         action_parser = subparsers.add_parser(action, help=f"{action.capitalize()} action")
         if action == "run":
-            action_parser.add_argument("--script", "-s", required=True, help="Script to run")
+            action_parser.add_argument("--script", "-s", required=True, help="Script to run (with full command line arguments)")
             action_parser.add_argument("--gpu", action="store_true", help="Enable GPU support")
-            action_parser.add_argument("--env", help="Environment variables (JSON format)")
         elif action == "start":
             action_parser.add_argument("--service", required=True, help="Service name")
             action_parser.add_argument("--port", "-p", help="Port mapping")
             action_parser.add_argument("--gpu", action="store_true", help="Enable GPU support")
-            action_parser.add_argument("--env", help="Environment variables (JSON format)")
         elif action == "stop":
             action_parser.add_argument("--service", required=True, help="Service name")
         elif action == "query":
@@ -1157,12 +1153,12 @@ def main():
     
     elif args.command == "run":
         gpu = getattr(args, 'gpu', False)
-        cli.run_docker_job(args.script, gpu=gpu, environment=environment)
+        cli.run_docker_job(args.script, gpu=gpu)
         
     elif args.command == "start":
         port = getattr(args, 'port', None)
         gpu = getattr(args, 'gpu', False)
-        cli.start_service(args.service, port, gpu, environment)
+        cli.start_service(args.service, port, gpu)
         
     elif args.command == "stop":
         cli.stop_service(args.service)

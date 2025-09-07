@@ -36,12 +36,19 @@ class TestNewsEventIntegration:
     def callback_instance(self, mock_config, mock_economic_events_dao):
         """Create an IntervalBasedTrainingDataCallback instance with news event DAO."""
         with patch('ml.training_data.callbacks.training_data_callback.ray'):
-            callback = IntervalBasedTrainingDataCallback(
-                symbols=['AAPL', 'TSLA'],
-                config=mock_config,
-                output_dir='/tmp/test_training',
-                economic_events_dao=mock_economic_events_dao
-            )
+            with patch('ml.training_data.callbacks.training_data_callback.get_news_event_filtering_config') as mock_gin_config:
+                # Mock gin config to enable news event filtering for tests
+                mock_gin_config.return_value = {
+                    'enabled': True,
+                    'time_window_hours': 24,
+                    'min_importance_level': 3
+                }
+                callback = IntervalBasedTrainingDataCallback(
+                    symbols=['AAPL', 'TSLA'],
+                    config=mock_config,
+                    output_dir='/tmp/test_training',
+                    economic_events_dao=mock_economic_events_dao
+                )
         return callback
     
     @pytest.mark.asyncio
@@ -98,18 +105,41 @@ class TestNewsEventIntegration:
     async def test_check_news_events_no_dao(self, mock_config):
         """Test _check_news_events_around_time when no DAO is provided."""
         with patch('ml.training_data.callbacks.training_data_callback.ray'):
-            callback = IntervalBasedTrainingDataCallback(
-                symbols=['AAPL'],
-                config=mock_config,
-                output_dir='/tmp/test_training',
-                economic_events_dao=None  # No DAO provided
-            )
+            with patch('ml.training_data.callbacks.training_data_callback.get_news_event_filtering_config') as mock_gin_config:
+                mock_gin_config.return_value = {
+                    'enabled': True,
+                    'time_window_hours': 24,
+                    'min_importance_level': 3
+                }
+                callback = IntervalBasedTrainingDataCallback(
+                    symbols=['AAPL'],
+                    config=mock_config,
+                    output_dir='/tmp/test_training',
+                    economic_events_dao=None  # No DAO provided
+                )
         
         current_time = datetime(2025, 1, 15, 15, 0)
         result = await callback._check_news_events_around_time('AAPL', current_time)
         
         # Should return False when no DAO is provided
         assert result is False
+    
+    @pytest.mark.asyncio
+    async def test_news_event_filtering_disabled_by_default(self, mock_config):
+        """Test that news event filtering is disabled by default (gin config)."""
+        with patch('ml.training_data.callbacks.training_data_callback.ray'):
+            # Don't mock gin config - let it use defaults
+            callback = IntervalBasedTrainingDataCallback(
+                symbols=['AAPL'],
+                config=mock_config,
+                output_dir='/tmp/test_training',
+                economic_events_dao=MagicMock()
+            )
+        
+        # Should use default configuration with enabled=False
+        assert callback.news_event_config['enabled'] is False
+        assert callback.news_event_config['time_window_hours'] == 24
+        assert callback.news_event_config['min_importance_level'] == 3
     
     @pytest.mark.asyncio
     async def test_check_news_events_time_window_filtering(self, callback_instance):
@@ -133,7 +163,7 @@ class TestNewsEventIntegration:
         callback_instance.economic_events_dao.get_economic_events_with_types.return_value = mock_events
         
         current_time = datetime(2025, 1, 15, 15, 0)
-        result = await callback_instance._check_news_events_around_time('AAPL', current_time, time_window_hours=24)
+        result = await callback_instance._check_news_events_around_time('AAPL', current_time)
         
         # Should find the recent event (within 24h window)
         assert result is True
@@ -241,6 +271,52 @@ class TestNewsEventIntegration:
         
         # Verify data was saved
         callback_instance._save_interval_examples.assert_called_once()
+    
+    @pytest.mark.asyncio
+    async def test_handleInterval_with_filtering_disabled(self, mock_config):
+        """Test handleInterval generates data for all intervals when news filtering is disabled."""
+        with patch('ml.training_data.callbacks.training_data_callback.ray'):
+            # Mock gin config to disable news event filtering
+            with patch('ml.training_data.callbacks.training_data_callback.get_news_event_filtering_config') as mock_gin_config:
+                mock_gin_config.return_value = {
+                    'enabled': False,  # Disabled
+                    'time_window_hours': 24,
+                    'min_importance_level': 3
+                }
+                callback = IntervalBasedTrainingDataCallback(
+                    symbols=['AAPL'],
+                    config=mock_config,
+                    output_dir='/tmp/test_training',
+                    economic_events_dao=MagicMock()
+                )
+        
+        # Mock training data generation
+        callback.minute_data_manager = MagicMock()
+        callback._generate_multi_timeframe_example = AsyncMock(return_value={
+            'symbol': 'AAPL',
+            'features': {'open': 100.0, 'close': 102.0},
+            'timestamp': '2025-01-15T15:00:00'
+        })
+        callback._save_interval_examples = AsyncMock()
+        callback._check_news_events_around_time = AsyncMock()  # Should not be called
+        
+        # Mock runner
+        runner = MagicMock()
+        current_time = datetime(2025, 1, 15, 15, 0)
+        
+        await callback.handleInterval(runner, current_time)
+        
+        # Verify news event check was NOT called
+        callback._check_news_events_around_time.assert_not_called()
+        
+        # Verify training data generation WAS called (filtering disabled)
+        callback._generate_multi_timeframe_example.assert_called_once_with(
+            symbol='AAPL',
+            current_time=current_time
+        )
+        
+        # Verify data was saved
+        callback._save_interval_examples.assert_called_once()
 
 
 if __name__ == '__main__':

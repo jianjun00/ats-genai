@@ -21,7 +21,7 @@ from core.dao.base.base_dao import BaseDAO
 from core.dao.market_data.daily_prices_dao import DailyPricesDAO
 from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
 from core.platform.logging.logger_config import get_logger
-from core.calendars.exchange_calendar import ExchangeCalendar
+from core.business.calendars.exchange_calendar import ExchangeCalendar
 
 # Reuse existing vendor configurations
 from vendor.polygon.config import POLYGON_API_KEY

@@ -4,7 +4,11 @@ Analytics core module for ATS-GenAI platform.
 Provides consolidated analytics functionality split from the monolithic service.
 """
 
-from .service.analytics_service import AnalyticsService
+try:
+    from services.analytics_service import AnalyticsService
+except ImportError:
+    AnalyticsService = None
+
 from .dashboard.template_engine import DashboardTemplateEngine
 
 __all__ = [

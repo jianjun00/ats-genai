@@ -10,7 +10,7 @@ from datetime import date, datetime, timedelta
 from pydantic import BaseModel
 
 from core.platform.config.environment import Environment
-from core.platform.config.database import get_connection_pool
+from core.config.database import get_connection_pool
 from core.dao.economic_events_dao import EconomicEventsDAO
 
 router = APIRouter(prefix="/economic-events", tags=["Economic Events"])

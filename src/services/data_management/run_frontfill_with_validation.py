@@ -13,7 +13,7 @@ from datetime import datetime, date, timedelta
 from typing import Dict
 
 from core.platform.config.environment import Environment, EnvironmentType
-from core.platform.config.database import get_connection_pool
+from core.config.database import get_connection_pool
 from frontfill.frontfill_orchestrator import FrontfillOrchestrator, run_frontfill_orchestrator
 from frontfill.validation_integration import ValidationIntegration, ValidationConfig
 
