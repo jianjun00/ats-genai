@@ -602,29 +602,32 @@ class DevCLI:
         print(f"🎯 Sampling {sample_size} rows from training dataset ID: {dataset_id}")
         
         # First get dataset information to find file paths
-        datasets_table = f"{self.table_prefix}training_dataset"
+        datasets_table = f"{self.table_prefix}training_datasets"
         query = f"""
         SELECT 
             id,
             dataset_name,
-            data_format,
             total_sequences,
             feature_count,
             label_count,
             symbols,
             date_range_start,
             date_range_end,
-            technical_indicators
+            technical_indicators,
+            file_metadata
         FROM {datasets_table} 
         WHERE id = {dataset_id}
         """
         
         # Execute query and capture result
         try:
-            result_process = subprocess.run(
-                f"docker exec -i ats-dev-postgres psql -h localhost -p 5432 -U postgres -d {self.db_name} -t -c \"{query}\"",
-                shell=True, capture_output=True, text=True, timeout=30
-            )
+            # Use the same database connection method as other commands
+            if self.db_password:
+                cmd = f'PGPASSWORD={self.db_password} psql -h {self.db_host} -p {self.db_port} -U {self.db_user} -d {self.db_name} -t -c "{query}"'
+            else:
+                cmd = f'psql -h {self.db_host} -p {self.db_port} -U {self.db_user} -d {self.db_name} -t -c "{query}"'
+            
+            result_process = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
             
             if result_process.returncode != 0:
                 print(f"❌ Database query failed: {result_process.stderr}")
@@ -642,14 +645,14 @@ class DevCLI:
                 return False
                 
             dataset_name = row_data[1]
-            data_format = row_data[2]
-            total_sequences = int(row_data[3]) if row_data[3].isdigit() else 0
-            feature_count = int(row_data[4]) if row_data[4].isdigit() else 0
-            label_count = int(row_data[5]) if row_data[5].isdigit() else 0
-            symbols = row_data[6]
-            date_range_start = row_data[7]
-            date_range_end = row_data[8]
-            technical_indicators = row_data[9]
+            total_sequences = int(row_data[2]) if row_data[2].isdigit() else 0
+            feature_count = int(row_data[3]) if row_data[3].isdigit() else 0
+            label_count = int(row_data[4]) if row_data[4].isdigit() else 0
+            symbols = row_data[5]
+            date_range_start = row_data[6]
+            date_range_end = row_data[7]
+            technical_indicators = row_data[8]
+            file_metadata = row_data[9] if len(row_data) > 9 else '{}'
             
             print(f"📋 Dataset: {dataset_name}")
             print(f"🔢 Total sequences: {total_sequences}")
@@ -664,7 +667,9 @@ class DevCLI:
                 sample_size = total_sequences
             
             # Try to find and sample actual data files
-            return self._sample_dataset_files(dataset_name, None, sample_size, data_format, 
+            # Use default data format for newer training datasets
+            data_format = "arrayrecord"  # Modern datasets use arrayrecord format
+            return self._sample_dataset_files(dataset_name, file_metadata, sample_size, data_format, 
                                            "", "")
                                            
         except subprocess.TimeoutExpired:
