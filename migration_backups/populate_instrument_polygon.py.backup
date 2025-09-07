@@ -3,9 +3,7 @@ import requests
 from dotenv import load_dotenv
 from datetime import datetime
 from shared.utils.environment import Environment, EnvironmentType
-from shared.utils.vendor_api_keys import get_polygon_api_key
-from shared.utils.database_connections import get_database_pool, get_table_name
-from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
+from vendor.polygon.utils import POLYGON_API_KEY
 import time
 from requests.exceptions import ConnectionError
 import ray
@@ -499,4 +497,44 @@ if __name__ == "__main__":
     # Bind Gin-configurable API key
     try:
         # Get API key from environment variable first, then fall back to Gin config
-        POLYGON_API_KEY = get_polygon_api_key()
+        POLYGON_API_KEY = os.environ.get("POLYGON_API_KEY") or env.get_api_key('polygon')
+        logger.info(f"POLYGON_API_KEY loaded: {POLYGON_API_KEY is not None}")
+        
+        if not POLYGON_API_KEY:
+            logger.warning("No Polygon API key found in environment or Gin config")
+    except Exception as e:
+        logger.error(f"Failed to set Polygon API key: {e}")
+        sys.exit(1)
+    
+    # Debugging output
+    if args.debug:
+        logger.debug("ENVIRONMENT VARIABLES:")
+        for k, v in os.environ.items():
+            if 'DATABASE' in k or 'GIN' in k or 'ENV' in k:
+                logger.debug(f"    {k}={v}")
+        logger.debug(f"env.env_type: {env.env_type}")
+        logger.debug(f"env.get_database_url(): {'*****' if env.get_database_url() else None}")
+        
+        db_config = env.get_database_config()
+        if db_config:
+            # Mask password for security
+            if 'password' in db_config:
+                db_config['password'] = '*****' if db_config['password'] else None
+            logger.debug(f"Database config: {db_config}")
+        
+        logger.debug(f"Gin config path: {gin_config_path}")
+        logger.debug(f"env.get_api_key('polygon'): {'*' * 5 + env.get_api_key('polygon')[-4:] if env.get_api_key('polygon') else 'None'}")
+        
+        # Print all Gin-configured parameters for debugging
+        logger.debug("Gin-configured parameters:")
+        for k in sorted(gin.operative_config_str().splitlines()):
+            logger.debug(k)
+    
+    import asyncio
+    try:
+        asyncio.run(fetch_and_store_instruments(start_ticker=args.start_ticker, ticker=args.ticker))
+    except Exception as e:
+        logger.error(f"Failed to run fetch_and_store_instruments: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        sys.exit(1)

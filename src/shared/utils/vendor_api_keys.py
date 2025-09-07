@@ -175,3 +175,7 @@ def get_eodhd_api_key(env=None, required: bool = True) -> Optional[str]:
 def get_tiingo_api_key(env=None, required: bool = True) -> Optional[str]:
     """Get Tiingo API key"""
     return get_vendor_api_key('tiingo', env=env, required=required)
+
+def get_alpha_vantage_api_key(env=None, required: bool = True) -> Optional[str]:
+    """Get Alpha Vantage API key"""
+    return get_vendor_api_key('alpha_vantage', env=env, required=required)

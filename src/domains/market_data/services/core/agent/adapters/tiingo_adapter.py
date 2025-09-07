@@ -3,22 +3,39 @@ import requests
 from typing import List, Optional
 from .base_adapter import VendorAdapter
 from .models import InstrumentMetadata, EODPrice
+from shared.utils.vendor_api_keys import get_tiingo_api_key
+from shared.utils.backfill_framework import VendorRateLimiters, BackfillStats
 
 class TiingoAdapter(VendorAdapter):
     vendor_name = "tiingo"
     BASE_URL = "https://api.tiingo.com/tiingo/daily/{ticker}/prices?startDate={start}&endDate={end}&token={api_key}"
 
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.getenv("TIINGO_API_KEY")
-        if not self.api_key:
-            raise Exception("Please set your TIINGO_API_KEY environment variable or pass api_key explicitly.")
+        # Use shared utilities for robust API key management
+        self.api_key = api_key or get_tiingo_api_key()
+        
+        # Initialize shared utilities for monitoring and rate limiting
+        self.stats = BackfillStats()
+        self.rate_limiter = VendorRateLimiters.tiingo()
 
     def fetch_instruments(self) -> List[InstrumentMetadata]:
         # Example: fetch instrument metadata from Tiingo supported tickers API
         url = f"https://api.tiingo.com/tiingo/supported-tickers?token={self.api_key}"
-        resp = requests.get(url)
-        resp.raise_for_status()
-        data = resp.json()
+        
+        # Use shared rate limiting
+        import asyncio
+        asyncio.run(self.rate_limiter.wait_if_needed())
+        
+        # Track API call statistics
+        self.stats.api_calls_made += 1
+        
+        try:
+            resp = requests.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as e:
+            self.stats.api_errors += 1
+            raise
         instruments = []
         for row in data:
             instruments.append(InstrumentMetadata(
@@ -32,25 +49,45 @@ class TiingoAdapter(VendorAdapter):
                 vendor=self.vendor_name,
                 extra=row
             ))
+            
+        # Track records fetched
+        self.stats.records_fetched += len(instruments)
         return instruments
 
     def fetch_eod(self, symbols: List[str], start_date, end_date) -> List[EODPrice]:
         eod_prices = []
         for ticker in symbols:
+            # Use shared rate limiting to prevent 429 errors
+            import asyncio
+            asyncio.run(self.rate_limiter.wait_if_needed())
+            
             url = self.BASE_URL.format(
                 ticker=ticker,
                 start=start_date,
                 end=end_date,
                 api_key=self.api_key
             )
-            resp = requests.get(url)
             
-            # Handle rate limiting (429 errors)
-            if resp.status_code == 429:
+            # Track API call statistics
+            self.stats.api_calls_made += 1
+            
+            try:
+                resp = requests.get(url)
+                
+                # Handle rate limiting with shared framework
+                if resp.status_code == 429:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Rate limited for {ticker} despite shared rate limiter")
+                    self.stats.api_errors += 1
+                    continue
+                    
+                resp.raise_for_status()
+            except Exception as e:
+                self.stats.api_errors += 1
                 import logging
                 logger = logging.getLogger(__name__)
-                logger.warning(f"Rate limited for {ticker}, skipping")
-                # Don't retry immediately, just skip this symbol
+                logger.error(f"Error fetching {ticker}: {e}")
                 continue
             
             # Log request/response for AAPL/TSLA in date range
@@ -99,6 +136,9 @@ class TiingoAdapter(VendorAdapter):
                     quality_score=None,
                     provenance={"tiingo_row": row}
                 ))
+                
+        # Track records fetched in EOD operation
+        self.stats.records_fetched += len(eod_prices) 
         return eod_prices
 
     def fetch_ticks(self, symbol: str, start_dt, end_dt):
@@ -106,3 +146,18 @@ class TiingoAdapter(VendorAdapter):
 
     def fetch_interval(self, symbol: str, interval: str, start_dt, end_dt):
         raise NotImplementedError("TiingoAdapter.fetch_interval is not implemented yet.")
+        
+    def get_statistics_summary(self) -> dict:
+        """Get comprehensive statistics summary using shared framework"""
+        return {
+            "vendor": self.vendor_name,
+            "api_calls_made": self.stats.api_calls_made,
+            "api_errors": self.stats.api_errors,
+            "records_fetched": self.stats.records_fetched,
+            "success_rate": self.stats.success_rate,
+            "rate_limiter_status": self.rate_limiter.get_status() if hasattr(self.rate_limiter, 'get_status') else "active"
+        }
+        
+    def log_final_summary(self, logger):
+        """Log comprehensive operation summary using shared framework"""
+        self.stats.log_final_summary(logger)

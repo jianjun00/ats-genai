@@ -3,7 +3,9 @@ import requests
 from dotenv import load_dotenv
 from datetime import datetime
 from shared.utils.environment import Environment, EnvironmentType
-from vendor.tiingo.utils import TIINGO_API_KEY
+from shared.utils.vendor_api_keys import get_tiingo_api_key
+from shared.utils.database_connections import get_database_pool, get_table_name
+from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
 import time
 from requests.exceptions import ConnectionError
 import json
@@ -30,16 +32,22 @@ def parse_date(val):
         return None
 
 async def fetch_and_store_instruments(start_ticker='', ticker=None):
-    from shared.utils.database import Database
+    # Initialize shared utilities
+    stats = BackfillStats()
+    rate_limiter = VendorRateLimiters.tiingo()  # Default Tiingo rate limits
     
-    # Use centralized database connection logic
+    # Use shared database connection utility
     try:
-        logger.info(f"Creating database connection pool using centralized logic")
-        pool = await Database.create_connection_pool(env=env, max_retries=3, initial_delay=1.0, timeout=10.0)
-        logger.info("Successfully connected to database")
+        logger.info(f"Creating database connection pool using shared utilities")
+        pool = await get_database_pool(environment='dev')
+        table_name = get_table_name('instruments', environment='dev')
+        logger.info(f"Connected to database, using table: {table_name}")
     except Exception as e:
         logger.error(f"Failed to connect to database: {e}")
         raise
+    
+    # Get API key using shared utility
+    TIINGO_API_KEY = get_tiingo_api_key()
     
     total = 0
     if ticker:
@@ -48,6 +56,10 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
         logger.info(f"Processing {len(tickers)} tickers: {tickers}")
         
         for symbol in tickers:
+            # Use rate limiting from shared framework
+            await rate_limiter.wait_if_needed()
+            stats.api_calls_made += 1
+            
             logger.info(f"Fetching ticker: {symbol}")
             detail_url = f"https://api.tiingo.com/tiingo/daily/{symbol}?token={TIINGO_API_KEY}"
             # Log URL with masked API key for security
@@ -82,9 +94,15 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
                     time.sleep(2 ** attempt)  # Exponential backoff
                 except Exception as e:
                     logger.error(f"Exception in fetch_and_store_instruments for {symbol}: {e}")
-            # Add a small delay between API calls to avoid rate limiting
-            time.sleep(0.5)
+                    stats.records_failed += 1
+                    
+        # Update final statistics
+        stats.records_fetched = total
         logger.info(f"Total tickers processed: {total}")
+        
+        # Log comprehensive statistics using shared framework
+        stats.log_final_summary(logger)
+        
         await pool.close()
         return
     
@@ -212,17 +230,8 @@ if __name__ == "__main__":
         logger.error(f"Failed to create Environment: {e}")
         sys.exit(1)
     
-    # Bind Gin-configurable API key
-    try:
-        # Get API key from environment variable first, then fall back to Gin config
-        TIINGO_API_KEY = os.environ.get("TIINGO_API_KEY") or env.get_api_key('tiingo')
-        logger.info(f"TIINGO_API_KEY loaded: {TIINGO_API_KEY is not None}")
-        
-        if not TIINGO_API_KEY:
-            logger.warning("No Tiingo API key found in environment or Gin config")
-    except Exception as e:
-        logger.error(f"Failed to set Tiingo API key: {e}")
-        sys.exit(1)
+    # API key is now handled by shared utilities - no manual setup needed
+    logger.info("API key management handled by shared utilities")
     
     # Debugging output
     if args.debug:

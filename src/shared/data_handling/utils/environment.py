@@ -29,7 +29,14 @@ class EnvironmentType(Enum):
     PRODUCTION = "prod"
 
 
-from domains.trading.services.indicator_config import IndicatorConfig
+# Conditional import for indicator config to avoid circular dependencies
+try:
+    from domains.trading.services.indicator_config import IndicatorConfig
+except ImportError:
+    # Create a minimal IndicatorConfig for when the full module isn't available
+    class IndicatorConfig:
+        """Minimal IndicatorConfig for compatibility"""
+        pass
 
 # Defensive import handling for LoggingConfig
 try:
@@ -154,8 +161,19 @@ class Environment:
         print(f"[GIN DEBUG] Using Gin config: {config_path}, env_type={getattr(self, 'env_type', None)}")
         self.gin_config_path = config_path
         # Import Database before parsing Gin config to register it as a configurable
-        from shared.utils.database import Database
-        from vendor.polygon.utils import set_polygon_api_key, POLYGON_API_KEY
+        # Try both old and new database import locations
+        try:
+            from shared.utils.database import Database
+        except ImportError:
+            from infrastructure.database.database import Database
+        # Conditional import for polygon utils to avoid missing module issues
+        try:
+            from vendor.polygon.utils import set_polygon_api_key, POLYGON_API_KEY
+        except ImportError:
+            # Create minimal compatibility functions
+            def set_polygon_api_key(key):
+                pass
+            POLYGON_API_KEY = None
 
         import gin
         if config_path and os.environ.get('GIN_LOAD_DEFAULT_CONFIG', '1') == '1':

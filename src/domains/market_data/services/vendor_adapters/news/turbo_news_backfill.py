@@ -15,18 +15,32 @@ import asyncpg
 from typing import List, Dict, Any
 import time
 import json
+import sys
+
+# Add src to Python path for shared utilities
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'src'))
+
+# Import shared utilities
+from shared.utils.vendor_api_keys import get_polygon_api_key
+from shared.utils.database_connections import get_database_pool, get_table_name
+from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class TurboPolygonNewsFetcher:
-    """High-performance Polygon News API fetcher with massive concurrency."""
+    """High-performance Polygon News API fetcher with massive concurrency and shared utilities."""
     
-    def __init__(self, api_key: str, max_concurrent: int = 50):
-        self.api_key = api_key
+    def __init__(self, api_key: str = None, max_concurrent: int = 50):
+        # Use shared utilities for robust API key management
+        self.api_key = api_key or get_polygon_api_key()
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.session = None
+        
+        # Initialize shared utilities for monitoring and rate limiting
+        self.stats = BackfillStats()
+        self.rate_limiter = VendorRateLimiters.polygon_free()  # Default to free tier
         
     async def __aenter__(self):
         connector = aiohttp.TCPConnector(limit=100, limit_per_host=50)
@@ -39,8 +53,11 @@ class TurboPolygonNewsFetcher:
             await self.session.close()
     
     async def fetch_news_for_symbol(self, symbol: str, published_gte: str = None, published_lte: str = None) -> List[Dict[str, Any]]:
-        """Fetch news for a symbol with exponential backoff retry."""
+        """Fetch news for a symbol using shared rate limiting and statistics."""
         async with self.semaphore:
+            # Use shared rate limiting to prevent 429 errors
+            await self.rate_limiter.wait_if_needed()
+            
             url = "https://api.polygon.io/v2/reference/news"
             params = {
                 'ticker': symbol,
@@ -52,8 +69,11 @@ class TurboPolygonNewsFetcher:
                 params['published_utc.gte'] = published_gte
             if published_lte:
                 params['published_utc.lte'] = published_lte
+                
+            # Track API call with shared statistics
+            self.stats.api_calls_made += 1
             
-            max_retries = 5
+            max_retries = 3  # Reduced since rate limiting is handled by shared utilities
             base_delay = 1.0
             
             for attempt in range(max_retries):
@@ -83,41 +103,65 @@ class TurboPolygonNewsFetcher:
                                         'data': item  # Store full original data
                                     }
                                     results.append(news_item)
+                                    
+                            # Track successful records fetched
+                            self.stats.records_fetched += len(results)
                             return results
                         elif response.status == 429:  # Rate limited
+                            self.stats.api_errors += 1
                             delay = base_delay * (2 ** attempt) + (0.1 * attempt)
-                            logger.warning(f"Polygon rate limit for {symbol}, attempt {attempt+1}/{max_retries}, retrying in {delay:.1f}s")
+                            logger.warning(f"Rate limit hit despite shared limiter for {symbol}, attempt {attempt+1}/{max_retries}, retrying in {delay:.1f}s")
                             await asyncio.sleep(delay)
                             continue
                         elif response.status >= 500:  # Server errors
+                            self.stats.api_errors += 1
                             delay = base_delay * (2 ** attempt)
-                            logger.warning(f"Polygon server error {response.status} for {symbol}, attempt {attempt+1}/{max_retries}, retrying in {delay:.1f}s")
+                            logger.warning(f"Server error {response.status} for {symbol}, attempt {attempt+1}/{max_retries}, retrying in {delay:.1f}s")
                             await asyncio.sleep(delay)
                             continue
                         else:
-                            logger.warning(f"Polygon News API error for {symbol}: HTTP {response.status}")
+                            self.stats.api_errors += 1
+                            logger.warning(f"API error for {symbol}: HTTP {response.status}")
                             return []
                             
                 except asyncio.TimeoutError:
+                    self.stats.api_errors += 1
                     delay = base_delay * (2 ** attempt)
-                    logger.warning(f"Polygon timeout for {symbol}, attempt {attempt+1}/{max_retries}, retrying in {delay:.1f}s")
+                    logger.warning(f"Timeout for {symbol}, attempt {attempt+1}/{max_retries}, retrying in {delay:.1f}s")
                     if attempt < max_retries - 1:
                         await asyncio.sleep(delay)
                         continue
                     else:
-                        logger.error(f"Polygon max retries exceeded for {symbol}")
+                        logger.error(f"Max retries exceeded for {symbol} (timeout)")
                         return []
                 except Exception as e:
+                    self.stats.api_errors += 1
                     delay = base_delay * (2 ** attempt)
-                    logger.warning(f"Polygon error for {symbol}: {e}, attempt {attempt+1}/{max_retries}, retrying in {delay:.1f}s")
+                    logger.warning(f"Error for {symbol}: {e}, attempt {attempt+1}/{max_retries}, retrying in {delay:.1f}s")
                     if attempt < max_retries - 1:
                         await asyncio.sleep(delay)
                         continue
                     else:
-                        logger.error(f"Polygon max retries exceeded for {symbol}: {e}")
+                        logger.error(f"Max retries exceeded for {symbol}: {e}")
                         return []
             
             return []
+    
+    def get_statistics_summary(self) -> dict:
+        """Get comprehensive statistics summary using shared framework"""
+        return {
+            "vendor": "polygon",
+            "api_calls_made": self.stats.api_calls_made,
+            "api_errors": self.stats.api_errors,
+            "records_fetched": self.stats.records_fetched,
+            "success_rate": self.stats.success_rate,
+            "rate_limiter_calls": getattr(self.rate_limiter, 'calls_made', 0)
+        }
+    
+    def log_final_summary(self, logger):
+        """Log comprehensive operation summary using shared framework"""
+        logger.info(f"🔢 Polygon News Backfill Statistics:")
+        self.stats.log_final_summary(logger)
 
 class TurboTiingoNewsFetcher:
     """High-performance Tiingo News API fetcher with massive concurrency."""
@@ -214,22 +258,15 @@ class TurboTiingoNewsFetcher:
 class TurboNewsDatabaseInserter:
     """High-performance database inserter for news data with connection pooling."""
     
-    def __init__(self, db_config: dict, pool_size: int = 20):
-        self.db_config = db_config
+    def __init__(self, environment: str = 'dev', pool_size: int = 20):
+        self.environment = environment
         self.pool_size = pool_size
         self.pool = None
+        self.stats = BackfillStats()
         
     async def __aenter__(self):
-        self.pool = await asyncpg.create_pool(
-            host=self.db_config['host'],
-            port=self.db_config['port'],
-            user=self.db_config['user'],
-            password=self.db_config['password'],
-            database=self.db_config['database'],
-            min_size=self.pool_size,
-            max_size=self.pool_size * 2,
-            server_settings={'jit': 'off'}
-        )
+        # Use shared utilities for robust database connection
+        self.pool = await get_database_pool(environment=self.environment)
         return self
         
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -264,8 +301,9 @@ class TurboNewsDatabaseInserter:
                     for item in data_batch
                 ]
                 
-                await conn.executemany("""
-                    INSERT INTO dev_news_polygon (
+                table_name = get_table_name('news_polygon', self.environment)
+                await conn.executemany(f"""
+                    INSERT INTO {table_name} (
                         polygon_id, title, description, author, published_utc,
                         article_url, image_url, publisher_name, publisher_homepage_url,
                         publisher_logo_url, publisher_favicon_url, keywords, tickers,
@@ -302,8 +340,9 @@ class TurboNewsDatabaseInserter:
                     for item in data_batch
                 ]
                 
-                await conn.executemany("""
-                    INSERT INTO dev_news_tiingo (
+                table_name_tiingo = get_table_name('news_tiingo', self.environment)
+                await conn.executemany(f"""
+                    INSERT INTO {table_name_tiingo} (
                         tiingo_id, title, description, published_date, crawl_date,
                         url, source, tags, tickers, data
                     )

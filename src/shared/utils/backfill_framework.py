@@ -283,3 +283,13 @@ class VendorRateLimiters:
     def eodhd() -> RateLimiter:
         """EOD Historical Data: Generous limits"""
         return RateLimiter(calls_per_second=10)
+    
+    @staticmethod
+    def tiingo() -> RateLimiter:
+        """Tiingo API rate limiter (alias for tiingo_free)"""
+        return VendorRateLimiters.tiingo_free()
+    
+    @staticmethod
+    def alpha_vantage() -> RateLimiter:
+        """Alpha Vantage API rate limiter (alias for alpha_vantage_free)"""
+        return VendorRateLimiters.alpha_vantage_free()
