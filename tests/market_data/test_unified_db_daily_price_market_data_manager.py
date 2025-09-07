@@ -31,13 +31,13 @@ async def test_unified_manager_returns_unified_price(unit_test_db):
     # Create instrument and xref
     symbol = "AAPL"
     instrument_id = await instruments_core.dao.create_instrument(symbol=symbol)
-    
+
     # Get or create vendor IDs for tiingo, polygon, and ticker
     vendors_dao = VendorsDAO(env)
     tiingo_vendor = await get_or_create_vendor(vendors_dao, "tiingo", "Tiingo data provider")
     polygon_vendor = await get_or_create_vendor(vendors_dao, "polygon", "Polygon data provider")
     ticker_vendor = await get_or_create_vendor(vendors_dao, "ticker", "Standard ticker symbols")
-    
+
     # Create xrefs with vendor_id and start_at
     from datetime import date
     today = date.today()

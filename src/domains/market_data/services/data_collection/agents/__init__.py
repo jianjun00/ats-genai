@@ -21,16 +21,16 @@ if is_enabled("enable_agent_networks"):
     from .agent_networks import (
         create_agent_network
     )
-    
+
     __all__ = [
         'AgentInteractionNetwork',
-        'StockAgent', 
+        'StockAgent',
         'GraphAttentionNetwork',
         'AgentConfig',
         'NetworkConfig',
         'create_agent_network'
     ]
-    
+
     if is_enabled("enable_portfolio_agents"):
         from .agent_networks import (
             create_portfolio_system
@@ -42,10 +42,10 @@ if is_enabled("enable_agent_networks"):
 
 else:
     __all__ = []
-    
+
     # Provide stubs when features are disabled
     def create_agent_network(*args, **kwargs):
         return None
-    
+
     def create_portfolio_system(*args, **kwargs):
         return None

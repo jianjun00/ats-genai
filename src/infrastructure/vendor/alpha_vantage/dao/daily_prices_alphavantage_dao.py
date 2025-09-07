@@ -87,8 +87,8 @@ class DailyPricesAlphaVantageDAO:
         try:
             async with pool.acquire() as conn:
                 row = await conn.fetchrow(f"""
-                    SELECT MAX(date) as latest_date 
-                    FROM {self.table_name} 
+                    SELECT MAX(date) as latest_date
+                    FROM {self.table_name}
                     WHERE instrument_id = $1
                 """, instrument_id)
                 return row['latest_date'] if row else None

@@ -25,10 +25,10 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
         # Very large prices
         large_prices = [1000000 + i * 10000 for i in range(20)]
         data = self.create_dataframe_from_prices(large_prices)
-        
+
         indicator = BXTrenderIndicator(period=14, variant='basic')
         result = indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'valid')
         self.assertIsNotNone(result['value'])
         self.assertGreaterEqual(result['value'], 0)
@@ -37,7 +37,7 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
         # Very small prices (micro pennies)
         small_prices = [0.0001 + i * 0.00001 for i in range(20)]
         data = self.create_dataframe_from_prices(small_prices)
-        
+
         result = indicator.calculate(data)
         self.assertEqual(result['status'], 'valid')
         self.assertIsNotNone(result['value'])
@@ -46,21 +46,21 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
         """Test handling of NaN and Inf values."""
         prices = [100 + i for i in range(20)]
         data = self.create_dataframe_from_prices(prices)
-        
+
         # Insert NaN values
         data.loc[5, 'close'] = np.nan
         data.loc[10, 'high'] = np.nan
-        
+
         indicator = BXTrenderIndicator(period=14, variant='basic')
         result = indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'invalid_data')
         self.assertIsNone(result['value'])
 
         # Test with Inf values
         data = self.create_dataframe_from_prices(prices)
         data.loc[5, 'close'] = np.inf
-        
+
         result = indicator.calculate(data)
         self.assertEqual(result['status'], 'invalid_data')
         self.assertIsNone(result['value'])
@@ -70,10 +70,10 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
         # Mixed positive and negative prices
         prices = [100 - i * 15 for i in range(20)]  # Goes negative after index 6
         data = self.create_dataframe_from_prices(prices)
-        
+
         indicator = BXTrenderIndicator(period=14, variant='basic')
         result = indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'invalid_data')
         self.assertIsNone(result['value'])
 
@@ -81,10 +81,10 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
         """Test handling of zero prices."""
         prices = [100] * 10 + [0] * 10  # Half zeros
         data = self.create_dataframe_from_prices(prices)
-        
+
         indicator = BXTrenderIndicator(period=14, variant='basic')
         result = indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'invalid_data')
         self.assertIsNone(result['value'])
 
@@ -93,11 +93,11 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
         prices = [100 + i for i in range(20)]
         data = self.create_dataframe_from_prices(prices)
         data.loc[5, 'volume'] = -1000  # Negative volume
-        
+
         # Volume weighted variant should handle this
         indicator = BXTrenderIndicator(period=14, variant='volume_weighted')
         result = indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'invalid_data')
         self.assertIsNone(result['value'])
 
@@ -106,11 +106,11 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
         prices = [100 + i for i in range(20)]
         data = self.create_dataframe_from_prices(prices)
         data['volume'] = 0  # All zero volume
-        
+
         # Volume weighted variant should handle this
         indicator = BXTrenderIndicator(period=14, variant='volume_weighted')
         result = indicator.calculate(data)
-        
+
         # Should still work with zero volume (might default to basic calculation)
         self.assertIn(result['status'], ['valid', 'invalid_data'])
 
@@ -122,10 +122,10 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
             'timestamp': [pd.Timestamp('2024-01-01') + pd.Timedelta(minutes=i) for i in range(20)]
         })
         # Missing open, high, low columns
-        
+
         indicator = BXTrenderIndicator(period=14, variant='directional')
         result = indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'invalid_data')
         self.assertIsNone(result['value'])
 
@@ -139,10 +139,10 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
             'timestamp': [pd.Timestamp('2024-01-01') + pd.Timedelta(minutes=i) for i in range(20)]
         })
         # Missing volume column
-        
+
         indicator = BXTrenderIndicator(period=14, variant='volume_weighted')
         result = indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'invalid_data')
         self.assertIsNone(result['value'])
 
@@ -159,12 +159,12 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
                 'volume': 10000,
                 'timestamp': pd.Timestamp('2024-01-01') + pd.Timedelta(minutes=i)
             })
-        
+
         data = pd.DataFrame(data)
-        
+
         indicator = BXTrenderIndicator(period=14, variant='directional')
         result = indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'invalid_data')
         self.assertIsNone(result['value'])
 
@@ -178,10 +178,10 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
             'volume': [10000],
             'timestamp': [pd.Timestamp('2024-01-01')]
         })
-        
+
         indicator = BXTrenderIndicator(period=14, variant='basic')
         result = indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'insufficient_data')
         self.assertIsNone(result['value'])
 
@@ -190,10 +190,10 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
         # Create data with exactly the required period
         prices = [100 + i * 0.5 for i in range(14)]  # Exactly 14 points for period=14
         data = self.create_dataframe_from_prices(prices)
-        
+
         indicator = BXTrenderIndicator(period=14, variant='basic')
         result = indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'valid')
         self.assertIsNotNone(result['value'])
 
@@ -201,7 +201,7 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
         """Test handling of duplicate timestamps."""
         data = []
         base_time = pd.Timestamp('2024-01-01')
-        
+
         for i in range(20):
             timestamp = base_time if i < 10 else base_time + pd.Timedelta(minutes=1)  # Duplicates
             data.append({
@@ -212,12 +212,12 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
                 'volume': 10000,
                 'timestamp': timestamp
             })
-        
+
         data = pd.DataFrame(data)
-        
+
         indicator = BXTrenderIndicator(period=14, variant='basic')
         result = indicator.calculate(data)
-        
+
         # Should handle duplicates gracefully or report invalid data
         self.assertIn(result['status'], ['valid', 'invalid_data'])
 
@@ -227,10 +227,10 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
         large_size = 10000
         prices = [100 + np.sin(i * 0.1) * 10 for i in range(large_size)]
         data = self.create_dataframe_from_prices(prices)
-        
+
         indicator = BXTrenderIndicator(period=50, variant='basic')
         result = indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'valid')
         self.assertIsNotNone(result['value'])
 
@@ -238,11 +238,11 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
         """Test handling of calculation exceptions."""
         prices = [100 + i for i in range(20)]
         data = self.create_dataframe_from_prices(prices)
-        
+
         # Mock to raise exception during calculation
         with patch('signals.enhanced_indicators.BXTrenderIndicator.calculate') as mock_calc:
             mock_calc.side_effect = Exception("Calculation error")
-            
+
             indicator = BXTrenderIndicator(period=14, variant='basic')
             try:
                 result = indicator.calculate(data)
@@ -258,11 +258,11 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
         basic = BXTrenderBasic(period=14)
         basic.update([])
         self.assertEqual(basic.status, 'insufficient_data')
-        
+
         # Test with invalid interval status
         intervals = self.create_mock_intervals([100] * 20)
         intervals[5].status = 'invalid'
-        
+
         basic.update(intervals)
         self.assertEqual(basic.status, 'invalid_data')
 
@@ -272,10 +272,10 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
         base_price = 100.0
         prices = [base_price + i * 1e-10 for i in range(20)]  # Tiny differences
         data = self.create_dataframe_from_prices(prices)
-        
+
         indicator = BXTrenderIndicator(period=14, variant='basic')
         result = indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'valid')
         # Value should be around 50 (no significant movement)
         self.assertGreater(result['value'], 45)
@@ -286,7 +286,7 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
         # Create data with mixed timestamp order
         prices = [100 + i for i in range(10)]
         data = []
-        
+
         for i, price in enumerate(prices):
             # Reverse every other timestamp
             timestamp_offset = -i if i % 2 == 0 else i
@@ -298,12 +298,12 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
                 'volume': 10000,
                 'timestamp': pd.Timestamp('2024-01-01') + pd.Timedelta(minutes=timestamp_offset)
             })
-        
+
         data = pd.DataFrame(data)
-        
+
         indicator = BXTrenderIndicator(period=8, variant='basic')
         result = indicator.calculate(data)
-        
+
         # Should handle or detect ordering issues
         self.assertIn(result['status'], ['valid', 'invalid_data'])
 
@@ -325,7 +325,7 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
         """Create mock InstrumentInterval objects."""
         intervals = []
         base_time = datetime(2024, 1, 1)
-        
+
         for i, close in enumerate(close_prices):
             interval = SimpleNamespace()
             interval.close = close
@@ -336,7 +336,7 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
             interval.start_date_time = base_time + timedelta(minutes=i)
             interval.status = 'ok'
             intervals.append(interval)
-        
+
         return intervals
 
 
@@ -348,15 +348,15 @@ class TestBXTrenderErrorRecovery(unittest.TestCase):
         # Create good data with some corrupted entries
         prices = [100 + i for i in range(50)]
         data = self.create_dataframe_from_prices(prices)
-        
+
         # Corrupt some entries
         data.loc[10, 'close'] = np.nan
         data.loc[15, 'volume'] = -1000
         data.loc[20, 'high'] = np.inf
-        
+
         indicator = BXTrenderIndicator(period=14, variant='basic')
         result = indicator.calculate(data)
-        
+
         # Should detect corruption
         self.assertEqual(result['status'], 'invalid_data')
 
@@ -371,9 +371,9 @@ class TestBXTrenderErrorRecovery(unittest.TestCase):
             'volume': ['10000'] * 20,
             'timestamp': [pd.Timestamp('2024-01-01') + pd.Timedelta(minutes=i) for i in range(20)]
         })
-        
+
         indicator = BXTrenderIndicator(period=14, variant='basic')
-        
+
         # Should either convert or report invalid data
         try:
             result = indicator.calculate(data)
@@ -386,13 +386,13 @@ class TestBXTrenderErrorRecovery(unittest.TestCase):
         """Test thread safety of calculations."""
         import threading
         import time
-        
+
         prices = [100 + i * 0.1 for i in range(100)]
         data = self.create_dataframe_from_prices(prices)
-        
+
         results = []
         errors = []
-        
+
         def calculate_indicator():
             try:
                 indicator = BXTrenderIndicator(period=14, variant='basic')
@@ -400,16 +400,16 @@ class TestBXTrenderErrorRecovery(unittest.TestCase):
                 results.append(result)
             except Exception as e:
                 errors.append(e)
-        
+
         # Run multiple calculations concurrently
         threads = [threading.Thread(target=calculate_indicator) for _ in range(10)]
-        
+
         for thread in threads:
             thread.start()
-        
+
         for thread in threads:
             thread.join()
-        
+
         # All calculations should succeed or fail consistently
         if results:
             first_result = results[0]

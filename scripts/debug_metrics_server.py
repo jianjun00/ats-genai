@@ -31,15 +31,15 @@ ats_test_metric 42
 async def main():
     app = web.Application()
     app.router.add_get('/test', simple_metrics_handler)
-    
+
     runner = web.AppRunner(app)
     await runner.setup()
-    
+
     site = web.TCPSite(runner, '0.0.0.0', 8081)
     await site.start()
-    
+
     print("Test server running on http://localhost:8081/test")
-    
+
     # Keep server running
     while True:
         await asyncio.sleep(1)

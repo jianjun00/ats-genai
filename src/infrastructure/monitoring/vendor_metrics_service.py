@@ -60,9 +60,9 @@ class VendorHealthSummary:
 
 class VendorMetricsService:
     """Service for tracking and reporting vendor API metrics."""
-    
+
     def __init__(self, db_host: str = "ats-intg-postgres", db_port: int = 5432,
-                 db_user: str = "postgres", db_password: str = "intg_password", 
+                 db_user: str = "postgres", db_password: str = "intg_password",
                  db_name: str = "intg_db"):
         self.db_config = {
             "host": db_host,
@@ -71,7 +71,7 @@ class VendorMetricsService:
             "password": db_password,
             "database": db_name
         }
-        
+
     @asynccontextmanager
     async def get_connection(self):
         """Get database connection."""
@@ -85,7 +85,7 @@ class VendorMetricsService:
         finally:
             if conn:
                 await conn.close()
-    
+
     async def track_api_call(self, metrics: ApiCallMetrics):
         """Track an individual API call."""
         try:
@@ -96,20 +96,20 @@ class VendorMetricsService:
                         response_size_bytes, error_message, symbols_requested,
                         symbols_count, rate_limit_remaining, rate_limit_reset
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-                """, 
+                """,
                     metrics.vendor, metrics.endpoint, metrics.method,
                     metrics.status_code, metrics.response_time_ms,
                     metrics.response_size_bytes, metrics.error_message,
-                    metrics.symbols_requested, 
+                    metrics.symbols_requested,
                     len(metrics.symbols_requested) if metrics.symbols_requested else 1,
                     metrics.rate_limit_remaining, metrics.rate_limit_reset
                 )
-                
+
                 logger.debug(f"Tracked API call: {metrics.vendor} {metrics.endpoint} -> {metrics.status_code}")
-                
+
         except Exception as e:
             logger.error(f"Failed to track API call: {e}")
-    
+
     async def track_minute_bar_collection(self, metrics: MinuteBarCollectionMetrics):
         """Track minute bar collection event."""
         try:
@@ -117,7 +117,7 @@ class VendorMetricsService:
                 await conn.execute("""
                     INSERT INTO intg_minute_bar_collection_metrics (
                         vendor, symbol, records_collected, collection_success,
-                        api_calls_made, total_response_time_ms, error_details, 
+                        api_calls_made, total_response_time_ms, error_details,
                         data_quality_score
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 """,
@@ -126,19 +126,19 @@ class VendorMetricsService:
                     metrics.total_response_time_ms, metrics.error_details,
                     metrics.data_quality_score
                 )
-                
+
                 logger.debug(f"Tracked collection: {metrics.vendor} {metrics.symbol} -> {metrics.records_collected} records")
-                
+
         except Exception as e:
             logger.error(f"Failed to track minute bar collection: {e}")
-    
-    async def get_vendor_health_summary(self, vendor: str = None, 
+
+    async def get_vendor_health_summary(self, vendor: str = None,
                                        hours: int = 24) -> List[VendorHealthSummary]:
         """Get vendor health summary for the specified period."""
         try:
             async with self.get_connection() as conn:
                 query = """
-                    SELECT 
+                    SELECT
                         vendor,
                         COUNT(*) as total_calls,
                         COUNT(*) FILTER (WHERE status_code BETWEEN 200 AND 299) as successful_calls,
@@ -150,17 +150,17 @@ class VendorMetricsService:
                         ) as success_rate,
                         COUNT(*) FILTER (WHERE status_code = 429) as rate_limit_hits,
                         MODE() WITHIN GROUP (ORDER BY error_message) as most_common_error
-                    FROM intg_api_calls 
+                    FROM intg_api_calls
                     WHERE request_timestamp >= NOW() - INTERVAL '%d hours'
                 """ % hours
-                
+
                 if vendor:
                     query += " AND vendor = $1 GROUP BY vendor"
                     rows = await conn.fetch(query, vendor)
                 else:
                     query += " GROUP BY vendor ORDER BY vendor"
                     rows = await conn.fetch(query)
-                
+
                 return [
                     VendorHealthSummary(
                         vendor=row['vendor'],
@@ -174,18 +174,18 @@ class VendorMetricsService:
                     )
                     for row in rows
                 ]
-                
+
         except Exception as e:
             logger.error(f"Failed to get vendor health summary: {e}")
             return []
-    
+
     async def get_minute_bar_collection_stats(self, hours: int = 24) -> Dict[str, Any]:
         """Get minute bar collection statistics."""
         try:
             async with self.get_connection() as conn:
                 # Collection stats by vendor
                 collection_stats = await conn.fetch("""
-                    SELECT 
+                    SELECT
                         vendor,
                         symbol,
                         COUNT(*) as collection_events,
@@ -198,10 +198,10 @@ class VendorMetricsService:
                     GROUP BY vendor, symbol
                     ORDER BY vendor, symbol
                 """ % hours)
-                
+
                 # Current live data freshness
                 live_data_stats = await conn.fetch("""
-                    SELECT 
+                    SELECT
                         'Tiingo' as vendor,
                         symbol,
                         COUNT(*) as current_records,
@@ -211,35 +211,35 @@ class VendorMetricsService:
                     WHERE timestamp >= NOW() - INTERVAL '24 hours'
                     GROUP BY symbol
                     UNION ALL
-                    SELECT 
+                    SELECT
                         'Polygon' as vendor,
                         symbol,
                         COUNT(*) as current_records,
                         MAX(timestamp) as latest_timestamp,
                         EXTRACT(EPOCH FROM (NOW() - MAX(timestamp)))/60 as minutes_since_last
-                    FROM intg_one_minute_live_polygon  
+                    FROM intg_one_minute_live_polygon
                     WHERE timestamp >= NOW() - INTERVAL '24 hours'
                     GROUP BY symbol
                     ORDER BY vendor, symbol
                 """)
-                
+
                 return {
                     "collection_stats": [dict(row) for row in collection_stats],
                     "live_data_stats": [dict(row) for row in live_data_stats],
                     "period_hours": hours,
                     "generated_at": datetime.now().isoformat()
                 }
-                
+
         except Exception as e:
             logger.error(f"Failed to get minute bar collection stats: {e}")
             return {"error": str(e)}
-    
+
     async def get_api_status_breakdown(self, hours: int = 24) -> Dict[str, Any]:
         """Get detailed API status code breakdown."""
         try:
             async with self.get_connection() as conn:
                 status_breakdown = await conn.fetch("""
-                    SELECT 
+                    SELECT
                         vendor,
                         status_code,
                         COUNT(*) as call_count,
@@ -250,10 +250,10 @@ class VendorMetricsService:
                     GROUP BY vendor, status_code
                     ORDER BY vendor, status_code
                 """ % hours)
-                
+
                 # Recent errors
                 recent_errors = await conn.fetch("""
-                    SELECT 
+                    SELECT
                         vendor,
                         endpoint,
                         status_code,
@@ -266,17 +266,17 @@ class VendorMetricsService:
                     ORDER BY request_timestamp DESC
                     LIMIT 20
                 """ % hours)
-                
+
                 return {
                     "status_breakdown": [dict(row) for row in status_breakdown],
                     "recent_errors": [dict(row) for row in recent_errors],
                     "period_hours": hours
                 }
-                
+
         except Exception as e:
             logger.error(f"Failed to get API status breakdown: {e}")
             return {"error": str(e)}
-    
+
     async def generate_prometheus_metrics(self) -> str:
         """Generate Prometheus metrics for vendor monitoring."""
         try:
@@ -294,62 +294,62 @@ class VendorMetricsService:
                 "# TYPE ats_minute_bar_collection_success_rate gauge",
                 ""
             ]
-            
+
             # Get recent metrics
             async with self.get_connection() as conn:
                 # API call metrics
                 api_metrics = await conn.fetch("""
                     SELECT vendor, status_code, COUNT(*) as count,
                            AVG(response_time_ms) as avg_response_time
-                    FROM intg_api_calls 
+                    FROM intg_api_calls
                     WHERE request_timestamp >= NOW() - INTERVAL '1 hour'
                     GROUP BY vendor, status_code
                 """)
-                
+
                 timestamp = int(datetime.now().timestamp())
-                
+
                 for row in api_metrics:
                     vendor = row['vendor']
                     status_code = row['status_code']
                     count = row['count']
                     avg_time = float(row['avg_response_time'] or 0) / 1000.0  # Convert to seconds
-                    
+
                     metrics_lines.append(
                         f'ats_vendor_api_calls_total{{vendor="{vendor}",status_code="{status_code}"}} {count} {timestamp}'
                     )
                     metrics_lines.append(
                         f'ats_vendor_api_response_time_seconds{{vendor="{vendor}"}} {avg_time:.3f} {timestamp}'
                     )
-                
+
                 # Collection metrics
                 collection_metrics = await conn.fetch("""
-                    SELECT vendor, symbol, 
+                    SELECT vendor, symbol,
                            SUM(records_collected) as total_records,
                            COUNT(*) FILTER (WHERE collection_success = true) * 100.0 / COUNT(*) as success_rate
                     FROM intg_minute_bar_collection_metrics
                     WHERE collection_timestamp >= NOW() - INTERVAL '1 hour'
                     GROUP BY vendor, symbol
                 """)
-                
+
                 for row in collection_metrics:
                     vendor = row['vendor']
                     symbol = row['symbol']
                     total_records = row['total_records'] or 0
                     success_rate = float(row['success_rate'] or 0) / 100.0
-                    
+
                     metrics_lines.append(
                         f'ats_minute_bar_records_collected_total{{vendor="{vendor}",symbol="{symbol}"}} {total_records} {timestamp}'
                     )
                     metrics_lines.append(
                         f'ats_minute_bar_collection_success_rate{{vendor="{vendor}",symbol="{symbol}"}} {success_rate:.4f} {timestamp}'
                     )
-            
+
             return '\n'.join(metrics_lines) + '\n'
-            
+
         except Exception as e:
             logger.error(f"Failed to generate Prometheus metrics: {e}")
             return f"# ERROR: {e}\n"
-    
+
     async def update_vendor_health_summary(self):
         """Update the vendor health summary table with current period data."""
         try:
@@ -361,7 +361,7 @@ class VendorMetricsService:
                         failed_calls, avg_response_time_ms, success_rate, rate_limit_hits,
                         most_common_error
                     )
-                    SELECT 
+                    SELECT
                         vendor,
                         date_trunc('hour', NOW() - INTERVAL '1 hour') as period_start,
                         date_trunc('hour', NOW()) as period_end,
@@ -386,9 +386,9 @@ class VendorMetricsService:
                         most_common_error = EXCLUDED.most_common_error,
                         updated_at = NOW()
                 """)
-                
+
                 logger.info("Updated vendor health summary")
-                
+
         except Exception as e:
             logger.error(f"Failed to update vendor health summary: {e}")
 
@@ -398,12 +398,12 @@ if __name__ == "__main__":
     async def test_metrics_service():
         """Test the metrics service."""
         service = VendorMetricsService()
-        
+
         # Test API call tracking
         api_metrics = ApiCallMetrics(
             vendor="tiingo",
             endpoint="/tiingo/daily/AAPL/prices",
-            method="GET", 
+            method="GET",
             status_code=200,
             response_time_ms=150,
             response_size_bytes=2048,
@@ -411,7 +411,7 @@ if __name__ == "__main__":
             rate_limit_remaining=999
         )
         await service.track_api_call(api_metrics)
-        
+
         # Test minute bar collection tracking
         collection_metrics = MinuteBarCollectionMetrics(
             vendor="tiingo",
@@ -423,15 +423,15 @@ if __name__ == "__main__":
             data_quality_score=0.95
         )
         await service.track_minute_bar_collection(collection_metrics)
-        
+
         # Get summaries
         health_summary = await service.get_vendor_health_summary()
         print("Vendor Health Summary:", health_summary)
-        
+
         collection_stats = await service.get_minute_bar_collection_stats()
         print("Collection Stats:", collection_stats)
-        
+
         prometheus_metrics = await service.generate_prometheus_metrics()
         print("Prometheus Metrics:", prometheus_metrics[:500])
-    
+
     asyncio.run(test_metrics_service())

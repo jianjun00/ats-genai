@@ -22,7 +22,7 @@ class ValidationResult:
     errors: List[str] = None
     warnings: List[str] = None
     config_details: Dict[str, Any] = None
-    
+
     def __post_init__(self):
         if self.errors is None:
             self.errors = []
@@ -35,25 +35,25 @@ class ConfigurationValidator:
     """
     Validates environment-specific configuration setup
     """
-    
+
     def __init__(self):
         self.loader = get_config_loader()
-    
+
     def validate_environment_detection(self) -> ValidationResult:
         """
         Validate that environment detection works correctly
-        
+
         Returns:
             ValidationResult with detection validation details
         """
         result = ValidationResult(is_valid=True)
-        
+
         try:
             # Test environment detection
             detected_env = self.loader.detect_environment()
             result.environment = detected_env
             result.config_details['detected_environment'] = detected_env.value
-            
+
             # Check detection indicators
             indicators = {
                 'ATS_ENVIRONMENT': os.getenv('ATS_ENVIRONMENT'),
@@ -62,13 +62,13 @@ class ConfigurationValidator:
                 'HOSTNAME': os.getenv('HOSTNAME')
             }
             result.config_details['detection_indicators'] = indicators
-            
+
             # Validate detection logic
             if not any(indicators.values()):
                 result.warnings.append(
                     "No explicit environment indicators found. Using default detection."
                 )
-            
+
             # Check if detected environment config exists
             try:
                 config_path = self.loader.get_config_path(detected_env)
@@ -77,71 +77,71 @@ class ConfigurationValidator:
             except FileNotFoundError as e:
                 result.errors.append(f"Configuration file missing: {e}")
                 result.is_valid = False
-                
+
         except Exception as e:
             result.errors.append(f"Environment detection failed: {e}")
             result.is_valid = False
-        
+
         return result
-    
+
     def validate_config_loading(self, env: Optional[Environment] = None) -> ValidationResult:
         """
         Validate that gin configuration can be loaded successfully
-        
+
         Args:
             env: Environment to validate (uses detected if None)
-            
+
         Returns:
             ValidationResult with loading validation details
         """
         result = ValidationResult(is_valid=True)
-        
+
         try:
             # Use detected environment if not specified
             if env is None:
                 env = self.loader.detect_environment()
-            
+
             result.environment = env
-            
+
             # Clear gin config for clean test
             gin.clear_config()
-            
+
             # Load configuration
             loaded_env = self.loader.load_environment_config(env, force_reload=True)
             result.config_details['loaded_environment'] = loaded_env.value
-            
+
             # Validate that config was actually loaded
             if loaded_env != env:
                 result.errors.append(
                     f"Environment mismatch: requested {env.value}, loaded {loaded_env.value}"
                 )
                 result.is_valid = False
-            
+
             # Get gin configuration details
             env_info = self.loader.get_environment_info()
             result.config_details.update(env_info)
-            
+
         except FileNotFoundError as e:
             result.errors.append(f"Configuration file not found: {e}")
             result.is_valid = False
         except Exception as e:
             result.errors.append(f"Configuration loading failed: {e}")
             result.is_valid = False
-        
+
         return result
-    
+
     def validate_config_parameters(self, env: Optional[Environment] = None) -> ValidationResult:
         """
         Validate that key configuration parameters are set correctly
-        
+
         Args:
             env: Environment to validate (uses current if None)
-            
+
         Returns:
             ValidationResult with parameter validation details
         """
         result = ValidationResult(is_valid=True)
-        
+
         try:
             # Ensure config is loaded
             if env:
@@ -149,12 +149,12 @@ class ConfigurationValidator:
                 result.environment = env
             else:
                 result.environment = self.loader.get_current_environment()
-            
+
             if not result.environment:
                 result.errors.append("No environment configuration loaded")
                 result.is_valid = False
                 return result
-            
+
             # Test key gin-configurable parameters
             test_parameters = [
                 ('database.connection.host', str),
@@ -164,7 +164,7 @@ class ConfigurationValidator:
                 ('symbols.default_universe', list),
                 ('thresholds.success_rate', float)
             ]
-            
+
             parameter_details = {}
             for param_name, expected_type in test_parameters:
                 try:
@@ -184,9 +184,9 @@ class ConfigurationValidator:
                         'status': 'validation_failed',
                         'error': str(e)
                     }
-            
+
             result.config_details['parameters'] = parameter_details
-            
+
             # Environment-specific validation
             env_value = result.environment.value
             if env_value == 'dev':
@@ -205,65 +205,65 @@ class ConfigurationValidator:
                 }
             else:
                 expected_characteristics = {}
-            
+
             result.config_details['environment_characteristics'] = expected_characteristics
-            
+
         except Exception as e:
             result.errors.append(f"Parameter validation failed: {e}")
             result.is_valid = False
-        
+
         return result
-    
+
     def validate_all_environments(self) -> Dict[str, ValidationResult]:
         """
         Validate configuration for all available environments
-        
+
         Returns:
             Dictionary mapping environment names to validation results
         """
         results = {}
-        
+
         for env in Environment:
             try:
                 # Test each environment's configuration
                 result = ValidationResult(is_valid=True, environment=env)
-                
+
                 # Check if config file exists
                 try:
                     config_path = self.loader.get_config_path(env)
                     result.config_details['config_file'] = str(config_path)
                     result.config_details['config_exists'] = True
-                    
+
                     # Try loading the configuration
                     load_result = self.validate_config_loading(env)
                     if not load_result.is_valid:
                         result.is_valid = False
                         result.errors.extend(load_result.errors)
-                    
+
                 except FileNotFoundError as e:
                     result.errors.append(f"Configuration file missing: {e}")
                     result.is_valid = False
-                
+
                 results[env.value] = result
-                
+
             except Exception as e:
                 results[env.value] = ValidationResult(
                     is_valid=False,
                     environment=env,
                     errors=[f"Validation failed: {e}"]
                 )
-        
+
         return results
-    
+
     def run_comprehensive_validation(self) -> ValidationResult:
         """
         Run comprehensive validation of the configuration system
-        
+
         Returns:
             ValidationResult with overall system validation
         """
         result = ValidationResult(is_valid=True)
-        
+
         # 1. Validate environment detection
         detection_result = self.validate_environment_detection()
         if not detection_result.is_valid:
@@ -271,14 +271,14 @@ class ConfigurationValidator:
             result.errors.extend(detection_result.errors)
         result.warnings.extend(detection_result.warnings)
         result.config_details['detection'] = detection_result.config_details
-        
+
         # 2. Validate configuration loading
         loading_result = self.validate_config_loading()
         if not loading_result.is_valid:
             result.is_valid = False
             result.errors.extend(loading_result.errors)
         result.config_details['loading'] = loading_result.config_details
-        
+
         # 3. Validate configuration parameters
         params_result = self.validate_config_parameters()
         if not params_result.is_valid:
@@ -286,7 +286,7 @@ class ConfigurationValidator:
             result.errors.extend(params_result.errors)
         result.warnings.extend(params_result.warnings)
         result.config_details['parameters'] = params_result.config_details
-        
+
         # 4. Validate all environments
         all_envs_results = self.validate_all_environments()
         result.config_details['all_environments'] = {
@@ -298,7 +298,7 @@ class ConfigurationValidator:
             }
             for env_name, env_result in all_envs_results.items()
         }
-        
+
         # Overall validation summary
         valid_envs = sum(1 for r in all_envs_results.values() if r.is_valid)
         total_envs = len(all_envs_results)
@@ -307,14 +307,14 @@ class ConfigurationValidator:
             'total_environments': total_envs,
             'validation_success_rate': valid_envs / total_envs if total_envs > 0 else 0
         }
-        
+
         return result
 
 # Convenience functions
 def validate_current_config() -> ValidationResult:
     """
     Validate the current configuration setup
-    
+
     Returns:
         ValidationResult for current configuration
     """
@@ -324,10 +324,10 @@ def validate_current_config() -> ValidationResult:
 def validate_environment(env: Environment) -> ValidationResult:
     """
     Validate configuration for a specific environment
-    
+
     Args:
         env: Environment to validate
-        
+
     Returns:
         ValidationResult for the environment
     """

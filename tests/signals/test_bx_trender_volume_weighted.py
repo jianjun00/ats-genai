@@ -28,13 +28,13 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
     def create_mock_intervals(self, price_volume_data):
         """
         Create mock InstrumentInterval objects for testing.
-        
+
         Args:
             price_volume_data: List of tuples (close, volume)
         """
         intervals = []
         base_time = datetime(2024, 1, 1)
-        
+
         for i, (close, volume) in enumerate(price_volume_data):
             interval = SimpleNamespace()
             interval.close = close
@@ -45,13 +45,13 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
             interval.start_date_time = base_time + timedelta(minutes=i)
             interval.status = 'ok'
             intervals.append(interval)
-        
+
         return intervals
 
     def generate_volume_weighted_data(self, periods, price_trend='up', volume_pattern='normal'):
         """
         Generate price and volume data with specific patterns.
-        
+
         Args:
             periods: Number of data points
             price_trend: 'up', 'down', or 'sideways'
@@ -60,7 +60,7 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
         data = []
         base_price = 100
         base_volume = 100000
-        
+
         for i in range(periods):
             # Generate price based on trend
             if price_trend == 'up':
@@ -72,7 +72,7 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
             else:  # sideways
                 price = base_price + np.random.uniform(-1, 1)
                 price_change = np.random.uniform(-0.3, 0.3)
-            
+
             # Generate volume based on pattern
             if volume_pattern == 'normal':
                 volume = base_volume + np.random.uniform(-20000, 20000)
@@ -90,10 +90,10 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
                     volume = base_volume * (0.7 + np.random.uniform(0, 0.3))
             else:  # decreasing
                 volume = base_volume * (1 - i * 0.03)
-            
+
             volume = max(volume, 1000)  # Ensure positive volume
             data.append((price, volume))
-        
+
         return data
 
     def test_initialization(self):
@@ -125,7 +125,7 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
         """Test behavior when volume data is missing."""
         data = self.generate_volume_weighted_data(20, 'up', 'normal')
         intervals = self.create_mock_intervals(data)
-        
+
         # Remove volume from one interval
         intervals[10].traded_volume = None
         self.indicator.update(intervals)
@@ -146,7 +146,7 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
         """Test behavior with invalid data."""
         data = self.generate_volume_weighted_data(20, 'up', 'normal')
         intervals = self.create_mock_intervals(data)
-        
+
         # Test with invalid status
         intervals[5].status = 'invalid'
         self.indicator.update(intervals)
@@ -163,14 +163,14 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
         """Test BX Trender with high volume on up moves."""
         data = self.generate_volume_weighted_data(20, 'up', 'high_on_up')
         intervals = self.create_mock_intervals(data)
-        
+
         self.indicator.update(intervals)
-        
+
         self.assertEqual(self.indicator.status, 'ok')
         bx_trender = self.indicator.get_value()
         bullish_ratio = self.indicator.get_bullish_volume_ratio()
         bearish_ratio = self.indicator.get_bearish_volume_ratio()
-        
+
         # Should be bullish due to high volume on up moves
         self.assertIsNotNone(bx_trender)
         self.assertGreater(bx_trender, 55)  # Should be above neutral
@@ -181,14 +181,14 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
         """Test BX Trender with high volume on down moves."""
         data = self.generate_volume_weighted_data(20, 'down', 'high_on_down')
         intervals = self.create_mock_intervals(data)
-        
+
         self.indicator.update(intervals)
-        
+
         self.assertEqual(self.indicator.status, 'ok')
         bx_trender = self.indicator.get_value()
         bullish_ratio = self.indicator.get_bullish_volume_ratio()
         bearish_ratio = self.indicator.get_bearish_volume_ratio()
-        
+
         # Should be bearish due to high volume on down moves
         self.assertIsNotNone(bx_trender)
         self.assertLess(bx_trender, 45)  # Should be below neutral
@@ -199,19 +199,19 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
         """Test BX Trender with balanced volume pattern."""
         data = self.generate_volume_weighted_data(20, 'sideways', 'normal')
         intervals = self.create_mock_intervals(data)
-        
+
         self.indicator.update(intervals)
-        
+
         self.assertEqual(self.indicator.status, 'ok')
         bx_trender = self.indicator.get_value()
         bullish_ratio = self.indicator.get_bullish_volume_ratio()
         bearish_ratio = self.indicator.get_bearish_volume_ratio()
-        
+
         # Should be near neutral
         self.assertIsNotNone(bx_trender)
         self.assertGreater(bx_trender, 40)
         self.assertLess(bx_trender, 60)
-        
+
         # Volume ratios should be relatively balanced
         ratio_diff = abs(bullish_ratio - bearish_ratio)
         self.assertLess(ratio_diff, 0.3)  # Not too imbalanced
@@ -225,10 +225,10 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
             price = base_price + np.random.uniform(-0.5, 0.5)
             volume = 50000 + i * 5000  # Increasing volume
             data.append((price, volume))
-        
+
         intervals = self.create_mock_intervals(data)
         self.indicator.update(intervals)
-        
+
         volume_momentum = self.indicator.get_volume_momentum()
         self.assertIsNotNone(volume_momentum)
         self.assertGreater(volume_momentum, 0)  # Should be positive for increasing volume
@@ -238,7 +238,7 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
         decreasing_intervals = self.create_mock_intervals(decreasing_data)
         decreasing_indicator = BXTrenderVolumeWeighted(period=14)
         decreasing_indicator.update(decreasing_intervals)
-        
+
         decreasing_momentum = decreasing_indicator.get_volume_momentum()
         self.assertIsNotNone(decreasing_momentum)
         self.assertLess(decreasing_momentum, 0)  # Should be negative for decreasing volume
@@ -248,14 +248,14 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
         # Create data with all zero price changes (no gains/losses)
         data = [(100, 100000) for _ in range(20)]  # Same price, same volume
         intervals = self.create_mock_intervals(data)
-        
+
         self.indicator.update(intervals)
-        
+
         self.assertEqual(self.indicator.status, 'ok')
         bx_trender = self.indicator.get_value()
         bullish_ratio = self.indicator.get_bullish_volume_ratio()
         bearish_ratio = self.indicator.get_bearish_volume_ratio()
-        
+
         # Should default to neutral values
         self.assertEqual(bx_trender, 50.0)
         self.assertEqual(bullish_ratio, 0.5)
@@ -269,25 +269,25 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
             price = 100 + i * 0.5  # Uptrend
             volume = 200000  # High volume
             high_volume_data.append((price, volume))
-        
+
         high_vol_intervals = self.create_mock_intervals(high_volume_data)
         high_vol_indicator = BXTrenderVolumeWeighted(period=14)
         high_vol_indicator.update(high_vol_intervals)
-        
+
         # Test low volume scenario
         low_volume_data = []
         for i in range(20):
             price = 100 + i * 0.5  # Same uptrend
             volume = 50000  # Low volume
             low_volume_data.append((price, volume))
-        
+
         low_vol_intervals = self.create_mock_intervals(low_volume_data)
         low_vol_indicator = BXTrenderVolumeWeighted(period=14)
         low_vol_indicator.update(low_vol_intervals)
-        
+
         high_strength = high_vol_indicator.trend_strength
         low_strength = low_vol_indicator.trend_strength
-        
+
         # High volume should generally give higher trend strength
         self.assertIsNotNone(high_strength)
         self.assertIsNotNone(low_strength)
@@ -297,22 +297,22 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
         """Test BX Trender Volume Weighted with different periods."""
         data = self.generate_volume_weighted_data(30, 'up', 'high_on_up')
         intervals = self.create_mock_intervals(data)
-        
+
         # Test period 7
         indicator_7 = BXTrenderVolumeWeighted(period=7)
         indicator_7.update(intervals)
-        
+
         # Test period 21
         indicator_21 = BXTrenderVolumeWeighted(period=21)
         indicator_21.update(intervals)
-        
+
         # Both should detect the bullish trend
         self.assertEqual(indicator_7.status, 'ok')
         self.assertEqual(indicator_21.status, 'ok')
-        
+
         bx_7 = indicator_7.get_value()
         bx_21 = indicator_21.get_value()
-        
+
         self.assertIsNotNone(bx_7)
         self.assertIsNotNone(bx_21)
         self.assertGreater(bx_7, 50)  # Bullish
@@ -322,19 +322,19 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
         """Test that volume ratios are properly calculated and sum to ~1."""
         data = self.generate_volume_weighted_data(20, 'up', 'normal')
         intervals = self.create_mock_intervals(data)
-        
+
         self.indicator.update(intervals)
-        
+
         bullish_ratio = self.indicator.get_bullish_volume_ratio()
         bearish_ratio = self.indicator.get_bearish_volume_ratio()
-        
+
         self.assertIsNotNone(bullish_ratio)
         self.assertIsNotNone(bearish_ratio)
-        
+
         # Ratios should be non-negative
         self.assertGreaterEqual(bullish_ratio, 0)
         self.assertGreaterEqual(bearish_ratio, 0)
-        
+
         # Ratios should sum to approximately 1 (allowing for neutral volume)
         total_ratio = bullish_ratio + bearish_ratio
         self.assertLessEqual(total_ratio, 1.1)  # Allow small margin for neutral volume
@@ -348,10 +348,10 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
         self.indicator.volume_momentum = 0.1
         self.indicator.trend_strength = 0.5
         self.indicator.trend_direction = 1
-        
+
         # Reset values
         self.indicator._reset_values()
-        
+
         # Check all values are None
         self.assertIsNone(self.indicator.latest_bx_trender)
         self.assertIsNone(self.indicator.bullish_volume_ratio)
@@ -365,7 +365,7 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
         data = self.generate_volume_weighted_data(20, 'up', 'high_on_up')
         intervals = self.create_mock_intervals(data)
         self.indicator.update(intervals)
-        
+
         # Test all getters return valid values
         self.assertIsNotNone(self.indicator.get_value())
         self.assertIsNotNone(self.indicator.get_bullish_volume_ratio())
@@ -376,12 +376,12 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
         """Test error handling during calculation."""
         data = self.generate_volume_weighted_data(20, 'up', 'normal')
         intervals = self.create_mock_intervals(data)
-        
+
         # Mock a calculation error
         original_update = self.indicator.__class__.update
         def error_update(self, intervals):
             raise ValueError("Test calculation error")
-        
+
         self.indicator.__class__.update = error_update
         try:
             self.indicator.update(intervals)
@@ -396,16 +396,16 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
         high_volume_data = [(100 + i * 0.1, 10000000) for i in range(20)]
         intervals = self.create_mock_intervals(high_volume_data)
         self.indicator.update(intervals)
-        
+
         self.assertEqual(self.indicator.status, 'ok')
         self.assertIsNotNone(self.indicator.get_value())
-        
+
         # Test with very low volumes (but not zero)
         low_volume_data = [(100 + i * 0.1, 10) for i in range(20)]
         low_vol_indicator = BXTrenderVolumeWeighted(period=14)
         low_intervals = self.create_mock_intervals(low_volume_data)
         low_vol_indicator.update(low_intervals)
-        
+
         self.assertEqual(low_vol_indicator.status, 'ok')
         self.assertIsNotNone(low_vol_indicator.get_value())
 
@@ -422,11 +422,11 @@ class TestBXTrenderVolumeWeightedEnhancedFramework(unittest.TestCase):
         np.random.seed(42)
         data = []
         base_price = 100
-        
+
         for i in range(periods):
             price_change = 0.5 + np.random.uniform(-0.3, 0.7)  # Slight upward bias
             price = base_price + i * 0.3 + np.random.uniform(-0.5, 0.5)
-            
+
             # Volume based on pattern
             if volume_pattern == 'high_on_up' and price_change > 0:
                 volume = 150000 + np.random.uniform(0, 50000)
@@ -434,7 +434,7 @@ class TestBXTrenderVolumeWeightedEnhancedFramework(unittest.TestCase):
                 volume = 150000 + np.random.uniform(0, 50000)
             else:
                 volume = 100000 + np.random.uniform(-20000, 20000)
-            
+
             data.append({
                 'open': price * 0.999,
                 'high': price * 1.002,
@@ -443,14 +443,14 @@ class TestBXTrenderVolumeWeightedEnhancedFramework(unittest.TestCase):
                 'volume': max(volume, 1000),
                 'timestamp': pd.Timestamp('2024-01-01') + pd.Timedelta(minutes=i)
             })
-        
+
         return pd.DataFrame(data)
 
     def test_enhanced_framework_calculation(self):
         """Test calculation through enhanced framework."""
         data = self.create_sample_data()
         result = self.indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'valid')
         self.assertIn('value', result)
         self.assertIn('bx_trender', result)
@@ -461,7 +461,7 @@ class TestBXTrenderVolumeWeightedEnhancedFramework(unittest.TestCase):
         self.assertIn('trend_strength', result)
         self.assertIn('trend_direction', result)
         self.assertIn('total_volume', result)
-        
+
         # Check that we detected some bullish bias due to high volume on up moves
         self.assertGreater(result['value'], 50)
         self.assertGreater(result['bullish_volume_ratio'], result['bearish_volume_ratio'])
@@ -471,7 +471,7 @@ class TestBXTrenderVolumeWeightedEnhancedFramework(unittest.TestCase):
         data = self.create_sample_data()
         data = data.drop('volume', axis=1)  # Remove volume column
         result = self.indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'no_volume_data')
         self.assertIsNone(result['value'])
 
@@ -479,20 +479,20 @@ class TestBXTrenderVolumeWeightedEnhancedFramework(unittest.TestCase):
         """Test enhanced framework with insufficient data."""
         data = self.create_sample_data(periods=5)  # Too little data
         result = self.indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'insufficient_data')
         self.assertIsNone(result['value'])
 
     def test_enhanced_framework_bearish_scenario(self):
         """Test bearish scenario through enhanced framework."""
         data = self.create_sample_data(volume_pattern='high_on_down')
-        
+
         # Make the price trend more bearish
         for i in range(len(data)):
             data.iloc[i, data.columns.get_loc('close')] = 100 - i * 0.5
-        
+
         result = self.indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'valid')
         # Due to the complex nature of volume weighting, we mainly check it calculates
         self.assertIsNotNone(result['value'])

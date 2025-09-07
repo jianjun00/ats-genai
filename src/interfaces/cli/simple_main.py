@@ -6,9 +6,9 @@ import gin
 # Gin configurable parameters
 @gin.configurable
 class ApiConfig:
-    def __init__(self, 
+    def __init__(self,
                  title: str = "ATS GenAI API",
-                 description: str = "Algorithmic Trading System with GenAI", 
+                 description: str = "Algorithmic Trading System with GenAI",
                  version: str = "1.0.0",
                  port: int = 8080,
                  host: str = "0.0.0.0"):
@@ -63,12 +63,12 @@ async def api_status() -> Dict[str, Any]:
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     # Load gin configuration if available
     gin_config = os.getenv("GIN_CONFIG", "config/hardcoded_values.gin")
     if os.path.exists(gin_config):
         gin.parse_config_file(gin_config)
         # Reinitialize config after gin parsing
         config = ApiConfig()
-    
+
     uvicorn.run(app, host=config.host, port=config.port)

@@ -51,49 +51,49 @@ class InfrastructureOptimization:
 
 class SecurityInfrastructureOptimizer:
     """Comprehensive security and infrastructure optimizer."""
-    
+
     def __init__(self):
         self.vulnerabilities: List[SecurityVulnerability] = []
         self.infrastructure_optimizations: List[InfrastructureOptimization] = []
         self.docker_compose_files: List[Path] = []
         self.api_keys_found: Set[str] = set()
-        
+
     def scan_security_vulnerabilities(self) -> Dict[str, any]:
         """Scan for security vulnerabilities across the platform."""
         print("🔍 Scanning ATS Platform for Security Vulnerabilities...")
-        
+
         # Find Docker Compose files
         self.docker_compose_files = list(Path('.').glob('docker-compose*.yml'))
         print(f"Found {len(self.docker_compose_files)} Docker Compose files")
-        
+
         # Scan for various vulnerability types
         self._scan_hardcoded_api_keys()
         self._scan_insecure_configurations()
         self._scan_exposed_credentials()
         self._scan_network_security_issues()
-        
+
         return self._generate_security_report()
-    
+
     def _scan_hardcoded_api_keys(self):
         """Scan for hardcoded API keys."""
         print("🔑 Scanning for hardcoded API keys...")
-        
+
         api_key_patterns = [
             (r'POLYGON_API_KEY.*?([A-Za-z0-9_]{20,})', 'Polygon API Key'),
-            (r'TIINGO_API_KEY.*?([A-Za-z0-9_]{20,})', 'Tiingo API Key'),  
+            (r'TIINGO_API_KEY.*?([A-Za-z0-9_]{20,})', 'Tiingo API Key'),
             (r'EODHD_API_KEY.*?([A-Za-z0-9_.]{15,})', 'EODHD API Key'),
             (r'FMP_API_KEY.*?([A-Za-z0-9]{20,})', 'FMP API Key'),
             (r'ALPHA_VANTAGE_API_KEY.*?([A-Za-z0-9]{10,})', 'Alpha Vantage API Key'),
             (r'OPENAI_API_KEY.*?(sk-[A-Za-z0-9]{20,})', 'OpenAI API Key'),
             (r'FIRSTRATE_USER_ID.*?([A-Za-z0-9\-_]{5,})', 'FirstRate User ID')
         ]
-        
+
         for file_path in self.docker_compose_files:
             try:
                 with open(file_path, 'r') as f:
                     content = f.read()
                     lines = content.splitlines()
-                    
+
                 for line_num, line in enumerate(lines, 1):
                     for pattern, key_type in api_key_patterns:
                         matches = re.findall(pattern, line)
@@ -109,16 +109,16 @@ class SecurityInfrastructureOptimizer:
                                         description=f"Hardcoded {key_type} found: {match[:8]}...",
                                         suggested_fix="Use environment variables without defaults"
                                     ))
-                                    
+
             except Exception as e:
                 print(f"⚠️  Error scanning {file_path}: {e}")
-    
+
     def _scan_insecure_configurations(self):
         """Scan for insecure Docker configurations."""
         print("🔒 Scanning for insecure configurations...")
-        
+
         insecure_patterns = [
-            (r'privileged:\s*true', 'Privileged container', 'HIGH', 
+            (r'privileged:\s*true', 'Privileged container', 'HIGH',
              'Container runs with privileged access', 'Use specific capabilities instead'),
             (r'security_opt:\s*-\s*seccomp:unconfined', 'Disabled seccomp', 'MEDIUM',
              'Security profiles disabled', 'Use default seccomp profile'),
@@ -127,13 +127,13 @@ class SecurityInfrastructureOptimizer:
             (r'ports:\s*-\s*"(\d+):\1"', 'Direct port mapping', 'MEDIUM',
              'Port directly exposed to host', 'Use reverse proxy or firewall'),
         ]
-        
+
         for file_path in self.docker_compose_files:
             try:
                 with open(file_path, 'r') as f:
                     content = f.read()
                     lines = content.splitlines()
-                    
+
                 for line_num, line in enumerate(lines, 1):
                     for pattern, vuln_type, severity, desc, fix in insecure_patterns:
                         if re.search(pattern, line):
@@ -145,26 +145,26 @@ class SecurityInfrastructureOptimizer:
                                 description=desc,
                                 suggested_fix=fix
                             ))
-                            
+
             except Exception as e:
                 print(f"⚠️  Error scanning {file_path}: {e}")
-    
+
     def _scan_exposed_credentials(self):
         """Scan for exposed database credentials."""
         print("🔐 Scanning for exposed credentials...")
-        
+
         credential_patterns = [
             (r'DB_PASSWORD.*?([A-Za-z0-9_]{5,})', 'Database Password'),
             (r'MINIO_SECRET_KEY.*?([A-Za-z0-9_]{5,})', 'MinIO Secret Key'),
             (r'password.*?([A-Za-z0-9_]{5,})', 'Generic Password')
         ]
-        
+
         for file_path in self.docker_compose_files:
             try:
                 with open(file_path, 'r') as f:
                     content = f.read()
                     lines = content.splitlines()
-                    
+
                 for line_num, line in enumerate(lines, 1):
                     for pattern, cred_type in credential_patterns:
                         matches = re.findall(pattern, line, re.IGNORECASE)
@@ -173,31 +173,31 @@ class SecurityInfrastructureOptimizer:
                                 file_path=str(file_path),
                                 line_number=line_num,
                                 vulnerability_type="Exposed Credential",
-                                severity="HIGH", 
+                                severity="HIGH",
                                 description=f"Hardcoded {cred_type} found",
                                 suggested_fix="Use Docker secrets or environment variables"
                             ))
-                            
+
             except Exception as e:
                 print(f"⚠️  Error scanning {file_path}: {e}")
-    
+
     def _scan_network_security_issues(self):
         """Scan for network security issues."""
         print("🌐 Scanning for network security issues...")
-        
+
         network_issues = [
             (r'network_mode:\s*host', 'Host network mode', 'MEDIUM',
              'Container uses host networking', 'Use custom Docker networks'),
             (r'external_links:', 'External links', 'LOW',
              'Using deprecated external links', 'Use networks instead'),
         ]
-        
+
         for file_path in self.docker_compose_files:
             try:
                 with open(file_path, 'r') as f:
                     content = f.read()
                     lines = content.splitlines()
-                    
+
                 for line_num, line in enumerate(lines, 1):
                     for pattern, issue_type, severity, desc, fix in network_issues:
                         if re.search(pattern, line):
@@ -209,10 +209,10 @@ class SecurityInfrastructureOptimizer:
                                 description=desc,
                                 suggested_fix=fix
                             ))
-                            
+
             except Exception as e:
                 print(f"⚠️  Error scanning {file_path}: {e}")
-    
+
     def _generate_security_report(self) -> Dict[str, any]:
         """Generate comprehensive security report."""
         vulnerabilities_by_severity = {
@@ -221,7 +221,7 @@ class SecurityInfrastructureOptimizer:
             'MEDIUM': [v for v in self.vulnerabilities if v.severity == 'MEDIUM'],
             'LOW': [v for v in self.vulnerabilities if v.severity == 'LOW']
         }
-        
+
         return {
             'summary': {
                 'total_vulnerabilities': len(self.vulnerabilities),
@@ -248,11 +248,11 @@ class SecurityInfrastructureOptimizer:
             'exposed_api_keys': list(self.api_keys_found),
             'recommendations': self._generate_security_recommendations()
         }
-    
+
     def _generate_security_recommendations(self) -> List[str]:
         """Generate security recommendations."""
         recommendations = []
-        
+
         if any(v.vulnerability_type == "Hardcoded API Key" for v in self.vulnerabilities):
             recommendations.append(
                 "🚨 CRITICAL: Remove all hardcoded API keys from Docker Compose files"
@@ -260,48 +260,48 @@ class SecurityInfrastructureOptimizer:
             recommendations.append(
                 "🔐 Use .env files or Docker secrets for sensitive credentials"
             )
-        
+
         if any(v.vulnerability_type == "Privileged container" for v in self.vulnerabilities):
             recommendations.append(
                 "⚠️  Remove privileged: true from containers - use specific capabilities"
             )
-        
+
         if any(v.vulnerability_type == "Exposed Credential" for v in self.vulnerabilities):
             recommendations.append(
                 "🔒 Move database passwords to environment variables or secrets"
             )
-        
+
         recommendations.extend([
             "📝 Create .env.example with placeholder values",
             "🔍 Add pre-commit hooks to scan for credentials",
             "🛡️  Implement secret scanning in CI/CD pipeline",
             "📋 Regular security audits and penetration testing"
         ])
-        
+
         return recommendations
-    
+
     def scan_infrastructure_optimizations(self) -> Dict[str, any]:
         """Scan for infrastructure optimization opportunities."""
         print("⚙️  Scanning for infrastructure optimization opportunities...")
-        
+
         self._analyze_docker_compose_efficiency()
         self._analyze_resource_allocation()
         self._analyze_networking_configuration()
         self._analyze_storage_optimization()
-        
+
         return self._generate_infrastructure_report()
-    
+
     def _analyze_docker_compose_efficiency(self):
         """Analyze Docker Compose configuration efficiency."""
         for file_path in self.docker_compose_files:
             try:
                 with open(file_path, 'r') as f:
                     compose_data = yaml.safe_load(f)
-                    
+
                 # Check for duplicate configurations
                 services = compose_data.get('services', {})
                 common_env_vars = self._find_common_environment_variables(services)
-                
+
                 if len(common_env_vars) > 3:
                     self.infrastructure_optimizations.append(InfrastructureOptimization(
                         component=f"Docker Compose ({file_path})",
@@ -310,13 +310,13 @@ class SecurityInfrastructureOptimizer:
                         benefit="Reduced configuration duplication",
                         impact="Easier maintenance, fewer errors"
                     ))
-                    
+
                 # Check for missing health checks
                 services_without_healthcheck = [
-                    name for name, config in services.items() 
+                    name for name, config in services.items()
                     if 'healthcheck' not in config and 'image' in config
                 ]
-                
+
                 if services_without_healthcheck:
                     self.infrastructure_optimizations.append(InfrastructureOptimization(
                         component="Health Checks",
@@ -325,41 +325,41 @@ class SecurityInfrastructureOptimizer:
                         benefit="Better service monitoring and reliability",
                         impact="Improved deployment reliability"
                     ))
-                    
+
             except Exception as e:
                 print(f"⚠️  Error analyzing {file_path}: {e}")
-    
+
     def _find_common_environment_variables(self, services: Dict) -> List[str]:
         """Find environment variables common across services."""
         env_var_counts = {}
-        
+
         for service_config in services.values():
             env_vars = service_config.get('environment', [])
             if isinstance(env_vars, dict):
                 env_vars = [f"{k}={v}" for k, v in env_vars.items()]
-            
+
             for env_var in env_vars:
                 key = env_var.split('=')[0] if '=' in env_var else env_var
                 env_var_counts[key] = env_var_counts.get(key, 0) + 1
-        
+
         # Return variables that appear in multiple services
         return [key for key, count in env_var_counts.items() if count > 1]
-    
+
     def _analyze_resource_allocation(self):
         """Analyze resource allocation efficiency."""
         for file_path in self.docker_compose_files:
             try:
                 with open(file_path, 'r') as f:
                     compose_data = yaml.safe_load(f)
-                    
+
                 services = compose_data.get('services', {})
                 services_without_limits = []
-                
+
                 for service_name, service_config in services.items():
                     deploy_config = service_config.get('deploy', {})
                     if 'resources' not in deploy_config:
                         services_without_limits.append(service_name)
-                
+
                 if services_without_limits:
                     self.infrastructure_optimizations.append(InfrastructureOptimization(
                         component="Resource Limits",
@@ -368,28 +368,28 @@ class SecurityInfrastructureOptimizer:
                         benefit="Better resource management and system stability",
                         impact="Prevents resource exhaustion"
                     ))
-                    
+
             except Exception as e:
                 print(f"⚠️  Error analyzing {file_path}: {e}")
-    
+
     def _analyze_networking_configuration(self):
         """Analyze networking configuration."""
         network_configs = {}
-        
+
         for file_path in self.docker_compose_files:
             try:
                 with open(file_path, 'r') as f:
                     compose_data = yaml.safe_load(f)
-                    
+
                 networks = compose_data.get('networks', {})
                 services = compose_data.get('services', {})
-                
+
                 # Check for services using default network
                 services_on_default = []
                 for service_name, service_config in services.items():
                     if 'networks' not in service_config and len(networks) > 0:
                         services_on_default.append(service_name)
-                
+
                 if services_on_default and networks:
                     self.infrastructure_optimizations.append(InfrastructureOptimization(
                         component="Network Configuration",
@@ -398,19 +398,19 @@ class SecurityInfrastructureOptimizer:
                         benefit="Better network isolation and security",
                         impact="Improved service isolation"
                     ))
-                    
+
             except Exception as e:
                 print(f"⚠️  Error analyzing {file_path}: {e}")
-    
+
     def _analyze_storage_optimization(self):
         """Analyze storage optimization opportunities."""
         for file_path in self.docker_compose_files:
             try:
                 with open(file_path, 'r') as f:
                     compose_data = yaml.safe_load(f)
-                    
+
                 services = compose_data.get('services', {})
-                
+
                 # Check for bind mounts that could use volumes
                 bind_mount_services = []
                 for service_name, service_config in services.items():
@@ -421,19 +421,19 @@ class SecurityInfrastructureOptimizer:
                         elif isinstance(volume, str) and volume.startswith('./'):
                             bind_mount_services.append(service_name)
                             break
-                
+
                 if bind_mount_services:
                     self.infrastructure_optimizations.append(InfrastructureOptimization(
                         component="Storage",
                         current_config=f"{len(bind_mount_services)} services using bind mounts",
                         optimized_config="Consider using named volumes for data persistence",
-                        benefit="Better portability and backup capabilities", 
+                        benefit="Better portability and backup capabilities",
                         impact="Improved data management"
                     ))
-                    
+
             except Exception as e:
                 print(f"⚠️  Error analyzing {file_path}: {e}")
-    
+
     def _generate_infrastructure_report(self) -> Dict[str, any]:
         """Generate infrastructure optimization report."""
         return {
@@ -453,7 +453,7 @@ class SecurityInfrastructureOptimizer:
             ],
             'recommendations': self._generate_infrastructure_recommendations()
         }
-    
+
     def _generate_infrastructure_recommendations(self) -> List[str]:
         """Generate infrastructure recommendations."""
         return [
@@ -466,18 +466,18 @@ class SecurityInfrastructureOptimizer:
             "⚡ Optimize container startup order with depends_on",
             "📝 Document all environment variables and their purposes"
         ]
-    
+
     def fix_security_vulnerabilities(self):
         """Fix identified security vulnerabilities."""
         print("🔧 Fixing security vulnerabilities...")
-        
+
         self._create_env_template()
         self._fix_hardcoded_credentials()
         self._add_security_headers()
         self._create_security_documentation()
-        
+
         print("✅ Security fixes applied")
-    
+
     def _create_env_template(self):
         """Create .env template file with secure defaults."""
         env_template_content = """# ATS Platform Environment Configuration Template
@@ -530,17 +530,17 @@ ATS_LOGS_PATH=/mnt/d/ats-logs
 # 5. Alpha Vantage: https://www.alphavantage.co/support/#api-key (Free tier: 25 calls/day)
 # ============================================================================
 """
-        
+
         Path('.env.template').write_text(env_template_content)
         print("📝 Created .env.template with secure configuration")
-    
+
     def _fix_hardcoded_credentials(self):
         """Fix hardcoded credentials in Docker Compose files."""
         for file_path in self.docker_compose_files:
             try:
                 with open(file_path, 'r') as f:
                     content = f.read()
-                
+
                 # Replace hardcoded API keys with environment variable references
                 api_key_replacements = {
                     r'POLYGON_API_KEY=\$\{POLYGON_API_KEY:-[^}]+\}': 'POLYGON_API_KEY=${POLYGON_API_KEY}',
@@ -549,23 +549,23 @@ ATS_LOGS_PATH=/mnt/d/ats-logs
                     r'FMP_API_KEY=\$\{FMP_API_KEY:-[^}]+\}': 'FMP_API_KEY=${FMP_API_KEY}',
                     r'ALPHA_VANTAGE_API_KEY=\$\{ALPHA_VANTAGE_API_KEY:-[^}]+\}': 'ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}',
                 }
-                
+
                 original_content = content
                 for pattern, replacement in api_key_replacements.items():
                     content = re.sub(pattern, replacement, content)
-                
+
                 if content != original_content:
                     # Create backup
                     backup_path = f"{file_path}.security_backup"
                     Path(backup_path).write_text(original_content)
-                    
+
                     # Write fixed content
                     Path(file_path).write_text(content)
                     print(f"🔒 Fixed hardcoded credentials in {file_path}")
-                    
+
             except Exception as e:
                 print(f"⚠️  Error fixing {file_path}: {e}")
-    
+
     def _add_security_headers(self):
         """Add security configuration suggestions."""
         security_config = """# Security Configuration for ATS Platform
@@ -619,10 +619,10 @@ deploy:
       memory: 256M
 ```
 """
-        
+
         Path('SECURITY_CONFIGURATION.md').write_text(security_config)
         print("📋 Created security configuration guide")
-    
+
     def _create_security_documentation(self):
         """Create security documentation."""
         security_docs = """# ATS Platform Security Guide
@@ -671,7 +671,7 @@ If you discover a security vulnerability:
 3. Coordinate disclosure responsibly
 4. Update all affected deployments immediately
 """
-        
+
         Path('SECURITY_GUIDE.md').write_text(security_docs)
         print("📚 Created comprehensive security guide")
 
@@ -683,19 +683,19 @@ def main():
     parser.add_argument('--infrastructure', action='store_true', help='Analyze infrastructure optimizations')
     parser.add_argument('--fix-security', action='store_true', help='Fix security vulnerabilities')
     parser.add_argument('--report', default='security_report.json', help='Output report file')
-    
+
     args = parser.parse_args()
-    
+
     optimizer = SecurityInfrastructureOptimizer()
-    
+
     if args.scan or not any([args.infrastructure, args.fix_security]):
         # Security scan
         security_report = optimizer.scan_security_vulnerabilities()
-        
+
         print("\n" + "="*80)
         print("🚨 ATS PLATFORM SECURITY VULNERABILITY REPORT")
         print("="*80)
-        
+
         summary = security_report['summary']
         print(f"\n📊 VULNERABILITY SUMMARY:")
         print(f"  Total vulnerabilities: {summary['total_vulnerabilities']}")
@@ -704,43 +704,43 @@ def main():
         print(f"  Medium: {summary['medium']}")
         print(f"  Low: {summary['low']}")
         print(f"  API keys found: {summary['api_keys_found']}")
-        
+
         # Show critical vulnerabilities
         critical_vulns = security_report['vulnerabilities_by_severity']['CRITICAL']
         if critical_vulns:
             print(f"\n🚨 CRITICAL VULNERABILITIES ({len(critical_vulns)}):")
             for vuln in critical_vulns[:5]:  # Show first 5
                 print(f"  ❌ {vuln['file']}:{vuln['line']} - {vuln['description']}")
-        
+
         # Show recommendations
         print(f"\n💡 SECURITY RECOMMENDATIONS:")
         for rec in security_report['recommendations']:
             print(f"  {rec}")
-        
+
         # Save full report
         with open(args.report, 'w') as f:
             json.dump(security_report, f, indent=2)
         print(f"\n✅ Full security report saved: {args.report}")
-    
+
     if args.infrastructure:
         # Infrastructure analysis
         infra_report = optimizer.scan_infrastructure_optimizations()
-        
+
         print(f"\n⚙️  INFRASTRUCTURE OPTIMIZATION OPPORTUNITIES:")
         print(f"  Total optimizations: {infra_report['summary']['total_optimizations']}")
-        
+
         for opt in infra_report['optimizations'][:5]:  # Show first 5
             print(f"\n  🔧 {opt['component']}:")
             print(f"     Current: {opt['current']}")
             print(f"     Optimized: {opt['optimized']}")
             print(f"     Benefit: {opt['benefit']}")
-    
+
     if args.fix_security:
         # Apply security fixes
         optimizer.fix_security_vulnerabilities()
         print(f"\n🔒 Security fixes applied!")
         print(f"📝 Review .env.template and SECURITY_GUIDE.md for next steps")
-    
+
     print(f"\n🚀 Security and infrastructure analysis complete!")
 
 

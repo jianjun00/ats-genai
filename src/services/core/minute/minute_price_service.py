@@ -38,7 +38,7 @@ class MinuteServiceConfig:
     host: str = "0.0.0.0"
     port: int = 8081
     default_symbols: List[str] = None
-    
+
     def __post_init__(self):
         if self.default_symbols is None:
             self.default_symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA']
@@ -60,18 +60,18 @@ class MinutePrice:
 
 class MinutePriceDAO(BaseDAO):
     """DAO for minute-level price data using existing patterns"""
-    
+
     def __init__(self, vendor: str, env: Environment):
         table_name = f"minute_prices_{vendor}"
         super().__init__(table_name)
         self.env = env
         self.vendor = vendor
         self.logger = get_logger(f"{__name__}.{vendor}")
-    
+
     async def create_table_if_not_exists(self):
         """Create minute price table using existing DAO patterns"""
         full_table_name = self.env.get_table_name(self.table_name)
-        
+
         create_sql = f"""
         CREATE TABLE IF NOT EXISTS {full_table_name} (
             id BIGSERIAL PRIMARY KEY,
@@ -79,7 +79,7 @@ class MinutePriceDAO(BaseDAO):
             symbol VARCHAR(10) NOT NULL,
             timestamp TIMESTAMPTZ NOT NULL,
             open_price DECIMAL(20,6) NOT NULL,
-            high_price DECIMAL(20,6) NOT NULL, 
+            high_price DECIMAL(20,6) NOT NULL,
             low_price DECIMAL(20,6) NOT NULL,
             close_price DECIMAL(20,6) NOT NULL,
             volume BIGINT NOT NULL DEFAULT 0,
@@ -87,27 +87,27 @@ class MinutePriceDAO(BaseDAO):
             collected_at TIMESTAMPTZ DEFAULT NOW(),
             UNIQUE(instrument_id, timestamp)
         );
-        
-        CREATE INDEX IF NOT EXISTS idx_{self.vendor}_symbol_timestamp 
+
+        CREATE INDEX IF NOT EXISTS idx_{self.vendor}_symbol_timestamp
             ON {full_table_name}(symbol, timestamp DESC);
-        CREATE INDEX IF NOT EXISTS idx_{self.vendor}_timestamp 
+        CREATE INDEX IF NOT EXISTS idx_{self.vendor}_timestamp
             ON {full_table_name}(timestamp DESC);
         """
-        
+
         await self.execute_raw_sql(create_sql)
         self.logger.info(f"Table {full_table_name} ready")
-    
+
     async def insert_minute_prices(self, prices: List[MinutePrice]) -> int:
         """Insert minute prices using existing DAO patterns"""
         if not prices:
             return 0
-        
+
         full_table_name = self.env.get_table_name(self.table_name)
-        
+
         # Use existing instrument resolution
         from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
         instrument_dao = InstrumentXrefsDAO(self.env)
-        
+
         inserted_count = 0
         for price in prices:
             try:
@@ -116,10 +116,10 @@ class MinutePriceDAO(BaseDAO):
                 if not instrument_id:
                     self.logger.warning(f"No instrument found for symbol {price.symbol}")
                     continue
-                
+
                 insert_sql = f"""
                 INSERT INTO {full_table_name}
-                (instrument_id, symbol, timestamp, open_price, high_price, low_price, 
+                (instrument_id, symbol, timestamp, open_price, high_price, low_price,
                  close_price, volume, quality_score)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                 ON CONFLICT (instrument_id, timestamp) DO UPDATE SET
@@ -131,53 +131,53 @@ class MinutePriceDAO(BaseDAO):
                     quality_score = EXCLUDED.quality_score,
                     collected_at = EXCLUDED.collected_at
                 """
-                
+
                 await self.execute_raw_sql(
                     insert_sql,
                     instrument_id, price.symbol, price.timestamp,
-                    price.open_price, price.high_price, price.low_price, 
+                    price.open_price, price.high_price, price.low_price,
                     price.close_price, price.volume, price.quality_score
                 )
                 inserted_count += 1
-                
+
             except Exception as e:
                 self.logger.error(f"Error inserting price for {price.symbol}: {e}")
-        
+
         return inserted_count
 
 class VendorCollector:
     """Base class for vendor data collection - extends existing patterns"""
-    
+
     def __init__(self, vendor: str, env: Environment):
         self.vendor = vendor
         self.env = env
         self.dao = MinutePriceDAO(vendor, env)
         self.logger = get_logger(f"{__name__}.{vendor}")
-        
+
     async def initialize(self):
         """Initialize collector and create tables"""
         await self.dao.create_table_if_not_exists()
-    
+
     async def collect_minute_data(self, symbols: List[str]) -> List[MinutePrice]:
         """Abstract method for data collection"""
         raise NotImplementedError
 
 class PolygonMinuteCollector(VendorCollector):
     """Polygon minute data collector - reuses existing API patterns"""
-    
+
     def __init__(self, env: Environment):
         super().__init__('polygon', env)
         from vendor.polygon.config import POLYGON_API_KEY
         self.api_key = POLYGON_API_KEY
-    
+
     async def collect_minute_data(self, symbols: List[str]) -> List[MinutePrice]:
         """Collect minute data using existing Polygon patterns"""
         prices = []
-        
+
         if not self.api_key:
             self.logger.warning("Polygon API key not configured")
             return prices
-        
+
         import aiohttp
         async with aiohttp.ClientSession() as session:
             for symbol in symbols:
@@ -191,7 +191,7 @@ class PolygonMinuteCollector(VendorCollector):
                         'sort': 'desc',
                         'limit': 60  # Last 60 minutes
                     }
-                    
+
                     async with session.get(url, params=params, timeout=30) as response:
                         if response.status == 200:
                             data = await response.json()
@@ -210,31 +210,31 @@ class PolygonMinuteCollector(VendorCollector):
                                     prices.append(price)
                         else:
                             self.logger.warning(f"Polygon API error for {symbol}: {response.status}")
-                    
+
                     # Rate limiting for Polygon API
                     await asyncio.sleep(12)  # 5 requests per minute
-                    
+
                 except Exception as e:
                     self.logger.error(f"Error collecting Polygon data for {symbol}: {e}")
-        
+
         self.logger.info(f"Collected {len(prices)} minute prices from Polygon")
         return prices
 
 class TiingoMinuteCollector(VendorCollector):
     """Tiingo minute data collector - reuses existing patterns"""
-    
+
     def __init__(self, env: Environment):
         super().__init__('tiingo', env)
         self.api_key = TIINGO_API_KEY
-    
+
     async def collect_minute_data(self, symbols: List[str]) -> List[MinutePrice]:
         """Collect minute data using existing Tiingo patterns"""
         prices = []
-        
+
         if not self.api_key:
             self.logger.warning("Tiingo API key not configured")
             return prices
-        
+
         import aiohttp
         async with aiohttp.ClientSession() as session:
             for symbol in symbols:
@@ -247,7 +247,7 @@ class TiingoMinuteCollector(VendorCollector):
                         'endDate': datetime.now().strftime('%Y-%m-%d'),
                         'resampleFreq': '1min'
                     }
-                    
+
                     async with session.get(url, params=params, timeout=30) as response:
                         if response.status == 200:
                             data = await response.json()
@@ -265,37 +265,37 @@ class TiingoMinuteCollector(VendorCollector):
                                 prices.append(price)
                         else:
                             self.logger.warning(f"Tiingo API error for {symbol}: {response.status}")
-                    
+
                     await asyncio.sleep(0.2)  # Tiingo rate limiting
-                    
+
                 except Exception as e:
                     self.logger.error(f"Error collecting Tiingo data for {symbol}: {e}")
-        
+
         self.logger.info(f"Collected {len(prices)} minute prices from Tiingo")
         return prices
 
 class FMPMinuteCollector(VendorCollector):
     """FMP minute data collector - reuses existing patterns"""
-    
+
     def __init__(self, env: Environment):
         super().__init__('fmp', env)
         self.api_key = os.getenv('FMP_API_KEY', '')
-    
+
     async def collect_minute_data(self, symbols: List[str]) -> List[MinutePrice]:
         """Collect minute data using FMP patterns"""
         prices = []
-        
+
         if not self.api_key:
             self.logger.warning("FMP API key not configured")
             return prices
-        
+
         import aiohttp
         async with aiohttp.ClientSession() as session:
             for symbol in symbols:
                 try:
                     url = f"https://financialmodelingprep.com/api/v3/historical-chart/1min/{symbol}"
                     params = {'apikey': self.api_key}
-                    
+
                     async with session.get(url, params=params, timeout=30) as response:
                         if response.status == 200:
                             data = await response.json()
@@ -313,12 +313,12 @@ class FMPMinuteCollector(VendorCollector):
                                 prices.append(price)
                         else:
                             self.logger.warning(f"FMP API error for {symbol}: {response.status}")
-                    
+
                     await asyncio.sleep(1)  # FMP rate limiting
-                    
+
                 except Exception as e:
                     self.logger.error(f"Error collecting FMP data for {symbol}: {e}")
-        
+
         self.logger.info(f"Collected {len(prices)} minute prices from FMP")
         return prices
 
@@ -326,7 +326,7 @@ class FMPMinuteCollector(VendorCollector):
 try:
     detected_env = load_gin_config()
     logger.info(f"🚀 Minute Price Service starting in {detected_env.value} environment")
-    
+
     # Validate configuration
     validation_result = validate_current_config()
     if not validation_result.is_valid:
@@ -337,7 +337,7 @@ try:
             logger.error(f"   ❌ {error}")
     else:
         logger.info("✅ Configuration validation passed")
-    
+
 except Exception as e:
     logger.error(f"❌ Failed to load environment configuration: {e}")
     logger.info("🔄 Falling back to default configuration...")
@@ -354,12 +354,12 @@ app = FastAPI(
 
 class MinutePriceService:
     """Main service orchestrator using existing patterns"""
-    
+
     def __init__(self):
         self.env = Environment(gin_config_path='config/app_dev.gin')
         self.collectors = {
             'polygon': PolygonMinuteCollector(self.env),
-            'tiingo': TiingoMinuteCollector(self.env), 
+            'tiingo': TiingoMinuteCollector(self.env),
             'fmp': FMPMinuteCollector(self.env)
         }
         self.symbols = service_config.default_symbols
@@ -371,29 +371,29 @@ class MinutePriceService:
             'last_run': None
         }
         self.logger = get_logger(__name__)
-    
+
     async def initialize(self):
         """Initialize all collectors"""
         for collector in self.collectors.values():
             await collector.initialize()
         self.logger.info("Minute price service initialized")
-    
+
     async def run_collection_cycle(self):
         """Run data collection cycle for all vendors"""
         self.logger.info("Starting minute price collection cycle")
-        
+
         # Collect from all vendors concurrently
         tasks = [
             collector.collect_minute_data(self.symbols)
             for collector in self.collectors.values()
         ]
-        
+
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         total_collected = 0
         for i, result in enumerate(results):
             vendor = list(self.collectors.keys())[i]
-            
+
             if isinstance(result, Exception):
                 self.logger.error(f"Collection failed for {vendor}: {result}")
                 self.metrics['errors'] += 1
@@ -403,15 +403,15 @@ class MinutePriceService:
                 total_collected += len(result)
                 self.metrics['successful_inserts'] += inserted
                 self.logger.info(f"{vendor}: collected {len(result)}, inserted {inserted}")
-        
+
         self.metrics['total_collected'] += total_collected
         self.metrics['last_run'] = datetime.now().isoformat()
         self.logger.info(f"Collection cycle complete: {total_collected} prices collected")
-    
+
     async def start_continuous_collection(self):
         """Start continuous collection loop"""
         self.is_running = True
-        
+
         while self.is_running:
             try:
                 await self.run_collection_cycle()
@@ -429,12 +429,12 @@ async def startup():
     """Service startup using existing patterns"""
     logger.info("Starting ATS Minute Price Service")
     await service.initialize()
-    
+
     # Start collection in background
     asyncio.create_task(service.start_continuous_collection())
     logger.info("Service started successfully")
 
-@app.on_event("shutdown") 
+@app.on_event("shutdown")
 async def shutdown():
     """Service shutdown"""
     logger.info("Shutting down service")
@@ -462,7 +462,7 @@ async def get_configuration_info():
     try:
         env_info = get_env_info()
         current_env = get_current_env()
-        
+
         # Add service configuration details
         service_info = {
             "title": service_config.title,
@@ -472,14 +472,14 @@ async def get_configuration_info():
             "port": service_config.port,
             "default_symbols": service_config.default_symbols
         }
-        
+
         return {
             "current_environment": current_env.value if current_env else None,
             "environment_info": env_info,
             "service_config": service_info,
             "configuration_status": "loaded" if current_env else "not_loaded"
         }
-        
+
     except Exception as e:
         logger.error(f"Configuration info retrieval failed: {str(e)}")
         return {

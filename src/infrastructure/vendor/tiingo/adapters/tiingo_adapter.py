@@ -44,7 +44,7 @@ class TiingoAdapter(VendorAdapter):
                 api_key=self.api_key
             )
             resp = requests.get(url)
-            
+
             # Handle rate limiting (429 errors)
             if resp.status_code == 429:
                 import logging
@@ -52,7 +52,7 @@ class TiingoAdapter(VendorAdapter):
                 logger.warning(f"Rate limited for {ticker}, skipping")
                 # Don't retry immediately, just skip this symbol
                 continue
-            
+
             # Log request/response for AAPL/TSLA in date range
             from datetime import datetime
             import json, os
@@ -79,10 +79,10 @@ class TiingoAdapter(VendorAdapter):
                 except Exception as e:
                     with open(resp_path, "w") as f:
                         f.write(f"[ERROR] Could not serialize response: {e}\n")
-            
+
             if resp.status_code != 200:
                 continue
-            
+
             data = resp.json()
             for row in data:
                 date_val = datetime.strptime(row["date"].split("T")[0], "%Y-%m-%d").date()

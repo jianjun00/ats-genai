@@ -20,7 +20,7 @@ class RunAwareFormatter(logging.Formatter):
     """
     Logging formatter that includes run_id in log messages.
     """
-    
+
     def __init__(self, fmt=None, datefmt=None, style='%', validate=True):
         """Initialize with run_id support."""
         # Add run_id to the format if not already present
@@ -32,23 +32,23 @@ class RunAwareFormatter(logging.Formatter):
                 fmt = '[%(run_id)s] ' + fmt
         elif fmt is None:
             fmt = '%(asctime)s [%(run_id)s] - %(name)s - %(levelname)s - %(message)s'
-        
+
         super().__init__(fmt, datefmt, style, validate)
-    
+
     def format(self, record):
         """Format log record with run_id."""
         # Get run_id from context or current run context
         run_id = current_run_id.get()
-        
+
         if run_id is None:
             # Try to get from current run context
             run_context = get_current_run_context()
             if run_context:
                 run_id = run_context.run_id
-        
+
         # Set run_id in the log record
         record.run_id = run_id or 'no-run'
-        
+
         return super().format(record)
 
 
@@ -56,17 +56,17 @@ class RunAwareFileHandler(logging.FileHandler):
     """
     File handler that creates run-specific log files.
     """
-    
+
     def __init__(self, filename=None, mode='a', encoding=None, delay=False, run_context: Optional[RunContext] = None):
         """Initialize with run-aware file naming."""
         if run_context is None:
             run_context = get_current_run_context()
-        
+
         if run_context and filename:
             # Create run-specific filename in the run's logs directory
             if not filename.endswith('.log'):
                 filename += '.log'
-            
+
             # Use run context's logs directory
             log_file = run_context.logs_dir / filename
             filename = str(log_file)
@@ -74,46 +74,46 @@ class RunAwareFileHandler(logging.FileHandler):
             # Default filename with timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"ats_genai_{timestamp}.log"
-            
+
             if run_context:
                 log_file = run_context.logs_dir / filename
                 filename = str(log_file)
-        
+
         super().__init__(filename, mode, encoding, delay)
         self.run_context = run_context
 
 
-def configure_run_aware_logging(run_context: Optional[RunContext] = None, 
+def configure_run_aware_logging(run_context: Optional[RunContext] = None,
                                log_level: str = "INFO",
                                console_logging: bool = True,
                                file_logging: bool = True,
                                detailed_format: bool = False) -> Dict[str, Any]:
     """
     Configure run-aware logging.
-    
+
     Args:
         run_context: Optional run context for file organization
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
         console_logging: Enable console logging
         file_logging: Enable file logging
         detailed_format: Use detailed log format with more information
-        
+
     Returns:
         Logging configuration dictionary
     """
     if run_context is None:
         run_context = get_current_run_context()
-    
+
     # Set current run_id in context
     if run_context:
         current_run_id.set(run_context.run_id)
-    
+
     # Determine log format
     if detailed_format:
         log_format = '%(asctime)s [%(run_id)s] - %(name)s:%(lineno)d - %(levelname)s - %(funcName)s() - %(message)s'
     else:
         log_format = '%(asctime)s [%(run_id)s] - %(name)s - %(levelname)s - %(message)s'
-    
+
     # Build logging configuration
     config = {
         'version': 1,
@@ -133,7 +133,7 @@ def configure_run_aware_logging(run_context: Optional[RunContext] = None,
             }
         }
     }
-    
+
     # Add console handler
     if console_logging:
         config['handlers']['console'] = {
@@ -143,7 +143,7 @@ def configure_run_aware_logging(run_context: Optional[RunContext] = None,
             'stream': 'ext://sys.stdout'
         }
         config['loggers']['']['handlers'].append('console')
-    
+
     # Add file handler
     if file_logging:
         if run_context:
@@ -165,9 +165,9 @@ def configure_run_aware_logging(run_context: Optional[RunContext] = None,
                 'filename': 'ats_genai.log',
                 'mode': 'a'
             }
-        
+
         config['loggers']['']['handlers'].append('file')
-    
+
     return config
 
 
@@ -178,7 +178,7 @@ def setup_run_aware_logging(run_context: Optional[RunContext] = None,
                            detailed_format: bool = False):
     """
     Set up run-aware logging for the application.
-    
+
     Args:
         run_context: Optional run context for file organization
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
@@ -193,9 +193,9 @@ def setup_run_aware_logging(run_context: Optional[RunContext] = None,
         file_logging=file_logging,
         detailed_format=detailed_format
     )
-    
+
     logging.config.dictConfig(config)
-    
+
     # Log setup completion
     logger = logging.getLogger(__name__)
     if run_context:
@@ -208,20 +208,20 @@ def setup_run_aware_logging(run_context: Optional[RunContext] = None,
 def get_run_aware_logger(name: str, run_context: Optional[RunContext] = None) -> logging.Logger:
     """
     Get a logger configured for run-aware logging.
-    
+
     Args:
         name: Logger name (usually __name__)
         run_context: Optional run context
-        
+
     Returns:
         Configured logger
     """
     logger = logging.getLogger(name)
-    
+
     # Set run_id in context if provided
     if run_context:
         current_run_id.set(run_context.run_id)
-    
+
     return logger
 
 
@@ -239,7 +239,7 @@ def get_current_run_id() -> Optional[str]:
 def enable_run_aware_logging(run_context: Optional[RunContext] = None):
     """
     Enable run-aware logging with sensible defaults.
-    
+
     Args:
         run_context: Optional run context
     """

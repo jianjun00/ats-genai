@@ -17,7 +17,7 @@ async def retry_async(
 ) -> Any:
     """
     Retry an async function with exponential backoff.
-    
+
     Args:
         func: The async function to retry
         *args: Positional arguments to pass to the function
@@ -26,16 +26,16 @@ async def retry_async(
         backoff_factor: Backoff multiplier (e.g. value of 2 will double the delay each retry)
         exceptions: Tuple of exceptions to catch and retry on
         **kwargs: Keyword arguments to pass to the function
-        
+
     Returns:
         The return value of the function
-        
+
     Raises:
         The last exception raised by the function
     """
     last_exception = None
     current_delay = delay
-    
+
     for attempt in range(retries + 1):
         try:
             if attempt > 0:
@@ -69,7 +69,7 @@ def retry_sync(
 ) -> T:
     """
     Retry a synchronous function with exponential backoff.
-    
+
     Args:
         func: The function to retry
         *args: Positional arguments to pass to the function
@@ -78,16 +78,16 @@ def retry_sync(
         backoff_factor: Backoff multiplier (e.g. value of 2 will double the delay each retry)
         exceptions: Tuple of exceptions to catch and retry on
         **kwargs: Keyword arguments to pass to the function
-        
+
     Returns:
         The return value of the function
-        
+
     Raises:
         The last exception raised by the function
     """
     last_exception = None
     current_delay = delay
-    
+
     for attempt in range(retries + 1):
         try:
             if attempt > 0:

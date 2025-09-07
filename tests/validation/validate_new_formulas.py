@@ -80,13 +80,13 @@ new_coefficients = {
 def parse_data():
     """Parse the complete dataset."""
     lines = [line.strip() for line in raw_data.strip().split('\n') if line.strip()]
-    
+
     data = []
     for line in lines:
         parts = line.split()
         values = [float(x) for x in parts[1:]]  # Skip date
         data.append(values)
-    
+
     return np.array(data)
 
 def calculate_indicator(ohlc_history, coefficients):
@@ -94,29 +94,29 @@ def calculate_indicator(ohlc_history, coefficients):
     features = []
     for ohlc in ohlc_history:
         features.extend(ohlc)
-    
+
     return np.dot(coefficients, features)
 
 def comprehensive_validation():
     """Perform comprehensive validation of new formulas."""
-    
+
     print("COMPREHENSIVE VALIDATION OF NEW IMPROVED FORMULAS")
     print("=" * 70)
-    
+
     data = parse_data()
     target_indices = [4, 5, 6, 7, 8, 9, 10, 11, 12]  # h11, l11, z1b, z2b, ebot, pldot, etop, z5t, z6t
     target_names = list(new_coefficients.keys())
-    
+
     # Test all available samples
     results = {}
     all_errors = []
-    
+
     for target_idx, target_name in enumerate(target_names):
         coeffs = new_coefficients[target_name]
         errors = []
         predictions = []
         actuals = []
-        
+
         # Test each day starting from day 4
         for i in range(3, len(data)):
             # Get OHLC from previous 3 days
@@ -125,28 +125,28 @@ def comprehensive_validation():
                 prev_idx = i - lookback
                 ohlc = data[prev_idx, :4]  # OHLC only
                 ohlc_history.append(ohlc)
-            
+
             # Calculate prediction
             predicted = calculate_indicator(ohlc_history, coeffs)
             actual = data[i, target_indices[target_idx]]
-            
+
             error = abs(predicted - actual)
             errors.append(error)
             predictions.append(predicted)
             actuals.append(actual)
             all_errors.append(error)
-        
+
         # Calculate statistics
         avg_error = np.mean(errors)
-        max_error = np.max(errors) 
+        max_error = np.max(errors)
         min_error = np.min(errors)
         rmse = np.sqrt(np.mean(np.array(errors)**2))
-        
+
         # Calculate R²
         ss_res = np.sum((np.array(actuals) - np.array(predictions)) ** 2)
         ss_tot = np.sum((np.array(actuals) - np.mean(actuals)) ** 2)
         r2 = 1 - (ss_res / ss_tot) if ss_tot > 0 else 1.0
-        
+
         results[target_name] = {
             'avg_error': avg_error,
             'max_error': max_error,
@@ -157,18 +157,18 @@ def comprehensive_validation():
             'actuals': actuals,
             'errors': errors
         }
-        
+
         print(f"{target_name.upper():6}: R²={r2:.6f}, Avg_Error={avg_error:.4f}, Max_Error={max_error:.4f}, RMSE={rmse:.4f}")
-    
+
     # Overall assessment
     print("\n" + "=" * 70)
     print("DETAILED VALIDATION RESULTS")
     print("=" * 70)
-    
+
     excellent_count = 0
     good_count = 0
     poor_count = 0
-    
+
     for target_name, stats in results.items():
         # Assessment criteria
         if stats['r2'] > 0.999 and stats['avg_error'] < 1.0:
@@ -182,52 +182,52 @@ def comprehensive_validation():
         else:
             assessment = "❌ POOR"
             poor_count += 1
-        
+
         relative_error = (stats['avg_error'] / np.mean(stats['actuals'])) * 100
-        
+
         print(f"\n{target_name.upper()}:")
         print(f"  R² = {stats['r2']:.8f}")
         print(f"  Average Error = {stats['avg_error']:.4f} ({relative_error:.3f}%)")
         print(f"  Error Range = {stats['min_error']:.4f} to {stats['max_error']:.4f}")
         print(f"  RMSE = {stats['rmse']:.4f}")
         print(f"  Assessment: {assessment}")
-    
+
     # Sample predictions vs actual (first 5 test cases)
     print("\n" + "=" * 70)
     print("SAMPLE PREDICTIONS VS ACTUAL (First 5 Test Cases)")
     print("=" * 70)
-    
+
     for i in range(min(5, len(results['h11']['predictions']))):
         sample_date = f"Sample {i+1}"
         print(f"\n{sample_date}:")
-        
+
         for target_name in target_names:
             actual = results[target_name]['actuals'][i]
             predicted = results[target_name]['predictions'][i]
             error = results[target_name]['errors'][i]
-            
+
             print(f"  {target_name.upper():6}: Actual={actual:8.2f}, Predicted={predicted:8.2f}, Error={error:6.4f}")
-    
+
     # Overall summary
     print("\n" + "=" * 70)
     print("OVERALL VALIDATION SUMMARY")
     print("=" * 70)
-    
+
     total_indicators = len(target_names)
     overall_avg_error = np.mean(all_errors)
     overall_max_error = np.max(all_errors)
-    
+
     print(f"Total Indicators Tested: {total_indicators}")
     print(f"🎉 EXCELLENT Performance: {excellent_count}")
     print(f"✅ GOOD Performance: {good_count}")
     print(f"❌ POOR Performance: {poor_count}")
     print(f"Overall Average Error: {overall_avg_error:.4f}")
     print(f"Overall Max Error: {overall_max_error:.4f}")
-    
+
     success_rate = (excellent_count + good_count) / total_indicators
-    
+
     print(f"\n📊 SUCCESS RATE: {success_rate*100:.1f}% ({excellent_count + good_count}/{total_indicators})")
-    
+
     if success_rate >= 0.9:
         print("🎉 OUTSTANDING: New formulas show excellent performance!")
         conclusion = "PRODUCTION_READY"
@@ -240,12 +240,12 @@ def comprehensive_validation():
     else:
         print("❌ POOR: Formulas still need improvement")
         conclusion = "NOT_READY"
-    
+
     return conclusion, results
 
 if __name__ == "__main__":
     conclusion, results = comprehensive_validation()
-    
+
     if conclusion == "PRODUCTION_READY":
         print("\n🚀 RECOMMENDATION: Deploy new formulas to production!")
         exit_code = 0
@@ -255,6 +255,6 @@ if __name__ == "__main__":
     else:
         print("\n❌ RECOMMENDATION: Continue research and development")
         exit_code = 1
-    
+
     import sys
     sys.exit(exit_code)

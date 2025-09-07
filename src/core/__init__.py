@@ -21,7 +21,7 @@ from . import shared
 __all__ = [
     'business',
     'dao',
-    'platform', 
+    'platform',
     'security',
     'shared'
 ]

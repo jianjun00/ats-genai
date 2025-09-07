@@ -79,7 +79,7 @@ async def get_status_id(pool, code, env):
 
 async def fetch_and_insert_symbol(dao: DailyPricesTiingoDAO, session, instrument_id, symbol, start_date, end_date, ok_status_id, no_data_status_id):
     # Always use datetime.date for DB and date math
-    
+
     env = dao.env
     table_name = env.get_table_name('daily_prices_tiingo')
     print(f"[DEBUG] Inserting into table: {table_name}, ENVIRONMENT: {env.env_type.value}")
@@ -125,7 +125,7 @@ async def fetch_and_insert_symbol(dao: DailyPricesTiingoDAO, session, instrument
             continue
         # After successful response, process as before
         # Log request/response for AAPL/TSLA in date range
-        
+
         log_start = dt.datetime(2020, 1, 10)
         log_end = dt.datetime(2024, 12, 31)
         def in_log_range(s, e):

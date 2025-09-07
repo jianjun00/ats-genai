@@ -31,51 +31,51 @@ logger = logging.getLogger(__name__)
 
 class TurboPolygonNewsFetcher:
     """High-performance Polygon News API fetcher with massive concurrency and shared utilities."""
-    
+
     def __init__(self, api_key: str = None, max_concurrent: int = 50):
         # Use shared utilities for robust API key management
         self.api_key = api_key or get_polygon_api_key()
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.session = None
-        
+
         # Initialize shared utilities for monitoring and rate limiting
         self.stats = BackfillStats()
         self.rate_limiter = VendorRateLimiters.polygon_free()  # Default to free tier
-        
+
     async def __aenter__(self):
         connector = aiohttp.TCPConnector(limit=100, limit_per_host=50)
         timeout = aiohttp.ClientTimeout(total=30)
         self.session = aiohttp.ClientSession(connector=connector, timeout=timeout)
         return self
-        
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.session:
             await self.session.close()
-    
+
     async def fetch_news_for_symbol(self, symbol: str, published_gte: str = None, published_lte: str = None) -> List[Dict[str, Any]]:
         """Fetch news for a symbol using shared rate limiting and statistics."""
         async with self.semaphore:
             # Use shared rate limiting to prevent 429 errors
             await self.rate_limiter.wait_if_needed()
-            
+
             url = "https://api.polygon.io/v2/reference/news"
             params = {
                 'ticker': symbol,
                 'limit': 1000,  # Maximum limit
                 'apikey': self.api_key
             }
-            
+
             if published_gte:
                 params['published_utc.gte'] = published_gte
             if published_lte:
                 params['published_utc.lte'] = published_lte
-                
+
             # Track API call with shared statistics
             self.stats.api_calls_made += 1
-            
+
             max_retries = 3  # Reduced since rate limiting is handled by shared utilities
             base_delay = 1.0
-            
+
             for attempt in range(max_retries):
                 try:
                     async with self.session.get(url, params=params) as response:
@@ -103,7 +103,7 @@ class TurboPolygonNewsFetcher:
                                         'data': item  # Store full original data
                                     }
                                     results.append(news_item)
-                                    
+
                             # Track successful records fetched
                             self.stats.records_fetched += len(results)
                             return results
@@ -123,7 +123,7 @@ class TurboPolygonNewsFetcher:
                             self.stats.api_errors += 1
                             logger.warning(f"API error for {symbol}: HTTP {response.status}")
                             return []
-                            
+
                 except asyncio.TimeoutError:
                     self.stats.api_errors += 1
                     delay = base_delay * (2 ** attempt)
@@ -144,9 +144,9 @@ class TurboPolygonNewsFetcher:
                     else:
                         logger.error(f"Max retries exceeded for {symbol}: {e}")
                         return []
-            
+
             return []
-    
+
     def get_statistics_summary(self) -> dict:
         """Get comprehensive statistics summary using shared framework"""
         return {
@@ -157,7 +157,7 @@ class TurboPolygonNewsFetcher:
             "success_rate": self.stats.success_rate,
             "rate_limiter_calls": getattr(self.rate_limiter, 'calls_made', 0)
         }
-    
+
     def log_final_summary(self, logger):
         """Log comprehensive operation summary using shared framework"""
         logger.info(f"🔢 Polygon News Backfill Statistics:")
@@ -165,22 +165,22 @@ class TurboPolygonNewsFetcher:
 
 class TurboTiingoNewsFetcher:
     """High-performance Tiingo News API fetcher with massive concurrency."""
-    
+
     def __init__(self, api_key: str, max_concurrent: int = 30):
         self.api_key = api_key
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.session = None
-        
+
     async def __aenter__(self):
         connector = aiohttp.TCPConnector(limit=80, limit_per_host=30)
         timeout = aiohttp.ClientTimeout(total=30)
         self.session = aiohttp.ClientSession(connector=connector, timeout=timeout)
         return self
-        
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.session:
             await self.session.close()
-    
+
     async def fetch_news_for_symbol(self, symbol: str, start_date: str = None, end_date: str = None) -> List[Dict[str, Any]]:
         """Fetch news for a symbol with exponential backoff retry."""
         async with self.semaphore:
@@ -189,15 +189,15 @@ class TurboTiingoNewsFetcher:
                 'tickers': symbol,
                 'token': self.api_key
             }
-            
+
             if start_date:
                 params['startDate'] = start_date
             if end_date:
                 params['endDate'] = end_date
-            
+
             max_retries = 5
             base_delay = 2.0  # Tiingo has stricter rate limits
-            
+
             for attempt in range(max_retries):
                 try:
                     async with self.session.get(url, params=params) as response:
@@ -233,7 +233,7 @@ class TurboTiingoNewsFetcher:
                         else:
                             logger.warning(f"Tiingo News API error for {symbol}: HTTP {response.status}")
                             return []
-                            
+
                 except asyncio.TimeoutError:
                     delay = base_delay * (2 ** attempt)
                     logger.warning(f"Tiingo timeout for {symbol}, attempt {attempt+1}/{max_retries}, retrying in {delay:.1f}s")
@@ -252,32 +252,32 @@ class TurboTiingoNewsFetcher:
                     else:
                         logger.error(f"Tiingo max retries exceeded for {symbol}: {e}")
                         return []
-            
+
             return []
 
 class TurboNewsDatabaseInserter:
     """High-performance database inserter for news data with connection pooling."""
-    
+
     def __init__(self, environment: str = 'dev', pool_size: int = 20):
         self.environment = environment
         self.pool_size = pool_size
         self.pool = None
         self.stats = BackfillStats()
-        
+
     async def __aenter__(self):
         # Use shared utilities for robust database connection
         self.pool = await get_database_pool(environment=self.environment)
         return self
-        
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.pool:
             await self.pool.close()
-    
+
     async def bulk_insert_polygon_news(self, data_batch: List[Dict[str, Any]]) -> int:
         """Ultra-fast bulk insert for Polygon news using executemany."""
         if not data_batch:
             return 0
-            
+
         async with self.pool.acquire() as conn:
             try:
                 records = [
@@ -300,7 +300,7 @@ class TurboNewsDatabaseInserter:
                     )
                     for item in data_batch
                 ]
-                
+
                 table_name = get_table_name('news_polygon', self.environment)
                 await conn.executemany(f"""
                     INSERT INTO {table_name} (
@@ -316,12 +316,12 @@ class TurboNewsDatabaseInserter:
             except Exception as e:
                 logger.error(f"Polygon news database insert error: {e}")
                 return 0
-    
+
     async def bulk_insert_tiingo_news(self, data_batch: List[Dict[str, Any]]) -> int:
         """Ultra-fast bulk insert for Tiingo news using executemany."""
         if not data_batch:
             return 0
-            
+
         async with self.pool.acquire() as conn:
             try:
                 records = [
@@ -339,7 +339,7 @@ class TurboNewsDatabaseInserter:
                     )
                     for item in data_batch
                 ]
-                
+
                 table_name_tiingo = get_table_name('news_tiingo', self.environment)
                 await conn.executemany(f"""
                     INSERT INTO {table_name_tiingo} (
@@ -359,38 +359,38 @@ async def process_polygon_news(symbols: List[str], start_date: str, end_date: st
     """Process all symbols for Polygon news with massive concurrency."""
     async with TurboPolygonNewsFetcher(polygon_api_key, max_concurrent=50) as fetcher:
         tasks = []
-        
+
         # Create tasks for each symbol
         for symbol in symbols:
             task = fetcher.fetch_news_for_symbol(
-                symbol, 
-                published_gte=start_date, 
+                symbol,
+                published_gte=start_date,
                 published_lte=end_date
             )
             tasks.append(task)
-        
+
         logger.info(f"Starting {len(tasks)} Polygon News API calls...")
-        
+
         # Process in chunks to manage memory
         chunk_size = 50
         total_records = 0
-        
+
         for i in range(0, len(tasks), chunk_size):
             chunk_tasks = tasks[i:i+chunk_size]
             results = await asyncio.gather(*chunk_tasks, return_exceptions=True)
-            
+
             # Collect all valid results
             batch_data = []
             for result in results:
                 if isinstance(result, list):
                     batch_data.extend(result)
-            
+
             # Bulk insert
             if batch_data:
                 inserted = await db_inserter.bulk_insert_polygon_news(batch_data)
                 total_records += inserted
                 logger.info(f"Polygon News chunk {i//chunk_size + 1}: {inserted} records inserted")
-        
+
         logger.info(f"Polygon News COMPLETE: {total_records} total records")
         return total_records
 
@@ -399,37 +399,37 @@ async def process_tiingo_news(symbols: List[str], start_date: str, end_date: str
     """Process all symbols for Tiingo news with high concurrency."""
     async with TurboTiingoNewsFetcher(tiingo_api_key, max_concurrent=30) as fetcher:
         tasks = []
-        
+
         # Create tasks for each symbol
         for symbol in symbols:
             task = fetcher.fetch_news_for_symbol(symbol, start_date, end_date)
             tasks.append(task)
-        
+
         logger.info(f"Starting {len(tasks)} Tiingo News API calls...")
-        
+
         # Process in chunks
         chunk_size = 30
         total_records = 0
-        
+
         for i in range(0, len(tasks), chunk_size):
             chunk_tasks = tasks[i:i+chunk_size]
             results = await asyncio.gather(*chunk_tasks, return_exceptions=True)
-            
+
             # Collect all valid results
             batch_data = []
             for result in results:
                 if isinstance(result, list):
                     batch_data.extend(result)
-            
+
             # Bulk insert
             if batch_data:
                 inserted = await db_inserter.bulk_insert_tiingo_news(batch_data)
                 total_records += inserted
                 logger.info(f"Tiingo News chunk {i//chunk_size + 1}: {inserted} records inserted")
-            
+
             # Brief pause for Tiingo rate limits
             await asyncio.sleep(2)
-        
+
         logger.info(f"Tiingo News COMPLETE: {total_records} total records")
         return total_records
 
@@ -441,19 +441,19 @@ async def main():
     parser.add_argument('--gin_config', default='config/app_dev.gin', help='Gin config file')
     parser.add_argument('--limit', type=int, help='Limit number of symbols (for testing)')
     args = parser.parse_args()
-    
+
     # Setup environment
     from shared.utils.environment import Environment
     env = Environment(gin_config_path=args.gin_config)
-    
+
     # Get API keys
     polygon_api_key = env.get_polygon_api_key() or os.getenv("POLYGON_API_KEY")
     tiingo_api_key = os.getenv("TIINGO_API_KEY")
-    
+
     if not polygon_api_key or not tiingo_api_key:
         logger.error("Missing API keys!")
         return
-    
+
     # Database config
     db_config = {
         'host': os.getenv("DB_HOST", "localhost"),
@@ -462,35 +462,35 @@ async def main():
         'password': os.getenv("DB_PASSWORD", "postgres"),
         'database': os.getenv("DB_NAME", "dev_db")
     }
-    
+
     # Get symbols from existing instruments
     from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
     xrefs_dao = InstrumentXrefsDAO(env)
-    
+
     symbols = []
     all_symbols = await xrefs_dao.get_all_symbols()
-    
+
     if args.limit:
         all_symbols = all_symbols[:args.limit]
-    
+
     logger.info(f"Processing {len(all_symbols)} symbols for news...")
-    
+
     # Convert symbols to ensure they're strings
     symbols = [str(symbol) for symbol in all_symbols]
-    
+
     # Initialize database inserter
     async with TurboNewsDatabaseInserter(db_config, pool_size=20) as db_inserter:
         start_time = time.time()
-        
+
         # Process both vendors concurrently
         polygon_task = process_polygon_news(symbols, args.start_date, args.end_date, polygon_api_key, db_inserter)
         tiingo_task = process_tiingo_news(symbols, args.start_date, args.end_date, tiingo_api_key, db_inserter)
-        
+
         polygon_total, tiingo_total = await asyncio.gather(polygon_task, tiingo_task)
-        
+
         elapsed = time.time() - start_time
         total_records = polygon_total + tiingo_total
-        
+
         logger.info(f"🚀 TURBO NEWS BACKFILL COMPLETE!")
         logger.info(f"⏱️  Time: {elapsed:.1f} seconds ({elapsed/60:.1f} minutes)")
         logger.info(f"📰 Records: {total_records:,} total ({polygon_total:,} Polygon + {tiingo_total:,} Tiingo)")

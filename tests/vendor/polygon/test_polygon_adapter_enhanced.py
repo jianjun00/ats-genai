@@ -8,26 +8,26 @@ from domains.market_data.services.agent.models import InstrumentMetadata, EODPri
 
 class TestPolygonAdapterEnhanced:
     """Comprehensive test coverage for PolygonAdapter."""
-    
+
     def test_init_with_api_key(self):
         """Test adapter initialization with explicit API key."""
         api_key = "test_polygon_key"
         adapter = PolygonAdapter(api_key=api_key)
         assert adapter.api_key == api_key
         assert adapter.vendor_name == "polygon"
-    
+
     def test_init_from_env_var(self):
         """Test adapter initialization from environment variable."""
         with patch.dict('os.environ', {'POLYGON_API_KEY': 'env_polygon_key'}):
             adapter = PolygonAdapter()
             assert adapter.api_key == "env_polygon_key"
-    
+
     def test_init_no_api_key_raises_exception(self):
         """Test that missing API key raises exception."""
         with patch.dict('os.environ', {}, clear=True):
             with pytest.raises(Exception, match="Please set your POLYGON_API_KEY environment variable"):
                 PolygonAdapter()
-    
+
     @patch('market_data.agent.polygon_adapter.requests.get')
     def test_fetch_instruments_success(self, mock_get):
         """Test successful instrument metadata retrieval."""
@@ -57,12 +57,12 @@ class TestPolygonAdapterEnhanced:
             ]
         }
         mock_get.return_value = mock_response
-        
+
         adapter = PolygonAdapter(api_key="test_key")
         instruments = adapter.fetch_instruments()
-        
+
         assert len(instruments) == 2
-        
+
         # Check first instrument
         inst1 = instruments[0]
         assert inst1.instrument_id == "0000320193"  # Uses CIK as instrument_id
@@ -75,16 +75,16 @@ class TestPolygonAdapterEnhanced:
         assert inst1.delist_date is None
         assert inst1.vendor == "polygon"
         assert inst1.extra["ticker"] == "AAPL"
-        
+
         # Check second instrument
         inst2 = instruments[1]
         assert inst2.symbol == "GOOGL"
         assert inst2.name == "Alphabet Inc."
-        
+
         # Verify API call
         expected_url = "https://api.polygon.io/v3/reference/tickers?active=true&apiKey=test_key"
         mock_get.assert_called_once_with(expected_url)
-    
+
     @patch('market_data.agent.polygon_adapter.requests.get')
     def test_fetch_instruments_fallback_instrument_id(self, mock_get):
         """Test fetch_instruments uses ticker as fallback when CIK is missing."""
@@ -100,14 +100,14 @@ class TestPolygonAdapterEnhanced:
             ]
         }
         mock_get.return_value = mock_response
-        
+
         adapter = PolygonAdapter(api_key="test_key")
         instruments = adapter.fetch_instruments()
-        
+
         assert len(instruments) == 1
         assert instruments[0].instrument_id == "AAPL"  # Falls back to ticker
         assert instruments[0].symbol == "AAPL"
-    
+
     @patch('market_data.agent.polygon_adapter.requests.get')
     def test_fetch_instruments_empty_results(self, mock_get):
         """Test fetch_instruments with empty results."""
@@ -115,12 +115,12 @@ class TestPolygonAdapterEnhanced:
         mock_response.raise_for_status.return_value = None
         mock_response.json.return_value = {"results": []}
         mock_get.return_value = mock_response
-        
+
         adapter = PolygonAdapter(api_key="test_key")
         instruments = adapter.fetch_instruments()
-        
+
         assert instruments == []
-    
+
     @patch('market_data.agent.polygon_adapter.requests.get')
     def test_fetch_instruments_missing_results_key(self, mock_get):
         """Test fetch_instruments when results key is missing."""
@@ -128,24 +128,24 @@ class TestPolygonAdapterEnhanced:
         mock_response.raise_for_status.return_value = None
         mock_response.json.return_value = {}  # No results key
         mock_get.return_value = mock_response
-        
+
         adapter = PolygonAdapter(api_key="test_key")
         instruments = adapter.fetch_instruments()
-        
+
         assert instruments == []
-    
+
     @patch('market_data.agent.polygon_adapter.requests.get')
     def test_fetch_instruments_http_error(self, mock_get):
         """Test fetch_instruments handles HTTP errors."""
         mock_response = MagicMock()
         mock_response.raise_for_status.side_effect = requests.HTTPError("API Error")
         mock_get.return_value = mock_response
-        
+
         adapter = PolygonAdapter(api_key="test_key")
-        
+
         with pytest.raises(requests.HTTPError):
             adapter.fetch_instruments()
-    
+
     @patch('market_data.agent.polygon_adapter.requests.get')
     def test_fetch_eod_success(self, mock_get):
         """Test successful EOD data retrieval."""
@@ -172,12 +172,12 @@ class TestPolygonAdapterEnhanced:
             ]
         }
         mock_get.return_value = mock_response
-        
+
         adapter = PolygonAdapter(api_key="test_key")
         prices = adapter.fetch_eod(["AAPL"], "2023-12-15", "2023-12-16")
-        
+
         assert len(prices) == 2
-        
+
         # Check first price
         price1 = prices[0]
         assert price1.instrument_id == "AAPL"
@@ -190,16 +190,16 @@ class TestPolygonAdapterEnhanced:
         assert price1.volume == 55012853
         assert price1.vendor == "polygon"
         assert price1.provenance["polygon_row"]["o"] == 195.18
-        
+
         # Check second price
         price2 = prices[1]
         assert price2.date == date(2023, 12, 16)
         assert price2.close == 194.83
-        
+
         # Verify API call format
         expected_url = "https://api.polygon.io/v2/aggs/ticker/AAPL/range/1/day/2023-12-15/2023-12-16?adjusted=true&sort=asc&limit=50000&apiKey=test_key"
         mock_get.assert_called_once_with(expected_url)
-    
+
     @patch('market_data.agent.polygon_adapter.requests.get')
     def test_fetch_eod_multiple_symbols(self, mock_get):
         """Test EOD data retrieval for multiple symbols."""
@@ -233,33 +233,33 @@ class TestPolygonAdapterEnhanced:
                     ]
                 }
             return response
-        
+
         mock_get.side_effect = mock_response_side_effect
-        
+
         adapter = PolygonAdapter(api_key="test_key")
         prices = adapter.fetch_eod(["AAPL", "GOOGL"], "2023-12-15", "2023-12-15")
-        
+
         assert len(prices) == 2
         symbols = [p.instrument_id for p in prices]
         assert "AAPL" in symbols
         assert "GOOGL" in symbols
-        
+
         # Verify both API calls were made
         assert mock_get.call_count == 2
-    
+
     @patch('market_data.agent.polygon_adapter.requests.get')
     def test_fetch_eod_http_error(self, mock_get):
         """Test fetch_eod handles HTTP errors gracefully."""
         mock_response = MagicMock()
         mock_response.status_code = 500  # Server error
         mock_get.return_value = mock_response
-        
+
         adapter = PolygonAdapter(api_key="test_key")
         prices = adapter.fetch_eod(["AAPL"], "2023-12-15", "2023-12-16")
-        
+
         # Should continue processing despite error (doesn't raise exception)
         assert prices == []
-    
+
     @patch('market_data.agent.polygon_adapter.requests.get')
     def test_fetch_eod_empty_results(self, mock_get):
         """Test fetch_eod with empty results."""
@@ -267,12 +267,12 @@ class TestPolygonAdapterEnhanced:
         mock_response.status_code = 200
         mock_response.json.return_value = {"results": []}
         mock_get.return_value = mock_response
-        
+
         adapter = PolygonAdapter(api_key="test_key")
         prices = adapter.fetch_eod(["AAPL"], "2023-12-15", "2023-12-16")
-        
+
         assert prices == []
-    
+
     @patch('market_data.agent.polygon_adapter.requests.get')
     def test_fetch_eod_missing_results_key(self, mock_get):
         """Test fetch_eod when results key is missing."""
@@ -280,12 +280,12 @@ class TestPolygonAdapterEnhanced:
         mock_response.status_code = 200
         mock_response.json.return_value = {}  # No results key
         mock_get.return_value = mock_response
-        
+
         adapter = PolygonAdapter(api_key="test_key")
         prices = adapter.fetch_eod(["AAPL"], "2023-12-15", "2023-12-16")
-        
+
         assert prices == []
-    
+
     @patch('market_data.agent.polygon_adapter.requests.get')
     def test_fetch_eod_timezone_handling(self, mock_get):
         """Test fetch_eod correctly handles timezone conversion."""
@@ -304,14 +304,14 @@ class TestPolygonAdapterEnhanced:
             ]
         }
         mock_get.return_value = mock_response
-        
+
         adapter = PolygonAdapter(api_key="test_key")
         prices = adapter.fetch_eod(["AAPL"], "2023-12-15", "2023-12-15")
-        
+
         assert len(prices) == 1
         # Verify timezone-aware datetime was properly converted to date
         assert prices[0].date == date(2023, 12, 15)
-    
+
     @patch('market_data.agent.polygon_adapter.requests.get')
     @patch('os.makedirs')
     @patch('builtins.open', create=True)
@@ -332,21 +332,21 @@ class TestPolygonAdapterEnhanced:
             ]
         }
         mock_get.return_value = mock_response
-        
+
         # Mock file writing context manager
         mock_file = MagicMock()
         mock_open.return_value.__enter__.return_value = mock_file
-        
+
         adapter = PolygonAdapter(api_key="test_key")
         # AAPL should trigger logging (it's in log_tickers)
         prices = adapter.fetch_eod(["AAPL"], "2023-06-15", "2023-06-16")
-        
+
         # Verify logging directory was created
         mock_makedirs.assert_called_with("tests/data", exist_ok=True)
-        
+
         # Verify files were opened for writing (request and response logs)
         assert mock_open.call_count >= 2
-    
+
     @patch('market_data.agent.polygon_adapter.requests.get')
     def test_fetch_eod_missing_optional_fields(self, mock_get):
         """Test fetch_eod handles missing optional OHLCV fields."""
@@ -362,10 +362,10 @@ class TestPolygonAdapterEnhanced:
             ]
         }
         mock_get.return_value = mock_response
-        
+
         adapter = PolygonAdapter(api_key="test_key")
         prices = adapter.fetch_eod(["AAPL"], "2023-12-15", "2023-12-15")
-        
+
         assert len(prices) == 1
         price = prices[0]
         assert price.close == 197.57
@@ -373,7 +373,7 @@ class TestPolygonAdapterEnhanced:
         assert price.high is None
         assert price.low is None
         assert price.volume is None
-    
+
     @patch('market_data.agent.polygon_adapter.requests.get')
     def test_fetch_eod_json_serialization_error_handling(self, mock_get):
         """Test fetch_eod handles JSON serialization errors in logging."""
@@ -381,46 +381,46 @@ class TestPolygonAdapterEnhanced:
         mock_response.status_code = 200
         mock_response.json.side_effect = ValueError("Invalid JSON")  # First call fails
         mock_get.return_value = mock_response
-        
+
         with patch('os.makedirs'):
             with patch('builtins.open', create=True) as mock_open:
                 mock_file = MagicMock()
                 mock_open.return_value.__enter__.return_value = mock_file
-                
+
                 adapter = PolygonAdapter(api_key="test_key")
-                
+
                 # The adapter will fail on JSON parsing, so we expect a ValueError
                 with pytest.raises(ValueError, match="Invalid JSON"):
                     adapter.fetch_eod(["AAPL"], "2023-06-15", "2023-06-16")
-                
+
                 # Verify error was written to response file (logging mechanism)
                 mock_file.write.assert_called()
-    
+
     def test_fetch_ticks_not_implemented(self):
         """Test that fetch_ticks raises NotImplementedError."""
         adapter = PolygonAdapter(api_key="test_key")
-        
+
         with pytest.raises(NotImplementedError, match="PolygonAdapter.fetch_ticks is not implemented yet"):
             adapter.fetch_ticks("AAPL", datetime.now(), datetime.now())
-    
+
     def test_fetch_interval_not_implemented(self):
         """Test that fetch_interval raises NotImplementedError."""
         adapter = PolygonAdapter(api_key="test_key")
-        
+
         with pytest.raises(NotImplementedError, match="PolygonAdapter.fetch_interval is not implemented yet"):
             adapter.fetch_interval("AAPL", "1h", datetime.now(), datetime.now())
-    
+
     def test_base_url_format(self):
         """Test that BASE_URL format is correct."""
         adapter = PolygonAdapter(api_key="test_key")
         expected_base = "https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{start}/{end}?adjusted=true&sort=asc&limit=50000&apiKey={api_key}"
         assert adapter.BASE_URL == expected_base
-    
+
     def test_vendor_name(self):
         """Test vendor_name is set correctly."""
         adapter = PolygonAdapter(api_key="test_key")
         assert adapter.vendor_name == "polygon"
-    
+
     @patch('market_data.agent.polygon_adapter.requests.get')
     def test_fetch_instruments_partial_data(self, mock_get):
         """Test fetch_instruments handles instruments with missing fields."""
@@ -440,19 +440,19 @@ class TestPolygonAdapterEnhanced:
             ]
         }
         mock_get.return_value = mock_response
-        
+
         adapter = PolygonAdapter(api_key="test_key")
         instruments = adapter.fetch_instruments()
-        
+
         assert len(instruments) == 2
         assert instruments[0].symbol == "AAPL"
         assert instruments[0].name == "Apple Inc."
         assert instruments[0].exchange is None
         assert instruments[0].sector is None
-        
+
         assert instruments[1].symbol == "GOOGL"
         assert instruments[1].name is None
-    
+
     @patch('market_data.agent.polygon_adapter.requests.get')
     def test_fetch_eod_url_format_validation(self, mock_get):
         """Test that EOD requests use correct URL format."""
@@ -460,10 +460,10 @@ class TestPolygonAdapterEnhanced:
         mock_response.status_code = 200
         mock_response.json.return_value = {"results": []}
         mock_get.return_value = mock_response
-        
+
         adapter = PolygonAdapter(api_key="secret_polygon_key")
         adapter.fetch_eod(["TSLA"], "2023-01-01", "2023-01-02")
-        
+
         # Verify URL format
         call_args = mock_get.call_args[0][0]
         assert "api.polygon.io/v2/aggs/ticker/TSLA/range/1/day" in call_args
@@ -472,7 +472,7 @@ class TestPolygonAdapterEnhanced:
         assert "sort=asc" in call_args
         assert "limit=50000" in call_args
         assert "apiKey=secret_polygon_key" in call_args
-    
+
     @patch('market_data.agent.polygon_adapter.requests.get')
     def test_fetch_eod_in_log_range_function(self, mock_get):
         """Test the in_log_range helper function behavior."""
@@ -480,15 +480,15 @@ class TestPolygonAdapterEnhanced:
         mock_response.status_code = 200
         mock_response.json.return_value = {"results": []}
         mock_get.return_value = mock_response
-        
+
         adapter = PolygonAdapter(api_key="test_key")
-        
+
         # Test with dates outside log range (should not trigger logging)
         with patch('os.makedirs') as mock_makedirs:
             adapter.fetch_eod(["AAPL"], "2019-01-01", "2019-01-02")
             # Should not create logging directory for dates outside range
             mock_makedirs.assert_not_called()
-    
+
     @patch('market_data.agent.polygon_adapter.requests.get')
     def test_fetch_eod_handles_large_datasets(self, mock_get):
         """Test fetch_eod with large number of data points."""
@@ -503,15 +503,15 @@ class TestPolygonAdapterEnhanced:
                 "c": 192.0 + i * 0.1,
                 "v": 1000000 + i * 1000
             })
-        
+
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"results": large_results}
         mock_get.return_value = mock_response
-        
+
         adapter = PolygonAdapter(api_key="test_key")
         prices = adapter.fetch_eod(["AAPL"], "2023-12-15", "2026-11-10")  # Long date range
-        
+
         assert len(prices) == 1000
         # Verify first and last entries
         assert prices[0].open == 190.0

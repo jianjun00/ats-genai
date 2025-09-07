@@ -16,18 +16,18 @@ def clean_numeric_data(
 ) -> Union[pd.Series, pd.DataFrame]:
     """
     Clean numeric data by handling missing values and outliers.
-    
+
     Args:
         data: Input data (Series or DataFrame)
         fill_method: Method to fill missing values ('forward', 'backward', 'interpolate', 'drop')
         remove_outliers: Whether to remove statistical outliers
         outlier_std: Standard deviations for outlier detection
-    
+
     Returns:
         Cleaned data
     """
     result = data.copy()
-    
+
     # Handle missing values
     if fill_method == "forward":
         result = result.ffill()
@@ -40,7 +40,7 @@ def clean_numeric_data(
             result = result.interpolate()
     elif fill_method == "drop":
         result = result.dropna()
-    
+
     # Remove outliers if requested
     if remove_outliers and isinstance(result, (pd.Series, pd.DataFrame)):
         if isinstance(result, pd.Series):
@@ -51,7 +51,7 @@ def clean_numeric_data(
             for column in result.select_dtypes(include=[np.number]).columns:
                 z_scores = np.abs((result[column] - result[column].mean()) / result[column].std())
                 result = result[z_scores <= outlier_std]
-    
+
     return result
 
 
@@ -71,10 +71,10 @@ def merge_dataframes_safely(
     """Safely merge multiple DataFrames with error handling."""
     if not dfs:
         return pd.DataFrame()
-    
+
     if len(dfs) == 1:
         return dfs[0]
-    
+
     result = dfs[0]
     for df in dfs[1:]:
         try:
@@ -82,5 +82,5 @@ def merge_dataframes_safely(
         except Exception as e:
             warnings.warn(f"Failed to merge DataFrame: {e}")
             continue
-    
+
     return result

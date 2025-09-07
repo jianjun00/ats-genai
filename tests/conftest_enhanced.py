@@ -41,11 +41,11 @@ def mock_database_connection():
         mock_cursor.fetchall.return_value = []
         mock_cursor.fetchone.return_value = None
         mock_cursor.description = []
-        
+
         mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__ = Mock(return_value=mock_cursor)
         mock_conn.return_value.__enter__.return_value.cursor.return_value.__exit__ = Mock(return_value=None)
         mock_conn.return_value.__exit__ = Mock(return_value=None)
-        
+
         yield mock_conn
 
 
@@ -60,7 +60,7 @@ def mock_settings():
     mock_settings.database.database = "test_db"
     mock_settings.database.user = "test_user"
     mock_settings.database.password = "test_password"
-    
+
     with patch('src.core.config.settings.get_settings') as mock_get_settings:
         mock_get_settings.return_value = mock_settings
         yield mock_settings
@@ -160,7 +160,7 @@ def mock_environment_variables():
         'POLYGON_API_KEY': 'test_polygon_key',
         'TIINGO_API_KEY': 'test_tiingo_key'
     }
-    
+
     with patch.dict(os.environ, test_env):
         yield test_env
 
@@ -171,7 +171,7 @@ def mock_gin_config():
     with patch('gin.clear_config'), \
          patch('gin.parse_config_file'), \
          patch('gin.get_configurable') as mock_get_configurable:
-        
+
         # Default gin config values
         mock_get_configurable.side_effect = lambda key: {
             'env_type': 'test',
@@ -181,7 +181,7 @@ def mock_gin_config():
             'enable_caching': False,
             'use_test_data': True
         }.get(key)
-        
+
         yield mock_get_configurable
 
 
@@ -207,11 +207,11 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(pytest.mark.integration)
         elif "regression" in str(item.fspath):
             item.add_marker(pytest.mark.regression)
-            
+
         # Add database marker for tests that use database
         if "database" in str(item.fspath) or "dao" in str(item.fspath):
             item.add_marker(pytest.mark.database)
-            
+
         # Add API marker for tests that call external APIs
         if "api" in str(item.fspath) or "agent" in str(item.fspath):
             item.add_marker(pytest.mark.api)
@@ -225,7 +225,7 @@ def track_test_performance(request):
     yield
     end_time = datetime.now()
     duration = (end_time - start_time).total_seconds()
-    
+
     # Log slow tests
     if duration > 5.0:  # Tests taking more than 5 seconds
         print(f"\n⚠️  Slow test detected: {request.node.nodeid} took {duration:.2f}s")

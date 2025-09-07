@@ -24,7 +24,7 @@ async def browser():
         yield browser
         await browser.close()
 
-@pytest.fixture(scope="session") 
+@pytest.fixture(scope="session")
 async def browser_context(browser):
     """Create browser context for the session"""
     context = await browser.new_context(
@@ -39,11 +39,11 @@ async def browser_context(browser):
 async def page(browser_context):
     """Create a new page for each test"""
     page = await browser_context.new_page()
-    
+
     # Set up page error handling
     page.on("pageerror", lambda error: print(f"Page error: {error}"))
     page.on("console", lambda msg: print(f"Console {msg.type}: {msg.text}"))
-    
+
     yield page
     await page.close()
 

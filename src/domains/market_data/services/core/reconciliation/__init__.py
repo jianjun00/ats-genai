@@ -10,7 +10,7 @@ from .cross_vendor_reconciler import (
 
 __all__ = [
     'CrossVendorReconciler',
-    'ReconciliationConfig', 
+    'ReconciliationConfig',
     'ReconciliationMethod',
     'VendorBar',
     'ReconciledBar'

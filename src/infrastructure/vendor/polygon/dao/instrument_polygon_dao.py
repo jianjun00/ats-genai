@@ -6,7 +6,7 @@ class InstrumentPolygonDAO:
         self.env = env
         self.table_name = self.env.get_table_name('instrument_polygon')
         self.db_url = self.env.get_database_url()
-        
+
     async def count_instruments(self) -> int:
         """Count the total number of instruments in the polygon table."""
         pool = await asyncpg.create_pool(self.db_url)
@@ -20,7 +20,7 @@ class InstrumentPolygonDAO:
                 await asyncio.wait_for(pool.close(), timeout=2.0)
             except asyncio.TimeoutError:
                 print("[WARN] pool.close() timed out after 2 seconds")
-                
+
     async def get_latest_update_timestamp(self):
         """Get the timestamp of the most recently updated instrument."""
         pool = await asyncpg.create_pool(self.db_url)

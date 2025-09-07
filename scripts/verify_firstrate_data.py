@@ -8,7 +8,7 @@ from pathlib import Path
 
 def main():
     print("🔍 Verifying FirstRate minute bar data quality...")
-    
+
     # Check all major symbols that should now have data
     major_symbols = {
         'B': ['BRK.A', 'BRK.B'],
@@ -24,9 +24,9 @@ def main():
         'W': ['WMT', 'WFC'],
         'X': ['XOM']
     }
-    
+
     base_path = Path("/data/minute-bars/firstrate")
-    
+
     for letter, symbols in major_symbols.items():
         print(f"\n📊 Checking letter {letter}:")
         for symbol in symbols:

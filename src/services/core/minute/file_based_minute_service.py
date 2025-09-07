@@ -44,31 +44,31 @@ class QueryRequest(BaseModel):
 
 class VendorCollector:
     """Base class for vendor data collection with file-based storage"""
-    
+
     def __init__(self, vendor: str, file_manager: FileBasedMinuteManager):
         self.vendor = vendor
         self.file_manager = file_manager
         self.logger = get_logger(f"{__name__}.{vendor}")
-        
+
     async def collect_minute_data(self, symbols: List[str]) -> List[MinuteBar]:
         """Abstract method for data collection"""
         raise NotImplementedError
 
 class PolygonMinuteCollector(VendorCollector):
     """Polygon minute data collector with file-based storage"""
-    
+
     def __init__(self, file_manager: FileBasedMinuteManager):
         super().__init__('polygon', file_manager)
         self.api_key = os.getenv('POLYGON_API_KEY', '')
-    
+
     async def collect_minute_data(self, symbols: List[str]) -> List[MinuteBar]:
         """Collect minute data from Polygon API"""
         bars = []
-        
+
         if not self.api_key:
             self.logger.warning("Polygon API key not configured")
             return bars
-        
+
         import aiohttp
         async with aiohttp.ClientSession() as session:
             for symbol in symbols:
@@ -82,7 +82,7 @@ class PolygonMinuteCollector(VendorCollector):
                         'sort': 'desc',
                         'limit': 60  # Last 60 minutes
                     }
-                    
+
                     async with session.get(url, params=params, timeout=30) as response:
                         if response.status == 200:
                             data = await response.json()
@@ -104,31 +104,31 @@ class PolygonMinuteCollector(VendorCollector):
                                     bars.append(bar)
                         else:
                             self.logger.warning(f"Polygon API error for {symbol}: {response.status}")
-                    
+
                     # Rate limiting
                     await asyncio.sleep(12)  # 5 requests per minute limit
-                    
+
                 except Exception as e:
                     self.logger.error(f"Error collecting Polygon data for {symbol}: {e}")
-        
+
         self.logger.info(f"Collected {len(bars)} minute bars from Polygon")
         return bars
 
 class TiingoMinuteCollector(VendorCollector):
     """Tiingo minute data collector with file-based storage"""
-    
+
     def __init__(self, file_manager: FileBasedMinuteManager):
         super().__init__('tiingo', file_manager)
         self.api_key = os.getenv('TIINGO_API_KEY', '')
-    
+
     async def collect_minute_data(self, symbols: List[str]) -> List[MinuteBar]:
         """Collect minute data from Tiingo API"""
         bars = []
-        
+
         if not self.api_key:
             self.logger.warning("Tiingo API key not configured")
             return bars
-        
+
         import aiohttp
         async with aiohttp.ClientSession() as session:
             for symbol in symbols:
@@ -141,7 +141,7 @@ class TiingoMinuteCollector(VendorCollector):
                         'endDate': datetime.now().strftime('%Y-%m-%d'),
                         'resampleFreq': '1min'
                     }
-                    
+
                     async with session.get(url, params=params, timeout=30) as response:
                         if response.status == 200:
                             data = await response.json()
@@ -164,37 +164,37 @@ class TiingoMinuteCollector(VendorCollector):
                                     continue
                         else:
                             self.logger.warning(f"Tiingo API error for {symbol}: {response.status}")
-                    
+
                     await asyncio.sleep(0.2)  # Tiingo rate limiting
-                    
+
                 except Exception as e:
                     self.logger.error(f"Error collecting Tiingo data for {symbol}: {e}")
-        
+
         self.logger.info(f"Collected {len(bars)} minute bars from Tiingo")
         return bars
 
 class FMPMinuteCollector(VendorCollector):
     """FMP minute data collector with file-based storage"""
-    
+
     def __init__(self, file_manager: FileBasedMinuteManager):
         super().__init__('fmp', file_manager)
         self.api_key = os.getenv('FMP_API_KEY', '')
-    
+
     async def collect_minute_data(self, symbols: List[str]) -> List[MinuteBar]:
         """Collect minute data from FMP API"""
         bars = []
-        
+
         if not self.api_key:
             self.logger.warning("FMP API key not configured")
             return bars
-        
+
         import aiohttp
         async with aiohttp.ClientSession() as session:
             for symbol in symbols:
                 try:
                     url = f"https://financialmodelingprep.com/api/v3/historical-chart/1min/{symbol}"
                     params = {'apikey': self.api_key}
-                    
+
                     async with session.get(url, params=params, timeout=30) as response:
                         if response.status == 200:
                             data = await response.json()
@@ -217,12 +217,12 @@ class FMPMinuteCollector(VendorCollector):
                                     continue
                         else:
                             self.logger.warning(f"FMP API error for {symbol}: {response.status}")
-                    
+
                     await asyncio.sleep(1)  # FMP rate limiting
-                    
+
                 except Exception as e:
                     self.logger.error(f"Error collecting FMP data for {symbol}: {e}")
-        
+
         self.logger.info(f"Collected {len(bars)} minute bars from FMP")
         return bars
 
@@ -235,10 +235,10 @@ app = FastAPI(
 
 class FileBasedMinutePriceService:
     """Main service orchestrator with file-based storage"""
-    
+
     def __init__(self):
         self.env = Environment()
-        
+
         # Initialize file-based storage manager
         storage_path = os.getenv('MINUTE_DATA_PATH', '/home/jianjun/ats-data/minute-files')
         self.file_manager = FileBasedMinuteManager(
@@ -247,20 +247,20 @@ class FileBasedMinutePriceService:
             backup_enabled=True,
             compression='snappy'
         )
-        
+
         # Initialize collectors
         self.collectors = {
             'polygon': PolygonMinuteCollector(self.file_manager),
             'tiingo': TiingoMinuteCollector(self.file_manager),
             'fmp': FMPMinuteCollector(self.file_manager)
         }
-        
+
         # Default symbols to collect
         self.symbols = [
             'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA',
             'JPM', 'JNJ', 'V', 'PG', 'UNH', 'DIS', 'NFLX', 'CRM', 'ADBE'
         ]
-        
+
         self.is_running = False
         self.metrics = {
             'total_collected': 0,
@@ -271,14 +271,14 @@ class FileBasedMinutePriceService:
             'files_updated': 0
         }
         self.logger = get_logger(__name__)
-    
+
     async def initialize(self):
         """Initialize the service"""
         self.logger.info("Initializing file-based minute price service")
         # File manager doesn't need explicit initialization
         await self.cleanup_old_data()
         self.logger.info("Service initialization complete")
-    
+
     async def cleanup_old_data(self):
         """Clean up old backup files"""
         try:
@@ -286,105 +286,105 @@ class FileBasedMinutePriceService:
             self.logger.info(f"Cleaned {cleaned} old backup files")
         except Exception as e:
             self.logger.error(f"Error during cleanup: {e}")
-    
+
     async def run_collection_cycle(self, overlap_strategy: str = 'merge'):
         """Run data collection cycle for all vendors"""
         self.logger.info("Starting file-based collection cycle")
-        
+
         # Collect from all vendors concurrently
         tasks = [
             collector.collect_minute_data(self.symbols)
             for collector in self.collectors.values()
         ]
-        
+
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         total_collected = 0
         total_stored = 0
-        
+
         for i, result in enumerate(results):
             vendor = list(self.collectors.keys())[i]
-            
+
             if isinstance(result, Exception):
                 self.logger.error(f"Collection failed for {vendor}: {result}")
                 self.metrics['errors'] += 1
                 continue
-            
+
             if not result:
                 self.logger.info(f"{vendor}: no data collected")
                 continue
-            
+
             # Group bars by symbol and store
             symbol_groups = {}
             for bar in result:
                 if bar.symbol not in symbol_groups:
                     symbol_groups[bar.symbol] = []
                 symbol_groups[bar.symbol].append(bar)
-            
+
             vendor_stored = 0
             for symbol, symbol_bars in symbol_groups.items():
                 try:
                     store_result = await self.file_manager.store_minute_data(
                         symbol, symbol_bars, overlap_strategy
                     )
-                    
+
                     vendor_stored += store_result['stored']
                     self.metrics['files_created'] += store_result.get('files_created', 0)
                     self.metrics['files_updated'] += store_result.get('files_updated', 0)
-                    
+
                     if store_result.get('errors'):
                         self.logger.warning(f"Storage errors for {symbol}: {store_result['errors']}")
-                        
+
                 except Exception as e:
                     self.logger.error(f"Error storing {symbol} data from {vendor}: {e}")
                     self.metrics['errors'] += 1
-            
+
             total_collected += len(result)
             total_stored += vendor_stored
-            
+
             self.logger.info(f"{vendor}: collected {len(result)} bars, stored {vendor_stored}")
-        
+
         self.metrics['total_collected'] += total_collected
         self.metrics['successful_stores'] += total_stored
         self.metrics['last_run'] = datetime.now().isoformat()
-        
+
         self.logger.info(f"Collection cycle complete: {total_collected} bars collected, {total_stored} stored")
-    
+
     async def start_continuous_collection(self):
         """Start continuous collection loop"""
         self.is_running = True
         self.logger.info("Starting continuous collection with file-based storage")
-        
+
         while self.is_running:
             try:
                 await self.run_collection_cycle()
-                
+
                 # Run integrity check every 10 cycles
                 if self.metrics.get('cycles', 0) % 10 == 0:
                     await self._run_integrity_check()
-                
+
                 self.metrics['cycles'] = self.metrics.get('cycles', 0) + 1
                 await asyncio.sleep(60)  # Collect every minute
-                
+
             except Exception as e:
                 self.logger.error(f"Collection loop error: {e}")
                 self.metrics['errors'] += 1
                 await asyncio.sleep(30)  # Shorter sleep on error
-    
+
     async def _run_integrity_check(self):
         """Run periodic integrity check"""
         try:
             self.logger.info("Running periodic integrity check...")
             integrity_result = await self.file_manager.verify_data_integrity()
-            
+
             if integrity_result['corrupt_files'] > 0 or integrity_result['checksum_mismatches'] > 0:
                 self.logger.warning(f"Integrity issues found: {integrity_result}")
             else:
                 self.logger.debug("Integrity check passed")
-                
+
         except Exception as e:
             self.logger.error(f"Error during integrity check: {e}")
-    
+
     async def query_data(self, symbol: str, start_date: datetime, end_date: datetime, columns: Optional[List[str]] = None):
         """Query minute data from files"""
         try:
@@ -393,7 +393,7 @@ class FileBasedMinutePriceService:
         except Exception as e:
             self.logger.error(f"Error querying data for {symbol}: {e}")
             raise HTTPException(status_code=500, detail=f"Query error: {e}")
-    
+
     async def get_storage_stats(self):
         """Get comprehensive storage statistics"""
         try:
@@ -403,7 +403,7 @@ class FileBasedMinutePriceService:
         except Exception as e:
             self.logger.error(f"Error getting storage stats: {e}")
             raise HTTPException(status_code=500, detail=f"Stats error: {e}")
-    
+
     async def store_external_data(self, symbol: str, bars_data: List[Dict], overlap_strategy: str = 'merge'):
         """Store externally provided minute data"""
         try:
@@ -424,15 +424,15 @@ class FileBasedMinutePriceService:
                     quality_score=float(bar_dict.get('quality_score', 1.0))
                 )
                 bars.append(bar)
-            
+
             # Store the data
             result = await self.file_manager.store_minute_data(symbol, bars, overlap_strategy)
             return result
-            
+
         except Exception as e:
             self.logger.error(f"Error storing external data for {symbol}: {e}")
             raise HTTPException(status_code=500, detail=f"Storage error: {e}")
-    
+
     def stop(self):
         """Stop the continuous collection"""
         self.is_running = False
@@ -446,7 +446,7 @@ async def startup():
     """Service startup"""
     logger.info("Starting File-Based ATS Minute Price Service")
     await service.initialize()
-    
+
     # Start collection in background
     asyncio.create_task(service.start_continuous_collection())
     logger.info("File-based service started successfully")
@@ -463,7 +463,7 @@ async def shutdown():
 async def health():
     """Enhanced health check endpoint"""
     storage_stats = await service.get_storage_stats()
-    
+
     return {
         "status": "healthy" if service.is_running else "stopped",
         "storage_type": "file_based",
@@ -488,8 +488,8 @@ async def get_metrics():
 async def store_data(request: MinutePriceRequest):
     """Store minute data from external source"""
     result = await service.store_external_data(
-        request.symbol, 
-        request.bars, 
+        request.symbol,
+        request.bars,
         request.overlap_strategy
     )
     return {
@@ -503,14 +503,14 @@ async def query_data(request: QueryRequest):
     """Query minute data from files"""
     start_date = datetime.fromisoformat(request.start_date)
     end_date = datetime.fromisoformat(request.end_date)
-    
+
     result_df = await service.query_data(
-        request.symbol, 
-        start_date, 
-        end_date, 
+        request.symbol,
+        start_date,
+        end_date,
         request.columns
     )
-    
+
     # Convert DataFrame to dict for JSON response
     if result_df.empty:
         return {
@@ -519,7 +519,7 @@ async def query_data(request: QueryRequest):
             "count": 0,
             "message": "No data found for specified range"
         }
-    
+
     return {
         "symbol": request.symbol,
         "data": result_df.to_dict('records'),
@@ -535,7 +535,7 @@ async def trigger_collection(background_tasks: BackgroundTasks):
     """Manual collection trigger"""
     background_tasks.add_task(service.run_collection_cycle)
     return {
-        "message": "Collection triggered", 
+        "message": "Collection triggered",
         "timestamp": datetime.now().isoformat(),
         "storage_type": "file_based"
     }
@@ -560,7 +560,7 @@ async def root():
         "status": "running" if service.is_running else "stopped",
         "features": [
             "Monthly file organization",
-            "Overlap detection and resolution", 
+            "Overlap detection and resolution",
             "Missing file handling",
             "Data integrity verification",
             "Atomic file operations",

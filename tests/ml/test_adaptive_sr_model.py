@@ -30,7 +30,7 @@ from domains.ml.services.training_data.support_resistance_generator import (
 
 class TestAdaptiveModelConfig:
     """Test suite for AdaptiveModelConfig"""
-    
+
     def test_config_creation(self):
         """Test creating adaptive model configuration"""
         config = AdaptiveModelConfig(
@@ -39,18 +39,18 @@ class TestAdaptiveModelConfig:
             rolling_window_days=300,
             retrain_frequency_days=2
         )
-        
+
         assert config.bootstrap_years == 4
         assert config.min_bootstrap_examples == 2000
         assert config.rolling_window_days == 300
         assert config.retrain_frequency_days == 2
         assert config.learning_rate_decay == 0.95  # Default
         assert config.model_memory_weight == 0.8   # Default
-    
+
     def test_config_defaults(self):
         """Test default configuration values"""
         config = AdaptiveModelConfig()
-        
+
         assert config.bootstrap_years == 3
         assert config.min_bootstrap_examples == 5000
         assert config.rolling_window_days == 365
@@ -59,11 +59,11 @@ class TestAdaptiveModelConfig:
         assert config.model_memory_weight == 0.8
         assert config.performance_lookback_days == 30
         assert config.min_accuracy_threshold == 0.4
-    
+
     def test_base_model_config_creation(self):
         """Test that base model config is created correctly"""
         config = AdaptiveModelConfig()
-        
+
         assert config.base_model_config is not None
         assert config.base_model_config.input_dim == 50
         assert config.base_model_config.hidden_dims == [128, 64, 32]
@@ -72,29 +72,29 @@ class TestAdaptiveModelConfig:
 
 class TestAdaptiveModelState:
     """Test suite for AdaptiveModelState"""
-    
+
     def test_state_initialization(self):
         """Test adaptive model state initialization"""
         state = AdaptiveModelState()
-        
+
         assert state.last_retrain_date is None
         assert state.total_training_examples == 0
         assert state.recent_performance == []
         assert state.model_version == 0
         assert state.training_history == []
         assert state.bootstrap_completed is False
-    
+
     def test_state_updates(self):
         """Test updating model state"""
         state = AdaptiveModelState()
-        
+
         # Update state
         state.last_retrain_date = date(2023, 1, 15)
         state.total_training_examples = 1500
         state.model_version = 3
         state.bootstrap_completed = True
         state.recent_performance = [0.65, 0.72, 0.68]
-        
+
         assert state.last_retrain_date == date(2023, 1, 15)
         assert state.total_training_examples == 1500
         assert state.model_version == 3
@@ -103,7 +103,7 @@ class TestAdaptiveModelState:
 
 class TestAdaptiveSupportResistanceModel:
     """Test suite for AdaptiveSupportResistanceModel"""
-    
+
     @pytest.fixture
     def config(self):
         """Create test configuration"""
@@ -114,17 +114,17 @@ class TestAdaptiveSupportResistanceModel:
             retrain_frequency_days=1,
             min_retrain_examples=5     # Low for testing
         )
-    
+
     @pytest.fixture
     def model(self, config):
         """Create adaptive model for testing"""
         return AdaptiveSupportResistanceModel(config)
-    
+
     @pytest.fixture
     def sample_training_examples(self):
         """Create sample training examples"""
         examples = []
-        
+
         for i in range(20):
             example = TrainingExample(
                 symbol='TEST',
@@ -158,9 +158,9 @@ class TestAdaptiveSupportResistanceModel:
                 next_day_volume=1200000
             )
             examples.append(example)
-        
+
         return examples
-    
+
     def test_model_initialization(self, model):
         """Test adaptive model initialization"""
         assert isinstance(model.config, AdaptiveModelConfig)
@@ -169,14 +169,14 @@ class TestAdaptiveSupportResistanceModel:
         assert hasattr(model, 'training_generator')
         assert hasattr(model, 'training_data_cache')
         assert len(model.training_data_cache) == 0
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_bootstrap_model_mock(self, model):
         """Test model bootstrapping with mocked data"""
         symbols = ['TEST1', 'TEST2']
         end_date = date(2023, 1, 1)
-        
+
         # Mock the training data generation
         model.training_generator.generate_training_data = AsyncMock(
             return_value=[
@@ -197,13 +197,13 @@ class TestAdaptiveSupportResistanceModel:
                 ) for _ in range(15)  # Sufficient examples
             ]
         )
-        
+
         # Test bootstrap
         success = await model.bootstrap_model(
             symbols=symbols,
             end_date=end_date
         )
-        
+
         assert success is True
         assert model.state.bootstrap_completed is True
         assert model.state.model_version == 1
@@ -211,42 +211,42 @@ class TestAdaptiveSupportResistanceModel:
         assert model.state.total_training_examples == 15
         assert len(model.state.training_history) == 1
         assert model.model is not None
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_bootstrap_insufficient_data(self, model):
         """Test bootstrap failure with insufficient data"""
         symbols = ['TEST']
         end_date = date(2023, 1, 1)
-        
+
         # Mock insufficient training data
         model.training_generator.generate_training_data = AsyncMock(
             return_value=[]  # No examples
         )
-        
+
         success = await model.bootstrap_model(
             symbols=symbols,
             end_date=end_date
         )
-        
+
         assert success is False
         assert model.state.bootstrap_completed is False
         assert model.model is None
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_daily_update_before_bootstrap(self, model):
         """Test that daily update fails before bootstrap"""
         current_date = date(2023, 1, 2)
         symbols = ['TEST']
-        
+
         updated = await model.daily_update(
             current_date=current_date,
             symbols=symbols
         )
-        
+
         assert updated is False
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_daily_update_with_mock(self, model, sample_training_examples):
@@ -256,29 +256,29 @@ class TestAdaptiveSupportResistanceModel:
         model.state.last_retrain_date = date(2023, 1, 1)
         model.state.model_version = 1
         model.model = MagicMock()  # Mock trained model
-        
+
         # Mock training data generation
         model._get_training_data_for_period = AsyncMock(
             return_value=sample_training_examples[:10]  # Sufficient for update
         )
-        
+
         # Mock the update methods
         model._should_full_retrain = MagicMock(return_value=False)
         model._incremental_update = AsyncMock(return_value=True)
-        
+
         current_date = date(2023, 1, 2)
         symbols = ['TEST']
-        
+
         updated = await model.daily_update(
             current_date=current_date,
             symbols=symbols
         )
-        
+
         assert updated is True
         assert model.state.last_retrain_date == current_date
         assert model.state.model_version == 2
         assert len(model.state.training_history) == 1
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_training_data_caching(self, model):
@@ -286,7 +286,7 @@ class TestAdaptiveSupportResistanceModel:
         symbols = ['TEST']
         start_date = date(2023, 1, 1)
         end_date = date(2023, 1, 31)
-        
+
         # Mock the training generator
         mock_examples = [
             TrainingExample(
@@ -301,48 +301,48 @@ class TestAdaptiveSupportResistanceModel:
                 next_day_volume=1000000
             )
         ]
-        
+
         model.training_generator.generate_training_data = AsyncMock(
             return_value=mock_examples
         )
-        
+
         # First call should generate data
         data1 = await model._get_training_data_for_period(symbols, start_date, end_date)
         assert data1 == mock_examples
         assert len(model.training_data_cache) == 1
-        
+
         # Second call should use cache
         data2 = await model._get_training_data_for_period(symbols, start_date, end_date)
         assert data2 == mock_examples
         assert model.training_generator.generate_training_data.call_count == 1  # Called only once
-    
+
     def test_should_retrain_for_performance(self, model):
         """Test performance-based retraining logic"""
         # No performance data
         assert model._should_retrain_for_performance() is False
-        
+
         # Insufficient performance data
         model.state.recent_performance = [0.5, 0.6]
         assert model._should_retrain_for_performance() is False
-        
+
         # Good performance
         model.state.recent_performance = [0.6, 0.7, 0.65, 0.68, 0.72]
         assert model._should_retrain_for_performance() is False
-        
+
         # Poor performance (below threshold)
         model.state.recent_performance = [0.3, 0.25, 0.35, 0.2, 0.3]
         assert model._should_retrain_for_performance() is True
-    
+
     def test_should_full_retrain(self, model):
         """Test full retrain decision logic"""
         # Very poor recent performance
         model.state.recent_performance = [0.1, 0.15, 0.12]
         assert model._should_full_retrain() is True
-        
+
         # Good performance but no history
         model.state.recent_performance = [0.7, 0.75, 0.72]
         assert model._should_full_retrain() is False
-        
+
         # Test monthly full retrain logic
         old_date = date.today() - timedelta(days=35)
         model.state.training_history = [
@@ -350,14 +350,14 @@ class TestAdaptiveSupportResistanceModel:
             {'date': date.today() - timedelta(days=5), 'type': 'update'}
         ]
         assert model._should_full_retrain() is True
-    
+
     def test_predict_before_training(self, model):
         """Test prediction before model is trained"""
         features = np.random.randn(1, 10)
-        
+
         with pytest.raises(ValueError, match="Model not trained"):
             model.predict(features)
-    
+
     def test_evaluate_daily_performance(self, model, sample_training_examples):
         """Test daily performance evaluation"""
         # Mock a trained model
@@ -368,17 +368,17 @@ class TestAdaptiveSupportResistanceModel:
             'overall_mae': 0.022
         }
         model.model = mock_model
-        
+
         metrics = model.evaluate_daily_performance(sample_training_examples[:5])
-        
+
         assert isinstance(metrics, dict)
         assert 'support_mae' in metrics
         assert len(model.state.recent_performance) == 1
-        
+
         # Performance should be accuracy proxy (1 - MAE)
         expected_accuracy = 1.0 - 0.022
         assert abs(model.state.recent_performance[0] - expected_accuracy) < 1e-6
-    
+
     def test_save_load_model(self, model):
         """Test saving and loading model state"""
         # Set up some state
@@ -387,25 +387,25 @@ class TestAdaptiveSupportResistanceModel:
         model.state.total_training_examples = 1000
         model.state.recent_performance = [0.6, 0.7, 0.65]
         model.model = MagicMock()  # Mock model
-        
+
         with tempfile.TemporaryDirectory() as temp_dir:
             model_path = os.path.join(temp_dir, 'test_adaptive_model.pkl')
-            
+
             # Save model
             model.save_model(model_path)
             assert os.path.exists(model_path)
-            
+
             # Create new model and load
             new_model = AdaptiveSupportResistanceModel(model.config)
             new_model.load_model(model_path)
-            
+
             # Check that state was restored
             assert new_model.state.bootstrap_completed is True
             assert new_model.state.model_version == 5
             assert new_model.state.total_training_examples == 1000
             assert len(new_model.state.recent_performance) == 3
             assert new_model.model is not None
-    
+
     def test_get_model_info(self, model):
         """Test getting model information"""
         # Set up some state
@@ -416,9 +416,9 @@ class TestAdaptiveSupportResistanceModel:
         model.state.recent_performance = [0.65, 0.7, 0.68, 0.72, 0.69]
         model.state.training_history = [{'date': date(2023, 1, 1), 'type': 'bootstrap'}]
         model.training_data_cache = {'key1': [], 'key2': []}
-        
+
         info = model.get_model_info()
-        
+
         assert info['bootstrap_completed'] is True
         assert info['model_version'] == 3
         assert info['last_retrain_date'] == date(2023, 1, 15)
@@ -430,7 +430,7 @@ class TestAdaptiveSupportResistanceModel:
 @pytest.mark.integration
 class TestAdaptiveModelIntegration:
     """Integration tests for the adaptive model system"""
-    
+
     @pytest.fixture
     def integration_config(self):
         """Create integration test configuration"""
@@ -441,13 +441,13 @@ class TestAdaptiveModelIntegration:
             retrain_frequency_days=1,
             min_retrain_examples=2       # Very low for testing
         )
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_complete_adaptive_workflow(self, integration_config):
         """Test complete adaptive model workflow"""
         model = AdaptiveSupportResistanceModel(integration_config)
-        
+
         # Mock training data generation throughout
         def mock_training_data(size=10):
             return [
@@ -466,34 +466,34 @@ class TestAdaptiveModelIntegration:
                 )
                 for i in range(1, size + 1)
             ]
-        
+
         model.training_generator.generate_training_data = AsyncMock(
             side_effect=lambda **kwargs: mock_training_data(10)
         )
-        
+
         # Step 1: Bootstrap
         symbols = ['TEST']
         bootstrap_end = date(2023, 1, 1)
-        
+
         success = await model.bootstrap_model(symbols, bootstrap_end)
         assert success is True
         assert model.state.bootstrap_completed is True
-        
+
         # Step 2: Daily updates
         for day in range(1, 6):  # 5 days of updates
             current_date = bootstrap_end + timedelta(days=day)
-            
+
             updated = await model.daily_update(current_date, symbols)
             # Update success depends on mocked data and logic
-            
+
         # Verify final state
         assert model.state.model_version >= 1
         assert len(model.state.training_history) >= 1
-        
+
     def test_adaptive_vs_static_concept(self):
         """Test the conceptual difference between adaptive and static approaches"""
         # This test validates the conceptual approach
-        
+
         # Adaptive approach characteristics
         adaptive_features = {
             'retrain_frequency': 'daily',
@@ -502,8 +502,8 @@ class TestAdaptiveModelIntegration:
             'computational_cost': 'higher',
             'data_usage': 'rolling_window'
         }
-        
-        # Static approach characteristics  
+
+        # Static approach characteristics
         static_features = {
             'retrain_frequency': 'weekly/monthly',
             'adaptation_speed': 'slow',
@@ -511,12 +511,12 @@ class TestAdaptiveModelIntegration:
             'computational_cost': 'lower',
             'data_usage': 'fixed_periods'
         }
-        
+
         # Key differences that justify adaptive approach
         assert adaptive_features['retrain_frequency'] != static_features['retrain_frequency']
         assert adaptive_features['adaptation_speed'] != static_features['adaptation_speed']
         assert adaptive_features['market_regime_sensitivity'] != static_features['market_regime_sensitivity']
-        
+
         # Trade-offs
         assert adaptive_features['computational_cost'] == 'higher'  # Cost of adaptation
         assert static_features['computational_cost'] == 'lower'     # Cost efficiency

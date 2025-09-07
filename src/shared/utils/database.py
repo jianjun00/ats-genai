@@ -25,7 +25,7 @@ except ImportError:
     async def get_database_pool(*args, **kwargs):
         """Compatibility function - implementation depends on database_connections module"""
         raise NotImplementedError("get_database_pool requires shared.utils.database_connections module")
-    
+
     def get_table_name(*args, **kwargs):
         """Compatibility function - implementation depends on database_connections module"""
         raise NotImplementedError("get_table_name requires shared.utils.database_connections module")

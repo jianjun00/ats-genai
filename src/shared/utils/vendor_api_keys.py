@@ -15,7 +15,7 @@ USAGE:
 from shared.utils.vendor_api_keys import get_vendor_api_key
 
 polygon_api_key = get_vendor_api_key('polygon')
-eodhd_api_key = get_vendor_api_key('eodhd') 
+eodhd_api_key = get_vendor_api_key('eodhd')
 tiingo_api_key = get_vendor_api_key('tiingo')
 """
 
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 # Vendor to environment variable mapping
 VENDOR_API_KEY_MAP = {
     'polygon': 'POLYGON_API_KEY',
-    'eodhd': 'EODHD_API_KEY', 
+    'eodhd': 'EODHD_API_KEY',
     'tiingo': 'TIINGO_API_KEY',
     'alpha_vantage': 'ALPHA_VANTAGE_API_KEY',
     'finnhub': 'FINNHUB_API_KEY',
@@ -40,40 +40,40 @@ VENDOR_API_KEY_MAP = {
 def get_vendor_api_key(vendor: str, env=None, required: bool = True) -> Optional[str]:
     """
     Get API key for a vendor using standardized resolution logic.
-    
+
     Resolution order:
     1. Environment variable (e.g., POLYGON_API_KEY)
     2. Vendor utils system (if available)
     3. Gin configuration files (env.get_api_key)
-    
+
     Args:
         vendor: Vendor name (e.g., 'polygon', 'eodhd', 'tiingo')
         env: Environment instance (optional, for gin config fallback)
         required: Whether to log error if key not found (default: True)
-    
+
     Returns:
         API key string or None if not found
-        
+
     Examples:
         >>> api_key = get_vendor_api_key('polygon')
         >>> api_key = get_vendor_api_key('eodhd', env=environment)
         >>> api_key = get_vendor_api_key('tiingo', required=False)
     """
     vendor = vendor.lower().strip()
-    
+
     # Get the environment variable name
     env_var_name = VENDOR_API_KEY_MAP.get(vendor)
     if not env_var_name:
         if required:
             logger.error(f"Unknown vendor '{vendor}'. Supported vendors: {list(VENDOR_API_KEY_MAP.keys())}")
         return None
-    
+
     # Method 1: Environment variable (highest priority)
     api_key = os.environ.get(env_var_name)
     if api_key:
         logger.debug(f"Using {env_var_name} from environment variable")
         return api_key
-    
+
     # Method 2: Vendor utils system
     try:
         if vendor == 'polygon':
@@ -93,7 +93,7 @@ def get_vendor_api_key(vendor: str, env=None, required: bool = True) -> Optional
                 return TIINGO_API_KEY
     except ImportError:
         pass
-    
+
     # Method 3: Environment system with gin config
     if env:
         try:
@@ -103,55 +103,55 @@ def get_vendor_api_key(vendor: str, env=None, required: bool = True) -> Optional
                 return api_key
         except Exception:
             pass
-    
+
     # Not found
     if required:
         logger.error(f"No API key found for vendor '{vendor}'. Set {env_var_name} environment variable or configure in gin files.")
-    
+
     return None
 
 def get_all_vendor_api_keys(env=None, required_vendors: Optional[list] = None) -> dict:
     """
     Get API keys for multiple vendors at once.
-    
+
     Args:
         env: Environment instance (optional)
         required_vendors: List of vendors that must have keys (optional)
-    
+
     Returns:
         Dictionary mapping vendor names to API keys
-        
+
     Example:
         >>> keys = get_all_vendor_api_keys(required_vendors=['polygon', 'eodhd'])
         >>> polygon_key = keys.get('polygon')
         >>> eodhd_key = keys.get('eodhd')
     """
     api_keys = {}
-    
+
     for vendor in VENDOR_API_KEY_MAP.keys():
         is_required = required_vendors and vendor in required_vendors
         api_key = get_vendor_api_key(vendor, env=env, required=is_required)
         if api_key:
             api_keys[vendor] = api_key
-    
+
     return api_keys
 
 def validate_vendor_api_key(vendor: str, api_key: str) -> bool:
     """
     Basic validation of API key format for a vendor.
-    
+
     Args:
         vendor: Vendor name
         api_key: API key to validate
-        
+
     Returns:
         True if key appears valid, False otherwise
     """
     if not api_key or not isinstance(api_key, str):
         return False
-    
+
     vendor = vendor.lower().strip()
-    
+
     # Vendor-specific validation rules
     validation_rules = {
         'polygon': lambda k: len(k) > 10 and k.replace('_', '').replace('.', '').isalnum(),
@@ -159,7 +159,7 @@ def validate_vendor_api_key(vendor: str, api_key: str) -> bool:
         'tiingo': lambda k: len(k) > 10 and k.replace('_', '').replace('-', '').isalnum(),
         'alpha_vantage': lambda k: len(k) > 10 and k.isalnum(),
     }
-    
+
     validator = validation_rules.get(vendor, lambda k: len(k) > 5)
     return validator(api_key)
 
@@ -169,7 +169,7 @@ def get_polygon_api_key(env=None, required: bool = True) -> Optional[str]:
     return get_vendor_api_key('polygon', env=env, required=required)
 
 def get_eodhd_api_key(env=None, required: bool = True) -> Optional[str]:
-    """Get EOD Historical Data API key"""  
+    """Get EOD Historical Data API key"""
     return get_vendor_api_key('eodhd', env=env, required=required)
 
 def get_tiingo_api_key(env=None, required: bool = True) -> Optional[str]:

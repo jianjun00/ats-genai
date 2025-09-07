@@ -35,7 +35,7 @@ class ValidationSeverity(Enum):
 
 class ValidationCategory(Enum):
     COMPLETENESS = "completeness"
-    CONSISTENCY = "consistency" 
+    CONSISTENCY = "consistency"
     ACCURACY = "accuracy"
     FRESHNESS = "freshness"
     INTEGRITY = "integrity"
@@ -52,7 +52,7 @@ class ValidationResult:
     affected_records: int = 0
     recommendation: str = ""
 
-@dataclass 
+@dataclass
 class DataQualityReport:
     timestamp: datetime
     total_tests: int
@@ -69,12 +69,12 @@ class DataQualityValidator:
     """
     Comprehensive data quality validation for multi-vendor price data
     """
-    
+
     def __init__(self, env: Environment):
         self.env = env
         self.db_url = env.get_database_url()
         self.logger = logging.getLogger(__name__)
-        
+
         # Vendor tables configuration
         self.vendor_tables = {
             'polygon': self.env.get_table_name('daily_prices_polygon'),
@@ -82,7 +82,7 @@ class DataQualityValidator:
             'alphavantage': self.env.get_table_name('daily_prices_alphavantage'),
             'fmp': self.env.get_table_name('daily_prices_fmp')
         }
-        
+
         # Quality thresholds
         self.quality_thresholds = {
             'min_data_coverage': 0.80,     # 80% coverage required
@@ -91,22 +91,22 @@ class DataQualityValidator:
             'min_volume_correlation': 0.70, # 70% volume correlation between vendors
             'max_missing_ratio': 0.05      # 5% max missing data ratio
         }
-    
+
     async def get_database_connection_pool(self):
         """Get database connection pool"""
         return await asyncpg.create_pool(self.db_url, min_size=2, max_size=8)
-    
+
     async def validate_data_completeness(self, symbols: List[str], start_date: date, end_date: date) -> List[ValidationResult]:
         """Validate data completeness across all vendors"""
         results = []
         pool = await self.get_database_connection_pool()
-        
+
         try:
             async with pool.acquire() as conn:
                 # Get trading days in the period
                 trading_days = await self._get_trading_days(conn, start_date, end_date)
                 expected_records_per_symbol = len(trading_days)
-                
+
                 for vendor, table_name in self.vendor_tables.items():
                     try:
                         # Check data coverage for each symbol
@@ -114,15 +114,15 @@ class DataQualityValidator:
                             instrument_id = await self._get_instrument_id(conn, symbol)
                             if not instrument_id:
                                 continue
-                            
+
                             actual_count = await conn.fetchval(f"""
                                 SELECT COUNT(*) FROM {table_name}
-                                WHERE instrument_id = $1 
+                                WHERE instrument_id = $1
                                   AND date BETWEEN $2 AND $3
                             """, instrument_id, start_date, end_date)
-                            
+
                             coverage_ratio = actual_count / expected_records_per_symbol if expected_records_per_symbol > 0 else 0
-                            
+
                             # Evaluate completeness
                             if coverage_ratio < self.quality_thresholds['min_data_coverage']:
                                 results.append(ValidationResult(
@@ -155,7 +155,7 @@ class DataQualityValidator:
                                         'coverage_ratio': coverage_ratio
                                     }
                                 ))
-                    
+
                     except Exception as e:
                         self.logger.error(f"Error checking completeness for {vendor}: {e}")
                         results.append(ValidationResult(
@@ -167,24 +167,24 @@ class DataQualityValidator:
                             details={'error': str(e)},
                             recommendation=f"Investigate database connectivity issues with {vendor} table"
                         ))
-        
+
         finally:
             await pool.close()
-        
+
         return results
-    
+
     async def validate_cross_vendor_consistency(self, symbols: List[str], start_date: date, end_date: date) -> List[ValidationResult]:
         """Validate price consistency across vendors"""
         results = []
         pool = await self.get_database_connection_pool()
-        
+
         try:
             async with pool.acquire() as conn:
                 for symbol in symbols:
                     instrument_id = await self._get_instrument_id(conn, symbol)
                     if not instrument_id:
                         continue
-                    
+
                     # Get prices from all vendors for comparison
                     vendor_prices = {}
                     for vendor, table_name in self.vendor_tables.items():
@@ -192,37 +192,37 @@ class DataQualityValidator:
                             rows = await conn.fetch(f"""
                                 SELECT date, close, volume
                                 FROM {table_name}
-                                WHERE instrument_id = $1 
+                                WHERE instrument_id = $1
                                   AND date BETWEEN $2 AND $3
                                 ORDER BY date
                             """, instrument_id, start_date, end_date)
-                            
+
                             vendor_prices[vendor] = {row['date']: {'close': float(row['close']), 'volume': int(row['volume'] or 0)} for row in rows}
-                        
+
                         except Exception as e:
                             self.logger.warning(f"Error fetching {vendor} data for {symbol}: {e}")
                             continue
-                    
+
                     # Analyze price consistency
                     if len(vendor_prices) >= 2:
                         consistency_result = await self._analyze_price_consistency(symbol, vendor_prices)
                         results.append(consistency_result)
-                        
-                        # Analyze volume consistency 
+
+                        # Analyze volume consistency
                         volume_result = await self._analyze_volume_consistency(symbol, vendor_prices)
                         results.append(volume_result)
-        
+
         finally:
             await pool.close()
-        
+
         return results
-    
+
     async def validate_data_freshness(self, symbols: List[str]) -> List[ValidationResult]:
         """Validate data freshness (no stale data)"""
         results = []
         pool = await self.get_database_connection_pool()
         current_date = date.today()
-        
+
         try:
             async with pool.acquire() as conn:
                 for vendor, table_name in self.vendor_tables.items():
@@ -232,15 +232,15 @@ class DataQualityValidator:
                             instrument_id = await self._get_instrument_id(conn, symbol)
                             if not instrument_id:
                                 continue
-                            
+
                             latest_date = await conn.fetchval(f"""
                                 SELECT MAX(date) FROM {table_name}
                                 WHERE instrument_id = $1
                             """, instrument_id)
-                            
+
                             if latest_date:
                                 days_stale = (current_date - latest_date).days
-                                
+
                                 if days_stale > self.quality_thresholds['max_stale_days']:
                                     results.append(ValidationResult(
                                         category=ValidationCategory.FRESHNESS,
@@ -283,7 +283,7 @@ class DataQualityValidator:
                                     },
                                     recommendation=f"Initialize data for {symbol} in {vendor} table"
                                 ))
-                    
+
                     except Exception as e:
                         self.logger.error(f"Error checking freshness for {vendor}: {e}")
                         results.append(ValidationResult(
@@ -294,17 +294,17 @@ class DataQualityValidator:
                             passed=False,
                             details={'error': str(e)}
                         ))
-        
+
         finally:
             await pool.close()
-        
+
         return results
-    
+
     async def validate_data_integrity(self, symbols: List[str], start_date: date, end_date: date) -> List[ValidationResult]:
         """Validate data integrity (no negative prices, reasonable ranges)"""
         results = []
         pool = await self.get_database_connection_pool()
-        
+
         try:
             async with pool.acquire() as conn:
                 for vendor, table_name in self.vendor_tables.items():
@@ -313,12 +313,12 @@ class DataQualityValidator:
                             instrument_id = await self._get_instrument_id(conn, symbol)
                             if not instrument_id:
                                 continue
-                            
+
                             # Check for data integrity violations
                             integrity_issues = await conn.fetch(f"""
                                 SELECT date, close, volume, open_price, high_price, low_price
                                 FROM {table_name}
-                                WHERE instrument_id = $1 
+                                WHERE instrument_id = $1
                                   AND date BETWEEN $2 AND $3
                                   AND (
                                     close <= 0 OR              -- Negative or zero prices
@@ -332,7 +332,7 @@ class DataQualityValidator:
                                   )
                                 ORDER BY date
                             """, instrument_id, start_date, end_date)
-                            
+
                             if integrity_issues:
                                 results.append(ValidationResult(
                                     category=ValidationCategory.INTEGRITY,
@@ -371,7 +371,7 @@ class DataQualityValidator:
                                         'symbol': symbol
                                     }
                                 ))
-                    
+
                     except Exception as e:
                         self.logger.error(f"Error checking integrity for {vendor}: {e}")
                         results.append(ValidationResult(
@@ -382,20 +382,20 @@ class DataQualityValidator:
                             passed=False,
                             details={'error': str(e)}
                         ))
-        
+
         finally:
             await pool.close()
-        
+
         return results
-    
+
     async def _analyze_price_consistency(self, symbol: str, vendor_prices: Dict[str, Dict]) -> ValidationResult:
         """Analyze price consistency across vendors"""
-        
+
         # Find common dates across all vendors
         all_dates = set()
         for vendor_data in vendor_prices.values():
             all_dates.update(vendor_data.keys())
-        
+
         if not all_dates:
             return ValidationResult(
                 category=ValidationCategory.CONSISTENCY,
@@ -405,29 +405,29 @@ class DataQualityValidator:
                 passed=False,
                 details={'symbol': symbol, 'reason': 'no_data'}
             )
-        
+
         # Calculate price variance for common dates
         high_variance_dates = []
         total_variance = 0
         comparison_count = 0
-        
+
         for trade_date in sorted(all_dates):
             date_prices = []
             vendors_with_data = []
-            
+
             for vendor, prices in vendor_prices.items():
                 if trade_date in prices:
                     date_prices.append(prices[trade_date]['close'])
                     vendors_with_data.append(vendor)
-            
+
             if len(date_prices) >= 2:
                 price_std = np.std(date_prices)
                 price_mean = np.mean(date_prices)
                 coefficient_of_variation = price_std / price_mean if price_mean > 0 else 0
-                
+
                 total_variance += coefficient_of_variation
                 comparison_count += 1
-                
+
                 if coefficient_of_variation > self.quality_thresholds['max_price_variance']:
                     high_variance_dates.append({
                         'date': trade_date.isoformat(),
@@ -436,9 +436,9 @@ class DataQualityValidator:
                         'std_dev': price_std,
                         'mean': price_mean
                     })
-        
+
         avg_variance = total_variance / comparison_count if comparison_count > 0 else 0
-        
+
         # Determine result
         if high_variance_dates:
             severity = ValidationSeverity.CRITICAL if len(high_variance_dates) > comparison_count * 0.1 else ValidationSeverity.WARNING
@@ -472,20 +472,20 @@ class DataQualityValidator:
                     'average_variance': avg_variance
                 }
             )
-    
+
     async def _analyze_volume_consistency(self, symbol: str, vendor_prices: Dict[str, Dict]) -> ValidationResult:
         """Analyze volume consistency across vendors"""
-        
+
         # Collect volume data from all vendors
         all_volumes = []
         vendor_volume_data = {}
-        
+
         for vendor, prices in vendor_prices.items():
             volumes = [data['volume'] for data in prices.values() if data['volume'] > 0]
             if volumes:
                 all_volumes.extend(volumes)
                 vendor_volume_data[vendor] = volumes
-        
+
         if len(vendor_volume_data) < 2:
             return ValidationResult(
                 category=ValidationCategory.CONSISTENCY,
@@ -495,11 +495,11 @@ class DataQualityValidator:
                 passed=True,
                 details={'symbol': symbol, 'reason': 'insufficient_data'}
             )
-        
+
         # Calculate correlations between vendors
         correlations = {}
         vendor_names = list(vendor_volume_data.keys())
-        
+
         for i, vendor1 in enumerate(vendor_names):
             for vendor2 in vendor_names[i+1:]:
                 try:
@@ -509,9 +509,9 @@ class DataQualityValidator:
                     correlations[f"{vendor1}_vs_{vendor2}"] = corr if not np.isnan(corr) else 0
                 except Exception:
                     correlations[f"{vendor1}_vs_{vendor2}"] = 0
-        
+
         avg_correlation = mean(correlations.values()) if correlations else 0
-        
+
         # Evaluate volume consistency
         if avg_correlation < self.quality_thresholds['min_volume_correlation']:
             return ValidationResult(
@@ -542,59 +542,59 @@ class DataQualityValidator:
                     'correlations': correlations
                 }
             )
-    
+
     async def _get_trading_days(self, conn, start_date: date, end_date: date) -> List[date]:
         """Get trading days between start and end date"""
         # Simplified - assume all weekdays are trading days
         # In production, this should check against actual trading calendar
         trading_days = []
         current_date = start_date
-        
+
         while current_date <= end_date:
             if current_date.weekday() < 5:  # Monday = 0, Friday = 4
                 trading_days.append(current_date)
             current_date += timedelta(days=1)
-        
+
         return trading_days
-    
+
     async def _get_instrument_id(self, conn, symbol: str) -> Optional[int]:
         """Get instrument ID for symbol"""
         return await conn.fetchval("SELECT id FROM dev_instruments WHERE symbol = $1", symbol)
-    
+
     async def run_comprehensive_validation(self, symbols: List[str], days_back: int = 30) -> DataQualityReport:
         """Run comprehensive data quality validation"""
-        
+
         start_time = datetime.now()
         end_date = date.today()
         start_date = end_date - timedelta(days=days_back)
-        
+
         self.logger.info(f"Starting comprehensive data quality validation for {len(symbols)} symbols")
         self.logger.info(f"Validation period: {start_date} to {end_date}")
-        
+
         # Run all validation tests
         all_results = []
-        
+
         try:
             # Completeness validation
             self.logger.info("Running completeness validation...")
             completeness_results = await self.validate_data_completeness(symbols, start_date, end_date)
             all_results.extend(completeness_results)
-            
+
             # Consistency validation
             self.logger.info("Running consistency validation...")
             consistency_results = await self.validate_cross_vendor_consistency(symbols, start_date, end_date)
             all_results.extend(consistency_results)
-            
+
             # Freshness validation
             self.logger.info("Running freshness validation...")
             freshness_results = await self.validate_data_freshness(symbols)
             all_results.extend(freshness_results)
-            
+
             # Integrity validation
             self.logger.info("Running integrity validation...")
             integrity_results = await self.validate_data_integrity(symbols, start_date, end_date)
             all_results.extend(integrity_results)
-            
+
         except Exception as e:
             self.logger.error(f"Error during validation: {e}")
             all_results.append(ValidationResult(
@@ -606,26 +606,26 @@ class DataQualityValidator:
                 details={'error': str(e)},
                 recommendation="Fix validation framework issues"
             ))
-        
+
         # Generate report
         report = self._generate_data_quality_report(all_results, start_time)
-        
+
         self.logger.info(f"Data quality validation completed in {(datetime.now() - start_time).total_seconds():.2f} seconds")
         self.logger.info(f"Overall quality score: {report.overall_score:.1f}/100")
-        
+
         return report
-    
+
     def _generate_data_quality_report(self, results: List[ValidationResult], start_time: datetime) -> DataQualityReport:
         """Generate comprehensive data quality report"""
-        
+
         total_tests = len(results)
         passed_tests = sum(1 for r in results if r.passed)
         failed_tests = total_tests - passed_tests
-        
+
         critical_issues = sum(1 for r in results if r.severity == ValidationSeverity.CRITICAL and not r.passed)
         warning_issues = sum(1 for r in results if r.severity == ValidationSeverity.WARNING and not r.passed)
         info_issues = sum(1 for r in results if r.severity == ValidationSeverity.INFO and not r.passed)
-        
+
         # Calculate overall score
         if total_tests == 0:
             overall_score = 100.0
@@ -634,7 +634,7 @@ class DataQualityValidator:
             penalty_points = (critical_issues * 10) + (warning_issues * 5) + (info_issues * 1)
             max_possible_penalty = total_tests * 10  # If all were critical
             overall_score = max(0, 100 - (penalty_points / max_possible_penalty * 100)) if max_possible_penalty > 0 else 100
-        
+
         # Generate summary
         if critical_issues > 0:
             summary = f"⚠️  Data quality issues detected: {critical_issues} critical, {warning_issues} warnings. Immediate attention required."
@@ -642,7 +642,7 @@ class DataQualityValidator:
             summary = f"⚡ Data quality concerns: {warning_issues} warnings detected. Monitoring recommended."
         else:
             summary = f"✅ Data quality is good: {passed_tests}/{total_tests} tests passed."
-        
+
         return DataQualityReport(
             timestamp=datetime.now(),
             total_tests=total_tests,
@@ -658,22 +658,22 @@ class DataQualityValidator:
 
 async def main():
     """Example usage of data quality validator"""
-    
-    logging.basicConfig(level=logging.INFO, 
+
+    logging.basicConfig(level=logging.INFO,
                        format='%(asctime)s - %(levelname)s - %(message)s')
-    
+
     env = Environment()
     validator = DataQualityValidator(env)
-    
+
     # Test symbols
     test_symbols = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"]
-    
+
     print("🔍 Starting comprehensive data quality validation...")
     print(f"📊 Testing symbols: {test_symbols}")
-    
+
     # Run validation
     report = await validator.run_comprehensive_validation(test_symbols, days_back=30)
-    
+
     # Display results
     print(f"\n📋 DATA QUALITY REPORT")
     print(f"{'='*60}")
@@ -681,7 +681,7 @@ async def main():
     print(f"Summary: {report.summary}")
     print(f"\nTest Results: {report.passed_tests}/{report.total_tests} passed")
     print(f"Issues: {report.critical_issues} critical, {report.warning_issues} warnings, {report.info_issues} info")
-    
+
     # Show critical issues
     critical_results = [r for r in report.validation_results if r.severity == ValidationSeverity.CRITICAL and not r.passed]
     if critical_results:
@@ -689,7 +689,7 @@ async def main():
         for result in critical_results[:5]:  # Show first 5
             print(f"  • {result.test_name}: {result.description}")
             print(f"    {result.recommendation}")
-    
+
     # Show warnings
     warning_results = [r for r in report.validation_results if r.severity == ValidationSeverity.WARNING and not r.passed]
     if warning_results:

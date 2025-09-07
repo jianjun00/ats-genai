@@ -35,18 +35,18 @@ logger = logging.getLogger("instrument_agent_runner")
 async def run_daily_update(environment_type: str, debug: bool = False, gin_config: str = None):
     """Run the daily instrument update."""
     logger.info("Starting scheduled daily instrument update")
-    
+
     # Initialize environment
     env = Environment(gin_config, EnvironmentType(environment_type))
-    
+
     # Create agent
     agent = InstrumentDataAgent(env, debug=debug)
-    
+
     # Check if market is closed
     if not await agent.is_market_closed():
         logger.info("Market is still open. Waiting until market close.")
         return
-    
+
     # Run daily update
     try:
         result = await agent.run_daily_update()
@@ -58,13 +58,13 @@ async def run_daily_update(environment_type: str, debug: bool = False, gin_confi
 async def run_backfill(environment_type: str, debug: bool = False, gin_config: str = None):
     """Run the instrument backfill."""
     logger.info("Starting instrument backfill")
-    
+
     # Initialize environment
     env = Environment(gin_config, EnvironmentType(environment_type))
-    
+
     # Create agent
     agent = InstrumentDataAgent(env, debug=debug)
-    
+
     # Run backfill
     try:
         result = await agent.run_backfill()
@@ -91,37 +91,37 @@ def schedule_daily_update(environment_type: str, debug: bool = False, gin_config
     schedule.every().friday.at("16:30").do(
         lambda: asyncio.run(run_daily_update(environment_type, debug, gin_config))
     )
-    
+
     logger.info("Daily instrument update scheduled to run at 4:30 PM ET on weekdays")
 
 
 def main():
     """Main entry point for the instrument agent runner."""
     parser = argparse.ArgumentParser(description="Run Instrument Data Agent")
-    parser.add_argument("operation", choices=["backfill", "daily_update", "schedule"], 
+    parser.add_argument("operation", choices=["backfill", "daily_update", "schedule"],
                         help="Operation to perform")
-    parser.add_argument("--environment", type=str, default="intg", 
+    parser.add_argument("--environment", type=str, default="intg",
                         choices=["test", "intg", "prod"], help="Environment to use")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--gin_config", type=str, default=None, help="Path to gin config file")
-    
+
     args = parser.parse_args()
-    
+
     if args.debug:
         logger.setLevel(logging.DEBUG)
-    
+
     if args.operation == "backfill":
         # Run backfill once
         asyncio.run(run_backfill(args.environment, args.debug, args.gin_config))
-    
+
     elif args.operation == "daily_update":
         # Run daily update once
         asyncio.run(run_daily_update(args.environment, args.debug, args.gin_config))
-    
+
     elif args.operation == "schedule":
         # Schedule daily updates
         schedule_daily_update(args.environment, args.debug, args.gin_config)
-        
+
         # Keep the script running to execute scheduled tasks
         logger.info("Scheduler started. Press Ctrl+C to exit.")
         try:

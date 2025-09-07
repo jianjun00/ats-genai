@@ -25,7 +25,7 @@ from .cross_scale_attention import (
 
 __all__ = [
     'CrossScaleAttention',
-    'HierarchicalPositionalEncoding', 
+    'HierarchicalPositionalEncoding',
     'RelativePositionBias',
     'ScaleSpecificAttention',
     'CrossScaleFusion',

@@ -21,14 +21,14 @@ from pathlib import Path
 
 def generate_watch_universe_training_data():
     """Generate watch universe training data using existing infrastructure."""
-    
+
     print("🚀 Watch Universe Training Data Generation")
     print("📊 Symbols: TSLA, AAPL")
-    print("📅 Date Range: 2025-07-01 to 2025-09-03") 
+    print("📅 Date Range: 2025-07-01 to 2025-09-03")
     print("🔄 Structure: 10 1h sequences → predict next 7 price trajectory")
     print("🕒 Context: 10 day + 10 week multi-timeframe features")
     print("=" * 80)
-    
+
     # Generate training data structure following existing patterns
     dataset_info = {
         'dataset_id': f"watch_universe_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
@@ -48,7 +48,7 @@ def generate_watch_universe_training_data():
         },
         'indicators': [
             'envelope_bot',    # Bottom envelope indicator
-            'envelope_top',    # Top envelope indicator  
+            'envelope_top',    # Top envelope indicator
             'pldot',          # Momentum indicator
             'z1b',            # Zone 1 bottom
             'z2b',            # Zone 2 bottom
@@ -63,7 +63,7 @@ def generate_watch_universe_training_data():
         ],
         'existing_infrastructure_usage': {
             'generator': 'src/ml/training_data/generators/configurable_train_data_generator.py',
-            'runner': 'src/ml/training_data/runners/training_data_callback_runner.py', 
+            'runner': 'src/ml/training_data/runners/training_data_callback_runner.py',
             'gin_config': 'config/watch_universe_training.gin',
             'universe_manager': 'src/state/universe_state_manager.py',
             'get_lagged_signals': 'get_lagged_signals(instrument_id, cur_date, lag_periods, time_interval)'
@@ -74,28 +74,28 @@ def generate_watch_universe_training_data():
                 'PYTHONPATH=src python3 src/ml/training_data/runners/training_data_callback_runner.py',
                 '--symbols TSLA AAPL',
                 '--start-date 2025-07-01',
-                '--end-date 2025-09-03', 
+                '--end-date 2025-09-03',
                 '--environment dev',
                 '--gin-config config/watch_universe_training.gin',
                 '--training-interval 60',    # Hourly training intervals
                 '--sequence-1h 10',          # 10 1h sequences
-                '--sequence-1d 10',          # 10 day context  
+                '--sequence-1d 10',          # 10 day context
                 '--sequence-1w 10',          # 10 week context
                 '--predict-1h 7',            # Predict next 7 hours
                 '--output-dir /mnt/d/ats-data/training/watch_universe'
             ]
         }
     }
-    
+
     # Create output directory
     output_dir = "/mnt/d/ats-data/training/watch_universe"
     os.makedirs(output_dir, exist_ok=True)
-    
+
     # Save configuration
     config_file = Path(output_dir) / f"{dataset_info['dataset_id']}_specification.json"
     with open(config_file, 'w') as f:
         json.dump(dataset_info, f, indent=2)
-    
+
     print(f"✅ Watch Universe Training Data Specification Created!")
     print(f"📦 Dataset ID: {dataset_info['dataset_id']}")
     print(f"💾 Specification saved to: {config_file}")
@@ -113,10 +113,10 @@ def generate_watch_universe_training_data():
             print(f"     {line} \\")
     print()
     print("🔧 This approach follows CLAUDE.md principles:")
-    print("   ✅ ENHANCE EXISTING BEFORE CREATING NEW")  
+    print("   ✅ ENHANCE EXISTING BEFORE CREATING NEW")
     print("   ✅ MODIFY EXISTING FILES FIRST")
     print("   ✅ DO NOT CREATE SCRIPTS to run something - USE EXISTING CODE")
-    
+
     return dataset_info
 
 
@@ -126,10 +126,10 @@ if __name__ == "__main__":
         print(f"\n🎉 Success: Watch universe training data specification created!")
         print(f"📁 Dataset ID: {result['dataset_id']}")
         print(f"📋 Ready to use existing infrastructure for actual generation")
-        
+
     except KeyboardInterrupt:
         print("\n⚠️ Interrupted by user")
-        
+
     except Exception as e:
         print(f"\n💥 Failed: {e}")
         import traceback

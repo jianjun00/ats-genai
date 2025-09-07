@@ -22,19 +22,19 @@ def fetch_tiingo_dividends(symbol, api_key, start_date, end_date, stats=None, ra
     url = f"https://api.tiingo.com/iex/{symbol}/dividends?startDate={start_date}&endDate={end_date}"
     headers = {"Authorization": f"Token {api_key}"}
     print(f"[DEBUG] Requesting Tiingo dividends: {url}")
-    
+
     start_time = time.time()
     resp = requests.get(url, headers=headers)
     response_time = time.time() - start_time
-    
+
     print(f"[DEBUG] Response status: {resp.status_code}")
     print(f"[DEBUG] Response headers: {dict(resp.headers)}")
     print(f"[DEBUG] Response body (first 500 chars): {resp.text[:500]}")
-    
+
     # Record API call statistics
     if stats:
         stats.record_api_call(success=(resp.status_code == 200), response_time=response_time)
-    
+
     if resp.status_code != 200:
         print(f"Failed to fetch dividends for {symbol}: {resp.status_code} {resp.text}")
         return []
@@ -88,35 +88,35 @@ async def main():
     parser.add_argument('--end_date', type=str, required=True, help='End date (YYYY-MM-DD)')
     args = parser.parse_args()
     env = Environment(env_type=EnvironmentType(args.environment))
-    
+
     # Use enhanced API key resolution from shared utilities
     api_key = get_tiingo_api_key(env=env)
     if not api_key:
         raise Exception("Please set your TIINGO_API_KEY in your environment or config.")
-    
+
     # Initialize shared utilities for comprehensive monitoring
     stats = BackfillStats()
     rate_limiter = VendorRateLimiters.tiingo()
-    
+
     symbols = await get_symbols_from_dividend_polygon(env, args.start_date, args.end_date)
     print(f"Found {len(symbols)} symbols with dividends in dividend_polygon between {args.start_date} and {args.end_date}")
-    
+
     div_dao = DividendTiingoDAO(env)
     for i, symbol in enumerate(symbols):
         print(f"Processing {symbol} ({i+1}/{len(symbols)})")
-        
+
         # Use enhanced fetch with statistics and rate limiting
-        tiingo_divs = fetch_tiingo_dividends(symbol, api_key, args.start_date, args.end_date, 
+        tiingo_divs = fetch_tiingo_dividends(symbol, api_key, args.start_date, args.end_date,
                                            stats=stats, rate_limiter=rate_limiter)
         await insert_dividends_tiingo(tiingo_divs, div_dao)
-        
+
         # Apply rate limiting between requests
         await rate_limiter.wait_if_needed()
-        
+
         # Progress reporting every 10 symbols
         if (i + 1) % 10 == 0:
             stats.log_progress(print)
-    
+
     # Final comprehensive statistics report
     print("\n=== COMPREHENSIVE DIVIDEND PROCESSING STATISTICS ===")
     stats.log_progress(print)

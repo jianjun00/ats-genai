@@ -22,7 +22,7 @@ class EventCategory(Enum):
     """Economic event categories"""
     EARNINGS = "earnings"
     FEDERAL_RESERVE = "fed"
-    EMPLOYMENT = "employment" 
+    EMPLOYMENT = "employment"
     INFLATION = "inflation"
     GDP_GROWTH = "growth"
     CORPORATE = "corporate"
@@ -62,7 +62,7 @@ class EconomicEventsClassifier:
     Advanced economic events classification system
     Uses pattern matching, keyword analysis, and ML-based classification
     """
-    
+
     # Federal Reserve event patterns
     FED_PATTERNS = {
         'rate_decision': [
@@ -93,7 +93,7 @@ class EconomicEventsClassifier:
             r'balance sheet'
         ]
     }
-    
+
     # Employment event patterns
     EMPLOYMENT_PATTERNS = {
         'jobs_report': [
@@ -111,7 +111,7 @@ class EconomicEventsClassifier:
             r'unemployment.*falls'
         ]
     }
-    
+
     # Inflation event patterns
     INFLATION_PATTERNS = {
         'cpi_release': [
@@ -126,7 +126,7 @@ class EconomicEventsClassifier:
             r'wholesale.*inflation'
         ]
     }
-    
+
     # GDP and growth patterns
     GDP_PATTERNS = {
         'gdp_release': [
@@ -141,7 +141,7 @@ class EconomicEventsClassifier:
             r'negative growth'
         ]
     }
-    
+
     # Corporate event patterns
     CORPORATE_PATTERNS = {
         'earnings_announcement': [
@@ -172,7 +172,7 @@ class EconomicEventsClassifier:
             r'forecast.*updated'
         ]
     }
-    
+
     # Sector mappings
     SECTOR_KEYWORDS = {
         'technology': ['tech', 'software', 'semiconductor', 'cloud', 'ai', 'artificial intelligence'],
@@ -186,13 +186,13 @@ class EconomicEventsClassifier:
         'real_estate': ['real estate', 'reit', 'property', 'housing'],
         'communications': ['telecom', 'media', 'communications', 'wireless']
     }
-    
+
     def __init__(self):
         """Initialize the economic events classifier"""
         # Compile regex patterns for performance
         self._compiled_patterns = {}
         self._compile_patterns()
-        
+
     def _compile_patterns(self):
         """Compile all regex patterns for better performance"""
         pattern_groups = [
@@ -202,7 +202,7 @@ class EconomicEventsClassifier:
             ('gdp', self.GDP_PATTERNS),
             ('corporate', self.CORPORATE_PATTERNS)
         ]
-        
+
         for group_name, patterns in pattern_groups:
             self._compiled_patterns[group_name] = {}
             for event_type, pattern_list in patterns.items():
@@ -210,45 +210,45 @@ class EconomicEventsClassifier:
                 for pattern in pattern_list:
                     compiled_list.append(re.compile(pattern, re.IGNORECASE))
                 self._compiled_patterns[group_name][event_type] = compiled_list
-    
+
     def classify_news_article(self, title: str, description: str, content: str = "",
                             symbols: List[str] = None, published_date: datetime = None) -> Optional[EconomicEvent]:
         """
         Classify a news article as an economic event
-        
+
         Args:
             title: Article title
             description: Article description/summary
             content: Full article content (optional)
             symbols: Associated stock symbols
             published_date: Article publication date
-            
+
         Returns:
             EconomicEvent if classification successful, None otherwise
         """
         symbols = symbols or []
         published_date = published_date or datetime.now()
-        
+
         # Combine all text for analysis
         full_text = f"{title} {description} {content}".lower()
-        
+
         # Try to classify the event
         classification_result = self._analyze_text_patterns(full_text, title)
-        
+
         if not classification_result:
             return None
-        
+
         event_type, event_subtype, category, confidence = classification_result
-        
+
         # Calculate severity based on keywords and context
         severity = self._calculate_severity(full_text, event_type, symbols)
-        
+
         # Identify affected sectors
         affected_sectors = self._identify_affected_sectors(full_text, symbols)
-        
+
         # Calculate predicted market impact
         impact_score = self._calculate_impact_score(event_type, severity, len(symbols), affected_sectors)
-        
+
         return EconomicEvent(
             event_type=event_type,
             event_subtype=event_subtype,
@@ -272,49 +272,49 @@ class EconomicEventsClassifier:
                 'symbols': symbols
             }
         )
-    
+
     def _analyze_text_patterns(self, text: str, title: str) -> Optional[Tuple[str, str, EventCategory, float]]:
         """Analyze text using compiled regex patterns"""
-        
+
         # Federal Reserve events (highest priority)
         for event_type, patterns in self._compiled_patterns['fed'].items():
             if any(pattern.search(text) for pattern in patterns):
                 confidence = 0.9 if any(pattern.search(title) for pattern in patterns) else 0.7
                 return event_type, event_type, EventCategory.FEDERAL_RESERVE, confidence
-        
+
         # Employment events
         for event_type, patterns in self._compiled_patterns['employment'].items():
             if any(pattern.search(text) for pattern in patterns):
                 confidence = 0.85 if any(pattern.search(title) for pattern in patterns) else 0.6
                 return event_type, event_type, EventCategory.EMPLOYMENT, confidence
-        
+
         # Inflation events
         for event_type, patterns in self._compiled_patterns['inflation'].items():
             if any(pattern.search(text) for pattern in patterns):
                 confidence = 0.8 if any(pattern.search(title) for pattern in patterns) else 0.6
                 return event_type, event_type, EventCategory.INFLATION, confidence
-        
+
         # GDP events
         for event_type, patterns in self._compiled_patterns['gdp'].items():
             if any(pattern.search(text) for pattern in patterns):
                 confidence = 0.75 if any(pattern.search(title) for pattern in patterns) else 0.5
                 return event_type, event_type, EventCategory.GDP_GROWTH, confidence
-        
+
         # Corporate events
         for event_type, patterns in self._compiled_patterns['corporate'].items():
             if any(pattern.search(text) for pattern in patterns):
                 confidence = 0.7 if any(pattern.search(title) for pattern in patterns) else 0.4
                 return event_type, event_type, EventCategory.CORPORATE, confidence
-        
+
         return None
-    
+
     def _calculate_severity(self, text: str, event_type: str, symbols: List[str]) -> EventSeverity:
         """Calculate event severity based on context and keywords"""
-        
+
         # Base severity by event type
         base_severity = {
             'rate_hike': EventSeverity.HIGH,
-            'rate_cut': EventSeverity.HIGH, 
+            'rate_cut': EventSeverity.HIGH,
             'rate_decision': EventSeverity.MEDIUM_HIGH,
             'qe_announcement': EventSeverity.HIGH,
             'jobs_report': EventSeverity.MEDIUM_HIGH,
@@ -328,40 +328,40 @@ class EconomicEventsClassifier:
             'dividend': EventSeverity.LOW,
             'guidance': EventSeverity.MEDIUM
         }.get(event_type, EventSeverity.MEDIUM)
-        
+
         # Adjust severity based on keywords
         high_impact_keywords = ['surprise', 'unexpected', 'shock', 'dramatic', 'significant', 'major']
         if any(keyword in text for keyword in high_impact_keywords):
             if base_severity.value < 8:
                 base_severity = EventSeverity(min(10, base_severity.value + 2))
-        
+
         # Adjust for number of affected symbols
         if len(symbols) > 10:  # Market-wide impact
             base_severity = EventSeverity(min(10, base_severity.value + 1))
-        
+
         return base_severity
-    
+
     def _identify_affected_sectors(self, text: str, symbols: List[str]) -> List[str]:
         """Identify sectors affected by the event"""
         affected_sectors = set()
-        
+
         # Check for sector keywords in text
         for sector, keywords in self.SECTOR_KEYWORDS.items():
             if any(keyword in text for keyword in keywords):
                 affected_sectors.add(sector)
-        
+
         # If specific symbols are mentioned, add their sectors
         # This would require a symbol-to-sector mapping (could be enhanced)
         if symbols:
             # For now, mark as general market impact
             affected_sectors.add('market')
-        
+
         return list(affected_sectors)
-    
-    def _calculate_impact_score(self, event_type: str, severity: EventSeverity, 
+
+    def _calculate_impact_score(self, event_type: str, severity: EventSeverity,
                               num_symbols: int, affected_sectors: List[str]) -> float:
         """Calculate predicted market impact score (-1 to 1)"""
-        
+
         # Base impact by event type
         base_impact = {
             'rate_hike': -0.3,      # Generally negative for stocks
@@ -378,37 +378,37 @@ class EconomicEventsClassifier:
             'dividend': 0.1,        # Slightly positive
             'guidance': 0.0         # Neutral (depends on direction)
         }.get(event_type, 0.0)
-        
+
         # Adjust for severity
         severity_multiplier = severity.value / 5.0  # Convert 1-10 to 0.2-2.0
         adjusted_impact = base_impact * severity_multiplier
-        
+
         # Adjust for market breadth
         if num_symbols > 10:
             adjusted_impact *= 1.2  # Broader impact
-        
+
         # Ensure within bounds
         return max(-1.0, min(1.0, adjusted_impact))
 
 class EconomicEventsProcessor:
     """Process news articles and extract economic events for database storage"""
-    
+
     def __init__(self, db_config: Dict[str, Any]):
         self.db_config = db_config
         self.classifier = EconomicEventsClassifier()
         self.db_pool = None
-    
+
     async def __aenter__(self):
         """Initialize database connection pool"""
         self.db_pool = await asyncpg.create_pool(**self.db_config)
         await self._ensure_tables_exist()
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Cleanup database connection pool"""
         if self.db_pool:
             await self.db_pool.close()
-    
+
     async def _ensure_tables_exist(self):
         """Ensure economic events tables exist"""
         async with self.db_pool.acquire() as conn:
@@ -421,35 +421,35 @@ class EconomicEventsProcessor:
                     event_category VARCHAR(30) NOT NULL,
                     severity INTEGER NOT NULL CHECK (severity BETWEEN 1 AND 10),
                     confidence_score DECIMAL(5,3) NOT NULL CHECK (confidence_score BETWEEN 0 AND 1),
-                    
+
                     -- Affected entities
                     affected_symbols TEXT[] DEFAULT '{}',
                     affected_sectors TEXT[] DEFAULT '{}',
                     affected_regions TEXT[] DEFAULT '{}',
-                    
+
                     -- Timing
                     event_date TIMESTAMP WITH TIME ZONE NOT NULL,
                     announcement_date TIMESTAMP WITH TIME ZONE,
                     market_open_date TIMESTAMP WITH TIME ZONE,
-                    
+
                     -- Impact analysis
                     predicted_impact_score DECIMAL(7,4),
                     actual_impact_score DECIMAL(7,4),
                     impact_duration_days INTEGER,
-                    
+
                     -- Event details
                     title TEXT NOT NULL,
                     description TEXT,
                     source_url TEXT,
                     data JSONB NOT NULL,
-                    
+
                     -- Metadata
                     data_vendor VARCHAR(30) NOT NULL,
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 )
             """)
-            
+
             # Create news-events mapping table
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS dev_news_economic_events (
@@ -462,52 +462,52 @@ class EconomicEventsProcessor:
                     UNIQUE(news_id, news_source, event_id)
                 )
             """)
-            
+
             # Create indexes
             await conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_economic_events_event_date 
+                CREATE INDEX IF NOT EXISTS idx_economic_events_event_date
                 ON dev_economic_events(event_date DESC)
             """)
             await conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_economic_events_category_severity 
+                CREATE INDEX IF NOT EXISTS idx_economic_events_category_severity
                 ON dev_economic_events(event_category, severity DESC)
             """)
-    
+
     async def process_news_articles(self, source_table: str, limit: Optional[int] = None) -> int:
         """
         Process news articles from a source table and extract economic events
-        
+
         Args:
             source_table: Name of news table ('news_polygon', 'news_tiingo', etc.)
             limit: Maximum number of articles to process
-            
+
         Returns:
             Number of economic events created
         """
         events_created = 0
-        
+
         async with self.db_pool.acquire() as conn:
             # Get unprocessed news articles
             query = f"""
                 SELECT id, title, description, tickers, published_utc as published_date
                 FROM {source_table}
                 WHERE id NOT IN (
-                    SELECT news_id 
-                    FROM dev_news_economic_events 
+                    SELECT news_id
+                    FROM dev_news_economic_events
                     WHERE news_source = $1
                 )
                 ORDER BY published_utc DESC
             """
-            
+
             if limit:
                 query += f" LIMIT {limit}"
-            
+
             # Extract source name from table name
             source_name = source_table.replace('news_', '')
-            
+
             articles = await conn.fetch(query, source_name)
             logger.info(f"Processing {len(articles)} articles from {source_table}")
-            
+
             for article in articles:
                 try:
                     # Classify the article
@@ -517,7 +517,7 @@ class EconomicEventsProcessor:
                         symbols=article['tickers'] or [],
                         published_date=article['published_date']
                     )
-                    
+
                     if event and event.confidence_score >= 0.5:  # Minimum confidence threshold
                         # Insert economic event
                         event_id = await conn.fetchval("""
@@ -529,7 +529,7 @@ class EconomicEventsProcessor:
                             )
                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
                             RETURNING id
-                        """, 
+                        """,
                         event.event_type,
                         event.event_subtype,
                         event.event_category.value,
@@ -546,7 +546,7 @@ class EconomicEventsProcessor:
                         json.dumps(event.raw_data),
                         event.data_vendor
                         )
-                        
+
                         # Create news-event mapping
                         await conn.execute("""
                             INSERT INTO dev_news_economic_events (
@@ -555,38 +555,38 @@ class EconomicEventsProcessor:
                             VALUES ($1, $2, $3, $4)
                             ON CONFLICT (news_id, news_source, event_id) DO NOTHING
                         """, article['id'], source_name, event_id, event.confidence_score)
-                        
+
                         events_created += 1
-                        
+
                         if events_created % 100 == 0:
                             logger.info(f"Created {events_created} economic events...")
-                
+
                 except Exception as e:
                     logger.warning(f"Error processing article {article['id']}: {e}")
                     continue
-        
+
         logger.info(f"✅ Created {events_created} economic events from {source_table}")
         return events_created
-    
+
     async def get_event_summary(self) -> Dict[str, Any]:
         """Get summary statistics of economic events"""
         async with self.db_pool.acquire() as conn:
             summary = {}
-            
+
             # Total events
             summary['total_events'] = await conn.fetchval(
                 "SELECT COUNT(*) FROM dev_economic_events"
             )
-            
+
             # Events by category
             category_counts = await conn.fetch("""
                 SELECT event_category, COUNT(*) as count
-                FROM dev_economic_events 
-                GROUP BY event_category 
+                FROM dev_economic_events
+                GROUP BY event_category
                 ORDER BY count DESC
             """)
             summary['by_category'] = dict(category_counts)
-            
+
             # Recent high-impact events
             recent_events = await conn.fetch("""
                 SELECT title, event_category, severity, predicted_impact_score, event_date
@@ -597,14 +597,14 @@ class EconomicEventsProcessor:
                 LIMIT 10
             """)
             summary['recent_high_impact'] = [dict(row) for row in recent_events]
-            
+
             return summary
 
 
 async def main():
     """Test the economic events classification system"""
     import os
-    
+
     # Database configuration
     db_config = {
         'host': os.getenv("DB_HOST", "localhost"),
@@ -613,15 +613,15 @@ async def main():
         'password': os.getenv("DB_PASSWORD", "postgres"),
         'database': os.getenv("DB_NAME", "dev_db")
     }
-    
+
     async with EconomicEventsProcessor(db_config) as processor:
         # Process news articles from both sources
         polygon_events = await processor.process_news_articles('news_polygon', limit=1000)
         tiingo_events = await processor.process_news_articles('news_tiingo', limit=1000)
-        
+
         # Get summary
         summary = await processor.get_event_summary()
-        
+
         print(f"📊 Economic Events Processing Complete:")
         print(f"   Polygon Events: {polygon_events}")
         print(f"   Tiingo Events: {tiingo_events}")

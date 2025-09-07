@@ -7,27 +7,27 @@ print("🔍 Detailed data structure check:")
 data_path = Path("/data")
 if data_path.exists():
     print(f"✅ Found /data directory")
-    
+
     # Look for minute-bars
     minute_bars_path = data_path / "minute-bars"
     if minute_bars_path.exists():
         print(f"✅ Found minute-bars at: {minute_bars_path}")
-        
+
         # Check for AAPL
         aapl_path = minute_bars_path / "AAPL"
         if aapl_path.exists():
             print(f"✅ Found AAPL data at: {aapl_path}")
-            
+
             # Check years
             for year_dir in aapl_path.iterdir():
                 if year_dir.is_dir():
                     print(f"  📅 Year: {year_dir.name}")
-                    
+
                     # Check months
                     for month_dir in year_dir.iterdir():
                         if month_dir.is_dir():
                             print(f"    📆 Month: {month_dir.name}")
-                            
+
                             # Check files
                             files = list(month_dir.glob("*.parquet"))
                             if files:

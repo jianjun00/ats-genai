@@ -20,7 +20,7 @@ from core.platform.config.settings import get_settings
 
 class StructuredFormatter(logging.Formatter):
     """JSON formatter for structured logging."""
-    
+
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as JSON."""
         log_entry = {
@@ -32,7 +32,7 @@ class StructuredFormatter(logging.Formatter):
             "function": record.funcName,
             "line": record.lineno,
         }
-        
+
         # Add extra fields from record
         for key, value in record.__dict__.items():
             if key not in {
@@ -43,46 +43,46 @@ class StructuredFormatter(logging.Formatter):
                 'exc_info', 'exc_text'
             }:
                 log_entry[key] = value
-        
+
         # Add exception info if present
         if record.exc_info:
             log_entry["exception"] = self.formatException(record.exc_info)
-        
+
         # Add stack info if present
         if record.stack_info:
             log_entry["stack_info"] = record.stack_info
-        
+
         return json.dumps(log_entry, default=str)
 
 
 class TimingLogger:
     """Logger with built-in timing capabilities."""
-    
+
     def __init__(self, logger: logging.Logger):
         self.logger = logger
-    
+
     # Delegate standard logging methods to the underlying logger
     def debug(self, message, *args, **kwargs):
         return self.logger.debug(message, *args, **kwargs)
-    
+
     def info(self, message, *args, **kwargs):
         return self.logger.info(message, *args, **kwargs)
-    
+
     def warning(self, message, *args, **kwargs):
         return self.logger.warning(message, *args, **kwargs)
-    
+
     def error(self, message, *args, **kwargs):
         return self.logger.error(message, *args, **kwargs)
-    
+
     def critical(self, message, *args, **kwargs):
         return self.logger.critical(message, *args, **kwargs)
-    
+
     @contextmanager
     def timer(self, operation: str, **context):
         """Context manager for timing operations."""
         start_time = time.time()
         self.logger.info(f"Starting {operation}", extra=context)
-        
+
         try:
             yield
             duration = (time.time() - start_time) * 1000  # Convert to milliseconds
@@ -103,14 +103,14 @@ class TimingLogger:
 def setup_logging() -> None:
     """Setup application logging configuration."""
     settings = get_settings()
-    
+
     # Clear any existing handlers
     root_logger = logging.getLogger()
     root_logger.handlers.clear()
-    
+
     # Set root level
     root_logger.setLevel(getattr(logging, settings.log_level.value))
-    
+
     # Setup formatters
     if settings.log_format == "structured":
         formatter = StructuredFormatter()
@@ -119,18 +119,18 @@ def setup_logging() -> None:
             fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S"
         )
-    
+
     # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
     console_handler.setLevel(getattr(logging, settings.log_level.value))
     root_logger.addHandler(console_handler)
-    
+
     # File handler (if configured)
     if settings.log_file:
         log_file_path = Path(settings.log_file)
         log_file_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         if settings.log_rotation:
             file_handler = logging.handlers.RotatingFileHandler(
                 filename=log_file_path,
@@ -143,11 +143,11 @@ def setup_logging() -> None:
                 filename=log_file_path,
                 encoding="utf-8"
             )
-        
+
         file_handler.setFormatter(formatter)
         file_handler.setLevel(getattr(logging, settings.log_level.value))
         root_logger.addHandler(file_handler)
-    
+
     # Environment-specific configuration
     if settings.is_development:
         # More verbose logging in development
@@ -158,10 +158,10 @@ def setup_logging() -> None:
         logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
         logging.getLogger("urllib3").setLevel(logging.ERROR)
         logging.getLogger("requests").setLevel(logging.WARNING)
-    
+
     # Setup application loggers
     logging.getLogger("ats_genai").setLevel(getattr(logging, settings.log_level.value))
-    
+
     # Log startup message
     logger = logging.getLogger(__name__)
     logger.info(
@@ -178,10 +178,10 @@ def setup_logging() -> None:
 def get_logger(name: str) -> TimingLogger:
     """
     Get a logger instance with timing capabilities.
-    
+
     Args:
         name: Logger name (typically __name__)
-    
+
     Returns:
         TimingLogger instance
     """
@@ -196,7 +196,7 @@ def log_performance_metrics(
 ) -> None:
     """
     Log performance metrics for monitoring.
-    
+
     Args:
         operation: Name of the operation
         duration_ms: Duration in milliseconds
@@ -221,7 +221,7 @@ def log_business_event(
 ) -> None:
     """
     Log business events for audit and analytics.
-    
+
     Args:
         event_type: Type of business event
         event_data: Event data
@@ -246,7 +246,7 @@ def log_security_event(
 ) -> None:
     """
     Log security events for monitoring and alerting.
-    
+
     Args:
         event_type: Type of security event
         details: Event details
@@ -254,7 +254,7 @@ def log_security_event(
     """
     logger = logging.getLogger("security")
     log_method = getattr(logger, severity.lower(), logger.info)
-    
+
     log_method(
         f"Security event: {event_type}",
         extra={
@@ -276,7 +276,7 @@ def log_api_request(
 ) -> None:
     """
     Log API requests for monitoring and analytics.
-    
+
     Args:
         method: HTTP method
         endpoint: API endpoint
@@ -286,13 +286,13 @@ def log_api_request(
         **extra_data: Additional request data
     """
     logger = logging.getLogger("api_requests")
-    
+
     level = logging.INFO
     if status_code >= 500:
         level = logging.ERROR
     elif status_code >= 400:
         level = logging.WARNING
-    
+
     logger.log(
         level,
         f"{method} {endpoint} - {status_code}",
@@ -316,7 +316,7 @@ def log_data_quality_event(
 ) -> None:
     """
     Log data quality events for monitoring.
-    
+
     Args:
         data_source: Name of data source
         quality_score: Quality score (0.0 to 1.0)
@@ -324,13 +324,13 @@ def log_data_quality_event(
         **metadata: Additional metadata
     """
     logger = logging.getLogger("data_quality")
-    
+
     level = logging.INFO
     if quality_score < 0.8:
         level = logging.WARNING
     if quality_score < 0.6:
         level = logging.ERROR
-    
+
     logger.log(
         level,
         f"Data quality check for {data_source}: {quality_score:.2%}",
@@ -349,7 +349,7 @@ def log_data_quality_event(
 def log_context(**context_data: Any):
     """
     Add context data to all log messages within the context.
-    
+
     Usage:
         with log_context(user_id="123", operation="data_ingestion"):
             logger.info("Processing data")  # Will include user_id and operation

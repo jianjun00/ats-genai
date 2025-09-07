@@ -31,7 +31,7 @@ async def setup_database():
     db_name = env.get_db_name()
     db_user = env.get_db_user()
     db_password = env.get_db_password()
-    
+
     # Create connection pool
     pool = await asyncpg.create_pool(
         host=db_host,
@@ -40,19 +40,19 @@ async def setup_database():
         user=db_user,
         password=db_password
     )
-    
+
     logger.info(f"Connected to database {db_name} at {db_host}:{db_port}")
-    
+
     return pool
 
 async def setup_mcp_tools(pool, config):
     """Set up MCP tools for the data agent"""
     # Initialize registry
     registry = MCPToolRegistry()
-    
+
     # Initialize data agent
     await registry.initialize_data_agent(pool, config)
-    
+
     # Return registry for further use
     return registry
 
@@ -65,15 +65,15 @@ async def validate_deployment(registry):
     except Exception as e:
         logger.error(f"Failed to retrieve missing data points: {e}")
         return False
-    
+
     # Try to process a data point if any missing points found
     if result.get("missing_points"):
         point = result["missing_points"][0]
         try:
             process_result = await registry.execute_tool(
-                "process_data_point", 
+                "process_data_point",
                 {
-                    "symbol": point["symbol"], 
+                    "symbol": point["symbol"],
                     "date_str": point["date"]
                 }
             )
@@ -81,7 +81,7 @@ async def validate_deployment(registry):
         except Exception as e:
             logger.error(f"Failed to process data point: {e}")
             return False
-    
+
     return True
 
 async def main():
@@ -95,29 +95,29 @@ async def main():
                       help="Validate deployment after setup")
     parser.add_argument("--config-file", type=str,
                       help="Path to JSON configuration file")
-    
+
     args = parser.parse_args()
-    
+
     # Load configuration from file if provided
     config = {}
     if args.config_file and os.path.exists(args.config_file):
         with open(args.config_file, 'r') as f:
             config = json.load(f)
-    
+
     # Override config with command line arguments
     if args.vendor_priority:
         config["vendor_priority"] = args.vendor_priority.split(",")
-    
+
     if args.lookback_years:
         config["lookback_years"] = args.lookback_years
-    
+
     # Set up database
     pool = await setup_database()
-    
+
     try:
         # Set up MCP tools
         registry = await setup_mcp_tools(pool, config)
-        
+
         # Validate deployment if requested
         if args.validate:
             success = await validate_deployment(registry)
@@ -126,12 +126,12 @@ async def main():
             else:
                 logger.error("Deployment validation failed")
                 sys.exit(1)
-        
+
         logger.info("Data agent deployment completed successfully")
-        
+
         # Print available tools
         logger.info(f"Available tools: {list(registry.tools.keys())}")
-        
+
     finally:
         # Close the connection pool
         await pool.close()

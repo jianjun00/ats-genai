@@ -12,7 +12,7 @@ import json
 
 def create_dataset_record():
     """Create dataset record in dev_training_datasets table"""
-    
+
     dataset_data = {
         'dataset_name': 'AAPL_TSLA_20250701_20250906_Run89',
         'run_id': 89,
@@ -36,7 +36,7 @@ def create_dataset_record():
             'total_files': 10
         }
     }
-    
+
     with get_raw_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             cursor.execute("""
@@ -46,7 +46,7 @@ def create_dataset_record():
                     total_sequences, file_size_mb, status, dataset_path,
                     symbol_files, file_metadata
                 ) VALUES (
-                    %(dataset_name)s, %(run_id)s, %(symbols)s, 
+                    %(dataset_name)s, %(run_id)s, %(symbols)s,
                     %(date_range_start)s, %(date_range_end)s,
                     %(data_quality_score)s, %(feature_completeness)s, %(label_completeness)s,
                     %(total_sequences)s, %(file_size_mb)s, %(status)s, %(dataset_path)s,
@@ -57,24 +57,24 @@ def create_dataset_record():
                 'symbol_files': json.dumps(dataset_data['symbol_files']),
                 'file_metadata': json.dumps(dataset_data['file_metadata'])
             })
-            
+
             dataset_id = cursor.fetchone()['id']
             conn.commit()
-            
+
             print(f"✅ Created dataset record with ID: {dataset_id}")
-            
+
             # Verify the record
             cursor.execute("""
-                SELECT id, dataset_name, symbols, total_sequences, status 
-                FROM dev_training_datasets 
+                SELECT id, dataset_name, symbols, total_sequences, status
+                FROM dev_training_datasets
                 WHERE id = %s
             """, (dataset_id,))
-            
+
             record = cursor.fetchone()
             print("Dataset record details:")
             for key, value in record.items():
                 print(f"  {key}: {value}")
-                
+
             return dataset_id
 
 if __name__ == "__main__":

@@ -7,14 +7,14 @@ class UniverseMembershipDAO:
         self.env = env
         self.table_name = self.env.get_table_name('universe_membership')
         self.db_url = self.env.get_database_url()
-        
+
         # Default to start_date/end_date which is what ensure_test_tables.py creates
         self.start_date_col = 'start_date'
         self.end_date_col = 'end_date'
-        
+
         # We'll determine the actual column names in initialize()
         print(f"[DAO DEBUG] UniverseMembershipDAO initialized with db_url: {self.db_url}")
-        
+
     async def initialize(self):
         """Check the actual database schema and use the correct column names"""
         import asyncpg
@@ -23,13 +23,13 @@ class UniverseMembershipDAO:
             try:
                 # Check which columns actually exist in the table
                 result = await conn.fetch(f"""
-                    SELECT column_name 
-                    FROM information_schema.columns 
+                    SELECT column_name
+                    FROM information_schema.columns
                     WHERE table_name = '{self.table_name}'
                 """)
-                
+
                 columns = [row['column_name'] for row in result]
-                
+
                 # Determine which column names to use based on what exists in the DB
                 if 'start_at' in columns:
                     self.start_date_col = 'start_at'
@@ -37,7 +37,7 @@ class UniverseMembershipDAO:
                 elif 'start_date' in columns:
                     self.start_date_col = 'start_date'
                     self.end_date_col = 'end_date'
-                
+
                 print(f"[DAO DEBUG] UniverseMembershipDAO using columns: {self.start_date_col}/{self.end_date_col} for table {self.table_name}")
             finally:
                 await conn.close()

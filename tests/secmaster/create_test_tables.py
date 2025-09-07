@@ -11,7 +11,7 @@ logger = logging.getLogger("create_test_tables")
 async def create_instrument_polygon_table():
     """Create the instrument_polygon table in the test database."""
     logger.info("Creating instrument_polygon table in test database...")
-    
+
     # Set database credentials from environment variables
     os.environ["DB_USER"] = "test_user"
     os.environ["DB_PASSWORD"] = "test_password"
@@ -19,15 +19,15 @@ async def create_instrument_polygon_table():
     os.environ["DB_HOST"] = "localhost"
     os.environ["DB_NAME"] = "test_db"
     os.environ["ENVIRONMENT"] = "test"
-    
+
     # Import after setting environment variables to ensure they're picked up
     from shared.utils.database import Database
-    
+
     try:
         # Create a connection pool using the centralized logic
         logger.info("Creating database connection pool")
         pool = await Database.create_connection_pool(max_retries=3, initial_delay=1.0, timeout=10.0)
-        
+
         # Create the instrument_polygon table
         async with pool.acquire() as conn:
             logger.info("Creating test_instrument_polygon table")
@@ -50,7 +50,7 @@ async def create_instrument_polygon_table():
                 )
             """)
             logger.info("Table created successfully")
-        
+
         await pool.close()
         return True
     except Exception as e:

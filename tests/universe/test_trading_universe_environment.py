@@ -21,36 +21,36 @@ def make_mock_asyncpg_pool(mock_conn):
 
 
     """Test TradingUniverse with Environment integration."""
-    
+
     def setup_method(self):
         """Setup test environment."""
         # set_environment(EnvironmentType.TEST)
-    
+
     def test_trading_universe_uses_environment_db_url(self):
         """Test that TradingUniverse uses environment database URL when none provided."""
         universe = TradingUniverse()
-        
+
         # Should use test environment database URL
         assert "test_db" in universe.db_url
         assert "postgresql://" in universe.db_url
-    
+
     def test_trading_universe_explicit_db_url_override(self):
         """Test that explicit db_url overrides environment configuration."""
         custom_url = "postgresql://custom:password@localhost:5432/custom_db"
         universe = TradingUniverse(db_url=custom_url)
-        
+
         assert universe.db_url == custom_url
-    
+
     def test_trading_universe_table_name_prefixing(self):
         """Test that TradingUniverse uses environment-specific table names."""
         universe = TradingUniverse()
-        
+
         daily_prices_table = universe.env.get_table_name("daily_prices")
         daily_adjusted_prices_table = universe.env.get_table_name("daily_adjusted_prices")
-        
+
         assert daily_prices_table == "test_daily_prices"
         assert daily_adjusted_prices_table == "test_daily_adjusted_prices"
-    
+
     @patch('asyncpg.create_pool')
     @pytest.mark.asyncio
     @pytest.mark.asyncio
@@ -76,7 +76,7 @@ def make_mock_asyncpg_pool(mock_conn):
 
 class TestSecurityMasterEnvironment:
     """Test SecurityMaster with Environment integration."""
-    
+
     def setup_method(self):
         """Setup test environment."""
         # set_environment(EnvironmentType.TEST)
@@ -100,7 +100,7 @@ class TestSecurityMasterEnvironment:
 
 class TestEnvironmentSpecificBehavior:
     """Test behavior across different environments."""
-    
+
     # def test_different_environments_use_different_table_prefixes(self):
     #     """Test that different environments use different table prefixes."""
     #     # Test environment
@@ -108,41 +108,41 @@ class TestEnvironmentSpecificBehavior:
     #     test_universe = TradingUniverse()
     #     test_table = test_universe.env.get_table_name("daily_prices")
     #     assert test_table == "test_daily_prices"
-    #     
+    #
     #     # Integration environment
     #     # set_environment(EnvironmentType.INTEGRATION)
     #     intg_universe = TradingUniverse()
     #     intg_table = intg_universe.env.get_table_name("daily_prices")
     #     assert intg_table == "intg_daily_prices"
-    #     
+    #
     #     # Production environment
     #     # set_environment(EnvironmentType.PRODUCTION)
     #     prod_universe = TradingUniverse()
     #     prod_table = prod_universe.env.get_table_name("daily_prices")
     #     assert prod_table == "prod_daily_prices"
-    #     
+    #
     #     # Verify they're all different
     #     assert test_table != intg_table != prod_table
-    #     
+    #
     #     # Reset to test for other tests
     #     # set_environment(EnvironmentType.TEST)
-    
+
     # def test_different_environments_use_different_databases(self):
     #     """Test that different environments use different database names."""
     #     # Test environment
     #     # set_environment(EnvironmentType.TEST)
     #     test_universe = TradingUniverse()
     #     assert test_universe.env.db_name == "test_trading_db"
-    #     
+    #
     #     # Integration environment
     #     # set_environment(EnvironmentType.INTEGRATION)
     #     intg_universe = TradingUniverse()
     #     assert intg_universe.env.db_name == "intg_trading_db"
-    #     
+    #
     #     # Production environment
     #     # set_environment(EnvironmentType.PRODUCTION)
     #     prod_universe = TradingUniverse()
     #     assert prod_universe.env.db_name == "prod_trading_db"
-    #     
+    #
     #     # Reset to test for other tests
     #     # set_environment(EnvironmentType.TEST)

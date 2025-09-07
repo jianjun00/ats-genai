@@ -39,7 +39,7 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
     Uses isolated test DB via fixture.
     """
     db_url = unit_test_db_clean
-    
+
     # Ensure all required test tables exist
     from tests.app.ensure_test_tables import ensure_test_tables
     env = await ensure_test_tables(db_url)
@@ -262,30 +262,30 @@ async def test_runner_event_iterator(unit_test_db_clean):
     # Ensure all required test tables exist
     from tests.app.ensure_test_tables import ensure_test_tables
     env = await ensure_test_tables(unit_test_db_clean)
-    
+
     # Create a mock callback class that implements the RunnerCallback interface
     from app.runner import RunnerCallback
-    
+
     class MockCallback(RunnerCallback):
         def __init__(self, env=None):
             self.env = env
-            
+
         async def on_start(self):
             pass
-            
+
         async def on_end(self):
             pass
-            
+
         async def on_interval(self, date):
             pass
-    
+
     # Create a callback instance directly
     mock_callback = MockCallback(env)
-    
+
     # Use the callback instance directly instead of strings
     callbacks = [mock_callback]
     base_duration = '1d'  # Daily intervals
-    
+
     runner = Runner(
         environment=env,
         universe_id=UNIVERSE_ID,

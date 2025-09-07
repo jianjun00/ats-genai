@@ -26,7 +26,7 @@ class MarketDataStreamer:
     def __init__(self, ib=None, symbols: List[str] = None, vwap_window: int = 100):
         if not IB_INSYNC_AVAILABLE:
             raise ImportError("ib_insync is required for MarketDataStreamer but is not installed. Install with: pip install ib_insync")
-        
+
         self.ib = ib
         self.symbols = symbols or []
         self.contracts = [Contract(symbol=s, secType='STK', exchange='SMART', currency='USD') for s in self.symbols] if Contract else []

@@ -71,18 +71,18 @@ class UniverseStateManager:
     def get_lag_prices(self, instrument_id: int, cur_datetime, lag_periods: int, time_interval: str = '1d') -> pd.DataFrame:
         """
         Return a DataFrame of OHLCV features for the previous lag_periods up to (not including) cur_datetime.
-        
+
         This method integrates with market_data_manager to provide multi-timeframe data aggregation:
         - Uses 1-minute bars as the base data source
         - Aggregates into the specified time interval using market_data_manager
         - Falls back to cached universe state data if market_data_manager is unavailable
-        
+
         Args:
             instrument_id: The instrument ID to retrieve data for
             cur_datetime: Current datetime reference point (exclusive upper bound)
             lag_periods: Number of periods to look back. The meaning depends on time_interval:
                         - For '5m': number of 5-minute periods
-                        - For '15m': number of 15-minute periods  
+                        - For '15m': number of 15-minute periods
                         - For '1h': number of hourly periods
                         - For '1d': number of daily periods
                         - For '1w': number of weekly periods
@@ -93,29 +93,29 @@ class UniverseStateManager:
                           - '1h': 1-hour aggregated OHLCV
                           - '1d': Daily aggregated OHLCV (default)
                           - '1w': Weekly aggregated OHLCV
-        
+
         Returns:
             DataFrame with columns:
             - OHLCV data: ['open', 'high', 'low', 'close', 'volume'] (if available)
             - Date columns: varies by data source ('date', 'as_of_date', etc.)
-            
+
             NOTE: Technical indicators (etop, ebot, pldot) are NOT included in get_lag_prices().
             Use get_lagged_signals() method to retrieve technical indicators separately.
-            
+
             Returns empty DataFrame if no data is available for the specified criteria.
-            
+
         Example:
             # Get last 52 five-minute intervals (4.3 hours of 5m data)
             lag_5m = universe_manager.get_lag_prices(1001, date(2023, 12, 1), 52, '5m')
-            
-            # Get last 20 daily intervals (4 weeks of daily data) 
+
+            # Get last 20 daily intervals (4 weeks of daily data)
             lag_daily = universe_manager.get_lag_prices(1001, date(2023, 12, 1), 20, '1d')
-        
+
         Notes:
             - market_data_manager aggregation preserves OHLCV semantics:
               * open: first minute's open in the interval
               * high: highest high in the interval
-              * low: lowest low in the interval  
+              * low: lowest low in the interval
               * close: last minute's close in the interval
               * volume: sum of volume in the interval
             - Technical indicators (etop, ebot, pldot) are computed by universe state builder
@@ -125,28 +125,28 @@ class UniverseStateManager:
         # Type validation for all parameters
         if not isinstance(instrument_id, int) or instrument_id <= 0:
             raise ValueError(f"instrument_id must be a positive integer, got {instrument_id} (type: {type(instrument_id)})")
-        
+
         if not isinstance(lag_periods, int) or lag_periods <= 0:
             raise ValueError(f"lag_periods must be a positive integer, got {lag_periods} (type: {type(lag_periods)})")
-        
+
         if not isinstance(time_interval, str) or not time_interval.strip():
             raise ValueError(f"time_interval must be a non-empty string, got {time_interval} (type: {type(time_interval)})")
-        
+
         # Validate time_interval parameter
         valid_intervals = {'1m', '5m', '15m', '1h', '1d', '1w'}
         if time_interval not in valid_intervals:
             raise ValueError(f"Invalid time_interval '{time_interval}'. Must be one of: {sorted(valid_intervals)}")
-        
+
         # Assert that market_data_manager is available
         assert hasattr(self, 'market_data_manager') and self.market_data_manager, (
             "market_data_manager is required for get_lag_prices() but is not available. "
             "Ensure UniverseStateManager is initialized with a market_data_manager instance."
         )
-        
+
         # Type validation for cur_datetime
         if not hasattr(cur_datetime, 'date') and not hasattr(cur_datetime, 'year'):
             raise ValueError(f"cur_datetime must be a datetime or date object, got {type(cur_datetime)}")
-        
+
         # Ensure cur_datetime is a datetime object for precise time operations
         if not hasattr(cur_datetime, 'hour'):
             # If it's a date object, convert to datetime at start of day
@@ -155,7 +155,7 @@ class UniverseStateManager:
                 cur_datetime = datetime.combine(cur_datetime.date(), datetime.min.time())
             else:
                 cur_datetime = datetime.combine(cur_datetime, datetime.min.time())
-        
+
         # Use market_data_manager to get data for specified time interval
         try:
             # Get aggregated data from market_data_manager for the specified interval
@@ -178,7 +178,7 @@ class UniverseStateManager:
             except Exception:
                 pass
             raise IOError(f"Failed to get lag prices from market_data_manager: {e}")
-        
+
         # If we reach here, market_data_manager returned empty data
         # Return empty DataFrame with only OHLCV columns (technical indicators come from get_lagged_signals)
         return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume'])
@@ -186,18 +186,18 @@ class UniverseStateManager:
     def get_lead_prices(self, instrument_id: int, cur_datetime, lead_periods: int, time_interval: str = '1d') -> pd.DataFrame:
         """
         Return a DataFrame of lead prices for the next lead_periods strictly after cur_datetime.
-        
+
         This method integrates with market_data_manager to provide multi-timeframe lead data aggregation:
         - Uses 1-minute bars as the base data source
         - Aggregates into the specified time interval using market_data_manager
         - Returns consistent OHLCV data like get_lag_prices()
-        
+
         Args:
             instrument_id: The instrument ID to retrieve data for
             cur_datetime: Current datetime reference point (exclusive lower bound)
             lead_periods: Number of periods to look forward. The meaning depends on time_interval:
                          - For '5m': number of 5-minute periods
-                         - For '15m': number of 15-minute periods  
+                         - For '15m': number of 15-minute periods
                          - For '1h': number of hourly periods
                          - For '1d': number of daily periods
                          - For '1w': number of weekly periods
@@ -208,22 +208,22 @@ class UniverseStateManager:
                           - '1h': 1-hour aggregated OHLCV
                           - '1d': Daily aggregated OHLCV (default)
                           - '1w': Weekly aggregated OHLCV
-        
+
         Returns:
             DataFrame with columns:
             - OHLCV data: ['open', 'high', 'low', 'close', 'volume'] (if available)
             - Date columns: varies by data source ('date', 'as_of_date', etc.)
-            
+
             NOTE: Technical indicators (etop, ebot, pldot) are NOT included in get_lag_prices().
             Use get_lagged_signals() method to retrieve technical indicators separately.
-            
+
             Returns empty DataFrame if no data is available for the specified criteria.
-        
+
         Notes:
             - market_data_manager aggregation preserves OHLCV semantics:
               * open: first minute's open in the interval
               * high: highest high in the interval
-              * low: lowest low in the interval  
+              * low: lowest low in the interval
               * close: last minute's close in the interval
               * volume: sum of volume in the interval
             - Technical indicators (etop, ebot, pldot) are computed by universe state builder
@@ -232,28 +232,28 @@ class UniverseStateManager:
         # Type validation for all parameters
         if not isinstance(instrument_id, int) or instrument_id <= 0:
             raise ValueError(f"instrument_id must be a positive integer, got {instrument_id} (type: {type(instrument_id)})")
-        
+
         if not isinstance(lead_periods, int) or lead_periods <= 0:
             raise ValueError(f"lead_periods must be a positive integer, got {lead_periods} (type: {type(lead_periods)})")
-        
+
         if not isinstance(time_interval, str) or not time_interval.strip():
             raise ValueError(f"time_interval must be a non-empty string, got {time_interval} (type: {type(time_interval)})")
-        
+
         # Validate time_interval parameter
         valid_intervals = {'1m', '5m', '15m', '1h', '1d', '1w'}
         if time_interval not in valid_intervals:
             raise ValueError(f"Invalid time_interval '{time_interval}'. Must be one of: {sorted(valid_intervals)}")
-        
+
         # Assert that market_data_manager is available
         assert hasattr(self, 'market_data_manager') and self.market_data_manager, (
             "market_data_manager is required for get_lead_prices() but is not available. "
             "Ensure UniverseStateManager is initialized with a market_data_manager instance."
         )
-        
+
         # Type validation for cur_datetime
         if not hasattr(cur_datetime, 'date') and not hasattr(cur_datetime, 'year'):
             raise ValueError(f"cur_datetime must be a datetime or date object, got {type(cur_datetime)}")
-        
+
         # Ensure cur_datetime is a datetime object for precise time operations
         if not hasattr(cur_datetime, 'hour'):
             # If it's a date object, convert to datetime at start of day
@@ -262,7 +262,7 @@ class UniverseStateManager:
                 cur_datetime = datetime.combine(cur_datetime.date(), datetime.min.time())
             else:
                 cur_datetime = datetime.combine(cur_datetime, datetime.min.time())
-        
+
         # Use market_data_manager to get lead data for specified time interval
         try:
             # Get aggregated lead data from market_data_manager for the specified interval
@@ -285,7 +285,7 @@ class UniverseStateManager:
             except Exception:
                 pass
             raise IOError(f"Failed to get lead prices from market_data_manager: {e}")
-        
+
         # If we reach here, market_data_manager returned empty data
         # Return empty DataFrame with only OHLCV columns (technical indicators come from get_lagged_signals)
         return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume'])
@@ -300,17 +300,17 @@ class UniverseStateManager:
     ) -> pd.DataFrame:
         """
         Get lagged signal/indicator data for a specific instrument and time interval.
-        
+
         This method retrieves historical indicator/signal values for multi-timeframe analysis.
         It supports retrieving signals computed at different time intervals (1m, 5m, 15m, 1h, 1d, 1w)
         even when the base_duration is 1m.
-        
+
         Args:
             instrument_id: The instrument ID to retrieve signals for
             cur_datetime: Current datetime reference point (exclusive upper bound)
             lag_periods: Number of periods to look back. The meaning depends on time_interval:
                         - For '1m': number of 1-minute periods
-                        - For '5m': number of 5-minute periods  
+                        - For '5m': number of 5-minute periods
                         - For '15m': number of 15-minute periods
                         - For '1h': number of hourly periods
                         - For '1d': number of daily periods
@@ -318,22 +318,22 @@ class UniverseStateManager:
             time_interval: Time interval for signal aggregation ('1m', '5m', '15m', '1h', '1d', '1w')
             signal_names: Optional list of specific signal names to retrieve. If None, returns all available signals.
                          Common signals: ['etop', 'ebot', 'pldot', 'sma_20', 'ema_12', 'rsi_14', 'macd_line']
-            
+
         Returns:
             DataFrame with columns:
             - timestamp: DateTime index for each signal period
             - {signal_name}: One column per signal with computed values
             - {signal_name}_status: Status column for each signal ('ok', 'invalid', etc.)
-            
+
             Returns empty DataFrame if no signal data is available for the specified criteria.
-            
+
         Example:
             # Get last 20 five-minute signal periods (1.67 hours of 5m signals)
             signals_5m = await universe_manager.get_lagged_signals(1001, date(2023, 12, 1), 20, '5m', ['etop', 'ebot'])
-            
+
             # Get last 5 daily signal periods (1 week of daily signals)
             signals_daily = await universe_manager.get_lagged_signals(1001, date(2023, 12, 1), 5, '1d')
-            
+
         Notes:
             - Supports multi-timeframe signal retrieval even with base_duration='1m'
             - Signal values are aggregated/computed for the specified time_interval
@@ -343,22 +343,22 @@ class UniverseStateManager:
         # Type validation for all parameters
         if not isinstance(instrument_id, int) or instrument_id <= 0:
             raise ValueError(f"instrument_id must be a positive integer, got {instrument_id} (type: {type(instrument_id)})")
-        
+
         if not isinstance(lag_periods, int) or lag_periods <= 0:
             raise ValueError(f"lag_periods must be a positive integer, got {lag_periods} (type: {type(lag_periods)})")
-        
+
         if not isinstance(time_interval, str) or not time_interval.strip():
             raise ValueError(f"time_interval must be a non-empty string, got {time_interval} (type: {type(time_interval)})")
-        
+
         # Validate time_interval parameter
         valid_intervals = {'1m', '5m', '15m', '30m', '1h', '2h', '4h', '1d', '1w'}
         if time_interval not in valid_intervals:
             raise ValueError(f"Invalid time_interval '{time_interval}'. Must be one of: {sorted(valid_intervals)}")
-        
+
         # Type validation for cur_datetime
         if not hasattr(cur_datetime, 'date') and not hasattr(cur_datetime, 'year'):
             raise ValueError(f"cur_datetime must be a datetime or date object, got {type(cur_datetime)}")
-        
+
         # Ensure cur_datetime is a datetime object for precise time operations
         if not hasattr(cur_datetime, 'hour'):
             # If it's a date object, convert to datetime at start of day
@@ -367,22 +367,22 @@ class UniverseStateManager:
                 cur_datetime = datetime.combine(cur_datetime.date(), datetime.min.time())
             else:
                 cur_datetime = datetime.combine(cur_datetime, datetime.min.time())
-        
+
         # Validate signal_names if provided
         if signal_names is not None:
             if not isinstance(signal_names, list):
                 raise ValueError(f"signal_names must be a list or None, got {type(signal_names)}")
-            
+
             for i, signal_name in enumerate(signal_names):
                 if not isinstance(signal_name, str) or not signal_name.strip():
                     raise ValueError(f"signal_names[{i}] must be a non-empty string, got {signal_name} (type: {type(signal_name)})")
-        
+
         try:
             from core.dao.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
-            
+
             # Calculate the time range based on interval and lag_periods
             from datetime import timedelta, datetime
-            
+
             # Convert time_interval to timedelta for calculating date range
             interval_deltas = {
                 '1m': timedelta(minutes=1),
@@ -395,23 +395,23 @@ class UniverseStateManager:
                 '1d': timedelta(days=1),
                 '1w': timedelta(weeks=1)
             }
-            
+
             interval_delta = interval_deltas[time_interval]
-            
+
             # Calculate start date for the query (go back enough to get lag_periods)
             total_lookback = interval_delta * lag_periods * 2  # Extra buffer for market closures
             start_date = cur_datetime - total_lookback
-            
+
             # Query indicator intervals from the database
             indicator_dao = InstrumentIndicatorIntervalDAO(self.env)
-            
+
             # Get all indicator data for the instrument in the time range
             indicator_data = await indicator_dao.get_by_instrument_and_date_range(
                 instrument_id=instrument_id,
                 start_date=start_date,
                 end_date=cur_datetime
             )
-            
+
             if not indicator_data:
                 # Return empty DataFrame with expected structure
                 columns = ['timestamp']
@@ -423,9 +423,9 @@ class UniverseStateManager:
                     common_signals = ['etop', 'ebot', 'pldot', 'sma_20', 'ema_12', 'rsi_14']
                     for signal_name in common_signals:
                         columns.extend([signal_name, f"{signal_name}_status"])
-                
+
                 return pd.DataFrame(columns=columns)
-            
+
             # Convert to DataFrame and process
             df_rows = []
             for record in indicator_data:
@@ -437,20 +437,20 @@ class UniverseStateManager:
                     'indicator_status': record.get('indicator_status')
                 }
                 df_rows.append(row_data)
-            
+
             if not df_rows:
                 return pd.DataFrame(columns=['timestamp'])
-            
+
             # Create DataFrame from records
             signals_df = pd.DataFrame(df_rows)
-            
+
             # Filter by signal names if specified
             if signal_names:
                 signals_df = signals_df[signals_df['indicator_name'].isin(signal_names)]
-            
+
             if signals_df.empty:
                 return pd.DataFrame(columns=['timestamp'])
-            
+
             # Pivot to wide format: one column per indicator
             pivoted_df = signals_df.pivot_table(
                 index='timestamp',
@@ -458,36 +458,36 @@ class UniverseStateManager:
                 values=['indicator_value', 'indicator_status'],
                 aggfunc='last'  # Take last value if duplicates
             )
-            
+
             # Flatten column names
             pivoted_df.columns = [f"{col[1]}_{col[0].replace('indicator_', '')}" if col[1] else col[0] for col in pivoted_df.columns]
             pivoted_df = pivoted_df.reset_index()
-            
+
             # Sort by timestamp and filter to the requested time interval and lag periods
             pivoted_df = pivoted_df.sort_values('timestamp')
-            
+
             # Filter to only include data before cur_datetime
             pivoted_df = pivoted_df[pivoted_df['timestamp'] < pd.Timestamp(cur_datetime)]
-            
+
             # Take the last lag_periods records
             pivoted_df = pivoted_df.tail(lag_periods)
-            
+
             logger.debug(f"Retrieved {len(pivoted_df)} {time_interval} signal periods for instrument {instrument_id}")
-            
+
             return pivoted_df
-            
+
         except Exception as e:
             try:
                 self.logger.error(f"Failed to get lagged signals for instrument {instrument_id}: {e}")
             except:
                 pass
-            
+
             # Return empty DataFrame on error
             columns = ['timestamp']
             if signal_names:
                 for signal_name in signal_names:
                     columns.extend([signal_name, f"{signal_name}_status"])
-            
+
             return pd.DataFrame(columns=columns)
 
     def _get_instrument_history(self, instrument_id: int) -> pd.DataFrame:
@@ -566,7 +566,7 @@ class UniverseStateManager:
 
     """
     Handles fast persistence and retrieval of universe state data.
-    
+
     Focuses on I/O operations, caching, and data format optimization.
     Uses Parquet format for optimal performance with columnar data.
     """
@@ -608,7 +608,7 @@ class UniverseStateManager:
         full_df.to_parquet(out_file, index=False)
         logger.debug(f"handleEnd: Saved full universe state to {out_file} with {len(full_df)} records.")
         logger.debug(f"handleEnd: EXIT at {current_time}")
-    
+
     def __init__(self, env=None, base_path: Optional[str] = None, write_metadata: bool = True):
         """
         Initialize UniverseStateManager.
@@ -641,7 +641,7 @@ class UniverseStateManager:
         self.write_metadata = write_metadata
         # Flag to control metadata file writing
         self.write_metadata = write_metadata
-    
+
     async def save_universe_state(self, universe_data: pd.DataFrame, timestamp: str, metadata: Optional[Dict[str, Any]] = None, partition_cols: Optional[List[str]] = None) -> str:
         """
         Persist universe state.
@@ -774,7 +774,7 @@ class UniverseStateManager:
         """Synchronous wrapper for save_universe_state for use in non-async contexts (e.g., sync tests)."""
         import asyncio
         return asyncio.run(self.save_universe_state(universe_data, timestamp, metadata, partition_cols))
-    
+
 
     async def addUniverseState(self, duration_to_state: dict, current_time):
         """
@@ -1034,18 +1034,18 @@ class UniverseStateManager:
             self._update_cache(timestamp, df, {})
         self.logger.info(f"Loaded universe state for {timestamp} from file ({len(df)} records)")
         return df
-    
+
     def get_latest_timestamp(self) -> Optional[str]:
         """
         Get timestamp of most recent universe state.
-        
+
         Returns:
             Latest timestamp string or None if no states exist
         """
         parquet_files = list(self.states_dir.glob("universe_state_*.parquet"))
         if not parquet_files:
             return None
-        
+
         # Extract timestamps and find the latest
         timestamps = []
         for file_path in parquet_files:
@@ -1055,16 +1055,16 @@ class UniverseStateManager:
                     timestamps.append(timestamp)
             except Exception:
                 continue
-        
+
         return max(timestamps) if timestamps else None
-    
+
     def list_available_states(self, limit: Optional[int] = None) -> List[str]:
         """
         List all available universe state timestamps.
-        
+
         Args:
             limit: Maximum number of timestamps to return (most recent first)
-            
+
         Returns:
             List of timestamp strings sorted by recency
         """
@@ -1073,7 +1073,7 @@ class UniverseStateManager:
             raise ValueError(f"limit must be a positive integer or None, got {limit} (type: {type(limit)})")
         parquet_files = list(self.states_dir.glob("universe_state_*.parquet"))
         timestamps = []
-        
+
         for file_path in parquet_files:
             try:
                 timestamp = file_path.stem.replace("universe_state_", "")
@@ -1081,19 +1081,19 @@ class UniverseStateManager:
                     timestamps.append(timestamp)
             except Exception:
                 continue
-        
+
         # Sort by timestamp (most recent first)
         timestamps.sort(reverse=True)
-        
+
         return timestamps[:limit] if limit else timestamps
-    
+
     def cleanup_old_states(self, keep_days: int = 30) -> int:
         """
         Remove old universe states to manage disk space.
-        
+
         Args:
             keep_days: Number of days of states to keep
-            
+
         Returns:
             Number of files removed
         """
@@ -1102,47 +1102,47 @@ class UniverseStateManager:
             raise ValueError(f"keep_days must be a positive integer, got {keep_days} (type: {type(keep_days)})")
         cutoff_date = datetime.now() - timedelta(days=keep_days)
         cutoff_timestamp = cutoff_date.strftime("%Y%m%d_000000")
-        
+
         removed_count = 0
-        
+
         for file_path in self.states_dir.glob("universe_state_*.parquet"):
             try:
                 timestamp = file_path.stem.replace("universe_state_", "")
                 if timestamp < cutoff_timestamp:
                     # Remove state file
                     file_path.unlink()
-                    
+
                     # Remove metadata file
                     metadata_file = self.metadata_dir / f"metadata_{timestamp}.json"
                     if metadata_file.exists():
                         metadata_file.unlink()
-                    
+
                     # Remove from cache
                     cache_keys_to_remove = [k for k in self._cache.keys() if k.startswith(timestamp)]
                     for key in cache_keys_to_remove:
                         del self._cache[key]
-                    
+
                     if timestamp in self._cache_metadata:
                         del self._cache_metadata[timestamp]
-                    
+
                     removed_count += 1
                     self.logger.debug(f"Removed old universe state: {timestamp}")
-                    
+
             except Exception as e:
                 self.logger.warning(f"Failed to remove old state {file_path}: {e}")
-        
+
         return removed_count
-    
+
     def get_state_metadata(self, timestamp: str) -> UniverseStateMetadata:
         """
         Get metadata about a specific universe state.
-        
+
         Args:
             timestamp: Timestamp of the state
-            
+
         Returns:
             UniverseStateMetadata object
-            
+
         Raises:
             FileNotFoundError: If metadata file doesn't exist
         """
@@ -1152,34 +1152,34 @@ class UniverseStateManager:
         # Check cache first
         if timestamp in self._cache_metadata:
             return self._cache_metadata[timestamp]
-        
+
         metadata_file = self.metadata_dir / f"metadata_{timestamp}.json"
-        
+
         if not metadata_file.exists():
             raise FileNotFoundError(f"Metadata not found for timestamp: {timestamp}")
-        
+
         try:
             with open(metadata_file, 'r') as f:
                 metadata_dict = json.load(f)
-            
+
             metadata = UniverseStateMetadata(**metadata_dict)
             self._cache_metadata[timestamp] = metadata
             return metadata
-            
+
         except Exception as e:
             raise IOError(f"Failed to load metadata for {timestamp}: {e}")
-    
+
     def get_storage_stats(self) -> Dict[str, Any]:
         """
         Get storage statistics for universe states.
-        
+
         Returns:
             Dictionary with storage statistics
         """
         states = self.list_available_states()
         total_size = 0
         total_records = 0
-        
+
         for timestamp in states:
             try:
                 metadata = self.get_state_metadata(timestamp)
@@ -1187,7 +1187,7 @@ class UniverseStateManager:
                 total_records += metadata.record_count
             except Exception:
                 continue
-        
+
         return {
             "total_states": len(states),
             "total_size_bytes": total_size,
@@ -1197,15 +1197,15 @@ class UniverseStateManager:
             "latest_timestamp": self.get_latest_timestamp(),
             "oldest_timestamp": states[-1] if states else None,
         }
-    
+
     def clear_cache(self) -> None:
         """Clear in-memory cache."""
         self._cache.clear()
         self._cache_metadata.clear()
         self.logger.debug("Universe state cache cleared")
-    
+
     # Private helper methods
-    
+
     def _validate_timestamp_format(self, timestamp: str) -> bool:
         """Validate timestamp format (YYYYMMDD_HHMMSS)."""
         try:
@@ -1213,7 +1213,7 @@ class UniverseStateManager:
             return True
         except ValueError:
             return False
-    
+
     def _optimize_data_types(self, df: pd.DataFrame) -> pd.DataFrame:
         """Optimize data types for better compression and performance."""
         # Convert string columns with limited unique values to categorical
@@ -1222,7 +1222,7 @@ class UniverseStateManager:
             n_total = len(df)
             if n_unique <= 10 or (n_total > 0 and n_unique / n_total < 0.5):  # robust for small sets
                 df[col] = df[col].astype('category')
-        
+
         # Optimize numeric types
         for col in df.select_dtypes(include=['int64']).columns:
             col_min, col_max = df[col].min(), df[col].max()
@@ -1240,20 +1240,20 @@ class UniverseStateManager:
                     df[col] = df[col].astype('int16')
                 elif col_min >= -2147483648 and col_max <= 2147483647:
                     df[col] = df[col].astype('int32')
-        
+
         return df
-    
-    def _create_metadata(self, 
-                        timestamp: str, 
-                        data: pd.DataFrame, 
+
+    def _create_metadata(self,
+                        timestamp: str,
+                        data: pd.DataFrame,
                         file_path: Path,
                         additional_metadata: Dict[str, Any]) -> UniverseStateMetadata:
         """Create metadata object for universe state."""
         file_size = file_path.stat().st_size if file_path.exists() else 0
-        
+
         # Calculate checksum
         checksum = hashlib.md5(str(data.values.tobytes()).encode()).hexdigest()
-        
+
         return UniverseStateMetadata(
             timestamp=timestamp,
             record_count=len(data),
@@ -1265,32 +1265,32 @@ class UniverseStateManager:
             universe_type=additional_metadata.get('universe_type', 'default'),
             version=additional_metadata.get('version', '1.0')
         )
-    
+
     def _save_metadata(self, timestamp: str, metadata: UniverseStateMetadata) -> None:
         """Save metadata to JSON file."""
         metadata_file = self.metadata_dir / f"metadata_{timestamp}.json"
-        
+
         with open(metadata_file, 'w') as f:
             json.dump(asdict(metadata), f, indent=2)
-    
-    def _update_cache(self, 
-                     timestamp: str, 
-                     data: pd.DataFrame, 
+
+    def _update_cache(self,
+                     timestamp: str,
+                     data: pd.DataFrame,
                      metadata: UniverseStateMetadata) -> None:
         """Update in-memory cache with LRU eviction."""
         # Simple cache key for full data loads
         cache_key = timestamp
-        
+
         # Add to cache
         self._cache[cache_key] = data.copy()
         self._cache_metadata[timestamp] = metadata
-        
+
         # LRU eviction if cache is too large
         if len(self._cache) > self._max_cache_size:
             # Remove oldest entry
             oldest_key = min(self._cache.keys())
             del self._cache[oldest_key]
-            
+
             # Also remove from metadata cache if it's the same timestamp
             if oldest_key in self._cache_metadata:
                 del self._cache_metadata[oldest_key]

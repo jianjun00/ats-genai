@@ -20,7 +20,7 @@ def run_test_suite(test_file: str, description: str) -> bool:
     """Run a test suite and return success status."""
     logger.info(f"🧪 Running {description}...")
     logger.info(f"   Test file: {test_file}")
-    
+
     try:
         # Run the test file directly with Python
         result = subprocess.run(
@@ -29,7 +29,7 @@ def run_test_suite(test_file: str, description: str) -> bool:
             text=True,
             timeout=300  # 5 minute timeout per test suite
         )
-        
+
         if result.returncode == 0:
             logger.info(f"✅ {description} - PASSED")
             if result.stdout:
@@ -48,7 +48,7 @@ def run_test_suite(test_file: str, description: str) -> bool:
                 logger.error("STDERR:")
                 logger.error(result.stderr)
             return False
-            
+
     except subprocess.TimeoutExpired:
         logger.error(f"⏰ {description} - TIMEOUT (exceeded 5 minutes)")
         return False
@@ -61,7 +61,7 @@ def main():
     """Run comprehensive Ray training data test suite."""
     logger.info("🚀 Starting Comprehensive Ray Training Data Test Suite")
     logger.info("=" * 80)
-    
+
     # Define test suites
     test_suites = [
         {
@@ -69,7 +69,7 @@ def main():
             'description': 'Unit Tests - Ray Parallel Processing'
         },
         {
-            'file': 'tests/integration/test_ray_training_data_integration.py', 
+            'file': 'tests/integration/test_ray_training_data_integration.py',
             'description': 'Integration Tests - End-to-End Workflows'
         },
         {
@@ -81,45 +81,45 @@ def main():
             'description': 'Regression Tests - Backward Compatibility'
         }
     ]
-    
+
     # Track results
     results = []
     total_tests = len(test_suites)
-    
+
     # Run each test suite
     for i, suite in enumerate(test_suites, 1):
         logger.info(f"\n📋 Test Suite {i}/{total_tests}: {suite['description']}")
         logger.info("-" * 60)
-        
+
         # Check if test file exists
         test_path = Path(suite['file'])
         if not test_path.exists():
             logger.error(f"❌ Test file not found: {suite['file']}")
             results.append(False)
             continue
-        
+
         # Run the test suite
         success = run_test_suite(suite['file'], suite['description'])
         results.append(success)
-    
+
     # Summary
     logger.info("\n" + "=" * 80)
     logger.info("📊 TEST SUITE SUMMARY")
     logger.info("=" * 80)
-    
+
     passed_count = sum(results)
     failed_count = total_tests - passed_count
-    
+
     for i, (suite, success) in enumerate(zip(test_suites, results)):
         status = "✅ PASSED" if success else "❌ FAILED"
         logger.info(f"{i+1}. {suite['description']}: {status}")
-    
+
     logger.info("-" * 80)
     logger.info(f"Total Tests: {total_tests}")
     logger.info(f"Passed: {passed_count}")
     logger.info(f"Failed: {failed_count}")
     logger.info(f"Success Rate: {(passed_count/total_tests)*100:.1f}%")
-    
+
     if failed_count == 0:
         logger.info("🎉 ALL RAY TRAINING DATA TESTS PASSED!")
         logger.info("✅ Ray enhancements are ready for production use")

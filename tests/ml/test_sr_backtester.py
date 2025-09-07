@@ -38,7 +38,7 @@ class TestPredictionResult:
             actual_high=188.2,
             actual_close=185.0
         )
-        
+
         assert result.symbol == 'AAPL'
         assert result.date == date(2023, 6, 15)
         assert len(result.predicted_support) == 2
@@ -60,7 +60,7 @@ class TestPredictionResult:
             actual_high=106.2,
             actual_close=100.0
         )
-        
+
         assert len(result.predicted_support) == len(result.support_confidence)
         assert len(result.predicted_resistance) == len(result.resistance_confidence)
         assert all(0 <= conf <= 1 for conf in result.support_confidence)
@@ -81,7 +81,7 @@ class TestTradingSignal:
             confidence=0.75,
             rationale='Strong support at $350'
         )
-        
+
         assert signal.symbol == 'MSFT'
         assert signal.signal_type in ['buy_support', 'sell_resistance', 'hold']
         assert signal.entry_price > 0
@@ -102,12 +102,12 @@ class TestTradingSignal:
             confidence=0.6,
             rationale='Test'
         )
-        
+
         # Calculate risk/reward
         risk = buy_signal.entry_price - buy_signal.stop_loss
         reward = buy_signal.target_price - buy_signal.entry_price
         risk_reward_ratio = reward / risk if risk > 0 else 0
-        
+
         assert risk > 0
         assert reward > 0
         assert risk_reward_ratio > 0
@@ -136,7 +136,7 @@ class TestBacktestMetrics:
             support_hold_rate=0.65,
             resistance_hold_rate=0.58
         )
-        
+
         assert 0 <= metrics.support_accuracy <= 1
         assert 0 <= metrics.resistance_accuracy <= 1
         assert metrics.level_mae >= 0
@@ -165,7 +165,7 @@ class TestBacktestMetrics:
             support_hold_rate=0.6,
             resistance_hold_rate=0.55
         )
-        
+
         # Basic validation
         assert metrics.total_trades == metrics.winning_trades + metrics.losing_trades
         assert abs(metrics.win_rate - metrics.winning_trades / metrics.total_trades) < 1e-6
@@ -186,7 +186,7 @@ class TestSRBacktester:
         """Create sample prediction results"""
         predictions = []
         base_date = date(2023, 1, 1)
-        
+
         for i in range(10):
             pred = PredictionResult(
                 symbol='TEST',
@@ -200,7 +200,7 @@ class TestSRBacktester:
                 actual_close=100.0 + i * 0.1 + np.random.normal(0, 1.0)
             )
             predictions.append(pred)
-        
+
         return predictions
 
     def test_backtester_initialization(self, backtester):
@@ -214,37 +214,37 @@ class TestSRBacktester:
     def test_calculate_level_accuracy_support(self, backtester, sample_predictions):
         """Test support level accuracy calculation"""
         accuracy = backtester._calculate_level_accuracy(sample_predictions, 'support')
-        
+
         assert 0 <= accuracy <= 1
         assert isinstance(accuracy, float)
 
     def test_calculate_level_accuracy_resistance(self, backtester, sample_predictions):
         """Test resistance level accuracy calculation"""
         accuracy = backtester._calculate_level_accuracy(sample_predictions, 'resistance')
-        
+
         assert 0 <= accuracy <= 1
         assert isinstance(accuracy, float)
 
     def test_calculate_level_mae(self, backtester, sample_predictions):
         """Test mean absolute error calculation"""
         mae = backtester._calculate_level_mae(sample_predictions)
-        
+
         assert mae >= 0
         assert isinstance(mae, (float, int))
 
     def test_calculate_confidence_correlation(self, backtester, sample_predictions):
         """Test confidence correlation calculation"""
         correlation = backtester._calculate_confidence_correlation(sample_predictions)
-        
+
         assert -1 <= correlation <= 1
         assert isinstance(correlation, (float, int))
 
     def test_generate_trading_signals(self, backtester, sample_predictions):
         """Test trading signal generation"""
         signals = backtester._generate_trading_signals(sample_predictions)
-        
+
         assert isinstance(signals, list)
-        
+
         for signal in signals:
             assert isinstance(signal, TradingSignal)
             assert signal.symbol == 'TEST'
@@ -268,13 +268,13 @@ class TestSRBacktester:
             actual_high=105.0,
             actual_close=102.0
         )
-        
+
         signals = backtester._generate_trading_signals([pred])
-        
+
         # Should generate at least one buy signal
         buy_signals = [s for s in signals if s.signal_type == 'buy_support']
         assert len(buy_signals) >= 1
-        
+
         if buy_signals:
             signal = buy_signals[0]
             assert signal.entry_price <= signal.target_price
@@ -294,13 +294,13 @@ class TestSRBacktester:
             actual_high=109.8,  # Price tested resistance
             actual_close=105.0
         )
-        
+
         signals = backtester._generate_trading_signals([pred])
-        
+
         # Should generate at least one sell signal
         sell_signals = [s for s in signals if s.signal_type == 'sell_resistance']
         assert len(sell_signals) >= 1
-        
+
         if sell_signals:
             signal = sell_signals[0]
             assert signal.entry_price >= signal.target_price
@@ -309,7 +309,7 @@ class TestSRBacktester:
     def test_calculate_trading_metrics_empty(self, backtester):
         """Test trading metrics with empty signals"""
         metrics = backtester._calculate_trading_metrics([], [])
-        
+
         assert metrics['total_trades'] == 0
         assert metrics['winning_trades'] == 0
         assert metrics['losing_trades'] == 0
@@ -319,10 +319,10 @@ class TestSRBacktester:
     def test_calculate_trading_metrics_with_signals(self, backtester, sample_predictions):
         """Test trading metrics calculation with signals"""
         signals = backtester._generate_trading_signals(sample_predictions)
-        
+
         if signals:  # Only test if signals were generated
             metrics = backtester._calculate_trading_metrics(signals, sample_predictions)
-            
+
             assert isinstance(metrics, dict)
             assert 'total_trades' in metrics
             assert 'winning_trades' in metrics
@@ -331,7 +331,7 @@ class TestSRBacktester:
             assert 'avg_return' in metrics
             assert 'sharpe_ratio' in metrics
             assert 'max_drawdown' in metrics
-            
+
             assert metrics['total_trades'] >= 0
             assert metrics['winning_trades'] >= 0
             assert metrics['losing_trades'] >= 0
@@ -341,13 +341,13 @@ class TestSRBacktester:
     def test_calculate_level_testing_metrics(self, backtester, sample_predictions):
         """Test level testing metrics calculation"""
         metrics = backtester._calculate_level_testing_metrics(sample_predictions)
-        
+
         assert isinstance(metrics, dict)
         assert 'support_test_rate' in metrics
         assert 'resistance_test_rate' in metrics
         assert 'support_hold_rate' in metrics
         assert 'resistance_hold_rate' in metrics
-        
+
         assert 0 <= metrics['support_test_rate'] <= 1
         assert 0 <= metrics['resistance_test_rate'] <= 1
         assert 0 <= metrics['support_hold_rate'] <= 1
@@ -356,7 +356,7 @@ class TestSRBacktester:
     def test_calculate_aggregate_metrics_empty(self, backtester):
         """Test aggregate metrics with empty results"""
         aggregate = backtester._calculate_aggregate_metrics({})
-        
+
         assert isinstance(aggregate, BacktestMetrics)
         assert aggregate.total_trades == 0
         assert aggregate.win_rate == 0.0
@@ -384,9 +384,9 @@ class TestSRBacktester:
                 resistance_hold_rate=0.5
             )
         }
-        
+
         aggregate = backtester._calculate_aggregate_metrics(symbol_results)
-        
+
         assert isinstance(aggregate, BacktestMetrics)
         assert aggregate.total_trades == 90  # 50 + 40
         assert aggregate.winning_trades == 52  # 30 + 22
@@ -409,11 +409,11 @@ class TestSRBacktester:
             }
             for i in range(1, 11)
         ]
-        
+
         df = await backtester._get_daily_data(
             mock_conn, 'TEST', date(2023, 1, 1), date(2023, 1, 10)
         )
-        
+
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 10
         assert 'date' in df.columns
@@ -446,9 +446,9 @@ class TestSRBacktester:
                 resistance_hold_rate=0.6
             )
         }
-        
+
         report = backtester.generate_backtest_report(results)
-        
+
         assert isinstance(report, str)
         assert len(report) > 0
         assert 'Support/Resistance Model Backtest Report' in report
@@ -473,7 +473,7 @@ class TestSRBacktesterIntegration:
     def mock_model(self):
         """Create mock model for testing"""
         model = MagicMock()
-        
+
         def mock_predict(features):
             batch_size = features.shape[0]
             return {
@@ -482,7 +482,7 @@ class TestSRBacktesterIntegration:
                 'support_confidence': np.random.uniform(0.3, 0.8, (batch_size, 2)),
                 'resistance_confidence': np.random.uniform(0.3, 0.8, (batch_size, 2))
             }
-        
+
         model.predict = mock_predict
         return model
 
@@ -490,10 +490,10 @@ class TestSRBacktesterIntegration:
     def mock_feature_generator(self):
         """Create mock feature generator"""
         generator = MagicMock()
-        
+
         async def mock_generate_features(conn, symbol, daily_data, idx, current_date):
             return {f'feature_{i}': np.random.randn() for i in range(10)}
-        
+
         generator._generate_features = mock_generate_features
         return generator
 
@@ -502,12 +502,12 @@ class TestSRBacktesterIntegration:
     async def test_backtest_model_mock(self, mock_env, mock_model, mock_feature_generator):
         """Test backtesting with mocked components"""
         backtester = SRBacktester(env=mock_env)
-        
+
         # Mock database operations
         with patch('asyncpg.create_pool') as mock_pool:
             mock_conn = AsyncMock()
             mock_pool.return_value.__aenter__.return_value.acquire.return_value.__aenter__.return_value = mock_conn
-            
+
             # Mock daily data
             mock_conn.fetch.return_value = [
                 {
@@ -520,7 +520,7 @@ class TestSRBacktesterIntegration:
                 }
                 for i in range(1, 31)
             ]
-            
+
             # Test backtesting
             results = await backtester.backtest_model(
                 model=mock_model,
@@ -530,7 +530,7 @@ class TestSRBacktesterIntegration:
                 feature_generator=mock_feature_generator,
                 min_predictions_per_symbol=5
             )
-            
+
             # Verify results structure
             assert isinstance(results, dict)
             if results:  # May be empty due to mocked data
@@ -541,7 +541,7 @@ class TestSRBacktesterIntegration:
     def test_prediction_accuracy_calculation(self):
         """Test prediction accuracy calculation with known data"""
         backtester = SRBacktester()
-        
+
         # Create predictions where we know the accuracy
         predictions = [
             PredictionResult(
@@ -557,10 +557,10 @@ class TestSRBacktesterIntegration:
                 actual_low=97.0, actual_high=103.0, actual_close=100.0  # Neither level hit
             )
         ]
-        
+
         support_accuracy = backtester._calculate_level_accuracy(predictions, 'support')
         resistance_accuracy = backtester._calculate_level_accuracy(predictions, 'resistance')
-        
+
         # With tolerance of 0.5%, both should have 50% accuracy (1 out of 2 hit)
         assert 0.4 <= support_accuracy <= 0.6  # Allow some tolerance
         assert 0.4 <= resistance_accuracy <= 0.6
@@ -568,7 +568,7 @@ class TestSRBacktesterIntegration:
     def test_trading_signal_profitability(self):
         """Test trading signal profitability calculation"""
         backtester = SRBacktester()
-        
+
         # Create profitable buy signal
         buy_signal = TradingSignal(
             symbol='TEST', date=date(2023, 1, 1),
@@ -576,7 +576,7 @@ class TestSRBacktesterIntegration:
             target_price=105.0, stop_loss=98.0,
             confidence=0.8, rationale='Test'
         )
-        
+
         # Create prediction where target is hit
         prediction = PredictionResult(
             symbol='TEST', date=date(2023, 1, 1),
@@ -584,9 +584,9 @@ class TestSRBacktesterIntegration:
             support_confidence=[0.8], resistance_confidence=[0.6],
             actual_low=99.0, actual_high=106.0, actual_close=105.5
         )
-        
+
         metrics = backtester._calculate_trading_metrics([buy_signal], [prediction])
-        
+
         # Should be profitable
         assert metrics['total_trades'] == 1
         assert metrics['avg_return'] > 0  # Should be positive return

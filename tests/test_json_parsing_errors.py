@@ -19,11 +19,11 @@ import requests
 import json
 from typing import Dict, Any, Optional
 
-# Test configuration  
+# Test configuration
 TEST_BASE_URL = "http://localhost:9996"  # Port forward URL
 ENDPOINTS_TO_TEST = [
     "/api/v1/jobs",
-    "/api/v1/jobs/stats", 
+    "/api/v1/jobs/stats",
     "/api/v1/datasets",
     "/api/v1/datasets/1/sequences",
     "/api/v1/coverage/summary",
@@ -33,43 +33,43 @@ ENDPOINTS_TO_TEST = [
 
 class TestJSONParsingErrors:
     """Test suite to detect and prevent JSON parsing errors"""
-    
+
     def test_endpoints_return_valid_json_or_proper_error(self):
         """
         Test all API endpoints return either:
         1. Valid JSON response (200 OK)
         2. Proper JSON error response (4xx/5xx with valid JSON)
-        
+
         Should NEVER return plain text "Internal Server Error"
         """
         print("🧪 Testing API endpoints for JSON parsing compatibility")
-        
+
         failed_endpoints = []
         json_parse_errors = []
-        
+
         for endpoint in ENDPOINTS_TO_TEST:
             url = f"{TEST_BASE_URL}{endpoint}"
             print(f"\n📡 Testing: {endpoint}")
-            
+
             try:
                 response = requests.get(url, timeout=10)
                 content_type = response.headers.get('content-type', '')
-                
+
                 print(f"   Status: {response.status_code}")
                 print(f"   Content-Type: {content_type}")
                 print(f"   Response: {response.text[:100]}...")
-                
+
                 # Check if response claims to be JSON
                 if 'application/json' in content_type:
                     # Should be valid JSON
                     try:
                         json_data = response.json()
                         print(f"   ✅ Valid JSON response")
-                        
+
                         # Additional check: ensure no "Internal Server Error" in JSON
                         if isinstance(json_data, dict) and json_data.get('error') == 'Internal Server Error':
                             print(f"   ⚠️ JSON contains 'Internal Server Error' - should be more specific")
-                            
+
                     except json.JSONDecodeError as e:
                         print(f"   ❌ JSON Parse Error: {e}")
                         json_parse_errors.append({
@@ -80,7 +80,7 @@ class TestJSONParsingErrors:
                             'json_error': str(e)
                         })
                         failed_endpoints.append(endpoint)
-                        
+
                 elif response.status_code >= 500:
                     # 5xx errors should still return JSON
                     if response.text.strip() == "Internal Server Error":
@@ -97,7 +97,7 @@ class TestJSONParsingErrors:
                         print(f"   ⚠️ Non-JSON error response: {response.text[:50]}")
                 else:
                     print(f"   ✅ Non-JSON response (status {response.status_code})")
-                    
+
             except requests.RequestException as e:
                 print(f"   ❌ Connection Error: {e}")
                 failed_endpoints.append(endpoint)
@@ -108,12 +108,12 @@ class TestJSONParsingErrors:
                     'response_text': str(e),
                     'json_error': f"Connection failed: {e}"
                 })
-        
+
         # Print summary
         print(f"\n{'='*60}")
-        print("📊 JSON PARSING ERROR DETECTION RESULTS")  
+        print("📊 JSON PARSING ERROR DETECTION RESULTS")
         print(f"{'='*60}")
-        
+
         if json_parse_errors:
             print(f"❌ FOUND {len(json_parse_errors)} JSON PARSING ISSUES:")
             for i, error in enumerate(json_parse_errors, 1):
@@ -122,22 +122,22 @@ class TestJSONParsingErrors:
                 print(f"   CONTENT-TYPE: {error['content_type']}")
                 print(f"   RESPONSE: {error['response_text']}")
                 print(f"   JSON ERROR: {error['json_error']}")
-                
+
             print(f"\n🔧 RECOMMENDED FIXES:")
             print("1. Ensure all API endpoints return JSON responses")
             print("2. Replace plain 'Internal Server Error' with JSON:")
             print('   {"error": "internal_server_error", "message": "Database connection failed"}')
             print("3. Set proper Content-Type: application/json headers")
             print("4. Add error handling middleware for consistent JSON responses")
-            
+
         else:
             print("✅ ALL ENDPOINTS RETURN JSON-COMPATIBLE RESPONSES")
-            
+
         print(f"\n📈 SUMMARY:")
         print(f"   Total endpoints tested: {len(ENDPOINTS_TO_TEST)}")
         print(f"   JSON parsing issues: {len(json_parse_errors)}")
         print(f"   Failed endpoints: {len(failed_endpoints)}")
-        
+
         # Test assertion
         assert len(json_parse_errors) == 0, f"Found {len(json_parse_errors)} JSON parsing issues that will cause frontend errors"
 
@@ -147,43 +147,43 @@ class TestJSONParsingErrors:
         'Error loading jobs: Unexpected token 'I', "Internal S"... is not valid JSON'
         """
         print("\n🎯 SPECIFIC TEST: Jobs API JSON Compatibility")
-        
+
         jobs_endpoints = [
-            "/api/v1/jobs", 
+            "/api/v1/jobs",
             "/api/v1/jobs/stats"
         ]
-        
+
         for endpoint in jobs_endpoints:
             url = f"{TEST_BASE_URL}{endpoint}"
             print(f"\n📡 Testing jobs endpoint: {endpoint}")
-            
+
             try:
                 response = requests.get(url, timeout=10)
-                
+
                 # This is the exact scenario that causes the frontend error
                 if response.status_code == 500 and response.text.strip() == "Internal Server Error":
                     print(f"❌ DETECTED THE EXACT ISSUE!")
                     print(f"   Response: '{response.text}'")
                     print(f"   This will cause: Unexpected token 'I', \"Internal S\"... is not valid JSON")
-                    
+
                     # Simulate what frontend does
                     try:
                         json.loads(response.text)
                     except json.JSONDecodeError as e:
                         print(f"   JSON Parse Simulation: {e}")
-                        
+
                     assert False, f"Jobs API returns plain text error that breaks frontend JSON parsing"
-                    
+
                 elif response.status_code == 200:
                     # Should be valid JSON
                     jobs_data = response.json()
                     print(f"   ✅ Jobs API returns valid JSON")
                     print(f"   Keys: {list(jobs_data.keys())}")
-                    
+
                 else:
                     print(f"   Status: {response.status_code}")
                     print(f"   Response: {response.text[:100]}")
-                    
+
             except requests.RequestException as e:
                 print(f"   Connection failed: {e}")
                 # Don't fail test for connection issues during development
@@ -193,45 +193,45 @@ class TestJSONParsingErrors:
         Test that error responses follow a consistent JSON format
         """
         print("\n🏗️ TESTING ERROR RESPONSE FORMAT STANDARDS")
-        
+
         # Test with a non-existent endpoint to trigger error
         error_test_endpoints = [
             "/api/v1/nonexistent",
             "/api/v1/jobs/999999",  # Should return 404
             "/api/v1/datasets/999999"  # Should return 404
         ]
-        
+
         expected_error_format = {
             "error": str,  # Error code/type
-            "message": str,  # Human readable message  
+            "message": str,  # Human readable message
             "status": int   # HTTP status code
         }
-        
+
         for endpoint in error_test_endpoints:
             url = f"{TEST_BASE_URL}{endpoint}"
             print(f"\n📡 Testing error format: {endpoint}")
-            
+
             try:
                 response = requests.get(url, timeout=10)
-                
+
                 if response.status_code >= 400:
                     try:
                         error_data = response.json()
                         print(f"   Status: {response.status_code}")
                         print(f"   Error JSON: {json.dumps(error_data, indent=2)}")
-                        
+
                         # Validate error response has proper structure
                         if not isinstance(error_data, dict):
                             print(f"   ⚠️ Error response should be JSON object")
-                            
+
                         if 'error' not in error_data:
                             print(f"   ⚠️ Error response missing 'error' field")
-                            
+
                         print(f"   ✅ Proper JSON error format")
-                        
+
                     except json.JSONDecodeError:
                         print(f"   ❌ Error response is not JSON: {response.text[:100]}")
-                        
+
             except requests.RequestException as e:
                 print(f"   Connection failed: {e}")
 
@@ -240,18 +240,18 @@ def run_json_parsing_error_tests():
     """Run all JSON parsing error detection tests"""
     print("🚀 RUNNING JSON PARSING ERROR DETECTION TESTS")
     print("="*80)
-    
+
     test_instance = TestJSONParsingErrors()
-    
+
     tests = [
         ("General JSON Compatibility", test_instance.test_endpoints_return_valid_json_or_proper_error),
         ("Jobs API Specific Test", test_instance.test_specific_jobs_api_json_compatibility),
         ("Error Format Standards", test_instance.test_error_response_format_standards)
     ]
-    
+
     passed = 0
     failed = 0
-    
+
     for test_name, test_func in tests:
         print(f"\n🧪 Running: {test_name}")
         print("-" * 60)
@@ -263,13 +263,13 @@ def run_json_parsing_error_tests():
             print(f"❌ FAILED: {test_name}")
             print(f"   Error: {e}")
             failed += 1
-    
+
     print("\n" + "="*80)
     print("📊 JSON PARSING ERROR TEST SUMMARY")
     print("="*80)
     print(f"✅ PASSED: {passed} tests")
     print(f"❌ FAILED: {failed} tests")
-    
+
     if failed > 0:
         print(f"\n🔧 ISSUES DETECTED:")
         print(f"   Frontend will show: 'Error loading jobs: Unexpected token 'I', \"Internal S\"... is not valid JSON'")
@@ -277,7 +277,7 @@ def run_json_parsing_error_tests():
         print(f"   Solution: Fix API to return JSON error responses")
     else:
         print(f"\n🎉 NO JSON PARSING ISSUES DETECTED!")
-    
+
     return passed, failed
 
 

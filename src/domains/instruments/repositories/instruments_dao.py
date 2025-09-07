@@ -7,7 +7,7 @@ class InstrumentsDAO:
         self.env = env
         self.table_name = self.env.get_table_name('instruments')
         self.db_url = self.env.get_database_url()
-        
+
     async def count_instruments(self) -> int:
         """Count the total number of instruments."""
         pool = await asyncpg.create_pool(self.db_url)
@@ -86,20 +86,20 @@ class InstrumentsDAO:
                 return [row['id'] for row in rows]
         finally:
             await pool.close()
-            
+
     async def get_symbols_by_ids(self, instrument_ids: List[int]) -> Dict[int, str]:
         """
         Get symbols for a list of instrument IDs
-        
+
         Args:
             instrument_ids: List of instrument IDs to look up
-            
+
         Returns:
             Dictionary mapping instrument_id to symbol
         """
         if not instrument_ids:
             return {}
-            
+
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:

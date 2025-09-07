@@ -24,18 +24,18 @@ class FeatureConfig:
 
 class FeatureGenerator(ABC):
     """Abstract base class for feature generators."""
-    
+
     @abstractmethod
     def generate(self, data: pd.DataFrame, config: FeatureConfig) -> pd.Series:
         """Generate feature values from input data."""
-    
+
     @abstractmethod
     def get_feature_names(self, config: FeatureConfig) -> List[str]:
         """Get the names of features this generator produces."""
 
 class IndicatorFeatureGenerator(FeatureGenerator):
     """Generates features from technical indicators."""
-    
+
     def __init__(self):
         self.indicator_map = {
             'ema': EMAIndicator,
@@ -45,13 +45,13 @@ class IndicatorFeatureGenerator(FeatureGenerator):
             'macd': self._macd_indicator,
             'bollinger': self._bollinger_indicator
         }
-    
+
     def generate(self, data: pd.DataFrame, config: FeatureConfig) -> pd.Series:
         """Generate indicator-based feature."""
         indicator_type = config.parameters.get('indicator_type')
         if indicator_type not in self.indicator_map:
             raise ValueError(f"Unknown indicator type: {indicator_type}")
-        
+
         # Create indicator instance
         if indicator_type in ['ema', 'atr']:
             # Remove indicator_type from parameters and pass remaining parameters
@@ -59,7 +59,7 @@ class IndicatorFeatureGenerator(FeatureGenerator):
             indicator = self.indicator_map[indicator_type](**params)
             result = indicator.calculate(data)
             values = result.get('value', np.nan)
-            
+
             # Convert single value to series
             if not isinstance(values, pd.Series):
                 values = pd.Series([values] * len(data), index=data.index)
@@ -68,7 +68,7 @@ class IndicatorFeatureGenerator(FeatureGenerator):
             indicator_func = self.indicator_map[indicator_type]
             params = {k: v for k, v in config.parameters.items() if k != 'indicator_type'}
             values = indicator_func(data, **params)
-        
+
         # Apply lag if specified
         if config.lag_periods > 0:
             if isinstance(values, pd.Series):
@@ -76,9 +76,9 @@ class IndicatorFeatureGenerator(FeatureGenerator):
             else:
                 # Convert to series and apply lag
                 values = pd.Series([values] * len(data), index=data.index).shift(config.lag_periods)
-        
+
         return values
-    
+
     def get_feature_names(self, config: FeatureConfig) -> List[str]:
         """Get feature names for this indicator."""
         base_name = f"{config.name}_{config.parameters.get('indicator_type')}"
@@ -87,11 +87,11 @@ class IndicatorFeatureGenerator(FeatureGenerator):
         if config.lag_periods > 0:
             base_name += f"_lag{config.lag_periods}"
         return [base_name]
-    
+
     def _sma_indicator(self, data: pd.DataFrame, period: int = 20, **kwargs) -> pd.Series:
         """Simple Moving Average."""
         return data['close'].rolling(window=period).mean()
-    
+
     def _rsi_indicator(self, data: pd.DataFrame, period: int = 14, **kwargs) -> pd.Series:
         """Relative Strength Index."""
         close = data['close']
@@ -101,7 +101,7 @@ class IndicatorFeatureGenerator(FeatureGenerator):
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
         return rsi
-    
+
     def _macd_indicator(self, data: pd.DataFrame, fast: int = 12, slow: int = 26, signal: int = 9, **kwargs) -> pd.Series:
         """MACD indicator."""
         close = data['close']
@@ -109,19 +109,19 @@ class IndicatorFeatureGenerator(FeatureGenerator):
         ema_slow = close.ewm(span=slow).mean()
         macd = ema_fast - ema_slow
         return macd
-    
+
     def _bollinger_indicator(self, data: pd.DataFrame, period: int = 20, std_dev: float = 2.0, **kwargs) -> pd.Series:
         """Bollinger Bands middle line (SMA)."""
         return data['close'].rolling(window=period).mean()
 
 class TransformFeatureGenerator(FeatureGenerator):
     """Generates features from data transformations."""
-    
+
     def generate(self, data: pd.DataFrame, config: FeatureConfig) -> pd.Series:
         """Generate transform-based feature."""
         transform_type = config.parameters.get('transform_type')
         column = config.parameters.get('column', 'close')
-        
+
         if transform_type == 'log_return':
             values = np.log(data[column] / data[column].shift(1))
         elif transform_type == 'pct_change':
@@ -136,13 +136,13 @@ class TransformFeatureGenerator(FeatureGenerator):
             values = data['volume'] / data['volume'].rolling(window=window).mean()
         else:
             raise ValueError(f"Unknown transform type: {transform_type}")
-        
+
         # Apply lag if specified
         if config.lag_periods > 0:
             values = values.shift(config.lag_periods)
-        
+
         return values
-    
+
     def get_feature_names(self, config: FeatureConfig) -> List[str]:
         """Get feature names for this transform."""
         base_name = f"{config.name}_{config.parameters.get('transform_type')}"
@@ -152,29 +152,29 @@ class TransformFeatureGenerator(FeatureGenerator):
 
 class CustomFeatureGenerator(FeatureGenerator):
     """Generates custom features from user-defined functions."""
-    
+
     def __init__(self):
         self.custom_functions = {}
-    
+
     def register_function(self, name: str, func: Callable):
         """Register a custom feature function."""
         self.custom_functions[name] = func
-    
+
     def generate(self, data: pd.DataFrame, config: FeatureConfig) -> pd.Series:
         """Generate custom feature."""
         func_name = config.parameters.get('function_name')
         if func_name not in self.custom_functions:
             raise ValueError(f"Unknown custom function: {func_name}")
-        
+
         func = self.custom_functions[func_name]
         values = func(data, **config.parameters)
-        
+
         # Apply lag if specified
         if config.lag_periods > 0:
             values = values.shift(config.lag_periods)
-        
+
         return values
-    
+
     def get_feature_names(self, config: FeatureConfig) -> List[str]:
         """Get feature names for this custom feature."""
         base_name = config.name
@@ -185,7 +185,7 @@ class CustomFeatureGenerator(FeatureGenerator):
 @gin.configurable
 class FeatureRegistry:
     """Central registry for feature generators."""
-    
+
     def __init__(self, features: List[FeatureConfig] = None):
         self.features = features or []
         self.generators = {
@@ -193,23 +193,23 @@ class FeatureRegistry:
             'transform': TransformFeatureGenerator(),
             'custom': CustomFeatureGenerator()
         }
-    
+
     def add_feature(self, config: FeatureConfig):
         """Add a feature configuration to the registry."""
         self.features.append(config)
-    
+
     def remove_feature(self, name: str):
         """Remove a feature by name."""
         self.features = [f for f in self.features if f.name != name]
-    
+
     def get_enabled_features(self) -> List[FeatureConfig]:
         """Get all enabled feature configurations."""
         return [f for f in self.features if f.enabled]
-    
+
     def generate_features(self, data: pd.DataFrame) -> pd.DataFrame:
         """Generate all configured features from input data."""
         feature_data = {}
-        
+
         for config in self.get_enabled_features():
             try:
                 generator = self.generators.get(config.feature_type)
@@ -218,10 +218,10 @@ class FeatureRegistry:
                     # Add NaN series as placeholder for unknown feature types
                     feature_data[config.name] = pd.Series([np.nan] * len(data), index=data.index)
                     continue
-                
+
                 values = generator.generate(data, config)
                 feature_names = generator.get_feature_names(config)
-                
+
                 if len(feature_names) == 1:
                     feature_data[feature_names[0]] = values
                 else:
@@ -232,14 +232,14 @@ class FeatureRegistry:
                     else:
                         # Single series for first feature name
                         feature_data[feature_names[0]] = values
-                        
+
             except Exception as e:
                 print(f"Error generating feature {config.name}: {e}")
                 # Add NaN series as placeholder
                 feature_data[config.name] = pd.Series([np.nan] * len(data), index=data.index)
-        
+
         return pd.DataFrame(feature_data, index=data.index)
-    
+
     def get_feature_names(self) -> List[str]:
         """Get all feature names that will be generated."""
         names = []
@@ -248,7 +248,7 @@ class FeatureRegistry:
             if generator:
                 names.extend(generator.get_feature_names(config))
         return names
-    
+
     def register_custom_function(self, name: str, func: Callable):
         """Register a custom feature function."""
         custom_gen = self.generators['custom']
@@ -256,7 +256,7 @@ class FeatureRegistry:
 
 # Helper functions for gin configuration
 @gin.configurable
-def create_feature_config(name: str, 
+def create_feature_config(name: str,
                          feature_type: str,
                          parameters: Dict[str, Any] = None,
                          lag_periods: int = 0,
@@ -270,7 +270,7 @@ def create_feature_config(name: str,
         enabled=enabled
     )
 
-@gin.configurable  
+@gin.configurable
 def create_feature_registry(feature_configs: List[FeatureConfig] = None) -> FeatureRegistry:
     """Create a feature registry - gin configurable."""
     return FeatureRegistry(features=feature_configs or [])

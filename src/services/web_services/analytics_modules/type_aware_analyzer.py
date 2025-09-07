@@ -27,19 +27,19 @@ from core.config.settings import get_settings
     # ==============================================
     # TYPE-AWARE ANALYSIS (from analytics_service_class.py)
     # ==============================================
-    
+
     async def get_intelligent_filters(self, table_name: str) -> Dict[str, Any]:
         """Generate intelligent filter definitions using type system."""
         if not self.type_system_enabled:
             logger.warning("Type system not available, falling back to basic filters")
             return self._get_basic_filters(table_name)
-            
+
         try:
             filterable_fields = {}
-            
+
             # Try to get schema for this table
             schema = schema_registry.get_table_schema(table_name)
-            
+
             # Get all filterable fields from schema
             for field_name, field_def in schema.fields.items():
                 if field_def.is_filterable:
@@ -54,7 +54,7 @@ from core.config.settings import get_settings
                         "nullable": field_def.nullable,
                         "eda_priority": field_def.eda_priority
                     }
-                    
+
                     # Add semantic-specific configurations
                     if field_def.semantics == FieldSemantics.PRICE:
                         filter_config.update({
@@ -72,16 +72,16 @@ from core.config.settings import get_settings
                             "autocomplete": True,
                             "multi_select": True
                         })
-                    
+
                     filterable_fields[field_name] = filter_config
-            
+
             return {
                 "table_name": table_name,
                 "filterable_fields": filterable_fields,
                 "schema_available": True,
                 "total_filterable": len(filterable_fields)
             }
-            
+
         except Exception as e:
             logger.error(f"Error generating intelligent filters for {table_name}: {e}")
             return self._get_basic_filters(table_name)
@@ -96,7 +96,7 @@ from core.config.settings import get_settings
             "volume": {"field_type": "numeric", "min_value": 0},
             "exchange": {"field_type": "string", "multi_select": True}
         }
-        
+
         return {
             "table_name": table_name,
             "filterable_fields": basic_filters,
@@ -107,22 +107,22 @@ from core.config.settings import get_settings
     # ==============================================
     # UNIVERSE ANALYTICS (from universe_analytics_service.py)
     # ==============================================
-    
+
     async def get_universe_analytics(self, universe_name: str = None) -> Dict[str, Any]:
         """Get comprehensive universe analytics and cross-instrument analysis."""
         try:
             # Universe composition analysis
             universe_stats = await self._analyze_universe_composition(universe_name)
-            
+
             # Cross-instrument correlations
             correlations = await self._calculate_cross_instrument_correlations(universe_name)
-            
+
             # Sector/industry analysis
             sector_analysis = await self._analyze_sector_composition(universe_name)
-            
+
             # Performance analytics
             performance_metrics = await self._calculate_universe_performance(universe_name)
-            
+
             return {
                 "universe_name": universe_name or "default",
                 "composition": universe_stats,
@@ -131,7 +131,7 @@ from core.config.settings import get_settings
                 "performance": performance_metrics,
                 "analysis_timestamp": datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"Error in universe analytics: {e}")
             return {"error": str(e), "universe_name": universe_name}

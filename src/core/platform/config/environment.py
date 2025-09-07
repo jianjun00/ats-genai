@@ -38,7 +38,7 @@ except ImportError:
         @staticmethod
         def default_config():
             return {}
-        
+
         def __init__(self, *args, **kwargs):
             pass
 
@@ -52,13 +52,13 @@ except ImportError:
         # Emergency: Create a minimal LoggingConfig class for system stability
         import logging
         from dataclasses import dataclass
-        
+
         @dataclass
         class LoggingConfig:
             """Emergency logging configuration for system stability"""
-            log_level: str = "INFO" 
+            log_level: str = "INFO"
             log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            
+
         logging.warning("LoggingConfig not found in expected locations, using emergency implementation")
 
 import gin
@@ -144,7 +144,7 @@ class Environment:
                 env_type_str = str(env_type)
             # Get absolute path to config directory
             config_dir = Path(__file__).parent.parent.parent / "config"
-            
+
             if env_type_str in ("test", "TEST"):
                 config_path = str(config_dir / "app.gin")
             elif env_type_str in ("dev", "DEV"):
@@ -178,14 +178,14 @@ class Environment:
                 print(f"[GIN DEBUG] Environment auto-discovered db_url from DATABASE_URL env: {db_url}")
             else:
                 print(f"[GIN DEBUG] No db_url provided and DATABASE_URL env not set. Proceeding with empty Database config.")
-                
+
         # Check for individual database credential environment variables
         self.db_host = os.getenv("DB_HOST")
         self.db_port = os.getenv("DB_PORT")
         self.db_user = os.getenv("DB_USER")
         self.db_password = os.getenv("DB_PASSWORD")
         self.db_name = os.getenv("DB_NAME")
-        
+
         # Set database host based on environment type
         if self.env_type == EnvironmentType.DEV:
             # In dev environment (Kubernetes), use timescaledb service
@@ -197,7 +197,7 @@ class Environment:
             if not self.db_host:
                 self.db_host = 'timescaledb.ats-intg.svc.cluster.local'
                 print(f"[ENV DEBUG] Setting database host to {self.db_host} for INTEGRATION environment")
-        
+
         print(f"[ENV DEBUG] Using database credentials from environment variables: host={self.db_host}, port={self.db_port}, user={self.db_user}, password={'*****' if self.db_password else None}, database={self.db_name}")
         self.db_url = db_url
         print(f"[GIN DEBUG] Environment.__init__ received db_url: {db_url}")
@@ -237,10 +237,10 @@ class Environment:
             password = os.getenv("DB_PASSWORD") or None
             database = os.getenv("DB_NAME") or None
             base_database = database
-            
+
             # Log what we're using (mask password)
             print(f"[ENV DEBUG] Using database credentials from environment variables: host={host}, port={port}, user={user}, password={'*****' if password else None}, database={database}")
-            
+
             self.database = Database(
                 host=host,
                 port=port,
@@ -301,7 +301,7 @@ class Environment:
     def indicator_config(self, value: IndicatorConfig):
         self._indicator_config = value
 
-    
+
     def _detect_environment(self) -> EnvironmentType:
         """Detect environment from ENVIRONMENT environment variable."""
         env_str = os.getenv("ENVIRONMENT", "test").lower()
@@ -310,31 +310,31 @@ class Environment:
         except ValueError:
             logging.warning(f"Unknown environment '{env_str}', defaulting to test")
             return EnvironmentType.TEST
-    
+
     def _load_configurations(self):
         """Load shared and environment-specific configurations."""
         config_dir = Path(__file__).parent.parent.parent / "config"
-        
+
         # Load shared configuration first
         shared_config = config_dir / "shared.conf"
         if shared_config.exists():
             self.config.read(shared_config)
-        
+
         # Load environment-specific configuration
         env_config = config_dir / f"{self.env_type.value}.conf"
         if env_config.exists():
             self.config.read(env_config)
         else:
             raise FileNotFoundError(f"Configuration file not found: {env_config}")
-    
+
     def get_table_name(self, base_table_name: str, with_prefix: bool = True):
         """
         Get prefixed table name for current environment.
-        
+
         Args:
             base_table_name: The base name of the table
             with_prefix: Whether to include the environment prefix (default: True)
-            
+
         Returns:
             str: The table name with appropriate prefix if with_prefix is True,
                  otherwise returns the base table name
@@ -342,7 +342,7 @@ class Environment:
         # If no prefix is requested, return the base table name
         if not with_prefix:
             return base_table_name
-            
+
         # Get the environment prefix
         env_type = getattr(self, "env_type", None)
         if env_type is None:
@@ -350,25 +350,25 @@ class Environment:
         else:
             # Handle both enum and string environment types
             prefix = env_type.value if hasattr(env_type, "value") else str(env_type)
-            
+
         # Special case: if we're in test environment, always use 'test_' prefix
         # regardless of the actual env_type value to ensure test isolation
         if os.getenv('PYTEST_CURRENT_TEST'):
             prefix = "test"
-            
+
         # Remove any existing prefix to prevent double-prefixing
         if base_table_name.startswith(f"{prefix}_"):
             return base_table_name
-            
+
         return f"{prefix}_{base_table_name}"
 
     def get_api_key(self, service: str) -> Optional[str]:
         """
         Get API key for specified service from environment or gin config.
-        
+
         Args:
             service: Service name (e.g., 'polygon', 'tiingo', 'eodhd')
-            
+
         Returns:
             API key or None if not found (requires explicit configuration)
         """
@@ -376,28 +376,28 @@ class Environment:
         # 1. Environment variable (standard pattern)
         env_var = f"{service.upper()}_API_KEY"
         api_key = os.getenv(env_var)
-        
+
         if api_key and api_key != f"your_{service}_api_key_here":
             return api_key
-            
+
         # 2. Gin config lookup
         key_name = f"{service}_api_key"
         config_key = self.get(f"{key_name}")
         if config_key and config_key != f"your_{service}_api_key_here":
             return config_key
-            
+
         # 3. No hardcoded keys - explicit configuration required
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"❌ No API key found for {service.upper()}!")
         logger.error(f"    Set {env_var} environment variable with a valid key.")
         return None
-    
+
     @property
     def table_prefix(self) -> str:
         """
         Get the table prefix for the current environment.
-        
+
         Returns:
             str: The environment prefix (e.g., 'dev_', 'intg_', 'test_')
         """
@@ -407,12 +407,12 @@ class Environment:
         else:
             # Handle both enum and string environment types
             prefix = env_type.value if hasattr(env_type, "value") else str(env_type)
-            
+
         # Special case: if we're in test environment, always use 'test_' prefix
         # regardless of the actual env_type value to ensure test isolation
         if os.getenv('PYTEST_CURRENT_TEST'):
             prefix = "test"
-            
+
         return f"{prefix}_"
 
     @property
@@ -460,20 +460,20 @@ class Environment:
     def is_feature_enabled(self, feature: str) -> bool:
         """
         Check if a feature is enabled in current environment.
-        
+
         Args:
             feature: Feature name
-            
+
         Returns:
             True if feature is enabled, False otherwise
         """
         value = self.get(f"features.{feature}", "false")
         return value.lower() in ("true", "1", "yes", "on")
-    
+
     def get_database_config(self) -> Dict[str, Any]:
         """
         Get database configuration dictionary.
-        
+
         Returns:
             Dictionary with database connection parameters
         """
@@ -489,11 +489,11 @@ class Environment:
             "command_timeout": int(self.database.command_timeout),
 
         }
-    
+
     def __str__(self) -> str:
         """String representation of environment."""
         return f"Environment({self.env_type.value})"
-    
+
     def __repr__(self) -> str:
         """Detailed string representation."""
         return f"Environment(type={self.env_type.value}, db_url={self.db_url})"

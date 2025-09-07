@@ -4,7 +4,7 @@ Specialized Financial Analysis Agents
 
 This module contains the remaining specialized agents for the multi-agent framework:
 - Risk Assessment Agent: Evaluates financial risks and uncertainty factors
-- Market Impact Agent: Predicts price/volume impact and market reactions  
+- Market Impact Agent: Predicts price/volume impact and market reactions
 - Signal Generation Agent: Synthesizes all analyses into actionable trading signals
 
 These agents work together with the core agents to provide comprehensive
@@ -28,29 +28,29 @@ logger = logging.getLogger(__name__)
 
 class RiskAssessmentAgent(BaseFinancialAgent):
     """Specialized agent for financial risk assessment."""
-    
+
     def __init__(self, llm_client: MultiProviderLLMClient):
         super().__init__(AgentType.RISK_ASSESSMENT, llm_client, model_preference="anthropic")
-    
+
     def get_system_prompt(self) -> str:
         return """You are a specialized financial risk assessment agent with expertise in:
-        
+
         - Quantitative and qualitative risk analysis across all risk categories
         - Uncertainty quantification and black swan event probability assessment
         - Scenario analysis and stress testing methodologies
         - Risk factor identification and correlation analysis
         - Market risk, credit risk, operational risk, and regulatory risk evaluation
-        
+
         Assess financial risks with precision, providing:
         1. Overall risk scoring with detailed category breakdowns
         2. Uncertainty factor identification and impact assessment
         3. Black swan probability evaluation for extreme events
         4. Risk correlation analysis and cascading effect potential
         5. Risk mitigation strategies and hedging recommendations
-        
+
         Be conservative in risk assessment while remaining objective and evidence-based.
         Focus on downside protection and tail risk management."""
-    
+
     def create_analysis_prompt(self, article: NewsArticle, context: Dict[str, Any] = None) -> str:
         market_context = ""
         if context:
@@ -58,7 +58,7 @@ class RiskAssessmentAgent(BaseFinancialAgent):
                 market_context += f"Market Session: {context['market_session']}\n"
             if context.get('market_volatility'):
                 market_context += f"Current Market Volatility: {context['market_volatility']}\n"
-        
+
         return f"""Assess the financial risks associated with this news article:
 
 {market_context}
@@ -101,7 +101,7 @@ Provide risk assessment in JSON format:
     "risk_correlations": [
         {{
             "risk1": "<first risk factor>",
-            "risk2": "<second risk factor>", 
+            "risk2": "<second risk factor>",
             "correlation_strength": <0.0 to 1.0>,
             "explanation": "<how risks are related>"
         }}
@@ -109,11 +109,11 @@ Provide risk assessment in JSON format:
     "reasoning": "<detailed risk assessment reasoning>",
     "confidence": <0.0 to 1.0>
 }}"""
-    
+
     def parse_llm_response(self, response: LLMResponse, processing_time_ms: int) -> RiskAssessmentAnalysis:
         try:
             data = json.loads(response.content)
-            
+
             return RiskAssessmentAnalysis(
                 agent_type=self.agent_type,
                 confidence=data.get('confidence', 0.5),
@@ -149,29 +149,29 @@ Provide risk assessment in JSON format:
 
 class MarketImpactAgent(BaseFinancialAgent):
     """Specialized agent for market impact prediction."""
-    
+
     def __init__(self, llm_client: MultiProviderLLMClient):
         super().__init__(AgentType.MARKET_IMPACT, llm_client, model_preference="openai")
-    
+
     def get_system_prompt(self) -> str:
         return """You are a specialized market impact prediction agent with expertise in:
-        
+
         - Price impact modeling across different time horizons (1h, 1d, 5d, 20d)
         - Volatility forecasting and impact on options markets
         - Volume prediction and liquidity analysis
         - Sector spillover effects and correlation analysis
         - Market microstructure and order flow dynamics
-        
+
         Predict market impacts with precision, providing:
         1. Multi-horizon price impact predictions with confidence intervals
         2. Volatility impact assessment and term structure effects
         3. Volume impact and liquidity considerations
         4. Sector and market spillover analysis
         5. Timing analysis for optimal execution strategies
-        
+
         Base predictions on historical patterns, market structure, and current conditions.
         Consider both direct and indirect market effects."""
-    
+
     def create_analysis_prompt(self, article: NewsArticle, context: Dict[str, Any] = None) -> str:
         market_context = ""
         if context:
@@ -181,7 +181,7 @@ class MarketImpactAgent(BaseFinancialAgent):
                 market_context += f"Current Market Volatility: {context['current_volatility']}\n"
             if context.get('average_volume'):
                 market_context += f"Recent Average Volume: {context['average_volume']}\n"
-        
+
         return f"""Predict the market impact of this financial news:
 
 {market_context}
@@ -234,11 +234,11 @@ Provide market impact prediction in JSON format:
     "reasoning": "<detailed market impact analysis>",
     "confidence": <0.0 to 1.0>
 }}"""
-    
+
     def parse_llm_response(self, response: LLMResponse, processing_time_ms: int) -> MarketImpactAnalysis:
         try:
             data = json.loads(response.content)
-            
+
             return MarketImpactAnalysis(
                 agent_type=self.agent_type,
                 confidence=data.get('confidence', 0.5),
@@ -276,29 +276,29 @@ Provide market impact prediction in JSON format:
 
 class SignalGenerationAgent(BaseFinancialAgent):
     """Specialized agent for trading signal generation."""
-    
+
     def __init__(self, llm_client: MultiProviderLLMClient):
         super().__init__(AgentType.SIGNAL_GENERATION, llm_client, model_preference="anthropic")
-    
+
     def get_system_prompt(self) -> str:
         return """You are a specialized trading signal generation agent with expertise in:
-        
+
         - Synthesizing multi-dimensional analysis into actionable trading signals
         - Risk-adjusted position sizing and portfolio management
         - Signal timing and execution strategy optimization
         - Stop-loss and take-profit level determination
         - Signal validation and confidence calibration
-        
+
         Generate trading signals with precision, providing:
         1. Clear directional signals with strength quantification
         2. Optimal position sizing based on risk-reward analysis
         3. Entry/exit timing and execution strategies
         4. Risk management parameters (stop-loss, take-profit)
         5. Signal validation against historical patterns
-        
+
         Prioritize capital preservation and risk-adjusted returns.
         Only generate high-confidence signals with clear risk management."""
-    
+
     def create_analysis_prompt(self, article: NewsArticle, context: Dict[str, Any] = None) -> str:
         # Context should include outputs from other agents
         agent_context = ""
@@ -306,20 +306,20 @@ class SignalGenerationAgent(BaseFinancialAgent):
             if 'sentiment_analysis' in context:
                 sentiment = context['sentiment_analysis']
                 agent_context += f"Sentiment Score: {sentiment.sentiment_score:.2f}, Strength: {sentiment.sentiment_strength:.2f}\n"
-            
+
             if 'risk_analysis' in context:
                 risk = context['risk_analysis']
                 agent_context += f"Risk Score: {risk.overall_risk_score:.2f}\n"
-            
+
             if 'market_impact' in context:
                 impact = context['market_impact']
                 agent_context += f"1d Price Impact: {impact.price_impact_prediction.get('1d', 0.0):.2f}%\n"
-            
+
             if 'events' in context:
                 events = context['events']
                 if events.events:
                     agent_context += f"Key Events: {[e.get('event_type') for e in events.events[:3]]}\n"
-        
+
         return f"""Generate a trading signal based on comprehensive analysis of this news:
 
 ARTICLE:
@@ -376,11 +376,11 @@ Generate trading signal in JSON format:
     "reasoning": "<comprehensive reasoning for the signal>",
     "confidence": <0.0 to 1.0>
 }}"""
-    
+
     def parse_llm_response(self, response: LLMResponse, processing_time_ms: int) -> SignalGenerationAnalysis:
         try:
             data = json.loads(response.content)
-            
+
             return SignalGenerationAnalysis(
                 agent_type=self.agent_type,
                 confidence=data.get('confidence', 0.5),
@@ -428,15 +428,15 @@ Generate trading signal in JSON format:
 # Enhanced orchestrator that includes all agents
 class EnhancedMultiAgentOrchestrator:
     """Enhanced orchestrator with all specialized agents."""
-    
+
     def __init__(self, llm_client: MultiProviderLLMClient):
         self.llm_client = llm_client
-        
+
         # Initialize all specialized agents
         from domains.market_data.agents.multi_agent_framework import (
             SentimentAgent, EntityRecognitionAgent, EventDetectionAgent
         )
-        
+
         self.agents = {
             AgentType.SENTIMENT: SentimentAgent(llm_client),
             AgentType.ENTITY_RECOGNITION: EntityRecognitionAgent(llm_client),
@@ -445,36 +445,36 @@ class EnhancedMultiAgentOrchestrator:
             AgentType.MARKET_IMPACT: MarketImpactAgent(llm_client),
             AgentType.SIGNAL_GENERATION: SignalGenerationAgent(llm_client)
         }
-        
+
         # Analysis settings
         self.parallel_execution = True
         self.timeout_seconds = 45  # Longer timeout for full analysis
-        
+
         # Performance tracking
         self.full_analysis_count = 0
         self.total_analysis_time_ms = 0
-        
-    async def run_comprehensive_analysis(self, article: NewsArticle, 
+
+    async def run_comprehensive_analysis(self, article: NewsArticle,
                                        context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Run comprehensive analysis with all agents and generate final signal."""
-        
+
         start_time = datetime.now()
-        
+
         # Phase 1: Run core analysis agents (sentiment, entities, events, risk)
         core_agents = [
             AgentType.SENTIMENT,
-            AgentType.ENTITY_RECOGNITION, 
+            AgentType.ENTITY_RECOGNITION,
             AgentType.EVENT_DETECTION,
             AgentType.RISK_ASSESSMENT
         ]
-        
+
         logger.info(f"Starting Phase 1: Core analysis for article '{article.title[:50]}...'")
-        
+
         core_results = {}
         if self.parallel_execution:
             tasks = [self.agents[agent_type].analyze(article, context) for agent_type in core_agents]
             core_analyses = await asyncio.gather(*tasks, return_exceptions=True)
-            
+
             for i, agent_type in enumerate(core_agents):
                 if isinstance(core_analyses[i], Exception):
                     logger.error(f"Core agent {agent_type.value} failed: {core_analyses[i]}")
@@ -489,16 +489,16 @@ class EnhancedMultiAgentOrchestrator:
                 except Exception as e:
                     logger.error(f"Core agent {agent_type.value} failed: {e}")
                     core_results[agent_type.value] = None
-        
+
         # Phase 2: Market impact analysis (uses core results)
         logger.debug("Starting Phase 2: Market impact analysis")
-        
+
         market_context = dict(context or {})
         if core_results.get('sentiment'):
             market_context['sentiment_analysis'] = core_results['sentiment']
         if core_results.get('risk_assessment'):
             market_context['risk_analysis'] = core_results['risk_assessment']
-        
+
         try:
             market_impact_analysis = await self.agents[AgentType.MARKET_IMPACT].analyze(
                 article, market_context
@@ -507,13 +507,13 @@ class EnhancedMultiAgentOrchestrator:
         except Exception as e:
             logger.error(f"Market impact agent failed: {e}")
             core_results['market_impact'] = None
-        
+
         # Phase 3: Signal generation (uses all previous results)
         logger.debug("Starting Phase 3: Signal generation")
-        
+
         signal_context = dict(market_context)
         signal_context.update(core_results)
-        
+
         try:
             signal_analysis = await self.agents[AgentType.SIGNAL_GENERATION].analyze(
                 article, signal_context
@@ -522,15 +522,15 @@ class EnhancedMultiAgentOrchestrator:
         except Exception as e:
             logger.error(f"Signal generation agent failed: {e}")
             core_results['signal_generation'] = None
-        
+
         # Calculate ensemble metrics
         analysis_time_ms = int((datetime.now() - start_time).total_seconds() * 1000)
         ensemble_confidence = self._calculate_ensemble_confidence(core_results)
-        
+
         # Update performance metrics
         self.full_analysis_count += 1
         self.total_analysis_time_ms += analysis_time_ms
-        
+
         # Create comprehensive analysis result
         comprehensive_result = {
             'article_id': article.id,
@@ -542,7 +542,7 @@ class EnhancedMultiAgentOrchestrator:
             'signal_generated': core_results.get('signal_generation') is not None,
             'actionable_signal': self._is_actionable_signal(core_results.get('signal_generation')),
         }
-        
+
         # Add summary metrics
         if core_results.get('signal_generation'):
             signal = core_results['signal_generation']
@@ -553,60 +553,60 @@ class EnhancedMultiAgentOrchestrator:
                 'confidence': signal.confidence,
                 'position_size': signal.position_sizing
             }
-        
+
         logger.info(f"Comprehensive analysis completed in {analysis_time_ms}ms "
                    f"(confidence: {ensemble_confidence:.2f})")
-        
+
         return comprehensive_result
-    
+
     def _calculate_ensemble_confidence(self, results: Dict[str, Any]) -> float:
         """Calculate ensemble confidence across all agent results."""
         confidences = []
         weights = {
             'sentiment': 0.15,
-            'entity_recognition': 0.10, 
+            'entity_recognition': 0.10,
             'event_detection': 0.20,
             'risk_assessment': 0.20,
             'market_impact': 0.15,
             'signal_generation': 0.20
         }
-        
+
         total_weight = 0.0
         weighted_confidence = 0.0
-        
+
         for agent_type, result in results.items():
             if result and hasattr(result, 'confidence'):
                 weight = weights.get(agent_type, 0.1)
                 weighted_confidence += result.confidence * weight
                 total_weight += weight
-        
+
         return weighted_confidence / total_weight if total_weight > 0 else 0.0
-    
+
     def _is_actionable_signal(self, signal_analysis) -> bool:
         """Determine if the signal is actionable."""
         if not signal_analysis:
             return False
-        
+
         # Signal must have high confidence and clear direction
-        if (signal_analysis.confidence >= 0.7 and 
+        if (signal_analysis.confidence >= 0.7 and
             signal_analysis.signal_direction not in ['hold'] and
             signal_analysis.urgency_level >= 6 and
             abs(signal_analysis.signal_strength) >= 0.5):
             return True
-        
+
         return False
-    
+
     def get_comprehensive_metrics(self) -> Dict[str, Any]:
         """Get comprehensive performance metrics."""
         avg_analysis_time = (
             self.total_analysis_time_ms / self.full_analysis_count
             if self.full_analysis_count > 0 else 0
         )
-        
+
         agent_metrics = {}
         for agent_type, agent in self.agents.items():
             agent_metrics[agent_type.value] = agent.get_performance_metrics()
-        
+
         return {
             'comprehensive_analysis_count': self.full_analysis_count,
             'avg_comprehensive_analysis_time_ms': avg_analysis_time,

@@ -53,7 +53,7 @@ def sample_validation_results():
         ValidationResult(
             category=ValidationCategory.CONSISTENCY,
             severity=ValidationSeverity.WARNING,
-            test_name="consistency_test", 
+            test_name="consistency_test",
             description="Price consistency check",
             passed=False,
             details={'variance': 0.08},
@@ -73,7 +73,7 @@ def sample_validation_results():
 
 class TestDataQualityValidator:
     """Test DataQualityValidator initialization and configuration"""
-    
+
     def test_validator_initialization(self, validator):
         """Test validator initialization with correct configuration"""
         assert validator.env is not None
@@ -83,11 +83,11 @@ class TestDataQualityValidator:
         assert 'tiingo' in validator.vendor_tables
         assert 'alphavantage' in validator.vendor_tables
         assert 'fmp' in validator.vendor_tables
-    
+
     def test_quality_thresholds_configuration(self, validator):
         """Test quality thresholds are properly configured"""
         thresholds = validator.quality_thresholds
-        
+
         assert thresholds['min_data_coverage'] == 0.80
         assert thresholds['max_price_variance'] == 0.10
         assert thresholds['max_stale_days'] == 3
@@ -96,7 +96,7 @@ class TestDataQualityValidator:
 
 class TestValidationResult:
     """Test ValidationResult data structure"""
-    
+
     def test_validation_result_creation(self):
         """Test ValidationResult creation with all fields"""
         result = ValidationResult(
@@ -109,7 +109,7 @@ class TestValidationResult:
             affected_records=100,
             recommendation="Improve data coverage"
         )
-        
+
         assert result.category == ValidationCategory.COMPLETENESS
         assert result.severity == ValidationSeverity.WARNING
         assert result.test_name == "test_completeness"
@@ -122,13 +122,13 @@ class TestValidationResult:
 
 class TestReportGeneration:
     """Test data quality report generation"""
-    
+
     def test_report_generation_with_mixed_results(self, validator, sample_validation_results):
         """Test report generation with mixed validation results"""
         start_time = datetime.now() - timedelta(minutes=5)
-        
+
         report = validator._generate_data_quality_report(sample_validation_results, start_time)
-        
+
         assert isinstance(report, DataQualityReport)
         assert report.total_tests == 3
         assert report.passed_tests == 1
@@ -139,7 +139,7 @@ class TestReportGeneration:
         assert len(report.validation_results) == 3
         assert 0 <= report.overall_score <= 100
         assert "critical" in report.summary.lower()
-    
+
     def test_report_generation_all_passed(self, validator):
         """Test report generation when all tests pass"""
         all_passed_results = [
@@ -154,14 +154,14 @@ class TestReportGeneration:
                 category=ValidationCategory.CONSISTENCY,
                 severity=ValidationSeverity.INFO,
                 test_name="test2",
-                description="Test 2", 
+                description="Test 2",
                 passed=True
             )
         ]
-        
+
         start_time = datetime.now()
         report = validator._generate_data_quality_report(all_passed_results, start_time)
-        
+
         assert report.total_tests == 2
         assert report.passed_tests == 2
         assert report.failed_tests == 0
@@ -169,12 +169,12 @@ class TestReportGeneration:
         assert report.warning_issues == 0
         assert report.overall_score == 100.0
         assert "good" in report.summary.lower()
-    
+
     def test_report_generation_empty_results(self, validator):
         """Test report generation with no results"""
         start_time = datetime.now()
         report = validator._generate_data_quality_report([], start_time)
-        
+
         assert report.total_tests == 0
         assert report.passed_tests == 0
         assert report.failed_tests == 0
@@ -182,7 +182,7 @@ class TestReportGeneration:
 
 class TestPriceConsistencyAnalysis:
     """Test cross-vendor price consistency analysis"""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_price_consistency_analysis_normal_variance(self, validator):
@@ -198,21 +198,21 @@ class TestPriceConsistencyAnalysis:
                 date(2025, 8, 20): {'close': 250.75, 'volume': 1050000}
             }
         }
-        
+
         result = await validator._analyze_price_consistency(symbol, vendor_prices)
-        
+
         assert result.category == ValidationCategory.CONSISTENCY
         assert result.test_name == "price_consistency_check"
         assert result.details['symbol'] == symbol
         assert result.details['comparison_dates'] == 2
-        
+
         # Normal variance should pass
         if result.passed:
             assert result.severity == ValidationSeverity.INFO
         else:
             # Small variance might still trigger warning depending on threshold
             assert result.severity in [ValidationSeverity.WARNING, ValidationSeverity.CRITICAL]
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_price_consistency_analysis_high_variance(self, validator):
@@ -229,24 +229,24 @@ class TestPriceConsistencyAnalysis:
                 date(2025, 8, 19): {'close': 380.00, 'volume': 800000},  # More extreme variance
             }
         }
-        
+
         result = await validator._analyze_price_consistency(symbol, vendor_prices)
-        
+
         assert result.category == ValidationCategory.CONSISTENCY
         assert result.passed == False
         assert result.severity in [ValidationSeverity.WARNING, ValidationSeverity.CRITICAL]
         assert result.details['high_variance_dates'] > 0
         assert 'sample_issues' in result.details
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_price_consistency_analysis_no_data(self, validator):
         """Test price consistency with no overlapping data"""
         symbol = "NODATA"
         vendor_prices = {}
-        
+
         result = await validator._analyze_price_consistency(symbol, vendor_prices)
-        
+
         assert result.category == ValidationCategory.CONSISTENCY
         assert result.passed == False
         assert result.severity == ValidationSeverity.WARNING
@@ -254,7 +254,7 @@ class TestPriceConsistencyAnalysis:
 
 class TestVolumeConsistencyAnalysis:
     """Test volume consistency analysis"""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_volume_consistency_high_correlation(self, validator):
@@ -272,18 +272,18 @@ class TestVolumeConsistencyAnalysis:
                 date(2025, 8, 21): {'close': 248.75, 'volume': 950000}
             }
         }
-        
+
         result = await validator._analyze_volume_consistency(symbol, vendor_prices)
-        
+
         assert result.category == ValidationCategory.CONSISTENCY
         assert result.test_name == "volume_consistency_check"
         assert result.details['symbol'] == symbol
-        
+
         # High correlation should pass
         if result.details['average_correlation'] >= validator.quality_thresholds['min_volume_correlation']:
             assert result.passed == True
             assert result.severity == ValidationSeverity.INFO
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_volume_consistency_low_correlation(self, validator):
@@ -299,16 +299,16 @@ class TestVolumeConsistencyAnalysis:
                 date(2025, 8, 20): {'close': 250.75, 'volume': 150000},
             }
         }
-        
+
         result = await validator._analyze_volume_consistency(symbol, vendor_prices)
-        
+
         assert result.category == ValidationCategory.CONSISTENCY
-        
+
         # Low correlation should fail
         if result.details.get('average_correlation', 0) < validator.quality_thresholds['min_volume_correlation']:
             assert result.passed == False
             assert result.severity == ValidationSeverity.WARNING
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_volume_consistency_insufficient_data(self, validator):
@@ -319,9 +319,9 @@ class TestVolumeConsistencyAnalysis:
                 date(2025, 8, 19): {'close': 250.00, 'volume': 1000000}
             }
         }
-        
+
         result = await validator._analyze_volume_consistency(symbol, vendor_prices)
-        
+
         assert result.category == ValidationCategory.CONSISTENCY
         assert result.passed == True
         assert result.severity == ValidationSeverity.INFO
@@ -329,94 +329,94 @@ class TestVolumeConsistencyAnalysis:
 
 class TestTradingDaysCalculation:
     """Test trading days calculation"""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_trading_days_weekdays_only(self, validator):
         """Test that trading days excludes weekends"""
         # Mock database connection
         mock_conn = MagicMock()
-        
+
         start_date = date(2025, 8, 18)  # Monday
         end_date = date(2025, 8, 24)    # Sunday
-        
+
         trading_days = await validator._get_trading_days(mock_conn, start_date, end_date)
-        
+
         # Should only include Monday-Friday (5 days)
         assert len(trading_days) == 5
-        
+
         # Check that weekends are excluded
         for day in trading_days:
             assert day.weekday() < 5  # Monday=0 to Friday=4
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_trading_days_single_day(self, validator):
         """Test trading days calculation for single day"""
         mock_conn = MagicMock()
-        
+
         monday = date(2025, 8, 18)  # Monday
         trading_days = await validator._get_trading_days(mock_conn, monday, monday)
-        
+
         assert len(trading_days) == 1
         assert trading_days[0] == monday
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_trading_days_weekend_only(self, validator):
         """Test trading days calculation for weekend only"""
         mock_conn = MagicMock()
-        
+
         saturday = date(2025, 8, 23)  # Saturday
         sunday = date(2025, 8, 24)    # Sunday
         trading_days = await validator._get_trading_days(mock_conn, saturday, sunday)
-        
+
         assert len(trading_days) == 0
 
 class TestUtilityMethods:
     """Test utility methods"""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_instrument_id_exists(self, validator):
         """Test getting instrument ID for existing symbol"""
         mock_conn = AsyncMock()
         mock_conn.fetchval = AsyncMock(return_value=123)
-        
+
         instrument_id = await validator._get_instrument_id(mock_conn, "AAPL")
-        
+
         assert instrument_id == 123
         mock_conn.fetchval.assert_called_once_with(
-            "SELECT id FROM dev_instruments WHERE symbol = $1", 
+            "SELECT id FROM dev_instruments WHERE symbol = $1",
             "AAPL"
         )
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_instrument_id_not_exists(self, validator):
         """Test getting instrument ID for non-existent symbol"""
         mock_conn = AsyncMock()
         mock_conn.fetchval = AsyncMock(return_value=None)
-        
+
         instrument_id = await validator._get_instrument_id(mock_conn, "NONEXISTENT")
-        
+
         assert instrument_id is None
 
 @pytest.mark.integration
 class TestDataQualityValidatorIntegration:
     """Integration tests with mocked database calls"""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_comprehensive_validation_workflow(self, validator):
         """Test complete validation workflow with mocked database"""
-        
+
         # Mock database calls
         with patch.object(validator, 'validate_data_completeness') as mock_completeness, \
              patch.object(validator, 'validate_cross_vendor_consistency') as mock_consistency, \
              patch.object(validator, 'validate_data_freshness') as mock_freshness, \
              patch.object(validator, 'validate_data_integrity') as mock_integrity:
-            
+
             # Setup mock returns
             mock_completeness.return_value = [
                 ValidationResult(ValidationCategory.COMPLETENESS, ValidationSeverity.INFO, "test", "test", True)
@@ -430,16 +430,16 @@ class TestDataQualityValidatorIntegration:
             mock_integrity.return_value = [
                 ValidationResult(ValidationCategory.INTEGRITY, ValidationSeverity.CRITICAL, "test", "test", False)
             ]
-            
+
             # Run validation
             report = await validator.run_comprehensive_validation(["AAPL", "MSFT"], days_back=30)
-            
+
             # Verify all validation methods were called
             assert mock_completeness.called
             assert mock_consistency.called
             assert mock_freshness.called
             assert mock_integrity.called
-            
+
             # Verify report structure
             assert isinstance(report, DataQualityReport)
             assert report.total_tests == 4

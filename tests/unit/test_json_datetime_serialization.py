@@ -28,9 +28,9 @@ def test_custom_json_serializer():
         from ml.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
     except ImportError:
         pytest.skip("SequenceStorageManager not available")
-    
+
     manager = SequenceStorageManager("/tmp", StorageConfig())
-    
+
     test_data = {
         'timestamp': datetime(2025, 8, 1, 10, 30, 0),
         'symbol': 'TSLA',
@@ -39,14 +39,14 @@ def test_custom_json_serializer():
             'created_at': datetime(2025, 9, 4, 15, 20, 10)
         }
     }
-    
+
     # Should not raise TypeError
     serialized = json.dumps(test_data, default=manager._json_serializer)
     assert '2025-08-01T10:30:00' in serialized
     assert '2025-09-04T15:20:10' in serialized
     assert 'TSLA' in serialized
     assert '123.45' in serialized
-    
+
     # Verify round-trip works
     deserialized = json.loads(serialized)
     assert deserialized['symbol'] == 'TSLA'
@@ -60,13 +60,13 @@ def test_json_serializer_with_various_types():
         from ml.storage.sequence_storage_manager import SequenceStorageManager
     except ImportError:
         pytest.skip("SequenceStorageManager not available")
-        
+
     manager = SequenceStorageManager("/tmp")
-    
+
     class CustomObject:
         def __init__(self):
             self.value = 42
-    
+
     test_data = {
         'datetime': datetime.now(),
         'string': 'test',
@@ -77,7 +77,7 @@ def test_json_serializer_with_various_types():
         'custom_obj': CustomObject(),
         'none': None
     }
-    
+
     # Should handle all types without error
     serialized = json.dumps(test_data, default=manager._json_serializer)
     assert serialized is not None
@@ -91,7 +91,7 @@ async def test_datetime_objects_in_training_data():
         from ml.storage.sequence_storage_manager import SequenceStorageManager
     except ImportError:
         pytest.skip("SequenceStorageManager not available")
-    
+
     class MockExample:
         def __init__(self):
             self.symbol = "TSLA"
@@ -107,12 +107,12 @@ async def test_datetime_objects_in_training_data():
             self.future_1d = []
             self.sequence_length = {"5m": 1}
             self.prediction_horizon = {"1h": 1}
-    
+
     import tempfile
     with tempfile.TemporaryDirectory() as temp_dir:
         manager = SequenceStorageManager(temp_dir)
         examples = [MockExample()]
-        
+
         # Should complete without JSON serialization errors
         try:
             result = await manager.save_sequence_batch(examples, "test_batch")
@@ -132,9 +132,9 @@ def test_datetime_serialization_edge_cases():
         from ml.storage.sequence_storage_manager import SequenceStorageManager
     except ImportError:
         pytest.skip("SequenceStorageManager not available")
-        
+
     manager = SequenceStorageManager("/tmp")
-    
+
     # Test various datetime formats
     test_cases = [
         datetime(2025, 1, 1, 0, 0, 0),  # Start of year
@@ -142,12 +142,12 @@ def test_datetime_serialization_edge_cases():
         datetime(2025, 2, 29, 12, 30, 45) if datetime(2025, 1, 1).replace(year=2024).year % 4 == 0 else datetime(2025, 2, 28, 12, 30, 45),  # Leap year handling
         datetime.now(),  # Current time
     ]
-    
+
     for dt in test_cases:
         result = manager._json_serializer(dt)
         assert isinstance(result, str)
         assert 'T' in result  # ISO format marker
-        
+
         # Verify it's valid ISO format
         parsed_back = datetime.fromisoformat(result)
         assert parsed_back == dt
@@ -159,18 +159,18 @@ def test_json_serializer_preserves_non_datetime_objects():
         from ml.storage.sequence_storage_manager import SequenceStorageManager
     except ImportError:
         pytest.skip("SequenceStorageManager not available")
-        
+
     manager = SequenceStorageManager("/tmp")
-    
+
     # Test that other object types use str() fallback
     class TestObject:
         def __str__(self):
             return "custom_string_representation"
-    
+
     test_obj = TestObject()
     result = manager._json_serializer(test_obj)
     assert result == "custom_string_representation"
-    
+
     # Test basic types pass through
     assert manager._json_serializer("string") == "string"
     assert manager._json_serializer(123) == "123"  # str() fallback
@@ -183,9 +183,9 @@ def test_sequence_record_serialization():
         from ml.storage.sequence_storage_manager import SequenceStorageManager
     except ImportError:
         pytest.skip("SequenceStorageManager not available")
-        
+
     manager = SequenceStorageManager("/tmp")
-    
+
     # Create a realistic sequence record with datetime
     sequence_record = {
         'example_id': 'test_001',
@@ -204,15 +204,15 @@ def test_sequence_record_serialization():
             }
         ]
     }
-    
+
     # Should serialize without error
     serialized = json.dumps(sequence_record, default=manager._json_serializer)
     assert serialized is not None
-    
+
     # Verify datetime objects were converted
     assert '2025-08-01T10:30:00' in serialized
     assert '2025-08-01T10:25:00' in serialized
-    
+
     # Verify structure is preserved
     deserialized = json.loads(serialized)
     assert deserialized['symbol'] == 'TSLA'

@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from unittest.mock import Mock
 
 from domains.market_data.services.reconciliation.cross_vendor_reconciler import (
-    CrossVendorReconciler, 
+    CrossVendorReconciler,
     ReconciliationConfig,
     VendorBar
 )
@@ -18,11 +18,11 @@ from domains.market_data.services.reconciliation.cross_vendor_reconciler import 
 
 class TestTimezoneHandling:
     """Test timezone normalization in reconciler."""
-    
+
     def setup_method(self):
         """Setup test reconciler."""
         self.reconciler = CrossVendorReconciler(ReconciliationConfig())
-    
+
     def test_standardize_polygon_timezone_naive(self):
         """Test Polygon data with timezone-naive timestamps."""
         polygon_data = [
@@ -36,14 +36,14 @@ class TestTimezoneHandling:
                 'volume': 1000
             }
         ]
-        
+
         bars = self.reconciler._standardize_polygon_data(polygon_data, 'AAPL')
-        
+
         assert len(bars) == 1
         assert bars[0].vendor == 'polygon'
         assert bars[0].timestamp.tz is not None  # Should be timezone-aware
         assert str(bars[0].timestamp.tz) == 'UTC'
-    
+
     def test_standardize_polygon_timezone_aware(self):
         """Test Polygon data with timezone-aware timestamps."""
         utc_time = datetime(2024, 8, 16, 13, 30, tzinfo=timezone.utc)
@@ -58,14 +58,14 @@ class TestTimezoneHandling:
                 'volume': 1000
             }
         ]
-        
+
         bars = self.reconciler._standardize_polygon_data(polygon_data, 'AAPL')
-        
+
         assert len(bars) == 1
         assert bars[0].vendor == 'polygon'
         assert bars[0].timestamp.tz is not None  # Should be timezone-aware
         assert str(bars[0].timestamp.tz) == 'UTC'
-    
+
     def test_standardize_tiingo_timezone_naive(self):
         """Test Tiingo data with timezone-naive timestamps."""
         tiingo_data = [
@@ -79,14 +79,14 @@ class TestTimezoneHandling:
                 'volume': 0  # Tiingo defaults to 0
             }
         ]
-        
+
         bars = self.reconciler._standardize_tiingo_data(tiingo_data, 'AAPL')
-        
+
         assert len(bars) == 1
         assert bars[0].vendor == 'tiingo'
         assert bars[0].timestamp.tz is not None  # Should be timezone-aware
         assert str(bars[0].timestamp.tz) == 'UTC'
-    
+
     def test_standardize_tiingo_timezone_aware(self):
         """Test Tiingo data with timezone-aware timestamps."""
         utc_time = datetime(2024, 8, 16, 13, 30, tzinfo=timezone.utc)
@@ -101,20 +101,20 @@ class TestTimezoneHandling:
                 'volume': 0
             }
         ]
-        
+
         bars = self.reconciler._standardize_tiingo_data(tiingo_data, 'AAPL')
-        
+
         assert len(bars) == 1
         assert bars[0].vendor == 'tiingo'
         assert bars[0].timestamp.tz is not None  # Should be timezone-aware
         assert str(bars[0].timestamp.tz) == 'UTC'
-    
+
     def test_unified_timeline_mixed_timezones(self):
         """Test unified timeline creation with mixed timezone data."""
         # Create mixed timezone bars
         naive_time = datetime(2024, 8, 16, 13, 30)
         aware_time = datetime(2024, 8, 16, 13, 31, tzinfo=timezone.utc)
-        
+
         polygon_bars = [
             VendorBar(
                 symbol='AAPL',
@@ -123,7 +123,7 @@ class TestTimezoneHandling:
                 volume=1000, vendor='polygon'
             )
         ]
-        
+
         tiingo_bars = [
             VendorBar(
                 symbol='AAPL',
@@ -132,18 +132,18 @@ class TestTimezoneHandling:
                 volume=0, vendor='tiingo'
             )
         ]
-        
+
         timeline = self.reconciler._create_unified_timeline(polygon_bars, tiingo_bars)
-        
+
         assert len(timeline) == 2
         # All timestamps should be timezone-aware and comparable
         for ts in timeline:
             assert ts.tz is not None
-    
+
     def test_find_bar_by_timestamp_timezone_compatibility(self):
         """Test that bar lookup works with normalized timestamps."""
         base_time = datetime(2024, 8, 16, 13, 30)
-        
+
         # Create bars with normalized timestamps
         bars = [
             VendorBar(
@@ -159,29 +159,29 @@ class TestTimezoneHandling:
                 volume=1100, vendor='polygon'
             )
         ]
-        
+
         # Test finding by exact timestamp match
         search_time = pd.to_datetime(base_time).tz_localize('UTC')
         found_bar = self.reconciler._find_bar_by_timestamp(bars, search_time)
-        
+
         assert found_bar is not None
         assert found_bar.timestamp == search_time
         assert found_bar.volume == 1000
-    
+
     def test_timestamp_comparison_no_error(self):
         """Test that timezone-normalized timestamps can be compared without error."""
         naive_time = datetime(2024, 8, 16, 13, 30)
         aware_time = datetime(2024, 8, 16, 13, 30, tzinfo=timezone.utc)
-        
+
         # Normalize both to UTC timezone-aware
         norm_naive = pd.to_datetime(naive_time).tz_localize('UTC')
         norm_aware = pd.to_datetime(aware_time).tz_convert('UTC')
-        
+
         # These should be equal and comparable without error
         assert norm_naive == norm_aware
         assert norm_naive <= norm_aware
         assert norm_naive >= norm_aware
-    
+
     def test_standardization_preserves_data_integrity(self):
         """Test that timezone normalization preserves all other data."""
         polygon_data = [
@@ -198,12 +198,12 @@ class TestTimezoneHandling:
                 'trade_count': 150
             }
         ]
-        
+
         bars = self.reconciler._standardize_polygon_data(polygon_data, 'AAPL')
-        
+
         assert len(bars) == 1
         bar = bars[0]
-        
+
         # Check all data is preserved
         assert bar.symbol == 'AAPL'
         assert bar.open == 223.50
@@ -215,7 +215,7 @@ class TestTimezoneHandling:
         assert bar.quality_score == 0.95
         assert bar.metadata['vwap'] == 223.60
         assert bar.metadata['trade_count'] == 150
-        
+
         # And timestamp is normalized
         assert bar.timestamp.tz is not None
         assert str(bar.timestamp.tz) == 'UTC'
@@ -224,13 +224,13 @@ class TestTimezoneHandling:
 @pytest.mark.asyncio
 class TestTimezoneReconciliationIntegration:
     """Integration tests for timezone handling in reconciliation."""
-    
+
     @pytest.mark.asyncio
-    
+
     async def test_reconcile_with_mixed_timezones(self):
         """Test full reconciliation with mixed timezone data."""
         reconciler = CrossVendorReconciler(ReconciliationConfig())
-        
+
         # Mock data with different timezone formats
         polygon_data = [
             {
@@ -243,7 +243,7 @@ class TestTimezoneReconciliationIntegration:
                 'volume': 1000
             }
         ]
-        
+
         tiingo_data = [
             {
                 'symbol': 'AAPL',
@@ -255,12 +255,12 @@ class TestTimezoneReconciliationIntegration:
                 'volume': 0
             }
         ]
-        
+
         # This should not raise timezone comparison errors
         reconciled_bars = await reconciler.reconcile_minute_data(
             polygon_data, tiingo_data, 'AAPL'
         )
-        
+
         assert len(reconciled_bars) >= 1
         # Should have reconciled the overlapping timestamp
         assert any(bar.vendor_count == 2 for bar in reconciled_bars)

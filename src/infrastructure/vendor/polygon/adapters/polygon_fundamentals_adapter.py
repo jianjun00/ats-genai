@@ -44,16 +44,16 @@ class FundamentalData:
 
 class PolygonFundamentalsAdapter(VendorAdapter):
     vendor_name = "polygon"
-    
+
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.getenv("POLYGON_API_KEY")
         if not self.api_key:
             raise Exception("Please set your POLYGON_API_KEY environment variable or pass api_key explicitly.")
-        
+
         # Rate limiting
         self.request_delay = 12.0  # 5 requests per minute = 12 second delay
         self.last_request_time = 0
-    
+
     async def _rate_limit(self):
         """Ensure rate limiting compliance."""
         current_time = asyncio.get_event_loop().time()
@@ -81,28 +81,28 @@ class PolygonFundamentalsAdapter(VendorAdapter):
     async def fetch_fundamentals(self, symbol: str, start_date: date, end_date: date) -> List[FundamentalData]:
         """Fetch fundamental data from Polygon API."""
         fundamentals = []
-        
+
         try:
             # Get financials (income statement, balance sheet, cash flow)
             await self._rate_limit()
             financials_url = f"https://api.polygon.io/vX/reference/financials?ticker={symbol}&timeframe=annual&apikey={self.api_key}&limit=100"
             financials_data = self._make_request(financials_url)
-            
+
             for result in financials_data.get('results', []):
                 try:
                     # Parse date from filing
                     filing_date = datetime.strptime(result['filing_date'], '%Y-%m-%d').date()
-                    
+
                     # Skip if outside date range
                     if not (start_date <= filing_date <= end_date):
                         continue
-                    
+
                     # Extract financial metrics
                     financials = result.get('financials', {})
                     income_statement = financials.get('income_statement', {})
                     balance_sheet = financials.get('balance_sheet', {})
                     cash_flow = financials.get('cash_flow_statement', {})
-                    
+
                     fundamental = FundamentalData(
                         symbol=symbol,
                         date=filing_date,
@@ -122,39 +122,39 @@ class PolygonFundamentalsAdapter(VendorAdapter):
                         financing_cash_flow=cash_flow.get('net_cash_flow_from_financing_activities', {}).get('value'),
                         raw_data=result
                     )
-                    
+
                     # Calculate derived metrics
                     if fundamental.current_assets and fundamental.current_liabilities and fundamental.current_liabilities > 0:
                         fundamental.current_ratio = fundamental.current_assets / fundamental.current_liabilities
-                    
+
                     if fundamental.net_income and fundamental.total_assets and fundamental.total_assets > 0:
                         fundamental.roa = fundamental.net_income / fundamental.total_assets
-                    
+
                     if fundamental.net_income and fundamental.shareholders_equity and fundamental.shareholders_equity > 0:
                         fundamental.roe = fundamental.net_income / fundamental.shareholders_equity
-                    
+
                     fundamentals.append(fundamental)
-                    
+
                 except (KeyError, ValueError, TypeError) as e:
                     logger.warning(f"Error parsing Polygon fundamental data for {symbol}: {e}")
                     continue
-            
+
             # Quarterly data (if available)
             await self._rate_limit()
             quarterly_url = f"https://api.polygon.io/vX/reference/financials?ticker={symbol}&timeframe=quarterly&apikey={self.api_key}&limit=120"
             quarterly_data = self._make_request(quarterly_url)
-            
+
             for result in quarterly_data.get('results', []):
                 try:
                     filing_date = datetime.strptime(result['filing_date'], '%Y-%m-%d').date()
-                    
+
                     if not (start_date <= filing_date <= end_date):
                         continue
-                    
+
                     financials_q = result.get('financials', {})
                     income_statement_q = financials_q.get('income_statement', {})
                     balance_sheet_q = financials_q.get('balance_sheet', {})
-                    
+
                     fundamental_q = FundamentalData(
                         symbol=symbol,
                         date=filing_date,
@@ -169,31 +169,31 @@ class PolygonFundamentalsAdapter(VendorAdapter):
                         shareholders_equity=balance_sheet_q.get('equity', {}).get('value'),
                         raw_data=result
                     )
-                    
+
                     fundamentals.append(fundamental_q)
-                    
+
                 except (KeyError, ValueError, TypeError) as e:
                     logger.warning(f"Error parsing Polygon quarterly data for {symbol}: {e}")
                     continue
-                    
+
         except Exception as e:
             logger.error(f"Failed to fetch Polygon fundamentals for {symbol}: {e}")
-        
+
         logger.info(f"Fetched {len(fundamentals)} fundamental records for {symbol} from Polygon")
         return fundamentals
 
     def fetch_instruments(self):
         """Not implemented for fundamentals adapter."""
         raise NotImplementedError("Use fetch_fundamentals for fundamental data")
-    
+
     def fetch_eod(self, symbols, start_date, end_date):
         """Not implemented for fundamentals adapter."""
         raise NotImplementedError("Use fetch_fundamentals for fundamental data")
-    
+
     def fetch_ticks(self, symbol, start_dt, end_dt):
         """Not implemented for fundamentals adapter."""
         raise NotImplementedError("Use fetch_fundamentals for fundamental data")
-    
+
     def fetch_interval(self, symbol, interval, start_dt, end_dt):
-        """Not implemented for fundamentals adapter.""" 
+        """Not implemented for fundamentals adapter."""
         raise NotImplementedError("Use fetch_fundamentals for fundamental data")

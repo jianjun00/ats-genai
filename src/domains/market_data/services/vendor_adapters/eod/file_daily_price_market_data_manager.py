@@ -88,20 +88,20 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
         print(f"[DEBUG][_load_vendor_data] Called. vendors_dirs={self.vendors_dirs}, symbols={self.symbols}")
         print(f"[DEBUG][_load_vendor_data] Current working directory: {os.getcwd()}")
         print(f"[DEBUG][_load_vendor_data] Full PYTHONPATH: {os.environ.get('PYTHONPATH', 'Not set')}")
-        
+
         # Print environment variables that might affect file loading
         print("\n[DEBUG] Environment variables:")
         for var in ['PWD', 'HOME', 'VIRTUAL_ENV', 'CONDA_PREFIX']:
             print(f"  {var}: {os.environ.get(var, 'Not set')}")
-            
+
         self.vendor_data = {}
-        
+
         # First, collect all available files and their symbols
         vendor_files = {}
         for vendor, d in self.vendors_dirs.items():
             print("\n" + "-"*60)
             print(f"[DEBUG][_load_vendor_data] Processing vendor: {vendor}, directory: {d}")
-            
+
             # Check if directory exists and is accessible
             if not os.path.exists(d):
                 print(f"[ERROR] Directory does not exist: {d}")
@@ -115,11 +115,11 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                 else:
                     print(f"[ERROR] Could not find directory {d} in any location")
                     continue
-            
+
             # Resolve any relative paths to absolute paths
             abs_d = os.path.abspath(d)
             print(f"[DEBUG][_load_vendor_data] Resolved path for {vendor}: {abs_d}")
-            
+
             # Check directory existence and permissions
             if not os.path.exists(abs_d):
                 print(f"[ERROR] Directory does not exist: {abs_d}")
@@ -130,7 +130,7 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                     os.path.join(project_root, 'data', f'daily_prices_{vendor}'),
                     os.path.join(project_root, f'daily_prices_{vendor}')
                 ]
-                
+
                 found = False
                 for path in possible_paths:
                     if os.path.exists(path):
@@ -139,16 +139,16 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                         self.vendors_dirs[vendor] = abs_d
                         found = True
                         break
-                        
+
                 if not found:
                     print(f"[ERROR] Could not find directory for {vendor} in any location")
                     print("Searched in:", possible_paths)
                     continue
-                
+
             # Initialize vendor data structure
             self.vendor_data[vendor] = {}
             vendor_files[vendor] = {}
-            
+
             # List directory contents
             try:
                 dir_contents = os.listdir(abs_d)
@@ -159,19 +159,19 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
             except Exception as e:
                 print(f"[ERROR] Failed to list directory {abs_d}: {e}\nPermissions: {os.access(abs_d, os.R_OK)}, Exists: {os.path.exists(abs_d)}")
                 continue
-                
+
             # Process each file in the directory
             for f in os.listdir(abs_d):
                 if not f.endswith('.json'):
                     print(f"[DEBUG] Skipping non-JSON file: {f}")
                     continue
-                    
+
                 file_path = os.path.join(abs_d, f)
                 print(f"\n[DEBUG] Processing file: {file_path}")
                 print(f"[DEBUG] File exists: {os.path.exists(file_path)}")
                 print(f"[DEBUG] File readable: {os.access(file_path, os.R_OK)}")
                 print(f"[DEBUG] File size: {os.path.getsize(file_path) if os.path.exists(file_path) else 0} bytes")
-                
+
                 # Extract symbol from filename
                 try:
                     if vendor == 'tiingo':
@@ -188,13 +188,13 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                         # Clean up any .json suffix if present (for the case of vendor_symbol.json)
                         symbol = symbol.split('.')[0]
                         print(f"[DEBUG] Extracted symbol {symbol} from {f}")
-                        
+
                         # Store the file with its symbol
                         if symbol not in vendor_files[vendor]:
                             vendor_files[vendor][symbol] = []
                         vendor_files[vendor][symbol].append((f, file_path))
                         print(f"[DEBUG] Added {f} to {vendor} files for symbol {symbol}")
-                        
+
                     elif vendor == 'polygon':
                         # polygon_tsla_response.json -> tsla
                         parts = f.split('_')
@@ -206,7 +206,7 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                         # Clean up any .json suffix if present
                         symbol = symbol.split('.')[0]
                         print(f"[DEBUG] Extracted symbol {symbol} from {f}")
-                        
+
                         # Store the file with its symbol
                         if symbol not in vendor_files[vendor]:
                             vendor_files[vendor][symbol] = []
@@ -215,35 +215,35 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                     else:
                         print(f"[WARNING][_load_vendor_data] Unknown vendor: {vendor}")
                         continue
-                        
+
                 except Exception as e:
                     print(f"[ERROR] Error extracting symbol from {f}: {e}")
                     print(f"[DEBUG] Vendor: {vendor}, Filename: {f}")
                     continue
-                
+
           # Process each vendor's files
         for vendor, symbol_files in vendor_files.items():
             print(f"\n{'='*60}")
             print(f"[DEBUG][_load_vendor_data] Processing {sum(len(files) for files in symbol_files.values())} files for vendor: {vendor}")
             print(f"[DEBUG][_load_vendor_data] Symbols found: {list(symbol_files.keys())}")
             data = {}
-            
+
             # Process each symbol's files
             for symbol, files in symbol_files.items():
                 print(f"\n[DEBUG][_load_vendor_data] Processing {len(files)} files for symbol {symbol}")
-                
+
                 for fname, fpath in files:
                     print(f"[DEBUG][_load_vendor_data] Processing {vendor} file: {fname}")
                     print(f"[DEBUG][_load_vendor_data] Full path: {fpath}")
                     print(f"[DEBUG][_load_vendor_data] File exists: {os.path.exists(fpath)}")
                     print(f"[DEBUG][_load_vendor_data] File readable: {os.access(fpath, os.R_OK)}")
-                
+
                 try:
                     print(f"[DEBUG][_load_vendor_data] Opening file: {fpath}")
                     with open(fpath, 'r') as f:
                         file_content = f.read()
                         print(f"[DEBUG][_load_vendor_data] Raw file content (first 500 chars):\n{file_content[:500]}...")
-                        
+
                         try:
                             resp = json.loads(file_content)
                             print(f"[DEBUG][_load_vendor_data] Successfully parsed JSON for {vendor} {symbol}")
@@ -260,22 +260,22 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                             print(f"[ERROR][_load_vendor_data] Failed to parse JSON from {fpath}: {je}")
                             print(f"[ERROR][_load_vendor_data] File content (first 1000 chars):\n{file_content[:1000]}")
                             raise
-                        
+
                         if vendor == 'polygon':
                             rows = resp.get('results', [])
                             print(f"[DEBUG][_load_vendor_data] Found {len(rows)} price bars in {fname}")
-                            
+
                             for i, row in enumerate(rows, 1):
                                 if not isinstance(row, dict):
                                     print(f"[DEBUG][_load_vendor_data] Skipping non-dict row {i} in {fname}")
                                     continue
-                                    
+
                                 t_val = row.get('t')
                                 if t_val is not None:
                                     try:
                                         dt = datetime.utcfromtimestamp(t_val / 1000).date()
                                         print(f"[DEBUG][_load_vendor_data] Processed row {i}: date={dt}, ohlc=({row.get('o')}, {row.get('h')}, {row.get('l')}, {row.get('c')})")
-                                        
+
                                         data.setdefault(symbol, {})[dt] = {
                                             'open': row.get('o'),
                                             'high': row.get('h'),
@@ -288,16 +288,16 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                                               f"\nRow data: {row}")
                                 else:
                                     print(f"[DEBUG][_load_vendor_data] Skipping row {i} with no timestamp in {fname}")
-                            
+
                         elif vendor == 'tiingo':
                             rows = resp if isinstance(resp, list) else resp.get('bars', []) if isinstance(resp, dict) else []
                             print(f"[DEBUG][_load_vendor_data] Found {len(rows)} price bars in {fname}")
-                            
+
                             for i, row in enumerate(rows, 1):
                                 if not isinstance(row, dict):
                                     print(f"[DEBUG][_load_vendor_data] Skipping non-dict row {i} in {fname}")
                                     continue
-                                    
+
                                 dt = None
                                 if 'date' in row:
                                     date_val = row['date']
@@ -317,10 +317,10 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                                         print(f"[DEBUG][_load_vendor_data] Error parsing timestamp in row {i}: {e}"
                                               f"\nTimestamp value: {row['t']}")
                                         continue
-                                
+
                                 if dt is not None:
                                     print(f"[DEBUG][_load_vendor_data] Processed row {i}: date={dt}, ohlc=({row.get('open')}, {row.get('high')}, {row.get('low')}, {row.get('close')})")
-                                    
+
                                     data.setdefault(symbol, {})[dt] = {
                                         'open': row.get('open'),
                                         'high': row.get('high'),
@@ -330,12 +330,12 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                                     }
                                 else:
                                     print(f"[DEBUG][_load_vendor_data] Skipping row {i} with no valid date in {fname}")
-                
+
                 except Exception as e:
                     print(f"[DEBUG][_load_vendor_data] Error processing {vendor} file {fname}: {e}")
                     import traceback
                     traceback.print_exc()
-            
+
             # Log summary for this vendor
             self.vendor_data[vendor] = data
             print(f"[DEBUG][_load_vendor_data] Loaded data for {len(data)} symbols from {vendor}")
@@ -361,52 +361,52 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
         assert isinstance(instrument_id, int), f"instrument_id must be int, got {type(instrument_id)}: {instrument_id}"
         symbol = await self.resolve_symbol(instrument_id)
         print(f"[DEBUG][get_ohlc] Lookup instrument_id={instrument_id}, symbol={symbol}, date={start.date()} to {end.date()}")
-        
+
         if not symbol:
             print(f"[ERROR][get_ohlc] Could not resolve instrument_id {instrument_id} to a symbol")
             return None
-            
+
         # Debug: Print available vendor data for this symbol
         print(f"[DEBUG][get_ohlc] Available vendor data for {symbol}:")
         for vendor, data in self.vendor_data.items():
             if symbol in data:
                 dates = list(data[symbol].keys())
                 print(f"  - {vendor}: {len(dates)} dates from {min(dates) if dates else 'N/A'} to {max(dates) if dates else 'N/A'}")
-                
+
                 # Print data for the requested date range
                 for dt, ohlcv in data[symbol].items():
                     if start.date() <= dt <= end.date():
                         print(f"    - {dt}: {ohlcv}")
             else:
                 print(f"  - {vendor}: No data for {symbol}")
-        
+
         # Debug: Print all available symbols and vendors
         print(f"[DEBUG][get_ohlc] Vendor data keys: {list(self.vendor_data.keys())}")
         for vendor, data in self.vendor_data.items():
             print(f"[DEBUG][get_ohlc] Vendor {vendor} has symbols: {list(data.keys())}")
-        
+
         # Get OHLC data from all vendors
         all_ohlc = []
         for vendor, data in self.vendor_data.items():
             if symbol in data:
                 print(f"[DEBUG][get_ohlc] Found data for symbol {symbol} in vendor {vendor}")
                 print(f"[DEBUG][get_ohlc] Available dates for {symbol} in {vendor}: {sorted(data[symbol].keys())}")
-                
+
                 # Find the closest date to the requested range
                 available_dates = sorted(data[symbol].keys())
                 if not available_dates:
                     print(f"[DEBUG][get_ohlc] No dates available for {symbol} in {vendor}")
                     continue
-                    
+
                 # Find the first date that's on or after the start date
                 matching_dates = [d for d in available_dates if d >= start.date() and d <= end.date()]
-                
+
                 if not matching_dates:
                     # If no exact matches, find the closest date before the end date
                     matching_dates = [d for d in available_dates if d <= end.date()]
                     if matching_dates:
                         print(f"[DEBUG][get_ohlc] No exact date match, using closest date {matching_dates[-1]} before end date")
-                
+
                 for dt in matching_dates[:1]:  # Just take the first matching date
                     try:
                         ohlcv = data[symbol][dt]
@@ -422,22 +422,22 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                         })
                     except Exception as e:
                         print(f"[ERROR][get_ohlc] Error processing data for {symbol} on {dt}: {e}\nData: {ohlcv}")
-        
+
         if not all_ohlc:
             print(f"[WARNING][get_ohlc] No OHLC data found for symbol {symbol} in date range {start.date()} to {end.date()}")
             print(f"[DEBUG][get_ohlc] Available symbols in vendor_data: {list(self.vendor_data.get('tiingo', {}).keys()) + list(self.vendor_data.get('polygon', {}).keys())}")
-            
+
             # Print available date ranges for the symbol if found in any vendor
             for vendor, data in self.vendor_data.items():
                 if symbol in data:
                     dates = sorted(data[symbol].keys())
                     print(f"[DEBUG][get_ohlc] Available dates for {symbol} in {vendor}: {dates}")
-                    
+
                     # Print first few data points for debugging
                     print(f"[DEBUG][get_ohlc] Sample data for {symbol} in {vendor}:")
                     for i, (dt, ohlcv) in enumerate(list(data[symbol].items())[:3]):
                         print(f"  {dt}: {ohlcv}")
-            
+
             # Create synthetic data for testing purposes
             print(f"[DEBUG][get_ohlc] Creating synthetic data for {symbol} on {start.date()}")
             synthetic_data = {
@@ -449,11 +449,11 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                 'traded_dollar': 102000.0  # close * volume
             }
             return synthetic_data
-        
+
         # Sort by date and get the most recent data point
         all_ohlc.sort(key=lambda x: x['date'])
         result = all_ohlc[-1]  # Get the most recent data point
-        
+
         # Convert to the expected format
         ohlc = {
             'open': result['open'],
@@ -463,22 +463,22 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
             'traded_volume': result['volume'],
             'traded_dollar': result['close'] * result['volume'] if result['volume'] is not None and result['close'] is not None else None
         }
-        
+
         print(f"[DEBUG][get_ohlc] Returning OHLC data for {symbol} on {result['date']}: {ohlc}")
         return ohlc
         for i, result in enumerate(results):
             print(f"[DEBUG][get_ohlc] Result {i}: {result}")
-            
+
         if not results[0] or 'close' not in results[0] or results[0]['close'] is None:
             print(f"[DEBUG][get_ohlc] WARNING: First result is missing close price: {results[0]}")
             return None
-            
+
         close = results[0]['close']
         volume = results[0].get('volume', 0)
         traded_dollar = close * volume if close is not None and volume is not None else None
-        
+
         print(f"[DEBUG][get_ohlc] Returning OHLC for {symbol} at {start.date()}: open={results[0]['open']}, high={results[0]['high']}, low={results[0]['low']}, close={close}, volume={volume}")
-        
+
         return {
             'open': results[0]['open'],
             'high': results[0]['high'],

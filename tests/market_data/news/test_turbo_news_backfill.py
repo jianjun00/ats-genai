@@ -104,16 +104,16 @@ class TestTurboPolygonNewsFetcher:
                 'https://api.polygon.io/v2/reference/news',
                 payload=POLYGON_NEWS_SAMPLE_RESPONSE
             )
-            
+
             async with TurboPolygonNewsFetcher("test_api_key", max_concurrent=1) as fetcher:
                 results = await fetcher.fetch_news_for_symbol(
                     "AAPL",
                     published_gte="2024-08-01",
                     published_lte="2024-08-02"
                 )
-                
+
                 assert len(results) == 2
-                
+
                 # Verify first article
                 first_article = results[0]
                 assert first_article['polygon_id'] == "test-polygon-id-1"
@@ -123,7 +123,7 @@ class TestTurboPolygonNewsFetcher:
                 assert first_article['keywords'] == ["test", "polygon", "news"]
                 assert first_article['tickers'] == ["AAPL", "MSFT"]
                 assert isinstance(first_article['published_utc'], datetime)
-                
+
                 # Verify insights are properly stored
                 assert first_article['insights'] is not None
                 assert len(first_article['insights']) == 1
@@ -138,10 +138,10 @@ class TestTurboPolygonNewsFetcher:
             m.get('https://api.polygon.io/v2/reference/news', status=429)
             # Second request succeeds
             m.get('https://api.polygon.io/v2/reference/news', payload=POLYGON_NEWS_SAMPLE_RESPONSE)
-            
+
             async with TurboPolygonNewsFetcher("test_api_key", max_concurrent=1) as fetcher:
                 results = await fetcher.fetch_news_for_symbol("AAPL")
-                
+
                 assert len(results) == 2
 
     @pytest.mark.asyncio
@@ -153,10 +153,10 @@ class TestTurboPolygonNewsFetcher:
             m.get('https://api.polygon.io/v2/reference/news', status=500)
             # Second request succeeds
             m.get('https://api.polygon.io/v2/reference/news', payload=POLYGON_NEWS_SAMPLE_RESPONSE)
-            
+
             async with TurboPolygonNewsFetcher("test_api_key", max_concurrent=1) as fetcher:
                 results = await fetcher.fetch_news_for_symbol("AAPL")
-                
+
                 assert len(results) == 2
 
     @pytest.mark.asyncio
@@ -167,10 +167,10 @@ class TestTurboPolygonNewsFetcher:
             # All requests return 429 (rate limited)
             for _ in range(6):  # More than max_retries
                 m.get('https://api.polygon.io/v2/reference/news', status=429)
-            
+
             async with TurboPolygonNewsFetcher("test_api_key", max_concurrent=1) as fetcher:
                 results = await fetcher.fetch_news_for_symbol("AAPL")
-                
+
                 assert results == []
 
     @pytest.mark.asyncio
@@ -182,10 +182,10 @@ class TestTurboPolygonNewsFetcher:
                 'https://api.polygon.io/v2/reference/news',
                 payload={"status": "OK", "results": []}
             )
-            
+
             async with TurboPolygonNewsFetcher("test_api_key", max_concurrent=1) as fetcher:
                 results = await fetcher.fetch_news_for_symbol("AAPL")
-                
+
                 assert results == []
 
     @pytest.mark.asyncio
@@ -204,14 +204,14 @@ class TestTurboPolygonNewsFetcher:
                 }
             ]
         }
-        
+
         with aioresponses.aioresponses() as m:
             m.get('https://api.polygon.io/v2/reference/news', payload=malformed_response)
-            
+
             async with TurboPolygonNewsFetcher("test_api_key", max_concurrent=1) as fetcher:
                 # This should handle the error gracefully and return empty results
                 results = await fetcher.fetch_news_for_symbol("AAPL")
-                
+
                 # Should return empty list due to date parsing error
                 assert results == []
 
@@ -228,16 +228,16 @@ class TestTurboTiingoNewsFetcher:
                 'https://api.tiingo.com/tiingo/news',
                 payload=TIINGO_NEWS_SAMPLE_RESPONSE
             )
-            
+
             async with TurboTiingoNewsFetcher("test_api_key", max_concurrent=1) as fetcher:
                 results = await fetcher.fetch_news_for_symbol(
                     "AAPL",
                     start_date="2024-08-01",
                     end_date="2024-08-02"
                 )
-                
+
                 assert len(results) == 2
-                
+
                 # Verify first article
                 first_article = results[0]
                 assert first_article['tiingo_id'] == 12345
@@ -257,10 +257,10 @@ class TestTurboTiingoNewsFetcher:
             m.get('https://api.tiingo.com/tiingo/news', status=429)
             # Second request succeeds
             m.get('https://api.tiingo.com/tiingo/news', payload=TIINGO_NEWS_SAMPLE_RESPONSE)
-            
+
             async with TurboTiingoNewsFetcher("test_api_key", max_concurrent=1) as fetcher:
                 results = await fetcher.fetch_news_for_symbol("AAPL")
-                
+
                 assert len(results) == 2
 
     @pytest.mark.asyncio
@@ -269,10 +269,10 @@ class TestTurboTiingoNewsFetcher:
         """Test handling of empty API response."""
         with aioresponses.aioresponses() as m:
             m.get('https://api.tiingo.com/tiingo/news', payload=[])
-            
+
             async with TurboTiingoNewsFetcher("test_api_key", max_concurrent=1) as fetcher:
                 results = await fetcher.fetch_news_for_symbol("AAPL")
-                
+
                 assert results == []
 
     @pytest.mark.asyncio
@@ -284,10 +284,10 @@ class TestTurboTiingoNewsFetcher:
             m.get('https://api.tiingo.com/tiingo/news', exception=asyncio.TimeoutError())
             # Second request succeeds
             m.get('https://api.tiingo.com/tiingo/news', payload=TIINGO_NEWS_SAMPLE_RESPONSE)
-            
+
             async with TurboTiingoNewsFetcher("test_api_key", max_concurrent=1) as fetcher:
                 results = await fetcher.fetch_news_for_symbol("AAPL")
-                
+
                 assert len(results) == 2
 
 
@@ -357,18 +357,18 @@ class TestTurboNewsDatabaseInserter:
             mock_pool.return_value.__aenter__.return_value.acquire.return_value.__aexit__.return_value = None
             mock_pool.return_value.__aenter__.return_value = mock_pool.return_value
             mock_pool.return_value.__aexit__.return_value = None
-            
+
             inserter = TurboNewsDatabaseInserter(db_config)
             result = await inserter.bulk_insert_polygon_news(sample_polygon_news_data)
-            
+
             assert result == 1
             assert mock_conn.executemany.called
-            
+
             # Verify the SQL call structure
             call_args = mock_conn.executemany.call_args
             sql_query = call_args[0][0]
             records = call_args[0][1]
-            
+
             assert "INSERT INTO dev_news_polygon" in sql_query
             assert "ON CONFLICT (polygon_id) DO NOTHING" in sql_query
             assert len(records) == 1
@@ -385,18 +385,18 @@ class TestTurboNewsDatabaseInserter:
             mock_pool.return_value.__aenter__.return_value.acquire.return_value.__aexit__.return_value = None
             mock_pool.return_value.__aenter__.return_value = mock_pool.return_value
             mock_pool.return_value.__aexit__.return_value = None
-            
+
             inserter = TurboNewsDatabaseInserter(db_config)
             result = await inserter.bulk_insert_tiingo_news(sample_tiingo_news_data)
-            
+
             assert result == 1
             assert mock_conn.executemany.called
-            
+
             # Verify the SQL call structure
             call_args = mock_conn.executemany.call_args
             sql_query = call_args[0][0]
             records = call_args[0][1]
-            
+
             assert "INSERT INTO dev_news_tiingo" in sql_query
             assert "ON CONFLICT (tiingo_id) DO NOTHING" in sql_query
             assert len(records) == 1
@@ -407,11 +407,11 @@ class TestTurboNewsDatabaseInserter:
     async def test_bulk_insert_empty_data(self, db_config):
         """Test bulk insert with empty data."""
         inserter = TurboNewsDatabaseInserter(db_config)
-        
+
         with patch('src.market_data.news.turbo_news_backfill.asyncpg.create_pool'):
             result_polygon = await inserter.bulk_insert_polygon_news([])
             result_tiingo = await inserter.bulk_insert_tiingo_news([])
-            
+
             assert result_polygon == 0
             assert result_tiingo == 0
 
@@ -427,10 +427,10 @@ class TestTurboNewsDatabaseInserter:
             mock_pool.return_value.__aenter__.return_value.acquire.return_value.__aexit__.return_value = None
             mock_pool.return_value.__aenter__.return_value = mock_pool.return_value
             mock_pool.return_value.__aexit__.return_value = None
-            
+
             inserter = TurboNewsDatabaseInserter(db_config)
             result = await inserter.bulk_insert_polygon_news(sample_polygon_news_data)
-            
+
             assert result == 0  # Should return 0 on error
 
     @pytest.mark.asyncio
@@ -443,18 +443,18 @@ class TestTurboNewsDatabaseInserter:
             mock_pool.return_value.__aenter__.return_value.acquire.return_value.__aexit__.return_value = None
             mock_pool.return_value.__aenter__.return_value = mock_pool.return_value
             mock_pool.return_value.__aexit__.return_value = None
-            
+
             inserter = TurboNewsDatabaseInserter(db_config)
             await inserter.bulk_insert_polygon_news(sample_polygon_news_data)
-            
+
             # Verify JSON serialization
             call_args = mock_conn.executemany.call_args
             records = call_args[0][1]
-            
+
             # The insights field should be JSON serialized
             insights_json = records[0][13]  # insights is the 14th field (0-indexed)
             assert isinstance(insights_json, str)
-            
+
             # Should be able to parse back to original structure
             parsed_insights = json.loads(insights_json)
             assert parsed_insights == [{'sentiment': 'positive'}]
@@ -478,41 +478,41 @@ class TestTurboNewsBackfillIntegration:
                     'https://api.tiingo.com/tiingo/news',
                     payload=TIINGO_NEWS_SAMPLE_RESPONSE
                 )
-            
+
             # Test concurrent fetching
             async with TurboPolygonNewsFetcher("test_api_key", max_concurrent=3) as polygon_fetcher:
                 async with TurboTiingoNewsFetcher("test_api_key", max_concurrent=3) as tiingo_fetcher:
-                    
+
                     # Create concurrent tasks
                     polygon_tasks = [
                         polygon_fetcher.fetch_news_for_symbol(
-                            symbol, 
-                            published_gte="2024-08-01", 
+                            symbol,
+                            published_gte="2024-08-01",
                             published_lte="2024-08-02"
                         )
                         for symbol in ['AAPL', 'MSFT', 'GOOGL']
                     ]
-                    
+
                     tiingo_tasks = [
                         tiingo_fetcher.fetch_news_for_symbol(
-                            symbol, 
-                            start_date="2024-08-01", 
+                            symbol,
+                            start_date="2024-08-01",
                             end_date="2024-08-02"
                         )
                         for symbol in ['AAPL', 'MSFT', 'GOOGL']
                     ]
-                    
+
                     # Execute all tasks concurrently
                     polygon_results = await asyncio.gather(*polygon_tasks)
                     tiingo_results = await asyncio.gather(*tiingo_tasks)
-                    
+
                     # Verify results
                     assert len(polygon_results) == 3
                     assert len(tiingo_results) == 3
-                    
+
                     for result in polygon_results:
                         assert len(result) == 2  # 2 news articles
-                        
+
                     for result in tiingo_results:
                         assert len(result) == 2  # 2 news articles
 
@@ -536,16 +536,16 @@ class TestTurboNewsBackfillIntegration:
                 'https://api.polygon.io/v2/reference/news',
                 payload=POLYGON_NEWS_SAMPLE_RESPONSE
             )
-            
+
             async with TurboPolygonNewsFetcher("test_api_key", max_concurrent=3) as fetcher:
                 tasks = [
                     fetcher.fetch_news_for_symbol("AAPL"),
                     fetcher.fetch_news_for_symbol("MSFT"),
                     fetcher.fetch_news_for_symbol("GOOGL")
                 ]
-                
+
                 results = await asyncio.gather(*tasks, return_exceptions=True)
-                
+
                 # Verify that successful results are returned and failed ones return empty lists
                 assert len(results[0]) == 2  # AAPL success
                 assert len(results[1]) == 0  # MSFT failed -> empty list
@@ -557,14 +557,14 @@ class TestTurboNewsBackfillIntegration:
         polygon_date_str = "2024-08-01T15:30:00Z"
         parsed_date = datetime.fromisoformat(polygon_date_str.replace('Z', '+00:00'))
         expected_date = datetime(2024, 8, 1, 15, 30, 0)
-        
+
         # Compare without timezone info for simplicity
         assert parsed_date.replace(tzinfo=None) == expected_date
-        
+
         # Test Tiingo date parsing
         tiingo_date_str = "2024-08-01T15:30:00.000Z"
         parsed_tiingo_date = datetime.fromisoformat(tiingo_date_str.replace('Z', '+00:00'))
-        
+
         assert parsed_tiingo_date.replace(tzinfo=None) == expected_date
 
     def test_data_structure_validation(self):
@@ -588,7 +588,7 @@ class TestTurboNewsBackfillIntegration:
             "tickers": ["AAPL", "MSFT"],
             "insights": [{"sentiment": "positive"}]
         }
-        
+
         # Transform to our format (simulating what the fetcher does)
         transformed = {
             'polygon_id': polygon_item.get('id'),
@@ -607,7 +607,7 @@ class TestTurboNewsBackfillIntegration:
             'insights': polygon_item.get('insights'),
             'data': polygon_item
         }
-        
+
         # Verify all required fields are present and correctly typed
         assert transformed['polygon_id'] == "test-id"
         assert transformed['title'] == "Test Title"

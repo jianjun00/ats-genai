@@ -13,7 +13,7 @@ from shared.utils.database_connections import get_database_pool, get_table_name
 # Get database connection with automatic fallbacks
 pool = await get_database_pool(environment='dev')
 
-# Get environment-specific table names 
+# Get environment-specific table names
 table_name = get_table_name('news', environment='dev')  # Returns 'dev_news'
 """
 
@@ -28,18 +28,18 @@ logger = logging.getLogger(__name__)
 async def get_database_pool(environment: str = 'dev', max_retries: int = 3, timeout: float = 10.0) -> asyncpg.Pool:
     """
     Get database connection pool with automatic fallbacks.
-    
+
     Attempts to use advanced Database class from the codebase, then falls back
     to simple asyncpg connection if complex imports fail.
-    
+
     Args:
         environment: Environment name (dev, test, intg, prod)
         max_retries: Maximum connection retries
         timeout: Connection timeout in seconds
-        
+
     Returns:
         asyncpg.Pool connection pool
-        
+
     Example:
         >>> pool = await get_database_pool('dev')
         >>> async with pool.acquire() as conn:
@@ -47,27 +47,27 @@ async def get_database_pool(environment: str = 'dev', max_retries: int = 3, time
     """
     # Set environment for Database class
     os.environ["ENVIRONMENT"] = environment
-    
+
     # Method 1: Try advanced Database class from codebase
     try:
         from shared.data_handling.utils.database import Database
         from shared.data_handling.utils.environment import Environment, EnvironmentType
-        
+
         env = Environment(env_type=EnvironmentType(environment))
         pool = await Database.create_connection_pool(env=env, max_retries=max_retries, timeout=timeout)
         logger.info("Using advanced database connection system")
         return pool
-        
+
     except (ImportError, Exception) as e:
         logger.info(f"Advanced database system not available ({e}), using simple connection")
-    
+
     # Method 2: Fallback to simple asyncpg connection
     db_config = get_simple_db_config(environment)
-    
+
     try:
         pool = await asyncpg.create_pool(
             host=db_config['host'],
-            port=db_config['port'], 
+            port=db_config['port'],
             database=db_config['database'],
             user=db_config['user'],
             password=db_config['password'],
@@ -77,7 +77,7 @@ async def get_database_pool(environment: str = 'dev', max_retries: int = 3, time
         )
         logger.info(f"Connected to database using simple connection: {db_config['host']}:{db_config['port']}/{db_config['database']}")
         return pool
-        
+
     except Exception as e:
         logger.error(f"Failed to create database connection pool: {e}")
         raise
@@ -85,10 +85,10 @@ async def get_database_pool(environment: str = 'dev', max_retries: int = 3, time
 def get_simple_db_config(environment: str = 'dev') -> Dict[str, Any]:
     """
     Get simple database configuration based on environment.
-    
+
     Args:
         environment: Environment name
-        
+
     Returns:
         Dictionary with database connection parameters
     """
@@ -123,20 +123,20 @@ def get_simple_db_config(environment: str = 'dev') -> Dict[str, Any]:
             'password': os.getenv('DB_PASSWORD', 'prod_password')
         }
     }
-    
+
     return env_configs.get(environment, env_configs['dev'])
 
 def get_table_name(base_name: str, environment: str = 'dev') -> str:
     """
     Get environment-specific table name.
-    
+
     Args:
         base_name: Base table name (e.g., 'news', 'prices', 'instruments')
         environment: Environment name
-        
+
     Returns:
         Environment-prefixed table name (e.g., 'dev_news', 'prod_prices')
-        
+
     Example:
         >>> table_name = get_table_name('news', 'dev')  # Returns 'dev_news'
         >>> table_name = get_table_name('prices', 'prod')  # Returns 'prod_prices'
@@ -153,10 +153,10 @@ def get_table_name(base_name: str, environment: str = 'dev') -> str:
 async def test_database_connection(environment: str = 'dev') -> bool:
     """
     Test database connection for an environment.
-    
+
     Args:
         environment: Environment to test
-        
+
     Returns:
         True if connection successful, False otherwise
     """
@@ -174,19 +174,19 @@ async def test_database_connection(environment: str = 'dev') -> bool:
 class DatabaseConnectionManager:
     """
     Context manager for database connections with automatic cleanup.
-    
+
     Example:
         >>> async with DatabaseConnectionManager('dev') as pool:
         ...     async with pool.acquire() as conn:
         ...         result = await conn.fetchrow('SELECT COUNT(*) FROM dev_news')
     """
-    
+
     def __init__(self, environment: str = 'dev', max_retries: int = 3, timeout: float = 10.0):
         self.environment = environment
         self.max_retries = max_retries
         self.timeout = timeout
         self.pool = None
-    
+
     async def __aenter__(self) -> asyncpg.Pool:
         self.pool = await get_database_pool(
             environment=self.environment,
@@ -194,7 +194,7 @@ class DatabaseConnectionManager:
             timeout=self.timeout
         )
         return self.pool
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.pool:
             await self.pool.close()

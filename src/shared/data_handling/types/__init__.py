@@ -12,7 +12,7 @@ from .vendor_models import Vendor
 
 __all__ = [
     'Exchange',
-    'ExchangeEntry', 
+    'ExchangeEntry',
     'ExchangeMigration',
     'Instrument',
     'InstrumentXref',

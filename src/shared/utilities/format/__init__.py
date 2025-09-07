@@ -12,6 +12,6 @@ from .numbers import (
 
 __all__ = [
     'format_currency',
-    'format_percentage', 
+    'format_percentage',
     'format_large_number'
 ]

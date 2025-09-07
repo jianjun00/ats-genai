@@ -31,28 +31,28 @@ test_data_raw = """
 def parse_test_data():
     """Parse the provided test data into structured format."""
     lines = [line.strip() for line in test_data_raw.strip().split('\n') if line.strip()]
-    
+
     parsed_data = []
     for line in lines:
         parts = line.split()
         date_str = parts[0]
         values = [float(x) for x in parts[1:]]
-        
+
         # Values: open, high, low, close, h11, l11, z1b, z2b, ebot, pldot, etop, z5t, z6t
         ohlc = values[:4]
         expected = {
             'h11': values[4], 'l11': values[5], 'z1b': values[6], 'z2b': values[7],
             'ebot': values[8], 'pldot': values[9], 'etop': values[10], 'z5t': values[11], 'z6t': values[12]
         }
-        
+
         parsed_data.append((date_str, ohlc, expected))
-    
+
     return parsed_data
 
 def create_interval(ohlc_data, interval_date):
     """Create InstrumentInterval from OHLC data."""
     open_price, high_price, low_price, close_price = ohlc_data
-    
+
     interval = InstrumentInterval(
         instrument_id=1,
         start_date_time=datetime.combine(interval_date, datetime.min.time()),
@@ -65,80 +65,80 @@ def create_interval(ohlc_data, interval_date):
         traded_dollar=close_price * 1000,
         status='ok'
     )
-    
+
     return interval
 
 def test_formulas_on_new_data():
     """Test formulas against the new dataset."""
-    
+
     print("TESTING EXACT LINEAR FORMULAS ON NEW DATA")
     print("=" * 60)
     print("Data range: 08/14 - 08/29 (different price levels)")
     print("Price range: ~3300-3520 (vs original ~22000-24000)")
     print("=" * 60)
-    
+
     # Parse the test data
     parsed_data = parse_test_data()
     print(f"Parsed {len(parsed_data)} data points")
-    
-    # Initialize indicators 
+
+    # Initialize indicators
     indicators = {
         'pldot': PL(),
         'l11': L11(),
-        'z1b': Z1B(), 
+        'z1b': Z1B(),
         'z2b': Z2B(),
         'ebot': EBot(),
         'etop': ETop(),
         'z5t': Z5T(),
         'z6t': Z6T()
     }
-    
+
     # Test each date starting from the 4th day (need 3 prior days)
     results = []
     total_tests = 0
     passed_tests = 0
     error_threshold = 1.0  # Allow larger errors for different price scale
-    
+
     for i in range(3, len(parsed_data)):  # Start from 4th day
         test_date = parsed_data[i][0]
         current_expected = parsed_data[i][2]
-        
+
         print(f"\nTesting {test_date}:")
         print("-" * 40)
-        
+
         # Create intervals for the past 3 days + current day
         intervals = []
         base_date = date(2024, 8, 14)
-        
+
         for j in range(i-2, i+1):  # Previous 3 days including current
             day_offset = j - 3  # Adjust for base date
             interval_date = date(base_date.year, base_date.month, base_date.day + day_offset)
             ohlc = parsed_data[j][1]
             interval = create_interval(ohlc, interval_date)
             intervals.append(interval)
-        
+
         print(f"Using OHLC data from days {i-2} to {i} for prediction")
-        
+
         # Test each indicator
         day_results = {'date': test_date, 'tests': {}}
-        
+
         for indicator_name, indicator in indicators.items():
             if indicator_name in current_expected:
                 # Update indicator with past 3 days
                 indicator.update(intervals)
-                
+
                 calculated_value = indicator.get_value()
                 expected_value = current_expected[indicator_name]
-                
+
                 if calculated_value is not None:
                     error = abs(calculated_value - expected_value)
                     error_pct = (error / expected_value) * 100 if expected_value != 0 else 0
-                    
+
                     test_passed = error < error_threshold
                     status = "✅ PASS" if test_passed else "❌ FAIL"
-                    
+
                     print(f"  {indicator_name.upper():6}: Expected={expected_value:8.1f}, Calculated={calculated_value:8.1f}, Error={error:6.2f} ({error_pct:5.2f}%) {status}")
-                    
+
                     day_results['tests'][indicator_name] = {
                         'expected': expected_value,
                         'calculated': calculated_value,
@@ -146,11 +146,11 @@ def test_formulas_on_new_data():
                         'error_pct': error_pct,
                         'passed': test_passed
                     }
-                    
+
                     total_tests += 1
                     if test_passed:
                         passed_tests += 1
-                        
+
                 else:
                     print(f"  {indicator_name.upper():6}: Expected={expected_value:8.1f}, Calculated=None, Status={indicator.status} ❌ FAIL")
                     total_tests += 1
@@ -160,21 +160,21 @@ def test_formulas_on_new_data():
                         'error': float('inf'),
                         'passed': False
                     }
-        
+
         results.append(day_results)
-    
+
     # Summary statistics
     print("\n" + "=" * 60)
     print("DETAILED ANALYSIS")
     print("=" * 60)
-    
+
     # Calculate average errors per indicator
     indicator_stats = {}
     for indicator_name in indicators.keys():
         errors = []
         passed_count = 0
         total_count = 0
-        
+
         for day_result in results:
             if indicator_name in day_result['tests']:
                 test_result = day_result['tests'][indicator_name]
@@ -183,12 +183,12 @@ def test_formulas_on_new_data():
                     if test_result['passed']:
                         passed_count += 1
                 total_count += 1
-        
+
         if errors:
             avg_error = sum(errors) / len(errors)
             max_error = max(errors)
             min_error = min(errors)
-            
+
             indicator_stats[indicator_name] = {
                 'avg_error': avg_error,
                 'max_error': max_error,
@@ -196,12 +196,12 @@ def test_formulas_on_new_data():
                 'pass_rate': (passed_count / total_count) * 100 if total_count > 0 else 0,
                 'total_tests': total_count
             }
-    
+
     print(f"{'Indicator':<8} {'Avg Error':>10} {'Max Error':>10} {'Min Error':>10} {'Pass Rate':>10} {'Tests':>6}")
     print("-" * 60)
     for indicator_name, stats in indicator_stats.items():
         print(f"{indicator_name.upper():<8} {stats['avg_error']:>10.2f} {stats['max_error']:>10.2f} {stats['min_error']:>10.2f} {stats['pass_rate']:>9.1f}% {stats['total_tests']:>6}")
-    
+
     print("\n" + "=" * 60)
     print("OVERALL SUMMARY")
     print("=" * 60)
@@ -209,10 +209,10 @@ def test_formulas_on_new_data():
     print(f"Passed: {passed_tests}")
     print(f"Failed: {total_tests - passed_tests}")
     print(f"Success Rate: {(passed_tests/total_tests)*100:.1f}%")
-    
+
     # Determine formula accuracy
     overall_success = passed_tests / total_tests if total_tests > 0 else 0
-    
+
     if overall_success > 0.95:
         print(f"\n🎉 EXCELLENT! Formulas work perfectly on new data ({overall_success*100:.1f}% success)")
     elif overall_success > 0.8:
@@ -221,7 +221,7 @@ def test_formulas_on_new_data():
         print(f"\n⚠️  MODERATE: Formulas partially work on new data ({overall_success*100:.1f}% success)")
     else:
         print(f"\n❌ POOR: Formulas may not generalize well ({overall_success*100:.1f}% success)")
-        
+
     return overall_success > 0.8
 
 if __name__ == "__main__":

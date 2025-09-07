@@ -26,7 +26,7 @@ class TestBXTrenderConfiguration(unittest.TestCase):
         for period in valid_periods:
             indicator = BXTrenderIndicator(period=period, variant='basic')
             self.assertEqual(indicator.period, period)
-            
+
         # Invalid periods
         invalid_periods = [0, -1, 1, 2, 3, 4, 5, None, 'invalid', 1000]
         for period in invalid_periods:
@@ -40,7 +40,7 @@ class TestBXTrenderConfiguration(unittest.TestCase):
         for variant in valid_variants:
             indicator = BXTrenderIndicator(period=14, variant=variant)
             self.assertEqual(indicator.variant, variant)
-        
+
         # Invalid variants
         invalid_variants = [None, '', 'invalid', 'Basic', 'BASIC', 123, []]
         for variant in invalid_variants:
@@ -55,7 +55,7 @@ class TestBXTrenderConfiguration(unittest.TestCase):
             {'period': 21, 'variant': 'volume_weighted'},
             {'period': 50, 'variant': 'basic'},
         ]
-        
+
         for params in test_cases:
             indicator = BXTrenderIndicator(**params)
             self.assertEqual(indicator.period, params['period'])
@@ -74,12 +74,12 @@ class TestBXTrenderConfiguration(unittest.TestCase):
         basic = BXTrenderBasic(period=21)
         self.assertEqual(basic.period, 21)
         self.assertIsNone(basic.latest_bx_trender)
-        
+
         # Test BXTrenderDirectional
         directional = BXTrenderDirectional(period=14)
         self.assertEqual(directional.period, 14)
         self.assertIsNone(directional.latest_bx_trender)
-        
+
         # Test BXTrenderVolumeWeighted
         volume_weighted = BXTrenderVolumeWeighted(period=30)
         self.assertEqual(volume_weighted.period, 30)
@@ -90,19 +90,19 @@ class TestBXTrenderConfiguration(unittest.TestCase):
         # Minimum valid period
         indicator = BXTrenderIndicator(period=6, variant='basic')
         self.assertEqual(indicator.period, 6)
-        
+
         # Maximum reasonable period
         indicator = BXTrenderIndicator(period=200, variant='basic')
         self.assertEqual(indicator.period, 200)
-        
+
         # Test calculation with boundary periods
         data = self.create_test_data(250)
-        
+
         # Test small period
         small_period = BXTrenderIndicator(period=6, variant='basic')
         result = small_period.calculate(data)
         self.assertEqual(result['status'], 'valid')
-        
+
         # Test large period
         large_period = BXTrenderIndicator(period=200, variant='basic')
         result = large_period.calculate(data)
@@ -111,27 +111,27 @@ class TestBXTrenderConfiguration(unittest.TestCase):
     def test_configuration_immutability(self):
         """Test that configuration parameters cannot be changed after initialization."""
         indicator = BXTrenderIndicator(period=14, variant='basic')
-        
+
         # Try to modify configuration
         with self.assertRaises(AttributeError):
             indicator.period = 21
-        
+
         with self.assertRaises(AttributeError):
             indicator.variant = 'directional'
 
     def test_configuration_serialization(self):
         """Test configuration can be serialized/deserialized."""
         original = BXTrenderIndicator(period=21, variant='directional')
-        
+
         # Create configuration dict
         config = {
             'period': original.period,
             'variant': original.variant
         }
-        
+
         # Recreate from config
         recreated = BXTrenderIndicator(**config)
-        
+
         self.assertEqual(original.period, recreated.period)
         self.assertEqual(original.variant, recreated.variant)
 
@@ -143,7 +143,7 @@ class TestBXTrenderConfiguration(unittest.TestCase):
             BXTrenderIndicator(period=21, variant='volume_weighted'),
             BXTrenderIndicator(period=30, variant='basic'),
         ]
-        
+
         # Verify each has correct configuration
         expected_configs = [
             (7, 'basic'),
@@ -151,7 +151,7 @@ class TestBXTrenderConfiguration(unittest.TestCase):
             (21, 'volume_weighted'),
             (30, 'basic')
         ]
-        
+
         for indicator, (period, variant) in zip(indicators, expected_configs):
             self.assertEqual(indicator.period, period)
             self.assertEqual(indicator.variant, variant)
@@ -159,39 +159,39 @@ class TestBXTrenderConfiguration(unittest.TestCase):
     def test_configuration_with_calculation(self):
         """Test that different configurations produce different results."""
         data = self.create_test_data(50)
-        
+
         # Create indicators with different periods
         indicator_7 = BXTrenderIndicator(period=7, variant='basic')
         indicator_21 = BXTrenderIndicator(period=21, variant='basic')
-        
+
         result_7 = indicator_7.calculate(data)
         result_21 = indicator_21.calculate(data)
-        
+
         # Both should be valid
         self.assertEqual(result_7['status'], 'valid')
         self.assertEqual(result_21['status'], 'valid')
-        
+
         # Values should be different due to different periods
         self.assertNotEqual(result_7['value'], result_21['value'])
 
     def test_variant_specific_configuration(self):
         """Test variant-specific configuration behavior."""
         data = self.create_test_data_with_volume(50)
-        
+
         # Create indicators with different variants
         basic = BXTrenderIndicator(period=14, variant='basic')
         directional = BXTrenderIndicator(period=14, variant='directional')
         volume_weighted = BXTrenderIndicator(period=14, variant='volume_weighted')
-        
+
         result_basic = basic.calculate(data)
         result_directional = directional.calculate(data)
         result_volume = volume_weighted.calculate(data)
-        
+
         # All should be valid
         self.assertEqual(result_basic['status'], 'valid')
         self.assertEqual(result_directional['status'], 'valid')
         self.assertEqual(result_volume['status'], 'valid')
-        
+
         # Values should be different due to different calculations
         self.assertNotEqual(result_basic['value'], result_directional['value'])
         self.assertNotEqual(result_basic['value'], result_volume['value'])
@@ -202,7 +202,7 @@ class TestBXTrenderConfiguration(unittest.TestCase):
         np.random.seed(42)
         data = []
         base_price = 100
-        
+
         for i in range(periods):
             price = base_price + np.random.uniform(-2, 2)
             data.append({
@@ -213,7 +213,7 @@ class TestBXTrenderConfiguration(unittest.TestCase):
                 'volume': 100000 + np.random.randint(-10000, 10000),
                 'timestamp': pd.Timestamp('2024-01-01') + pd.Timedelta(minutes=i)
             })
-        
+
         return pd.DataFrame(data)
 
     def create_test_data_with_volume(self, periods=50):
@@ -222,17 +222,17 @@ class TestBXTrenderConfiguration(unittest.TestCase):
         data = []
         base_price = 100
         base_volume = 100000
-        
+
         for i in range(periods):
             price_change = np.random.uniform(-1, 1)
             price = base_price + price_change
-            
+
             # Volume varies with price movement
             if abs(price_change) > 0.5:
                 volume = base_volume * (1.5 + np.random.uniform(0, 0.5))
             else:
                 volume = base_volume * (0.8 + np.random.uniform(0, 0.4))
-            
+
             data.append({
                 'open': price * 0.995,
                 'high': price * 1.005,
@@ -241,7 +241,7 @@ class TestBXTrenderConfiguration(unittest.TestCase):
                 'volume': int(volume),
                 'timestamp': pd.Timestamp('2024-01-01') + pd.Timedelta(minutes=i)
             })
-        
+
         return pd.DataFrame(data)
 
 
@@ -253,7 +253,7 @@ class TestBXTrenderConfigurationValidation(unittest.TestCase):
         # Very small periods (edge case)
         with self.assertRaises(ValueError):
             BXTrenderIndicator(period=5, variant='basic')  # Too small
-        
+
         # Very large periods (should work but might be impractical)
         indicator = BXTrenderIndicator(period=500, variant='basic')
         self.assertEqual(indicator.period, 500)
@@ -264,7 +264,7 @@ class TestBXTrenderConfigurationValidation(unittest.TestCase):
         indicator = BXTrenderIndicator(period='14', variant='basic')
         self.assertEqual(indicator.period, 14)
         self.assertIsInstance(indicator.period, int)
-        
+
         # Invalid strings should raise error
         with self.assertRaises((ValueError, TypeError)):
             BXTrenderIndicator(period='invalid', variant='basic')
@@ -275,7 +275,7 @@ class TestBXTrenderConfigurationValidation(unittest.TestCase):
         indicator = BXTrenderIndicator(period=14.0, variant='basic')
         self.assertEqual(indicator.period, 14)
         self.assertIsInstance(indicator.period, int)
-        
+
         # Non-integer floats should be rounded or raise error
         indicator = BXTrenderIndicator(period=14.7, variant='basic')
         self.assertEqual(indicator.period, 14)  # Should be truncated
@@ -285,10 +285,10 @@ class TestBXTrenderConfigurationValidation(unittest.TestCase):
         # Should be case sensitive
         with self.assertRaises(ValueError):
             BXTrenderIndicator(period=14, variant='Basic')
-        
+
         with self.assertRaises(ValueError):
             BXTrenderIndicator(period=14, variant='BASIC')
-        
+
         with self.assertRaises(ValueError):
             BXTrenderIndicator(period=14, variant='Volume_Weighted')
 
@@ -296,7 +296,7 @@ class TestBXTrenderConfigurationValidation(unittest.TestCase):
         """Test None parameter handling."""
         with self.assertRaises((ValueError, TypeError)):
             BXTrenderIndicator(period=None, variant='basic')
-        
+
         with self.assertRaises((ValueError, TypeError)):
             BXTrenderIndicator(period=14, variant=None)
 
@@ -304,7 +304,7 @@ class TestBXTrenderConfigurationValidation(unittest.TestCase):
         """Test empty parameter handling."""
         with self.assertRaises((ValueError, TypeError)):
             BXTrenderIndicator(period='', variant='basic')
-        
+
         with self.assertRaises(ValueError):
             BXTrenderIndicator(period=14, variant='')
 
@@ -312,21 +312,21 @@ class TestBXTrenderConfigurationValidation(unittest.TestCase):
         """Test configuration consistency across framework and enhanced implementations."""
         # Create matching configurations
         period = 14
-        
+
         # Framework implementations
         basic_framework = BXTrenderBasic(period=period)
         directional_framework = BXTrenderDirectional(period=period)
         volume_framework = BXTrenderVolumeWeighted(period=period)
-        
+
         # Enhanced implementations
         basic_enhanced = BXTrenderIndicator(period=period, variant='basic')
         directional_enhanced = BXTrenderIndicator(period=period, variant='directional')
         volume_enhanced = BXTrenderIndicator(period=period, variant='volume_weighted')
-        
+
         # All should have consistent period configuration
         framework_periods = [basic_framework.period, directional_framework.period, volume_framework.period]
         enhanced_periods = [basic_enhanced.period, directional_enhanced.period, volume_enhanced.period]
-        
+
         for fw_period, en_period in zip(framework_periods, enhanced_periods):
             self.assertEqual(fw_period, en_period)
 

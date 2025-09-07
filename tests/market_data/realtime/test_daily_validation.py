@@ -33,27 +33,27 @@ class AsyncContextManagerMock:
     """Mock for async context managers like aiohttp.ClientSession"""
     def __init__(self, response_mock):
         self.response_mock = response_mock
-        
+
     async def __aenter__(self):
         return self.response_mock
-        
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         pass
-        
+
 class AsyncClientSessionMock:
     """Mock for aiohttp.ClientSession that supports async context manager"""
     def __init__(self, response_mock=None, get_side_effect=None):
         self.response_mock = response_mock
         self.get_side_effect = get_side_effect
-        
+
     def get(self, *args, **kwargs):
         if self.get_side_effect:
             raise self.get_side_effect
         return AsyncContextManagerMock(self.response_mock)
-        
+
     async def __aenter__(self):
         return self
-        
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         pass
 
@@ -61,16 +61,16 @@ class AsyncPoolMock:
     """Mock for asyncpg.Pool that supports async context manager"""
     def __init__(self, conn_mock):
         self.conn_mock = conn_mock
-        
+
     def acquire(self):
         return AsyncContextManagerMock(self.conn_mock)
-        
+
     async def close(self):
         pass
 
 class TestValidationResult:
     """Test the ValidationResult data structure"""
-    
+
     def test_validation_result_creation(self):
         """Test creating ValidationResult with all fields"""
         validation_date = date.today()
@@ -93,7 +93,7 @@ class TestValidationResult:
             validation_status='passed',
             validation_notes='All checks passed'
         )
-        
+
         assert result.symbol == 'AAPL'
         assert result.vendor == 'polygon'
         assert result.validation_date == validation_date
@@ -114,7 +114,7 @@ class TestValidationResult:
 
 class TestDailyValidationEngine:
     """Test the main DailyValidationEngine class"""
-    
+
     @pytest.fixture
     def mock_env(self):
         """Mock environment configuration"""
@@ -123,7 +123,7 @@ class TestDailyValidationEngine:
             mock_env.get_database_url.return_value = "postgresql://test:test@localhost:5432/test"
             mock_env_class.return_value = mock_env
             yield mock_env
-    
+
     @pytest.fixture
     def validation_engine(self, mock_env):
         """Create a validation engine instance with mocked dependencies"""
@@ -136,11 +136,11 @@ class TestDailyValidationEngine:
             'TIINGO_API_KEY': 'test_tiingo_key',
             'FMP_API_KEY': 'test_fmp_key'
         }):
-            with patch('market_data.realtime.daily_validation.get_previous_trading_day', 
+            with patch('market_data.realtime.daily_validation.get_previous_trading_day',
                       return_value=date(2025, 1, 15)):
                 engine = DailyValidationEngine()
                 return engine
-    
+
     def test_engine_initialization(self, validation_engine):
         """Test validation engine initialization"""
         assert validation_engine.validation_date == date(2025, 1, 15)
@@ -150,44 +150,44 @@ class TestDailyValidationEngine:
         assert validation_engine.polygon_api_key == 'test_polygon_key'
         assert validation_engine.tiingo_api_key == 'test_tiingo_key'
         assert validation_engine.fmp_api_key == 'test_fmp_key'
-    
+
     def test_get_validation_date_yesterday(self):
         """Test getting validation date when set to 'yesterday'"""
         with patch.dict(os.environ, {'VALIDATION_DATE': 'yesterday'}):
-            with patch('market_data.realtime.daily_validation.get_previous_trading_day', 
+            with patch('market_data.realtime.daily_validation.get_previous_trading_day',
                       return_value=date(2025, 1, 14)):
                 with patch('market_data.realtime.daily_validation.Environment'):
                     engine = DailyValidationEngine()
                     assert engine.validation_date == date(2025, 1, 14)
-    
+
     def test_get_validation_date_specific(self):
         """Test getting validation date when set to specific date"""
         with patch.dict(os.environ, {'VALIDATION_DATE': '2025-01-10'}):
             with patch('market_data.realtime.daily_validation.Environment'):
                 engine = DailyValidationEngine()
                 assert engine.validation_date == date(2025, 1, 10)
-    
+
     def test_has_api_key(self, validation_engine):
         """Test API key availability checking"""
         assert validation_engine._has_api_key('polygon') is True
         assert validation_engine._has_api_key('tiingo') is True
         assert validation_engine._has_api_key('fmp') is True
         assert validation_engine._has_api_key('unknown') is False
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_initialize_database_connection(self, validation_engine, mock_env):
         """Test database initialization"""
         mock_pool = AsyncMock()
-        
+
         # Use AsyncMock for create_pool to make it awaitable
         mock_create_pool = AsyncMock(return_value=mock_pool)
-        
+
         with patch('market_data.realtime.daily_validation.asyncpg.create_pool', mock_create_pool):
             await validation_engine.initialize()
             assert validation_engine.pool == mock_pool
             mock_env.get_database_url.assert_called_once()
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_active_symbols(self, validation_engine):
@@ -195,19 +195,19 @@ class TestDailyValidationEngine:
         mock_conn = AsyncMock()
         mock_pool = AsyncPoolMock(mock_conn)
         validation_engine.pool = mock_pool
-        
+
         # Mock database response
         mock_conn.fetch.return_value = [
             {'symbol': 'AAPL'},
             {'symbol': 'MSFT'},
             {'symbol': 'GOOGL'}
         ]
-        
+
         symbols = await validation_engine._get_active_symbols()
-        
+
         assert symbols == ['AAPL', 'MSFT', 'GOOGL']
         mock_conn.fetch.assert_called_once()
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_realtime_data(self, validation_engine):
@@ -215,7 +215,7 @@ class TestDailyValidationEngine:
         mock_conn = AsyncMock()
         mock_pool = AsyncPoolMock(mock_conn)
         validation_engine.pool = mock_pool
-        
+
         # Mock database response
         timestamp = datetime.now(timezone.utc)
         mock_conn.fetch.return_value = [
@@ -240,21 +240,21 @@ class TestDailyValidationEngine:
                 'quality_score': 0.97
             }
         ]
-        
+
         data = await validation_engine._get_realtime_data('polygon', 'AAPL')
-        
+
         assert len(data) == 2
         assert data[0]['open_price'] == 150.0
         assert data[1]['close_price'] == 152.0
         mock_conn.fetch.assert_called_once()
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_polygon_batch_data(self, validation_engine):
         """Test getting batch data from Polygon API"""
         validation_date = date(2025, 1, 15)
         validation_engine.validation_date = validation_date
-        
+
         # Mock aiohttp response
         mock_response_data = {
             'results': [
@@ -276,28 +276,28 @@ class TestDailyValidationEngine:
                 }
             ]
         }
-        
+
         mock_response = AsyncMock()
         mock_response.status = 200
         mock_response.json.return_value = mock_response_data
-        
+
         mock_session = AsyncClientSessionMock(mock_response)
-        
+
         with patch('aiohttp.ClientSession', return_value=mock_session):
             data = await validation_engine._get_polygon_batch_data('AAPL')
-            
+
             assert len(data) == 2
             assert data[0]['open_price'] == 150.0
             assert data[1]['close_price'] == 152.0
             assert isinstance(data[0]['timestamp'], datetime)
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_tiingo_batch_data(self, validation_engine):
         """Test getting batch data from Tiingo API"""
         validation_date = date(2025, 1, 15)
         validation_engine.validation_date = validation_date
-        
+
         # Mock aiohttp response
         mock_response_data = [
             {
@@ -317,28 +317,28 @@ class TestDailyValidationEngine:
                 'volume': 1100000
             }
         ]
-        
+
         mock_response = AsyncMock()
         mock_response.status = 200
         mock_response.json.return_value = mock_response_data
-        
+
         mock_session = AsyncClientSessionMock(mock_response)
-        
+
         with patch('aiohttp.ClientSession', return_value=mock_session):
             data = await validation_engine._get_tiingo_batch_data('AAPL')
-            
+
             assert len(data) == 2
             assert data[0]['open_price'] == 150.0
             assert data[1]['close_price'] == 152.0
             assert isinstance(data[0]['timestamp'], datetime)
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_get_fmp_batch_data(self, validation_engine):
         """Test getting batch data from FMP API"""
         validation_date = date(2025, 1, 15)
         validation_engine.validation_date = validation_date
-        
+
         # Mock aiohttp response
         mock_response_data = [
             {
@@ -358,25 +358,25 @@ class TestDailyValidationEngine:
                 'volume': 1100000
             }
         ]
-        
+
         mock_response = AsyncMock()
         mock_response.status = 200
         mock_response.json.return_value = mock_response_data
-        
+
         mock_session = AsyncClientSessionMock(mock_response)
-        
+
         with patch('aiohttp.ClientSession', return_value=mock_session):
             data = await validation_engine._get_fmp_batch_data('AAPL')
-            
+
             assert len(data) == 2
             assert data[0]['open_price'] == 150.0
             assert data[1]['close_price'] == 152.0
             assert isinstance(data[0]['timestamp'], datetime)
-    
+
     def test_compare_data_perfect_match(self, validation_engine):
         """Test data comparison with perfect match"""
         timestamp = datetime(2025, 1, 15, 14, 30, 0, tzinfo=timezone.utc)
-        
+
         realtime_data = [
             {
                 'timestamp': timestamp,
@@ -389,7 +389,7 @@ class TestDailyValidationEngine:
                 'quality_score': 0.95
             }
         ]
-        
+
         batch_data = [
             {
                 'timestamp': timestamp,
@@ -400,9 +400,9 @@ class TestDailyValidationEngine:
                 'volume': 1000000
             }
         ]
-        
+
         result = validation_engine._compare_data('polygon', 'AAPL', realtime_data, batch_data)
-        
+
         assert result.symbol == 'AAPL'
         assert result.vendor == 'polygon'
         assert result.realtime_bars_count == 1
@@ -413,11 +413,11 @@ class TestDailyValidationEngine:
         assert result.max_price_difference == 0.0
         assert result.overall_accuracy_score == 1.0
         assert result.validation_status == 'passed'
-    
+
     def test_compare_data_with_discrepancies(self, validation_engine):
         """Test data comparison with price discrepancies"""
         timestamp = datetime(2025, 1, 15, 14, 30, 0, tzinfo=timezone.utc)
-        
+
         realtime_data = [
             {
                 'timestamp': timestamp,
@@ -432,7 +432,7 @@ class TestDailyValidationEngine:
                 'quality_score': 0.97
             }
         ]
-        
+
         batch_data = [
             {
                 'timestamp': timestamp,
@@ -443,22 +443,22 @@ class TestDailyValidationEngine:
                 'close_price': 152.0  # Different from realtime
             }
         ]
-        
+
         # Set price tolerance to 0.1% to make the 0.33% difference discrepant
         validation_engine.price_tolerance = 0.001
-        
+
         result = validation_engine._compare_data('polygon', 'AAPL', realtime_data, batch_data)
-        
+
         assert result.discrepant_prices == 1
         assert result.avg_price_difference > 0
         assert result.max_price_difference > 0
         assert result.overall_accuracy_score == 0.5  # 1 out of 2 bars discrepant
         assert result.validation_status == 'failed'  # 50% accuracy is below 95% threshold
-    
+
     def test_compare_data_high_latency(self, validation_engine):
         """Test data comparison with high latency bars"""
         timestamp = datetime(2025, 1, 15, 14, 30, 0, tzinfo=timezone.utc)
-        
+
         realtime_data = [
             {
                 'timestamp': timestamp,
@@ -473,7 +473,7 @@ class TestDailyValidationEngine:
                 'quality_score': 0.97
             }
         ]
-        
+
         batch_data = [
             {
                 'timestamp': timestamp,
@@ -484,17 +484,17 @@ class TestDailyValidationEngine:
                 'close_price': 152.0
             }
         ]
-        
+
         result = validation_engine._compare_data('polygon', 'AAPL', realtime_data, batch_data)
-        
+
         assert result.late_bars_count == 1  # Only 10-minute bar is late (>5 minutes, 5 minutes exactly is not late)
         assert result.avg_data_latency_minutes == 7.5  # Average of 5 and 10 minutes
         assert result.max_data_latency_minutes == 10.0
-    
+
     def test_compare_data_missing_realtime_bars(self, validation_engine):
         """Test data comparison with missing real-time bars"""
         timestamp = datetime(2025, 1, 15, 14, 30, 0, tzinfo=timezone.utc)
-        
+
         realtime_data = [
             {
                 'timestamp': timestamp,
@@ -503,7 +503,7 @@ class TestDailyValidationEngine:
                 'quality_score': 0.95
             }
         ]
-        
+
         batch_data = [
             {
                 'timestamp': timestamp,
@@ -518,17 +518,17 @@ class TestDailyValidationEngine:
                 'close_price': 153.0
             }
         ]
-        
+
         result = validation_engine._compare_data('polygon', 'AAPL', realtime_data, batch_data)
-        
+
         assert result.realtime_bars_count == 1
         assert result.batch_bars_count == 3
         assert result.missing_realtime_bars == 2
-    
+
     def test_compare_data_failed_validation(self, validation_engine):
         """Test data comparison that fails validation"""
         timestamp = datetime(2025, 1, 15, 14, 30, 0, tzinfo=timezone.utc)
-        
+
         realtime_data = [
             {
                 'timestamp': timestamp,
@@ -537,23 +537,23 @@ class TestDailyValidationEngine:
                 'quality_score': 0.95
             }
         ]
-        
+
         batch_data = [
             {
                 'timestamp': timestamp,
                 'close_price': 150.0
             }
         ]
-        
+
         # Set price tolerance to 1%
         validation_engine.price_tolerance = 0.01
-        
+
         result = validation_engine._compare_data('polygon', 'AAPL', realtime_data, batch_data)
-        
+
         assert result.discrepant_prices == 1
         assert result.overall_accuracy_score == 0.0  # 100% discrepant
         assert result.validation_status == 'failed'  # Below 95%
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_validate_vendor(self, validation_engine):
@@ -567,23 +567,23 @@ class TestDailyValidationEngine:
                 'quality_score': 0.95
             }
         ])
-        
+
         validation_engine._get_batch_data = AsyncMock(return_value=[
             {
                 'timestamp': datetime(2025, 1, 15, 14, 30, 0, tzinfo=timezone.utc),
                 'close_price': 151.0
             }
         ])
-        
+
         symbols = ['AAPL', 'MSFT']
         await validation_engine._validate_vendor('polygon', symbols)
-        
+
         # Should have created validation results
         assert len(validation_engine.validation_results) == 2
         assert validation_engine.validation_results[0].vendor == 'polygon'
         assert validation_engine.validation_results[0].symbol == 'AAPL'
         assert validation_engine.validation_results[1].symbol == 'MSFT'
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_store_validation_results(self, validation_engine):
@@ -591,7 +591,7 @@ class TestDailyValidationEngine:
         mock_conn = AsyncMock()
         mock_pool = AsyncPoolMock(mock_conn)
         validation_engine.pool = mock_pool
-        
+
         # Add some validation results
         validation_engine.validation_results = [
             ValidationResult(
@@ -614,19 +614,19 @@ class TestDailyValidationEngine:
                 validation_notes='Perfect match'
             )
         ]
-        
+
         await validation_engine._store_validation_results()
-        
+
         # Verify database insert was called
         mock_conn.execute.assert_called_once()
-        
+
         # Check that all fields are in the SQL
         sql_call = mock_conn.execute.call_args[0][0]
         assert 'symbol' in sql_call
         assert 'validation_date' in sql_call
         assert 'vendor' in sql_call
         assert 'overall_accuracy_score' in sql_call
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_generate_validation_summary(self, validation_engine):
@@ -658,9 +658,9 @@ class TestDailyValidationEngine:
                 validation_status='failed', validation_notes='Significant issues'
             )
         ]
-        
+
         await validation_engine._generate_validation_summary()
-        
+
         summary = validation_engine.validation_summary
         assert summary['total_validations'] == 3
         assert summary['passed_validations'] == 1
@@ -669,7 +669,7 @@ class TestDailyValidationEngine:
         assert summary['success_rate'] == 1/3
         assert len(summary['critical_issues']) == 1
         assert summary['critical_issues'][0].symbol == 'GOOGL'
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_send_validation_alerts(self, validation_engine):
@@ -687,13 +687,13 @@ class TestDailyValidationEngine:
                 )
             ]
         }
-        
+
         # This should not raise an exception (just logs warnings)
         await validation_engine._send_validation_alerts()
-        
+
         # In a real implementation, this would test actual alert sending
         # For now, we just verify it doesn't crash
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_run_daily_validation_complete_flow(self, validation_engine):
@@ -701,35 +701,35 @@ class TestDailyValidationEngine:
         # Mock all dependencies
         mock_pool = AsyncMock()
         validation_engine.pool = mock_pool
-        
+
         validation_engine._get_active_symbols = AsyncMock(return_value=['AAPL', 'MSFT'])
         validation_engine._validate_vendor = AsyncMock()
         validation_engine._store_validation_results = AsyncMock()
         validation_engine._generate_validation_summary = AsyncMock()
         validation_engine._send_validation_alerts = AsyncMock()
-        
+
         await validation_engine.run_daily_validation()
-        
+
         # Verify all steps were called
         validation_engine._get_active_symbols.assert_called_once()
         validation_engine._validate_vendor.assert_called()  # Called for each vendor
         validation_engine._store_validation_results.assert_called_once()
         validation_engine._generate_validation_summary.assert_called_once()
         validation_engine._send_validation_alerts.assert_called_once()
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_shutdown(self, validation_engine):
         """Test graceful shutdown"""
         mock_pool = AsyncMock()
         validation_engine.pool = mock_pool
-        
+
         await validation_engine.shutdown()
         mock_pool.close.assert_called_once()
 
 class TestAPIErrorHandling:
     """Test API error handling scenarios"""
-    
+
     @pytest.fixture
     def validation_engine(self):
         with patch('market_data.realtime.daily_validation.Environment'):
@@ -740,77 +740,77 @@ class TestAPIErrorHandling:
             }):
                 engine = DailyValidationEngine()
                 return engine
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_polygon_api_error(self, validation_engine):
         """Test handling Polygon API errors"""
         mock_response = AsyncMock()
         mock_response.status = 429  # Rate limit
-        
+
         mock_session = AsyncClientSessionMock(mock_response)
-        
+
         with patch('aiohttp.ClientSession', return_value=mock_session):
             data = await validation_engine._get_polygon_batch_data('AAPL')
             assert data == []
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_tiingo_api_error(self, validation_engine):
         """Test handling Tiingo API errors"""
         mock_response = AsyncMock()
         mock_response.status = 500  # Server error
-        
+
         mock_session = AsyncClientSessionMock(mock_response)
-        
+
         with patch('aiohttp.ClientSession', return_value=mock_session):
             data = await validation_engine._get_tiingo_batch_data('AAPL')
             assert data == []
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_fmp_api_error(self, validation_engine):
         """Test handling FMP API errors"""
         mock_response = AsyncMock()
         mock_response.status = 403  # Forbidden
-        
+
         mock_session = AsyncClientSessionMock(mock_response)
-        
+
         with patch('aiohttp.ClientSession', return_value=mock_session):
             data = await validation_engine._get_fmp_batch_data('AAPL')
             assert data == []
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_network_timeout(self, validation_engine):
         """Test handling network timeouts"""
         mock_session = AsyncClientSessionMock(get_side_effect=asyncio.TimeoutError("Request timeout"))
-        
+
         with patch('aiohttp.ClientSession', return_value=mock_session):
             data = await validation_engine._get_polygon_batch_data('AAPL')
             assert data == []
 
 class TestEdgeCases:
     """Test edge cases and boundary conditions"""
-    
+
     @pytest.fixture
     def validation_engine(self):
         with patch('market_data.realtime.daily_validation.Environment'):
             return DailyValidationEngine()
-    
+
     def test_compare_data_empty_datasets(self, validation_engine):
         """Test comparison with empty datasets"""
         result = validation_engine._compare_data('polygon', 'AAPL', [], [])
-        
+
         assert result.realtime_bars_count == 0
         assert result.batch_bars_count == 0
         assert result.overall_accuracy_score == 0
         assert result.validation_status == 'failed'
-    
+
     def test_compare_data_time_offset_tolerance(self, validation_engine):
         """Test that time offset tolerance works correctly"""
         base_time = datetime(2025, 1, 15, 14, 30, 0, tzinfo=timezone.utc)
-        
+
         realtime_data = [
             {
                 'timestamp': base_time,
@@ -819,24 +819,24 @@ class TestEdgeCases:
                 'quality_score': 0.95
             }
         ]
-        
+
         batch_data = [
             {
                 'timestamp': base_time + timedelta(seconds=30),  # 30 second offset
                 'close_price': 151.0
             }
         ]
-        
+
         result = validation_engine._compare_data('polygon', 'AAPL', realtime_data, batch_data)
-        
+
         # Should still match within tolerance
         assert result.discrepant_prices == 0
         assert result.overall_accuracy_score == 1.0
-    
+
     def test_compare_data_no_batch_match(self, validation_engine):
         """Test when no batch data matches real-time data"""
         base_time = datetime(2025, 1, 15, 14, 30, 0, tzinfo=timezone.utc)
-        
+
         realtime_data = [
             {
                 'timestamp': base_time,
@@ -845,16 +845,16 @@ class TestEdgeCases:
                 'quality_score': 0.95
             }
         ]
-        
+
         batch_data = [
             {
                 'timestamp': base_time + timedelta(hours=1),  # Way off
                 'close_price': 151.0
             }
         ]
-        
+
         result = validation_engine._compare_data('polygon', 'AAPL', realtime_data, batch_data)
-        
+
         # No matches found, so no price differences calculated
         assert result.avg_price_difference == 0
         assert result.max_price_difference == 0

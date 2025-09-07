@@ -13,7 +13,7 @@ class TiingoAdapter(VendorAdapter):
     def __init__(self, api_key: Optional[str] = None):
         # Use shared utilities for robust API key management
         self.api_key = api_key or get_tiingo_api_key()
-        
+
         # Initialize shared utilities for monitoring and rate limiting
         self.stats = BackfillStats()
         self.rate_limiter = VendorRateLimiters.tiingo()
@@ -21,14 +21,14 @@ class TiingoAdapter(VendorAdapter):
     def fetch_instruments(self) -> List[InstrumentMetadata]:
         # Example: fetch instrument metadata from Tiingo supported tickers API
         url = f"https://api.tiingo.com/tiingo/supported-tickers?token={self.api_key}"
-        
+
         # Use shared rate limiting
         import asyncio
         asyncio.run(self.rate_limiter.wait_if_needed())
-        
+
         # Track API call statistics
         self.stats.api_calls_made += 1
-        
+
         try:
             resp = requests.get(url)
             resp.raise_for_status()
@@ -49,7 +49,7 @@ class TiingoAdapter(VendorAdapter):
                 vendor=self.vendor_name,
                 extra=row
             ))
-            
+
         # Track records fetched
         self.stats.records_fetched += len(instruments)
         return instruments
@@ -60,20 +60,20 @@ class TiingoAdapter(VendorAdapter):
             # Use shared rate limiting to prevent 429 errors
             import asyncio
             asyncio.run(self.rate_limiter.wait_if_needed())
-            
+
             url = self.BASE_URL.format(
                 ticker=ticker,
                 start=start_date,
                 end=end_date,
                 api_key=self.api_key
             )
-            
+
             # Track API call statistics
             self.stats.api_calls_made += 1
-            
+
             try:
                 resp = requests.get(url)
-                
+
                 # Handle rate limiting with shared framework
                 if resp.status_code == 429:
                     import logging
@@ -81,7 +81,7 @@ class TiingoAdapter(VendorAdapter):
                     logger.warning(f"Rate limited for {ticker} despite shared rate limiter")
                     self.stats.api_errors += 1
                     continue
-                    
+
                 resp.raise_for_status()
             except Exception as e:
                 self.stats.api_errors += 1
@@ -89,7 +89,7 @@ class TiingoAdapter(VendorAdapter):
                 logger = logging.getLogger(__name__)
                 logger.error(f"Error fetching {ticker}: {e}")
                 continue
-            
+
             # Log request/response for AAPL/TSLA in date range
             from datetime import datetime
             import json, os
@@ -116,10 +116,10 @@ class TiingoAdapter(VendorAdapter):
                 except Exception as e:
                     with open(resp_path, "w") as f:
                         f.write(f"[ERROR] Could not serialize response: {e}\n")
-            
+
             if resp.status_code != 200:
                 continue
-            
+
             data = resp.json()
             for row in data:
                 date_val = datetime.strptime(row["date"].split("T")[0], "%Y-%m-%d").date()
@@ -136,9 +136,9 @@ class TiingoAdapter(VendorAdapter):
                     quality_score=None,
                     provenance={"tiingo_row": row}
                 ))
-                
+
         # Track records fetched in EOD operation
-        self.stats.records_fetched += len(eod_prices) 
+        self.stats.records_fetched += len(eod_prices)
         return eod_prices
 
     def fetch_ticks(self, symbol: str, start_dt, end_dt):
@@ -146,7 +146,7 @@ class TiingoAdapter(VendorAdapter):
 
     def fetch_interval(self, symbol: str, interval: str, start_dt, end_dt):
         raise NotImplementedError("TiingoAdapter.fetch_interval is not implemented yet.")
-        
+
     def get_statistics_summary(self) -> dict:
         """Get comprehensive statistics summary using shared framework"""
         return {
@@ -157,7 +157,7 @@ class TiingoAdapter(VendorAdapter):
             "success_rate": self.stats.success_rate,
             "rate_limiter_status": self.rate_limiter.get_status() if hasattr(self.rate_limiter, 'get_status') else "active"
         }
-        
+
     def log_final_summary(self, logger):
         """Log comprehensive operation summary using shared framework"""
         self.stats.log_final_summary(logger)

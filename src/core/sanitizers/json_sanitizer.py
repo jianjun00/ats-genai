@@ -11,11 +11,11 @@ import numpy as np
 
 class JSONSanitizer:
     """Sanitizes data structures to ensure valid JSON serialization."""
-    
+
     @staticmethod
     def sanitize_value(value: Any) -> Any:
         """Sanitize a single value to ensure JSON compatibility."""
-        
+
         # Handle numpy types
         if isinstance(value, (np.integer, np.int8, np.int16, np.int32, np.int64)):
             return int(value)
@@ -27,7 +27,7 @@ class JSONSanitizer:
             return bool(value)
         elif isinstance(value, np.ndarray):
             return JSONSanitizer.sanitize_value(value.tolist())
-        
+
         # Handle Python float types
         elif isinstance(value, float):
             if math.isnan(value):
@@ -35,19 +35,19 @@ class JSONSanitizer:
             elif math.isinf(value):
                 return 1e10 if value > 0 else -1e10  # Large but finite number
             return value
-            
+
         # Handle dictionaries
         elif isinstance(value, dict):
             return {key: JSONSanitizer.sanitize_value(val) for key, val in value.items()}
-            
+
         # Handle lists/tuples
         elif isinstance(value, (list, tuple)):
             return [JSONSanitizer.sanitize_value(item) for item in value]
-            
+
         # Handle None, strings, bools, ints - these are already JSON safe
         elif value is None or isinstance(value, (str, bool, int)):
             return value
-            
+
         # Handle complex types by converting to string
         else:
             try:
@@ -58,12 +58,12 @@ class JSONSanitizer:
                     return value
             except:
                 return str(value)
-    
+
     @staticmethod
     def sanitize_response(data: Any) -> Any:
         """Sanitize an entire response data structure."""
         return JSONSanitizer.sanitize_value(data)
-    
+
     @staticmethod
     def validate_json_serializable(data: Any) -> bool:
         """Check if data can be safely serialized to JSON."""
@@ -72,7 +72,7 @@ class JSONSanitizer:
             return True
         except (TypeError, ValueError, OverflowError):
             return False
-    
+
     @staticmethod
     def safe_json_dumps(data: Any, **kwargs) -> str:
         """Safely serialize data to JSON with sanitization."""
@@ -126,20 +126,20 @@ def sanitize_ohlc_data(ohlc_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 def validate_api_response(response_data: Dict[str, Any]) -> Dict[str, Any]:
     """Validate and sanitize complete API response."""
     sanitized = JSONSanitizer.sanitize_response(response_data)
-    
+
     # Additional validation for API responses
     if isinstance(sanitized, dict):
         # Ensure required fields are present and valid
         if 'success' not in sanitized:
             sanitized['success'] = True
-            
+
         # Sanitize common API fields
         if 'ohlc_data' in sanitized:
             sanitized['ohlc_data'] = {
                 tf: sanitize_ohlc_data(data) if isinstance(data, list) else data
                 for tf, data in sanitized['ohlc_data'].items()
             }
-            
+
         if 'table_data' in sanitized and isinstance(sanitized['table_data'], list):
             sanitized_table = []
             for row in sanitized['table_data']:
@@ -148,5 +148,5 @@ def validate_api_response(response_data: Dict[str, Any]) -> Dict[str, Any]:
                 else:
                     sanitized_table.append(JSONSanitizer.sanitize_value(row))
             sanitized['table_data'] = sanitized_table
-    
+
     return sanitized

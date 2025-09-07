@@ -24,34 +24,34 @@ from training.multimodal_dataset_generator import MultiModalDatasetGenerator
 
 class TestNewsToDatasetIntegration:
     """Test complete pipeline from news backfill to training dataset"""
-    
+
     def setup_method(self):
         """Set up integration test fixtures"""
         self.db_config = {
             'host': 'localhost',
             'port': 5432,
-            'user': 'postgres', 
+            'user': 'postgres',
             'password': 'test',
             'database': 'test_db'
         }
-        
+
         # Mock API configurations
         self.api_configs = {
             'polygon': {'api_key': 'test_polygon_key'},
             'tiingo': {'api_key': 'test_tiingo_key'},
             'eodhd': {'api_key': 'test_eodhd_key'}
         }
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_complete_pipeline_flow(self):
         """Test complete pipeline: News → Events → Training Dataset"""
-        
+
         # Mock database operations
         mock_conn = AsyncMock()
         mock_pool = AsyncMock()
         mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
-        
+
         # Mock news data from backfill
         mock_news_articles = [
             {
@@ -64,7 +64,7 @@ class TestNewsToDatasetIntegration:
             },
             {
                 'id': 2,
-                'title': 'Apple Reports Strong Q1 Results', 
+                'title': 'Apple Reports Strong Q1 Results',
                 'description': 'AAPL beats earnings with iPhone growth',
                 'tickers': ['AAPL'],
                 'published_date': datetime(2024, 1, 14),
@@ -79,7 +79,7 @@ class TestNewsToDatasetIntegration:
                 'source': 'polygon'
             }
         ]
-        
+
         # Mock economic events from classification
         mock_economic_events = [
             {
@@ -97,22 +97,22 @@ class TestNewsToDatasetIntegration:
                 'event_date': datetime(2024, 1, 14)
             }
         ]
-        
+
         # Set up mocks for each component
         with patch('asyncpg.create_pool') as mock_create_pool:
             mock_create_pool.return_value = mock_pool
-            
+
             # Mock news backfill system
             news_system = ComprehensiveNewsBackfillSystem(self.api_configs, self.db_config)
-            
+
             # Mock events processor
             events_processor = EconomicEventsProcessor(self.db_config)
-            
+
             # Mock dataset generator
             dataset_generator = MultiModalDatasetGenerator(self.db_config)
-            
+
             # Set up database mocks for each stage
-            
+
             # 1. News backfill stage
             mock_conn.fetchval.side_effect = [
                 1, 2, 3,  # Insert IDs for news articles
@@ -121,31 +121,31 @@ class TestNewsToDatasetIntegration:
                 2080, 20, # Dataset summary stats
                 1073      # High quality samples
             ]
-            
+
             # 2. Events classification stage
             mock_conn.fetch.side_effect = [
                 mock_news_articles[:2],    # Polygon articles for classification
                 mock_news_articles[2:],    # Tiingo articles for classification
                 [],                        # No events for news features (1d)
-                [],                        # No events for news features (3d) 
+                [],                        # No events for news features (3d)
                 mock_economic_events,      # Economic events for features (7d)
                 mock_economic_events       # Events for category breakdown
             ]
-            
+
             # 3. Dataset generation stage - mock news and events queries
             mock_conn.fetch.return_value = []  # Empty for simplicity in test
-            
+
             # Test the complete pipeline
-            
+
             # Step 1: News backfill (mock successful)
             mock_conn.executemany.return_value = None
             mock_conn.execute.return_value = None
-            
+
             # Step 2: Events classification
             async with events_processor as processor:
                 events_created = await processor.process_news_articles('news_polygon', limit=100)
                 assert events_created >= 0  # Should process some events
-            
+
             # Step 3: Dataset generation
             async with dataset_generator as generator:
                 samples_created = await generator.generate_training_dataset(
@@ -154,26 +154,26 @@ class TestNewsToDatasetIntegration:
                     end_date=date(2024, 1, 31),
                     sample_freq_days=7
                 )
-                
+
                 assert samples_created > 0  # Should generate training samples
-            
+
             # Verify integration points
             assert mock_conn.fetch.called  # News data was queried
             assert mock_conn.executemany.called  # Bulk operations occurred
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_data_consistency_across_pipeline(self):
         """Test that data remains consistent as it flows through pipeline"""
-        
+
         mock_conn = AsyncMock()
         mock_pool = AsyncMock()
         mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
-        
+
         # Create consistent test data
         test_symbol = 'AAPL'
         test_date = datetime(2024, 1, 15)
-        
+
         # Mock news article that should create economic event
         test_news_article = {
             'id': 1,
@@ -182,7 +182,7 @@ class TestNewsToDatasetIntegration:
             'tickers': [test_symbol],
             'published_utc': test_date
         }
-        
+
         # Mock resulting economic event
         test_economic_event = {
             'id': 1,
@@ -192,28 +192,28 @@ class TestNewsToDatasetIntegration:
             'event_date': test_date,
             'affected_symbols': [test_symbol]
         }
-        
+
         # Set up mock responses
         mock_conn.fetch.side_effect = [
             [test_news_article],      # News articles for events classification
             [],                       # Tiingo articles (empty)
             [test_economic_event],    # Economic events for dataset generation
         ]
-        
+
         mock_conn.fetchval.side_effect = [
             100,  # Event ID from insertion
             50    # Sample count
         ]
-        
+
         with patch('asyncpg.create_pool') as mock_create_pool:
             mock_create_pool.return_value = mock_pool
-            
+
             # Test events classification
             events_processor = EconomicEventsProcessor(self.db_config)
-            
+
             async with events_processor as processor:
                 events_created = await processor.process_news_articles('news_polygon')
-                
+
                 # Verify event classification call structure
                 insert_call = None
                 for call in mock_conn.fetchval.call_args_list:
@@ -221,19 +221,19 @@ class TestNewsToDatasetIntegration:
                     if 'INSERT INTO dev_economic_events' in sql:
                         insert_call = call
                         break
-                
+
                 # Should have attempted to insert economic event
                 assert insert_call is not None
-            
+
             # Test dataset generation uses the event
             dataset_generator = MultiModalDatasetGenerator(self.db_config)
-            
+
             async with dataset_generator as generator:
                 # Mock additional database calls for features
                 mock_conn.fetch.side_effect = [
                     [],                          # Polygon news for sentiment (1d)
                     [],                          # Tiingo news for sentiment (1d)
-                    [],                          # Polygon news for sentiment (3d) 
+                    [],                          # Polygon news for sentiment (3d)
                     [],                          # Tiingo news for sentiment (3d)
                     [test_news_article],         # Polygon news for sentiment (7d)
                     [],                          # Tiingo news for sentiment (7d)
@@ -242,75 +242,75 @@ class TestNewsToDatasetIntegration:
                     [test_economic_event],       # Economic events (7d)
                     [test_economic_event],       # Economic events (category breakdown)
                 ]
-                
+
                 sample = await generator.generate_sample_for_symbol_date(
                     test_symbol,
                     test_date.date(),
                     5  # 5-day prediction horizon
                 )
-                
+
                 # Verify sample creation
                 assert sample is not None
                 assert sample.symbol == test_symbol
                 assert sample.sample_date == test_date.date()
-                
+
                 # The economic event should influence features
                 # (specific values depend on implementation details)
                 assert hasattr(sample, 'earnings_impact_score')
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_error_handling_and_recovery(self):
         """Test system behavior when components fail"""
-        
+
         mock_conn = AsyncMock()
         mock_pool = AsyncMock()
         mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
-        
+
         with patch('asyncpg.create_pool') as mock_create_pool:
             mock_create_pool.return_value = mock_pool
-            
+
             # Test events processor handles missing news gracefully
             mock_conn.fetch.return_value = []  # No news articles
-            
+
             events_processor = EconomicEventsProcessor(self.db_config)
-            
+
             async with events_processor as processor:
                 events_created = await processor.process_news_articles('news_polygon')
                 assert events_created == 0  # Should handle empty data gracefully
-            
+
             # Test dataset generator handles missing events gracefully
             dataset_generator = MultiModalDatasetGenerator(self.db_config)
-            
+
             async with dataset_generator as generator:
                 # Mock no news or events
                 mock_conn.fetch.return_value = []
-                
+
                 sample = await generator.generate_sample_for_symbol_date(
                     'AAPL',
                     date(2024, 1, 15),
                     5
                 )
-                
+
                 # Should still create sample with default values
                 assert sample is not None
                 assert sample.news_sentiment_7d == 0.0
                 assert sample.news_volume_7d == 0
                 assert sample.economic_event_impact_7d == 0.0
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_performance_and_scalability(self):
         """Test system performance with larger datasets"""
-        
+
         mock_conn = AsyncMock()
-        mock_pool = AsyncMock() 
+        mock_pool = AsyncMock()
         mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
-        
+
         # Create large test dataset
         num_articles = 1000
         mock_articles = []
-        
+
         for i in range(num_articles):
             article = {
                 'id': i,
@@ -320,43 +320,43 @@ class TestNewsToDatasetIntegration:
                 'published_utc': datetime(2024, 1, 1) + timedelta(hours=i)
             }
             mock_articles.append(article)
-        
+
         # Mock batch processing
         batch_size = 100
         mock_conn.fetch.return_value = mock_articles[:batch_size]  # Process in batches
         mock_conn.fetchval.return_value = 1
-        
+
         with patch('asyncpg.create_pool') as mock_create_pool:
             mock_create_pool.return_value = mock_pool
-            
+
             events_processor = EconomicEventsProcessor(self.db_config)
-            
+
             # Test processing time and memory usage
             import time
             start_time = time.time()
-            
+
             async with events_processor as processor:
                 events_created = await processor.process_news_articles(
-                    'news_polygon', 
+                    'news_polygon',
                     limit=batch_size
                 )
-                
+
             end_time = time.time()
             processing_time = end_time - start_time
-            
+
             # Should process efficiently (less than 5 seconds for 100 articles in test)
             assert processing_time < 5.0
             assert events_created >= 0  # Some events should be classified
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_data_quality_validation(self):
         """Test data quality checks throughout pipeline"""
-        
+
         mock_conn = AsyncMock()
         mock_pool = AsyncMock()
         mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
-        
+
         # Test data with quality issues
         problematic_news = [
             {
@@ -381,25 +381,25 @@ class TestNewsToDatasetIntegration:
                 'published_utc': datetime(2024, 1, 13)
             }
         ]
-        
+
         mock_conn.fetch.return_value = problematic_news
         mock_conn.fetchval.return_value = 1
-        
+
         with patch('asyncpg.create_pool') as mock_create_pool:
             mock_create_pool.return_value = mock_pool
-            
+
             events_processor = EconomicEventsProcessor(self.db_config)
-            
+
             async with events_processor as processor:
                 # Should handle problematic data gracefully
                 events_created = await processor.process_news_articles('news_polygon')
-                
+
                 # Should process at least the valid article
                 assert events_created >= 0
-            
+
             # Test dataset generator quality scoring
             dataset_generator = MultiModalDatasetGenerator(self.db_config)
-            
+
             async with dataset_generator as generator:
                 # Mock features with varying quality
                 mock_conn.fetch.side_effect = [
@@ -410,17 +410,17 @@ class TestNewsToDatasetIntegration:
                     [],  # No news
                     [],  # No news
                     [],  # No events
-                    [],  # No events  
+                    [],  # No events
                     [],  # No events
                     []   # No events
                 ]
-                
+
                 sample = await generator.generate_sample_for_symbol_date(
                     'AAPL',
                     date(2024, 1, 15),
                     5
                 )
-                
+
                 # Should have low quality score due to lack of data
                 assert sample is not None
                 assert sample.sample_quality_score < 0.8  # Should reflect poor data quality
@@ -428,16 +428,16 @@ class TestNewsToDatasetIntegration:
 
 class TestMultiVendorIntegration:
     """Test integration across multiple data vendors"""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_vendor_data_consolidation(self):
         """Test that data from multiple vendors is properly consolidated"""
-        
+
         mock_conn = AsyncMock()
         mock_pool = AsyncMock()
         mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
-        
+
         # Mock data from different vendors for same symbol and timeframe
         polygon_news = [
             {
@@ -446,21 +446,21 @@ class TestMultiVendorIntegration:
                 'published_utc': datetime(2024, 1, 15, 16, 0)
             }
         ]
-        
+
         tiingo_news = [
             {
-                'title': 'AAPL Beats Estimates (Tiingo)', 
+                'title': 'AAPL Beats Estimates (Tiingo)',
                 'description': 'Positive earnings from Tiingo source',
                 'published_date': datetime(2024, 1, 15, 16, 30)
             }
         ]
-        
+
         with patch('asyncpg.create_pool') as mock_create_pool:
             mock_create_pool.return_value = mock_pool
-            
+
             dataset_generator = MultiModalDatasetGenerator({})
             dataset_generator.db_pool = mock_pool
-            
+
             # Mock database calls to return data from both sources
             mock_conn.fetch.side_effect = [
                 polygon_news,  # Polygon 1d
@@ -470,31 +470,31 @@ class TestMultiVendorIntegration:
                 polygon_news,  # Polygon 7d
                 tiingo_news,   # Tiingo 7d
             ]
-            
+
             features = await dataset_generator.generate_news_features(
                 'AAPL',
                 date(2024, 1, 16)
             )
-            
+
             # Should consolidate data from both sources
             assert features['news_volume_1d'] == 2  # Combined from both sources
             assert features['news_sentiment_1d'] > 0  # Should be positive (both positive)
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_vendor_specific_error_handling(self):
         """Test handling when one vendor fails but others succeed"""
-        
+
         mock_conn = AsyncMock()
         mock_pool = AsyncMock()
         mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
-        
+
         with patch('asyncpg.create_pool') as mock_create_pool:
             mock_create_pool.return_value = mock_pool
-            
+
             dataset_generator = MultiModalDatasetGenerator({})
             dataset_generator.db_pool = mock_pool
-            
+
             # Mock scenario where Polygon fails but Tiingo succeeds
             tiingo_news = [
                 {
@@ -503,13 +503,13 @@ class TestMultiVendorIntegration:
                     'published_date': datetime(2024, 1, 15)
                 }
             ]
-            
+
             # First call (Polygon) fails, second call (Tiingo) succeeds
             mock_conn.fetch.side_effect = [
                 Exception("Polygon connection failed"),  # Polygon fails
                 tiingo_news,                             # Tiingo succeeds
             ]
-            
+
             # Should handle partial failure gracefully
             try:
                 features = await dataset_generator.generate_news_features(

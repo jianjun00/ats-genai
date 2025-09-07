@@ -54,7 +54,7 @@ async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch, polygon_v
         def json(self):
             return {'results': {'share_class_shares_outstanding': 1000000000}}
     monkeypatch.setattr(daily_price_polygon.requests, "get", lambda url: FakeResp())
-    
+
     # Create a non-Ray version of run_ingestion for testing
     @pytest.mark.asyncio
     async def test_run_ingestion_no_ray(tickers, start_date, end_date, environment, instrument_dao, prices_dao, polygon_api_key, **kwargs):
@@ -66,7 +66,7 @@ async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch, polygon_v
             if not instrument_id:
                 print(f"No instrument found for {ticker}")
                 continue
-                
+
             # Get price data using the mocked download function
             price_data = daily_price_polygon.download_prices_polygon(
                 ticker=ticker,
@@ -74,7 +74,7 @@ async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch, polygon_v
                 end=end_date,
                 api_key=polygon_api_key
             )
-            
+
             # Process the data directly
             if price_data and 'results' in price_data:
                 results = price_data['results']
@@ -82,13 +82,13 @@ async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch, polygon_v
                 results = price_data
             else:
                 results = []
-                
+
             for result in results:
                 # Convert timestamp to date
                 if 't' in result:
                     timestamp_ms = result['t']
                     date = datetime.fromtimestamp(timestamp_ms / 1000, tz=timezone.utc).date()
-                    
+
                     # Insert price data
                     await prices_core.dao.insert_price(
                         instrument_id=instrument_id,
@@ -100,10 +100,10 @@ async def test_daily_polygon_inserts_prices(unit_test_db, monkeypatch, polygon_v
                         volume=result.get('v'),
                         adj_close=result.get('c')  # Using close as adj_close for test
                     )
-    
+
     # Patch the run_ingestion function to use our non-Ray version
     monkeypatch.setattr(daily_price_polygon, "run_ingestion", test_run_ingestion_no_ray)
-    
+
     # Run the ingestion logic with our patched function
     await daily_price_polygon.run_ingestion(
         tickers=[test_symbol],

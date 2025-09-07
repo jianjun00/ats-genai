@@ -39,7 +39,7 @@ class TestFeatureSchema:
             statistics={"mean": 150.5, "std": 10.2},
             transformation_info={"normalization": "z_score"}
         )
-        
+
         assert feature.name == "sma_20"
         assert feature.feature_type == FeatureType.TECHNICAL_INDICATOR
         assert feature.shape == [100, 1]
@@ -53,7 +53,7 @@ class TestFeatureSchema:
             feature_type=FeatureType.RETURN_SERIES,
             data_type="float32"
         )
-        
+
         feature_dict = feature.to_dict()
         assert isinstance(feature_dict, dict)
         assert feature_dict["name"] == "test_feature"
@@ -72,7 +72,7 @@ class TestFeatureSchema:
             "statistics": {},
             "transformation_info": {}
         }
-        
+
         feature = FeatureSchema.from_dict(feature_dict)
         assert feature.name == "test_feature"
         assert feature.feature_type == FeatureType.TECHNICAL_INDICATOR
@@ -93,7 +93,7 @@ class TestLabelSchema:
             class_mapping={},
             statistics={"mean": 0.001, "std": 0.02}
         )
-        
+
         assert label.name == "return_1d"
         assert label.label_type == "regression"
         assert label.shape == [100]
@@ -107,7 +107,7 @@ class TestLabelSchema:
             data_type="int32",
             class_mapping={"down": 0, "up": 1}
         )
-        
+
         assert label.label_type == "classification"
         assert label.class_mapping["up"] == 1
         assert label.class_mapping["down"] == 0
@@ -133,7 +133,7 @@ class TestDatasetMetadata:
             model_type="return_prediction",
             feature_engineering_version="1.0.0"
         )
-        
+
         assert metadata.symbol == "AAPL"
         assert metadata.sequence_length == 60
         assert metadata.total_features == 25
@@ -147,11 +147,11 @@ class TestDatasetMetadata:
             date_range_end=date(2023, 12, 31),
             generation_timestamp=datetime(2024, 1, 1, 12, 0, 0)
         )
-        
+
         metadata_dict = metadata.to_dict()
         assert isinstance(metadata_dict["date_range_start"], str)
         assert isinstance(metadata_dict["generation_timestamp"], str)
-        
+
         # Test round-trip serialization
         restored_metadata = DatasetMetadata.from_dict(metadata_dict)
         assert restored_metadata.symbol == "TEST"
@@ -167,13 +167,13 @@ class TestTrainingDatasetSchema:
             FeatureSchema(name="feature1", feature_type=FeatureType.RETURN_SERIES),
             FeatureSchema(name="feature2", feature_type=FeatureType.TECHNICAL_INDICATOR)
         ]
-        
+
         labels = [
             LabelSchema(name="return_1d", label_type="regression")
         ]
-        
+
         metadata = DatasetMetadata(symbol="AAPL", total_features=2, total_labels=1)
-        
+
         schema = TrainingDatasetSchema(
             schema_version="1.0.0",
             dataset_name="test_dataset",
@@ -181,7 +181,7 @@ class TestTrainingDatasetSchema:
             labels=labels,
             metadata=metadata
         )
-        
+
         assert schema.schema_version == "1.0.0"
         assert len(schema.features) == 2
         assert len(schema.labels) == 1
@@ -195,17 +195,17 @@ class TestTrainingDatasetSchema:
             features=[FeatureSchema(name="f1", feature_type=FeatureType.RETURN_SERIES)],
             metadata=DatasetMetadata(symbol="TEST")
         )
-        
+
         schema2 = TrainingDatasetSchema(
-            schema_version="1.0.0", 
+            schema_version="1.0.0",
             dataset_name="test",
             features=[FeatureSchema(name="f1", feature_type=FeatureType.RETURN_SERIES)],
             metadata=DatasetMetadata(symbol="TEST")
         )
-        
+
         # Identical schemas should have same hash
         assert schema1.get_schema_hash() == schema2.get_schema_hash()
-        
+
         # Different schemas should have different hashes
         schema2.features[0].name = "f2"
         assert schema1.get_schema_hash() != schema2.get_schema_hash()
@@ -224,7 +224,7 @@ class TestTrainingDatasetSchema:
             ],
             labels=[
                 LabelSchema(
-                    name="test_label", 
+                    name="test_label",
                     label_type="regression",
                     class_mapping={}
                 )
@@ -235,24 +235,24 @@ class TestTrainingDatasetSchema:
                 generation_timestamp=datetime(2024, 1, 1, 12, 0, 0)
             )
         )
-        
+
         # Serialize to dict
         schema_dict = original_schema.to_dict()
         assert isinstance(schema_dict, dict)
         assert "features" in schema_dict
         assert "labels" in schema_dict
         assert "metadata" in schema_dict
-        
+
         # Deserialize back to schema
         restored_schema = TrainingDatasetSchema.from_dict(schema_dict)
-        
+
         # Verify restoration
         assert restored_schema.schema_version == original_schema.schema_version
         assert restored_schema.dataset_name == original_schema.dataset_name
         assert len(restored_schema.features) == len(original_schema.features)
         assert restored_schema.features[0].name == original_schema.features[0].name
         assert restored_schema.metadata.symbol == original_schema.metadata.symbol
-        
+
         # Verify hashes match (indicates identical schemas)
         assert restored_schema.get_schema_hash() == original_schema.get_schema_hash()
 
@@ -269,7 +269,7 @@ class TestValidationResult:
             confidence_score=0.85,
             validation_timestamp=datetime(2024, 1, 1, 12, 0, 0)
         )
-        
+
         assert result.is_valid is True
         assert len(result.errors) == 0
         assert len(result.warnings) == 1
@@ -283,7 +283,7 @@ class TestValidationResult:
             warnings=[],
             confidence_score=0.2
         )
-        
+
         assert result.is_valid is False
         assert len(result.errors) == 2
         assert result.confidence_score == 0.2
@@ -301,11 +301,11 @@ class TestSchemaFactoryFunctions:
             include_volume=True,
             technical_indicators=["sma_10", "rsi_14"]
         )
-        
+
         assert schema.dataset_name == "test_ohlcv"
         assert schema.metadata.symbol == "AAPL"
         assert schema.metadata.sequence_length == 60
-        
+
         # Should have OHLC + volume + technical indicators
         feature_names = [f.name for f in schema.features]
         assert "open" in feature_names
@@ -324,11 +324,11 @@ class TestSchemaFactoryFunctions:
             horizons=[1, 3, 5],
             sequence_length=30
         )
-        
+
         assert schema.dataset_name == "test_multi_horizon"
         assert schema.metadata.symbol == "MSFT"
         assert schema.metadata.sequence_length == 30
-        
+
         # Should have labels for each horizon
         label_names = [l.name for l in schema.labels]
         assert "return_1d" in label_names
@@ -373,7 +373,7 @@ class TestTrainingSchemaDAO:
     async def test_dao_initialization(self, mock_environment):
         """Test DAO initialization with environment."""
         dao = TrainingSchemaDAO(mock_environment)
-        
+
         assert dao.environment == mock_environment
         assert dao.datasets_table == 'dev_training_datasets'
         assert dao.registry_table == 'dev_training_schema_registry'
@@ -384,28 +384,28 @@ class TestTrainingSchemaDAO:
         """Test schema registration in database."""
         mock_environment.get_db_connection.return_value = mock_connection
         mock_connection.fetchval.return_value = 123  # Mock registry ID
-        
+
         dao = TrainingSchemaDAO(mock_environment)
         dao.conn = mock_connection
-        
+
         schema_hash = await dao.register_schema(
             sample_schema,
             created_by="test_user",
             tags=["test", "sample"],
             description="Test schema"
         )
-        
+
         # Verify database call was made
         mock_connection.fetchval.assert_called_once()
         call_args = mock_connection.fetchval.call_args
-        
+
         # Check SQL contains expected fields
         sql = call_args[0][0]
         assert "INSERT INTO" in sql
         assert "schema_name" in sql
         assert "schema_hash" in sql
         assert "created_by" in sql
-        
+
         # Verify schema hash is returned
         assert isinstance(schema_hash, str)
         assert len(schema_hash) > 0
@@ -417,18 +417,18 @@ class TestTrainingSchemaDAO:
         schema_dict = sample_schema.to_dict()
         mock_environment.get_db_connection.return_value = mock_connection
         mock_connection.fetchrow.return_value = {'schema_json': schema_dict}
-        
+
         dao = TrainingSchemaDAO(mock_environment)
         dao.conn = mock_connection
-        
+
         test_hash = "test_schema_hash_123"
         retrieved_schema = await dao.get_schema_by_hash(test_hash)
-        
+
         # Verify database query
         mock_connection.fetchrow.assert_called_once()
         call_args = mock_connection.fetchrow.call_args
         assert test_hash in call_args[0]  # Hash should be in parameters
-        
+
         # Verify schema retrieval
         assert isinstance(retrieved_schema, TrainingDatasetSchema)
         assert retrieved_schema.dataset_name == sample_schema.dataset_name
@@ -440,21 +440,21 @@ class TestTrainingSchemaDAO:
         schema_dict = sample_schema.to_dict()
         mock_environment.get_db_connection.return_value = mock_connection
         mock_connection.fetchrow.return_value = {'schema_json': schema_dict}
-        
+
         dao = TrainingSchemaDAO(mock_environment)
         dao.conn = mock_connection
-        
+
         retrieved_schema = await dao.get_schema_by_name_version(
             "test_dao_schema", "latest"
         )
-        
+
         # Verify latest version query
         mock_connection.fetchrow.assert_called_once()
         call_args = mock_connection.fetchrow.call_args
         sql = call_args[0][0]
         assert "ORDER BY created_at DESC" in sql
         assert "LIMIT 1" in sql
-        
+
         assert retrieved_schema.dataset_name == sample_schema.dataset_name
 
     @pytest.mark.asyncio
@@ -475,16 +475,16 @@ class TestTrainingSchemaDAO:
                 'last_used_at': datetime.now()
             }
         ]
-        
+
         dao = TrainingSchemaDAO(mock_environment)
         dao.conn = mock_connection
-        
+
         schemas = await dao.list_schemas(
             tags=["test"],
             status="active",
             limit=10
         )
-        
+
         assert len(schemas) == 1
         assert schemas[0]['schema_name'] == 'schema1'
         assert schemas[0]['usage_count'] == 5
@@ -505,19 +505,19 @@ class TestTrainingSchemaDAO:
                 'last_used_at': datetime.now()
             }
         ]
-        
+
         dao = TrainingSchemaDAO(mock_environment)
         dao.conn = mock_connection
-        
+
         compatible_schemas = await dao.find_compatible_schemas(
             feature_count=25,
             sequence_length=60,
             symbol="AAPL"
         )
-        
+
         assert len(compatible_schemas) == 1
         assert compatible_schemas[0]['schema_name'] == 'compatible_schema'
-        
+
         # Verify SQL query includes parameter filters
         mock_connection.fetch.assert_called_once()
         call_args = mock_connection.fetch.call_args
@@ -536,9 +536,9 @@ class TestSchemaUtilityFunctions:
         with patch('src.core.dao.training_schema_core.dao.Environment') as mock_env_class:
             mock_env_instance = MagicMock()
             mock_env_class.return_value = mock_env_instance
-            
+
             dao = await create_schema_dao('dev')
-            
+
             assert isinstance(dao, TrainingSchemaDAO)
             mock_env_class.assert_called_once()
 
@@ -552,9 +552,9 @@ class TestSchemaUtilityFunctions:
             'EVENT_INDICATOR', 'EARNINGS_METRICS', 'TEMPORAL_FEATURES',
             'CUSTOM_INDICATOR'
         ]
-        
+
         feature_type_names = [ft.name for ft in FeatureType]
-        
+
         for expected_type in expected_types:
             assert expected_type in feature_type_names, f"Missing feature type: {expected_type}"
 
@@ -562,7 +562,7 @@ class TestSchemaUtilityFunctions:
         """Test schema version validation and compatibility."""
         # Test valid schema versions
         valid_versions = ["1.0.0", "2.1.3", "0.9.0"]
-        
+
         for version in valid_versions:
             schema = TrainingDatasetSchema(
                 schema_version=version,
@@ -601,15 +601,15 @@ class TestSchemaUtilityFunctions:
                 generation_timestamp=datetime(2024, 1, 1, 15, 30, 45)
             )
         )
-        
+
         # Test JSON serialization
         schema_dict = complex_schema.to_dict()
         json_str = json.dumps(schema_dict, default=str)
-        
+
         # Verify it can be parsed back
         parsed_dict = json.loads(json_str)
         assert isinstance(parsed_dict, dict)
-        
+
         # Test deserialization
         restored_schema = TrainingDatasetSchema.from_dict(parsed_dict)
         assert restored_schema.dataset_name == complex_schema.dataset_name

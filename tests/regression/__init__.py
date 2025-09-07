@@ -11,7 +11,7 @@ Test Categories:
    - Tests the fix for 9,834 incorrectly classified instruments
    - Validates major stocks (AAPL, MSFT, etc.) are active
 
-2. test_hardcoded_api_keys_security.py  
+2. test_hardcoded_api_keys_security.py
    - Prevents hardcoded API keys from being committed to codebase
    - Tests environment variable usage patterns
    - Validates security documentation and practices
@@ -24,10 +24,10 @@ Test Categories:
 Usage:
     # Run all regression tests
     pytest tests/regression/ -v
-    
+
     # Run specific test category
     pytest tests/regression/test_tiingo_end_date_interpretation.py -v
-    
+
     # Run with integration tests
     pytest tests/regression/ -v -m integration
 

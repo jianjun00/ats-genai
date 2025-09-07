@@ -10,10 +10,10 @@ def test_stock_splits_polygon_dao(unit_test_db):
     """Test PolygonDAO stock split operations."""
     import logging
     logging.debug(f"[TEST DEBUG] unit_test_db: {unit_test_db}")
-    
+
     # Create PolygonDAO instance
     dao = PolygonDAO()
-    
+
     # Test data
     symbol = 'AAPL'
     execution_date = datetime.date(2024, 7, 30)
@@ -24,7 +24,7 @@ def test_stock_splits_polygon_dao(unit_test_db):
     record_date = datetime.date(2024, 7, 25)
     description = '2-for-1 split'
     refid = 'SPLIT123'
-    
+
     # Insert stock split
     split_id = dao.insert_stock_split(
         symbol=symbol,
@@ -36,20 +36,20 @@ def test_stock_splits_polygon_dao(unit_test_db):
         description=description,
         refid=refid
     )
-    
+
     assert split_id is not None
-    
+
     # Get splits by symbol
     splits = dao.get_stock_splits(symbol)
     assert len(splits) >= 1
-    
+
     # Find our split
     our_split = None
     for split in splits:
         if split['data']['refid'] == refid:
             our_split = split
             break
-    
+
     assert our_split is not None
     assert our_split['symbol'] == symbol
     assert our_split['date'] == execution_date
@@ -60,10 +60,10 @@ def test_dividend_polygon_dao(unit_test_db):
     """Test PolygonDAO dividend operations."""
     import logging
     logging.debug(f"[TEST DEBUG] unit_test_db: {unit_test_db}")
-    
-    # Create PolygonDAO instance  
+
+    # Create PolygonDAO instance
     dao = PolygonDAO()
-    
+
     # Test data
     symbol = 'AAPL'
     ex_dividend_date = datetime.date(2024, 8, 1)
@@ -73,7 +73,7 @@ def test_dividend_polygon_dao(unit_test_db):
     record_date = datetime.date(2024, 8, 5)
     description = 'Quarterly dividend'
     refid = 'DIV123'
-    
+
     # Insert dividend
     dividend_id = dao.insert_dividend(
         symbol=symbol,
@@ -85,20 +85,20 @@ def test_dividend_polygon_dao(unit_test_db):
         description=description,
         refid=refid
     )
-    
+
     assert dividend_id is not None
-    
+
     # Get dividends by symbol
     dividends = dao.get_dividends(symbol)
     assert len(dividends) >= 1
-    
+
     # Find our dividend
     our_dividend = None
     for dividend in dividends:
         if dividend['data']['refid'] == refid:
             our_dividend = dividend
             break
-    
+
     assert our_dividend is not None
     assert our_dividend['symbol'] == symbol
     assert our_dividend['date'] == ex_dividend_date

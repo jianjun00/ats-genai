@@ -35,16 +35,16 @@ class DBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
             found = set(m['symbol'].upper() for m in memberships)
             self.symbols = sorted(found)
         # No longer store mappings in memory - use DAO directly
-        
+
     async def resolve_instrument_id(self, symbol: str) -> Optional[int]:
         """Resolve a symbol to an instrument ID using the DAO"""
         return await self.xrefs_dao.resolve_instrument_id_by_symbol(symbol)
-        
+
     async def resolve_symbol(self, instrument_id: int) -> Optional[str]:
         """Resolve an instrument ID to a symbol using the DAO"""
         return await self.xrefs_dao.get_symbol_by_instrument_id_vendor_name(instrument_id, vendor_name="ticker")
 
-    
+
     async def get_ohlc(self, instrument_id: int, start: datetime, end: datetime, current_date: Optional[date] = None) -> Optional[Dict[str, float]]:
         print(f"[DEBUG][get_ohlc] Called with instrument_id={instrument_id}, start={start}, end={end}, current_date={current_date}")
         symbol = await self.resolve_symbol(instrument_id)

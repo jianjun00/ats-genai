@@ -315,7 +315,7 @@ def test_indicator_rolling_window(indicator_cls, attr):
     ]
     # Different indicators have different minimum interval requirements
     min_intervals = 3 if indicator_cls.__name__ == 'PL' else 1
-    
+
     # Test with insufficient intervals
     for i in range(min_intervals):
         intervals = [InstrumentInterval(1, base+timedelta(days=j), base+timedelta(days=j), v[0], v[1], v[2], v[3], v[4], v[5], v[6]) for j,v in enumerate(vals[:i+1])]
@@ -494,7 +494,7 @@ def test_z1b_valid_calculation(known_test_data, expected_z_values):
     """Test Z1B calculation with known valid data"""
     z1b = Z1B()
     z1b.update(known_test_data)
-    
+
     assert z1b.status == 'ok'
     assert z1b.latest_z1b is not None
     assert abs(z1b.get_value() - expected_z_values['z1b']) < 0.1  # Allow small rounding errors
@@ -504,18 +504,18 @@ def test_z1b_insufficient_intervals():
     """Test Z1B behavior with insufficient intervals"""
     z1b = Z1B()
     base = datetime(2024, 8, 19)
-    
+
     # Test with 0 intervals
     z1b.update([])
     assert z1b.status == 'invalid'
     assert z1b.get_value() is None
-    
+
     # Test with 1 interval
     intervals = [InstrumentInterval(1, base, base, 23800.75, 23838, 23426, 23469.5, 100, 1000, 'ok')]
     z1b.update(intervals)
     assert z1b.status == 'invalid'
     assert z1b.get_value() is None
-    
+
     # Test with 2 intervals
     intervals.append(InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 23461, 23485.5, 23035, 23324, 100, 1000, 'ok'))
     z1b.update(intervals)
@@ -526,7 +526,7 @@ def test_z1b_invalid_status():
     """Test Z1B behavior with invalid interval status"""
     z1b = Z1B()
     base = datetime(2024, 8, 19)
-    
+
     # One invalid status
     intervals = [
         InstrumentInterval(1, base, base, 23800.75, 23838, 23426, 23469.5, 100, 1000, 'ok'),
@@ -541,7 +541,7 @@ def test_z1b_missing_ohlc_data():
     """Test Z1B behavior with missing OHLC data"""
     z1b = Z1B()
     base = datetime(2024, 8, 19)
-    
+
     # Missing open
     intervals = [
         InstrumentInterval(1, base, base, None, 23838, 23426, 23469.5, 100, 1000, 'ok'),
@@ -551,21 +551,21 @@ def test_z1b_missing_ohlc_data():
     z1b.update(intervals)
     assert z1b.status == 'invalid'
     assert z1b.get_value() is None
-    
+
     # Missing high
     intervals[0].open = 23800.75
     intervals[0].high = None
     z1b.update(intervals)
     assert z1b.status == 'invalid'
     assert z1b.get_value() is None
-    
+
     # Missing low
     intervals[0].high = 23838
     intervals[0].low = None
     z1b.update(intervals)
     assert z1b.status == 'invalid'
     assert z1b.get_value() is None
-    
+
     # Missing close
     intervals[0].low = 23426
     intervals[0].close = None
@@ -577,7 +577,7 @@ def test_z1b_nan_values():
     """Test Z1B behavior with NaN values"""
     z1b = Z1B()
     base = datetime(2024, 8, 19)
-    
+
     intervals = [
         InstrumentInterval(1, base, base, float('nan'), 23838, 23426, 23469.5, 100, 1000, 'ok'),
         InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 23461, 23485.5, 23035, 23324, 100, 1000, 'ok'),
@@ -593,7 +593,7 @@ def test_z2b_valid_calculation(known_test_data, expected_z_values):
     """Test Z2B calculation with known valid data"""
     z2b = Z2B()
     z2b.update(known_test_data)
-    
+
     assert z2b.status == 'ok'
     assert z2b.latest_z2b is not None
     assert abs(z2b.get_value() - expected_z_values['z2b']) < 0.1
@@ -612,7 +612,7 @@ def test_z2b_insufficient_intervals():
     """Test Z2B behavior with insufficient intervals"""
     z2b = Z2B()
     base = datetime(2024, 8, 19)
-    
+
     intervals = [InstrumentInterval(1, base, base, 23800.75, 23838, 23426, 23469.5, 100, 1000, 'ok')]
     z2b.update(intervals)
     assert z2b.status == 'invalid'
@@ -624,7 +624,7 @@ def test_z5t_valid_calculation(known_test_data, expected_z_values):
     """Test Z5T calculation with known valid data"""
     z5t = Z5T()
     z5t.update(known_test_data)
-    
+
     assert z5t.status == 'ok'
     assert z5t.latest_z5t is not None
     assert abs(z5t.get_value() - expected_z_values['z5t']) < 0.1
@@ -643,7 +643,7 @@ def test_z5t_invalid_data():
     """Test Z5T behavior with invalid data"""
     z5t = Z5T()
     base = datetime(2024, 8, 19)
-    
+
     # Mix of valid and invalid status
     intervals = [
         InstrumentInterval(1, base, base, 23800.75, 23838, 23426, 23469.5, 100, 1000, 'ok'),
@@ -655,12 +655,12 @@ def test_z5t_invalid_data():
     assert z5t.get_value() is None
 
 
-# Z6T Tests  
+# Z6T Tests
 def test_z6t_valid_calculation(known_test_data, expected_z_values):
     """Test Z6T calculation with known valid data"""
     z6t = Z6T()
     z6t.update(known_test_data)
-    
+
     assert z6t.status == 'ok'
     assert z6t.latest_z6t is not None
     assert abs(z6t.get_value() - expected_z_values['z6t']) < 0.1
@@ -679,16 +679,16 @@ def test_z6t_correlation_with_z5t(known_test_data):
     """Test Z6T correlation with Z5T (should be highly correlated ~0.9985)"""
     z5t = Z5T()
     z6t = Z6T()
-    
+
     z5t.update(known_test_data)
     z6t.update(known_test_data)
-    
+
     z5t_value = z5t.get_value()
     z6t_value = z6t.get_value()
-    
+
     # Z6T should be larger than Z5T (upper breakout zone vs upper resistance)
     assert z6t_value > z5t_value
-    
+
     # The difference should be roughly 123 +/- 35 based on our analysis
     difference = z6t_value - z5t_value
     assert 80 < difference < 250  # Allow wide range due to coefficient complexity
@@ -697,7 +697,7 @@ def test_z6t_correlation_with_z5t(known_test_data):
 # Cross-validation tests for all Z-series indicators
 @pytest.mark.parametrize("indicator_class,expected_key", [
     (Z1B, 'z1b'),
-    (Z2B, 'z2b'), 
+    (Z2B, 'z2b'),
     (Z5T, 'z5t'),
     (Z6T, 'z6t')
 ])
@@ -705,7 +705,7 @@ def test_z_series_parametrized(indicator_class, expected_key, known_test_data, e
     """Parametrized test for all Z-series indicators"""
     indicator = indicator_class()
     indicator.update(known_test_data)
-    
+
     assert indicator.status == 'ok'
     assert indicator.get_value() is not None
     assert abs(indicator.get_value() - expected_z_values[expected_key]) < 0.1
@@ -716,36 +716,36 @@ def test_z_series_ordering(known_test_data):
     """Test that Z-series indicators follow expected ordering relationships"""
     indicators = {'z1b': Z1B(), 'z2b': Z2B(), 'z5t': Z5T(), 'z6t': Z6T()}
     values = {}
-    
+
     for name, indicator in indicators.items():
         indicator.update(known_test_data)
         values[name] = indicator.get_value()
-    
+
     # Z1B should be lowest (lower support zone)
     assert values['z1b'] < values['z2b']
-    assert values['z1b'] < values['z5t'] 
+    assert values['z1b'] < values['z5t']
     assert values['z1b'] < values['z6t']
-    
+
     # Z2B should be between Z1B and the upper zones
     assert values['z1b'] < values['z2b'] < values['z5t']
     assert values['z1b'] < values['z2b'] < values['z6t']
-    
+
     # Z6T should be highest (upper breakout zone)
     assert values['z5t'] < values['z6t']
     assert values['z2b'] < values['z6t']
-    
+
 
 def test_z_series_edge_cases():
     """Test Z-series indicators with edge case data"""
     base = datetime(2024, 8, 19)
-    
+
     # Test with very small values
     small_intervals = [
         InstrumentInterval(1, base, base, 1.0, 1.1, 0.9, 1.05, 100, 1000, 'ok'),
         InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 1.05, 1.15, 0.95, 1.1, 100, 1000, 'ok'),
         InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 1.1, 1.2, 1.0, 1.15, 100, 1000, 'ok'),
     ]
-    
+
     indicators = [Z1B(), Z2B(), Z5T(), Z6T()]
     for indicator in indicators:
         indicator.update(small_intervals)
@@ -753,14 +753,14 @@ def test_z_series_edge_cases():
         assert indicator.get_value() is not None
         assert not math.isnan(indicator.get_value())
         assert not math.isinf(indicator.get_value())
-    
+
     # Test with very large values
     large_intervals = [
         InstrumentInterval(1, base, base, 100000.0, 101000.0, 99000.0, 100500.0, 100, 1000, 'ok'),
         InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 100500.0, 101500.0, 99500.0, 101000.0, 100, 1000, 'ok'),
         InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 101000.0, 102000.0, 100000.0, 101500.0, 100, 1000, 'ok'),
     ]
-    
+
     for indicator in indicators:
         indicator.update(large_intervals)
         assert indicator.status == 'ok'
@@ -772,15 +772,15 @@ def test_z_series_edge_cases():
 def test_z_series_coefficient_precision():
     """Test that coefficients are stored with sufficient precision"""
     indicators = {'Z1B': Z1B(), 'Z2B': Z2B(), 'Z5T': Z5T(), 'Z6T': Z6T()}
-    
+
     for name, indicator in indicators.items():
         coeffs = indicator.coefficients
         assert len(coeffs) == 12, f"{name} should have 12 coefficients"
-        
+
         # Check that coefficients are not all zeros or all the same
         assert not all(c == 0 for c in coeffs), f"{name} coefficients should not all be zero"
         assert len(set(coeffs)) > 6, f"{name} should have varied coefficients"
-        
+
         # Check precision - should have at least 5 decimal places of precision
         for i, coeff in enumerate(coeffs):
             if abs(coeff) > 1e-6:  # Skip very small coefficients
@@ -792,33 +792,33 @@ def test_z_series_coefficient_precision():
 def test_z_series_multiple_updates():
     """Test Z-series indicators with multiple updates (should handle state correctly)"""
     base = datetime(2024, 8, 19)
-    
+
     # First set of intervals
     intervals1 = [
         InstrumentInterval(1, base, base, 23800.75, 23838, 23426, 23469.5, 100, 1000, 'ok'),
         InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 23461, 23485.5, 23035, 23324, 100, 1000, 'ok'),
         InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 23323, 23369.25, 23119, 23219.75, 100, 1000, 'ok'),
     ]
-    
+
     # Second set of intervals (different values)
     intervals2 = [
         InstrumentInterval(1, base, base, 24000.0, 24100.0, 23900.0, 24050.0, 100, 1000, 'ok'),
         InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 24050.0, 24150.0, 23950.0, 24100.0, 100, 1000, 'ok'),
         InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 24100.0, 24200.0, 24000.0, 24150.0, 100, 1000, 'ok'),
     ]
-    
+
     z1b = Z1B()
-    
+
     # First update
     z1b.update(intervals1)
     first_value = z1b.get_value()
     first_status = z1b.status
-    
+
     # Second update
-    z1b.update(intervals2) 
+    z1b.update(intervals2)
     second_value = z1b.get_value()
     second_status = z1b.status
-    
+
     assert first_status == 'ok'
     assert second_status == 'ok'
     assert first_value != second_value  # Values should be different
@@ -830,15 +830,15 @@ def test_z_series_performance():
     """Test that Z-series indicators perform calculations efficiently"""
     import time
     base = datetime(2024, 8, 19)
-    
+
     intervals = [
         InstrumentInterval(1, base, base, 23800.75, 23838, 23426, 23469.5, 100, 1000, 'ok'),
         InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 23461, 23485.5, 23035, 23324, 100, 1000, 'ok'),
         InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 23323, 23369.25, 23119, 23219.75, 100, 1000, 'ok'),
     ]
-    
+
     indicators = [Z1B(), Z2B(), Z5T(), Z6T()]
-    
+
     # Time multiple updates
     start_time = time.time()
     for _ in range(1000):
@@ -846,7 +846,7 @@ def test_z_series_performance():
             indicator.update(intervals)
             _ = indicator.get_value()
     end_time = time.time()
-    
+
     elapsed = end_time - start_time
     # Should complete 4000 updates (1000 * 4 indicators) in reasonable time
     assert elapsed < 1.0, f"Performance test took too long: {elapsed:.3f} seconds"
@@ -860,19 +860,19 @@ def test_envelope_top_not_normalized():
         InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 99.8, 102.5, 99.1, 101.8, 120, 1200, 'ok'),
         InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 101.2, 103.8, 100.5, 102.9, 130, 1300, 'ok'),
     ]
-    
+
     envelope_top = EnvelopeTop()
     envelope_top.update(intervals)
-    
+
     assert envelope_top.status == 'ok'
     value = envelope_top.get_value()
-    
+
     # Envelope Top should return actual price level, not normalized value
     # With prices around $100-103, envelope_top should be in similar price range
     assert value is not None, "EnvelopeTop should return a value"
     assert value > 50.0, f"EnvelopeTop should return price level > 50, got {value}"
     assert value < 200.0, f"EnvelopeTop should return price level < 200, got {value}"
-    
+
     # Most importantly: should NOT be between 0 and 1 (normalized)
     assert not (0.0 <= value <= 1.0), f"EnvelopeTop should NOT be normalized between 0-1, got {value}"
 
@@ -885,19 +885,19 @@ def test_envelope_bot_not_normalized():
         InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 99.8, 102.5, 99.1, 101.8, 120, 1200, 'ok'),
         InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 101.2, 103.8, 100.5, 102.9, 130, 1300, 'ok'),
     ]
-    
+
     envelope_bot = EnvelopeBot()
     envelope_bot.update(intervals)
-    
+
     assert envelope_bot.status == 'ok'
     value = envelope_bot.get_value()
-    
+
     # Envelope Bot should return actual price level, not normalized value
     # With prices around $100-103, envelope_bot should be in similar price range
     assert value is not None, "EnvelopeBot should return a value"
     assert value > 50.0, f"EnvelopeBot should return price level > 50, got {value}"
     assert value < 200.0, f"EnvelopeBot should return price level < 200, got {value}"
-    
+
     # Most importantly: should NOT be between 0 and 1 (normalized)
     assert not (0.0 <= value <= 1.0), f"EnvelopeBot should NOT be normalized between 0-1, got {value}"
 
@@ -910,7 +910,7 @@ def test_price_level_indicators_not_normalized():
         InstrumentInterval(1, base+timedelta(days=1), base+timedelta(days=1), 149.8, 152.5, 149.1, 151.8, 120, 1200, 'ok'),
         InstrumentInterval(1, base+timedelta(days=2), base+timedelta(days=2), 151.2, 153.8, 150.5, 152.9, 130, 1300, 'ok'),
     ]
-    
+
     # Test all price level indicators
     indicators = [
         ('EnvelopeTop', EnvelopeTop()),
@@ -920,18 +920,18 @@ def test_price_level_indicators_not_normalized():
         ('Z5T', Z5T()),
         ('Z6T', Z6T())
     ]
-    
+
     for name, indicator in indicators:
         indicator.update(intervals)
         assert indicator.status == 'ok', f"{name} should have valid status"
-        
+
         value = indicator.get_value()
         assert value is not None, f"{name} should return a value"
-        
+
         # Price level indicators should return actual price levels, not normalized values
         # With prices around $150, indicators should be in reasonable price range
         assert abs(value) > 10.0, f"{name} should return significant price level, got {value}"
-        
+
         # Most importantly: should NOT be normalized between 0 and 1
         if value >= 0:
             assert not (0.0 <= value <= 1.0), f"{name} should NOT be normalized between 0-1, got {value}"

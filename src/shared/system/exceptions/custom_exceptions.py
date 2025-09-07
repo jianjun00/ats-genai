@@ -10,10 +10,10 @@ from typing import Optional, Dict, Any
 
 class ATSBaseException(Exception):
     """Base exception for all ATS-GenAI exceptions."""
-    
+
     def __init__(
-        self, 
-        message: str, 
+        self,
+        message: str,
         error_code: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None
     ):
@@ -21,7 +21,7 @@ class ATSBaseException(Exception):
         self.error_code = error_code or self.__class__.__name__
         self.context = context or {}
         super().__init__(self.message)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert exception to dictionary for logging/API responses."""
         return {
@@ -210,12 +210,12 @@ def create_error_context(
 ) -> Dict[str, Any]:
     """
     Create standardized error context.
-    
+
     Args:
         operation: The operation that failed
         component: The component where error occurred
         **kwargs: Additional context information
-    
+
     Returns:
         Dictionary with error context
     """
@@ -231,23 +231,23 @@ def create_error_context(
 def handle_database_error(e: Exception, operation: str) -> DatabaseError:
     """
     Convert generic database exceptions to specific ATS exceptions.
-    
+
     Args:
         e: Original exception
         operation: Database operation that failed
-    
+
     Returns:
         Appropriate DatabaseError subclass
     """
     import psycopg2
     import sqlalchemy.exc
-    
+
     context = create_error_context(
         operation=operation,
         component="database",
         original_error=str(e)
     )
-    
+
     if isinstance(e, (psycopg2.OperationalError, sqlalchemy.exc.OperationalError)):
         return DatabaseConnectionError(
             f"Database connection failed during {operation}",
@@ -268,24 +268,24 @@ def handle_database_error(e: Exception, operation: str) -> DatabaseError:
 def handle_api_error(e: Exception, vendor: str, operation: str) -> APIError:
     """
     Convert generic API exceptions to specific ATS exceptions.
-    
+
     Args:
         e: Original exception
         vendor: API vendor name
         operation: API operation that failed
-    
+
     Returns:
         Appropriate APIError subclass
     """
     import requests
-    
+
     context = create_error_context(
         operation=operation,
         component="api",
         vendor=vendor,
         original_error=str(e)
     )
-    
+
     if isinstance(e, requests.exceptions.Timeout):
         return APITimeoutError(
             f"{vendor} API timeout during {operation}",

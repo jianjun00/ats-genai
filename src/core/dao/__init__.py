@@ -30,7 +30,7 @@ __all__ = [
     'BaseDAO',
     'VendorDAO',
     'analytics',
-    'corporate_actions', 
+    'corporate_actions',
     'infrastructure',
     'instruments',
     'market_data',

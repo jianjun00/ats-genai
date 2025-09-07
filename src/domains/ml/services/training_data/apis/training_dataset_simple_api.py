@@ -60,7 +60,7 @@ async def list_training_datasets():
     """List all training datasets"""
     try:
         conn = await get_db_connection()
-        
+
         # Use environment-aware table name
         env = Environment()
         table_name = env.get_table_name("training_datasets")
@@ -72,9 +72,9 @@ async def list_training_datasets():
         FROM {table_name}
         ORDER BY created_at DESC
         """
-        
+
         rows = await conn.fetch(query)
-        
+
         datasets = []
         for row in rows:
             datasets.append(TrainingDatasetInfo(
@@ -93,14 +93,14 @@ async def list_training_datasets():
                 date_range_end=row['date_range_end'],
                 created_at=row['created_at']
             ))
-        
+
         await conn.close()
-        
+
         return TrainingDatasetListResponse(
             datasets=datasets,
             total_count=len(datasets)
         )
-        
+
     except Exception as e:
         logger.error(f"Error listing training datasets: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to list training datasets: {str(e)}")
@@ -110,7 +110,7 @@ async def get_training_dataset_distributions(dataset_id: int):
     """Get TFDV distributions for a training dataset"""
     try:
         conn = await get_db_connection()
-        
+
         # Use environment-aware table name
         env = Environment()
         table_name = env.get_table_name("training_datasets")
@@ -120,19 +120,19 @@ async def get_training_dataset_distributions(dataset_id: int):
         FROM {table_name}
         WHERE id = $1
         """
-        
+
         row = await conn.fetchrow(query, dataset_id)
         if not row:
             raise HTTPException(status_code=404, detail=f"Training dataset {dataset_id} not found")
-        
+
         await conn.close()
-        
+
         # Parse JSONB fields
         tfdv_stats = json.loads(row['tfdv_statistics']) if row['tfdv_statistics'] else {}
         feature_dists = json.loads(row['feature_distributions']) if row['feature_distributions'] else {}
         label_dists = json.loads(row['label_distributions']) if row['label_distributions'] else {}
         anomalies = json.loads(row['tfdv_anomalies']) if row['tfdv_anomalies'] else {}
-        
+
         return TrainingDatasetDistributions(
             data_quality_score=row['data_quality_score'] or 0.0,
             feature_completeness=row['feature_completeness'] or 0.0,
@@ -142,7 +142,7 @@ async def get_training_dataset_distributions(dataset_id: int):
             tfdv_statistics=tfdv_stats,
             tfdv_anomalies=anomalies
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -154,24 +154,24 @@ async def get_training_dataset_histogram(dataset_id: int, feature_name: Optional
     """Get histogram data for training dataset"""
     try:
         conn = await get_db_connection()
-        
+
         # Get TFDV histogram path
         query = """
         SELECT tfdv_histogram_path, feature_distributions, label_distributions
-        FROM dev_training_datasets 
+        FROM dev_training_datasets
         WHERE id = $1
         """
-        
+
         row = await conn.fetchrow(query, dataset_id)
         if not row:
             raise HTTPException(status_code=404, detail=f"Training dataset {dataset_id} not found")
-        
+
         await conn.close()
-        
+
         # For now, return mock histogram data based on distributions
         feature_dists = json.loads(row['feature_distributions']) if row['feature_distributions'] else {}
         label_dists = json.loads(row['label_distributions']) if row['label_distributions'] else {}
-        
+
         histogram_data = {
             "tfdv_statistics": {
                 "features": feature_dists,
@@ -179,15 +179,15 @@ async def get_training_dataset_histogram(dataset_id: int, feature_name: Optional
             },
             "histogram_path": row['tfdv_histogram_path'] or ""
         }
-        
+
         if feature_name and feature_name in feature_dists:
             # Return specific feature histogram
             histogram_data["selected_feature"] = {
                 feature_name: feature_dists[feature_name]
             }
-        
+
         return histogram_data
-        
+
     except HTTPException:
         raise
     except Exception as e:

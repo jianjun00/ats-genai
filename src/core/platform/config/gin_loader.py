@@ -17,14 +17,14 @@ logger = logging.getLogger(__name__)
 class GinConfigLoader:
     """
     Centralized Gin configuration loader with environment support.
-    
+
     Automatically loads base configuration and applies environment-specific overrides.
     """
-    
+
     def __init__(self, config_root: Optional[Union[str, Path]] = None):
         """
         Initialize the configuration loader.
-        
+
         Args:
             config_root: Root directory containing config files (default: auto-detect)
         """
@@ -32,21 +32,21 @@ class GinConfigLoader:
             # Auto-detect config directory
             current_file = Path(__file__)
             config_root = current_file.parent.parent.parent.parent / "config"
-        
+
         self.config_root = Path(config_root)
         self.environments_dir = self.config_root / "environments"
         self._loaded_configs: List[str] = []
-        
+
         # Ensure config directory exists
         if not self.config_root.exists():
             raise FileNotFoundError(f"Config directory not found: {self.config_root}")
-    
-    def load_config(self, environment: Optional[str] = None, 
+
+    def load_config(self, environment: Optional[str] = None,
                    additional_configs: Optional[List[str]] = None,
                    clear_existing: bool = True) -> None:
         """
         Load configuration for specified environment.
-        
+
         Args:
             environment: Target environment (dev, intg, prod, test)
             additional_configs: Additional config files to load
@@ -55,18 +55,18 @@ class GinConfigLoader:
         if clear_existing:
             gin.clear_config()
             self._loaded_configs = []
-        
+
         # Detect environment if not specified
         if environment is None:
             environment = self._detect_environment()
-        
+
         # Load base configuration first
         base_config = self.config_root / "base.gin"
         if base_config.exists():
             self._load_gin_file(base_config)
         else:
             logger.warning(f"Base configuration not found: {base_config}")
-        
+
         # Load environment-specific configuration
         env_config = self.environments_dir / f"{environment}.gin"
         if env_config.exists():
@@ -80,7 +80,7 @@ class GinConfigLoader:
             else:
                 logger.error(f"Environment config not found: {environment}")
                 raise FileNotFoundError(f"Config for environment '{environment}' not found")
-        
+
         # Load additional configurations
         if additional_configs:
             for config_name in additional_configs:
@@ -89,10 +89,10 @@ class GinConfigLoader:
                     self._load_gin_file(config_path)
                 else:
                     logger.warning(f"Additional config not found: {config_name}")
-        
+
         logger.info(f"Loaded configuration for environment: {environment}")
         logger.debug(f"Loaded configs: {self._loaded_configs}")
-    
+
     def _load_gin_file(self, config_path: Path) -> None:
         """Load a single gin configuration file."""
         try:
@@ -102,14 +102,14 @@ class GinConfigLoader:
         except Exception as e:
             logger.error(f"Failed to load gin config {config_path}: {e}")
             raise
-    
+
     def _resolve_config_path(self, config_name: str) -> Optional[Path]:
         """
         Resolve config name to full path, checking multiple locations.
-        
+
         Args:
             config_name: Config filename or path
-            
+
         Returns:
             Resolved Path or None if not found
         """
@@ -120,7 +120,7 @@ class GinConfigLoader:
                 return path
             else:
                 return self.config_root / path
-        
+
         # Check common locations
         candidates = [
             self.config_root / config_name,
@@ -128,17 +128,17 @@ class GinConfigLoader:
             self.environments_dir / config_name,
             self.environments_dir / f"{config_name}.gin",
         ]
-        
+
         for candidate in candidates:
             if candidate.exists():
                 return candidate
-        
+
         return None
-    
+
     def _detect_environment(self) -> str:
         """
         Auto-detect environment from various sources.
-        
+
         Returns:
             Detected environment name
         """
@@ -146,50 +146,50 @@ class GinConfigLoader:
         env_var = os.getenv('ENVIRONMENT') or os.getenv('ENV')
         if env_var:
             return env_var.lower()
-        
+
         # Check if running in Docker
         if os.path.exists('/.dockerenv'):
             # Check for container-specific environment markers
             if os.getenv('ATS_ENV'):
                 return os.getenv('ATS_ENV').lower()
-            
+
             # Default for containers
             return 'intg' if os.getenv('INTG_MODE') else 'dev'
-        
+
         # Check for test execution
         if 'pytest' in os.environ.get('_', ''):
             return 'test'
-        
+
         # Default to dev
         return 'dev'
-    
+
     def get_loaded_configs(self) -> List[str]:
         """Get list of loaded configuration files."""
         return self._loaded_configs.copy()
-    
+
     def validate_config(self) -> Dict[str, bool]:
         """
         Validate that required configuration values are set.
-        
+
         Returns:
             Dictionary of validation results
         """
         validation_results = {}
-        
+
         # Check critical configuration values
         critical_configs = [
             'env_type',
             'database.host',
             'database.database',
         ]
-        
+
         for config_key in critical_configs:
             try:
                 value = gin.get_configurable(config_key)
                 validation_results[config_key] = value is not None
             except (ValueError, KeyError):
                 validation_results[config_key] = False
-        
+
         return validation_results
 
 
@@ -209,7 +209,7 @@ def load_config(environment: Optional[str] = None,
                additional_configs: Optional[List[str]] = None) -> None:
     """
     Convenience function to load gin configuration.
-    
+
     Args:
         environment: Target environment
         additional_configs: Additional config files to load

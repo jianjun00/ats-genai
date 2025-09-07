@@ -13,7 +13,7 @@ import json
 
 class TestTimestampFormatFixes(unittest.TestCase):
     """Test timestamp format consistency across API endpoints."""
-    
+
     def setUp(self):
         """Set up test fixtures."""
         self.base_timestamp = datetime(2025, 7, 1, 9, 0, 0, tzinfo=timezone.utc)
@@ -26,7 +26,7 @@ class TestTimestampFormatFixes(unittest.TestCase):
         expected_timestamp = int(self.base_timestamp.timestamp())  # Calculate dynamically
         self.assertEqual(timestamp, expected_timestamp)
         self.assertIsInstance(timestamp, int)
-        
+
         # Test with offset
         offset_dt = self.base_timestamp + timedelta(minutes=5)
         offset_timestamp = int(offset_dt.timestamp())
@@ -35,15 +35,15 @@ class TestTimestampFormatFixes(unittest.TestCase):
     def test_timedelta_calculations_vs_replace(self):
         """Test that timedelta prevents minute range errors."""
         base_dt = datetime(2025, 7, 1, 9, 0, 0, tzinfo=timezone.utc)
-        
+
         # This would cause "minute must be in 0..59" error
         # base_dt.replace(minute=base_dt.minute + 65)  # Would fail
-        
+
         # But timedelta works correctly
         result_dt = base_dt + timedelta(minutes=65)
         expected_dt = datetime(2025, 7, 1, 10, 5, 0, tzinfo=timezone.utc)
         self.assertEqual(result_dt, expected_dt)
-        
+
         # Test various offsets that would break replace()
         for offset in [60, 120, 300, 1440]:  # 1h, 2h, 5h, 24h in minutes
             result = base_dt + timedelta(minutes=offset)
@@ -53,15 +53,15 @@ class TestTimestampFormatFixes(unittest.TestCase):
     def test_timeframe_timestamp_calculations(self):
         """Test timestamp calculations for different timeframes."""
         base_dt = datetime(2025, 7, 1, 9, 0, 0, tzinfo=timezone.utc)
-        
+
         timeframe_configs = {
             '5m': {'minutes': 5, 'sequence_length': 52},
-            '15m': {'minutes': 15, 'sequence_length': 52}, 
+            '15m': {'minutes': 15, 'sequence_length': 52},
             '1h': {'hours': 1, 'sequence_length': 24},
             '1d': {'days': 1, 'sequence_length': 20},
             '1w': {'days': 7, 'sequence_length': 12}
         }
-        
+
         for timeframe, config in timeframe_configs.items():
             for i in range(min(5, config['sequence_length'])):  # Test first 5 steps
                 if 'minutes' in config:
@@ -70,7 +70,7 @@ class TestTimestampFormatFixes(unittest.TestCase):
                     expected_dt = base_dt + timedelta(hours=i * config['hours'])
                 elif 'days' in config:
                     expected_dt = base_dt + timedelta(days=i * config['days'])
-                
+
                 timestamp = int(expected_dt.timestamp())
                 self.assertIsInstance(timestamp, int)
                 self.assertGreater(timestamp, 0)
@@ -79,14 +79,14 @@ class TestTimestampFormatFixes(unittest.TestCase):
         """Test that timestamps are compatible with JavaScript Date objects."""
         # Simulate what frontend JavaScript does
         unix_seconds = int(self.base_timestamp.timestamp())
-        
+
         # JavaScript: new Date(timestamp * 1000)
         js_milliseconds = unix_seconds * 1000
-        
+
         # Verify this produces a valid timestamp range
         self.assertGreater(js_milliseconds, 0)
         self.assertLess(js_milliseconds, 2147483647000)  # Max 32-bit timestamp in ms
-        
+
         # Verify it's in the expected time range (2025)
         self.assertGreater(unix_seconds, 1704067200)  # Jan 1, 2024
         self.assertLess(unix_seconds, 1767225600)     # Jan 1, 2026
@@ -96,19 +96,19 @@ class TestTimestampFormatFixes(unittest.TestCase):
         # These formats would cause JavaScript parsing errors
         bad_formats = [
             "2025-07-01T09:00:00",           # Missing timezone
-            "2025-07-01T09:00:00.000",       # Missing timezone  
+            "2025-07-01T09:00:00.000",       # Missing timezone
             "2025-07-01 09:00:00",           # Wrong format
             "07/01/2025 09:00:00",           # US format
             "1719914400.0"                   # String number
         ]
-        
+
         # Good format (what we should return)
         good_format = 1719914400  # Unix epoch seconds as integer
-        
+
         # Verify good format works
         self.assertIsInstance(good_format, int)
         self.assertGreater(good_format, 0)
-        
+
         # Verify bad formats would cause issues
         for bad_format in bad_formats:
             self.assertIsInstance(bad_format, str)
@@ -132,12 +132,12 @@ class TestTimestampFormatFixes(unittest.TestCase):
                 ]
             }
         }
-        
+
         # Verify timestamp is integer
         timestamp = expected_response["ohlc_data"]["5m"][0]["timestamp"]
         self.assertIsInstance(timestamp, int)
         self.assertGreater(timestamp, 0)
-        
+
         # Verify JSON serialization doesn't break
         json_str = json.dumps(expected_response)
         parsed_back = json.loads(json_str)
@@ -146,7 +146,7 @@ class TestTimestampFormatFixes(unittest.TestCase):
 
 class TestVariableScopeFixes(unittest.TestCase):
     """Test variable scope fixes that prevented 'timeframe' is not defined errors."""
-    
+
     def test_timeframe_prefix_consistency(self):
         """Test that timeframe_prefix is properly derived from file paths."""
         test_cases = [
@@ -156,7 +156,7 @@ class TestVariableScopeFixes(unittest.TestCase):
             ('/data/training_data/89/AAPL_20250701_000000_20250906_000000/1d/AAPL_20250701_000000_20250906_000000.arrayrecord', '1d', 20),
             ('/data/training_data/89/AAPL_20250701_000000_20250906_000000/1w/AAPL_20250701_000000_20250906_000000.arrayrecord', '1w', 12),
         ]
-        
+
         for file_path, expected_prefix, expected_length in test_cases:
             # Simulate the logic from _read_arrayrecord_ohlc
             if '/5m/' in file_path:
@@ -177,14 +177,14 @@ class TestVariableScopeFixes(unittest.TestCase):
             else:
                 timeframe_prefix = '5m'  # Default
                 sequence_length = 52
-                
+
             self.assertEqual(timeframe_prefix, expected_prefix)
             self.assertEqual(sequence_length, expected_length)
 
     def test_column_name_generation(self):
         """Test that column names are generated correctly with timeframe_prefix."""
         timeframe_prefix = '5m'
-        
+
         for i in range(5):  # Test first 5 indices
             expected_columns = {
                 'open': f'{timeframe_prefix}_open_{i:03d}',
@@ -194,7 +194,7 @@ class TestVariableScopeFixes(unittest.TestCase):
                 'volume': f'{timeframe_prefix}_volume_{i:03d}',
                 'vwap': f'{timeframe_prefix}_vwap_{i:03d}'
             }
-            
+
             # Verify format
             for col_type, col_name in expected_columns.items():
                 self.assertIn(timeframe_prefix, col_name)

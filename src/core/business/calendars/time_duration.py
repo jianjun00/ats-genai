@@ -20,16 +20,16 @@ class DurationType(Enum):
 class TimeDuration:
     """
     A class to represent time durations and calculate end times from start times.
-    
+
     Supports various duration types:
     - 5 minutes, 15 minutes, 30 minutes, 60 minutes
     - 1 day, 1 week, 1 month, 1 quarter, 1 year
     """
-    
+
     def __init__(self, duration_type: Union[DurationType, str]):
         """
         Initialize TimeDuration with a duration type.
-        
+
         Args:
             duration_type: Either a DurationType enum or string representation
         """
@@ -52,14 +52,14 @@ class TimeDuration:
             self.duration_type = duration_map[duration_type]
         else:
             self.duration_type = duration_type
-    
+
     def get_end_time(self, start_time: datetime) -> datetime:
         """
         Calculate the end time based on the start time and duration type.
-        
+
         Args:
             start_time: The starting datetime
-            
+
         Returns:
             The calculated end datetime
         """
@@ -83,11 +83,11 @@ class TimeDuration:
             return start_time + relativedelta(years=1)
         else:
             raise ValueError(f"Unsupported duration type: {self.duration_type}")
-    
+
     def get_duration_string(self) -> str:
         """Get the string representation of the duration type."""
         return self.duration_type.value
-    
+
     def get_duration_minutes(self) -> Union[int, None]:
         """
         Get the duration in minutes for minute-based durations.
@@ -103,7 +103,7 @@ class TimeDuration:
             return 60
         else:
             return None  # Date-based durations don't have fixed minute values
-    
+
     def is_intraday(self) -> bool:
         """Check if this is an intraday duration (minutes/hours)."""
         return self.duration_type in [
@@ -112,7 +112,7 @@ class TimeDuration:
             DurationType.MINUTES_30,
             DurationType.MINUTES_60
         ]
-    
+
     def is_daily_or_longer(self) -> bool:
         """Check if this is a daily or longer duration."""
         return self.duration_type in [
@@ -122,7 +122,7 @@ class TimeDuration:
             DurationType.QUARTERLY,
             DurationType.YEARLY
         ]
-    
+
     def __str__(self) -> str:
         dt = getattr(self, "duration_type", None)
         return f"TimeDuration({dt.value if dt else 'INVALID'})"
@@ -130,62 +130,62 @@ class TimeDuration:
     def __repr__(self) -> str:
         dt = getattr(self, "duration_type", None)
         return f"TimeDuration(duration_type={dt if dt else 'INVALID'})"
-    
+
     def __eq__(self, other) -> bool:
         """Check equality with another TimeDuration."""
         if not isinstance(other, TimeDuration):
             return False
         return self.duration_type == other.duration_type
-    
+
     def __hash__(self) -> int:
         """Make TimeDuration hashable."""
         return hash(self.duration_type)
-    
+
     @classmethod
     def get_all_supported_durations(cls) -> list[str]:
         """Get a list of all supported duration strings."""
         return [duration.value for duration in DurationType]
-    
+
     @classmethod
     def create_5_minutes(cls) -> 'TimeDuration':
         """Factory method to create a 5-minute duration."""
         return cls(DurationType.MINUTES_5)
-    
+
     @classmethod
     def create_15_minutes(cls) -> 'TimeDuration':
         """Factory method to create a 15-minute duration."""
         return cls(DurationType.MINUTES_15)
-    
+
     @classmethod
     def create_30_minutes(cls) -> 'TimeDuration':
         """Factory method to create a 30-minute duration."""
         return cls(DurationType.MINUTES_30)
-    
+
     @classmethod
     def create_60_minutes(cls) -> 'TimeDuration':
         """Factory method to create a 60-minute duration."""
         return cls(DurationType.MINUTES_60)
-    
+
     @classmethod
     def create_daily(cls) -> 'TimeDuration':
         """Factory method to create a daily duration."""
         return cls(DurationType.DAILY)
-    
+
     @classmethod
     def create_weekly(cls) -> 'TimeDuration':
         """Factory method to create a weekly duration."""
         return cls(DurationType.WEEKLY)
-    
+
     @classmethod
     def create_monthly(cls) -> 'TimeDuration':
         """Factory method to create a monthly duration."""
         return cls(DurationType.MONTHLY)
-    
+
     @classmethod
     def create_quarterly(cls) -> 'TimeDuration':
         """Factory method to create a quarterly duration."""
         return cls(DurationType.QUARTERLY)
-    
+
     @classmethod
     def create_yearly(cls) -> 'TimeDuration':
         """Factory method to create a yearly duration."""

@@ -39,7 +39,7 @@ async def test_membership_add_remove_logic(monkeypatch):
         {'symbol': 'TICK1', 'start_date': date(2021,1,1), 'end_date': None},
         {'symbol': 'TICK2', 'start_date': date(2020,3,1), 'end_date': None},
     ]
-    
+
     # Patch asyncpg.create_pool to return DummyPool
     async def dummy_create_pool(db_url):
         return DummyPool(events)

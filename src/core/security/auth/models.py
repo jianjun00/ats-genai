@@ -56,12 +56,12 @@ class AuthContext:
     daily_usage: int
     rate_limit_remaining: int
     is_premium: bool
-    
+
     @property
     def rate_limit(self) -> int:
         """Get rate limit based on tier"""
         return float('inf') if self.is_premium else 24
-    
+
     @property
     def within_rate_limit(self) -> bool:
         """Check if within rate limit"""

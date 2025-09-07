@@ -16,17 +16,17 @@ async def ensure_test_tables(db_url):
     logger.info(f"Ensuring test tables exist in database: {db_url}")
     env = Environment(env_type=EnvironmentType.TEST, db_url=db_url)
     conn = await asyncpg.connect(db_url)
-    
+
     try:
         # List all existing tables
         tables = await conn.fetch("""
-            SELECT table_name 
-            FROM information_schema.tables 
+            SELECT table_name
+            FROM information_schema.tables
             WHERE table_schema = 'public'
         """)
         existing_tables = [t['table_name'] for t in tables]
         logger.info(f"Existing tables: {existing_tables}")
-        
+
         # Check and create vendors table if needed
         vendors_table = env.get_table_name('vendors')
         if vendors_table not in existing_tables:
@@ -43,14 +43,14 @@ async def ensure_test_tables(db_url):
         else:
             # Check if description column exists and add it if not
             description_exists = await conn.fetchval(f"""
-                SELECT COUNT(*) FROM information_schema.columns 
+                SELECT COUNT(*) FROM information_schema.columns
                 WHERE table_name = '{vendors_table.replace("'", "''")}' AND column_name = 'description'
             """)
             if not description_exists:
                 logger.info(f"Adding description column to {vendors_table}")
                 await conn.execute(f"ALTER TABLE {vendors_table} ADD COLUMN description TEXT;")
-        
-        
+
+
         # Check and create instruments table if needed
         instruments_table = env.get_table_name('instruments')
         if instruments_table not in existing_tables:
@@ -67,7 +67,7 @@ async def ensure_test_tables(db_url):
                     UNIQUE (symbol)
                 )
             """)
-        
+
         # Check and create instrument_xrefs table if needed
         instrument_xrefs_table = env.get_table_name('instrument_xrefs')
         if instrument_xrefs_table not in existing_tables:
@@ -87,7 +87,7 @@ async def ensure_test_tables(db_url):
                     UNIQUE (instrument_id, vendor_id)
                 )
             """)
-        
+
         # Check and create universe_membership table if needed
         universe_membership_table = env.get_table_name('universe_membership')
         if universe_membership_table not in existing_tables:
@@ -104,7 +104,7 @@ async def ensure_test_tables(db_url):
                     UNIQUE (universe_id, instrument_id, start_date)
                 )
             """)
-            
+
         # Check and create daily_prices table if needed
         daily_prices_table = env.get_table_name('daily_prices')
         if daily_prices_table not in existing_tables:
@@ -128,14 +128,14 @@ async def ensure_test_tables(db_url):
         else:
             # Check if symbol column exists and add it if not
             symbol_exists = await conn.fetchval(f"""
-                SELECT COUNT(*) FROM information_schema.columns 
+                SELECT COUNT(*) FROM information_schema.columns
                 WHERE table_name = '{daily_prices_table.replace("'", "''")}' AND column_name = 'symbol'
             """)
             if not symbol_exists:
                 logger.info(f"Adding symbol column to {daily_prices_table}")
                 await conn.execute(f"ALTER TABLE {daily_prices_table} ADD COLUMN symbol TEXT;")
-        
-            
+
+
         # Create daily_market_cap table if needed
         daily_market_cap_table = env.get_table_name('daily_market_cap')
         if daily_market_cap_table not in existing_tables:
@@ -152,7 +152,7 @@ async def ensure_test_tables(db_url):
                     UNIQUE (instrument_id, date)
                 )
             """)
-            
+
         # Create universe_membership_changes table if needed
         universe_membership_changes_table = env.get_table_name('universe_membership_changes')
         if universe_membership_changes_table not in existing_tables:
@@ -171,18 +171,18 @@ async def ensure_test_tables(db_url):
                     updated_at TIMESTAMPTZ DEFAULT now()
                 )
             """)
-            
+
         # List tables after creation
         updated_tables = await conn.fetch("""
-            SELECT table_name FROM information_schema.tables 
+            SELECT table_name FROM information_schema.tables
             WHERE table_schema = 'public'
         """)
         updated_tables = [t['table_name'] for t in updated_tables]
         logger.info(f"Updated tables: {updated_tables}")
-        
+
     finally:
         await conn.close()
-    
+
     return env
 
 if __name__ == "__main__":

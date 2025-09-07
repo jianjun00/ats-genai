@@ -21,7 +21,7 @@ def create_type_aware_analytics_router():
     """Create router with type-aware analytics endpoints."""
     from fastapi import APIRouter
     router = APIRouter(prefix="/api/v1/type-aware", tags=["type-aware-analytics"])
-    
+
     @router.get("/filters/{table_name}")
     async def get_intelligent_filters(
         table_name: str,
@@ -31,18 +31,18 @@ def create_type_aware_analytics_router():
         try:
             logger.info(f"Getting intelligent filters for table: {table_name}")
             filters = await analytics_service.get_intelligent_filters(table_name)
-            
+
             return {
                 "status": "success",
                 "table_name": table_name,
                 "filters": filters,
                 "message": f"Generated {filters['total_filterable_fields']} intelligent filters"
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting filters for {table_name}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-    
+
     @router.get("/schema/{table_name}")
     async def get_table_schema_info(table_name: str):
         """Get comprehensive schema information for a table."""
@@ -50,7 +50,7 @@ def create_type_aware_analytics_router():
             # Try to get from schema registry first
             try:
                 schema = schema_registry.get_table_schema(table_name)
-                
+
                 # Build comprehensive schema info
                 schema_info = {
                     "table_name": table_name,
@@ -61,7 +61,7 @@ def create_type_aware_analytics_router():
                     "indexes": schema.indexes,
                     "type_system_enabled": True
                 }
-                
+
                 # Field breakdown by semantics
                 field_breakdown = {}
                 for field_name, field_def in schema.fields.items():
@@ -75,9 +75,9 @@ def create_type_aware_analytics_router():
                         "priority": field_def.eda_priority,
                         "nullable": field_def.nullable
                     })
-                
+
                 schema_info["field_breakdown"] = field_breakdown
-                
+
                 # UI generation hints
                 ui_components = {}
                 for field_name, field_def in schema.fields.items():
@@ -94,17 +94,17 @@ def create_type_aware_analytics_router():
                             component = "tri_state_checkbox"
                         else:
                             component = "display_only"
-                            
+
                         ui_components[field_name] = {
                             "component": component,
                             "priority": field_def.eda_priority,
                             "requires_db_query": not bool(field_def.enum_values) if field_def.semantics == FieldSemantics.CATEGORICAL else False
                         }
-                
+
                 schema_info["ui_components"] = ui_components
-                
+
                 return {
-                    "status": "success", 
+                    "status": "success",
                     "schema": schema_info,
                     "performance_benefits": {
                         "predefined_enums": sum(1 for f in schema.fields.values() if f.enum_values),
@@ -112,7 +112,7 @@ def create_type_aware_analytics_router():
                         "intelligent_ui_generation": len([f for f in schema.fields.values() if f.is_filterable])
                     }
                 }
-                
+
             except ValueError:
                 # Table not in schema registry
                 return {
@@ -122,17 +122,17 @@ def create_type_aware_analytics_router():
                     "message": "Table not found in type system schema registry. Falling back to database inspection.",
                     "schema": None
                 }
-                
+
         except Exception as e:
             logger.error(f"Error getting schema info for {table_name}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-    
+
     @router.get("/registry/summary")
     async def get_schema_registry_summary():
         """Get comprehensive summary of the schema registry."""
         try:
             summary = schema_registry.get_schema_summary()
-            
+
             # Add transformation benefits
             transformation_benefits = {
                 "total_entities": summary["total_entities"],
@@ -141,7 +141,7 @@ def create_type_aware_analytics_router():
                 "total_intelligent_filters": 0,
                 "performance_optimizations": 0
             }
-            
+
             for entity_name, entity_info in summary["entities"].items():
                 schema = schema_registry.get_schema(entity_name)
                 for field_name, field_def in schema.fields.items():
@@ -151,7 +151,7 @@ def create_type_aware_analytics_router():
                             transformation_benefits["performance_optimizations"] += 1
                     if field_def.is_filterable:
                         transformation_benefits["total_intelligent_filters"] += 1
-            
+
             return {
                 "status": "success",
                 "registry_summary": summary,
@@ -165,17 +165,17 @@ def create_type_aware_analytics_router():
                     "validation_enabled": True
                 }
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting registry summary: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-    
+
     @router.get("/enum-values/{table_name}/{field_name}")
     async def get_enum_values(table_name: str, field_name: str):
         """Get predefined enum values for a field (performance optimized)."""
         try:
             enum_values = schema_registry.get_enum_values(table_name, field_name)
-            
+
             if enum_values:
                 return {
                     "status": "success",
@@ -195,15 +195,15 @@ def create_type_aware_analytics_router():
                     "performance_optimized": False,
                     "message": "Field has no predefined enum values. Database query required."
                 }
-                
+
         except Exception as e:
             logger.error(f"Error getting enum values for {table_name}.{field_name}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-    
+
     @router.post("/validate/{table_name}/{field_name}")
     async def validate_field_value(
-        table_name: str, 
-        field_name: str, 
+        table_name: str,
+        field_name: str,
         value: Any,
         analytics_service: AnalyticsService = Depends(get_analytics_service)
     ):
@@ -211,7 +211,7 @@ def create_type_aware_analytics_router():
         try:
             is_valid = schema_registry.validate_field_value(table_name, field_name, value)
             field_def = schema_registry.get_field_definition(table_name, field_name)
-            
+
             validation_info = {
                 "status": "success",
                 "table_name": table_name,
@@ -221,7 +221,7 @@ def create_type_aware_analytics_router():
                 "field_type": field_def.field_type.value if field_def else "unknown",
                 "semantics": field_def.semantics.value if field_def else "unknown"
             }
-            
+
             if field_def and not is_valid:
                 validation_info["validation_rules"] = {
                     "nullable": field_def.nullable,
@@ -231,13 +231,13 @@ def create_type_aware_analytics_router():
                     "enum_values": field_def.enum_values,
                     "validation_regex": field_def.validation_regex
                 }
-            
+
             return validation_info
-            
+
         except Exception as e:
             logger.error(f"Error validating {table_name}.{field_name} = {value}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-    
+
     return router
 
 
@@ -255,7 +255,7 @@ if __name__ == "__main__":
         description="Intelligent filter generation using ATS type system",
         version="1.0.0"
     )
-    
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -263,11 +263,11 @@ if __name__ == "__main__":
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     # Include the router
     router = create_type_aware_analytics_router()
     app.include_router(router)
-    
+
     @app.get("/")
     async def root():
         return {

@@ -29,7 +29,7 @@ class TestBXTrenderBasic(unittest.TestCase):
         """Create mock InstrumentInterval objects for testing."""
         intervals = []
         base_time = datetime(2024, 1, 1)
-        
+
         for i, close in enumerate(close_prices):
             interval = SimpleNamespace()
             interval.close = close
@@ -40,7 +40,7 @@ class TestBXTrenderBasic(unittest.TestCase):
             interval.start_date_time = base_time + timedelta(minutes=i)
             interval.status = 'ok'
             intervals.append(interval)
-        
+
         return intervals
 
     def test_initialization(self):
@@ -92,12 +92,12 @@ class TestBXTrenderBasic(unittest.TestCase):
         # Create strong uptrend data
         close_prices = [100 + i * 2 for i in range(20)]  # Consistent uptrend
         intervals = self.create_mock_intervals(close_prices)
-        
+
         self.indicator.update(intervals)
-        
+
         self.assertEqual(self.indicator.status, 'ok')
         bx_trender = self.indicator.get_value()
-        
+
         # Should be well above 50 for strong uptrend
         self.assertIsNotNone(bx_trender)
         self.assertGreater(bx_trender, 70)  # Strong bullish signal
@@ -109,12 +109,12 @@ class TestBXTrenderBasic(unittest.TestCase):
         # Create strong downtrend data
         close_prices = [100 - i * 2 for i in range(20)]  # Consistent downtrend
         intervals = self.create_mock_intervals(close_prices)
-        
+
         self.indicator.update(intervals)
-        
+
         self.assertEqual(self.indicator.status, 'ok')
         bx_trender = self.indicator.get_value()
-        
+
         # Should be well below 50 for strong downtrend
         self.assertIsNotNone(bx_trender)
         self.assertLess(bx_trender, 30)  # Strong bearish signal
@@ -127,12 +127,12 @@ class TestBXTrenderBasic(unittest.TestCase):
         np.random.seed(42)
         close_prices = [100 + np.random.uniform(-0.5, 0.5) for _ in range(20)]
         intervals = self.create_mock_intervals(close_prices)
-        
+
         self.indicator.update(intervals)
-        
+
         self.assertEqual(self.indicator.status, 'ok')
         bx_trender = self.indicator.get_value()
-        
+
         # Should be near 50 for sideways movement
         self.assertIsNotNone(bx_trender)
         self.assertGreater(bx_trender, 40)
@@ -144,12 +144,12 @@ class TestBXTrenderBasic(unittest.TestCase):
         # All same price
         close_prices = [100] * 20
         intervals = self.create_mock_intervals(close_prices)
-        
+
         self.indicator.update(intervals)
-        
+
         self.assertEqual(self.indicator.status, 'ok')
         bx_trender = self.indicator.get_value()
-        
+
         # Should be exactly 50 when no movement
         self.assertEqual(bx_trender, 50.0)
         self.assertEqual(self.indicator.get_trend_direction(), 0)
@@ -165,13 +165,13 @@ class TestBXTrenderBasic(unittest.TestCase):
                 close_prices.append(base + 1)
             else:
                 close_prices.append(base - 1)
-        
+
         intervals = self.create_mock_intervals(close_prices)
         self.indicator.update(intervals)
-        
+
         self.assertEqual(self.indicator.status, 'ok')
         bx_trender = self.indicator.get_value()
-        
+
         # Should be close to 50 due to equal gains and losses
         self.assertIsNotNone(bx_trender)
         self.assertGreater(bx_trender, 45)
@@ -181,23 +181,23 @@ class TestBXTrenderBasic(unittest.TestCase):
         """Test BX Trender with different periods."""
         close_prices = [100 + i * 0.5 for i in range(30)]  # Mild uptrend
         intervals = self.create_mock_intervals(close_prices)
-        
+
         # Test period 7
         indicator_7 = BXTrenderBasic(period=7)
         indicator_7.update(intervals)
         bx_7 = indicator_7.get_value()
-        
+
         # Test period 21
         indicator_21 = BXTrenderBasic(period=21)
         indicator_21.update(intervals)
         bx_21 = indicator_21.get_value()
-        
+
         # Both should work and give reasonable values
         self.assertIsNotNone(bx_7)
         self.assertIsNotNone(bx_21)
         self.assertGreater(bx_7, 50)  # Uptrend
         self.assertGreater(bx_21, 50)  # Uptrend
-        
+
         # Shorter period might be more sensitive
         self.assertEqual(indicator_7.status, 'ok')
         self.assertEqual(indicator_21.status, 'ok')
@@ -207,12 +207,12 @@ class TestBXTrenderBasic(unittest.TestCase):
         close_prices = [100 + i for i in range(20)]  # Clear uptrend
         intervals = self.create_mock_intervals(close_prices)
         self.indicator.update(intervals)
-        
+
         # Test all getters return valid values
         self.assertIsNotNone(self.indicator.get_value())
         self.assertIsNotNone(self.indicator.get_trend_strength())
         self.assertIsNotNone(self.indicator.get_trend_direction())
-        
+
         # Test value consistency
         self.assertEqual(self.indicator.get_value(), self.indicator.latest_bx_trender)
         self.assertEqual(self.indicator.get_trend_strength(), self.indicator.trend_strength)
@@ -222,12 +222,12 @@ class TestBXTrenderBasic(unittest.TestCase):
         """Test error handling during calculation."""
         # Create intervals that might cause calculation errors
         intervals = self.create_mock_intervals([100] * 20)
-        
+
         # Mock a calculation error
         original_update = self.indicator.__class__.update
         def error_update(self, intervals):
             raise ValueError("Test calculation error")
-        
+
         self.indicator.__class__.update = error_update
         try:
             self.indicator.update(intervals)
@@ -242,7 +242,7 @@ class TestBXTrenderBasic(unittest.TestCase):
         close_prices = [100 + i * 0.0001 for i in range(20)]
         intervals = self.create_mock_intervals(close_prices)
         self.indicator.update(intervals)
-        
+
         self.assertEqual(self.indicator.status, 'ok')
         bx_trender = self.indicator.get_value()
         self.assertIsNotNone(bx_trender)
@@ -257,17 +257,17 @@ class TestBXTrenderBasic(unittest.TestCase):
             ([100 + i * 5 for i in range(20)], 0.8),  # Strong uptrend > 0.8
             ([100 - i * 5 for i in range(20)], 0.8),  # Strong downtrend > 0.8
         ]
-        
+
         for close_prices, expected_min_strength in test_cases:
             indicator = BXTrenderBasic(period=14)
             intervals = self.create_mock_intervals(close_prices)
             indicator.update(intervals)
-            
+
             strength = indicator.get_trend_strength()
             self.assertIsNotNone(strength)
             self.assertGreaterEqual(strength, 0.0)
             self.assertLessEqual(strength, 1.0)
-            
+
             if expected_min_strength > 0:
                 self.assertGreater(strength, expected_min_strength)
 
@@ -283,7 +283,7 @@ class TestBXTrenderBasicEnhancedFramework(unittest.TestCase):
         """Create sample DataFrame for testing."""
         np.random.seed(42)
         close_prices = [100 + i * 0.5 for i in range(periods)]  # Mild uptrend
-        
+
         data = []
         for i, close in enumerate(close_prices):
             data.append({
@@ -294,14 +294,14 @@ class TestBXTrenderBasicEnhancedFramework(unittest.TestCase):
                 'volume': 100000 + i * 1000,
                 'timestamp': pd.Timestamp('2024-01-01') + pd.Timedelta(minutes=i)
             })
-        
+
         return pd.DataFrame(data)
 
     def test_enhanced_framework_calculation(self):
         """Test calculation through enhanced framework."""
         data = self.create_sample_data()
         result = self.indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'valid')
         self.assertIn('value', result)
         self.assertIn('bx_trender', result)
@@ -314,7 +314,7 @@ class TestBXTrenderBasicEnhancedFramework(unittest.TestCase):
         """Test enhanced framework with insufficient data."""
         data = self.create_sample_data(periods=5)  # Too little data
         result = self.indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'insufficient_data')
         self.assertIsNone(result['value'])
 
@@ -323,7 +323,7 @@ class TestBXTrenderBasicEnhancedFramework(unittest.TestCase):
         indicator = BXTrenderIndicator(period=14, variant='invalid')
         data = self.create_sample_data()
         result = indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'invalid_variant')
         self.assertIsNone(result['value'])
 

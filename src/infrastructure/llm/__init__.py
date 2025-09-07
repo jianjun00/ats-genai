@@ -23,20 +23,20 @@ if is_enabled("enable_llm_events"):
         quick_event_analysis,
         deep_event_analysis
     )
-    
+
     __all__ = [
         'LLMEventAnalyzer',
         'EventAnalysisRequest',
         'EventAnalysisResult',
         'LLMInterface',
-        'MockLLMInterface', 
+        'MockLLMInterface',
         'OpenAIInterface',
         'EventAnalysisCache',
         'create_event_analyzer',
         'quick_event_analysis',
         'deep_event_analysis'
     ]
-    
+
     if is_enabled("enable_adaptive_selection"):
         from .event_analysis import (
             create_adaptive_analyzer
@@ -48,16 +48,16 @@ if is_enabled("enable_llm_events"):
 
 else:
     __all__ = []
-    
+
     # Provide stubs when features are disabled
     def create_event_analyzer(*args, **kwargs):
         return None
-    
+
     def create_adaptive_analyzer(*args, **kwargs):
         return None
-    
+
     async def quick_event_analysis(*args, **kwargs):
         return None
-    
+
     async def deep_event_analysis(*args, **kwargs):
         return None

@@ -8,10 +8,10 @@ from business logic and reduce file size from 3,817 to manageable chunks.
 
 class DashboardTemplateEngine:
     """Generates HTML templates for analytics dashboards."""
-    
+
     def __init__(self):
         pass
-    
+
     def get_eda_dashboard_html(self) -> str:
         """Generate the main EDA dashboard HTML."""
         return """<!DOCTYPE html>
@@ -40,7 +40,7 @@ class DashboardTemplateEngine:
                     <div class="feature-item">📈 Real-time Quality</div>
                 </div>
             </div>
-            
+
             <div class="main-content">
                 <h2>Select Analysis Type</h2>
                 <button onclick="loadEDA()">📊 Exploratory Data Analysis</button>
@@ -50,26 +50,26 @@ class DashboardTemplateEngine:
                 <button onclick="loadMultiPanelVisualization()">🎨 Multi-Panel Trading Charts</button>
                 <button onclick="loadNewsAnalytics()">📰 News & Signals</button>
                 <button onclick="loadRayAnalytics()">⚡ Distributed Analytics</button>
-                
+
                 <div id="analysis-content">
                     <p style="text-align: center; margin-top: 50px; color: #666;">
                         Select an analysis type above to begin
                     </p>
                 </div>
             </div>
-            
+
             <script>
                 async function loadEDA() {
                     document.getElementById('analysis-content').innerHTML = `
                         <h3>📊 Exploratory Data Analysis</h3>
                         <p>Loading database tables...</p>
                     `;
-                    
+
                     try {
                         // First get list of available tables
                         const tablesResponse = await fetch('/api/tables');
                         let tables = [];
-                        
+
                         if (tablesResponse.ok) {
                             const tablesData = await tablesResponse.json();
                             tables = tablesData.tables || [];
@@ -80,7 +80,7 @@ class DashboardTemplateEngine:
                                 'dev_daily_prices_polygon', 'dev_daily_prices_tiingo', 'dev_daily_prices_eodhd'
                             ];
                         }
-                        
+
                         const html = `
                             <h3>📊 Exploratory Data Analysis</h3>
                             <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
@@ -90,7 +90,7 @@ class DashboardTemplateEngine:
                                     ${tables.map(table => `<option value="${table}">${table}</option>`).join('')}
                                 </select>
                             </div>
-                            
+
                             <div id="table-content" style="display: none;">
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                                     <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
@@ -102,14 +102,14 @@ class DashboardTemplateEngine:
                                         <div id="column-summary">Select a table to view columns</div>
                                     </div>
                                 </div>
-                                
+
                                 <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
                                     <h4>📋 Sample Data</h4>
                                     <div id="sample-data" style="max-height: 400px; overflow: auto;">
                                         <p>Select a table to view sample data</p>
                                     </div>
                                 </div>
-                                
+
                                 <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
                                     <h4>📊 Statistical Analysis</h4>
                                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
@@ -123,7 +123,7 @@ class DashboardTemplateEngine:
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
                                     <h4>📈 Visualizations</h4>
                                     <div style="margin-bottom: 15px;">
@@ -139,9 +139,9 @@ class DashboardTemplateEngine:
                                 </div>
                             </div>
                         `;
-                        
+
                         document.getElementById('analysis-content').innerHTML = html;
-                        
+
                     } catch (error) {
                         document.getElementById('analysis-content').innerHTML = `
                             <h3>📊 Exploratory Data Analysis</h3>
@@ -150,7 +150,7 @@ class DashboardTemplateEngine:
                                 <p>${error.message}</p>
                                 <p>Using fallback table list...</p>
                             </div>
-                            
+
                             <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-top: 20px;">
                                 <h4>Select Table (Fallback)</h4>
                                 <select id="table-selector" onchange="loadTableData()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
@@ -166,18 +166,18 @@ class DashboardTemplateEngine:
                         `;
                     }
                 }
-                
+
                 async function loadTableData() {
                     const tableName = document.getElementById('table-selector').value;
                     if (!tableName) return;
-                    
+
                     document.getElementById('table-content').style.display = 'block';
                     document.getElementById('table-info').innerHTML = '<p>Loading table information...</p>';
                     document.getElementById('column-summary').innerHTML = '<p>Loading column information...</p>';
                     document.getElementById('sample-data').innerHTML = '<p>Loading sample data...</p>';
                     document.getElementById('numeric-stats').innerHTML = '<p>Loading statistics...</p>';
                     document.getElementById('categorical-stats').innerHTML = '<p>Loading statistics...</p>';
-                    
+
                     try {
                         // Load table info
                         const infoResponse = await fetch(`/api/table_info?table=${tableName}`);
@@ -191,20 +191,20 @@ class DashboardTemplateEngine:
                         } else {
                             document.getElementById('table-info').innerHTML = '<p style="color: #666;">Table info not available</p>';
                         }
-                        
+
                         // Load column info
                         const columnsResponse = await fetch(`/api/columns?table=${tableName}`);
                         if (columnsResponse.ok) {
                             const columnsData = await columnsResponse.json();
                             const columns = columnsData.columns || [];
-                            
+
                             // Update visualization column selector
                             const vizSelect = document.getElementById('viz-column');
                             vizSelect.innerHTML = '<option value="">Choose a column...</option>';
                             columns.forEach(col => {
                                 vizSelect.innerHTML += `<option value="${col.name}">${col.name} (${col.type})</option>`;
                             });
-                            
+
                             document.getElementById('column-summary').innerHTML = `
                                 <div style="max-height: 200px; overflow-y: auto;">
                                     <table style="width: 100%; font-size: 0.9em;">
@@ -224,14 +224,14 @@ class DashboardTemplateEngine:
                         } else {
                             document.getElementById('column-summary').innerHTML = '<p style="color: #666;">Column info not available</p>';
                         }
-                        
+
                         // Load sample data
                         const sampleResponse = await fetch(`/api/sample_data?table=${tableName}&limit=10`);
                         if (sampleResponse.ok) {
                             const sampleData = await sampleResponse.json();
                             const rows = sampleData.rows || [];
                             const columns = sampleData.columns || [];
-                            
+
                             if (rows.length > 0) {
                                 document.getElementById('sample-data').innerHTML = `
                                     <table style="width: 100%; font-size: 0.85em; border-collapse: collapse;">
@@ -251,12 +251,12 @@ class DashboardTemplateEngine:
                         } else {
                             document.getElementById('sample-data').innerHTML = '<p style="color: #666;">Sample data not available</p>';
                         }
-                        
+
                         // Load statistics
                         const statsResponse = await fetch(`/api/table_stats?table=${tableName}`);
                         if (statsResponse.ok) {
                             const statsData = await statsResponse.json();
-                            
+
                             // Numeric statistics
                             const numericStats = statsData.numeric_stats || {};
                             if (Object.keys(numericStats).length > 0) {
@@ -266,9 +266,9 @@ class DashboardTemplateEngine:
                                         <div style="margin-bottom: 10px; padding: 8px; background: #f8f9fa; border-radius: 4px;">
                                             <strong>${column}</strong><br>
                                             <small>
-                                                Mean: ${stats.mean?.toFixed(2) || 'N/A'} | 
-                                                Std: ${stats.std?.toFixed(2) || 'N/A'} | 
-                                                Min: ${stats.min || 'N/A'} | 
+                                                Mean: ${stats.mean?.toFixed(2) || 'N/A'} |
+                                                Std: ${stats.std?.toFixed(2) || 'N/A'} |
+                                                Min: ${stats.min || 'N/A'} |
                                                 Max: ${stats.max || 'N/A'}
                                             </small>
                                         </div>
@@ -278,7 +278,7 @@ class DashboardTemplateEngine:
                             } else {
                                 document.getElementById('numeric-stats').innerHTML = '<p style="color: #666;">No numeric columns found</p>';
                             }
-                            
+
                             // Categorical statistics
                             const categoricalStats = statsData.categorical_stats || {};
                             if (Object.keys(categoricalStats).length > 0) {
@@ -288,7 +288,7 @@ class DashboardTemplateEngine:
                                         <div style="margin-bottom: 10px; padding: 8px; background: #f8f9fa; border-radius: 4px;">
                                             <strong>${column}</strong><br>
                                             <small>
-                                                Unique: ${stats.unique || 'N/A'} | 
+                                                Unique: ${stats.unique || 'N/A'} |
                                                 Most Common: ${stats.top || 'N/A'} (${stats.freq || 'N/A'})
                                             </small>
                                         </div>
@@ -302,7 +302,7 @@ class DashboardTemplateEngine:
                             document.getElementById('numeric-stats').innerHTML = '<p style="color: #666;">Statistics not available</p>';
                             document.getElementById('categorical-stats').innerHTML = '<p style="color: #666;">Statistics not available</p>';
                         }
-                        
+
                     } catch (error) {
                         console.error('Error loading table data:', error);
                         document.getElementById('table-info').innerHTML = '<p style="color: #dc3545;">Error loading table info</p>';
@@ -310,23 +310,23 @@ class DashboardTemplateEngine:
                         document.getElementById('sample-data').innerHTML = '<p style="color: #dc3545;">Error loading sample data</p>';
                     }
                 }
-                
+
                 async function generateVisualization() {
                     const tableName = document.getElementById('table-selector').value;
                     const columnName = document.getElementById('viz-column').value;
-                    
+
                     if (!tableName || !columnName) {
                         alert('Please select both a table and column');
                         return;
                     }
-                    
+
                     document.getElementById('visualization-area').innerHTML = '<p>Generating visualization...</p>';
-                    
+
                     try {
                         const response = await fetch(`/api/visualization?table=${tableName}&column=${columnName}`);
                         if (response.ok) {
                             const vizData = await response.json();
-                            
+
                             // Create Plotly visualization
                             const layout = {
                                 title: `Distribution of ${columnName} in ${tableName}`,
@@ -334,7 +334,7 @@ class DashboardTemplateEngine:
                                 yaxis: { title: 'Frequency' },
                                 margin: { t: 50, b: 50, l: 50, r: 50 }
                             };
-                            
+
                             Plotly.newPlot('visualization-area', vizData.data, layout);
                         } else {
                             document.getElementById('visualization-area').innerHTML = '<p style="color: #dc3545;">Error generating visualization</p>';
@@ -344,18 +344,18 @@ class DashboardTemplateEngine:
                         document.getElementById('visualization-area').innerHTML = '<p style="color: #dc3545;">Error generating visualization</p>';
                     }
                 }
-                
+
                 async function loadBarCollectionMetrics() {
                     document.getElementById('analysis-content').innerHTML = `
                         <h3>📈 Bar Collection Metrics</h3>
                         <p>Loading metrics...</p>
                     `;
-                    
+
                     try {
                         const response = await fetch('/api/bar_collection_metrics');
                         if (response.ok) {
                             const data = await response.json();
-                            
+
                             const html = `
                                 <h3>📈 Bar Collection Metrics</h3>
                                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 20px;">
@@ -366,7 +366,7 @@ class DashboardTemplateEngine:
                                         <p><strong>Total Symbols:</strong> ${data.total_symbols || 0}</p>
                                         <p><strong>Data Quality Score:</strong> ${(data.quality_score || 0).toFixed(2)}%</p>
                                     </div>
-                                    
+
                                     <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
                                         <h4>⏰ Temporal Coverage</h4>
                                         <p><strong>Date Range:</strong> ${data.date_range?.start || 'N/A'} to ${data.date_range?.end || 'N/A'}</p>
@@ -374,7 +374,7 @@ class DashboardTemplateEngine:
                                         <p><strong>Missing Days:</strong> ${data.missing_days || 0}</p>
                                         <p><strong>Completeness:</strong> ${(data.completeness || 0).toFixed(1)}%</p>
                                     </div>
-                                    
+
                                     <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
                                         <h4>📈 Volume Analysis</h4>
                                         <p><strong>Avg Daily Volume:</strong> ${(data.avg_volume || 0).toLocaleString()}</p>
@@ -382,7 +382,7 @@ class DashboardTemplateEngine:
                                         <p><strong>Low Volume Days:</strong> ${data.low_volume_days || 0}</p>
                                         <p><strong>Volume Trend:</strong> ${data.volume_trend || 'N/A'}</p>
                                     </div>
-                                    
+
                                     <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
                                         <h4>💹 Price Metrics</h4>
                                         <p><strong>Avg Price Change:</strong> ${(data.avg_price_change || 0).toFixed(2)}%</p>
@@ -391,7 +391,7 @@ class DashboardTemplateEngine:
                                         <p><strong>Price Trend:</strong> ${data.price_trend || 'N/A'}</p>
                                     </div>
                                 </div>
-                                
+
                                 <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
                                     <h4>🎯 Top Performers</h4>
                                     <div id="top-performers" style="max-height: 300px; overflow-y: auto;">
@@ -405,7 +405,7 @@ class DashboardTemplateEngine:
                                         `).join('')}
                                     </div>
                                 </div>
-                                
+
                                 <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
                                     <h4>📊 Collection Health</h4>
                                     <div style="margin-bottom: 15px;">
@@ -417,7 +417,7 @@ class DashboardTemplateEngine:
                                             <div style="background: #28a745; height: 100%; width: ${data.completeness || 0}%; transition: width 0.3s ease;"></div>
                                         </div>
                                     </div>
-                                    
+
                                     <div style="margin-bottom: 15px;">
                                         <div style="display: flex; justify-content: space-between;">
                                             <span>Quality Score</span>
@@ -427,15 +427,15 @@ class DashboardTemplateEngine:
                                             <div style="background: #007bff; height: 100%; width: ${data.quality_score || 0}%; transition: width 0.3s ease;"></div>
                                         </div>
                                     </div>
-                                    
+
                                     <p style="color: #666; font-size: 0.9em; margin-top: 15px;">
                                         Last updated: ${data.last_updated || 'Unknown'}
                                     </p>
                                 </div>
                             `;
-                            
+
                             document.getElementById('analysis-content').innerHTML = html;
-                            
+
                         } else {
                             document.getElementById('analysis-content').innerHTML = `
                                 <h3>📈 Bar Collection Metrics</h3>
@@ -456,21 +456,21 @@ class DashboardTemplateEngine:
                         `;
                     }
                 }
-                
+
                 async function loadUniverseAnalytics() {
                     document.getElementById('analysis-content').innerHTML = `
                         <h3>🌐 Universe Analytics</h3>
                         <p>Loading universe data...</p>
                     `;
-                    
+
                     try {
                         const response = await fetch('/api/universe_analytics');
                         if (response.ok) {
                             const data = await response.json();
-                            
+
                             const html = `
                                 <h3>🌐 Universe Analytics</h3>
-                                
+
                                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px;">
                                     <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd; text-align: center;">
                                         <h4 style="margin: 0; color: #007bff;">🏢 Total Symbols</h4>
@@ -489,7 +489,7 @@ class DashboardTemplateEngine:
                                         <h2 style="margin: 10px 0; color: #dc3545;">${(data.sectors || 0).toLocaleString()}</h2>
                                     </div>
                                 </div>
-                                
+
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                                     <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
                                         <h4>💼 Top Sectors by Market Cap</h4>
@@ -507,7 +507,7 @@ class DashboardTemplateEngine:
                                             `).join('')}
                                         </div>
                                     </div>
-                                    
+
                                     <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
                                         <h4>🏛️ Top Exchanges by Volume</h4>
                                         <div style="max-height: 300px; overflow-y: auto;">
@@ -525,7 +525,7 @@ class DashboardTemplateEngine:
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
                                     <h4>🎯 Market Performance Overview</h4>
                                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
@@ -547,7 +547,7 @@ class DashboardTemplateEngine:
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
                                     <h4>📊 Universe Health Metrics</h4>
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -599,9 +599,9 @@ class DashboardTemplateEngine:
                                     </p>
                                 </div>
                             `;
-                            
+
                             document.getElementById('analysis-content').innerHTML = html;
-                            
+
                         } else {
                             document.getElementById('analysis-content').innerHTML = `
                                 <h3>🌐 Universe Analytics</h3>
@@ -622,18 +622,18 @@ class DashboardTemplateEngine:
                         `;
                     }
                 }
-                
+
                 async function loadTrainingDatasets() {
                     document.getElementById('analysis-content').innerHTML = `
                         <h3>🤖 Training Datasets</h3>
                         <p>Loading training datasets...</p>
                     `;
-                    
+
                     try {
                         const response = await fetch('/api/training_datasets');
                         if (response.ok) {
                             const datasets = await response.json();
-                            
+
                             let html = `
                                 <h3>🤖 Training Datasets</h3>
                                 <div style="margin-bottom: 20px;">
@@ -642,7 +642,7 @@ class DashboardTemplateEngine:
                                     </button>
                                 </div>
                             `;
-                            
+
                             if (datasets && datasets.length > 0) {
                                 html += `
                                     <div style="display: grid; gap: 15px;">
@@ -659,7 +659,7 @@ class DashboardTemplateEngine:
                                                         Active
                                                     </span>
                                                 </div>
-                                                
+
                                                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px;">
                                                     <div style="text-align: center; padding: 10px; background: #f8f9fa; border-radius: 4px;">
                                                         <div style="font-size: 0.8em; color: #666;">Symbols</div>
@@ -678,27 +678,27 @@ class DashboardTemplateEngine:
                                                         <div style="font-weight: bold; color: #dc3545;">${(dataset.file_size_mb || 0).toFixed(1)} MB</div>
                                                     </div>
                                                 </div>
-                                                
+
                                                 <div style="margin-bottom: 15px;">
-                                                    <strong>Symbols:</strong> 
+                                                    <strong>Symbols:</strong>
                                                     <span style="font-family: monospace; font-size: 0.9em;">${dataset.symbols || 'N/A'}</span>
                                                 </div>
-                                                
+
                                                 <div style="margin-bottom: 15px;">
-                                                    <strong>Date Range:</strong> 
+                                                    <strong>Date Range:</strong>
                                                     ${dataset.start_date || 'N/A'} to ${dataset.end_date || 'N/A'}
                                                 </div>
-                                                
+
                                                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                                                    <button onclick="viewDatasetDetails(${dataset.id})" 
+                                                    <button onclick="viewDatasetDetails(${dataset.id})"
                                                             style="background: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.9em;">
                                                         📋 View Details
                                                     </button>
-                                                    <button onclick="viewDatasetSequences(${dataset.id})" 
+                                                    <button onclick="viewDatasetSequences(${dataset.id})"
                                                             style="background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.9em;">
                                                         🔍 Browse Sequences
                                                     </button>
-                                                    <button onclick="downloadDataset(${dataset.id})" 
+                                                    <button onclick="downloadDataset(${dataset.id})"
                                                             style="background: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.9em;">
                                                         💾 Download
                                                     </button>
@@ -715,9 +715,9 @@ class DashboardTemplateEngine:
                                     </div>
                                 `;
                             }
-                            
+
                             document.getElementById('analysis-content').innerHTML = html;
-                            
+
                         } else {
                             document.getElementById('analysis-content').innerHTML = `
                                 <h3>🤖 Training Datasets</h3>
@@ -738,13 +738,13 @@ class DashboardTemplateEngine:
                         `;
                     }
                 }
-                
+
                 async function viewDatasetDetails(datasetId) {
                     try {
                         const response = await fetch(`/api/training_dataset/${datasetId}`);
                         if (response.ok) {
                             const dataset = await response.json();
-                            
+
                             const detailsHtml = `
                                 <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="closeModal(event)">
                                     <div style="background: white; padding: 30px; border-radius: 8px; max-width: 800px; max-height: 80vh; overflow-y: auto; margin: 20px;" onclick="event.stopPropagation()">
@@ -752,7 +752,7 @@ class DashboardTemplateEngine:
                                             <h3 style="margin: 0; color: #007bff;">📋 Dataset Details: ${dataset.dataset_name || `Dataset ${datasetId}`}</h3>
                                             <button onclick="closeModal()" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">✕</button>
                                         </div>
-                                        
+
                                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                                             <div>
                                                 <h4>Basic Information</h4>
@@ -769,13 +769,13 @@ class DashboardTemplateEngine:
                                                 <p><strong>Total Sequences:</strong> ${(dataset.total_sequences || 0).toLocaleString()}</p>
                                             </div>
                                         </div>
-                                        
+
                                         <div style="margin-bottom: 20px;">
                                             <h4>Symbols & Date Range</h4>
                                             <p><strong>Symbols:</strong> <span style="font-family: monospace; background: #f8f9fa; padding: 2px 4px;">${dataset.symbols || 'N/A'}</span></p>
                                             <p><strong>Date Range:</strong> ${dataset.start_date || 'N/A'} to ${dataset.end_date || 'N/A'}</p>
                                         </div>
-                                        
+
                                         <div style="margin-bottom: 20px;">
                                             <h4>Sequence Configuration</h4>
                                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
@@ -797,20 +797,20 @@ class DashboardTemplateEngine:
                                                 </div>
                                             </div>
                                         </div>
-                                        
+
                                         ${dataset.technical_indicators ? `
                                             <div style="margin-bottom: 20px;">
                                                 <h4>Technical Indicators</h4>
                                                 <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; white-space: pre-wrap;">${JSON.stringify(dataset.technical_indicators, null, 2)}</div>
                                             </div>
                                         ` : ''}
-                                        
+
                                         <div style="display: flex; gap: 10px; justify-content: center;">
-                                            <button onclick="viewDatasetSequences(${datasetId}); closeModal();" 
+                                            <button onclick="viewDatasetSequences(${datasetId}); closeModal();"
                                                     style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
                                                 🔍 Browse Sequences
                                             </button>
-                                            <button onclick="downloadDataset(${datasetId})" 
+                                            <button onclick="downloadDataset(${datasetId})"
                                                     style="background: #17a2b8; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
                                                 💾 Download Dataset
                                             </button>
@@ -818,9 +818,9 @@ class DashboardTemplateEngine:
                                     </div>
                                 </div>
                             `;
-                            
+
                             document.body.insertAdjacentHTML('beforeend', detailsHtml);
-                            
+
                         } else {
                             alert('Error loading dataset details');
                         }
@@ -829,28 +829,28 @@ class DashboardTemplateEngine:
                         alert('Error loading dataset details');
                     }
                 }
-                
+
                 function closeModal(event) {
                     if (event && event.target !== event.currentTarget) return;
                     const modal = document.querySelector('div[style*="position: fixed"]');
                     if (modal) modal.remove();
                 }
-                
+
                 async function viewDatasetSequences(datasetId) {
                     try {
                         const response = await fetch(`/api/training_dataset_sequences/${datasetId}`);
                         if (response.ok) {
                             const data = await response.json();
-                            
+
                             document.getElementById('analysis-content').innerHTML = `
                                 <div style="margin-bottom: 20px;">
                                     <button onclick="loadTrainingDatasets()" style="background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
                                         ← Back to Datasets
                                     </button>
                                 </div>
-                                
+
                                 <h3>🔍 Dataset Sequences: ${data.dataset_name || `Dataset ${datasetId}`}</h3>
-                                
+
                                 <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
                                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
                                         <div style="text-align: center;">
@@ -871,14 +871,14 @@ class DashboardTemplateEngine:
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
                                     <h4>Browse Sequences</h4>
                                     <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
                                         <label>Sequence Index:</label>
-                                        <input type="number" id="sequence-index" min="0" max="${(data.total_sequences || 1) - 1}" value="0" 
+                                        <input type="number" id="sequence-index" min="0" max="${(data.total_sequences || 1) - 1}" value="0"
                                                style="width: 100px; padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
-                                        <button onclick="loadSequenceData(${datasetId})" 
+                                        <button onclick="loadSequenceData(${datasetId})"
                                                 style="background: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
                                             Load Sequence
                                         </button>
@@ -886,13 +886,13 @@ class DashboardTemplateEngine:
                                             (0 - ${(data.total_sequences || 1) - 1})
                                         </span>
                                     </div>
-                                    
+
                                     <div id="sequence-viewer" style="border: 1px solid #eee; border-radius: 4px; padding: 20px; background: #f8f9fa;">
                                         <p style="text-align: center; color: #666;">Enter a sequence index and click 'Load Sequence' to view data</p>
                                     </div>
                                 </div>
                             `;
-                            
+
                         } else {
                             alert('Error loading dataset sequences');
                         }
@@ -901,20 +901,20 @@ class DashboardTemplateEngine:
                         alert('Error loading dataset sequences');
                     }
                 }
-                
+
                 async function loadSequenceData(datasetId) {
                     const sequenceIndex = document.getElementById('sequence-index').value;
-                    
+
                     document.getElementById('sequence-viewer').innerHTML = '<p>Loading sequence data...</p>';
-                    
+
                     try {
                         const response = await fetch(`/api/training_dataset_sequence/${datasetId}/${sequenceIndex}`);
                         if (response.ok) {
                             const data = await response.json();
-                            
+
                             const html = `
                                 <h5>Sequence ${sequenceIndex} - Symbol: ${data.symbol || 'Unknown'}</h5>
-                                
+
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                                     <div>
                                         <h6>Sequence Information</h6>
@@ -930,7 +930,7 @@ class DashboardTemplateEngine:
                                         <p><strong>Prediction Horizon:</strong> ${data.prediction_horizon || 'N/A'}</p>
                                     </div>
                                 </div>
-                                
+
                                 <div style="margin-bottom: 20px;">
                                     <h6>Feature Data Preview</h6>
                                     <div style="max-height: 300px; overflow: auto; border: 1px solid #ddd; border-radius: 4px;">
@@ -960,9 +960,9 @@ class DashboardTemplateEngine:
                                     </div>
                                 </div>
                             `;
-                            
+
                             document.getElementById('sequence-viewer').innerHTML = html;
-                            
+
                         } else {
                             document.getElementById('sequence-viewer').innerHTML = '<p style="color: #dc3545;">Error loading sequence data</p>';
                         }
@@ -971,7 +971,7 @@ class DashboardTemplateEngine:
                         document.getElementById('sequence-viewer').innerHTML = '<p style="color: #dc3545;">Error loading sequence data</p>';
                     }
                 }
-                
+
                 async function downloadDataset(datasetId) {
                     try {
                         const response = await fetch(`/api/download_dataset/${datasetId}`);
@@ -994,36 +994,36 @@ class DashboardTemplateEngine:
                         alert('Error downloading dataset');
                     }
                 }
-                
+
                 async function refreshTrainingDatasets() {
                     loadTrainingDatasets();
                 }
-                
+
                 async function loadMultiPanelVisualization() {
                     document.getElementById('analysis-content').innerHTML = `
                         <h3>🎨 Multi-Panel Trading Charts</h3>
                         <p>Loading visualization interface...</p>
                     `;
-                    
+
                     const html = `
                         <h3>🎨 Multi-Panel Trading Charts</h3>
-                        
+
                         <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
                             <h4>Chart Configuration</h4>
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                                 <div>
                                     <label for="chart-symbol" style="display: block; margin-bottom: 5px; font-weight: bold;">Symbol:</label>
-                                    <input type="text" id="chart-symbol" placeholder="e.g., AAPL" 
+                                    <input type="text" id="chart-symbol" placeholder="e.g., AAPL"
                                            style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                 </div>
                                 <div>
                                     <label for="chart-start-date" style="display: block; margin-bottom: 5px; font-weight: bold;">Start Date:</label>
-                                    <input type="date" id="chart-start-date" 
+                                    <input type="date" id="chart-start-date"
                                            style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                 </div>
                                 <div>
                                     <label for="chart-end-date" style="display: block; margin-bottom: 5px; font-weight: bold;">End Date:</label>
-                                    <input type="date" id="chart-end-date" 
+                                    <input type="date" id="chart-end-date"
                                            style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                 </div>
                                 <div>
@@ -1037,52 +1037,52 @@ class DashboardTemplateEngine:
                                 </div>
                             </div>
                             <div style="margin-top: 15px;">
-                                <button onclick="generateTradingChart()" 
+                                <button onclick="generateTradingChart()"
                                         style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
                                     📈 Generate Chart
                                 </button>
                             </div>
                         </div>
-                        
+
                         <div id="trading-chart-container" style="background: white; border-radius: 8px; border: 1px solid #ddd; padding: 20px; min-height: 600px;">
                             <p style="text-align: center; color: #666; margin-top: 50px;">
                                 Configure chart settings above and click 'Generate Chart' to create visualization
                             </p>
                         </div>
                     `;
-                    
+
                     document.getElementById('analysis-content').innerHTML = html;
-                    
+
                     // Set default dates
                     const endDate = new Date();
                     const startDate = new Date();
                     startDate.setMonth(endDate.getMonth() - 3); // 3 months ago
-                    
+
                     document.getElementById('chart-end-date').value = endDate.toISOString().split('T')[0];
                     document.getElementById('chart-start-date').value = startDate.toISOString().split('T')[0];
                 }
-                
+
                 async function generateTradingChart() {
                     const symbol = document.getElementById('chart-symbol').value;
                     const startDate = document.getElementById('chart-start-date').value;
                     const endDate = document.getElementById('chart-end-date').value;
                     const timeframe = document.getElementById('chart-timeframe').value;
-                    
+
                     if (!symbol || !startDate || !endDate) {
                         alert('Please fill in all required fields');
                         return;
                     }
-                    
+
                     document.getElementById('trading-chart-container').innerHTML = '<p>Generating multi-panel trading chart...</p>';
-                    
+
                     try {
                         const response = await fetch(`/api/multi_panel_chart?symbol=${symbol}&start_date=${startDate}&end_date=${endDate}&timeframe=${timeframe}`);
                         if (response.ok) {
                             const chartData = await response.json();
-                            
+
                             // Create multi-panel chart with Plotly
                             const traces = [];
-                            
+
                             // Price panel (OHLC)
                             traces.push({
                                 x: chartData.timestamps,
@@ -1094,7 +1094,7 @@ class DashboardTemplateEngine:
                                 name: `${symbol} Price`,
                                 yaxis: 'y1'
                             });
-                            
+
                             // Volume panel
                             traces.push({
                                 x: chartData.timestamps,
@@ -1104,7 +1104,7 @@ class DashboardTemplateEngine:
                                 yaxis: 'y2',
                                 marker: { color: 'rgba(158, 185, 243, 0.6)' }
                             });
-                            
+
                             // Technical indicators if available
                             if (chartData.sma_20) {
                                 traces.push({
@@ -1117,7 +1117,7 @@ class DashboardTemplateEngine:
                                     yaxis: 'y1'
                                 });
                             }
-                            
+
                             if (chartData.sma_50) {
                                 traces.push({
                                     x: chartData.timestamps,
@@ -1129,7 +1129,7 @@ class DashboardTemplateEngine:
                                     yaxis: 'y1'
                                 });
                             }
-                            
+
                             const layout = {
                                 title: `${symbol} - Multi-Panel Trading Chart`,
                                 xaxis: {
@@ -1156,9 +1156,9 @@ class DashboardTemplateEngine:
                                     bgcolor: 'rgba(255, 255, 255, 0.8)'
                                 }
                             };
-                            
+
                             Plotly.newPlot('trading-chart-container', traces, layout);
-                            
+
                         } else {
                             document.getElementById('trading-chart-container').innerHTML = '<p style="color: #dc3545;">Error generating chart. Please check symbol and date range.</p>';
                         }
@@ -1167,7 +1167,7 @@ class DashboardTemplateEngine:
                         document.getElementById('trading-chart-container').innerHTML = '<p style="color: #dc3545;">Error generating chart</p>';
                     }
                 }
-                
+
                 async function loadNewsAnalytics() {
                     document.getElementById('analysis-content').innerHTML = `
                         <h3>📰 News & Signals Analytics</h3>
@@ -1183,20 +1183,20 @@ class DashboardTemplateEngine:
                         </div>
                     `;
                 }
-                
+
                 async function loadRayAnalytics() {
                     document.getElementById('analysis-content').innerHTML = `
                         <h3>⚡ Distributed Analytics with Ray</h3>
                         <p>Loading Ray cluster information...</p>
                     `;
-                    
+
                     try {
                         const response = await fetch('/api/ray_status');
                         let html = '<h3>⚡ Distributed Analytics with Ray</h3>';
-                        
+
                         if (response.ok) {
                             const rayData = await response.json();
-                            
+
                             html += `
                                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
                                     <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd; text-align: center;">
@@ -1219,31 +1219,31 @@ class DashboardTemplateEngine:
                                     </div>
                                 </div>
                             `;
-                            
+
                             if (rayData.cluster_status === 'running') {
                                 html += `
                                     <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
                                         <h4>📊 Available Ray Operations</h4>
                                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
-                                            <button onclick="runRayAnalysis('portfolio_optimization')" 
+                                            <button onclick="runRayAnalysis('portfolio_optimization')"
                                                     style="background: #007bff; color: white; border: none; padding: 15px; border-radius: 4px; cursor: pointer;">
                                                 📈 Portfolio Optimization
                                             </button>
-                                            <button onclick="runRayAnalysis('risk_analysis')" 
+                                            <button onclick="runRayAnalysis('risk_analysis')"
                                                     style="background: #28a745; color: white; border: none; padding: 15px; border-radius: 4px; cursor: pointer;">
                                                 ⚠️ Risk Analysis
                                             </button>
-                                            <button onclick="runRayAnalysis('backtesting')" 
+                                            <button onclick="runRayAnalysis('backtesting')"
                                                     style="background: #ffc107; color: black; border: none; padding: 15px; border-radius: 4px; cursor: pointer;">
                                                 📊 Strategy Backtesting
                                             </button>
-                                            <button onclick="runRayAnalysis('correlation_matrix')" 
+                                            <button onclick="runRayAnalysis('correlation_matrix')"
                                                     style="background: #17a2b8; color: white; border: none; padding: 15px; border-radius: 4px; cursor: pointer;">
                                                 🔗 Correlation Analysis
                                             </button>
                                         </div>
                                     </div>
-                                    
+
                                     <div id="ray-results" style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
                                         <h4>Analysis Results</h4>
                                         <p style="color: #666;">Select an operation above to run distributed analysis</p>
@@ -1270,9 +1270,9 @@ class DashboardTemplateEngine:
                                 </div>
                             `;
                         }
-                        
+
                         document.getElementById('analysis-content').innerHTML = html;
-                        
+
                     } catch (error) {
                         console.error('Error loading Ray analytics:', error);
                         document.getElementById('analysis-content').innerHTML = `
@@ -1284,25 +1284,25 @@ class DashboardTemplateEngine:
                         `;
                     }
                 }
-                
+
                 async function runRayAnalysis(analysisType) {
                     const button = event.target;
                     const originalText = button.innerHTML;
                     button.innerHTML = '⏳ Running...';
                     button.disabled = true;
-                    
+
                     document.getElementById('ray-results').innerHTML = `
                         <h4>Analysis Results - ${analysisType}</h4>
                         <p>Running distributed analysis on Ray cluster...</p>
                     `;
-                    
+
                     try {
                         const response = await fetch(`/api/ray_analysis/${analysisType}`, { method: 'POST' });
                         if (response.ok) {
                             const results = await response.json();
-                            
+
                             let resultsHtml = `<h4>Analysis Results - ${analysisType}</h4>`;
-                            
+
                             if (results.status === 'completed') {
                                 resultsHtml += `
                                     <div style="margin-bottom: 15px;">
@@ -1310,13 +1310,13 @@ class DashboardTemplateEngine:
                                             ✅ Completed in ${results.execution_time || 'N/A'} seconds
                                         </span>
                                     </div>
-                                    
+
                                     <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
                                         <h5>Summary</h5>
                                         <p>${results.summary || 'Analysis completed successfully.'}</p>
                                     </div>
                                 `;
-                                
+
                                 if (results.data) {
                                     resultsHtml += `
                                         <div style="background: #f8f9fa; padding: 15px; border-radius: 4px;">
@@ -1333,9 +1333,9 @@ class DashboardTemplateEngine:
                                     </div>
                                 `;
                             }
-                            
+
                             document.getElementById('ray-results').innerHTML = resultsHtml;
-                            
+
                         } else {
                             document.getElementById('ray-results').innerHTML = `
                                 <h4>Analysis Results - ${analysisType}</h4>

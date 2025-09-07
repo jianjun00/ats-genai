@@ -19,7 +19,7 @@ from schema.entities import EXCHANGE_VALUES, INSTRUMENT_TYPE_VALUES, CURRENCY_VA
 
 class TestFieldDefinition:
     """Test FieldDefinition class and validation."""
-    
+
     def test_field_definition_creation(self):
         """Test creating basic field definition."""
         field = FieldDefinition(
@@ -30,7 +30,7 @@ class TestFieldDefinition:
             max_length=50,
             description="Test field for validation"
         )
-        
+
         assert field.name == "test_field"
         assert field.field_type == FieldType.STRING
         assert field.semantics == FieldSemantics.SEARCHABLE_STRING
@@ -41,7 +41,7 @@ class TestFieldDefinition:
         assert field.is_filterable == True
         assert field.supports_search == True
         assert field.supports_range == False
-    
+
     def test_enum_field_validation(self):
         """Test that enum fields require enum_values."""
         # Should work with enum values
@@ -52,7 +52,7 @@ class TestFieldDefinition:
             enum_values=["active", "inactive", "pending"]
         )
         assert field.enum_values == ["active", "inactive", "pending"]
-        
+
         # Should raise error without enum values
         with pytest.raises(ValueError, match="ENUM field 'status' must have enum_values defined"):
             FieldDefinition(
@@ -60,7 +60,7 @@ class TestFieldDefinition:
                 field_type=FieldType.ENUM,
                 semantics=FieldSemantics.CATEGORICAL
             )
-    
+
     def test_ui_label_auto_generation(self):
         """Test automatic UI label generation."""
         field = FieldDefinition(
@@ -69,16 +69,16 @@ class TestFieldDefinition:
             semantics=FieldSemantics.NUMERIC_RANGE
         )
         assert field.ui_label == "Market Cap Usd"
-        
+
         # Custom label should override
         field_custom = FieldDefinition(
-            name="market_cap_usd", 
+            name="market_cap_usd",
             field_type=FieldType.DECIMAL,
             semantics=FieldSemantics.NUMERIC_RANGE,
             ui_label="Market Cap (USD)"
         )
         assert field_custom.ui_label == "Market Cap (USD)"
-    
+
     def test_field_capability_properties(self):
         """Test field capability detection properties."""
         # Searchable string
@@ -90,7 +90,7 @@ class TestFieldDefinition:
         assert searchable.is_filterable == True
         assert searchable.supports_search == True
         assert searchable.supports_range == False
-        
+
         # Categorical
         categorical = FieldDefinition(
             name="exchange",
@@ -101,7 +101,7 @@ class TestFieldDefinition:
         assert categorical.is_filterable == True
         assert categorical.supports_search == False
         assert categorical.supports_range == False
-        
+
         # Numeric range
         numeric = FieldDefinition(
             name="price",
@@ -111,7 +111,7 @@ class TestFieldDefinition:
         assert numeric.is_filterable == True
         assert numeric.supports_search == False
         assert numeric.supports_range == True
-        
+
         # Date range
         date_field = FieldDefinition(
             name="trade_date",
@@ -121,7 +121,7 @@ class TestFieldDefinition:
         assert date_field.is_filterable == True
         assert date_field.supports_search == False
         assert date_field.supports_range == True
-        
+
         # Boolean
         boolean = FieldDefinition(
             name="active",
@@ -131,7 +131,7 @@ class TestFieldDefinition:
         assert boolean.is_filterable == True
         assert boolean.supports_search == False
         assert boolean.supports_range == False
-        
+
         # Readonly
         readonly = FieldDefinition(
             name="id",
@@ -145,7 +145,7 @@ class TestFieldDefinition:
 
 class TestEntitySchema:
     """Test EntitySchema class functionality."""
-    
+
     def create_test_schema(self):
         """Create a test schema for testing."""
         return EntitySchema(
@@ -189,23 +189,23 @@ class TestEntitySchema:
                 )
             }
         )
-    
+
     def test_entity_schema_creation(self):
         """Test basic entity schema creation."""
         schema = self.create_test_schema()
-        
+
         assert schema.entity_name == "test_entity"
         assert schema.table_name == "test_table"
         assert schema.description == "Test entity for validation"
         assert len(schema.fields) == 5
         assert schema.primary_key == ["id"]  # Default
         assert schema.indexes == []  # Default
-    
+
     def test_get_filterable_fields(self):
         """Test getting filterable fields."""
         schema = self.create_test_schema()
         filterable = schema.get_filterable_fields()
-        
+
         # Should exclude readonly 'id' field
         assert len(filterable) == 4
         assert "id" not in filterable
@@ -213,42 +213,42 @@ class TestEntitySchema:
         assert "category" in filterable
         assert "amount" in filterable
         assert "is_active" in filterable
-    
+
     def test_get_searchable_fields(self):
         """Test getting searchable fields."""
         schema = self.create_test_schema()
         searchable = schema.get_searchable_fields()
-        
+
         assert len(searchable) == 1
         assert "name" in searchable
-    
+
     def test_get_fields_by_semantics(self):
         """Test getting fields by semantic type."""
         schema = self.create_test_schema()
-        
+
         categorical = schema.get_fields_by_semantics(FieldSemantics.CATEGORICAL)
         assert len(categorical) == 1
         assert "category" in categorical
-        
+
         numeric = schema.get_fields_by_semantics(FieldSemantics.NUMERIC_RANGE)
         assert len(numeric) == 1
         assert "amount" in numeric
-        
+
         readonly = schema.get_fields_by_semantics(FieldSemantics.READONLY)
         assert len(readonly) == 1
         assert "id" in readonly
-    
+
     def test_get_eda_priority_fields(self):
         """Test getting fields by EDA priority."""
         schema = self.create_test_schema()
-        
+
         # Get top 3 priority fields
         priority_fields = schema.get_eda_priority_fields(limit=3)
-        
+
         # Should be ordered by priority: name(8), amount(7), category(6)
         assert len(priority_fields) == 3
         assert priority_fields == ["name", "amount", "category"]
-        
+
         # Get more than available
         all_priority = schema.get_eda_priority_fields(limit=10)
         assert len(all_priority) == 4  # Only filterable fields
@@ -257,47 +257,47 @@ class TestEntitySchema:
 
 class TestEnumDefinitions:
     """Test predefined enum value definitions."""
-    
+
     def test_exchange_values(self):
         """Test exchange enum values."""
         assert isinstance(EXCHANGE_VALUES, list)
         assert len(EXCHANGE_VALUES) > 0
-        
+
         # Check for expected major exchanges
         expected_exchanges = ["NYSE", "NASDAQ", "AMEX", "LSE"]
         for exchange in expected_exchanges:
             assert exchange in EXCHANGE_VALUES
-        
+
         # All should be strings
         for exchange in EXCHANGE_VALUES:
             assert isinstance(exchange, str)
             assert len(exchange) > 0
-    
+
     def test_instrument_type_values(self):
-        """Test instrument type enum values.""" 
+        """Test instrument type enum values."""
         assert isinstance(INSTRUMENT_TYPE_VALUES, list)
         assert len(INSTRUMENT_TYPE_VALUES) > 0
-        
+
         # Check for expected types
         expected_types = ["STOCK", "ETF", "BOND", "OPTION"]
         for inst_type in expected_types:
             assert inst_type in INSTRUMENT_TYPE_VALUES
-            
+
         # All should be strings
         for inst_type in INSTRUMENT_TYPE_VALUES:
             assert isinstance(inst_type, str)
             assert len(inst_type) > 0
-    
+
     def test_currency_values(self):
         """Test currency enum values."""
         assert isinstance(CURRENCY_VALUES, list)
         assert len(CURRENCY_VALUES) > 0
-        
+
         # Check for expected currencies
         expected_currencies = ["USD", "EUR", "GBP", "JPY"]
         for currency in expected_currencies:
             assert currency in CURRENCY_VALUES
-            
+
         # All should be 3-character strings
         for currency in CURRENCY_VALUES:
             assert isinstance(currency, str)
@@ -307,23 +307,23 @@ class TestEnumDefinitions:
 
 class TestFieldSemantics:
     """Test field semantic enumeration."""
-    
+
     def test_all_semantics_present(self):
         """Test that all expected semantic types are defined."""
         expected_semantics = [
             "searchable_string",
-            "categorical", 
+            "categorical",
             "numeric_range",
             "boolean",
             "date_range",
             "readonly"
         ]
-        
+
         semantic_values = [sem.value for sem in FieldSemantics]
-        
+
         for expected in expected_semantics:
             assert expected in semantic_values
-    
+
     def test_semantic_enum_properties(self):
         """Test semantic enum properties."""
         # Each semantic should have a string value
@@ -335,24 +335,24 @@ class TestFieldSemantics:
 
 class TestFieldType:
     """Test field type enumeration."""
-    
+
     def test_all_field_types_present(self):
         """Test that all expected field types are defined."""
         expected_types = [
             "string",
             "integer",
-            "decimal", 
+            "decimal",
             "boolean",
             "date",
             "datetime",
             "enum"
         ]
-        
+
         field_type_values = [ft.value for ft in FieldType]
-        
+
         for expected in expected_types:
             assert expected in field_type_values
-    
+
     def test_field_type_enum_properties(self):
         """Test field type enum properties."""
         for field_type in FieldType:
@@ -362,7 +362,7 @@ class TestFieldType:
 
 class TestFieldDefinitionValidation:
     """Test field definition validation and edge cases."""
-    
+
     def test_nullable_validation(self):
         """Test nullable field validation."""
         # Nullable field should allow None conceptually
@@ -373,16 +373,16 @@ class TestFieldDefinitionValidation:
             nullable=True
         )
         assert field.nullable == True
-        
+
         # Non-nullable field
         field = FieldDefinition(
-            name="required_field", 
+            name="required_field",
             field_type=FieldType.STRING,
             semantics=FieldSemantics.SEARCHABLE_STRING,
             nullable=False
         )
         assert field.nullable == False
-    
+
     def test_max_length_validation(self):
         """Test max length constraint."""
         field = FieldDefinition(
@@ -392,7 +392,7 @@ class TestFieldDefinitionValidation:
             max_length=10
         )
         assert field.max_length == 10
-    
+
     def test_numeric_constraints(self):
         """Test numeric field constraints."""
         field = FieldDefinition(
@@ -404,7 +404,7 @@ class TestFieldDefinitionValidation:
         )
         assert field.min_value == 0
         assert field.max_value == 10000
-    
+
     def test_validation_regex(self):
         """Test regex validation pattern."""
         field = FieldDefinition(
@@ -414,7 +414,7 @@ class TestFieldDefinitionValidation:
             validation_regex=r"^[A-Z]{1,5}$"
         )
         assert field.validation_regex == r"^[A-Z]{1,5}$"
-    
+
     def test_eda_priority_default(self):
         """Test EDA priority defaults."""
         field = FieldDefinition(
@@ -423,7 +423,7 @@ class TestFieldDefinitionValidation:
             semantics=FieldSemantics.SEARCHABLE_STRING
         )
         assert field.eda_priority == 0  # Default
-        
+
         field_with_priority = FieldDefinition(
             name="important_field",
             field_type=FieldType.STRING,
@@ -431,7 +431,7 @@ class TestFieldDefinitionValidation:
             eda_priority=9
         )
         assert field_with_priority.eda_priority == 9
-    
+
     def test_eda_default_visible(self):
         """Test EDA default visibility."""
         field = FieldDefinition(
@@ -440,7 +440,7 @@ class TestFieldDefinitionValidation:
             semantics=FieldSemantics.SEARCHABLE_STRING
         )
         assert field.eda_default_visible == True  # Default
-        
+
         field_hidden = FieldDefinition(
             name="hidden_field",
             field_type=FieldType.STRING,
@@ -453,7 +453,7 @@ class TestFieldDefinitionValidation:
 if __name__ == "__main__":
     # Run tests manually without pytest to avoid dependency issues
     import traceback
-    
+
     test_classes = [
         TestFieldDefinition,
         TestEntitySchema,
@@ -462,20 +462,20 @@ if __name__ == "__main__":
         TestFieldType,
         TestFieldDefinitionValidation
     ]
-    
+
     total_tests = 0
     passed_tests = 0
-    
+
     print("🧪 Running Type System Core Unit Tests")
     print("=" * 50)
-    
+
     for test_class in test_classes:
         print(f"\\n📋 Testing {test_class.__name__}")
         print("-" * 30)
-        
+
         instance = test_class()
         test_methods = [method for method in dir(instance) if method.startswith('test_')]
-        
+
         for test_method in test_methods:
             total_tests += 1
             try:
@@ -485,20 +485,20 @@ if __name__ == "__main__":
                     getattr(instance, test_method)()
                 else:
                     getattr(instance, test_method)()
-                
+
                 print(f"✅ {test_method}")
                 passed_tests += 1
-                
+
             except Exception as e:
                 print(f"❌ {test_method}: {e}")
                 traceback.print_exc()
-    
+
     print(f"\\n📊 Test Results")
     print("-" * 20)
     print(f"Total Tests: {total_tests}")
     print(f"Passed: {passed_tests}")
     print(f"Failed: {total_tests - passed_tests}")
-    
+
     if passed_tests == total_tests:
         print("\\n🎉 All type system core tests passed!")
     else:

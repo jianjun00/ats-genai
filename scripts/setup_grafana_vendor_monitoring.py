@@ -18,9 +18,9 @@ GRAFANA_PASS = "admin"  # Default Grafana password
 
 def setup_grafana_datasource():
     """Add PostgreSQL data source to Grafana."""
-    
+
     print("🔌 Setting up PostgreSQL data source in Grafana...")
-    
+
     datasource_config = {
         "name": "ATS-INTG-PostgreSQL",
         "type": "postgres",
@@ -41,7 +41,7 @@ def setup_grafana_datasource():
             "timescaledb": False
         }
     }
-    
+
     try:
         response = requests.post(
             f"{GRAFANA_URL}/api/datasources",
@@ -50,7 +50,7 @@ def setup_grafana_datasource():
             json=datasource_config,
             timeout=10
         )
-        
+
         if response.status_code == 200:
             print("✅ PostgreSQL data source added successfully")
             return True
@@ -60,23 +60,23 @@ def setup_grafana_datasource():
         else:
             print(f"❌ Failed to add data source: {response.status_code} - {response.text}")
             return False
-            
+
     except requests.exceptions.RequestException as e:
         print(f"❌ Failed to connect to Grafana: {e}")
         return False
 
 def import_dashboard():
     """Import vendor monitoring dashboard."""
-    
+
     print("📊 Importing vendor monitoring dashboard...")
-    
+
     # Load dashboard JSON
     dashboard_path = Path(__file__).parent.parent / "config/grafana/ats-vendor-monitoring-dashboard-postgres.json"
-    
+
     try:
         with open(dashboard_path, 'r') as f:
             dashboard_data = json.load(f)
-        
+
         # Wrap in import format
         import_payload = {
             "dashboard": dashboard_data["dashboard"],
@@ -84,7 +84,7 @@ def import_dashboard():
             "inputs": [],
             "folderId": 0
         }
-        
+
         response = requests.post(
             f"{GRAFANA_URL}/api/dashboards/import",
             auth=(GRAFANA_USER, GRAFANA_PASS),
@@ -92,7 +92,7 @@ def import_dashboard():
             json=import_payload,
             timeout=10
         )
-        
+
         if response.status_code == 200:
             result = response.json()
             dashboard_url = f"{GRAFANA_URL}/d/{result['dashboardId']}/ats-vendor-monitoring-dashboard-postgresql"
@@ -102,7 +102,7 @@ def import_dashboard():
         else:
             print(f"❌ Failed to import dashboard: {response.status_code} - {response.text}")
             return False
-            
+
     except FileNotFoundError:
         print(f"❌ Dashboard file not found: {dashboard_path}")
         return False
@@ -115,15 +115,15 @@ def import_dashboard():
 
 def test_grafana_connection():
     """Test connection to Grafana."""
-    
+
     print("🔍 Testing Grafana connection...")
-    
+
     try:
         response = requests.get(
             f"{GRAFANA_URL}/api/health",
             timeout=5
         )
-        
+
         if response.status_code == 200:
             health_data = response.json()
             print(f"✅ Grafana is running (version {health_data.get('version', 'unknown')})")
@@ -131,7 +131,7 @@ def test_grafana_connection():
         else:
             print(f"❌ Grafana health check failed: {response.status_code}")
             return False
-            
+
     except requests.exceptions.RequestException as e:
         print(f"❌ Cannot connect to Grafana at {GRAFANA_URL}: {e}")
         print("💡 Make sure Grafana is running: docker ps | grep grafana")
@@ -139,22 +139,22 @@ def test_grafana_connection():
 
 def main():
     """Main setup process."""
-    
+
     print("🚀 Setting up Grafana Vendor Monitoring Dashboard")
     print("=" * 60)
-    
+
     # Test connection
     if not test_grafana_connection():
         sys.exit(1)
-    
+
     # Setup data source
     if not setup_grafana_datasource():
         print("⚠️  Warning: Data source setup failed, but continuing...")
-    
+
     # Import dashboard
     if not import_dashboard():
         sys.exit(1)
-    
+
     print("\n" + "=" * 60)
     print("✅ Grafana vendor monitoring setup complete!")
     print(f"🎯 Access Grafana at: {GRAFANA_URL}")

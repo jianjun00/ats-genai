@@ -32,32 +32,32 @@ async def run_daily_download(
     debug: bool = False
 ) -> bool:
     """Run the daily download job."""
-    
+
     # Default asset types
     if asset_types is None:
         asset_types = ["stock", "etf", "fx"]
-    
+
     # Setup logging
     log_level = "DEBUG" if debug else "INFO"
     setup_run_aware_logging(log_level=log_level)
-    
+
     logger = logging.getLogger(__name__)
-    
+
     # Log job start
     run_date = download_date or date.today()
     logger.info(f"🚀 Starting FirstRate daily download job for {run_date}")
     logger.info(f"📊 Asset types: {asset_types}")
-    
+
     try:
         # Create download jobs
         jobs = [DownloadJob(asset_type=asset_type) for asset_type in asset_types]
-        
+
         # Create downloader
         downloader = FirstRateDownloader()
-        
+
         # Run download
         results = await downloader.download_daily_data(jobs, download_date)
-        
+
         # Cleanup old files
         total_cleaned = 0
         if cleanup_days > 0:
@@ -65,11 +65,11 @@ async def run_daily_download(
             for asset_type in asset_types:
                 cleaned = downloader.cleanup_old_files(asset_type, cleanup_days)
                 total_cleaned += cleaned
-        
+
         # Summary
         successful = sum(1 for success in results.values() if success)
         total = len(results)
-        
+
         if successful == total:
             logger.info(f"✅ Daily download completed successfully: {successful}/{total} asset types")
             logger.info(f"📁 Files stored in: /mnt/d/ats-data/firstrate-data/daily/")
@@ -80,7 +80,7 @@ async def run_daily_download(
             logger.error(f"❌ Daily download partially failed: {successful}/{total} successful")
             logger.error(f"Failed asset types: {[k for k, v in results.items() if not v]}")
             return False
-            
+
     except Exception as e:
         logger.error(f"💥 Daily download job failed: {e}")
         import traceback
@@ -91,7 +91,7 @@ async def run_daily_download(
 def main():
     """Main function with CLI argument parsing."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(
         description="FirstRate Daily Download Job",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -113,15 +113,15 @@ Examples:
   python scripts/firstrate_daily_download.py --all --no-cleanup
         """
     )
-    
+
     # Asset type options
     asset_group = parser.add_mutually_exclusive_group(required=True)
     asset_group.add_argument("--all", action="store_true",
                            help="Download all asset types (stock, etf, fx)")
-    asset_group.add_argument("--asset-types", nargs="+", 
+    asset_group.add_argument("--asset-types", nargs="+",
                            choices=["stock", "etf", "fx"],
                            help="Specific asset types to download")
-    
+
     # Other options
     parser.add_argument("--date", help="Download date (YYYY-MM-DD), defaults to today")
     parser.add_argument("--cleanup-days", type=int, default=7,
@@ -129,15 +129,15 @@ Examples:
     parser.add_argument("--no-cleanup", action="store_true",
                        help="Skip cleanup of old files")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    
+
     args = parser.parse_args()
-    
+
     # Determine asset types
     if args.all:
         asset_types = ["stock", "etf", "fx"]
     else:
         asset_types = args.asset_types
-    
+
     # Parse date if provided
     download_date = None
     if args.date:
@@ -146,10 +146,10 @@ Examples:
         except ValueError:
             print(f"❌ Invalid date format: {args.date} (use YYYY-MM-DD)")
             return 1
-    
+
     # Set cleanup days
     cleanup_days = 0 if args.no_cleanup else args.cleanup_days
-    
+
     # Run the job
     try:
         success = asyncio.run(run_daily_download(
@@ -158,9 +158,9 @@ Examples:
             cleanup_days=cleanup_days,
             debug=args.debug
         ))
-        
+
         return 0 if success else 1
-        
+
     except KeyboardInterrupt:
         print("❌ Download interrupted by user")
         return 1

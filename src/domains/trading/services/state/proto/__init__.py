@@ -9,10 +9,10 @@ try:
     from . import factor_interval_pb2
     from . import indicator_interval_pb2
     from . import instrument_interval_pb2
-    
+
     # Import complex dependencies last (depends on above)
     from . import universe_state_interval_pb2
-    
+
 except ImportError as e:
     # Graceful fallback if protobuf dependencies are missing
     import warnings

@@ -28,7 +28,7 @@ class SlackWebhookConfig:
     log_level: str = "INFO"
     timeout_seconds: int = 30
     max_retries: int = 3
-    
+
     def __post_init__(self):
         if self.port is None:
             self.port = int(os.getenv('PORT', 8080))
@@ -60,29 +60,29 @@ class AlertManagerWebhook(BaseModel):
 
 def format_alert_for_slack(alert_data: AlertManagerWebhook, alert_type: str = "default") -> Dict[str, Any]:
     """Convert AlertManager webhook to Slack message format"""
-    
+
     # Determine status icon
     status_icon = "🔥" if alert_data.status == "firing" else "✅"
-    
+
     # Color coding
     color_map = {
         "critical": "danger",
-        "warning": "warning", 
+        "warning": "warning",
         "info": "good"
     }
-    
+
     # Get severity from alerts
     severity = "info"
     for alert in alert_data.alerts:
         if "severity" in alert.get("labels", {}):
             severity = alert["labels"]["severity"]
             break
-    
+
     color_map.get(severity, "warning")
-    
+
     # Build message blocks
     blocks = []
-    
+
     # Header block
     title_text = f"{status_icon} ATS Alert - {alert_data.status.title()}"
     if alert_type == "critical":
@@ -98,7 +98,7 @@ def format_alert_for_slack(alert_data: AlertManagerWebhook, alert_type: str = "d
         title_text = f"⚠️ ATS Warning - {alert_data.status.title()}"
     elif alert_type == "services":
         title_text = f"🔧 ATS Service Alert - {alert_data.status.title()}"
-    
+
     blocks.append({
         "type": "header",
         "text": {
@@ -106,16 +106,16 @@ def format_alert_for_slack(alert_data: AlertManagerWebhook, alert_type: str = "d
             "text": title_text
         }
     })
-    
+
     # Alert details
     for alert in alert_data.alerts:
         labels = alert.get("labels", {})
         annotations = alert.get("annotations", {})
-        
+
         # Service information
         service = labels.get("service", labels.get("job", "Unknown"))
         instance = labels.get("instance", "N/A")
-        
+
         # Build fields
         fields = [
             {
@@ -123,42 +123,42 @@ def format_alert_for_slack(alert_data: AlertManagerWebhook, alert_type: str = "d
                 "text": f"*Service:*\n{service}"
             },
             {
-                "type": "mrkdwn", 
+                "type": "mrkdwn",
                 "text": f"*Severity:*\n{labels.get('severity', 'Unknown')}"
             }
         ]
-        
+
         if instance != "N/A":
             fields.append({
                 "type": "mrkdwn",
                 "text": f"*Instance:*\n{instance}"
             })
-        
+
         if "component" in labels:
             fields.append({
                 "type": "mrkdwn",
                 "text": f"*Component:*\n{labels['component']}"
             })
-        
+
         blocks.append({
             "type": "section",
             "fields": fields
         })
-        
+
         # Alert message
         summary = annotations.get("summary", "No summary available")
         description = annotations.get("description", "")
-        
+
         alert_text = f"*Alert:* {summary}"
         if description and description != summary:
             alert_text += f"\n*Details:* {description}"
-        
+
         # Current value and threshold if available
         if "current_value" in annotations:
             alert_text += f"\n*Current Value:* {annotations['current_value']}"
         if "threshold" in annotations:
             alert_text += f"\n*Threshold:* {annotations['threshold']}"
-        
+
         blocks.append({
             "type": "section",
             "text": {
@@ -166,7 +166,7 @@ def format_alert_for_slack(alert_data: AlertManagerWebhook, alert_type: str = "d
                 "text": alert_text
             }
         })
-        
+
         # Timing information
         starts_at = alert.get("startsAt", "")
         if starts_at:
@@ -185,11 +185,11 @@ def format_alert_for_slack(alert_data: AlertManagerWebhook, alert_type: str = "d
                 })
             except:
                 pass
-        
+
         # Add divider between alerts
         if len(alert_data.alerts) > 1:
             blocks.append({"type": "divider"})
-    
+
     # Add action buttons for critical alerts
     if alert_type == "critical":
         blocks.append({
@@ -205,7 +205,7 @@ def format_alert_for_slack(alert_data: AlertManagerWebhook, alert_type: str = "d
                     "style": "primary"
                 },
                 {
-                    "type": "button", 
+                    "type": "button",
                     "text": {
                         "type": "plain_text",
                         "text": "View Logs"
@@ -214,7 +214,7 @@ def format_alert_for_slack(alert_data: AlertManagerWebhook, alert_type: str = "d
                 }
             ]
         })
-    
+
     return {
         "text": f"ATS Alert: {alert_data.status}",
         "blocks": blocks
@@ -225,7 +225,7 @@ async def send_to_slack(message: Dict[str, Any]) -> bool:
     if not slack_config.slack_webhook_url or slack_config.slack_webhook_url == "PLACEHOLDER_SLACK_WEBHOOK_URL":
         logger.warning("Slack webhook URL not configured")
         return False
-    
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -234,14 +234,14 @@ async def send_to_slack(message: Dict[str, Any]) -> bool:
                 headers={"Content-Type": "application/json"},
                 timeout=10.0
             )
-            
+
             if response.status_code == 200:
                 logger.info("Successfully sent alert to Slack")
                 return True
             else:
                 logger.error(f"Failed to send to Slack: {response.status_code} - {response.text}")
                 return False
-                
+
     except Exception as e:
         logger.error(f"Error sending to Slack: {str(e)}")
         return False
@@ -270,17 +270,17 @@ async def critical_alerts(request: Request):
     try:
         data = await request.json()
         alert_data = AlertManagerWebhook(**data)
-        
+
         logger.info(f"Received critical alert: {alert_data.groupLabels}")
-        
+
         slack_message = format_alert_for_slack(alert_data, "critical")
         success = await send_to_slack(slack_message)
-        
+
         if not success:
             logger.error("Failed to send critical alert to Slack")
-        
+
         return {"status": "received", "sent_to_slack": success}
-        
+
     except Exception as e:
         logger.error(f"Error processing critical alert: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -291,14 +291,14 @@ async def warning_alerts(request: Request):
     try:
         data = await request.json()
         alert_data = AlertManagerWebhook(**data)
-        
+
         logger.info(f"Received warning alert: {alert_data.groupLabels}")
-        
+
         slack_message = format_alert_for_slack(alert_data, "warning")
         success = await send_to_slack(slack_message)
-        
+
         return {"status": "received", "sent_to_slack": success}
-        
+
     except Exception as e:
         logger.error(f"Error processing warning alert: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -309,14 +309,14 @@ async def service_alerts(request: Request):
     try:
         data = await request.json()
         alert_data = AlertManagerWebhook(**data)
-        
+
         logger.info(f"Received service alert: {alert_data.groupLabels}")
-        
+
         slack_message = format_alert_for_slack(alert_data, "services")
         success = await send_to_slack(slack_message)
-        
+
         return {"status": "received", "sent_to_slack": success}
-        
+
     except Exception as e:
         logger.error(f"Error processing service alert: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -349,9 +349,9 @@ async def test_slack():
             }
         ]
     }
-    
+
     success = await send_to_slack(test_message)
-    
+
     return {
         "test_sent": success,
         "webhook_configured": bool(slack_config.slack_webhook_url and slack_config.slack_webhook_url != "PLACEHOLDER_SLACK_WEBHOOK_URL"),
@@ -361,5 +361,5 @@ async def test_slack():
 if __name__ == "__main__":
     logger.info(f"Starting ATS Slack Webhook Proxy on port {slack_config.port}")
     logger.info(f"Slack webhook configured: {bool(slack_config.slack_webhook_url and slack_config.slack_webhook_url != 'PLACEHOLDER_SLACK_WEBHOOK_URL')}")
-    
+
     uvicorn.run(app, host=slack_config.host, port=slack_config.port)

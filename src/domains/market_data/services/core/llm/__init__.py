@@ -19,7 +19,7 @@ from .news_llm_processor import (
 __all__ = [
     'LLMNewsProcessor',
     'NewsAnalysisResult',
-    'FinancialEntity', 
+    'FinancialEntity',
     'FinancialEvent',
     'SentimentScore',
     'RAGContext',

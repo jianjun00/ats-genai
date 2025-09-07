@@ -51,7 +51,7 @@ if FASTAPI_AVAILABLE:
                 async def execute_query(self, query, params=None):
                     # Mock implementation for demo purposes
                     return []
-            
+
             analytics_service = AnalyticsService(MockDBManager())
             logger.info("Type-aware analytics service started successfully")
             logger.info(f"Schema registry loaded with {len(schema_registry.get_schema_summary()['entities'])} entities")
@@ -107,14 +107,14 @@ if FASTAPI_AVAILABLE:
         try:
             logger.info(f"Getting intelligent filters for table: {table_name}")
             filters = await analytics_service.get_intelligent_filters(table_name)
-            
+
             return {
                 "status": "success",
                 "table_name": table_name,
                 "filters": filters,
                 "message": f"Generated {filters['total_filterable_fields']} intelligent filters using type system"
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting filters for {table_name}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -126,7 +126,7 @@ if FASTAPI_AVAILABLE:
             # Try to get from schema registry first
             try:
                 schema = schema_registry.get_table_schema(table_name)
-                
+
                 # Build comprehensive schema info
                 schema_info = {
                     "table_name": table_name,
@@ -137,7 +137,7 @@ if FASTAPI_AVAILABLE:
                     "indexes": schema.indexes,
                     "type_system_enabled": True
                 }
-                
+
                 # Field breakdown by semantics
                 field_breakdown = {}
                 for field_name, field_def in schema.fields.items():
@@ -151,9 +151,9 @@ if FASTAPI_AVAILABLE:
                         "priority": field_def.eda_priority,
                         "nullable": field_def.nullable
                     })
-                
+
                 schema_info["field_breakdown"] = field_breakdown
-                
+
                 # UI generation hints
                 ui_components = {}
                 for field_name, field_def in schema.fields.items():
@@ -170,17 +170,17 @@ if FASTAPI_AVAILABLE:
                             component = "tri_state_checkbox"
                         else:
                             component = "display_only"
-                            
+
                         ui_components[field_name] = {
                             "component": component,
                             "priority": field_def.eda_priority,
                             "requires_db_query": not bool(field_def.enum_values) if field_def.semantics == FieldSemantics.CATEGORICAL else False
                         }
-                
+
                 schema_info["ui_components"] = ui_components
-                
+
                 return {
-                    "status": "success", 
+                    "status": "success",
                     "schema": schema_info,
                     "performance_benefits": {
                         "predefined_enums": sum(1 for f in schema.fields.values() if f.enum_values),
@@ -188,7 +188,7 @@ if FASTAPI_AVAILABLE:
                         "intelligent_ui_generation": len([f for f in schema.fields.values() if f.is_filterable])
                     }
                 }
-                
+
             except ValueError:
                 # Table not in schema registry
                 return {
@@ -198,7 +198,7 @@ if FASTAPI_AVAILABLE:
                     "message": "Table not found in type system schema registry. Falling back to database inspection.",
                     "schema": None
                 }
-                
+
         except Exception as e:
             logger.error(f"Error getting schema info for {table_name}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -208,7 +208,7 @@ if FASTAPI_AVAILABLE:
         """Get comprehensive summary of the schema registry."""
         try:
             summary = schema_registry.get_schema_summary()
-            
+
             # Add transformation benefits
             transformation_benefits = {
                 "total_entities": summary["total_entities"],
@@ -217,7 +217,7 @@ if FASTAPI_AVAILABLE:
                 "total_intelligent_filters": 0,
                 "performance_optimizations": 0
             }
-            
+
             for entity_name, entity_info in summary["entities"].items():
                 schema = schema_registry.get_schema(entity_name)
                 for field_name, field_def in schema.fields.items():
@@ -227,7 +227,7 @@ if FASTAPI_AVAILABLE:
                             transformation_benefits["performance_optimizations"] += 1
                     if field_def.is_filterable:
                         transformation_benefits["total_intelligent_filters"] += 1
-            
+
             return {
                 "status": "success",
                 "registry_summary": summary,
@@ -241,7 +241,7 @@ if FASTAPI_AVAILABLE:
                     "validation_enabled": True
                 }
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting registry summary: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -251,7 +251,7 @@ if FASTAPI_AVAILABLE:
         """Get predefined enum values for a field (performance optimized)."""
         try:
             enum_values = schema_registry.get_enum_values(table_name, field_name)
-            
+
             if enum_values:
                 return {
                     "status": "success",
@@ -271,7 +271,7 @@ if FASTAPI_AVAILABLE:
                     "performance_optimized": False,
                     "message": "Field has no predefined enum values. Database query required."
                 }
-                
+
         except Exception as e:
             logger.error(f"Error getting enum values for {table_name}.{field_name}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -283,19 +283,19 @@ def main():
     """Main entry point for testing without FastAPI."""
     print("🚀 TYPE-AWARE ANALYTICS SERVICE")
     print("=" * 50)
-    
+
     # Test schema registry
     summary = schema_registry.get_schema_summary()
     print(f"✅ Schema registry loaded: {summary['total_entities']} entities, {summary['total_tables']} tables")
-    
+
     # Test type-aware analytics service with mock database
     class MockDBManager:
         async def execute_query(self, query, params=None):
             return []
-    
+
     service = AnalyticsService(MockDBManager())
     print("✅ Type-aware analytics service initialized")
-    
+
     # Test intelligent filter generation
     async def test_filters():
         for table_name in ["dev_instruments", "dev_daily_prices_polygon", "instrument_xrefs"]:
@@ -306,10 +306,10 @@ def main():
                     print(f"   ⚡ Performance optimized: {filters['performance_optimized']} fields with predefined enums")
             except Exception as e:
                 print(f"❌ {table_name}: {e}")
-    
+
     # Run async test
     asyncio.run(test_filters())
-    
+
     print("\n🎉 Type-aware analytics service is fully functional!")
     if FASTAPI_AVAILABLE:
         print("✅ FastAPI endpoints available")

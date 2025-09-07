@@ -14,7 +14,7 @@ class InstrumentXrefsDAO:
                 return row['count'] if row else 0
         finally:
             await pool.close()
-            
+
     async def get_symbol_by_instrument_id(self, instrument_id: int) -> Optional[str]:
         """
         Lookup symbol from instrument_xrefs using instrument_id, without requiring a specific vendor.
@@ -108,7 +108,7 @@ class InstrumentXrefsDAO:
         """
         if vendor_id is None:
             return await self.resolve_instrument_id_by_symbol(symbol, at_date)
-            
+
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
@@ -240,7 +240,7 @@ class InstrumentXrefsDAO:
                 return [row['id'] for row in rows]
         finally:
             await pool.close()
-    
+
     async def get_symbols_by_instrument_ids_batch(self, instrument_ids: List[int], vendor_name: str = "ticker") -> Dict[int, Optional[str]]:
         """
         Batch lookup of symbols from instrument_xrefs using multiple instrument_ids and vendor_name.
@@ -248,32 +248,32 @@ class InstrumentXrefsDAO:
         """
         if not instrument_ids:
             return {}
-        
+
         from core.dao.infrastructure.vendors_dao import VendorsDAO
         vendors_dao = VendorsDAO(self.env)
         vendor_row = await vendors_dao.get_vendor_by_name(vendor_name)
-        
+
         if not vendor_row:
             print(f"[DEBUG][get_symbols_by_instrument_ids_batch] vendor '{vendor_name}' not found!")
             return {iid: None for iid in instrument_ids}
-        
+
         vendor_id = vendor_row['id']
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
                 print(f"[DEBUG][get_symbols_by_instrument_ids_batch] Batch querying for {len(instrument_ids)} instrument_ids with vendor_id={vendor_id}")
-                
+
                 # Use PostgreSQL ANY operator for efficient batch query
                 rows = await conn.fetch(
                     f"SELECT instrument_id, vendor_symbol FROM {self.table_name} WHERE instrument_id = ANY($1) AND vendor_id = $2",
                     instrument_ids, vendor_id
                 )
-                
+
                 # Build result mapping
                 result = {iid: None for iid in instrument_ids}  # Default to None
                 for row in rows:
                     result[row['instrument_id']] = row['vendor_symbol']
-                
+
                 print(f"[DEBUG][get_symbols_by_instrument_ids_batch] Found symbols for {sum(1 for v in result.values() if v is not None)} out of {len(instrument_ids)} instrument_ids")
                 return result
         finally:

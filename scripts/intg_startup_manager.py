@@ -26,11 +26,11 @@ class IntgStartupManager:
         self.db_user = os.getenv('DB_USER', 'postgres')
         self.db_password = os.getenv('DB_PASSWORD', 'intg_password')
         self.db_name = os.getenv('DB_NAME', 'intg_db')
-        
+
     def wait_for_database(self, timeout=120):
         """Wait for database to be available"""
         logger.info(f"Waiting for database {self.db_host}:{self.db_port}...")
-        
+
         for i in range(timeout):
             try:
                 import psycopg2
@@ -49,12 +49,12 @@ class IntgStartupManager:
                 return True
             except Exception as e:
                 logger.debug(f"Database connection attempt {i+1}: {e}")
-            
+
             time.sleep(1)
-        
+
         logger.error(f"❌ Database not available after {timeout} seconds")
         return False
-    
+
     def run_migrations(self):
         """Run database migrations if enabled"""
         if os.getenv('AUTO_MIGRATION_ENABLED', 'false').lower() == 'true':
@@ -69,7 +69,7 @@ class IntgStartupManager:
                     logger.warning("⚠️ Migrations completed with warnings")
             except Exception as e:
                 logger.error(f"❌ Migration failed: {e}")
-    
+
     def setup_cron_jobs(self):
         """Setup scheduled data refresh jobs"""
         if os.getenv('CRON_ENABLED', 'false').lower() == 'true':
@@ -77,7 +77,7 @@ class IntgStartupManager:
             try:
                 # Install cron if not present
                 subprocess.run("apt-get update && apt-get install -y cron", shell=True, capture_output=True)
-                
+
                 # Create crontab for data refresh with proper scheduling
                 crontab_content = """
 # ATS-INTG Daily Data Refresh Jobs - Multi-vendor price collection with overlap validation
@@ -103,56 +103,56 @@ class IntgStartupManager:
 """
                 with open('/tmp/ats-crontab', 'w') as f:
                     f.write(crontab_content.strip())
-                
+
                 subprocess.run("crontab /tmp/ats-crontab", shell=True)
                 subprocess.run("service cron start", shell=True)
                 logger.info("✅ Cron jobs configured and started")
             except Exception as e:
                 logger.error(f"❌ Cron setup failed: {e}")
-    
+
     def health_monitor(self):
         """Continuous health monitoring loop"""
         logger.info("🔍 Starting health monitoring loop...")
-        
+
         while True:
             try:
                 # Check database connectivity
                 if not self.wait_for_database(timeout=10):
                     logger.warning("⚠️ Database connectivity lost")
-                
+
                 # Check disk space
                 disk_usage = subprocess.run("df -h /data", shell=True, capture_output=True, text=True)
                 if "100%" in disk_usage.stdout:
                     logger.warning("⚠️ Data disk is full")
-                
+
                 # Log status
                 logger.info(f"✅ Health check passed - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-                
+
                 # Wait 5 minutes between checks
                 time.sleep(300)
-                
+
             except KeyboardInterrupt:
                 logger.info("🛑 Health monitoring stopped by user")
                 break
             except Exception as e:
                 logger.error(f"❌ Health check error: {e}")
                 time.sleep(60)  # Wait 1 minute before retrying
-    
+
     def run(self):
         """Main startup sequence"""
         logger.info("🚀 Starting ATS-INTG Startup Manager...")
-        
+
         # Wait for database
         if not self.wait_for_database():
             logger.error("❌ Cannot connect to database - exiting")
             sys.exit(1)
-        
+
         # Run migrations
         self.run_migrations()
-        
+
         # Setup cron jobs
         self.setup_cron_jobs()
-        
+
         # Start health monitoring
         self.health_monitor()
 

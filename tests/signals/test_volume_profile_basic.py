@@ -27,10 +27,10 @@ class TestVolumeProfileBasic(unittest.TestCase):
     def create_test_data(self, periods: int = 30, trend: str = 'sideways') -> pd.DataFrame:
         """Create test data with specified trend characteristics."""
         np.random.seed(42)
-        
+
         base_price = 100.0
         data = []
-        
+
         for i in range(periods):
             if trend == 'uptrend':
                 # Consistent upward movement
@@ -44,15 +44,15 @@ class TestVolumeProfileBasic(unittest.TestCase):
                 # Random walk around base price
                 price_change = np.random.uniform(-0.5, 0.5)
                 base_price += price_change
-            
+
             # Generate OHLC from base price
             open_price = base_price + np.random.uniform(-0.1, 0.1)
             close_price = base_price + np.random.uniform(-0.1, 0.1)
             high_price = max(open_price, close_price) + np.random.uniform(0, 0.2)
             low_price = min(open_price, close_price) - np.random.uniform(0, 0.2)
-            
+
             volume = 10000 + np.random.randint(-3000, 10000)
-            
+
             data.append({
                 'open': open_price,
                 'high': high_price,
@@ -60,7 +60,7 @@ class TestVolumeProfileBasic(unittest.TestCase):
                 'close': close_price,
                 'volume': max(volume, 1000)  # Ensure positive volume
             })
-        
+
         return pd.DataFrame(data)
 
     def test_initialization(self):
@@ -102,7 +102,7 @@ class TestVolumeProfileBasic(unittest.TestCase):
     def test_invalid_data(self):
         """Test behavior with invalid data."""
         data = self.create_test_data(periods=25)
-        
+
         # Test with NaN values
         data_with_nan = data.copy()
         data_with_nan.loc[10, 'close'] = np.nan
@@ -125,19 +125,19 @@ class TestVolumeProfileBasic(unittest.TestCase):
         """Test valid Volume Profile calculation."""
         data = self.create_test_data(periods=30, trend='sideways')
         result = self.indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'valid')
         self.assertIsNotNone(result['value'])
         self.assertIsNotNone(result['poc'])
         self.assertIsNotNone(result['vah'])
         self.assertIsNotNone(result['val'])
-        
+
         # POC should be the main return value
         self.assertEqual(result['value'], result['poc'])
-        
+
         # VAH should be greater than or equal to VAL
         self.assertGreaterEqual(result['vah'], result['val'])
-        
+
         # POC should be within the price range
         price_min = data.tail(self.period)[['open', 'high', 'low', 'close']].min().min()
         price_max = data.tail(self.period)[['open', 'high', 'low', 'close']].max().max()
@@ -148,13 +148,13 @@ class TestVolumeProfileBasic(unittest.TestCase):
         """Test Volume Profile characteristics during uptrend."""
         data = self.create_test_data(periods=30, trend='uptrend')
         result = self.indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'valid')
         self.assertIsNotNone(result['poc'])
-        
+
         # In uptrend, bias might be bullish (but not guaranteed with random data)
         self.assertIn(result['dominant_side'], ['bullish', 'bearish', 'neutral'])
-        
+
         # Profile shape should be classified
         self.assertIn(result['profile_shape'], ['balanced', 'trending', 'rotational', 'double_distribution', 'undefined'])
 
@@ -162,10 +162,10 @@ class TestVolumeProfileBasic(unittest.TestCase):
         """Test Volume Profile characteristics during downtrend."""
         data = self.create_test_data(periods=30, trend='downtrend')
         result = self.indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'valid')
         self.assertIsNotNone(result['poc'])
-        
+
         # Profile should be classified
         self.assertIn(result['dominant_side'], ['bullish', 'bearish', 'neutral'])
         self.assertIn(result['profile_shape'], ['balanced', 'trending', 'rotational', 'double_distribution', 'undefined'])
@@ -174,9 +174,9 @@ class TestVolumeProfileBasic(unittest.TestCase):
         """Test Volume Profile characteristics during sideways movement."""
         data = self.create_test_data(periods=30, trend='sideways')
         result = self.indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'valid')
-        
+
         # Sideways movement should have relatively balanced profile
         self.assertIn(result['dominant_side'], ['bullish', 'bearish', 'neutral'])
         self.assertIn(result['profile_shape'], ['balanced', 'trending', 'rotational', 'double_distribution', 'undefined'])
@@ -185,15 +185,15 @@ class TestVolumeProfileBasic(unittest.TestCase):
         """Test Value Area calculation accuracy."""
         data = self.create_test_data(periods=30)
         result = self.indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'valid')
-        
+
         # Value Area should be correctly set
         self.assertEqual(result['value_area_volume_pct'], 70.0)
-        
+
         # VAH should be >= VAL
         self.assertGreaterEqual(result['vah'], result['val'])
-        
+
         # POC should typically be within Value Area (but not guaranteed)
         # This is a soft check since POC might be outside VA in some distributions
         if result['val'] <= result['poc'] <= result['vah']:
@@ -206,19 +206,19 @@ class TestVolumeProfileBasic(unittest.TestCase):
         """Test volume distribution summary generation."""
         data = self.create_test_data(periods=30)
         result = self.indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'valid')
         self.assertIn('volume_distribution_summary', result)
-        
+
         summary = result['volume_distribution_summary']
         self.assertIn('total_bins', summary)
         self.assertIn('active_bins', summary)
         self.assertIn('top_volume_levels', summary)
-        
+
         # Should have reasonable number of active bins
         self.assertGreater(summary['active_bins'], 0)
         self.assertLessEqual(summary['active_bins'], self.bin_count)
-        
+
         # Top volume levels should be sorted by volume
         top_levels = summary['top_volume_levels']
         if len(top_levels) > 1:
@@ -229,13 +229,13 @@ class TestVolumeProfileBasic(unittest.TestCase):
         """Test total volume calculation accuracy."""
         data = self.create_test_data(periods=30)
         result = self.indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'valid')
-        
+
         # Calculate expected total volume from input data
         expected_volume = data.tail(self.period)['volume'].sum()
         calculated_volume = result['total_volume']
-        
+
         # Should be approximately equal (allowing for floating point precision)
         self.assertAlmostEqual(calculated_volume, expected_volume, places=0)
 
@@ -243,15 +243,15 @@ class TestVolumeProfileBasic(unittest.TestCase):
         """Test volume concentration calculation."""
         data = self.create_test_data(periods=30)
         result = self.indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'valid')
-        
+
         concentration = result['volume_concentration']
-        
+
         # Concentration should be between 0 and 1
         self.assertGreaterEqual(concentration, 0.0)
         self.assertLessEqual(concentration, 1.0)
-        
+
         # Should be reasonable for random data (not too concentrated)
         self.assertLess(concentration, 0.8)  # Very high concentration unlikely with random data
 
@@ -259,43 +259,43 @@ class TestVolumeProfileBasic(unittest.TestCase):
         """Test price range tracking in results."""
         data = self.create_test_data(periods=30)
         result = self.indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'valid')
-        
+
         price_range = result['price_range']
         self.assertIsInstance(price_range, tuple)
         self.assertEqual(len(price_range), 2)
-        
+
         price_min, price_max = price_range
         self.assertLess(price_min, price_max)
-        
+
         # Price range should encompass actual data range
         actual_data = data.tail(self.period)
         actual_min = actual_data[['open', 'high', 'low', 'close']].min().min()
         actual_max = actual_data[['open', 'high', 'low', 'close']].max().max()
-        
+
         self.assertAlmostEqual(price_min, actual_min, places=2)
         self.assertAlmostEqual(price_max, actual_max, places=2)
 
     def test_different_bin_counts(self):
         """Test Volume Profile with different bin counts."""
         data = self.create_test_data(periods=30)
-        
+
         bin_counts = [10, 30, 50, 100]
         results = []
-        
+
         for bin_count in bin_counts:
             indicator = VolumeProfileIndicator(period=20, bin_count=bin_count)
             result = indicator.calculate(data)
             self.assertEqual(result['status'], 'valid')
             results.append((bin_count, result))
-        
+
         # All should produce valid results
         for bin_count, result in results:
             self.assertIsNotNone(result['poc'])
             self.assertIsNotNone(result['vah'])
             self.assertIsNotNone(result['val'])
-            
+
             # Bin count should affect granularity
             summary = result['volume_distribution_summary']
             self.assertLessEqual(summary['active_bins'], bin_count)
@@ -303,16 +303,16 @@ class TestVolumeProfileBasic(unittest.TestCase):
     def test_different_periods(self):
         """Test Volume Profile with different lookback periods."""
         data = self.create_test_data(periods=50)
-        
+
         periods = [10, 20, 30, 40]
         results = []
-        
+
         for period in periods:
             indicator = VolumeProfileIndicator(period=period, bin_count=30)
             result = indicator.calculate(data)
             self.assertEqual(result['status'], 'valid')
             results.append((period, result))
-        
+
         # All should produce valid results
         for period, result in results:
             self.assertIsNotNone(result['poc'])
@@ -329,16 +329,16 @@ class TestVolumeProfileBasic(unittest.TestCase):
             'close': [100.0] * 25,
             'volume': [10000 + i * 1000 for i in range(25)]  # Varying volumes
         })
-        
+
         result = self.indicator.calculate(data)
-        
+
         self.assertEqual(result['status'], 'valid')
-        
+
         # POC, VAH, VAL should all be the same price
         self.assertAlmostEqual(result['poc'], 100.0, places=2)
         self.assertAlmostEqual(result['vah'], 100.0, places=2)
         self.assertAlmostEqual(result['val'], 100.0, places=2)
-        
+
         # Profile should be classified appropriately
         self.assertEqual(result['profile_shape'], 'balanced')
         self.assertEqual(result['dominant_side'], 'neutral')
@@ -361,7 +361,7 @@ class TestVolumeProfileEdgeCases(unittest.TestCase):
             'close': [100 + i * 0.1 for i in range(25)],
             'volume': [1000000000] * 25  # Very high volume
         })
-        
+
         result = self.indicator.calculate(data)
         self.assertEqual(result['status'], 'valid')
         self.assertIsNotNone(result['poc'])
@@ -376,7 +376,7 @@ class TestVolumeProfileEdgeCases(unittest.TestCase):
             'close': [10000 + i * 10 for i in range(25)],
             'volume': [10000] * 25
         })
-        
+
         result = self.indicator.calculate(data)
         self.assertEqual(result['status'], 'valid')
         self.assertIsNotNone(result['poc'])
@@ -391,7 +391,7 @@ class TestVolumeProfileEdgeCases(unittest.TestCase):
             'close': [base_price + np.random.uniform(-0.001, 0.001) for _ in range(25)],
             'volume': [10000 + i * 100 for i in range(25)]
         })
-        
+
         result = self.indicator.calculate(data)
         self.assertEqual(result['status'], 'valid')
         self.assertIsNotNone(result['poc'])

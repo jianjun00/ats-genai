@@ -33,15 +33,15 @@ class User:
     last_login_at: Optional[datetime] = None
     email_verified: bool = False
     is_active: bool = True
-    
+
     @property
     def is_premium(self) -> bool:
         return self.subscription_tier == SubscriptionTier.PREMIUM
-    
+
     @property
     def display_name(self) -> str:
         return self.name or self.email or "User"
-    
+
     @property
     def rate_limit(self) -> int:
         return float('inf') if self.is_premium else 24
@@ -77,7 +77,7 @@ class UserAPIKey:
     last_used_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
     usage_count: int = 0
-    
+
     def __post_init__(self):
         if self.permissions is None:
             self.permissions = {"recommendations": True, "usage": True}
@@ -94,7 +94,7 @@ class UserPreferences:
     timezone: str = "UTC"
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    
+
     def __post_init__(self):
         if self.watchlist is None:
             self.watchlist = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"]
@@ -115,7 +115,7 @@ class GoogleUserInfo:
     family_name: str
     picture: str
     locale: str
-    
+
     @classmethod
     def from_google_response(cls, data: Dict[str, Any]) -> 'GoogleUserInfo':
         """Create from Google OAuth2 userinfo response"""
@@ -139,15 +139,15 @@ class AuthContext:
     api_key: Optional[UserAPIKey] = None
     daily_usage: int = 0
     rate_limit_remaining: int = 0
-    
+
     @property
     def is_premium(self) -> bool:
         return self.user.is_premium
-    
+
     @property
     def within_rate_limit(self) -> bool:
         return self.is_premium or self.daily_usage < 24
-    
+
     @property
     def user_id(self) -> int:
         return self.user.id

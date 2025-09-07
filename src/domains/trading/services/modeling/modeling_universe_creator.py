@@ -34,17 +34,17 @@ class ModelingStock:
 class ModelingUniverseCreator:
     """
     Creates universes for modeling based on market cap and liquidity criteria.
-    
+
     Filters stocks based on:
     - Average market cap > 400M over past 20 trading days (when available)
     - Average dollar trading volume > 100M over past 20 trading days
     - Minimum number of trading days for data completeness
     """
-    
+
     def __init__(self, env: Environment = None):
         self.env = env or Environment()
         self.logger = logging.getLogger(__name__)
-        
+
     async def create_modeling_universe(
         self,
         universe_name: str,
@@ -56,7 +56,7 @@ class ModelingUniverseCreator:
     ) -> int:
         """
         Create a modeling universe based on market cap and volume criteria.
-        
+
         Args:
             universe_name: Name for the new universe
             min_market_cap_millions: Minimum average market cap in millions USD
@@ -64,7 +64,7 @@ class ModelingUniverseCreator:
             min_trading_days: Minimum trading days in lookback period
             lookback_days: Number of calendar days to look back for data
             max_stocks: Optional maximum number of stocks to include
-            
+
         Returns:
             Universe ID of the created universe
         """
@@ -72,29 +72,29 @@ class ModelingUniverseCreator:
         self.logger.info(f"Criteria: market_cap>${min_market_cap_millions}M, "
                         f"dollar_volume>${min_dollar_volume_millions}M, "
                         f"min_trading_days={min_trading_days}")
-        
+
         # Get qualifying stocks
         qualifying_stocks = await self.get_qualifying_stocks(
-            min_market_cap_millions, min_dollar_volume_millions, 
+            min_market_cap_millions, min_dollar_volume_millions,
             min_trading_days, lookback_days
         )
-        
+
         self.logger.info(f"Found {len(qualifying_stocks)} qualifying stocks")
-        
+
         # Apply size limit if specified
         if max_stocks and len(qualifying_stocks) > max_stocks:
             # Sort by combined market cap and dollar volume score
             qualifying_stocks = self._rank_stocks_for_modeling(qualifying_stocks)[:max_stocks]
             self.logger.info(f"Limited to top {max_stocks} stocks by modeling score")
-        
+
         # Create universe and populate
         universe_id = await self._create_universe_with_stocks(
-            universe_name, qualifying_stocks, min_market_cap_millions, 
+            universe_name, qualifying_stocks, min_market_cap_millions,
             min_dollar_volume_millions
         )
-        
+
         return universe_id
-    
+
     async def get_qualifying_stocks(
         self,
         min_market_cap_millions: float,
@@ -114,7 +114,7 @@ class ModelingUniverseCreator:
                 )
         finally:
             await pool.close()
-    
+
     async def _query_qualifying_stocks(
         self,
         conn,
@@ -124,14 +124,14 @@ class ModelingUniverseCreator:
         lookback_days: int
     ) -> List[ModelingStock]:
         """Query for stocks meeting modeling criteria using proper database joins"""
-        
+
         end_date = date.today()
         start_date = end_date - timedelta(days=lookback_days)
-        
+
         # Query combines price/volume data with market cap data using proper joins
         query = f"""
         WITH recent_trading AS (
-            SELECT 
+            SELECT
                 dp.instrument_id,
                 xr.vendor_symbol as symbol,
                 dp.date,
@@ -142,13 +142,13 @@ class ModelingUniverseCreator:
             JOIN {self.env.get_table_name('instrument_xrefs')} xr ON dp.instrument_id = xr.instrument_id
             WHERE xr.vendor_id = 3  -- ticker vendor
               AND dp.date >= $1 AND dp.date <= $2
-              AND dp.volume > 0 
+              AND dp.volume > 0
               AND dp.close > 0
               AND xr.vendor_symbol IS NOT NULL
               AND xr.vendor_symbol ~ '^[A-Z]{{1,5}}$'
         ),
         market_cap_data AS (
-            SELECT 
+            SELECT
                 mc.instrument_id,
                 mc.date,
                 mc.market_cap
@@ -157,7 +157,7 @@ class ModelingUniverseCreator:
               AND mc.market_cap > 0
         ),
         combined_data AS (
-            SELECT 
+            SELECT
                 rt.instrument_id,
                 rt.symbol,
                 rt.date,
@@ -169,7 +169,7 @@ class ModelingUniverseCreator:
             LEFT JOIN market_cap_data mc ON rt.instrument_id = mc.instrument_id AND rt.date = mc.date
         ),
         stock_metrics AS (
-            SELECT 
+            SELECT
                 instrument_id,
                 symbol,
                 COUNT(*) as trading_days,
@@ -182,7 +182,7 @@ class ModelingUniverseCreator:
             FROM combined_data
             GROUP BY instrument_id, symbol
         )
-        SELECT 
+        SELECT
             instrument_id,
             symbol,
             avg_market_cap,
@@ -200,16 +200,16 @@ class ModelingUniverseCreator:
           AND avg_price < 5000  -- Filter out extreme prices
         ORDER BY avg_market_cap DESC, avg_dollar_volume DESC
         """
-        
+
         min_market_cap = min_market_cap_millions * 1_000_000
         min_dollar_volume = min_dollar_volume_millions * 1_000_000
-        
+
         try:
             rows = await conn.fetch(
-                query, start_date, end_date, min_trading_days, 
+                query, start_date, end_date, min_trading_days,
                 min_market_cap, min_dollar_volume
             )
-            
+
             stocks = []
             for row in rows:
                 stocks.append(ModelingStock(
@@ -223,13 +223,13 @@ class ModelingUniverseCreator:
                     first_date=row['first_date'],
                     last_date=row['last_date']
                 ))
-            
+
             return stocks
-            
+
         except Exception as e:
             self.logger.error(f"Error querying qualifying stocks: {e}")
             return []
-    
+
     def _rank_stocks_for_modeling(self, stocks: List[ModelingStock]) -> List[ModelingStock]:
         """
         Rank stocks by modeling suitability based on market cap and liquidity.
@@ -237,12 +237,12 @@ class ModelingUniverseCreator:
         def modeling_score(stock):
             market_cap_score = (stock.avg_market_cap or 0) / 1_000_000  # Scale to millions
             dollar_volume_score = (stock.avg_dollar_volume or 0) / 1_000_000  # Scale to millions
-            
+
             # Combined score: 60% market cap, 40% liquidity
             return 0.6 * market_cap_score + 0.4 * dollar_volume_score
-        
+
         return sorted(stocks, key=modeling_score, reverse=True)
-    
+
     async def _create_universe_with_stocks(
         self,
         universe_name: str,
@@ -251,7 +251,7 @@ class ModelingUniverseCreator:
         min_dollar_volume_millions: float
     ) -> int:
         """Create universe and populate with modeling stocks"""
-        
+
         pool = await asyncpg.create_pool(self.env.get_database_url())
         try:
             async with pool.acquire() as conn:
@@ -259,79 +259,79 @@ class ModelingUniverseCreator:
                 universe_id = await self._create_universe(
                     conn, universe_name, min_market_cap_millions, min_dollar_volume_millions
                 )
-                
+
                 # Add members
                 await self._add_modeling_members(conn, universe_id, stocks)
-                
+
                 return universe_id
         finally:
             await pool.close()
-    
+
     async def _create_universe(
-        self, 
-        conn, 
-        universe_name: str, 
+        self,
+        conn,
+        universe_name: str,
         min_market_cap_millions: float,
         min_dollar_volume_millions: float
     ) -> int:
         """Create a new modeling universe"""
-        
+
         description = (f"Modeling universe: market cap > ${min_market_cap_millions}M, "
                       f"dollar volume > ${min_dollar_volume_millions}M "
                       f"(created {date.today()})")
-        
+
         # Use unique name to avoid conflicts
         unique_name = f"{universe_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
+
         query = f"""
         INSERT INTO {self.env.get_table_name('universe')} (name, description)
         VALUES ($1, $2)
         RETURNING id
         """
-        
+
         row = await conn.fetchrow(query, unique_name, description)
         universe_id = row['id']
-        
+
         self.logger.info(f"Created universe '{unique_name}' with ID: {universe_id}")
         return universe_id
-    
+
     async def _add_modeling_members(
-        self, 
-        conn, 
+        self,
+        conn,
         universe_id: int,
         stocks: List[ModelingStock]
     ) -> None:
         """Add modeling stocks to universe membership"""
-        
+
         membership_table = self.env.get_table_name('universe_membership')
         membership_start = date.today()
-        
+
         for stock in stocks:
             query = f"""
             INSERT INTO {membership_table} (universe_id, symbol, start_at, end_at)
             VALUES ($1, $2, $3, NULL)
             ON CONFLICT (universe_id, symbol, start_at) DO NOTHING
             """
-            
+
             await conn.execute(query, universe_id, stock.symbol, membership_start)
-        
+
         self.logger.info(f"Added {len(stocks)} members to universe {universe_id}")
-    
+
     async def generate_modeling_report(
-        self, 
+        self,
         stocks: List[ModelingStock],
         min_market_cap_millions: float,
         min_dollar_volume_millions: float,
         output_file: str = None
     ) -> str:
         """Generate a report of the modeling universe selection"""
-        
+
         total_market_cap = sum(s.avg_market_cap or 0 for s in stocks)
         avg_market_cap = total_market_cap / len(stocks) if stocks else 0
-        
+
         total_dollar_volume = sum(s.avg_dollar_volume or 0 for s in stocks)
         avg_dollar_volume = total_dollar_volume / len(stocks) if stocks else 0
-        
+
         report_lines = [
             f"# Modeling Universe Report",
             f"Generated: {datetime.now().isoformat()}",
@@ -350,57 +350,57 @@ class ModelingUniverseCreator:
             "",
             "## Market Cap Distribution",
         ]
-        
+
         # Add market cap distribution
         market_caps = [s.avg_market_cap/1_000_000 for s in stocks if s.avg_market_cap]
         if market_caps:
             market_caps.sort(reverse=True)
             report_lines.extend([
                 f"- Largest: ${market_caps[0]:,.0f}M",
-                f"- Median: ${market_caps[len(market_caps)//2]:,.0f}M", 
+                f"- Median: ${market_caps[len(market_caps)//2]:,.0f}M",
                 f"- Smallest: ${market_caps[-1]:,.0f}M",
                 ""
             ])
-        
+
         report_lines.extend([
             "## Selected Stocks",
             "| Symbol | Instrument ID | Market Cap ($M) | Dollar Volume ($M) | Avg Price | Trading Days |",
             "|--------|---------------|-----------------|--------------------|-----------| ------------|"
         ])
-        
+
         # Sort by market cap for display
-        sorted_stocks = sorted(stocks, 
-                             key=lambda s: s.avg_market_cap or 0, 
+        sorted_stocks = sorted(stocks,
+                             key=lambda s: s.avg_market_cap or 0,
                              reverse=True)
-        
+
         for stock in sorted_stocks:
             market_cap_str = f"${stock.avg_market_cap/1_000_000:,.0f}" if stock.avg_market_cap else "N/A"
             dollar_volume_str = f"${stock.avg_dollar_volume/1_000_000:,.0f}" if stock.avg_dollar_volume else "N/A"
             price_str = f"${stock.avg_price:.2f}" if stock.avg_price else "N/A"
-            
+
             report_lines.append(
                 f"| {stock.symbol} | {stock.instrument_id} | {market_cap_str} | {dollar_volume_str} | "
                 f"{price_str} | {stock.trading_days} |"
             )
-        
+
         report = "\n".join(report_lines)
-        
+
         if output_file:
             with open(output_file, 'w') as f:
                 f.write(report)
             self.logger.info(f"Modeling report saved to {output_file}")
-        
+
         return report
 
 
 async def main():
     """Main function to create modeling universe"""
     import argparse
-    
+
     parser = argparse.ArgumentParser(
         description="Create universe for modeling based on market cap and volume criteria"
     )
-    parser.add_argument("--universe-name", default="modeling_400m_100m", 
+    parser.add_argument("--universe-name", default="modeling_400m_100m",
                        help="Name for the new universe")
     parser.add_argument("--min-market-cap", type=float, default=400,
                        help="Minimum market cap in millions USD (default: 400)")
@@ -414,18 +414,18 @@ async def main():
                        help="Maximum number of stocks to include")
     parser.add_argument("--report-file", help="Output file for selection report")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    
+
     args = parser.parse_args()
-    
+
     # Configure logging
     logging.basicConfig(
         level=logging.DEBUG if args.debug else logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    
+
     # Create modeling universe creator
     creator = ModelingUniverseCreator()
-    
+
     # Create universe
     universe_id = await creator.create_modeling_universe(
         universe_name=args.universe_name,
@@ -435,19 +435,19 @@ async def main():
         lookback_days=args.lookback_days,
         max_stocks=args.max_stocks
     )
-    
+
     print(f"Created modeling universe '{args.universe_name}' with ID: {universe_id}")
-    
+
     # Generate report if requested
     if args.report_file:
         stocks = await creator.get_qualifying_stocks(
-            args.min_market_cap, args.min_dollar_volume, 
+            args.min_market_cap, args.min_dollar_volume,
             args.min_trading_days, args.lookback_days
         )
-        
+
         if args.max_stocks and len(stocks) > args.max_stocks:
             stocks = creator._rank_stocks_for_modeling(stocks)[:args.max_stocks]
-        
+
         report = await creator.generate_modeling_report(
             stocks, args.min_market_cap, args.min_dollar_volume, args.report_file
         )

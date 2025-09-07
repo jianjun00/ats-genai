@@ -4,7 +4,7 @@ Defensive Financial Data Validator
 
 Implements comprehensive defensive validation for financial data with:
 - Input sanitization and type safety
-- Range validation and anomaly detection  
+- Range validation and anomaly detection
 - SQL injection prevention
 - Audit logging for all validation operations
 - Circuit breaker patterns for external services
@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 class SecurityLevel(Enum):
     """Security validation levels"""
     LOW = "low"
-    MEDIUM = "medium" 
+    MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
 
@@ -66,7 +66,7 @@ class ValidationResult:
     expected_range: Optional[Tuple[Any, Any]] = None
     audit_hash: Optional[str] = None
     timestamp: Optional[datetime] = None
-    
+
     def __post_init__(self):
         if self.timestamp is None:
             self.timestamp = datetime.utcnow()
@@ -80,7 +80,7 @@ class ValidationResult:
 class DefensiveFinancialValidator:
     """
     Defensive validator for financial data with comprehensive security checks.
-    
+
     Key principles:
     1. Never trust any input data
     2. Validate everything before processing
@@ -89,7 +89,7 @@ class DefensiveFinancialValidator:
     5. Use precise decimal arithmetic for money
     6. Implement circuit breakers for external validation
     """
-    
+
     # Defensive constants with reasonable financial limits
     MIN_STOCK_PRICE = Decimal('0.0001')  # $0.0001 minimum (penny stocks)
     MAX_STOCK_PRICE = Decimal('1000000')  # $1M maximum (defensive upper bound)
@@ -99,7 +99,7 @@ class DefensiveFinancialValidator:
     MAX_SYMBOL_LENGTH = 10
     MAX_DATE_FUTURE_DAYS = 1  # Allow 1 day in future for timezone issues
     MAX_DATE_HISTORY_YEARS = 50  # 50 years of historical data
-    
+
     def __init__(self, security_level: SecurityLevel = SecurityLevel.HIGH):
         self.security_level = security_level
         self.validation_cache = {}  # Simple cache for repeated validations
@@ -107,10 +107,10 @@ class DefensiveFinancialValidator:
         self.circuit_breaker_last_failure = None
         self.circuit_breaker_threshold = 5
         self.audit_logger = logging.getLogger(f"{__name__}.audit")
-        
+
         # Initialize with defensive configuration
         self._setup_defensive_logging()
-        
+
     def _setup_defensive_logging(self):
         """Setup defensive logging with sanitization"""
         formatter = logging.Formatter(
@@ -121,23 +121,23 @@ class DefensiveFinancialValidator:
             handler.setFormatter(formatter)
             self.audit_logger.addHandler(handler)
             self.audit_logger.setLevel(logging.INFO)
-    
+
     def _sanitize_for_logging(self, value: Any) -> str:
         """Sanitize values for safe logging (prevent log injection)"""
         if value is None:
             return "NULL"
-        
+
         # Convert to string and remove control characters
         str_value = str(value)
         # Remove newlines, tabs, and other control characters that could break logs
         sanitized = re.sub(r'[\r\n\t\x00-\x1f\x7f-\x9f]', '', str_value)
-        
+
         # Truncate if too long
         if len(sanitized) > 100:
             sanitized = sanitized[:97] + "..."
-            
+
         return sanitized
-    
+
     def _audit_log(self, operation: str, result: ValidationResult, **metadata):
         """Defensive audit logging for all validation operations"""
         audit_entry = {
@@ -150,18 +150,18 @@ class DefensiveFinancialValidator:
             "security_level": self.security_level.value
         }
         audit_entry.update(metadata)
-        
+
         # Log with sanitized data
         self.audit_logger.info(f"VALIDATION_AUDIT: {audit_entry}")
-    
+
     def validate_symbol(self, symbol: Any, field_name: str = "symbol") -> ValidationResult:
         """
         Defensive symbol validation with comprehensive security checks.
-        
+
         Args:
             symbol: Input symbol (any type, will be validated)
             field_name: Name of the field being validated
-            
+
         Returns:
             ValidationResult with security audit trail
         """
@@ -175,7 +175,7 @@ class DefensiveFinancialValidator:
             )
             self._audit_log("validate_symbol", result, error_type="null_input")
             return result
-        
+
         # Step 2: Convert to string defensively
         try:
             symbol_str = str(symbol).strip().upper()
@@ -189,7 +189,7 @@ class DefensiveFinancialValidator:
             )
             self._audit_log("validate_symbol", result, error_type="conversion_error", exception=str(e))
             return result
-        
+
         # Step 3: Length validation (prevent buffer overflows)
         if len(symbol_str) == 0:
             result = ValidationResult(
@@ -201,7 +201,7 @@ class DefensiveFinancialValidator:
             )
             self._audit_log("validate_symbol", result, error_type="empty_symbol")
             return result
-            
+
         if len(symbol_str) > self.MAX_SYMBOL_LENGTH:
             result = ValidationResult(
                 is_valid=False,
@@ -212,7 +212,7 @@ class DefensiveFinancialValidator:
             )
             self._audit_log("validate_symbol", result, error_type="length_exceeded", length=len(symbol_str))
             return result
-        
+
         # Step 4: Character validation (prevent injection attacks)
         if not re.match(r'^[A-Z0-9.-]{1,10}$', symbol_str):
             result = ValidationResult(
@@ -224,7 +224,7 @@ class DefensiveFinancialValidator:
             )
             self._audit_log("validate_symbol", result, error_type="invalid_format")
             return result
-        
+
         # Step 5: Business rule validation
         suspicious_patterns = ['DROP', 'DELETE', 'INSERT', 'UPDATE', 'SELECT', '--', ';', '/*']
         for pattern in suspicious_patterns:
@@ -236,12 +236,12 @@ class DefensiveFinancialValidator:
                     field_name=field_name,
                     input_value=self._sanitize_for_logging(symbol_str)
                 )
-                self._audit_log("validate_symbol", result, 
-                              error_type="security_violation", 
+                self._audit_log("validate_symbol", result,
+                              error_type="security_violation",
                               pattern=pattern,
                               security_level="CRITICAL")
                 return result
-        
+
         # Success
         result = ValidationResult(
             is_valid=True,
@@ -252,17 +252,17 @@ class DefensiveFinancialValidator:
         )
         self._audit_log("validate_symbol", result)
         return result
-    
-    def validate_price(self, price: Any, field_name: str = "price", 
+
+    def validate_price(self, price: Any, field_name: str = "price",
                       allow_zero: bool = False) -> ValidationResult:
         """
         Defensive price validation with financial precision and security checks.
-        
+
         Args:
             price: Input price (any type, will be validated)
             field_name: Name of the field being validated
             allow_zero: Whether zero prices are allowed
-            
+
         Returns:
             ValidationResult with precise decimal validation
         """
@@ -276,7 +276,7 @@ class DefensiveFinancialValidator:
             )
             self._audit_log("validate_price", result, error_type="null_input")
             return result
-        
+
         # Step 2: Defensive decimal conversion
         try:
             if isinstance(price, str):
@@ -295,11 +295,11 @@ class DefensiveFinancialValidator:
                 field_name=field_name,
                 input_value=self._sanitize_for_logging(price)
             )
-            self._audit_log("validate_price", result, 
-                          error_type="conversion_error", 
+            self._audit_log("validate_price", result,
+                          error_type="conversion_error",
                           exception=str(e))
             return result
-        
+
         # Step 3: Range validation with defensive bounds
         if not allow_zero and decimal_price <= 0:
             result = ValidationResult(
@@ -312,7 +312,7 @@ class DefensiveFinancialValidator:
             )
             self._audit_log("validate_price", result, error_type="negative_price")
             return result
-        
+
         if decimal_price < self.MIN_STOCK_PRICE:
             result = ValidationResult(
                 is_valid=False,
@@ -324,7 +324,7 @@ class DefensiveFinancialValidator:
             )
             self._audit_log("validate_price", result, error_type="price_too_low")
             return result
-            
+
         if decimal_price > self.MAX_STOCK_PRICE:
             result = ValidationResult(
                 is_valid=False,
@@ -334,11 +334,11 @@ class DefensiveFinancialValidator:
                 input_value=str(decimal_price),
                 expected_range=(self.MIN_STOCK_PRICE, self.MAX_STOCK_PRICE)
             )
-            self._audit_log("validate_price", result, 
+            self._audit_log("validate_price", result,
                           error_type="suspicious_high_price",
                           security_level="CRITICAL")
             return result
-        
+
         # Success
         result = ValidationResult(
             is_valid=True,
@@ -349,26 +349,26 @@ class DefensiveFinancialValidator:
         )
         self._audit_log("validate_price", result, price_decimal=str(decimal_price))
         return result
-    
-    def validate_ohlc_consistency(self, open_price: Any, high: Any, low: Any, 
+
+    def validate_ohlc_consistency(self, open_price: Any, high: Any, low: Any,
                                  close: Any) -> ValidationResult:
         """
         Defensive OHLC (Open-High-Low-Close) consistency validation.
-        
+
         Args:
             open_price, high, low, close: OHLC prices (any type)
-            
+
         Returns:
             ValidationResult for OHLC consistency
         """
         # First validate each price individually
         price_validations = [
             ("open", open_price),
-            ("high", high), 
+            ("high", high),
             ("low", low),
             ("close", close)
         ]
-        
+
         validated_prices = {}
         for name, price in price_validations:
             validation = self.validate_price(price, field_name=name)
@@ -380,16 +380,16 @@ class DefensiveFinancialValidator:
                     field_name="ohlc",
                     input_value=f"O:{self._sanitize_for_logging(open_price)},H:{self._sanitize_for_logging(high)},L:{self._sanitize_for_logging(low)},C:{self._sanitize_for_logging(close)}"
                 )
-                self._audit_log("validate_ohlc", result, 
+                self._audit_log("validate_ohlc", result,
                               error_type="individual_price_invalid",
                               failed_field=name)
                 return result
-            
+
             validated_prices[name] = Decimal(str(price))
-        
+
         # OHLC consistency checks
         o, h, l, c = validated_prices['open'], validated_prices['high'], validated_prices['low'], validated_prices['close']
-        
+
         # High should be >= all other prices
         if h < max(o, l, c):
             result = ValidationResult(
@@ -401,7 +401,7 @@ class DefensiveFinancialValidator:
             )
             self._audit_log("validate_ohlc", result, error_type="high_inconsistent")
             return result
-        
+
         # Low should be <= all other prices
         if l > min(o, h, c):
             result = ValidationResult(
@@ -411,9 +411,9 @@ class DefensiveFinancialValidator:
                 field_name="ohlc",
                 input_value=f"O:{o},H:{h},L:{l},C:{c}"
             )
-            self._audit_log("validate_ohlc", result, error_type="low_inconsistent") 
+            self._audit_log("validate_ohlc", result, error_type="low_inconsistent")
             return result
-        
+
         # Success
         result = ValidationResult(
             is_valid=True,
@@ -424,15 +424,15 @@ class DefensiveFinancialValidator:
         )
         self._audit_log("validate_ohlc", result)
         return result
-    
+
     def validate_trading_date(self, trading_date: Any, field_name: str = "date") -> ValidationResult:
         """
         Defensive trading date validation with business rules.
-        
+
         Args:
             trading_date: Input date (any type, will be validated)
             field_name: Name of the field being validated
-            
+
         Returns:
             ValidationResult for trading date
         """
@@ -446,7 +446,7 @@ class DefensiveFinancialValidator:
             )
             self._audit_log("validate_trading_date", result, error_type="null_input")
             return result
-        
+
         # Step 2: Convert to date defensively
         try:
             if isinstance(trading_date, str):
@@ -469,16 +469,16 @@ class DefensiveFinancialValidator:
                 field_name=field_name,
                 input_value=self._sanitize_for_logging(trading_date)
             )
-            self._audit_log("validate_trading_date", result, 
-                          error_type="conversion_error", 
+            self._audit_log("validate_trading_date", result,
+                          error_type="conversion_error",
                           exception=str(e))
             return result
-        
+
         # Step 3: Range validation with defensive bounds
         today = date.today()
         min_date = today - timedelta(days=365 * self.MAX_DATE_HISTORY_YEARS)
         max_date = today + timedelta(days=self.MAX_DATE_FUTURE_DAYS)
-        
+
         if validated_date < min_date:
             result = ValidationResult(
                 is_valid=False,
@@ -490,7 +490,7 @@ class DefensiveFinancialValidator:
             )
             self._audit_log("validate_trading_date", result, error_type="date_too_old")
             return result
-            
+
         if validated_date > max_date:
             result = ValidationResult(
                 is_valid=False,
@@ -502,7 +502,7 @@ class DefensiveFinancialValidator:
             )
             self._audit_log("validate_trading_date", result, error_type="date_too_future")
             return result
-        
+
         # Success
         result = ValidationResult(
             is_valid=True,
@@ -513,14 +513,14 @@ class DefensiveFinancialValidator:
         )
         self._audit_log("validate_trading_date", result, validated_date=str(validated_date))
         return result
-    
+
     def validate_financial_record(self, record: Dict[str, Any]) -> List[ValidationResult]:
         """
         Comprehensive defensive validation of a complete financial record.
-        
+
         Args:
             record: Dictionary containing financial data
-            
+
         Returns:
             List of ValidationResult objects for all validations
         """
@@ -531,19 +531,19 @@ class DefensiveFinancialValidator:
                 message=f"Financial record must be a dictionary, got {type(record)}",
                 field_name="record_type"
             )]
-        
+
         results = []
-        
+
         # Validate symbol
         if 'symbol' in record:
             results.append(self.validate_symbol(record['symbol']))
-        
+
         # Validate date
         for date_field in ['date', 'trading_date', 'timestamp']:
             if date_field in record:
                 results.append(self.validate_trading_date(record[date_field], date_field))
                 break
-        
+
         # Validate prices
         price_fields = ['open', 'high', 'low', 'close', 'price', 'adj_close']
         price_values = {}
@@ -553,25 +553,25 @@ class DefensiveFinancialValidator:
                 results.append(validation)
                 if validation.is_valid:
                     price_values[field] = Decimal(str(record[field]))
-        
+
         # Validate OHLC consistency if we have all four
         if all(field in price_values for field in ['open', 'high', 'low', 'close']):
             ohlc_result = self.validate_ohlc_consistency(
                 price_values['open'],
-                price_values['high'], 
+                price_values['high'],
                 price_values['low'],
                 price_values['close']
             )
             results.append(ohlc_result)
-        
+
         # Log comprehensive record validation
         valid_count = sum(1 for r in results if r.is_valid)
         total_count = len(results)
-        
+
         self.audit_logger.info(
             f"FINANCIAL_RECORD_VALIDATION: {valid_count}/{total_count} validations passed"
         )
-        
+
         return results
 
 
@@ -598,31 +598,31 @@ def validate_financial_data_record(record: Dict[str, Any]) -> List[ValidationRes
 if __name__ == "__main__":
     # Defensive testing
     validator = DefensiveFinancialValidator(SecurityLevel.HIGH)
-    
+
     # Test valid data
     print("Testing valid data:")
     print(validator.validate_symbol("AAPL"))
     print(validator.validate_price(150.25))
     print(validator.validate_trading_date("2023-12-01"))
-    
+
     # Test invalid data (defensive cases)
     print("\nTesting invalid data:")
     print(validator.validate_symbol(None))
     print(validator.validate_symbol("'; DROP TABLE prices; --"))
     print(validator.validate_price(-10.50))
     print(validator.validate_price("not_a_number"))
-    
+
     # Test comprehensive record
     test_record = {
         "symbol": "AAPL",
-        "date": "2023-12-01", 
+        "date": "2023-12-01",
         "open": 150.00,
         "high": 155.00,
         "low": 149.00,
         "close": 154.50,
         "volume": 1000000
     }
-    
+
     print(f"\nTesting financial record validation:")
     results = validator.validate_financial_record(test_record)
     for result in results:

@@ -9,7 +9,7 @@ try:
     import array_record
     package_path = array_record.__path__[0]
     print(f"Package path: {package_path}")
-    
+
     # List all files in the package
     for root, dirs, files in os.walk(package_path):
         level = root.replace(package_path, '').count(os.sep)
@@ -18,7 +18,7 @@ try:
         subindent = ' ' * 2 * (level + 1)
         for file in files:
             print(f"{subindent}{file}")
-            
+
     # Try to read __init__.py files to understand the structure
     init_file = os.path.join(package_path, '__init__.py')
     if os.path.exists(init_file):
@@ -26,7 +26,7 @@ try:
         with open(init_file, 'r') as f:
             content = f.read()
             print(content[:1000] + "..." if len(content) > 1000 else content)
-            
+
     # Check python submodule __init__.py
     python_init = os.path.join(package_path, 'python', '__init__.py')
     if os.path.exists(python_init):
@@ -34,7 +34,7 @@ try:
         with open(python_init, 'r') as f:
             content = f.read()
             print(content[:1000] + "..." if len(content) > 1000 else content)
-            
+
     # Check for any .py files that might contain ArrayRecordWriter
     print(f"\n=== Searching for ArrayRecordWriter in Python files ===")
     for root, dirs, files in os.walk(package_path):
@@ -52,7 +52,7 @@ try:
                                     print(f"  Line {i+1}: {line.strip()}")
                 except:
                     pass
-                    
+
 except Exception as e:
     print(f"Error: {e}")
 
@@ -60,34 +60,34 @@ print("\n=== Binary/C Extension Check ===")
 try:
     import array_record
     package_path = array_record.__path__[0]
-    
+
     # Look for .so files (compiled extensions)
     for root, dirs, files in os.walk(package_path):
         for file in files:
             if file.endswith('.so') or file.endswith('.pyd'):
                 print(f"Found binary extension: {os.path.join(root, file)}")
-                
+
                 # Try to load the extension and see what it provides
                 try:
                     import importlib.util
                     file_path = os.path.join(root, file)
                     module_name = file.replace('.so', '').replace('.pyd', '')
-                    
+
                     spec = importlib.util.spec_from_file_location(module_name, file_path)
                     if spec and spec.loader:
                         module = importlib.util.module_from_spec(spec)
                         spec.loader.exec_module(module)
                         attrs = [attr for attr in dir(module) if not attr.startswith('_')]
                         print(f"  Module {module_name} attributes: {attrs}")
-                        
+
                         # Look for writer classes
                         writer_attrs = [attr for attr in attrs if 'writer' in attr.lower() or 'Writer' in attr]
                         if writer_attrs:
                             print(f"  Writer classes: {writer_attrs}")
-                            
+
                 except Exception as e:
                     print(f"  Error loading {file}: {e}")
-                    
+
 except Exception as e:
     print(f"Error: {e}")
 
@@ -96,7 +96,7 @@ print("\n=== Direct Module Import Attempts ===")
 # Try various import patterns that might work
 import_attempts = [
     'array_record.python.array_record_module',
-    'array_record.python.array_record_writer', 
+    'array_record.python.array_record_writer',
     'array_record.ArrayRecordModule',
     'array_record.array_record_module'
 ]
@@ -107,7 +107,7 @@ for import_path in import_attempts:
         attrs = [attr for attr in dir(module) if not attr.startswith('_')]
         print(f"✅ {import_path} imported successfully")
         print(f"   Attributes: {attrs}")
-        
+
         # Look for writer classes
         writer_classes = [attr for attr in attrs if 'writer' in attr.lower() or 'Writer' in attr]
         if writer_classes:

@@ -29,9 +29,9 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from storage.file_based_minute_manager import (
-    FileBasedMinuteManager, 
-    MinuteBar, 
-    FileMetadata, 
+    FileBasedMinuteManager,
+    MinuteBar,
+    FileMetadata,
     OverlapInfo
 )
 
@@ -57,7 +57,7 @@ class TestFileBasedMinuteManager:
         """Create sample minute bars for testing"""
         bars = []
         base_time = datetime(2024, 1, 15, 9, 30)  # Market open
-        
+
         for i in range(10):
             bar = MinuteBar(
                 symbol='AAPL',
@@ -70,7 +70,7 @@ class TestFileBasedMinuteManager:
                 vendor='test'
             )
             bars.append(bar)
-        
+
         return bars
 
     @pytest.fixture
@@ -78,7 +78,7 @@ class TestFileBasedMinuteManager:
         """Create bars that overlap with sample_bars"""
         bars = []
         base_time = datetime(2024, 1, 15, 9, 35)  # Overlaps with sample_bars
-        
+
         for i in range(10):
             bar = MinuteBar(
                 symbol='AAPL',
@@ -91,7 +91,7 @@ class TestFileBasedMinuteManager:
                 vendor='test2'
             )
             bars.append(bar)
-        
+
         return bars
 
     # Test Case 1: Missing Monthly Files Scenario
@@ -105,7 +105,7 @@ class TestFileBasedMinuteManager:
             datetime(2024, 1, 1, 9, 30),
             datetime(2024, 1, 1, 16, 0)
         )
-        
+
         # Should return empty DataFrame without error
         assert result.empty
         assert isinstance(result, pd.DataFrame)
@@ -116,14 +116,14 @@ class TestFileBasedMinuteManager:
         """Test querying across months where some files exist and some don't"""
         # Store data for January
         await temp_manager.store_minute_data('AAPL', sample_bars)
-        
+
         # Query spanning January to March (February and March files don't exist)
         result = await temp_manager.query_minute_data(
             'AAPL',
             datetime(2024, 1, 1),
             datetime(2024, 3, 31)
         )
-        
+
         # Should return only January data
         assert not result.empty
         assert len(result) == len(sample_bars)
@@ -137,22 +137,22 @@ class TestFileBasedMinuteManager:
         # Store initial data
         result1 = await temp_manager.store_minute_data('AAPL', sample_bars)
         assert result1['stored'] == len(sample_bars)
-        
+
         # Store overlapping data with merge strategy
         result2 = await temp_manager.store_minute_data(
             'AAPL', overlapping_bars, 'merge'
         )
-        
+
         # Should have updates for overlapping timestamps and new data stored
         assert result2['updated'] > 0 or result2['stored'] > 0
-        
+
         # Query all data
         all_data = await temp_manager.query_minute_data(
             'AAPL',
             datetime(2024, 1, 15, 9, 0),
             datetime(2024, 1, 15, 10, 0)
         )
-        
+
         # Should have no duplicate timestamps
         assert len(all_data) == len(all_data['timestamp'].unique())
 
@@ -162,19 +162,19 @@ class TestFileBasedMinuteManager:
         """Test overlap handling with replace strategy"""
         # Store initial data
         await temp_manager.store_minute_data('AAPL', sample_bars)
-        
+
         # Store overlapping data with replace strategy
         result = await temp_manager.store_minute_data(
             'AAPL', overlapping_bars, 'replace'
         )
-        
+
         # Query overlapping time range
         overlap_data = await temp_manager.query_minute_data(
             'AAPL',
             datetime(2024, 1, 15, 9, 35),
             datetime(2024, 1, 15, 9, 45)
         )
-        
+
         # Data in overlap range should be from second dataset (vendor='test2')
         overlap_vendors = overlap_data['vendor'].unique()
         assert 'test2' in overlap_vendors
@@ -186,34 +186,34 @@ class TestFileBasedMinuteManager:
         # Store initial data
         result1 = await temp_manager.store_minute_data('AAPL', sample_bars)
         original_count = result1['stored']
-        
+
         # Store overlapping data with skip strategy
         result2 = await temp_manager.store_minute_data(
             'AAPL', overlapping_bars, 'skip'
         )
-        
+
         # Should skip overlapping timestamps
         assert result2['skipped'] > 0
-        
+
         # Query overlapping time range (only the overlapping timestamps that should have been skipped)
         overlap_data = await temp_manager.query_minute_data(
             'AAPL',
             datetime(2024, 1, 15, 9, 35),
             datetime(2024, 1, 15, 9, 39)  # Only the overlapping part
         )
-        
+
         # Data in overlap range should only be from first dataset (vendor='test') since new data was skipped
         if not overlap_data.empty:
             overlap_vendors = overlap_data['vendor'].unique()
             assert 'test' in overlap_vendors and 'test2' not in overlap_vendors
-        
+
         # Query the non-overlapping new data (should be stored with vendor='test2')
         new_data = await temp_manager.query_minute_data(
             'AAPL',
             datetime(2024, 1, 15, 9, 40),
             datetime(2024, 1, 15, 9, 44)
         )
-        
+
         if not new_data.empty:
             new_vendors = new_data['vendor'].unique()
             assert 'test2' in new_vendors
@@ -225,19 +225,19 @@ class TestFileBasedMinuteManager:
         """Test handling of corrupted Parquet files"""
         # Store initial data
         await temp_manager.store_minute_data('AAPL', sample_bars)
-        
+
         # Corrupt the file by writing invalid data
         file_path = temp_manager._get_monthly_file_path('AAPL', 2024, 1)
         with open(file_path, 'w') as f:
             f.write("CORRUPTED DATA")
-        
+
         # Querying should handle corruption gracefully (return empty data, not crash)
         result = await temp_manager.query_minute_data(
             'AAPL',
             datetime(2024, 1, 1),
             datetime(2024, 1, 31)
         )
-        
+
         # Should return empty DataFrame when file is corrupted
         assert result.empty
 
@@ -247,19 +247,19 @@ class TestFileBasedMinuteManager:
         """Test handling when metadata file is missing"""
         # Store data (creates metadata)
         await temp_manager.store_minute_data('AAPL', sample_bars)
-        
+
         # Delete metadata file
         file_path = temp_manager._get_monthly_file_path('AAPL', 2024, 1)
         metadata_path = temp_manager._get_metadata_path(file_path)
         metadata_path.unlink()
-        
+
         # Should still be able to query data
         result = await temp_manager.query_minute_data(
             'AAPL',
             datetime(2024, 1, 15, 9, 30),
             datetime(2024, 1, 15, 10, 30)
         )
-        
+
         assert not result.empty
 
     # Test Case 4: Cross-Month Data Handling
@@ -269,7 +269,7 @@ class TestFileBasedMinuteManager:
         """Test storing data that spans multiple months"""
         # Create bars spanning December to January
         cross_month_bars = []
-        
+
         # December 31st data
         dec_time = datetime(2023, 12, 31, 15, 30)
         for i in range(30):
@@ -280,7 +280,7 @@ class TestFileBasedMinuteManager:
                 volume=1000, vendor='test'
             )
             cross_month_bars.append(bar)
-        
+
         # January 1st data
         jan_time = datetime(2024, 1, 1, 9, 30)
         for i in range(30):
@@ -291,14 +291,14 @@ class TestFileBasedMinuteManager:
                 volume=1100, vendor='test'
             )
             cross_month_bars.append(bar)
-        
+
         # Store cross-month data
         result = await temp_manager.store_minute_data('AAPL', cross_month_bars)
-        
+
         # Should create files for both months
         assert result['files_created'] == 2
         assert result['stored'] == 60
-        
+
         # Verify December file
         dec_data = await temp_manager.query_minute_data(
             'AAPL',
@@ -306,7 +306,7 @@ class TestFileBasedMinuteManager:
             datetime(2023, 12, 31, 23, 59)
         )
         assert len(dec_data) == 30
-        
+
         # Verify January file
         jan_data = await temp_manager.query_minute_data(
             'AAPL',
@@ -323,7 +323,7 @@ class TestFileBasedMinuteManager:
         # Create large dataset (1 month of minute data)
         large_bars = []
         start_time = datetime(2024, 1, 1, 9, 30)
-        
+
         # 22 trading days * 390 minutes = 8,580 bars
         for day in range(22):
             day_start = start_time + timedelta(days=day)
@@ -339,15 +339,15 @@ class TestFileBasedMinuteManager:
                     vendor='large_test'
                 )
                 large_bars.append(bar)
-        
+
         # Store large dataset
         start_time = datetime.now()
         result = await temp_manager.store_minute_data('AAPL', large_bars)
         storage_time = (datetime.now() - start_time).total_seconds()
-        
+
         assert result['stored'] == len(large_bars)
         assert storage_time < 30  # Should complete within 30 seconds
-        
+
         # Query performance test
         start_time = datetime.now()
         query_result = await temp_manager.query_minute_data(
@@ -356,7 +356,7 @@ class TestFileBasedMinuteManager:
             datetime(2024, 1, 31)
         )
         query_time = (datetime.now() - start_time).total_seconds()
-        
+
         assert len(query_result) == len(large_bars)
         assert query_time < 10  # Should complete within 10 seconds
 
@@ -369,10 +369,10 @@ class TestFileBasedMinuteManager:
         polygon_bars = []
         tiingo_bars = []
         base_time = datetime(2024, 1, 15, 10, 0)
-        
+
         for i in range(20):
             timestamp = base_time + timedelta(minutes=i)
-            
+
             # Polygon data
             polygon_bar = MinuteBar(
                 symbol='AAPL', timestamp=timestamp,
@@ -380,7 +380,7 @@ class TestFileBasedMinuteManager:
                 volume=1000, vendor='polygon', quality_score=0.9
             )
             polygon_bars.append(polygon_bar)
-            
+
             # Tiingo data (slightly different values)
             tiingo_bar = MinuteBar(
                 symbol='AAPL', timestamp=timestamp,
@@ -388,20 +388,20 @@ class TestFileBasedMinuteManager:
                 volume=1050, vendor='tiingo', quality_score=0.8
             )
             tiingo_bars.append(tiingo_bar)
-        
+
         # Store Polygon data first
         result1 = await temp_manager.store_minute_data('AAPL', polygon_bars)
         assert result1['stored'] == 20
-        
+
         # Store Tiingo data with merge strategy (should update existing)
         result2 = await temp_manager.store_minute_data('AAPL', tiingo_bars, 'merge')
         assert result2['updated'] == 20
-        
+
         # Query and verify latest vendor data is kept
         result_data = await temp_manager.query_minute_data(
             'AAPL', base_time, base_time + timedelta(minutes=19)
         )
-        
+
         # With merge strategy, should keep last vendor's data (Tiingo)
         assert all(result_data['vendor'] == 'tiingo')
         assert len(result_data) == 20
@@ -411,11 +411,11 @@ class TestFileBasedMinuteManager:
     @pytest.mark.asyncio
     async def test_concurrent_storage_operations(self, temp_manager):
         """Test concurrent storage operations on different symbols"""
-        
+
         async def store_symbol_data(symbol: str, offset_minutes: int):
             bars = []
             base_time = datetime(2024, 1, 15, 9, 30) + timedelta(minutes=offset_minutes)
-            
+
             for i in range(50):
                 bar = MinuteBar(
                     symbol=symbol,
@@ -428,9 +428,9 @@ class TestFileBasedMinuteManager:
                     vendor='concurrent_test'
                 )
                 bars.append(bar)
-            
+
             return await temp_manager.store_minute_data(symbol, bars)
-        
+
         # Run concurrent operations
         tasks = [
             store_symbol_data('AAPL', 0),
@@ -438,9 +438,9 @@ class TestFileBasedMinuteManager:
             store_symbol_data('GOOGL', 120),
             store_symbol_data('AMZN', 180)
         ]
-        
+
         results = await asyncio.gather(*tasks)
-        
+
         # All operations should succeed
         for result in results:
             assert result['stored'] == 50
@@ -453,7 +453,7 @@ class TestFileBasedMinuteManager:
         """Test backup creation during file updates"""
         # Store initial data
         await temp_manager.store_minute_data('AAPL', sample_bars)
-        
+
         # Store overlapping data (should trigger backup)
         new_bars = []
         base_time = datetime(2024, 1, 15, 9, 30)
@@ -465,13 +465,13 @@ class TestFileBasedMinuteManager:
                 volume=2000, vendor='backup_test'
             )
             new_bars.append(bar)
-        
+
         result = await temp_manager.store_minute_data('AAPL', new_bars, 'merge')
-        
+
         # Check backup was created
         backup_files = list(temp_manager.backup_path.rglob('*.backup'))
         assert len(backup_files) > 0
-        
+
         # Verify backup contains original data
         # (In a real scenario, you'd restore from backup and verify)
 
@@ -482,10 +482,10 @@ class TestFileBasedMinuteManager:
         """Test comprehensive data integrity checks"""
         # Store data
         await temp_manager.store_minute_data('AAPL', sample_bars)
-        
+
         # Run integrity check
         integrity_result = await temp_manager.verify_data_integrity('AAPL')
-        
+
         # Should pass all checks
         assert integrity_result['verified_files'] == 1
         assert integrity_result['corrupt_files'] == 0
@@ -499,7 +499,7 @@ class TestFileBasedMinuteManager:
         """Test edge cases with unusual data values"""
         edge_case_bars = []
         base_time = datetime(2024, 1, 15, 9, 30)
-        
+
         # Edge case values
         edge_cases = [
             {'open': 0.01, 'high': 0.01, 'low': 0.01, 'close': 0.01, 'volume': 0},  # Penny stock
@@ -507,7 +507,7 @@ class TestFileBasedMinuteManager:
             {'open': 100.0, 'high': 100.0, 'low': 100.0, 'close': 100.0, 'volume': 2**31-1},  # Max volume
             {'open': float('nan'), 'high': 150.0, 'low': 149.0, 'close': 150.0, 'volume': 1000},  # NaN values
         ]
-        
+
         for i, case in enumerate(edge_cases):
             bar = MinuteBar(
                 symbol='EDGE',
@@ -520,7 +520,7 @@ class TestFileBasedMinuteManager:
                 vendor='edge_test'
             )
             edge_case_bars.append(bar)
-        
+
         # Should handle edge cases without crashing
         try:
             result = await temp_manager.store_minute_data('EDGE', edge_case_bars)
@@ -538,11 +538,11 @@ class TestFileBasedMinuteManager:
         # Create data for multiple symbols and months
         symbols = ['AAPL', 'MSFT', 'GOOGL']
         total_bars = 0
-        
+
         for symbol in symbols:
             bars = []
             base_time = datetime(2024, 1, 15, 9, 30)
-            
+
             for i in range(100):
                 bar = MinuteBar(
                     symbol=symbol,
@@ -551,13 +551,13 @@ class TestFileBasedMinuteManager:
                     volume=1000, vendor='stats_test'
                 )
                 bars.append(bar)
-            
+
             await temp_manager.store_minute_data(symbol, bars)
             total_bars += len(bars)
-        
+
         # Get statistics
         stats = await temp_manager.get_storage_stats()
-        
+
         # Verify statistics accuracy
         assert stats['symbols'] == len(symbols)
         assert stats['total_records'] == total_bars
@@ -571,7 +571,7 @@ class TestFileBasedMinuteManager:
         """Test edge cases in data querying"""
         # Store sample data
         await temp_manager.store_minute_data('AAPL', sample_bars)
-        
+
         # Test 1: Query with end date before start date
         result = await temp_manager.query_minute_data(
             'AAPL',
@@ -579,7 +579,7 @@ class TestFileBasedMinuteManager:
             datetime(2024, 1, 15, 9, 30)   # Start time (invalid)
         )
         assert result.empty
-        
+
         # Test 2: Query with exact timestamp boundaries
         first_timestamp = sample_bars[0].timestamp
         result = await temp_manager.query_minute_data(
@@ -588,7 +588,7 @@ class TestFileBasedMinuteManager:
             first_timestamp
         )
         assert len(result) >= 1
-        
+
         # Test 3: Query non-existent columns
         result = await temp_manager.query_minute_data(
             'AAPL',
@@ -610,14 +610,14 @@ def event_loop():
 if __name__ == "__main__":
     # Run specific test for debugging
     import asyncio
-    
+
     async def run_specific_test():
         test_instance = TestFileBasedMinuteManager()
-        
+
         # Create temporary manager
         temp_dir = tempfile.mkdtemp()
         manager = FileBasedMinuteManager(base_path=temp_dir, backup_enabled=True)
-        
+
         try:
             # Create sample data
             bars = []
@@ -634,12 +634,12 @@ if __name__ == "__main__":
                     vendor='manual_test'
                 )
                 bars.append(bar)
-            
+
             # Test storage
             print("Testing storage...")
             result = await manager.store_minute_data('TEST', bars)
             print(f"Storage result: {result}")
-            
+
             # Test query
             print("Testing query...")
             query_result = await manager.query_minute_data(
@@ -648,14 +648,14 @@ if __name__ == "__main__":
                 datetime(2024, 1, 15, 10, 30)
             )
             print(f"Query returned {len(query_result)} records")
-            
+
             # Test stats
             print("Testing statistics...")
             stats = await manager.get_storage_stats()
             print(f"Storage stats: {stats}")
-            
+
         finally:
             await manager.close()
             shutil.rmtree(temp_dir, ignore_errors=True)
-    
+
     asyncio.run(run_specific_test())

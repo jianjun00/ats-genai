@@ -53,7 +53,7 @@ async def test_polygon_price_fields_are_not_none(unit_test_db):
     assert row['date'] == test_date
     assert row['symbol'] == symbol
     # All price fields should match the DB and not be None
-    assert row['open'] == 119.75, f"open field is {row['open']}" 
+    assert row['open'] == 119.75, f"open field is {row['open']}"
     assert row['high'] == 120.505, f"high field is {row['high']}"
     assert row['low'] == 118.855, f"low field is {row['low']}"
     assert row['close'] == 119.84, f"close field is {row['close']}"

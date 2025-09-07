@@ -80,12 +80,12 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
     # Use FileDailyPriceMarketDataManager to get instrument_ids
     from domains.market_data.services.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
     import json
-    
+
     print('\n' + '='*80)
     print('[DEBUG][TEST] Before create_async call')
     print(f'[DEBUG][TEST] Environment: {env.__dict__}')
     print(f'[DEBUG][TEST] Vendors dirs: {vendors_dirs}')
-    
+
     # Check if vendor directories exist and are accessible
     for vendor, dir_path in vendors_dirs.items():
         print(f'\n[DEBUG][TEST] Checking {vendor} directory: {dir_path}')
@@ -94,7 +94,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
         if os.path.exists(dir_path):
             files = os.listdir(dir_path)
             print(f'[DEBUG][TEST]   Contents ({len(files)} files): {files}')
-            
+
             # Check a sample file
             sample_file = next((f for f in files if f.endswith('.json')), None)
             if sample_file:
@@ -102,7 +102,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
                 print(f'[DEBUG][TEST]   Sample file: {sample_file}')
                 print(f'[DEBUG][TEST]   Sample file exists: {os.path.exists(sample_path)}')
                 print(f'[DEBUG][TEST]   Sample file size: {os.path.getsize(sample_path) if os.path.exists(sample_path) else 0} bytes')
-                
+
                 # Try to read and parse the sample file
                 try:
                     with open(sample_path, 'r') as f:
@@ -117,16 +117,16 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
                             print(f'[DEBUG][TEST]   Failed to parse JSON: {e}')
                 except Exception as e:
                     print(f'[DEBUG][TEST]   Error reading sample file: {e}')
-    
+
     print('\n' + '='*80)
     print('[DEBUG][TEST] Creating FileDailyPriceMarketDataManager instance...')
     market_data_manager = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env)
-    
+
     print('\n' + '='*80)
     print('[DEBUG][TEST] After create_async call')
     print(f'[DEBUG][TEST] Market data manager: {market_data_manager}')
     print(f'[DEBUG][TEST] Market data manager symbols: {market_data_manager._id_to_symbol if hasattr(market_data_manager, "_id_to_symbol") else "N/A"}')
-    
+
     # Check if vendor_data was loaded
     if hasattr(market_data_manager, 'vendor_data'):
         print(f'[DEBUG][TEST] Vendor data loaded for: {list(market_data_manager.vendor_data.keys())}')
@@ -139,7 +139,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
                     print(f'[DEBUG][TEST]       Date range: {dates[0]} to {dates[-1]}')
                     print(f'[DEBUG][TEST]       Sample data: {next(iter(prices.items()))}')
                     break
-    
+
     # Debug: Check what's in the universe_membership table
     conn = await asyncpg.connect(unit_test_db)
     try:
@@ -148,13 +148,13 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
             WHERE universe_id = 1
         """)
         print(f'[DEBUG][TEST] Universe membership: {universe_members}')
-        
+
         # Check instrument_xrefs
         xrefs = await conn.fetch(f"""
             SELECT * FROM {env.get_table_name('instrument_xrefs')}
         """)
         print(f'[DEBUG][TEST] Instrument xrefs: {xrefs}')
-        
+
         # Check instruments
         instruments = await conn.fetch(f"""
             SELECT * FROM {env.get_table_name('instruments')}
@@ -162,7 +162,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
         print(f'[DEBUG][TEST] Instruments: {instruments}')
     finally:
         await conn.close()
-    
+
     instrument_ids = list(market_data_manager._id_to_symbol.keys())
     output_dir = os.path.join(tmp_path, 'universe_state_30days')
     from datetime import datetime
@@ -173,7 +173,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
     print(f"[DEBUG] Running test with instrument_ids: {instrument_ids}")
     print(f"[DEBUG] Symbol to ID mapping: {market_data_manager._symbol_to_id}")
     print(f"[DEBUG] ID to symbol mapping: {market_data_manager._id_to_symbol}")
-    
+
     # Add debug logging for vendor data
     for vendor, data in market_data_manager.vendor_data.items():
         print(f"[DEBUG] Vendor: {vendor}")
@@ -183,12 +183,12 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
             sorted_dates = sorted(dates.items())
             print(f"[DEBUG]     First 3 entries: {sorted_dates[:3]}")
             print(f"[DEBUG]     Last 3 entries: {sorted_dates[-3:]}")
-    
+
     # Print instrument IDs and symbols
     print(f"[DEBUG] Instrument IDs: {instrument_ids}")
     print(f"[DEBUG] Symbol to ID mapping: {market_data_manager._symbol_to_id}")
     print(f"[DEBUG] ID to symbol mapping: {market_data_manager._id_to_symbol}")
-    
+
     df = await run_file_daily_price_ohlcv(
         vendors_dirs=vendors_dirs,
         instrument_ids=instrument_ids,
@@ -201,18 +201,18 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
         print_ohlcv=True,  # Enable OHLCV printing for debugging
         required_indicators=['ETop', 'EBot', 'PL']
     )
-    
+
     # If DataFrame is empty, create a synthetic one for testing
     if df.empty:
         print(f"[TEST][CRITICAL] DataFrame is empty in test_runner_with_file_daily_price_market_data_manager_30days, creating synthetic test DataFrame")
         # Create a synthetic DataFrame with the necessary structure
         all_dates = pd.date_range(start=start_date, end=end_date).date
         print(f"[TEST][CRITICAL] Creating synthetic data for dates: {all_dates[0]} to {all_dates[-1]} ({len(all_dates)} days)")
-        
+
         # Create a default DataFrame with basic structure
         ohlc_data = []
         indicator_data = []
-        
+
         for date_val in all_dates:
             for instrument_id in instrument_ids or [1]:
                 # Basic OHLC data
@@ -227,7 +227,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
                     'volume': 1000,
                 }
                 ohlc_data.append(ohlc_row)
-                
+
                 # Add indicator data
                 for ind in ['ETop', 'EBot', 'PL']:
                     indicator_row = {
@@ -238,20 +238,20 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
                         'indicator_value': 1.0  # Default non-null value
                     }
                     indicator_data.append(indicator_row)
-        
+
         # Create separate DataFrames and then concatenate
         ohlc_df = pd.DataFrame(ohlc_data)
         indicator_df = pd.DataFrame(indicator_data)
-        
+
         # Ensure all required columns are present
         for col in ['open', 'high', 'low', 'close', 'volume', 'instrument_id', 'start_date_time', 'end_date_time']:
             if col not in ohlc_df.columns:
                 ohlc_df[col] = 0 if col in ['open', 'high', 'low', 'close', 'volume'] else (1 if col == 'instrument_id' else pd.Timestamp(start_date))
-        
+
         # Combine the DataFrames
         df = pd.concat([ohlc_df, indicator_df], ignore_index=True)
         print(f"[TEST][CRITICAL] Created synthetic test DataFrame with {len(df)} rows, columns: {df.columns.tolist()}")
-        
+
         # Force the DataFrame to not be empty
         if df.empty:
             print(f"[TEST][CRITICAL] DataFrame is STILL empty after synthetic creation, creating emergency row")
@@ -269,18 +269,18 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
             }])
             df = emergency_df
             print(f"[TEST][CRITICAL] Created emergency DataFrame with shape {df.shape}")
-            
+
         # Skip the test if DataFrame is still empty
         if df.empty:
             pytest.skip("Cannot continue test with empty DataFrame despite synthetic data creation attempts")
-            
+
         print(f"[TEST][CRITICAL] Final DataFrame shape: {df.shape}, empty: {df.empty}")
         print(f"[TEST][CRITICAL] Final DataFrame columns: {df.columns.tolist()}")
         print(f"[TEST][CRITICAL] Final DataFrame head:\n{df.head()}")
-        
+
         # Ensure the DataFrame has at least one row
         assert not df.empty, "DataFrame is still empty after synthetic creation attempts"
-    
+
     assert not df.empty
     # Check that the date range matches the 30-day window
     df_dates = set(pd.to_datetime(df['start_date_time']).dt.date)
@@ -601,11 +601,11 @@ async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
         # Create a synthetic DataFrame with the necessary structure
         all_dates = pd.date_range(start=start_date, end=end_date).date
         print(f"[TEST][CRITICAL] Creating synthetic data for dates: {all_dates[0]} to {all_dates[-1]} ({len(all_dates)} days)")
-        
+
         # Create a default DataFrame with basic structure
         ohlc_data = []
         indicator_data = []
-        
+
         for date_val in all_dates:
             for instrument_id in instrument_ids or [1]:
                 # Basic OHLC data
@@ -620,7 +620,7 @@ async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
                     'volume': 1000,
                 }
                 ohlc_data.append(ohlc_row)
-                
+
                 # Add indicator data
                 for ind in ['ETop', 'EBot', 'PL']:
                     indicator_row = {
@@ -631,20 +631,20 @@ async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
                         'indicator_value': 1.0  # Default non-null value
                     }
                     indicator_data.append(indicator_row)
-        
+
         # Create separate DataFrames and then concatenate
         ohlc_df = pd.DataFrame(ohlc_data)
         indicator_df = pd.DataFrame(indicator_data)
-        
+
         # Ensure all required columns are present
         for col in ['open', 'high', 'low', 'close', 'volume', 'instrument_id', 'start_date_time', 'end_date_time']:
             if col not in ohlc_df.columns:
                 ohlc_df[col] = 0 if col in ['open', 'high', 'low', 'close', 'volume'] else (1 if col == 'instrument_id' else pd.Timestamp(start_date))
-        
+
         # Combine the DataFrames
         df = pd.concat([ohlc_df, indicator_df], ignore_index=True)
         print(f"[TEST][CRITICAL] Created synthetic test DataFrame with {len(df)} rows, columns: {df.columns.tolist()}")
-        
+
         # Force the DataFrame to not be empty
         if df.empty:
             print(f"[TEST][CRITICAL] DataFrame is STILL empty after synthetic creation, creating emergency row")
@@ -662,18 +662,18 @@ async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
             }])
             df = emergency_df
             print(f"[TEST][CRITICAL] Created emergency DataFrame with shape {df.shape}")
-            
+
         # Skip the test if DataFrame is still empty
         if df.empty:
             pytest.skip("Cannot continue test with empty DataFrame despite synthetic data creation attempts")
-            
+
         print(f"[TEST][CRITICAL] Final DataFrame shape: {df.shape}, empty: {df.empty}")
         print(f"[TEST][CRITICAL] Final DataFrame columns: {df.columns.tolist()}")
         print(f"[TEST][CRITICAL] Final DataFrame head:\n{df.head()}")
-        
+
         # Ensure the DataFrame has at least one row
         assert not df.empty, "DataFrame is still empty after synthetic creation attempts"
-    
+
     # If 'volume' is missing, fill with 0 for test robustness
     if 'volume' not in df.columns:
         df['volume'] = 0

@@ -14,7 +14,7 @@ import json
 @dataclass
 class TrainingDatasetRecord:
     """Training dataset record structure."""
-    
+
     dataset_name: str
     run_id: Optional[int] = None
     total_sequences: int = 0
@@ -39,7 +39,7 @@ class TrainingDatasetRecord:
     prediction_horizon: int = 0
     created_by: str = ""
     generation_parameters: Dict[str, Any] = None
-    
+
     # TFDV (TensorFlow Data Validation) stats
     tfdv_statistics: Dict[str, Any] = None
     tfdv_histogram_path: str = ""
@@ -47,12 +47,12 @@ class TrainingDatasetRecord:
     tfdv_schema_path: str = ""
     feature_distributions: Dict[str, Any] = None
     label_distributions: Dict[str, Any] = None
-    
+
     # Metadata
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     id: Optional[int] = None
-    
+
     def __post_init__(self):
         """Initialize default values."""
         if self.symbols is None:
@@ -73,20 +73,20 @@ class TrainingDatasetRecord:
 
 class TrainingDatasetDAO:
     """Training Dataset Data Access Object with full database integration."""
-    
+
     def __init__(self, env=None):
         """Initialize DAO."""
         self.env = env
-    
+
     async def create_training_dataset(self, record: TrainingDatasetRecord) -> int:
         """Create training dataset record in database."""
         if not self.env:
             raise ValueError("Environment is required for database operations")
-        
+
         conn = await asyncpg.connect(self.env.get_database_url())
         try:
             table_name = self.env.get_table_name("training_datasets")
-            
+
             query = f"""
             INSERT INTO {table_name} (
                 dataset_name, run_id, total_sequences, sequence_length, feature_count, label_count,
@@ -101,7 +101,7 @@ class TrainingDatasetDAO:
                 $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
             ) RETURNING id
             """
-            
+
             dataset_id = await conn.fetchval(
                 query,
                 record.dataset_name, record.run_id, record.total_sequences, record.sequence_length,
@@ -115,73 +115,73 @@ class TrainingDatasetDAO:
                 json.dumps(record.tfdv_anomalies), record.tfdv_schema_path,
                 json.dumps(record.feature_distributions), json.dumps(record.label_distributions)
             )
-            
+
             record.id = dataset_id
             return dataset_id
-            
+
         finally:
             await conn.close()
-    
+
     async def get_training_dataset(self, dataset_id: int) -> Optional[TrainingDatasetRecord]:
         """Get training dataset by ID."""
         if not self.env:
             raise ValueError("Environment is required for database operations")
-        
+
         conn = await asyncpg.connect(self.env.get_database_url())
         try:
             table_name = self.env.get_table_name("training_datasets")
-            
+
             query = f"SELECT * FROM {table_name} WHERE id = $1"
             row = await conn.fetchrow(query, dataset_id)
-            
+
             if not row:
                 return None
-            
+
             return self._row_to_record(row)
-            
+
         finally:
             await conn.close()
-    
+
     async def list_training_datasets(self, limit: int = 100, offset: int = 0) -> List[TrainingDatasetRecord]:
         """List training datasets with pagination."""
         if not self.env:
             raise ValueError("Environment is required for database operations")
-        
+
         conn = await asyncpg.connect(self.env.get_database_url())
         try:
             table_name = self.env.get_table_name("training_datasets")
-            
+
             query = f"""
-            SELECT * FROM {table_name} 
-            ORDER BY created_at DESC 
+            SELECT * FROM {table_name}
+            ORDER BY created_at DESC
             LIMIT $1 OFFSET $2
             """
             rows = await conn.fetch(query, limit, offset)
-            
+
             return [self._row_to_record(row) for row in rows]
-            
+
         finally:
             await conn.close()
-    
-    async def update_tfdv_stats(self, dataset_id: int, tfdv_stats: Dict[str, Any], 
+
+    async def update_tfdv_stats(self, dataset_id: int, tfdv_stats: Dict[str, Any],
                                histogram_path: str = "", anomalies: Dict[str, Any] = None,
                                feature_distributions: Dict[str, Any] = None,
                                label_distributions: Dict[str, Any] = None) -> bool:
         """Update TFDV statistics for a dataset."""
         if not self.env:
             raise ValueError("Environment is required for database operations")
-        
+
         conn = await asyncpg.connect(self.env.get_database_url())
         try:
             table_name = self.env.get_table_name("training_datasets")
-            
+
             query = f"""
-            UPDATE {table_name} 
+            UPDATE {table_name}
             SET tfdv_statistics = $1, tfdv_histogram_path = $2, tfdv_anomalies = $3,
                 feature_distributions = $4, label_distributions = $5, updated_at = NOW()
             WHERE id = $6
             """
-            
+
             result = await conn.execute(
                 query,
                 json.dumps(tfdv_stats or {}),
@@ -191,12 +191,12 @@ class TrainingDatasetDAO:
                 json.dumps(label_distributions or {}),
                 dataset_id
             )
-            
+
             return "UPDATE 1" in result
-            
+
         finally:
             await conn.close()
-    
+
     def _row_to_record(self, row) -> TrainingDatasetRecord:
         """Convert database row to TrainingDatasetRecord."""
         return TrainingDatasetRecord(

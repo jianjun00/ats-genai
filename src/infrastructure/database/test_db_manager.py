@@ -16,7 +16,7 @@ import pytest_asyncio
 import uuid
 from typing import Dict, List, Any
 from contextlib import asynccontextmanager
-from shared.data_handling.utils.environment import Environment, EnvironmentType  
+from shared.data_handling.utils.environment import Environment, EnvironmentType
 from infrastructure.database.migration_manager import MigrationManager
 import logging
 logger = logging.getLogger(__name__)
@@ -28,12 +28,12 @@ from shared.data_handling.utils.database import Database
 class DatabaseTestManager:
     """Manages test databases for unit and integration tests."""
 
-    
+
     def __init__(self, test_type: str = "unit", run_migrations: bool = True, database_obj: Database = None):
         print(f"[GIN DEBUG] DatabaseTestManager __init__: test_type={test_type}, database_obj={database_obj}")
         """
         Initialize test database manager.
-        
+
         Args:
             test_type: "unit" or "integration"
             run_migrations: If False, do not apply migrations after DB creation (default: True)
@@ -65,13 +65,13 @@ class DatabaseTestManager:
         sample_table = self.env.get_table_name("sample")
         self.table_prefix = sample_table.replace("sample", "")
         self.run_migrations = run_migrations
-        # test_db_suffix logic moved to fixture 
+        # test_db_suffix logic moved to fixture
 
-    
+
     async def setup_test_database(self) -> str:
         """
         Set up test database with latest schema (unless run_migrations is False).
-        
+
         Returns:
             Database URL for the test database
         """
@@ -100,7 +100,7 @@ class DatabaseTestManager:
             print(f"[DEBUG] Using shared integration DB URL: {test_db_url}")
         return test_db_url
 
-    
+
     async def teardown_test_database(self):
         """Clean up test database after test completion."""
         if self.test_type == "unit":
@@ -113,7 +113,7 @@ class DatabaseTestManager:
             # For integration tests, we clean up test data but keep the database
             await self.cleanup_test_data()
 
-    
+
     async def _create_test_database(self, db_name: str):
         """Create a new test database."""
         # Connect to default postgres database to create test database
@@ -125,7 +125,7 @@ class DatabaseTestManager:
             port = url_parts.port or 5432
             user = url_parts.username or "postgres"
             password = url_parts.password or "password"
-            
+
             # Connect to postgres database
             conn = await asyncpg.connect(
                 host=host,
@@ -149,7 +149,7 @@ class DatabaseTestManager:
             print(f"[ERROR] Failed to create test database: {e}")
             raise
 
-    
+
     async def _drop_test_database(self, db_name: str):
         """Drop a test database."""
         try:
@@ -160,7 +160,7 @@ class DatabaseTestManager:
             port = url_parts.port or 5432
             user = url_parts.username or "postgres"
             password = url_parts.password or "password"
-            
+
             # Connect to postgres database
             conn = await asyncpg.connect(
                 host=host,
@@ -176,21 +176,21 @@ class DatabaseTestManager:
             print(f"[ERROR] Failed to drop test database: {e}")
             # Don't raise, as this is cleanup code
 
-    
+
     async def cleanup_test_data(self):
         """Clean up test data from integration test database."""
         try:
             # Connect to the integration test database
             conn = await asyncpg.connect(self.db_url)
-            
+
             # Get all tables in the database
             tables = await conn.fetch("""
-                SELECT table_name 
-                FROM information_schema.tables 
+                SELECT table_name
+                FROM information_schema.tables
                 WHERE table_schema = 'public'
                 AND table_type = 'BASE TABLE'
             """)
-            
+
             # Truncate all tables (except migration tables)
             for table in tables:
                 table_name = table['table_name']
@@ -199,13 +199,13 @@ class DatabaseTestManager:
                         await conn.execute(f'TRUNCATE TABLE "{table_name}" CASCADE')
                     except Exception as e:
                         print(f"[WARNING] Failed to truncate {table_name}: {e}")
-            
+
             await conn.close()
         except Exception as e:
             print(f"[ERROR] Failed to clean up test data: {e}")
             # Don't raise, as this is cleanup code
 
-    
+
     async def backup_tables(self, tables: List[str]):
         """Backup tables by copying their contents to *_backup tables."""
         conn = await asyncpg.connect(self.db_url)
@@ -220,7 +220,7 @@ class DatabaseTestManager:
                 print(f"[ERROR] Failed to backup table {table}: {e}")
         await conn.close()
 
-    
+
     async def restore_tables(self, tables: List[str]):
         """Restore tables from their *_backup tables and drop the backups."""
         conn = await asyncpg.connect(self.db_url)
@@ -237,7 +237,7 @@ class DatabaseTestManager:
                 print(f"[ERROR] Failed to restore table {table}: {e}")
         await conn.close()
 
-    
+
     async def load_test_fixtures(self, fixtures: Dict[str, List[Dict[str, Any]]]):
         """
         Load test data fixtures into the database.
@@ -246,20 +246,20 @@ class DatabaseTestManager:
             fixtures: Dictionary mapping table names to lists of row data
         """
         conn = await asyncpg.connect(self.db_url)
-        
+
         for table, rows in fixtures.items():
             if not rows:
                 continue
-                
+
             # Process each row to convert string dates to Python objects
             processed_rows = []
             for row in rows:
                 processed_row = {}
                 for key, value in row.items():
                     if isinstance(value, str) and (
-                        key.endswith('_at') or 
-                        key.endswith('_date') or 
-                        key == 'date' or 
+                        key.endswith('_at') or
+                        key.endswith('_date') or
+                        key == 'date' or
                         key == 'datetime'
                     ):
                         try:
@@ -277,16 +277,16 @@ class DatabaseTestManager:
                     else:
                         processed_row[key] = value
                 processed_rows.append(processed_row)
-                
+
             # Insert rows into table
             columns = list(processed_rows[0].keys())
             values = [tuple(row[col] for col in columns) for row in processed_rows]
-            
+
             # Build INSERT statement
             placeholders = [f'${i+1}' for i in range(len(columns))]
             columns_str = ', '.join(f'"{col}"' for col in columns)
             placeholders_str = ', '.join(placeholders)
-            
+
             # Execute INSERT for each row
             for row_values in values:
                 try:
@@ -296,18 +296,18 @@ class DatabaseTestManager:
                     )
                 except Exception as e:
                     print(f"[ERROR] Failed to insert into {table}: {e}")
-                    
+
         await conn.close()
 
 
 class IntegrationTestSession:
     """Manages shared state for integration test sessions."""
-    
+
     _instance = None
     _db_manager = None
     _test_db_url = None
     _session_id = None
-    
+
     @classmethod
     def get_instance(cls):
         """Get or create the singleton integration test session."""
@@ -317,7 +317,7 @@ class IntegrationTestSession:
             cls._test_db_url = asyncio.run(cls._db_manager.setup_test_database())
             cls._session_id = uuid.uuid4().hex
         return cls._instance
-    
+
     @classmethod
     def cleanup(cls):
         """Clean up the integration test session."""
@@ -327,11 +327,11 @@ class IntegrationTestSession:
             cls._instance = None
             cls._db_manager = None
             cls._test_db_url = None
-    
+
     def db_url(self):
         """Get the test database URL."""
         return self._test_db_url
-    
+
     def session_id(self):
         """Get the session ID for this test run."""
         return self._session_id
@@ -359,7 +359,7 @@ def clean_integration_db(integration_test_db):
 async def test_database_context(test_type: str = "unit"):
     """
     Context manager for test database setup/teardown.
-    
+
     Usage:
         async with test_database_context("unit") as db_url:
             # Use db_url for testing
@@ -396,22 +396,22 @@ async def unit_test_db(request):
     test_file_base = os.path.splitext(os.path.basename(test_file))[0]
     test_file_base = ''.join(c for c in test_file_base if c.isalnum())[:8]
     test_name = request.node.name if hasattr(request, 'node') else None
-    
+
     # Generate timestamp-based unique suffix for proper test isolation
     import time
     timestamp_suffix = str(int(time.time() * 1000))[-10:]  # Last 10 digits of millisecond timestamp
-    
+
     if test_name:
         # Use first 8 chars of test name for readability
         test_name_short = ''.join(c for c in test_name if c.isalnum())[:8]
         db_name = f"test_{test_file_base}_{test_name_short}_{timestamp_suffix}"
     else:
         db_name = f"test_{test_file_base}_{uuid.uuid4().hex[:8]}_{timestamp_suffix}"
-    
+
     # Ensure DB name doesn't exceed PostgreSQL's 63-char limit
     if len(db_name) > 63:
         db_name = f"test_{timestamp_suffix}_{uuid.uuid4().hex[:8]}"
- 
+
     # Construct Database object for this test
     # Use test_user credentials explicitly for test database
     db_host = "localhost"
@@ -421,9 +421,9 @@ async def unit_test_db(request):
     db_pool_min = 1
     db_pool_max = 10
     db_cmd_timeout = 60
-    
+
     print(f"[ENV DEBUG] Using database credentials: host={db_host}, port={db_port}, user={db_user}, database={db_name}")
-    
+
     db_obj = Database(
         host=db_host,
         port=db_port,
@@ -441,25 +441,25 @@ async def unit_test_db(request):
     # Get the table prefix from the db_manager's env
     table_prefix = db_manager.table_prefix
     print(f"[DEBUG] Using table prefix from db_manager: '{table_prefix}'")
-    
+
     # Create migration manager with the correct table prefix
     migration_manager = MigrationManager(test_db_url)
     migration_manager.table_prefix = table_prefix  # Ensure we use the same prefix
-    print(f"[DEBUG] Applying migrations to {test_db_url} with table prefix: '{table_prefix}'")    
-    
+    print(f"[DEBUG] Applying migrations to {test_db_url} with table prefix: '{table_prefix}'")
+
     # Run migrations with the correct prefix
     success = await migration_manager.migrate_to_latest()
     if not success:
         raise RuntimeError("Failed to apply migrations to test database")
-        
+
     # Verify tables were created with the correct prefix
     print(f"[DEBUG] Verifying tables with prefix: '{table_prefix}'")
     conn = await asyncpg.connect(test_db_url)
     try:
         tables = await conn.fetch("""
-            SELECT tablename 
-            FROM pg_tables 
-            WHERE schemaname = 'public' 
+            SELECT tablename
+            FROM pg_tables
+            WHERE schemaname = 'public'
             ORDER BY tablename
         """)
         print(f"[DEBUG] Tables in database after migration: {[t['tablename'] for t in tables]}")
@@ -493,18 +493,18 @@ async def unit_test_db_clean(request):
     test_file_base = os.path.splitext(os.path.basename(test_file))[0]
     test_file_base = ''.join(c for c in test_file_base if c.isalnum())[:8]
     test_name = request.node.name if hasattr(request, 'node') else None
-    
+
     # Generate timestamp-based unique suffix for proper test isolation
     import time
     timestamp_suffix = str(int(time.time() * 1000))[-10:]  # Last 10 digits of millisecond timestamp
-    
+
     if test_name:
         # Use first 8 chars of test name for readability
         test_name_short = ''.join(c for c in test_name if c.isalnum())[:8]
         db_name = f"test_{test_file_base}_{test_name_short}_{timestamp_suffix}"
     else:
         db_name = f"test_{test_file_base}_{uuid.uuid4().hex[:8]}_{timestamp_suffix}"
-    
+
     # Ensure DB name doesn't exceed PostgreSQL's 63-char limit
     if len(db_name) > 63:
         db_name = f"test_{timestamp_suffix}_{uuid.uuid4().hex[:8]}"
@@ -517,9 +517,9 @@ async def unit_test_db_clean(request):
     db_pool_min = 1
     db_pool_max = 10
     db_cmd_timeout = 60
-    
+
     print(f"[ENV DEBUG] Using database credentials: host={db_host}, port={db_port}, user={db_user}, database={db_name}")
-    
+
     db_obj = Database(
         host=db_host,
         port=db_port,

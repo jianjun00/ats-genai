@@ -39,58 +39,58 @@ async def test_database_connection(args):
     """Test database connection with retry logic."""
     # Parse environments list
     environments = args.environments.split(',')
-    
+
     # Set database credentials from arguments
     os.environ["DB_USER"] = args.db_user
     os.environ["DB_PASSWORD"] = args.db_password
     os.environ["DB_HOST"] = args.db_host
     os.environ["DB_PORT"] = args.db_port
-    
+
     logger.info(f"Using database credentials:")
     logger.info(f"  User: {args.db_user}")
     logger.info(f"  Password: {'*' * len(args.db_password)}")
     logger.info(f"  Host: {args.db_host}")
     logger.info(f"  Port: {args.db_port}")
-    
+
     for env in environments:
         logger.info(f"\n\n=== Testing {env} environment ===")
-        
+
         # Set environment variables for testing
         os.environ["ENVIRONMENT"] = env
-        
+
         if env == "dev":
             os.environ["DB_NAME"] = "dev_db"
         elif env == "intg":
             os.environ["DB_NAME"] = "intg_db"
         else:
             os.environ["DB_NAME"] = "trading_db"
-            
+
         # Create database instance
         db = Database()
-        
+
         # Print connection details
         logger.info(f"Database host: {db.host}")
         logger.info(f"Database port: {db.port}")
         logger.info(f"Database name: {db.database}")
         logger.info(f"Database URL: {db.get_database_url().replace(db.password, '******')}")
-        
+
         # Test connection with retry logic
         try:
             # Import asyncpg here to avoid import errors if not installed
             import asyncpg
-            
+
             logger.info("Attempting to connect to database...")
             pool = await db.create_pool_with_retry(asyncpg, max_retries=2, initial_delay=1.0)
             logger.info("Successfully connected to database!")
-            
+
             # Test query
             async with pool.acquire() as conn:
                 version = await conn.fetchval("SELECT version()")
                 logger.info(f"PostgreSQL version: {version}")
-                
+
             # Close pool
             await pool.close()
-            
+
         except ImportError:
             logger.error("asyncpg not installed. Skipping connection test.")
         except Exception as e:

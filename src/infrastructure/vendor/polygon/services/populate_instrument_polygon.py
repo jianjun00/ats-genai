@@ -36,7 +36,7 @@ async def fetch_and_upsert_direct(symbols, env_type, table_name, polygon_api_key
     import logging
     direct_logger = logging.getLogger("direct_worker")
     direct_logger.setLevel(logging.INFO)
-    
+
     details = []
     results = []
     for symbol in symbols:
@@ -52,7 +52,7 @@ async def fetch_and_upsert_direct(symbols, env_type, table_name, polygon_api_key
                     direct_logger.info(f"Skipping {symbol} (no list_date)")
                     results.append((symbol, 'skipped'))
                     break
-                
+
                 # Filter for US exchanges only
                 US_EXCHANGES = {'XNYS', 'XNAS', 'XASE', 'BATS'}
                 primary_exchange = detail.get('primary_exchange', '')
@@ -60,7 +60,7 @@ async def fetch_and_upsert_direct(symbols, env_type, table_name, polygon_api_key
                     direct_logger.info(f"Skipping {symbol} (non-US exchange: {primary_exchange})")
                     results.append((symbol, 'skipped'))
                     break
-                    
+
                 details.append(detail)
                 results.append((symbol, 'ok'))
                 break
@@ -73,7 +73,7 @@ async def fetch_and_upsert_direct(symbols, env_type, table_name, polygon_api_key
                 break
         else:
             results.append((symbol, 'fail'))
-    
+
     # Use the centralized database connection logic
     from shared.utils.database import Database
     if details:
@@ -81,10 +81,10 @@ async def fetch_and_upsert_direct(symbols, env_type, table_name, polygon_api_key
             # Set environment type in os.environ for Database class to use
             import os
             os.environ["ENVIRONMENT"] = env_type.value if hasattr(env_type, 'value') else str(env_type)
-            
+
             # Create a connection pool using the centralized logic
             pool = await Database.create_connection_pool(max_retries=3, initial_delay=1.0, timeout=10.0)
-            
+
             # Process the details
             async with pool.acquire() as conn:
                 rows = [
@@ -130,7 +130,7 @@ async def fetch_and_upsert_direct(symbols, env_type, table_name, polygon_api_key
             direct_logger.error(f"Error processing details: {e}")
             import traceback
             direct_logger.error(traceback.format_exc())
-    
+
     for symbol, status in results:
         direct_logger.info(f"RESULT {symbol}: {status}")
     return results
@@ -140,7 +140,7 @@ def fetch_and_upsert_ray(symbols, env_type, table_name, polygon_api_key):
     import logging
     ray_logger = logging.getLogger("ray_worker")
     ray_logger.setLevel(logging.INFO)
-    
+
     details = []
     results = []
     for symbol in symbols:
@@ -156,7 +156,7 @@ def fetch_and_upsert_ray(symbols, env_type, table_name, polygon_api_key):
                     ray_logger.info(f"Skipping {symbol} (no list_date)")
                     results.append((symbol, 'skipped'))
                     break
-                
+
                 # Filter for US exchanges only
                 US_EXCHANGES = {'XNYS', 'XNAS', 'XASE', 'BATS'}
                 primary_exchange = detail.get('primary_exchange', '')
@@ -164,7 +164,7 @@ def fetch_and_upsert_ray(symbols, env_type, table_name, polygon_api_key):
                     ray_logger.info(f"Skipping {symbol} (non-US exchange: {primary_exchange})")
                     results.append((symbol, 'skipped'))
                     break
-                    
+
                 details.append(detail)
                 results.append((symbol, 'ok'))
                 break
@@ -177,7 +177,7 @@ def fetch_and_upsert_ray(symbols, env_type, table_name, polygon_api_key):
                 break
         else:
             results.append((symbol, 'fail'))
-    
+
     # Use the centralized database connection logic
     import asyncio
     async def process_details():
@@ -187,10 +187,10 @@ def fetch_and_upsert_ray(symbols, env_type, table_name, polygon_api_key):
                 # Set environment type in os.environ for Database class to use
                 import os
                 os.environ["ENVIRONMENT"] = env_type
-                
+
                 # Create a connection pool using the centralized logic
                 pool = await Database.create_connection_pool(max_retries=3, initial_delay=1.0, timeout=10.0)
-                
+
                 # Process the details
                 async with pool.acquire() as conn:
                     rows = [
@@ -236,17 +236,17 @@ def fetch_and_upsert_ray(symbols, env_type, table_name, polygon_api_key):
                 ray_logger.error(f"Error processing details: {e}")
                 import traceback
                 ray_logger.error(traceback.format_exc())
-    
+
     # Run the async function
     asyncio.run(process_details())
-    
+
     for symbol, status in results:
         ray_logger.info(f"RESULT {symbol}: {status}")
     return results
 
 async def fetch_and_store_instruments(start_ticker='', ticker=None):
     from shared.utils.database import Database
-    
+
     # Use centralized database connection logic
     try:
         logger.info(f"Creating database connection pool using centralized logic")
@@ -260,7 +260,7 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
         # Handle comma-separated ticker symbols
         tickers = [t.strip() for t in ticker.split(',')]
         logger.info(f"Processing {len(tickers)} tickers: {tickers}")
-        
+
         for symbol in tickers:
             logger.info(f"Fetching ticker: {symbol}")
             detail_url = f"https://api.polygon.io/v3/reference/tickers/{symbol}?apiKey={POLYGON_API_KEY}"
@@ -277,14 +277,14 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
                         break
                     detail = detail_resp.json().get('results', {})
                     logger.debug(f"Detail parsed: {detail}")
-                    
+
                     # Check for US exchanges only
                     US_EXCHANGES = {'XNYS', 'XNAS', 'XASE', 'BATS'}
                     primary_exchange = detail.get('primary_exchange', '')
                     if primary_exchange not in US_EXCHANGES:
                         logger.info(f"Skipping {symbol} (non-US exchange: {primary_exchange})")
                         break
-                    
+
                     logger.info(f"Ticker: {symbol}, list_date: {detail.get('list_date')}, exchange: {primary_exchange}")
                     logger.debug(f"Calling upsert_instrument(pool, detail)")
                     await upsert_instrument(pool, detail)
@@ -302,7 +302,7 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
         return
     # Define US exchanges for filtering
     US_EXCHANGES = {'XNYS', 'XNAS', 'XASE', 'BATS'}  # NYSE, NASDAQ, NYSE American, BATS
-    
+
     url = BASE_URL + f"?market=stocks&active=true&limit=1000&apiKey={POLYGON_API_KEY}"
     all_symbols = []
     filtered_count = 0
@@ -318,17 +318,17 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
         for item in tickers:
             symbol = item.get('ticker')
             primary_exchange = item.get('primary_exchange', '')
-            
+
             if symbol <= start_ticker:
                 continue  # Skip until we pass start_ticker
-            
+
             # Filter for US exchanges only
             if primary_exchange in US_EXCHANGES:
                 all_symbols.append(symbol)
             else:
                 filtered_count += 1
                 logger.debug(f"Filtered out {symbol} (exchange: {primary_exchange})")
-                
+
         # More efficient counting for logging
         batch_us_count = sum(1 for item in tickers if item.get('ticker', '') > start_ticker and item.get('primary_exchange', '') in US_EXCHANGES)
         batch_non_us_count = sum(1 for item in tickers if item.get('ticker', '') > start_ticker and item.get('primary_exchange', '') not in US_EXCHANGES)
@@ -337,24 +337,24 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
         if url and 'apiKey=' not in url:
             url += f"&apiKey={POLYGON_API_KEY}"
     await pool.close()
-    
+
     # Log filtering summary
-    total_fetched = len(all_symbols) + filtered_count  
+    total_fetched = len(all_symbols) + filtered_count
     logger.info(f"US-only filtering summary: {len(all_symbols)} US symbols retained, {filtered_count} non-US symbols filtered out (total fetched: {total_fetched})")
-    
+
     if not all_symbols:
         logger.info("No US symbols to process.")
         return
     # Use simple sequential processing instead of Ray to avoid working_dir issues
     table_name = env.get_table_name('instrument_polygon')
     logger.info(f"Processing {len(all_symbols)} instruments sequentially with API key: {POLYGON_API_KEY is not None}")
-    
+
     # Process in smaller batches to manage rate limits
     batch_size = 10
     def batcher(seq, size):
         for i in range(0, len(seq), size):
             yield seq[i:i+size]
-    
+
     processed_count = 0
     for batch in batcher(all_symbols, batch_size):
         try:
@@ -366,7 +366,7 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
         except Exception as e:
             logger.error(f"Failed to process batch: {e}")
             continue
-    
+
     logger.info(f"Total instruments processed: {processed_count}/{len(all_symbols)}")
 
 
@@ -434,12 +434,12 @@ if __name__ == "__main__":
     parser.add_argument('--db_password', type=str, default=None, help='Database password override')
     parser.add_argument('--db_name', type=str, default=None, help='Database name override')
     args = parser.parse_args()
-    
+
     # Set up logging level based on debug flag
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
-    
+
     # Determine Gin config file if not explicitly provided
     if args.gin_config:
         gin_config_path = args.gin_config
@@ -451,7 +451,7 @@ if __name__ == "__main__":
             'dev': 'config/app_dev.gin',
         }
         gin_config_path = gin_config_map.get(args.environment)
-        
+
     # Set database environment variables if provided
     if args.db_host:
         os.environ["DB_HOST"] = args.db_host
@@ -468,34 +468,34 @@ if __name__ == "__main__":
     if args.db_name:
         os.environ["DB_NAME"] = args.db_name
         logger.info(f"Setting DB_NAME to {args.db_name}")
-    
+
     logger.info(f"Using Gin config path: {gin_config_path}")
-    
+
     if not os.path.exists(gin_config_path):
         logger.error(f"Gin config file not found: {gin_config_path}")
         sys.exit(1)
-    
+
     # Import Database before parsing Gin config so Gin can bind its parameters
-    
+
     try:
         gin.parse_config_file(gin_config_path)
         logger.info(f"Successfully parsed Gin config file: {gin_config_path}")
     except Exception as e:
         logger.error(f"Failed to parse Gin config file: {e}")
         sys.exit(1)
-    
+
     try:
         # Set environment type explicitly
         env_type = EnvironmentType(args.environment)
         logger.info(f"Using environment type: {env_type}")
         env = Environment(gin_config_path=gin_config_path, env_type=env_type)
-        
+
         # Database configuration is now handled by the Database class
         # No need to manually set database host or name here
     except Exception as e:
         logger.error(f"Failed to create Environment: {e}")
         sys.exit(1)
-    
+
     # Bind Gin-configurable API key
     try:
         # Get API key from environment variable first, then fall back to Gin config

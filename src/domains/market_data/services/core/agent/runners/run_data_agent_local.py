@@ -34,7 +34,7 @@ async def setup_database():
     db_name = env.get_db_name()
     db_user = env.get_db_user()
     db_password = env.get_db_password()
-    
+
     # Create connection pool
     pool = await asyncpg.create_pool(
         host=db_host,
@@ -43,20 +43,20 @@ async def setup_database():
         user=db_user,
         password=db_password
     )
-    
+
     logger.info(f"Connected to database {db_name} at {db_host}:{db_port}")
-    
+
     # Ensure required tables exist
     async with pool.acquire() as conn:
         # Check if reconciled_records table exists
         table_name = env.get_table_name("reconciled_records")
         exists = await conn.fetchval(f"""
             SELECT EXISTS (
-                SELECT FROM information_schema.tables 
+                SELECT FROM information_schema.tables
                 WHERE table_name = '{table_name}'
             )
         """)
-        
+
         if not exists:
             logger.info(f"Creating table {table_name}")
             await conn.execute(f"""
@@ -74,7 +74,7 @@ async def setup_database():
                     PRIMARY KEY (instrument_id, as_of, data_type)
                 )
             """)
-    
+
     return pool
 
 async def run_backfill(orchestrator, args):
@@ -98,10 +98,10 @@ async def process_symbol(orchestrator, args):
     if not symbol:
         logger.error("Symbol is required for process-symbol mode")
         return
-    
+
     start_date = datetime.strptime(args.start_date, "%Y-%m-%d").date() if args.start_date else date.today() - timedelta(days=5)
     end_date = datetime.strptime(args.end_date, "%Y-%m-%d").date() if args.end_date else date.today()
-    
+
     current_date = start_date
     while current_date <= end_date:
         logger.info(f"Processing {symbol} for {current_date}")
@@ -110,7 +110,7 @@ async def process_symbol(orchestrator, args):
             "date": current_date
         })
         current_date += timedelta(days=1)
-    
+
     logger.info(f"Completed processing {symbol} from {start_date} to {end_date}")
 
 async def main():
@@ -130,16 +130,16 @@ async def main():
                       help="End date for process-symbol mode (format: YYYY-MM-DD)")
     parser.add_argument("--vendor-priority", type=str, default="tiingo,polygon",
                       help="Comma-separated list of vendor priority (default: tiingo,polygon)")
-    
+
     args = parser.parse_args()
-    
+
     # Set up database
     pool = await setup_database()
-    
+
     try:
         # Initialize adapters
         adapters = {}
-        
+
         # Polygon adapter
         polygon_api_key = os.getenv("POLYGON_API_KEY")
         if polygon_api_key:
@@ -147,7 +147,7 @@ async def main():
             logger.info("Initialized Polygon adapter")
         else:
             logger.warning("POLYGON_API_KEY not set, Polygon adapter not initialized")
-        
+
         # Tiingo adapter
         tiingo_api_key = os.getenv("TIINGO_API_KEY")
         if tiingo_api_key:
@@ -155,11 +155,11 @@ async def main():
             logger.info("Initialized Tiingo adapter")
         else:
             logger.warning("TIINGO_API_KEY not set, Tiingo adapter not initialized")
-        
+
         if not adapters:
             logger.error("No adapters initialized. Please set API keys.")
             return
-        
+
         # Initialize LLM assistant
         llm_assistant = None
         openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -168,13 +168,13 @@ async def main():
             logger.info("Initialized LLM assistant")
         else:
             logger.warning("OPENAI_API_KEY not set, LLM assistant not initialized")
-        
+
         # Parse vendor priority
         vendor_priority = args.vendor_priority.split(",")
-        
+
         # Initialize reconciliation engine
         reconciliation_engine = ReconciliationEngine(vendor_priority=vendor_priority)
-        
+
         # Initialize orchestrator
         orchestrator = DataAgentOrchestrator(
             pool=pool,
@@ -182,7 +182,7 @@ async def main():
             reconciliation_engine=reconciliation_engine,
             lookback_years=1  # Use 1 year for testing
         )
-        
+
         # Run the selected mode
         if args.mode == "backfill":
             await run_backfill(orchestrator, args)
@@ -190,7 +190,7 @@ async def main():
             await run_frontfill(orchestrator, args)
         elif args.mode == "process-symbol":
             await process_symbol(orchestrator, args)
-        
+
     finally:
         # Close the connection pool
         await pool.close()

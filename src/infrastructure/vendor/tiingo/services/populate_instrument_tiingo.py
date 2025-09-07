@@ -35,7 +35,7 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
     # Initialize shared utilities
     stats = BackfillStats()
     rate_limiter = VendorRateLimiters.tiingo()  # Default Tiingo rate limits
-    
+
     # Use shared database connection utility
     try:
         logger.info(f"Creating database connection pool using shared utilities")
@@ -45,21 +45,21 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
     except Exception as e:
         logger.error(f"Failed to connect to database: {e}")
         raise
-    
+
     # Get API key using shared utility
     TIINGO_API_KEY = get_tiingo_api_key()
-    
+
     total = 0
     if ticker:
         # Handle comma-separated ticker symbols
         tickers = [t.strip() for t in ticker.split(',')]
         logger.info(f"Processing {len(tickers)} tickers: {tickers}")
-        
+
         for symbol in tickers:
             # Use rate limiting from shared framework
             await rate_limiter.wait_if_needed()
             stats.api_calls_made += 1
-            
+
             logger.info(f"Fetching ticker: {symbol}")
             detail_url = f"https://api.tiingo.com/tiingo/daily/{symbol}?token={TIINGO_API_KEY}"
             # Log URL with masked API key for security
@@ -75,15 +75,15 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
                         break
                     detail = detail_resp.json()
                     logger.debug(f"Detail parsed: {detail}")
-                    
+
                     # Filter for US exchanges only - Tiingo primarily serves US data but check exchange codes
                     exchange_code = detail.get('exchangeCode', '')
                     US_EXCHANGE_CODES = ['NYSE', 'NASDAQ', 'AMEX', 'BATS', 'IEX']  # Tiingo US exchange codes
-                    
+
                     if exchange_code and exchange_code not in US_EXCHANGE_CODES:
                         logger.info(f"Skipping {symbol} (non-US exchange: {exchange_code})")
                         break
-                    
+
                     logger.info(f"Ticker: {symbol}, startDate: {detail.get('startDate')}, endDate: {detail.get('endDate')}, exchange: {exchange_code}")
                     logger.debug(f"Calling upsert_instrument(pool, detail)")
                     await upsert_instrument(pool, detail)
@@ -95,17 +95,17 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
                 except Exception as e:
                     logger.error(f"Exception in fetch_and_store_instruments for {symbol}: {e}")
                     stats.records_failed += 1
-                    
+
         # Update final statistics
         stats.records_fetched = total
         logger.info(f"Total tickers processed: {total}")
-        
+
         # Log comprehensive statistics using shared framework
         stats.log_final_summary(logger)
-        
+
         await pool.close()
         return
-    
+
     # For bulk processing, we'd need to implement Tiingo's supported/active symbols endpoint
     # For now, just create the table structure
     table_name = env.get_table_name('instrument_tiingo')
@@ -125,7 +125,7 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-    
+
     logger.info(f"Created {table_name} table structure")
     await pool.close()
 
@@ -168,12 +168,12 @@ if __name__ == "__main__":
     parser.add_argument('--db_password', type=str, default=None, help='Database password override')
     parser.add_argument('--db_name', type=str, default=None, help='Database name override')
     args = parser.parse_args()
-    
+
     # Set up logging level based on debug flag
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
-    
+
     # Determine Gin config file if not explicitly provided
     if args.gin_config:
         gin_config_path = args.gin_config
@@ -185,7 +185,7 @@ if __name__ == "__main__":
             'dev': 'config/app_dev.gin',
         }
         gin_config_path = gin_config_map.get(args.environment)
-        
+
     # Set database environment variables if provided
     if args.db_host:
         os.environ["DB_HOST"] = args.db_host
@@ -202,37 +202,37 @@ if __name__ == "__main__":
     if args.db_name:
         os.environ["DB_NAME"] = args.db_name
         logger.info(f"Setting DB_NAME to {args.db_name}")
-    
+
     logger.info(f"Using Gin config path: {gin_config_path}")
-    
+
     if not os.path.exists(gin_config_path):
         logger.error(f"Gin config file not found: {gin_config_path}")
         sys.exit(1)
-    
+
     # Import Database before parsing Gin config so Gin can bind its parameters
-    
+
     try:
         gin.parse_config_file(gin_config_path)
         logger.info(f"Successfully parsed Gin config file: {gin_config_path}")
     except Exception as e:
         logger.error(f"Failed to parse Gin config file: {e}")
         sys.exit(1)
-    
+
     try:
         # Set environment type explicitly
         env_type = EnvironmentType(args.environment)
         logger.info(f"Using environment type: {env_type}")
         env = Environment(gin_config_path=gin_config_path, env_type=env_type)
-        
+
         # Database configuration is now handled by the Database class
         # No need to manually set database host or name here
     except Exception as e:
         logger.error(f"Failed to create Environment: {e}")
         sys.exit(1)
-    
+
     # API key is now handled by shared utilities - no manual setup needed
     logger.info("API key management handled by shared utilities")
-    
+
     # Debugging output
     if args.debug:
         logger.debug("ENVIRONMENT VARIABLES:")
@@ -241,22 +241,22 @@ if __name__ == "__main__":
                 logger.debug(f"    {k}={v}")
         logger.debug(f"env.env_type: {env.env_type}")
         logger.debug(f"env.get_database_url(): {'*****' if env.get_database_url() else None}")
-        
+
         db_config = env.get_database_config()
         if db_config:
             # Mask password for security
             if 'password' in db_config:
                 db_config['password'] = '*****' if db_config['password'] else None
             logger.debug(f"Database config: {db_config}")
-        
+
         logger.debug(f"Gin config path: {gin_config_path}")
         logger.debug(f"env.get_api_key('tiingo'): {'*' * 5 + env.get_api_key('tiingo')[-4:] if env.get_api_key('tiingo') else 'None'}")
-        
+
         # Print all Gin-configured parameters for debugging
         logger.debug("Gin-configured parameters:")
         for k in sorted(gin.operative_config_str().splitlines()):
             logger.debug(k)
-    
+
     import asyncio
     try:
         asyncio.run(fetch_and_store_instruments(start_ticker=args.start_ticker, ticker=args.ticker))

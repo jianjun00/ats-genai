@@ -39,7 +39,7 @@ class TestSRModelConfig:
             max_resistance_levels=3,
             epochs=50
         )
-        
+
         assert config.input_dim == 50
         assert config.hidden_dims == [128, 64]
         assert config.max_support_levels == 3
@@ -51,7 +51,7 @@ class TestSRModelConfig:
     def test_config_defaults(self):
         """Test default configuration values"""
         config = SRModelConfig()
-        
+
         assert config.input_dim == 50
         assert config.hidden_dims == [256, 128, 64]  # Default from __post_init__
         assert config.dropout_rate == 0.3
@@ -72,7 +72,7 @@ class TestSRModelConfig:
             dropout_rate=0.5,
             learning_rate=0.01
         )
-        
+
         assert config.input_dim > 0
         assert len(config.hidden_dims) > 0
         assert 0 <= config.dropout_rate <= 1
@@ -88,23 +88,23 @@ class TestSRDataset:
         batch_size = 10
         feature_dim = 20
         max_levels = 3
-        
+
         features = np.random.randn(batch_size, feature_dim)
         support_levels = np.random.uniform(90, 95, (batch_size, max_levels))
         resistance_levels = np.random.uniform(105, 110, (batch_size, max_levels))
         support_confidence = np.random.uniform(0, 1, (batch_size, max_levels))
         resistance_confidence = np.random.uniform(0, 1, (batch_size, max_levels))
-        
-        return (features, support_levels, resistance_levels, 
+
+        return (features, support_levels, resistance_levels,
                 support_confidence, resistance_confidence)
 
     def test_dataset_creation(self, sample_data):
         """Test creating SRDataset"""
         features, support_levels, resistance_levels, support_conf, resistance_conf = sample_data
-        
-        dataset = SRDataset(features, support_levels, resistance_levels, 
+
+        dataset = SRDataset(features, support_levels, resistance_levels,
                            support_conf, resistance_conf)
-        
+
         assert len(dataset) == len(features)
         assert isinstance(dataset.features, torch.Tensor)
         assert isinstance(dataset.support_levels, torch.Tensor)
@@ -113,19 +113,19 @@ class TestSRDataset:
     def test_dataset_getitem(self, sample_data):
         """Test getting items from dataset"""
         features, support_levels, resistance_levels, support_conf, resistance_conf = sample_data
-        
-        dataset = SRDataset(features, support_levels, resistance_levels, 
+
+        dataset = SRDataset(features, support_levels, resistance_levels,
                            support_conf, resistance_conf)
-        
+
         item = dataset[0]
-        
+
         assert isinstance(item, dict)
         assert 'features' in item
         assert 'support_levels' in item
         assert 'resistance_levels' in item
         assert 'support_confidence' in item
         assert 'resistance_confidence' in item
-        
+
         # Check tensor shapes
         assert item['features'].shape == (features.shape[1],)
         assert item['support_levels'].shape == (support_levels.shape[1],)
@@ -147,7 +147,7 @@ class TestSupportResistanceNet:
     def test_model_creation(self, config):
         """Test creating neural network model"""
         model = SupportResistanceNet(config)
-        
+
         assert isinstance(model, nn.Module)
         assert hasattr(model, 'feature_extractor')
         assert hasattr(model, 'support_levels_head')
@@ -159,13 +159,13 @@ class TestSupportResistanceNet:
         """Test forward pass through the model"""
         model = SupportResistanceNet(config)
         model.eval()
-        
+
         batch_size = 5
         features = torch.randn(batch_size, config.input_dim)
-        
+
         with torch.no_grad():
             output = model(features)
-        
+
         assert isinstance(output, dict)
         assert 'support_levels' in output
         assert 'resistance_levels' in output
@@ -173,7 +173,7 @@ class TestSupportResistanceNet:
         assert 'resistance_confidence' in output
         assert 'support_attention' in output
         assert 'resistance_attention' in output
-        
+
         # Check output shapes
         assert output['support_levels'].shape == (batch_size, config.max_support_levels)
         assert output['resistance_levels'].shape == (batch_size, config.max_resistance_levels)
@@ -183,11 +183,11 @@ class TestSupportResistanceNet:
     def test_activation_functions(self, config):
         """Test different activation functions"""
         activations = ['relu', 'leaky_relu', 'elu', 'swish', 'gelu']
-        
+
         for activation in activations:
             config.activation = activation
             model = SupportResistanceNet(config)
-            
+
             # Should create without error
             assert isinstance(model, nn.Module)
 
@@ -195,18 +195,18 @@ class TestSupportResistanceNet:
         """Test that model outputs are in expected ranges"""
         model = SupportResistanceNet(config)
         model.eval()
-        
+
         features = torch.randn(1, config.input_dim)
-        
+
         with torch.no_grad():
             output = model(features)
-        
+
         # Confidence scores should be between 0 and 1
         assert torch.all(output['support_confidence'] >= 0)
         assert torch.all(output['support_confidence'] <= 1)
         assert torch.all(output['resistance_confidence'] >= 0)
         assert torch.all(output['resistance_confidence'] <= 1)
-        
+
         # Attention weights should sum to 1
         support_attention_sum = torch.sum(output['support_attention'], dim=1)
         resistance_attention_sum = torch.sum(output['resistance_attention'], dim=1)
@@ -252,20 +252,20 @@ class TestSRLoss:
     def test_loss_creation(self, config):
         """Test creating loss function"""
         loss_fn = SRLoss(config)
-        
+
         assert isinstance(loss_fn, nn.Module)
         assert loss_fn.config == config
 
     def test_loss_computation(self, config, sample_predictions, sample_targets):
         """Test loss computation"""
         loss_fn = SRLoss(config)
-        
+
         total_loss, loss_components = loss_fn(sample_predictions, sample_targets)
-        
+
         assert isinstance(total_loss, torch.Tensor)
         assert total_loss.dim() == 0  # Scalar
         assert total_loss.item() >= 0  # Loss should be non-negative
-        
+
         assert isinstance(loss_components, dict)
         assert 'support_levels' in loss_components
         assert 'resistance_levels' in loss_components
@@ -275,9 +275,9 @@ class TestSRLoss:
     def test_loss_components_weights(self, config, sample_predictions, sample_targets):
         """Test that loss weights are applied correctly"""
         loss_fn = SRLoss(config)
-        
+
         total_loss, loss_components = loss_fn(sample_predictions, sample_targets)
-        
+
         # All components should contribute to total loss
         for component_name, component_loss in loss_components.items():
             assert isinstance(component_loss, torch.Tensor)
@@ -286,13 +286,13 @@ class TestSRLoss:
     def test_ranking_loss(self, config):
         """Test ranking loss component"""
         loss_fn = SRLoss(config)
-        
+
         # Create simple test case
         levels = torch.tensor([[100.0, 101.0]])
         confidence = torch.tensor([[0.8, 0.3]])  # First level should be more confident
-        
+
         ranking_loss = loss_fn._ranking_loss(levels, confidence)
-        
+
         assert isinstance(ranking_loss, torch.Tensor)
         assert ranking_loss.item() >= 0
 
@@ -315,7 +315,7 @@ class TestSupportResistanceEnsemble:
     def sample_training_examples(self):
         """Create sample training examples"""
         examples = []
-        
+
         for i in range(20):  # Small dataset for testing
             example = TrainingExample(
                 symbol='TEST',
@@ -367,13 +367,13 @@ class TestSupportResistanceEnsemble:
                 next_day_volume=1200000
             )
             examples.append(example)
-        
+
         return examples
 
     def test_ensemble_creation(self, config):
         """Test creating ensemble model"""
         ensemble = SupportResistanceEnsemble(config)
-        
+
         assert isinstance(ensemble, SupportResistanceEnsemble)
         assert ensemble.config == config
         assert hasattr(ensemble, 'neural_net')
@@ -383,16 +383,16 @@ class TestSupportResistanceEnsemble:
     def test_prepare_data(self, config, sample_training_examples):
         """Test data preparation for training"""
         ensemble = SupportResistanceEnsemble(config)
-        
+
         data = ensemble.prepare_data(sample_training_examples)
-        
+
         assert isinstance(data, dict)
         assert 'features' in data
         assert 'support_levels' in data
         assert 'resistance_levels' in data
         assert 'support_confidence' in data
         assert 'resistance_confidence' in data
-        
+
         # Check shapes
         assert data['features'].shape[0] == len(sample_training_examples)
         assert data['features'].shape[1] == config.input_dim
@@ -402,19 +402,19 @@ class TestSupportResistanceEnsemble:
     def test_train_ensemble(self, config, sample_training_examples):
         """Test training the ensemble model"""
         ensemble = SupportResistanceEnsemble(config)
-        
+
         # Split data for training/validation
         train_examples = sample_training_examples[:15]
         val_examples = sample_training_examples[15:]
-        
+
         # Train model (should not raise exceptions)
         ensemble.train(train_examples, val_examples)
-        
+
         # Check that models were trained
         assert hasattr(ensemble, 'neural_net')
         assert hasattr(ensemble, 'support_rf')
         assert hasattr(ensemble, 'resistance_rf')
-        
+
         # Check that scalers were fitted
         assert hasattr(ensemble, 'feature_scaler')
         assert ensemble.feature_scaler is not None
@@ -422,16 +422,16 @@ class TestSupportResistanceEnsemble:
     def test_predict(self, config, sample_training_examples):
         """Test making predictions with the ensemble"""
         ensemble = SupportResistanceEnsemble(config)
-        
+
         # Train first
         ensemble.train(sample_training_examples)
-        
+
         # Prepare test features
         test_features = np.random.randn(3, config.input_dim)
-        
+
         # Make predictions
         predictions = ensemble.predict(test_features)
-        
+
         assert isinstance(predictions, dict)
         assert 'support_levels' in predictions
         assert 'resistance_levels' in predictions
@@ -439,7 +439,7 @@ class TestSupportResistanceEnsemble:
         assert 'resistance_confidence' in predictions
         assert 'ensemble_support' in predictions
         assert 'ensemble_resistance' in predictions
-        
+
         # Check shapes
         assert predictions['support_levels'].shape == (3, config.max_support_levels)
         assert predictions['resistance_levels'].shape == (3, config.max_resistance_levels)
@@ -449,21 +449,21 @@ class TestSupportResistanceEnsemble:
     def test_evaluate(self, config, sample_training_examples):
         """Test model evaluation"""
         ensemble = SupportResistanceEnsemble(config)
-        
+
         # Train first
         train_examples = sample_training_examples[:15]
         test_examples = sample_training_examples[15:]
-        
+
         ensemble.train(train_examples)
-        
+
         # Evaluate
         metrics = ensemble.evaluate(test_examples)
-        
+
         assert isinstance(metrics, dict)
         assert 'support_mae' in metrics
         assert 'resistance_mae' in metrics
         assert 'overall_mae' in metrics
-        
+
         # Metrics should be non-negative
         assert metrics['support_mae'] >= 0
         assert metrics['resistance_mae'] >= 0
@@ -472,23 +472,23 @@ class TestSupportResistanceEnsemble:
     def test_save_load_model(self, config, sample_training_examples):
         """Test saving and loading model"""
         ensemble = SupportResistanceEnsemble(config)
-        
+
         # Train model
         ensemble.train(sample_training_examples[:10])
-        
+
         # Save model
         with tempfile.TemporaryDirectory() as temp_dir:
             model_path = os.path.join(temp_dir, 'test_model.pkl')
             ensemble.save_model(model_path)
-            
+
             # Create new ensemble and load
             new_ensemble = SupportResistanceEnsemble(config)
             new_ensemble.load_model(model_path)
-            
+
             # Test that loaded model works
             test_features = np.random.randn(1, config.input_dim)
             predictions = new_ensemble.predict(test_features)
-            
+
             assert isinstance(predictions, dict)
             assert 'support_levels' in predictions
 
@@ -507,7 +507,7 @@ class TestSupportResistanceIntegration:
             epochs=3,  # Very small for testing
             batch_size=4
         )
-        
+
         # Create simple training data
         training_examples = []
         for i in range(10):
@@ -529,20 +529,20 @@ class TestSupportResistanceIntegration:
                 next_day_volume=1200000
             )
             training_examples.append(example)
-        
+
         # Train model
         ensemble = SupportResistanceEnsemble(config)
         ensemble.train(training_examples)
-        
+
         # Make predictions
         test_features = np.random.randn(2, 5)
         predictions = ensemble.predict(test_features)
-        
+
         # Verify predictions structure
         assert isinstance(predictions, dict)
         assert predictions['support_levels'].shape == (2, 2)
         assert predictions['resistance_levels'].shape == (2, 2)
-        
+
         # Evaluate
         metrics = ensemble.evaluate(training_examples[-3:])  # Use last few examples
         assert isinstance(metrics, dict)
@@ -557,7 +557,7 @@ class TestSupportResistanceIntegration:
             max_resistance_levels=1,
             epochs=2
         )
-        
+
         # Create identical training data
         examples = [
             TrainingExample(
@@ -577,30 +577,30 @@ class TestSupportResistanceIntegration:
             )
             for _ in range(5)
         ]
-        
+
         # Train two models with same data
         ensemble1 = SupportResistanceEnsemble(config)
         ensemble2 = SupportResistanceEnsemble(config)
-        
+
         # Set same random seed for reproducibility
         torch.manual_seed(42)
         np.random.seed(42)
         ensemble1.train(examples)
-        
+
         torch.manual_seed(42)
         np.random.seed(42)
         ensemble2.train(examples)
-        
+
         # Make predictions with same input
         test_input = np.array([[1.0, 2.0, 3.0]])
-        
+
         pred1 = ensemble1.predict(test_input)
         pred2 = ensemble2.predict(test_input)
-        
+
         # Should be very similar (allowing for some numerical differences)
         np.testing.assert_allclose(
-            pred1['ensemble_support'], 
-            pred2['ensemble_support'], 
+            pred1['ensemble_support'],
+            pred2['ensemble_support'],
             rtol=0.1  # 10% tolerance
         )
 

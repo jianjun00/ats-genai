@@ -13,33 +13,33 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 def test_dev_instruments_included_in_eda_datasets():
     """Test that dev_instruments is included in the EDA dataset list."""
     print("🧪 Testing dev_instruments dataset inclusion...")
-    
+
     try:
         # Read the analytics service code to verify dev_instruments is included
         with open('/home/jianjun/ats-genai-admin/src/services/analytics_service.py', 'r') as f:
             content = f.read()
-        
+
         # Check that dev_instruments is in the fallback dataset list
         assert "'name': 'dev_instruments'" in content, "dev_instruments should be in EDA dataset list"
         assert "'display_name': 'All Instruments (Consolidated)'" in content, "dev_instruments should have proper display name"
-        
+
         # Verify it's the first dataset (most important)
         lines = content.split('\n')
         dataset_list_started = False
         first_dataset_found = False
-        
+
         for line in lines:
             if "return [" in line:
                 dataset_list_started = True
                 continue
-            
+
             if dataset_list_started and "'name':" in line and not first_dataset_found:
                 assert "'dev_instruments'" in line, "dev_instruments should be the first dataset in the list"
                 first_dataset_found = True
                 break
-        
+
         print("   ✅ dev_instruments is included as primary dataset")
-        
+
     except FileNotFoundError:
         print("   ⚠️ Analytics service file not found - skipping test")
         return
@@ -50,27 +50,27 @@ def test_dev_instruments_included_in_eda_datasets():
 def test_dev_instruments_schema_definition():
     """Test that dev_instruments has proper schema definition for EDA."""
     print("🧪 Testing dev_instruments schema definition...")
-    
+
     try:
         with open('/home/jianjun/ats-genai-admin/src/services/analytics_service.py', 'r') as f:
             content = f.read()
-        
+
         # Check that schema definition exists for dev_instruments
         assert 'if table_name == "dev_instruments":' in content, "dev_instruments should have schema definition"
-        
+
         # Verify key columns are defined
         required_columns = [
             '"id"',
-            '"symbol"', 
+            '"symbol"',
             '"name"',
             '"exchange"',
             '"active"',
             '"sector"'
         ]
-        
+
         for column in required_columns:
             assert f'"column_name": {column}' in content, f"Schema should define {column} column"
-        
+
         # Verify we have the correct number of columns (16 total)
         # Count column definitions in dev_instruments schema section
         import re
@@ -79,14 +79,14 @@ def test_dev_instruments_schema_definition():
             content,
             re.DOTALL
         )
-        
+
         if dev_instruments_section:
             schema_content = dev_instruments_section.group(1)
             column_count = schema_content.count('"column_name":')
             assert column_count == 16, f"dev_instruments schema should have 16 columns, found {column_count}"
-        
+
         print("   ✅ dev_instruments schema properly defined with 16 columns")
-        
+
     except Exception as e:
         print(f"   ❌ Schema test failed: {e}")
         raise
@@ -94,15 +94,15 @@ def test_dev_instruments_schema_definition():
 def test_dev_instruments_row_count_realistic():
     """Test that dev_instruments has realistic row count in fallback data."""
     print("🧪 Testing dev_instruments row count...")
-    
+
     try:
         with open('/home/jianjun/ats-genai-admin/src/services/analytics_service.py', 'r') as f:
             content = f.read()
-        
+
         # Check that row count is realistic (should be around 69,796)
         import re
         row_count_match = re.search(r"'name': 'dev_instruments'.*?'row_count': (\d+)", content, re.DOTALL)
-        
+
         if row_count_match:
             row_count = int(row_count_match.group(1))
             assert row_count > 50000, f"dev_instruments should have >50k rows, found {row_count}"
@@ -110,7 +110,7 @@ def test_dev_instruments_row_count_realistic():
             print(f"   ✅ dev_instruments has realistic row count: {row_count:,}")
         else:
             raise AssertionError("Could not find row_count for dev_instruments")
-            
+
     except Exception as e:
         print(f"   ❌ Row count test failed: {e}")
         raise
@@ -118,11 +118,11 @@ def test_dev_instruments_row_count_realistic():
 def test_dev_instruments_has_numeric_columns_for_analysis():
     """Test that dev_instruments schema includes analyzable numeric columns."""
     print("🧪 Testing dev_instruments numeric columns for EDA analysis...")
-    
+
     try:
         with open('/home/jianjun/ats-genai-admin/src/services/analytics_service.py', 'r') as f:
             content = f.read()
-        
+
         # Extract dev_instruments schema section
         import re
         dev_instruments_section = re.search(
@@ -130,22 +130,22 @@ def test_dev_instruments_has_numeric_columns_for_analysis():
             content,
             re.DOTALL
         )
-        
+
         if not dev_instruments_section:
             raise AssertionError("Could not find dev_instruments schema section")
-        
+
         schema_content = dev_instruments_section.group(1)
-        
+
         # Check for numeric columns that can be analyzed
         # The id column is integer type and can be used for analysis
         assert '"column_name": "id"' in schema_content and '"data_type": "integer"' in schema_content, \
             "dev_instruments should have id column as integer for analysis"
-        
+
         print("   ✅ dev_instruments has analyzable numeric columns")
-        
+
         # Note: dev_instruments is primarily categorical data (symbol, name, exchange, etc.)
         # but the id column provides a numeric field for histogram analysis
-        
+
     except Exception as e:
         print(f"   ❌ Numeric columns test failed: {e}")
         raise
@@ -153,46 +153,46 @@ def test_dev_instruments_has_numeric_columns_for_analysis():
 def test_dev_instruments_missing_dataset_regression():
     """Regression test to prevent dev_instruments from being omitted again."""
     print("🧪 Testing regression: dev_instruments not missing from EDA...")
-    
-    # This test specifically addresses the user question: 
+
+    # This test specifically addresses the user question:
     # "how come we do not have dev_instruments as a dataset?"
-    
+
     try:
         with open('/home/jianjun/ats-genai-admin/src/services/analytics_service.py', 'r') as f:
             content = f.read()
-        
+
         # Ensure dev_instruments is prominently placed (first in list)
         lines = content.split('\n')
         in_dataset_list = False
         dataset_order = []
-        
+
         for line in lines:
             if "return [" in line:
                 in_dataset_list = True
                 continue
-            
+
             if in_dataset_list and "'name':" in line:
                 # Extract dataset name
                 import re
                 name_match = re.search(r"'name': '([^']+)'", line)
                 if name_match:
                     dataset_order.append(name_match.group(1))
-                
+
             if in_dataset_list and line.strip() == ']':
                 break
-        
+
         # Verify dev_instruments is first
         assert len(dataset_order) > 0, "Should find datasets in fallback list"
         assert dataset_order[0] == "dev_instruments", f"dev_instruments should be first dataset, found order: {dataset_order}"
-        
+
         # Verify it's included alongside other instrument datasets
         instrument_datasets = [ds for ds in dataset_order if 'instrument' in ds]
         assert 'dev_instruments' in instrument_datasets, "dev_instruments should be in instrument datasets"
         assert len(instrument_datasets) >= 3, f"Should have multiple instrument datasets, found: {instrument_datasets}"
-        
+
         print(f"   ✅ dev_instruments is first in dataset list: {dataset_order[:3]}")
         print(f"   ✅ Instrument datasets included: {instrument_datasets}")
-        
+
     except Exception as e:
         print(f"   ❌ Regression test failed: {e}")
         raise
@@ -202,7 +202,7 @@ def run_dev_instruments_coverage_tests():
     """Run all dev_instruments dataset coverage tests."""
     print("🚀 Running dev_instruments Dataset Coverage Tests")
     print("=" * 55)
-    
+
     tests = [
         ("dev_instruments Included in EDA Datasets", test_dev_instruments_included_in_eda_datasets),
         ("dev_instruments Schema Definition", test_dev_instruments_schema_definition),
@@ -210,10 +210,10 @@ def run_dev_instruments_coverage_tests():
         ("dev_instruments Numeric Columns for Analysis", test_dev_instruments_has_numeric_columns_for_analysis),
         ("dev_instruments Missing Dataset Regression", test_dev_instruments_missing_dataset_regression),
     ]
-    
+
     passed_tests = 0
     failed_tests = []
-    
+
     for test_name, test_func in tests:
         try:
             test_func()
@@ -222,14 +222,14 @@ def run_dev_instruments_coverage_tests():
         except Exception as e:
             failed_tests.append((test_name, str(e)))
             print(f"❌ FAILED: {test_name} - {e}")
-    
+
     # Summary
     print("\n" + "=" * 55)
     print(f"📊 DEV_INSTRUMENTS COVERAGE TEST SUMMARY")
     print(f"   Total Tests: {len(tests)}")
     print(f"   Passed: {passed_tests}")
     print(f"   Failed: {len(failed_tests)}")
-    
+
     if failed_tests:
         print(f"\n❌ FAILED TESTS:")
         for test_name, error in failed_tests:

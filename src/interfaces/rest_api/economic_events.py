@@ -80,7 +80,7 @@ async def get_economic_events(
 ):
     """
     Get economic events within a date range.
-    
+
     Returns economic events filtered by date range, vendor, and importance level.
     """
     # Set default date range if not provided
@@ -88,7 +88,7 @@ async def get_economic_events(
         end_date = date.today()
     if not start_date:
         start_date = end_date - timedelta(days=30)
-    
+
     try:
         # Get events with type information
         events = await dao.get_economic_events_with_types(
@@ -96,14 +96,14 @@ async def get_economic_events(
             end_date=end_date,
             min_importance=min_importance
         )
-        
+
         # Filter by vendor if specified
         if vendor:
             events = [e for e in events if e.get("source_vendor") == vendor]
-        
+
         # Limit results
         events = events[:limit]
-        
+
         # Convert to response model
         response_events = []
         for event in events:
@@ -124,9 +124,9 @@ async def get_economic_events(
                 source_vendor=event["source_vendor"],
                 is_preliminary=event.get("is_preliminary", False)
             ))
-        
+
         return response_events
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching economic events: {str(e)}")
 
@@ -139,12 +139,12 @@ async def get_upcoming_events(
 ):
     """
     Get upcoming high-impact economic events.
-    
+
     Returns economic events scheduled for the next N days with high importance.
     """
     try:
         events = await dao.get_upcoming_events(days_ahead, min_importance)
-        
+
         # Convert to response model
         response_events = []
         for event in events:
@@ -165,9 +165,9 @@ async def get_upcoming_events(
                 source_vendor=event["source_vendor"],
                 is_preliminary=event.get("is_preliminary", False)
             ))
-        
+
         return response_events
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching upcoming events: {str(e)}")
 
@@ -180,7 +180,7 @@ async def get_event_types(
 ):
     """
     Get economic event types.
-    
+
     Returns available economic event types, optionally filtered by country and importance.
     """
     try:
@@ -188,7 +188,7 @@ async def get_event_types(
             event_types = await dao.get_event_types_by_country(country)
         else:
             event_types = await dao.get_event_types_by_importance(min_importance)
-        
+
         # Convert to response model
         response_types = []
         for event_type in event_types:
@@ -202,9 +202,9 @@ async def get_event_types(
                     importance_level=event_type.importance_level,
                     frequency=event_type.frequency
                 ))
-        
+
         return response_types
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching event types: {str(e)}")
 
@@ -215,12 +215,12 @@ async def get_economic_events_stats(
 ):
     """
     Get statistics about economic events data.
-    
+
     Returns overall statistics including counts by vendor and importance level.
     """
     try:
         stats = await dao.get_event_statistics()
-        
+
         return EconomicEventsStatsResponse(
             total_events=stats["overall"]["total_events"],
             unique_event_types=stats["overall"]["unique_event_types"],
@@ -232,7 +232,7 @@ async def get_economic_events_stats(
             by_vendor=stats["by_vendor"],
             by_importance=stats["by_importance"]
         )
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching statistics: {str(e)}")
 
@@ -246,7 +246,7 @@ async def get_economic_calendar(
 ):
     """
     Get economic calendar for a specific month.
-    
+
     Returns events organized by date for calendar display.
     """
     try:
@@ -256,21 +256,21 @@ async def get_economic_calendar(
             end_date = date(year + 1, 1, 1) - timedelta(days=1)
         else:
             end_date = date(year, month + 1, 1) - timedelta(days=1)
-        
+
         # Get events for the month
         events = await dao.get_economic_events_with_types(
             start_date=start_date,
             end_date=end_date,
             min_importance=min_importance
         )
-        
+
         # Group events by date
         calendar = {}
         for event in events:
             event_date_str = event["date"].strftime("%Y-%m-%d")
             if event_date_str not in calendar:
                 calendar[event_date_str] = []
-            
+
             calendar[event_date_str].append({
                 "id": event["id"],
                 "name": event["event_name"],
@@ -283,14 +283,14 @@ async def get_economic_calendar(
                 "unit": event.get("unit"),
                 "vendor": event["source_vendor"]
             })
-        
+
         return {
             "year": year,
             "month": month,
             "total_events": len(events),
             "calendar": calendar
         }
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching calendar: {str(e)}")
 
@@ -302,18 +302,18 @@ async def get_todays_events(
 ):
     """
     Get today's economic events.
-    
+
     Returns economic events scheduled for today.
     """
     today = date.today()
-    
+
     try:
         events = await dao.get_economic_events_with_types(
             start_date=today,
             end_date=today,
             min_importance=min_importance
         )
-        
+
         # Convert to response model
         response_events = []
         for event in events:
@@ -334,8 +334,8 @@ async def get_todays_events(
                 source_vendor=event["source_vendor"],
                 is_preliminary=event.get("is_preliminary", False)
             ))
-        
+
         return response_events
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching today's events: {str(e)}")

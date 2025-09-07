@@ -111,7 +111,7 @@ async def get_database_pool():
         return await asyncpg.create_pool(
             host="localhost",
             port=5433,
-            user="postgres", 
+            user="postgres",
             password="postgres",
             database="dev_db",
             min_size=1,
@@ -147,14 +147,14 @@ def get_real_time_prices(symbols: List[str]) -> Dict[str, float]:
         "AAPL": 175.50, "MSFT": 310.25, "GOOGL": 140.80,
         "NVDA": 520.75, "JPM": 155.60, "JNJ": 158.45
     }
-    
+
     prices = {}
     for symbol in symbols:
         base_price = base_prices.get(symbol, 100.0)
         # Add some random variation to simulate real-time changes
         variation = random.uniform(-0.02, 0.02)  # ±2% variation
         prices[symbol] = base_price * (1 + variation)
-    
+
     return prices
 
 def calculate_portfolio_metrics(holdings: List[Dict[str, Any]], total_value: float) -> PerformanceMetrics:
@@ -188,10 +188,10 @@ async def portfolio_status():
 async def get_current_portfolio():
     """Get current portfolio holdings and metrics"""
     global db_pool
-    
+
     if not db_pool:
         db_pool = await get_database_pool()
-    
+
     try:
         # Get portfolio holdings from database
         if db_pool:
@@ -202,13 +202,13 @@ async def get_current_portfolio():
                     FROM dev_current_portfolio_holdings
                     ORDER BY symbol
                 """)
-                
+
                 # Get cash position
                 cash_rows = await conn.fetch("""
                     SELECT cash_position FROM dev_current_portfolio_metadata
                     ORDER BY last_updated DESC LIMIT 1
                 """)
-                
+
                 cash_position = float(cash_rows[0]['cash_position']) if cash_rows else 125000.0
         else:
             # Fallback to mock data if database not available
@@ -221,33 +221,33 @@ async def get_current_portfolio():
                 {'symbol': 'JNJ', 'shares': 1200, 'cost_basis': 150.00, 'sector': 'Healthcare'}
             ]
             cash_position = 125000.0
-        
+
         # Get current prices for all symbols
         symbols = [row['symbol'] for row in holdings_rows]
         prices = get_real_time_prices(symbols)
-        
+
         holdings = []
         total_market_value = 0
         total_cost_basis = 0
-        
+
         for row in holdings_rows:
             symbol = row['symbol']
             shares = float(row['shares'])
             cost_basis = float(row['cost_basis'])
             current_price = prices.get(symbol, cost_basis * 1.1)  # Fallback
-            
+
             market_value = shares * current_price
             total_market_value += market_value
             position_cost = shares * cost_basis
             total_cost_basis += position_cost
-            
+
             # Simulate daily price change (would be calculated from actual price data)
             daily_change = random.uniform(-0.05, 0.05)
             daily_pnl = market_value * daily_change
             daily_return = daily_change
-            
+
             unrealized_pnl = market_value - position_cost
-            
+
             holdings.append(Holding(
                 symbol=symbol,
                 shares=shares,
@@ -260,14 +260,14 @@ async def get_current_portfolio():
                 unrealized_pnl=unrealized_pnl,
                 sector=row['sector']
             ))
-        
+
         # Calculate total portfolio value
         total_portfolio_value = total_market_value + cash_position
-        
+
         # Update weights
         for holding in holdings:
             holding.weight = holding.market_value / total_portfolio_value
-        
+
         # Calculate sector allocation
         sector_allocation = {}
         for holding in holdings:
@@ -275,20 +275,20 @@ async def get_current_portfolio():
             if sector not in sector_allocation:
                 sector_allocation[sector] = 0
             sector_allocation[sector] += holding.weight
-        
+
         # Add cash allocation
         sector_allocation["Cash"] = cash_position / total_portfolio_value
-        
+
         # Calculate returns
         total_return = (total_portfolio_value - total_cost_basis - cash_position) / (total_cost_basis + cash_position)
         daily_return = sum(h.daily_pnl for h in holdings) / total_portfolio_value
-        
+
         # Calculate performance metrics
         performance_metrics = calculate_portfolio_metrics(
-            [h.dict() for h in holdings], 
+            [h.dict() for h in holdings],
             total_portfolio_value
         )
-        
+
         return PortfolioData(
             total_portfolio_value=total_portfolio_value,
             daily_return=daily_return,
@@ -300,7 +300,7 @@ async def get_current_portfolio():
             performance_metrics=performance_metrics,
             last_updated=datetime.now().isoformat()
         )
-        
+
     except Exception as e:
         logger.error(f"Error fetching current portfolio: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch portfolio data: {str(e)}")
@@ -311,32 +311,32 @@ async def compare_portfolio_to_strategy(strategy_id: str):
     try:
         if strategy_id not in STRATEGY_ALLOCATIONS:
             raise HTTPException(status_code=404, detail=f"Strategy {strategy_id} not found")
-        
+
         # Get current portfolio
         current_portfolio = await get_current_portfolio()
-        
+
         # Get current allocation
         current_allocation = {}
         for holding in current_portfolio.holdings:
             current_allocation[holding.symbol] = holding.weight
         current_allocation["Cash"] = current_portfolio.cash_position / current_portfolio.total_portfolio_value
-        
+
         # Get strategy allocation
         strategy_allocation = STRATEGY_ALLOCATIONS[strategy_id]
-        
+
         # Calculate deviations
         all_symbols = set(list(current_allocation.keys()) + list(strategy_allocation.keys()))
         over_allocated = []
         under_allocated = []
-        
+
         total_deviation = 0
         for symbol in all_symbols:
             current_weight = current_allocation.get(symbol, 0)
             target_weight = strategy_allocation.get(symbol, 0)
             deviation = current_weight - target_weight
-            
+
             total_deviation += abs(deviation)
-            
+
             if deviation > 0.01:  # Over-allocated by more than 1%
                 over_allocated.append(ComparisonDeviation(
                     symbol=symbol,
@@ -351,19 +351,19 @@ async def compare_portfolio_to_strategy(strategy_id: str):
                     target=target_weight,
                     deviation=deviation
                 ))
-        
+
         # Calculate alignment score (higher is better)
         alignment_score = max(0, 1 - (total_deviation / 2))
-        
+
         # Generate rebalancing recommendations
         recommendations = []
         portfolio_value = current_portfolio.total_portfolio_value
-        
+
         for deviation in over_allocated + under_allocated:
             if abs(deviation.deviation) > 0.01:  # Only recommend if deviation > 1%
                 action = "SELL" if deviation.deviation > 0 else "BUY"
                 amount = -deviation.deviation * portfolio_value
-                
+
                 recommendations.append(RebalancingRecommendation(
                     action=action,
                     symbol=deviation.symbol,
@@ -371,10 +371,10 @@ async def compare_portfolio_to_strategy(strategy_id: str):
                     target_weight=deviation.target,
                     amount=amount
                 ))
-        
+
         # Sort by absolute amount
         recommendations.sort(key=lambda x: abs(x.amount), reverse=True)
-        
+
         return PortfolioComparison(
             current_allocation=current_allocation,
             strategy_allocation=strategy_allocation,
@@ -403,7 +403,7 @@ async def compare_portfolio_to_strategy(strategy_id: str):
                 }
             }
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:

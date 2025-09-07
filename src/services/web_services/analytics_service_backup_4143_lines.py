@@ -79,7 +79,7 @@ DATASET_CACHE = {
 class UnifiedAnalyticsService:
     """
     Unified Analytics Service combining all analytics functionality.
-    
+
     This class consolidates:
     1. Web dashboard serving (from analytics_service.py)
     2. Type-aware analysis (from analytics_service_class.py & type_aware_analytics_service.py)
@@ -87,43 +87,43 @@ class UnifiedAnalyticsService:
     4. Training dataset management
     5. Ray distributed computing integration
     """
-    
+
     def __init__(self, db_manager=None):
         """Initialize unified analytics service with all capabilities."""
         self.db = db_manager
         self.type_system_enabled = TYPE_SYSTEM_AVAILABLE
         self.ray_enabled = RAY_AVAILABLE
         self.visualization_enabled = VISUALIZATION_AVAILABLE
-        
+
         # Initialize visualization components
         if self.visualization_enabled:
             self.multi_panel_chart = MultiPanelTradingChart()
             self.feature_extractor = MultiTimeframeFeatureExtractor(TrainingDataConfig())
-        
+
         logger.info("🚀 Unified Analytics Service initialized")
         logger.info(f"   Type system: {'✅ Enabled' if self.type_system_enabled else '❌ Disabled'}")
         logger.info(f"   Ray computing: {'✅ Enabled' if self.ray_enabled else '❌ Disabled'}")
         logger.info(f"   Multi-panel visualization: {'✅ Enabled' if self.visualization_enabled else '❌ Disabled'}")
-        
+
         if self.type_system_enabled:
             logger.info(f"   Available schemas: {list(schema_registry.get_schema_summary()['entities'].keys())}")
 
     # ==============================================
     # TYPE-AWARE ANALYSIS (from analytics_service_class.py)
     # ==============================================
-    
+
     async def get_intelligent_filters(self, table_name: str) -> Dict[str, Any]:
         """Generate intelligent filter definitions using type system."""
         if not self.type_system_enabled:
             logger.warning("Type system not available, falling back to basic filters")
             return self._get_basic_filters(table_name)
-            
+
         try:
             filterable_fields = {}
-            
+
             # Try to get schema for this table
             schema = schema_registry.get_table_schema(table_name)
-            
+
             # Get all filterable fields from schema
             for field_name, field_def in schema.fields.items():
                 if field_def.is_filterable:
@@ -138,7 +138,7 @@ class UnifiedAnalyticsService:
                         "nullable": field_def.nullable,
                         "eda_priority": field_def.eda_priority
                     }
-                    
+
                     # Add semantic-specific configurations
                     if field_def.semantics == FieldSemantics.PRICE:
                         filter_config.update({
@@ -156,16 +156,16 @@ class UnifiedAnalyticsService:
                             "autocomplete": True,
                             "multi_select": True
                         })
-                    
+
                     filterable_fields[field_name] = filter_config
-            
+
             return {
                 "table_name": table_name,
                 "filterable_fields": filterable_fields,
                 "schema_available": True,
                 "total_filterable": len(filterable_fields)
             }
-            
+
         except Exception as e:
             logger.error(f"Error generating intelligent filters for {table_name}: {e}")
             return self._get_basic_filters(table_name)
@@ -180,7 +180,7 @@ class UnifiedAnalyticsService:
             "volume": {"field_type": "numeric", "min_value": 0},
             "exchange": {"field_type": "string", "multi_select": True}
         }
-        
+
         return {
             "table_name": table_name,
             "filterable_fields": basic_filters,
@@ -191,22 +191,22 @@ class UnifiedAnalyticsService:
     # ==============================================
     # UNIVERSE ANALYTICS (from universe_analytics_service.py)
     # ==============================================
-    
+
     async def get_universe_analytics(self, universe_name: str = None) -> Dict[str, Any]:
         """Get comprehensive universe analytics and cross-instrument analysis."""
         try:
             # Universe composition analysis
             universe_stats = await self._analyze_universe_composition(universe_name)
-            
+
             # Cross-instrument correlations
             correlations = await self._calculate_cross_instrument_correlations(universe_name)
-            
+
             # Sector/industry analysis
             sector_analysis = await self._analyze_sector_composition(universe_name)
-            
+
             # Performance analytics
             performance_metrics = await self._calculate_universe_performance(universe_name)
-            
+
             return {
                 "universe_name": universe_name or "default",
                 "composition": universe_stats,
@@ -215,7 +215,7 @@ class UnifiedAnalyticsService:
                 "performance": performance_metrics,
                 "analysis_timestamp": datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"Error in universe analytics: {e}")
             return {"error": str(e), "universe_name": universe_name}
@@ -260,34 +260,34 @@ class UnifiedAnalyticsService:
     # ==============================================
     # TRAINING DATASET MANAGEMENT (from analytics_service.py)
     # ==============================================
-    
+
     def get_training_datasets(self):
         """Get training datasets from database for dual-tab functionality."""
         try:
             from core.platform.database.connection_manager import get_raw_connection
-            
+
             environment = os.getenv('ENVIRONMENT', 'dev')
             table_name = f"{environment}_training_datasets"
-            
+
             with get_raw_connection() as conn:
                 from psycopg2.extras import RealDictCursor
-                
+
                 with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                     query = f"""
-                    SELECT 
+                    SELECT
                         id, dataset_name, total_sequences, sequence_length, feature_count,
                         label_count, data_quality_score, feature_completeness, label_completeness,
-                        file_size_mb, technical_indicators, symbols, date_range_start, 
+                        file_size_mb, technical_indicators, symbols, date_range_start,
                         date_range_end, created_at
-                    FROM {table_name}  
+                    FROM {table_name}
                     WHERE status IN ('completed', 'generating')
                     ORDER BY created_at DESC
                     LIMIT 50
                     """
-                    
+
                     cursor.execute(query)
                     datasets = cursor.fetchall()
-                    
+
                     # Convert to list of dictionaries for JSON serialization
                     datasets_list = []
                     for dataset in datasets:
@@ -299,19 +299,19 @@ class UnifiedAnalyticsService:
                             dataset_dict['date_range_start'] = dataset_dict['date_range_start'].isoformat()
                         if 'date_range_end' in dataset_dict and dataset_dict['date_range_end']:
                             dataset_dict['date_range_end'] = dataset_dict['date_range_end'].isoformat()
-                        
+
                         # Split symbols field into array if it's a string
                         if 'symbols' in dataset_dict and isinstance(dataset_dict['symbols'], str):
                             dataset_dict['symbols'] = [s.strip() for s in dataset_dict['symbols'].split(',') if s.strip()]
-                        
+
                         datasets_list.append(dataset_dict)
-                    
+
                     logger.info(f"Retrieved {len(datasets_list)} training datasets from {table_name}")
                     return {
                         'datasets': datasets_list,
                         'total_count': len(datasets_list)
                     }
-                    
+
         except Exception as e:
             logger.error(f"Error getting training datasets: {e}")
             return {
@@ -319,7 +319,7 @@ class UnifiedAnalyticsService:
                 'total_count': 0,
                 'error': str(e)
             }
-    
+
     def get_training_dataset_sequence(self, dataset_id: int, row_index: int, timeframe: str = "5m") -> Dict[str, Any]:
         """Get training dataset sequence data for OHLC visualization."""
         try:
@@ -327,11 +327,11 @@ class UnifiedAnalyticsService:
             import psycopg2.extras
             import numpy as np
             from pathlib import Path
-            
+
             # Determine environment and table name - assume dev for now
             environment = "dev"  # Can be made configurable later
             table_name = f"{environment}_training_datasets"
-            
+
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
                     # Get dataset info
@@ -341,39 +341,39 @@ class UnifiedAnalyticsService:
                         FROM {table_name}
                         WHERE id = %s
                     """, (dataset_id,))
-                    
+
                     dataset_info = cursor.fetchone()
                     if not dataset_info:
                         raise ValueError(f"Dataset {dataset_id} not found")
-                    
+
                     # Try to load actual sequence data from files
                     try:
                         # Check for the generated Riegeli-compatible files
                         symbol = dataset_info['symbols'] or 'unknown'
                         symbol_lower = symbol.lower()
-                        
+
                         logger.info(f"Looking for training data files for symbol: {symbol} (dataset_id: {dataset_id})")
-                        
+
                         # Look for timeframe-specific training data files
                         # Priority order: Riegeli format > numpy files > fallback paths
                         possible_file_paths = [
                             # New structure: /data/training_data/<run_id>/<timeframe>/<symbol>_<startdatetime>_<enddatetime>.arrayrecord
                             f"/data/training_data/*/{timeframe}/{symbol_lower}_*.arrayrecord",
                             f"/data/training_data/*/*/{symbol_lower}_*.arrayrecord",
-                            # Legacy numpy files (existing structure)  
+                            # Legacy numpy files (existing structure)
                             f"/data/training/arrayrecord_aapl_tsla_2025/{symbol_lower}_features.npy",
                             f"/data/training/{dataset_info['dataset_name'].lower()}/{symbol_lower}_features.npy",
                             f"/data/training/{dataset_id}/{symbol_lower}_features.npy",
                         ]
-                        
+
                         logger.info(f"Checking file paths for timeframe {timeframe}: {possible_file_paths}")
-                        
+
                         features_file = None
                         import glob
-                        
+
                         for path_pattern in possible_file_paths:
                             logger.info(f"Checking pattern: {path_pattern}")
-                            
+
                             # Handle glob patterns for new file structure
                             if '*' in path_pattern:
                                 matching_files = glob.glob(path_pattern)
@@ -391,20 +391,20 @@ class UnifiedAnalyticsService:
                                     break
                                 else:
                                     logger.info(f"File not found: {path_pattern}")
-                        
+
                         if features_file:
                             logger.info(f"Loading training data from: {features_file}")
                             # Load numpy features file
                             features = np.load(features_file)
                             logger.info(f"Loaded features shape: {features.shape}")
-                            
+
                             # Ensure row_index is within bounds
                             if row_index >= len(features):
                                 row_index = min(len(features) - 1, 0)
-                            
+
                             # Get the sequence for the specified row
                             sequence = features[row_index]  # Shape should be (sequence_length, feature_count)
-                            
+
                             # Convert to OHLC format - features are ordered as:
                             # [open, high, low, close, volume, envelope_top, envelope_bot, pldot, datetime_features...]
                             # Enhanced to handle variable feature counts with new datetime features
@@ -436,7 +436,7 @@ class UnifiedAnalyticsService:
                                     "year": int(time_step[17]) if len(time_step) > 17 else 2025,
                                 }
                                 ohlc_sequence.append(bar)
-                            
+
                             return {
                                 "dataset_id": dataset_id,
                                 "dataset_name": dataset_info['dataset_name'],
@@ -450,12 +450,12 @@ class UnifiedAnalyticsService:
                                 "source": "arrayrecord_compatible_numpy" if features_file.endswith('.npy') else "arrayrecord_format",
                                 "file_path": features_file
                             }
-                        
+
                     except Exception as file_error:
                         logger.warning(f"Could not load actual sequence data: {file_error}")
                         # Fall back to sample data
                         pass
-                    
+
                     # Generate sample data if actual data not available
                     sample_data = self._generate_sample_sequence_for_dataset(dataset_info)
                     sample_data.update({
@@ -465,7 +465,7 @@ class UnifiedAnalyticsService:
                         "source": "sample_data"
                     })
                     return sample_data
-                    
+
         except Exception as e:
             logger.error(f"Error getting sequence data for dataset {dataset_id}: {e}")
             # Return sample data as fallback
@@ -476,38 +476,38 @@ class UnifiedAnalyticsService:
             }, dataset_id, row_index)
             sample_data['timeframe'] = timeframe
             return sample_data
-    
+
     def _generate_sample_sequence_for_dataset(self, dataset_info: Dict, dataset_id: int = 0, row_index: int = 0) -> Dict[str, Any]:
         """Generate sample sequence data based on dataset info."""
         import random
-        
+
         sequence_length = dataset_info.get('sequence_length', 21)
         symbol = dataset_info.get('symbols', 'DEMO').split(',')[0] if dataset_info.get('symbols') else 'DEMO'
-        
+
         # Generate realistic OHLC sequence
         base_price = 150.0 + random.uniform(-50, 50)  # Start price
         sequence = []
-        
+
         for i in range(sequence_length):
             # Simulate price movement
             change = random.uniform(-3.0, 3.0)
             base_price += change
             base_price = max(base_price, 10.0)  # Minimum price
-            
+
             open_price = base_price + random.uniform(-1.0, 1.0)
             high_price = open_price + random.uniform(0, 4.0)
             low_price = open_price - random.uniform(0, 3.0)
             close_price = open_price + random.uniform(-2.0, 2.0)
-            
+
             # Ensure OHLC consistency
             high_price = max(high_price, open_price, close_price)
             low_price = min(low_price, open_price, close_price)
-            
+
             # Technical indicators
             envelope_top = high_price * 1.025  # 2.5% above high
             envelope_bot = low_price * 0.975   # 2.5% below low
             pldot = low_price * 0.99 if i % 4 == 0 else 0  # Pivot low dots occasionally
-            
+
             bar = {
                 "time_step": i,
                 "open": round(open_price, 2),
@@ -520,7 +520,7 @@ class UnifiedAnalyticsService:
                 "pldot": round(pldot, 2) if pldot > 0 else 0
             }
             sequence.append(bar)
-        
+
         return {
             "dataset_id": dataset_id,
             "dataset_name": dataset_info.get('dataset_name', f'Dataset {dataset_id}'),
@@ -534,18 +534,18 @@ class UnifiedAnalyticsService:
     # ==============================================
     # RAY DISTRIBUTED COMPUTING INTEGRATION
     # ==============================================
-    
+
     def get_training_dataset_sequences(self, dataset_id: int) -> Dict[str, Any]:
         """Get available sequences for a training dataset."""
         try:
             from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from pathlib import Path
-            
+
             # Determine environment and table name
-            environment = "dev"  # Can be made configurable later  
+            environment = "dev"  # Can be made configurable later
             table_name = f"{environment}_training_datasets"
-            
+
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
                     # Get dataset info
@@ -555,7 +555,7 @@ class UnifiedAnalyticsService:
                         FROM {table_name}
                         WHERE id = %s
                     """, (dataset_id,))
-                    
+
                     dataset_info = cursor.fetchone()
                     if not dataset_info:
                         return {
@@ -563,37 +563,37 @@ class UnifiedAnalyticsService:
                             "sequences": [],
                             "total_count": 0
                         }
-                    
+
                     # Get sequences info from visualization data
                     sequences = []
                     total_count = 0
-                    
+
                     # Use file_metadata from database for precise sequence information
                     try:
                         file_metadata = dataset_info.get('file_metadata', {})
-                        
+
                         if file_metadata and file_metadata.get('files'):
                             logger.info(f"Using database file_metadata for dataset {dataset_id}")
-                            
+
                             sequence_id_counter = 0
                             files_info = file_metadata.get('files', [])
-                            
+
                             # Generate sequence-based menu items from file metadata
                             # Group files by sequence (symbol+daterange) instead of individual timeframes
                             sequences_by_id = {}
-                            
+
                             for file_info in files_info:
                                 symbol = file_info.get('symbol')
-                                timeframe = file_info.get('timeframe') 
+                                timeframe = file_info.get('timeframe')
                                 file_path = file_info.get('file_path', '')
                                 file_size_bytes = file_info.get('file_size_bytes', 0)
-                                
+
                                 # Extract sequence ID from file path (e.g., AAPL_20250701_000000_20250906_000000.arrayrecord)
                                 if file_path.endswith('.arrayrecord'):
                                     sequence_id = file_path.replace('.arrayrecord', '')
                                 else:
                                     sequence_id = f"{symbol}_sequence"
-                                
+
                                 if sequence_id not in sequences_by_id:
                                     sequences_by_id[sequence_id] = {
                                         'symbol': symbol,
@@ -601,7 +601,7 @@ class UnifiedAnalyticsService:
                                         'total_size': 0,
                                         'file_count': 0
                                     }
-                                
+
                                 # Add this timeframe to the sequence
                                 sequences_by_id[sequence_id]['timeframes'][timeframe] = {
                                     'file_path': file_path,
@@ -609,7 +609,7 @@ class UnifiedAnalyticsService:
                                 }
                                 sequences_by_id[sequence_id]['total_size'] += file_size_bytes
                                 sequences_by_id[sequence_id]['file_count'] += 1
-                            
+
                             # Create sequence menu items (one per symbol+daterange)
                             for sequence_id, sequence_info in sequences_by_id.items():
                                 sequences.append({
@@ -623,28 +623,28 @@ class UnifiedAnalyticsService:
                                     "total_size_mb": round(sequence_info['total_size'] / (1024 * 1024), 2)
                                 })
                                 sequence_id_counter += 1
-                                    
+
                             total_count = len(sequences)
                             logger.info(f"Generated {total_count} sequence-based menu items from file_metadata for dataset {dataset_id}")
-                            
+
                         else:
                             # Fallback: use filesystem scanning (legacy approach)
                             logger.warning(f"No file_metadata available for dataset {dataset_id}, using filesystem fallback")
-                            
+
                             symbols = dataset_info.get('symbols', [])
                             if isinstance(symbols, str):
                                 if symbols.startswith('{') and symbols.endswith('}'):
                                     symbols = [s.strip() for s in symbols.strip('{}').split(',') if s.strip()]
                                 else:
                                     symbols = [s.strip() for s in symbols.split(',') if s.strip()]
-                            
+
                             for symbol in symbols:
                                 try:
                                     # Each symbol has exactly ONE sequence file
                                     # The sequence file contains multiple time steps/bars, not multiple sequences
                                     symbol_files = dataset_info.get('symbol_files', {})
                                     sequence_filename = symbol_files.get(symbol, f"{symbol}_20250701_000000_20250906_000000")
-                                    
+
                                     sequences.append({
                                         "id": len(sequences),
                                         "sequence_id": sequence_filename,  # Use actual filename as sequence ID
@@ -656,19 +656,19 @@ class UnifiedAnalyticsService:
                                     })
                                 except Exception as e:
                                     logger.error(f"Error processing symbol {symbol}: {e}")
-                            
+
                             total_count = len(sequences)
-                    
+
                     except Exception as e:
                         logger.error(f"Error getting visualization data for sequences: {e}")
                         total_count = 0
-                    
+
                     return {
                         "datasets": [dataset_info],
                         "sequences": sequences,
                         "total_count": total_count
                     }
-                    
+
         except Exception as e:
             logger.error(f"Error getting sequences for dataset {dataset_id}: {e}")
             return {
@@ -685,11 +685,11 @@ class UnifiedAnalyticsService:
             import psycopg2.extras
             from pathlib import Path
             import json
-            
+
             # Determine environment and table name
-            environment = "dev"  # Can be made configurable later  
+            environment = "dev"  # Can be made configurable later
             table_name = f"{environment}_training_datasets"  # Fixed: plural form to match main API
-            
+
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
                     # Get dataset info using actual table columns from plural table
@@ -698,29 +698,29 @@ class UnifiedAnalyticsService:
                         FROM {table_name}
                         WHERE id = %s
                     """, (dataset_id,))
-                    
+
                     dataset_info = cursor.fetchone()
                     if not dataset_info:
                         raise ValueError(f"Dataset {dataset_id} not found")
-                    
+
                     # Use actual run_id from database
                     run_id = dataset_info.get('run_id') or str(dataset_id)  # Use actual run_id or fallback to dataset_id
                     symbols_data = dataset_info.get('symbols', '')
-                    
+
                     # Parse symbols - could be string, array, or PostgreSQL array format
                     if isinstance(symbols_data, str):
                         if symbols_data.startswith('{') and symbols_data.endswith('}'):
-                            # PostgreSQL array format: {TSLA} or {AAPL,TSLA}  
+                            # PostgreSQL array format: {TSLA} or {AAPL,TSLA}
                             symbols = [s.strip() for s in symbols_data.strip('{}').split(',') if s.strip()]
                         else:
                             # Comma-separated string
                             symbols = [s.strip() for s in symbols_data.split(',') if s.strip()]
                     else:
                         symbols = symbols_data if symbols_data else []
-                    
+
                     if not symbols:
                         raise ValueError(f"Dataset {dataset_id} missing symbols")
-                    
+
                     # Determine target symbol - use parameter if provided, otherwise logic
                     if target_symbol is None:
                         # If sequence_id provided, find specific sequence
@@ -735,13 +735,13 @@ class UnifiedAnalyticsService:
                                 target_symbol = symbols[0]
                         else:
                             target_symbol = symbols[0]  # Default to first symbol
-                    
+
                     # Search for actual files in all potential locations (container-aware)
                     training_base_paths = [
                         Path("/data/training_data"),  # Container path
                         Path("/mnt/d/ats-data/training_data")  # Host path fallback
                     ]
-                    
+
                     arrayrecord_files = []
                     for base_path in training_base_paths:
                         if base_path.exists():
@@ -755,15 +755,15 @@ class UnifiedAnalyticsService:
                                     # Check if file contains our target symbol (case insensitive)
                                     file_name = arrayrecord_file.name.lower()
                                     symbol_lower = target_symbol.lower()
-                                    
+
                                     logger.info(f"Checking file: {arrayrecord_file}, symbol_lower: {symbol_lower}")
-                                    
+
                                     # Check filename for symbol match
                                     if symbol_lower in file_name:
                                         arrayrecord_files.append(arrayrecord_file)
                                         logger.info(f"Found matching file for run {run_id}: {arrayrecord_file}")
                                         break  # Use first match in correct run
-                                        
+
                             # If not found in run directory, fallback to general search
                             if not arrayrecord_files:
                                 logger.warning(f"No files found in run {run_id}, falling back to general search")
@@ -771,39 +771,39 @@ class UnifiedAnalyticsService:
                                     file_name = arrayrecord_file.name.lower()
                                     file_path_str = str(arrayrecord_file).lower()
                                     symbol_lower = target_symbol.lower()
-                                    
+
                                     if symbol_lower in file_name or f"/{symbol_lower}/" in file_path_str:
                                         arrayrecord_files.append(arrayrecord_file)
                                         logger.info(f"Found fallback file: {arrayrecord_file}")
                                         break  # Use first match
-                            
+
                             # If files found in this base_path, stop searching other base_paths
                             if arrayrecord_files:
                                 break
-                    
+
                     if arrayrecord_files:
                         # Read actual ArrayRecord data
                         arrayrecord_file = arrayrecord_files[0]
                         try:
                             from array_record.python.array_record_module import ArrayRecordReader
-                            
+
                             visualization_data = []
                             reader = ArrayRecordReader(str(arrayrecord_file))
-                            
+
                             # Read all records using proper ArrayRecord API
                             total_records = reader.num_records()
                             logger.info(f"ArrayRecord has {total_records} records")
-                            
+
                             columns = None
                             training_data_array = None
-                            
+
                             # Read records using seek + read
                             for i in range(total_records):
                                 reader.seek(i)
                                 record = reader.read()
-                                
+
                                 if i == 0:
-                                    # First record is column names 
+                                    # First record is column names
                                     try:
                                         columns_str = record.decode('utf-8')
                                         import ast
@@ -811,7 +811,7 @@ class UnifiedAnalyticsService:
                                         logger.info(f"ArrayRecord columns: {len(columns)} columns")
                                     except (UnicodeDecodeError, ValueError) as e:
                                         logger.warning(f"Could not parse columns from first record: {e}")
-                                        
+
                                 elif i == 1:
                                     # Second record is the training data array
                                     try:
@@ -822,13 +822,13 @@ class UnifiedAnalyticsService:
                                         logger.info(f"Non-zero elements: {non_zero_count} / {len(training_data_array)} ({100*non_zero_count/len(training_data_array):.1f}%)")
                                     except Exception as e:
                                         logger.error(f"Error parsing training data: {e}")
-                            
+
                             reader.close()
-                            
+
                             # Process the training data array
                             if training_data_array is not None and columns is not None:
                                 logger.info(f"Processing training data array with {len(columns)} columns")
-                                
+
                                 # The training data is a flattened array - reshape it into records
                                 num_features = len(columns) - 2  # Subtract timestamp and symbol columns
                                 if len(training_data_array) >= num_features:
@@ -844,11 +844,11 @@ class UnifiedAnalyticsService:
                                             record_data[col] = float(val)
                                         else:
                                             record_data[col] = 0.0
-                                    
+
                                     # Create visualization data from the training record
                                     # Extract 5m timeframe data for visualization (first sequence)
                                     visualization_data = []
-                                    
+
                                     # Look for 5m OHLCV columns
                                     for seq_idx in range(52):  # 5m has 52 time steps according to config
                                         # Calculate Unix timestamp for this bar in Eastern Time
@@ -856,20 +856,20 @@ class UnifiedAnalyticsService:
                                         from zoneinfo import ZoneInfo
                                         base_dt = datetime(2025, 7, 1, 2, 0, 0, tzinfo=ZoneInfo("America/New_York"))
                                         bar_dt = base_dt + timedelta(minutes=seq_idx * 5)
-                                        
+
                                         bar_data = {
                                             "time_step": seq_idx,
                                             "timestamp": int(bar_dt.timestamp()),
                                             "symbol": record_data.get('symbol', target_symbol),
                                             "open": record_data.get(f'5m_open_{seq_idx:03d}', 0),
-                                            "high": record_data.get(f'5m_high_{seq_idx:03d}', 0), 
+                                            "high": record_data.get(f'5m_high_{seq_idx:03d}', 0),
                                             "low": record_data.get(f'5m_low_{seq_idx:03d}', 0),
                                             "close": record_data.get(f'5m_close_{seq_idx:03d}', 0),
                                             "volume": record_data.get(f'5m_volume_{seq_idx:03d}', 0),
                                             "vwap": record_data.get(f'5m_vwap_{seq_idx:03d}', 0)
                                         }
                                         visualization_data.append(bar_data)
-                                    
+
                                     logger.info(f"Created {len(visualization_data)} visualization bars from training data")
                                 else:
                                     logger.error(f"Training data array too short: {len(training_data_array)} < {num_features}")
@@ -877,16 +877,16 @@ class UnifiedAnalyticsService:
                             else:
                                 logger.error("No training data or columns found")
                                 raise ValueError("No training data found")
-                            
-                            
+
+
                             # Calculate available sequences from visualization data
                             total_records = len(visualization_data)
                             window_size = 21  # Default window size for visualization
                             available_sequences = max(1, total_records - window_size + 1)
-                            
+
                             # ENFORCE: No fake data allowed - check response before returning
                             from services.fake_data_detector import fail_on_fake_data
-                            
+
                             response = {
                                 "dataset_id": dataset_id,
                                 "sequence_id": sequence_id,
@@ -899,10 +899,10 @@ class UnifiedAnalyticsService:
                                 "data": visualization_data,
                                 "source": "arrayrecord"
                             }
-                            
+
                             # Fail fast if fake data detected
                             fail_on_fake_data(response, f"visualization_data_response_dataset_{dataset_id}")
-                            
+
                             # Sanitize response to prevent NaN/Infinity JSON serialization errors
                             try:
                                 from core.sanitizers.json_sanitizer import validate_api_response
@@ -911,9 +911,9 @@ class UnifiedAnalyticsService:
                             except Exception as sanitizer_error:
                                 logger.warning(f"Visualization response sanitization failed: {sanitizer_error}")
                                 # Continue with original response if sanitization fails
-                            
+
                             return response
-                            
+
                         except ImportError as e:
                             logger.error(f"ArrayRecord import failed: {e}")
                             raise RuntimeError(f"ArrayRecord library not available: {e}. Cannot read training data without proper dependencies.")
@@ -922,10 +922,10 @@ class UnifiedAnalyticsService:
                             import traceback
                             logger.error(traceback.format_exc())
                             raise RuntimeError(f"Failed to read training data file: {e}. No fallback data provided.")
-                    
+
                     # No files found
                     raise ValueError(f"No Riegeli/ArrayRecord files found for dataset {dataset_id}, symbol {target_symbol}")
-                    
+
         except Exception as e:
             logger.error(f"Error getting visualization data for dataset {dataset_id}: {e}")
             # No fake data - re-raise the error
@@ -938,13 +938,13 @@ class UnifiedAnalyticsService:
             import psycopg2.extras
             from pathlib import Path
             import json
-            
+
             logger.info(f"Getting multi-timeframe data for dataset {dataset_id}, sequence {sequence_id}")
-            
+
             # Determine environment and table name
             environment = "dev"
             table_name = f"{environment}_training_datasets"
-            
+
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
                     # Get dataset info including file_metadata
@@ -953,35 +953,35 @@ class UnifiedAnalyticsService:
                         FROM {table_name}
                         WHERE id = %s
                     """, (dataset_id,))
-                    
+
                     dataset_info = cursor.fetchone()
                     if not dataset_info:
                         return {"error": f"Dataset {dataset_id} not found"}
-                    
+
                     file_metadata = dataset_info.get('file_metadata', {})
                     run_id = dataset_info.get('run_id')
-                    
+
                     # Define training base paths (container-aware)
                     training_base_paths = [
                         Path("/data/training_data"),  # Container path
                         Path("/mnt/d/ats-data/training_data")  # Host path fallback
                     ]
-                    
+
                     # Find the sequence directory and read all timeframes
                     multi_timeframe_data = {}
                     timeframes = ['5m', '15m', '1h', '1d', '1w']
-                    
+
                     for base_path in training_base_paths:
                         sequence_dir = Path(base_path) / str(run_id) / sequence_id
                         logger.info(f"Checking sequence directory: {sequence_dir}")
                         if sequence_dir.exists():
                             logger.info(f"✅ Found sequence directory: {sequence_dir}")
-                            
+
                             for timeframe in timeframes:
                                 timeframe_dir = sequence_dir / timeframe
                                 arrayrecord_file = timeframe_dir / f"{sequence_id}.arrayrecord"
                                 logger.info(f"Checking ArrayRecord file: {arrayrecord_file}")
-                                
+
                                 if arrayrecord_file.exists():
                                     try:
                                         logger.info(f"✅ Found file: {arrayrecord_file}")
@@ -996,21 +996,21 @@ class UnifiedAnalyticsService:
                                         logger.error(f"❌ Failed to read {timeframe} data from {arrayrecord_file}: {e}")
                                 else:
                                     logger.warning(f"❌ ArrayRecord file not found: {arrayrecord_file}")
-                            
+
                             break  # Found sequence directory
                         else:
                             logger.warning(f"❌ Sequence directory not found: {sequence_dir}")
-                    
+
                     if not multi_timeframe_data:
                         return {"error": f"No data files found for sequence {sequence_id}"}
-                    
+
                     # Apply 21-bar selection logic (10 before + 1 current + 10 after) to all timeframes
                     logger.info(f"🎯 Applying 21-bar selection logic with row_index={row_index}")
                     for timeframe, data in multi_timeframe_data.items():
                         if data and len(data) > 0:
                             data_len = len(data)
                             logger.info(f"   {timeframe}: {data_len} bars available")
-                            
+
                             # If row_index is beyond data length, use all available data
                             if row_index >= data_len:
                                 logger.warning(f"   {timeframe}: row_index {row_index} >= data_len {data_len}, using all available data")
@@ -1020,7 +1020,7 @@ class UnifiedAnalyticsService:
                                 # Calculate start and end indices for 21-bar window
                                 start_idx = max(0, row_index - 10)
                                 end_idx = min(data_len, row_index + 11)  # +11 to include row_index + 10 bars after
-                                
+
                                 # Ensure we have 21 bars if possible
                                 if end_idx - start_idx < 21 and data_len >= 21:
                                     if start_idx == 0:
@@ -1029,26 +1029,26 @@ class UnifiedAnalyticsService:
                                     elif end_idx == data_len:
                                         # If we're at the end, extend start backward
                                         start_idx = max(0, data_len - 21)
-                                
+
                                 # Safety check: if we still have insufficient data, use all available
                                 if data_len < 21:
                                     logger.info(f"   {timeframe}: Only {data_len} bars available, using all data instead of 21-bar window")
                                     start_idx = 0
                                     end_idx = data_len
-                            
+
                             # Apply the slice
                             selected_bars = data[start_idx:end_idx]
                             multi_timeframe_data[timeframe] = selected_bars
-                            
+
                             logger.info(f"   {timeframe}: Selected bars {start_idx}-{end_idx-1} ({len(selected_bars)} bars)")
                             if len(selected_bars) > 0:
                                 actual_row_idx = row_index - start_idx
                                 logger.info(f"   {timeframe}: Target row is now at index {actual_row_idx} in selected data")
-                    
+
                     # Prepare comprehensive table view data with all training features
                     table_data = []
                     feature_matrix = []
-                    
+
                     # Try to get comprehensive training data from ArrayRecord
                     for base_path in training_base_paths:
                         if not table_data:  # Only process first successful path
@@ -1058,21 +1058,21 @@ class UnifiedAnalyticsService:
                                     from array_record.python.array_record_module import ArrayRecordReader
                                     import ast
                                     import numpy as np
-                                    
+
                                     reader = ArrayRecordReader(str(arrayrecord_path))
-                                    
+
                                     # Read column names
                                     reader.seek(0)
                                     columns_record = reader.read()
                                     columns = ast.literal_eval(columns_record.decode('utf-8'))
-                                    
+
                                     # Read training data
                                     reader.seek(1)
                                     data_record = reader.read()
                                     training_array = np.frombuffer(data_record, dtype=np.float32)
-                                    
+
                                     reader.close()
-                                    
+
                                     # Create comprehensive feature matrix
                                     if len(training_array) == len(columns):
                                         # Create a single row with all features
@@ -1093,13 +1093,13 @@ class UnifiedAnalyticsService:
                                                     feature_row[col_name] = float(val)
                                             else:
                                                 feature_row[col_name] = float(val)
-                                        
+
                                         feature_matrix.append(feature_row)
                                         logger.info(f"✅ Comprehensive feature data: {len(columns)} features extracted from ArrayRecord")
-                                    
+
                                 except Exception as e:
                                     logger.error(f"Error reading comprehensive training data: {e}")
-                    
+
                     # Prepare table data - use OHLC format for table display compatibility
                     # while still providing comprehensive features for detailed analysis
                     if '1h' in multi_timeframe_data and multi_timeframe_data['1h']:
@@ -1110,10 +1110,10 @@ class UnifiedAnalyticsService:
                         # Fallback to empty array if no OHLC data available
                         table_data = []
                         logger.warning("⚠️  No OHLC data available for table display")
-                    
+
                     # Store comprehensive features separately for advanced analysis
                     comprehensive_features = feature_matrix if feature_matrix else []
-                    
+
                     # Create response and sanitize for JSON safety
                     response = {
                         "sequence_id": sequence_id,
@@ -1124,7 +1124,7 @@ class UnifiedAnalyticsService:
                         "available_timeframes": list(multi_timeframe_data.keys()),
                         "success": True
                     }
-                    
+
                     # Sanitize response to prevent NaN/Infinity JSON serialization errors
                     try:
                         from core.sanitizers.json_sanitizer import validate_api_response
@@ -1133,7 +1133,7 @@ class UnifiedAnalyticsService:
                     except Exception as sanitizer_error:
                         logger.warning(f"Response sanitization failed: {sanitizer_error}")
                         # Continue with original response if sanitization fails
-                    
+
                     logger.info(f"🎯 MULTI-TIMEFRAME API RESPONSE DEBUG:")
                     logger.info(f"   Sequence ID: {response['sequence_id']}")
                     logger.info(f"   Dataset: {response['dataset_name']}")
@@ -1141,9 +1141,9 @@ class UnifiedAnalyticsService:
                     logger.info(f"   OHLC data counts: {[(tf, len(data)) for tf, data in response['ohlc_data'].items()]}")
                     logger.info(f"   Table rows: {len(response['table_data'])}")
                     logger.info(f"   Success: {response['success']}")
-                    
+
                     return response
-                    
+
         except Exception as e:
             logger.error(f"Error getting multi-timeframe sequence data: {e}")
             return {"error": str(e)}
@@ -1153,20 +1153,20 @@ class UnifiedAnalyticsService:
         try:
             # Try to read ArrayRecord file with proper error handling
             from array_record.python.array_record_module import ArrayRecordReader
-            
+
             ohlc_data = []
             reader = ArrayRecordReader(str(file_path))
-            
+
             total_records = reader.num_records()
             logger.debug(f"ArrayRecord has {total_records} records")
-            
+
             if total_records < 2:
                 logger.warning(f"Insufficient records in ArrayRecord: {total_records}")
                 return []
-            
+
             columns = None
             training_data_array = None
-            
+
             # Read column names (record 0)
             reader.seek(0)
             columns_record = reader.read()
@@ -1179,7 +1179,7 @@ class UnifiedAnalyticsService:
                 logger.error(f"Failed to parse columns: {e}")
                 reader.close()
                 return []
-                
+
             # Read training data (record 1)
             reader.seek(1)
             data_record = reader.read()
@@ -1191,9 +1191,9 @@ class UnifiedAnalyticsService:
                 logger.error(f"Failed to parse training data: {e}")
                 reader.close()
                 return []
-                
+
             reader.close()
-            
+
             # Convert training data array to OHLC records
             if training_data_array is not None and columns is not None:
                 # Map training data array to column names
@@ -1208,7 +1208,7 @@ class UnifiedAnalyticsService:
                         record_data[col] = float(val)
                     else:
                         record_data[col] = 0.0
-                
+
                 # Extract OHLC data for the specific timeframe from column names
                 # Determine which timeframe this file represents based on file path
                 file_name = file_path.name
@@ -1230,7 +1230,7 @@ class UnifiedAnalyticsService:
                 else:
                     timeframe_prefix = '5m'  # Default
                     sequence_length = 52
-                
+
                 # Create OHLC records for this timeframe
                 for i in range(sequence_length):
                     # Calculate timestamp as Unix epoch seconds in Eastern Time
@@ -1250,7 +1250,7 @@ class UnifiedAnalyticsService:
                         timestamp_dt = base_date + timedelta(days=i * 7)
                     else:
                         timestamp_dt = base_date
-                    
+
                     ohlc_record = {
                         "timestamp": int(timestamp_dt.timestamp()),
                         "open": record_data.get(f'{timeframe_prefix}_open_{i:03d}', 0),
@@ -1260,15 +1260,15 @@ class UnifiedAnalyticsService:
                         "volume": record_data.get(f'{timeframe_prefix}_volume_{i:03d}', 0),
                         "vwap": record_data.get(f'{timeframe_prefix}_vwap_{i:03d}', 0)
                     }
-                    
+
                     # Only add records with non-zero data
-                    if (ohlc_record["open"] != 0 or ohlc_record["high"] != 0 or 
+                    if (ohlc_record["open"] != 0 or ohlc_record["high"] != 0 or
                         ohlc_record["low"] != 0 or ohlc_record["close"] != 0):
                         ohlc_data.append(ohlc_record)
-                
+
                 logger.debug(f"Extracted {len(ohlc_data)} OHLC records for {timeframe_prefix}")
             return ohlc_data
-            
+
         except Exception as e:
             logger.error(f"Failed to read ArrayRecord file {file_path}: {e}")
             return []
@@ -1278,29 +1278,29 @@ class UnifiedAnalyticsService:
         try:
             from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
-            
+
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-                    
+
                     # Get metrics from all minute bar tables
                     minute_tables = ['dev_one_minute_live_polygon', 'dev_one_minute_live_tiingo', 'dev_one_minute_live_fmp']
-                    
+
                     collection_metrics = {}
-                    
+
                     for table_name in minute_tables:
                         try:
                             # Check if table exists
                             cursor.execute("""
-                                SELECT COUNT(*) as count FROM information_schema.tables 
+                                SELECT COUNT(*) as count FROM information_schema.tables
                                 WHERE table_name = %s AND table_schema = 'public'
                             """, (table_name,))
-                            
+
                             if cursor.fetchone()['count'] == 0:
                                 continue  # Skip non-existent tables
-                            
+
                             # Bars collected per collection time (received_at hour)
                             cursor.execute(f"""
-                                SELECT 
+                                SELECT
                                     DATE_TRUNC('hour', received_at) as collection_hour,
                                     COUNT(*) as bars_collected,
                                     COUNT(DISTINCT symbol) as unique_symbols,
@@ -1312,12 +1312,12 @@ class UnifiedAnalyticsService:
                                 ORDER BY collection_hour DESC
                                 LIMIT 24
                             """)
-                            
+
                             collection_time_data = cursor.fetchall()
-                            
-                            # Bars per bar time (timestamp hour) 
+
+                            # Bars per bar time (timestamp hour)
                             cursor.execute(f"""
-                                SELECT 
+                                SELECT
                                     DATE_TRUNC('hour', timestamp) as bar_hour,
                                     COUNT(*) as bars_count,
                                     COUNT(DISTINCT symbol) as unique_symbols,
@@ -1329,12 +1329,12 @@ class UnifiedAnalyticsService:
                                 ORDER BY bar_hour DESC
                                 LIMIT 24
                             """)
-                            
+
                             bar_time_data = cursor.fetchall()
-                            
+
                             # Overall table stats
                             cursor.execute(f"""
-                                SELECT 
+                                SELECT
                                     COUNT(*) as total_bars,
                                     COUNT(DISTINCT symbol) as total_symbols,
                                     MIN(timestamp) as earliest_bar,
@@ -1346,29 +1346,29 @@ class UnifiedAnalyticsService:
                                 FROM {table_name}
                                 WHERE timestamp >= NOW() - INTERVAL '7 days'
                             """)
-                            
+
                             overall_stats = cursor.fetchone()
-                            
+
                             collection_metrics[table_name] = {
                                 'collection_time_metrics': [dict(row) for row in collection_time_data],
                                 'bar_time_metrics': [dict(row) for row in bar_time_data],
                                 'overall_stats': dict(overall_stats) if overall_stats else {},
                                 'vendor': table_name.split('_')[-1].upper()  # Extract vendor name
                             }
-                            
+
                         except Exception as e:
                             logger.error(f"Error getting metrics for {table_name}: {e}")
                             collection_metrics[table_name] = {
                                 'error': str(e),
                                 'vendor': table_name.split('_')[-1].upper()
                             }
-                    
+
                     return {
                         'metrics': collection_metrics,
                         'timestamp': datetime.now().isoformat(),
                         'summary': self._generate_collection_summary(collection_metrics)
                     }
-                    
+
         except Exception as e:
             logger.error(f"Error getting bar collection metrics: {e}")
             return {
@@ -1376,7 +1376,7 @@ class UnifiedAnalyticsService:
                 'metrics': {},
                 'timestamp': datetime.now().isoformat()
             }
-    
+
     def _generate_collection_summary(self, metrics: Dict[str, Any]) -> Dict[str, Any]:
         """Generate summary statistics across all vendors."""
         total_bars = 0
@@ -1384,22 +1384,22 @@ class UnifiedAnalyticsService:
         vendors_active = 0
         avg_latencies = []
         avg_quality_scores = []
-        
+
         for table_name, data in metrics.items():
             if 'error' in data:
                 continue
-                
+
             overall_stats = data.get('overall_stats', {})
             if overall_stats.get('total_bars', 0) > 0:
                 vendors_active += 1
                 total_bars += overall_stats.get('total_bars', 0)
                 total_symbols = max(total_symbols, overall_stats.get('total_symbols', 0))
-                
+
                 if overall_stats.get('avg_latency_ms'):
                     avg_latencies.append(float(overall_stats['avg_latency_ms']))
                 if overall_stats.get('avg_quality_score'):
                     avg_quality_scores.append(float(overall_stats['avg_quality_score']))
-        
+
         return {
             'total_bars_collected': total_bars,
             'total_unique_symbols': total_symbols,
@@ -1412,30 +1412,30 @@ class UnifiedAnalyticsService:
         """Get distributed analytics using Ray if available."""
         if not self.ray_enabled:
             raise RuntimeError("Ray analytics service is not enabled - cannot perform distributed analytics")
-        
+
         ray_service = get_ray_eda_service()
         return await ray_service.analyze_dataset(dataset_id, analysis_type)
 
     # ==============================================
     # NEWS EVENTS ANALYSIS
     # ==============================================
-    
+
     def get_news_events(self, limit: int = 100, symbol: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
         """Get recent news events from Polygon and Tiingo sources with optional filters."""
         try:
             from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from datetime import datetime, timedelta
-            
+
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-                    
+
                     # Get recent news events from both sources
                     news_events = []
-                    
+
                     # Query Polygon news
                     polygon_query = """
-                        SELECT 
+                        SELECT
                             'Polygon' as source,
                             vendor_id as event_id,
                             title,
@@ -1449,29 +1449,29 @@ class UnifiedAnalyticsService:
                         FROM dev_news_polygon
                         WHERE 1=1
                     """
-                    
+
                     # Build dynamic filters for Polygon news
                     params = []
-                    
+
                     if symbol:
                         polygon_query += " AND %s = ANY(tickers)"
                         params.append(symbol.upper())
-                    
+
                     if start_date:
                         polygon_query += " AND published_utc >= %s"
                         params.append(start_date)
-                    
+
                     if end_date:
                         polygon_query += " AND published_utc <= %s"
                         params.append(end_date)
-                    
+
                     polygon_query += " ORDER BY published_utc DESC LIMIT %s"
                     params.append(limit // 2)
-                    
+
                     try:
                         cursor.execute(polygon_query, params)
                         polygon_news = cursor.fetchall()
-                        
+
                         for news in polygon_news:
                             news_events.append({
                                 'source': news['source'],
@@ -1485,15 +1485,15 @@ class UnifiedAnalyticsService:
                                 'publisher': news['publisher_name'],
                                 'created_at': news['created_at'].isoformat() if news['created_at'] else None
                             })
-                            
+
                         logger.info(f"Retrieved {len(polygon_news)} Polygon news events")
-                        
+
                     except Exception as e:
                         logger.warning(f"Could not fetch Polygon news: {e}")
-                    
+
                     # Query Tiingo news
                     tiingo_query = """
-                        SELECT 
+                        SELECT
                             'Tiingo' as source,
                             vendor_id::text as event_id,
                             title,
@@ -1507,29 +1507,29 @@ class UnifiedAnalyticsService:
                         FROM dev_news_tiingo
                         WHERE 1=1
                     """
-                    
+
                     # Build dynamic filters for Tiingo news
                     tiingo_params = []
-                    
+
                     if symbol:
                         tiingo_query += " AND %s = ANY(tickers)"
                         tiingo_params.append(symbol.upper())
-                    
+
                     if start_date:
                         tiingo_query += " AND published_date >= %s"
                         tiingo_params.append(start_date)
-                    
+
                     if end_date:
                         tiingo_query += " AND published_date <= %s"
                         tiingo_params.append(end_date)
-                    
+
                     tiingo_query += " ORDER BY published_date DESC LIMIT %s"
                     tiingo_params.append(limit // 2)
-                    
+
                     try:
                         cursor.execute(tiingo_query, tiingo_params)
                         tiingo_news = cursor.fetchall()
-                        
+
                         for news in tiingo_news:
                             news_events.append({
                                 'source': news['source'],
@@ -1543,25 +1543,25 @@ class UnifiedAnalyticsService:
                                 'publisher': news['publisher'],
                                 'created_at': news['created_at'].isoformat() if news['created_at'] else None
                             })
-                            
+
                         logger.info(f"Retrieved {len(tiingo_news)} Tiingo news events")
-                        
+
                     except Exception as e:
                         logger.warning(f"Could not fetch Tiingo news: {e}")
-                    
+
                     # Sort all events by published date
                     news_events.sort(key=lambda x: x['published_at'] or '1970-01-01', reverse=True)
-                    
+
                     # Get summary statistics
                     total_events = len(news_events)
                     unique_symbols = set()
                     sources_count = {}
-                    
+
                     for event in news_events:
                         unique_symbols.update(event['symbols'])
                         source = event['source']
                         sources_count[source] = sources_count.get(source, 0) + 1
-                    
+
                     return {
                         'success': True,
                         'events': news_events[:limit],  # Limit final results
@@ -1576,7 +1576,7 @@ class UnifiedAnalyticsService:
                         },
                         'query_timestamp': datetime.now().isoformat()
                     }
-                    
+
         except Exception as e:
             logger.error(f"Error getting news events: {e}")
             return {
@@ -1589,7 +1589,7 @@ class UnifiedAnalyticsService:
     # ==============================================
     # MULTI-PANEL VISUALIZATION (NEW)
     # ==============================================
-    
+
     async def generate_multi_panel_chart(self, symbol: str, timeframe: str, dataset_id: int) -> Dict[str, Any]:
         """Generate multi-panel trading chart from training dataset."""
         if not self.visualization_enabled:
@@ -1597,23 +1597,23 @@ class UnifiedAnalyticsService:
                 "success": False,
                 "error": "Multi-panel visualization not available"
             }
-        
+
         try:
             logger.info(f"🎨 Generating multi-panel chart: {symbol} {timeframe} dataset {dataset_id}")
-            
+
             # Step 1: Get training dataset (simplified for integration)
             import pandas as pd
             import numpy as np
             import io
             import base64
-            
+
             # Generate sample OHLCV data for demonstration
             np.random.seed(42)
             n_periods = 50
             base_price = 180.0
             returns = np.random.normal(0.001, 0.02, n_periods)
             prices = base_price * np.exp(np.cumsum(returns))
-            
+
             sample_price_data = pd.DataFrame({
                 'timestamp': pd.date_range('2024-08-01 09:30:00', periods=n_periods, freq='1h'),
                 'open': prices * (1 + np.random.normal(0, 0.003, n_periods)),
@@ -1622,7 +1622,7 @@ class UnifiedAnalyticsService:
                 'close': prices,
                 'volume': np.random.lognormal(13.5, 0.5, n_periods).astype(int)
             })
-            
+
             # Step 2: Extract features
             current_price = prices[-1]
             extracted_features = {
@@ -1631,7 +1631,7 @@ class UnifiedAnalyticsService:
                 f'{timeframe}_low': current_price * 0.992,
                 f'{timeframe}_close': current_price,
                 f'{timeframe}_volume': int(1500000),
-                
+
                 # Technical indicators
                 f'{timeframe}_envelope_top': current_price * 1.025,
                 f'{timeframe}_envelope_bot': current_price * 0.975,
@@ -1640,20 +1640,20 @@ class UnifiedAnalyticsService:
                 f'{timeframe}_z2b': current_price * 0.990,
                 f'{timeframe}_z5t': current_price * 1.005,
                 f'{timeframe}_z6t': current_price * 1.010,
-                
+
                 # Volume profile
                 f'{timeframe}_volume_profile_poc': current_price,
                 f'{timeframe}_volume_profile_val': current_price * 0.997,
                 f'{timeframe}_volume_profile_vah': current_price * 1.003,
-                
+
                 # BX Trender
                 f'{timeframe}_BXTrenderBasic_14': 67.2,
                 f'{timeframe}_BXTrenderDirectional_14': 74.1,
                 f'{timeframe}_BXTrenderVolumeWeighted_14': 59.8
             }
-            
+
             logger.info(f"✅ Extracted {len(extracted_features)} features")
-            
+
             # Step 3: Generate multi-panel chart
             fig = self.multi_panel_chart.create_multi_panel_chart(
                 symbol=symbol,
@@ -1662,21 +1662,21 @@ class UnifiedAnalyticsService:
                 timeframe=timeframe,
                 title_suffix=f"Dataset {dataset_id}"
             )
-            
+
             # Step 4: Convert chart to base64
             buffer = io.BytesIO()
             fig.savefig(buffer, format='png', dpi=300, bbox_inches='tight',
                        facecolor='white', edgecolor='none')
             buffer.seek(0)
-            
+
             import matplotlib.pyplot as plt
             plt.close(fig)
-            
+
             chart_data = base64.b64encode(buffer.read()).decode('utf-8')
             buffer.close()
-            
+
             logger.info(f"✅ Generated multi-panel chart ({len(chart_data)} bytes)")
-            
+
             return {
                 "success": True,
                 "chart_image": chart_data,
@@ -1688,18 +1688,18 @@ class UnifiedAnalyticsService:
                 "timeframe": timeframe,
                 "dataset_id": dataset_id
             }
-            
+
         except Exception as e:
             logger.error(f"❌ Error generating multi-panel chart: {e}", exc_info=True)
             return {
                 "success": False,
                 "error": f"Failed to generate chart: {str(e)}"
             }
-    
+
     # ==============================================
     # WEB DASHBOARD SERVING (from analytics_service.py)
     # ==============================================
-    
+
     def get_eda_dashboard_html(self):
         """Generate the main EDA dashboard HTML."""
         return """<!DOCTYPE html>
@@ -1728,7 +1728,7 @@ class UnifiedAnalyticsService:
                     <div class="feature-item">📈 Real-time Quality</div>
                 </div>
             </div>
-            
+
             <div class="main-content">
                 <h2>Select Analysis Type</h2>
                 <button onclick="loadEDA()">📊 Exploratory Data Analysis</button>
@@ -1738,26 +1738,26 @@ class UnifiedAnalyticsService:
                 <button onclick="loadNewsEvents()">📰 News Events</button>
                 <button onclick="loadMultiPanelVisualization()">🎨 Multi-Panel Trading Charts</button>
                 <button onclick="loadRayAnalytics()">⚡ Distributed Analytics</button>
-                
+
                 <div id="analysis-content">
                     <p style="text-align: center; margin-top: 50px; color: #666;">
                         Select an analysis type above to begin
                     </p>
                 </div>
             </div>
-            
+
             <script>
                 async function loadEDA() {
                     document.getElementById('analysis-content').innerHTML = `
                         <h3>📊 Exploratory Data Analysis</h3>
                         <p>Loading database tables...</p>
                     `;
-                    
+
                     try {
                         // First get list of available tables
                         const tablesResponse = await fetch('/api/tables');
                         let tables = [];
-                        
+
                         if (tablesResponse.ok) {
                             const tablesData = await tablesResponse.json();
                             tables = tablesData.tables || [];
@@ -1768,7 +1768,7 @@ class UnifiedAnalyticsService:
                                 'dev_daily_prices_polygon', 'dev_daily_prices_tiingo', 'dev_daily_prices_eodhd'
                             ];
                         }
-                        
+
                         const html = `
                             <h3>📊 Exploratory Data Analysis</h3>
                             <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
@@ -1778,7 +1778,7 @@ class UnifiedAnalyticsService:
                                     ${tables.map(table => `<option value="${table}">${table}</option>`).join('')}
                                 </select>
                             </div>
-                            
+
                             <div id="table-content" style="display: none;">
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                                     <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
@@ -1790,14 +1790,14 @@ class UnifiedAnalyticsService:
                                         <div id="column-summary">Select a table to view columns</div>
                                     </div>
                                 </div>
-                                
+
                                 <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
                                     <h4>📋 Sample Data</h4>
                                     <div id="sample-data" style="max-height: 400px; overflow: auto;">
                                         <p>Select a table to view sample data</p>
                                     </div>
                                 </div>
-                                
+
                                 <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
                                     <h4>📈 Column Distributions</h4>
                                     <div id="column-distributions">
@@ -1806,28 +1806,28 @@ class UnifiedAnalyticsService:
                                 </div>
                             </div>
                         `;
-                        
+
                         document.getElementById('analysis-content').innerHTML = html;
-                        
+
                     } catch (error) {
-                        document.getElementById('analysis-content').innerHTML = 
+                        document.getElementById('analysis-content').innerHTML =
                             '<h3>📊 EDA</h3><p style="color: red;">Error loading EDA interface: ' + error.message + '</p>';
                     }
                 }
-                
+
                 async function loadTableData() {
                     const tableName = document.getElementById('table-selector').value;
                     if (!tableName) {
                         document.getElementById('table-content').style.display = 'none';
                         return;
                     }
-                    
+
                     document.getElementById('table-content').style.display = 'block';
                     document.getElementById('table-info').innerHTML = '<p>Loading table information...</p>';
                     document.getElementById('column-summary').innerHTML = '<p>Loading column information...</p>';
                     document.getElementById('sample-data').innerHTML = '<p>Loading sample data...</p>';
                     document.getElementById('column-distributions').innerHTML = '<p>Loading distributions...</p>';
-                    
+
                     try {
                         // Load table info
                         const infoResponse = await fetch(`/api/table-info/${tableName}`);
@@ -1840,7 +1840,7 @@ class UnifiedAnalyticsService:
                                 <p><strong>Last Updated:</strong> ${info.last_updated || 'Unknown'}</p>
                             `;
                         }
-                        
+
                         // Load column info
                         const columnsResponse = await fetch(`/api/table-columns/${tableName}`);
                         if (columnsResponse.ok) {
@@ -1853,7 +1853,7 @@ class UnifiedAnalyticsService:
                             `).join('');
                             document.getElementById('column-summary').innerHTML = columnHtml;
                         }
-                        
+
                         // Load sample data
                         const sampleResponse = await fetch(`/api/table-sample/${tableName}`);
                         if (sampleResponse.ok) {
@@ -1881,13 +1881,13 @@ class UnifiedAnalyticsService:
                                 document.getElementById('sample-data').innerHTML = '<p>No data found in table</p>';
                             }
                         }
-                        
+
                         // Load column distributions
                         const distResponse = await fetch(`/api/table-distributions/${tableName}`);
                         if (distResponse.ok) {
                             const distributions = await distResponse.json();
                             let distHtml = '';
-                            
+
                             for (const [colName, stats] of Object.entries(distributions.columns || {})) {
                                 distHtml += `
                                     <div style="margin: 15px 0; padding: 15px; background: #f8f9fa; border-radius: 5px;">
@@ -1903,32 +1903,32 @@ class UnifiedAnalyticsService:
                                     </div>
                                 `;
                             }
-                            
+
                             document.getElementById('column-distributions').innerHTML = distHtml || '<p>No distribution data available</p>';
                         }
-                        
+
                     } catch (error) {
                         document.getElementById('table-info').innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
                     }
                 }
-                
+
                 async function loadBarCollectionMetrics() {
-                    document.getElementById('analysis-content').innerHTML = 
+                    document.getElementById('analysis-content').innerHTML =
                         '<h3>📈 Bar Collection Metrics</h3><p>Loading bar collection data...</p>';
-                    
+
                     try {
                         const response = await fetch('/api/bar-collection-metrics');
                         const data = await response.json();
-                        
+
                         if (data.error) {
-                            document.getElementById('analysis-content').innerHTML = 
+                            document.getElementById('analysis-content').innerHTML =
                                 `<h3>📈 Bar Collection Metrics</h3><p style="color: red;">Error: ${data.error}</p>`;
                             return;
                         }
-                        
+
                         const summary = data.summary || {};
                         const metrics = data.metrics || {};
-                        
+
                         let html = `
                             <h3>📈 Bar Collection Metrics</h3>
                             <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
@@ -1953,7 +1953,7 @@ class UnifiedAnalyticsService:
                                 </div>
                             </div>
                         `;
-                        
+
                         // Per-vendor metrics
                         for (const [tableName, vendorData] of Object.entries(metrics)) {
                             if (vendorData.error) {
@@ -1965,15 +1965,15 @@ class UnifiedAnalyticsService:
                                 `;
                                 continue;
                             }
-                            
+
                             const stats = vendorData.overall_stats || {};
                             const collectionData = vendorData.collection_time_metrics || [];
                             const barData = vendorData.bar_time_metrics || [];
-                            
+
                             html += `
                                 <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
                                     <h4>📊 ${vendorData.vendor} Metrics</h4>
-                                    
+
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                                         <!-- Collection Time Chart -->
                                         <div>
@@ -1999,7 +1999,7 @@ class UnifiedAnalyticsService:
                                                 </table>
                                             </div>
                                         </div>
-                                        
+
                                         <!-- Bar Time Chart -->
                                         <div>
                                             <h5>⏰ Bars by Bar Time (Last 24h)</h5>
@@ -2025,7 +2025,7 @@ class UnifiedAnalyticsService:
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <!-- Vendor Stats -->
                                     <div style="background: #f5f5f5; padding: 10px; border-radius: 4px;">
                                         <strong>7-Day Stats:</strong>
@@ -2037,30 +2037,30 @@ class UnifiedAnalyticsService:
                                 </div>
                             `;
                         }
-                        
+
                         html += `
                             <div style="background: #f0f0f0; padding: 10px; border-radius: 4px; font-size: 0.9em; color: #666;">
                                 <strong>Last Updated:</strong> ${new Date(data.timestamp).toLocaleString()}
                             </div>
                         `;
-                        
+
                         document.getElementById('analysis-content').innerHTML = html;
-                        
+
                     } catch (error) {
                         console.error('Error loading bar collection metrics:', error);
-                        document.getElementById('analysis-content').innerHTML = 
+                        document.getElementById('analysis-content').innerHTML =
                             '<h3>📈 Bar Collection Metrics</h3><p style="color: red;">Error loading metrics. Check console for details.</p>';
                     }
                 }
-                
+
                 async function loadUniverseAnalytics() {
-                    document.getElementById('analysis-content').innerHTML = 
+                    document.getElementById('analysis-content').innerHTML =
                         '<h3>🌐 Universe Analytics</h3><p>Loading cross-instrument analysis...</p>';
-                    
+
                     try {
                         const response = await fetch('/api/universe-analytics');
                         const data = await response.json();
-                        
+
                         const html = `
                             <h3>🌐 Universe Analytics</h3>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
@@ -2080,69 +2080,69 @@ class UnifiedAnalyticsService:
                             <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-top: 20px;">
                                 <h4>🔗 Correlations</h4>
                                 <p><strong>Universe:</strong> ${data.universe_name}</p>
-                                <p><em>Note: This is a demonstration of the universe analytics API. In a full implementation, 
+                                <p><em>Note: This is a demonstration of the universe analytics API. In a full implementation,
                                 this would show correlation matrices, sector analysis, and interactive charts.</em></p>
                             </div>
                         `;
-                        
+
                         document.getElementById('analysis-content').innerHTML = html;
-                        
+
                     } catch (error) {
-                        document.getElementById('analysis-content').innerHTML = 
+                        document.getElementById('analysis-content').innerHTML =
                             '<h3>🌐 Universe Analytics</h3><p style="color: red;">Error loading universe analytics: ' + error.message + '</p>';
                     }
                 }
-                
+
                 async function loadNewsEvents() {
                     // IMPORTANT: Get filter values BEFORE wiping out the content
                     const symbolFilter = document.getElementById('symbol-filter')?.value || '';
                     const startDateFilter = document.getElementById('start-date-filter')?.value || '';
                     const endDateFilter = document.getElementById('end-date-filter')?.value || '';
                     const limit = 50;
-                    
+
                     // Now show loading message
-                    document.getElementById('analysis-content').innerHTML = 
+                    document.getElementById('analysis-content').innerHTML =
                         '<h3>📰 News Events</h3><p>Loading news events from Polygon and Tiingo...</p>';
-                    
+
                     try {
-                        
+
                         // Build query parameters
                         const params = new URLSearchParams();
                         params.append('limit', limit);
                         if (symbolFilter) params.append('symbol', symbolFilter);
                         if (startDateFilter) params.append('start_date', startDateFilter);
                         if (endDateFilter) params.append('end_date', endDateFilter);
-                        
+
                         // Fetch news events with filters
                         const response = await fetch(`/api/news-events?${params.toString()}`);
                         const data = await response.json();
-                        
+
                         let html = ''; // Declare html at function level to avoid scoping issues
-                        
+
                         if (data.success && data.events) {
                             const appliedFilters = data.filters || {};
                             html = `
                                 <h3>📰 News Events Analysis</h3>
-                                
+
                                 <!-- Filter Controls -->
                                 <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
                                     <h4 style="margin: 0 0 15px 0;">🔍 Filter News Events</h4>
                                     <div style="display: grid; grid-template-columns: auto auto auto auto; gap: 15px; align-items: end;">
                                         <div>
                                             <label for="symbol-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">Symbol:</label>
-                                            <input type="text" id="symbol-filter" placeholder="e.g., AAPL" 
+                                            <input type="text" id="symbol-filter" placeholder="e.g., AAPL"
                                                    value="${appliedFilters.symbol || ''}"
                                                    style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 100px;">
                                         </div>
                                         <div>
                                             <label for="start-date-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">Start Date:</label>
-                                            <input type="date" id="start-date-filter" 
+                                            <input type="date" id="start-date-filter"
                                                    value="${appliedFilters.start_date || ''}"
                                                    style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
                                         </div>
                                         <div>
                                             <label for="end-date-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">End Date:</label>
-                                            <input type="date" id="end-date-filter" 
+                                            <input type="date" id="end-date-filter"
                                                    value="${appliedFilters.end_date || ''}"
                                                    style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
                                         </div>
@@ -2156,7 +2156,7 @@ class UnifiedAnalyticsService:
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                                     <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
                                         <h4 style="margin: 0; color: #007bff;">Total Events</h4>
@@ -2171,7 +2171,7 @@ class UnifiedAnalyticsService:
                                         <div style="font-size: 16px; color: #333;">${Object.keys(data.sources || {}).join(', ')}</div>
                                     </div>
                                 </div>
-                                
+
                                 <div style="background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
                                     <div style="background: #007bff; color: white; padding: 15px;">
                                         <h4 style="margin: 0;">📰 Recent News Events</h4>
@@ -2188,12 +2188,12 @@ class UnifiedAnalyticsService:
                                             </thead>
                                             <tbody>
                             `;
-                            
+
                             data.events.forEach((event, index) => {
                                 const publishedDate = event.published_at ? new Date(event.published_at).toLocaleString() : 'N/A';
                                 const symbols = (event.symbols || []).slice(0, 3).join(', ') + (event.symbols && event.symbols.length > 3 ? '...' : '');
                                 const backgroundColor = index % 2 === 0 ? 'white' : '#f8f9fa';
-                                
+
                                 html += `
                                     <tr style="background: ${backgroundColor};">
                                         <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
@@ -2216,27 +2216,27 @@ class UnifiedAnalyticsService:
                                     </tr>
                                 `;
                             });
-                            
+
                             html += `
                                             </tbody>
                                         </table>
                                     </div>
                                 </div>
-                                
+
                                 <div style="margin-top: 20px; padding: 15px; background: #e9ecef; border-radius: 8px;">
                                     <h5>📊 Sources Breakdown:</h5>
                                     <div style="display: flex; gap: 20px;">
                             `;
-                            
+
                             Object.entries(data.sources || {}).forEach(([source, count]) => {
                                 html += `<div><strong>${source}:</strong> ${count} events</div>`;
                             });
-                            
+
                             html += `
                                     </div>
                                 </div>
                             `;
-                            
+
                         } else {
                             html = `
                                 <h3>📰 News Events</h3>
@@ -2246,46 +2246,46 @@ class UnifiedAnalyticsService:
                                 </div>
                             `;
                         }
-                        
+
                         document.getElementById('analysis-content').innerHTML = html;
-                        
+
                     } catch (error) {
-                        document.getElementById('analysis-content').innerHTML = 
+                        document.getElementById('analysis-content').innerHTML =
                             '<h3>📰 News Events</h3><p style="color: red;">Error loading news events: ' + error.message + '</p>';
                     }
                 }
-                
+
                 function clearNewsFilters() {
                     // Clear all filter inputs
                     const symbolFilter = document.getElementById('symbol-filter');
                     const startDateFilter = document.getElementById('start-date-filter');
                     const endDateFilter = document.getElementById('end-date-filter');
-                    
+
                     if (symbolFilter) symbolFilter.value = '';
                     if (startDateFilter) startDateFilter.value = '';
                     if (endDateFilter) endDateFilter.value = '';
-                    
+
                     // Reload news events without filters
                     loadNewsEvents();
                 }
-                
+
                 async function loadTrainingDatasets() {
-                    document.getElementById('analysis-content').innerHTML = 
+                    document.getElementById('analysis-content').innerHTML =
                         '<h3>🤖 Training Datasets</h3><p>Loading ML dataset visualization...</p>';
-                    
+
                     try {
                         console.log('🔍 DATASET DEBUG: Fetching training datasets...');
                         const response = await fetch('/api/v1/training-datasets');
                         console.log('🔍 DATASET DEBUG: Response status:', response.status);
-                        
+
                         if (!response.ok) {
                             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                         }
-                        
+
                         const data = await response.json();
                         console.log('🔍 DATASET DEBUG: Response data:', data);
                         console.log('🔍 DATASET DEBUG: Datasets count:', data.datasets ? data.datasets.length : 0);
-                        
+
                         let html = `
                             <h3>🤖 Training Datasets with OHLC Visualization</h3>
                             <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
@@ -2311,27 +2311,27 @@ class UnifiedAnalyticsService:
                                     </button>
                                 </div>
                             </div>
-                            
+
                             <div id="dataset-visualization" style="display: none;">
                                 <!-- Time Navigation Controls -->
                                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
                                     <h4 style="margin: 0 0 15px 0; font-size: 16px;">🎯 Time Navigation</h4>
-                                    
+
                                     <!-- Navigation Buttons and Position Display -->
                                     <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
                                         <button id="nav-first" onclick="navigateToPosition('first')" style="padding: 8px 16px; border: 1px solid #007acc; background: white; border-radius: 6px; cursor: pointer; font-size: 14px;">⏪ First</button>
                                         <button id="nav-prev" onclick="navigateDirection('prev')" style="padding: 8px 16px; border: 1px solid #007acc; background: white; border-radius: 6px; cursor: pointer; font-size: 14px;">⬅️ Prev</button>
-                                        
+
                                         <div style="flex: 1; margin: 0 15px;">
-                                            <input type="range" id="position-slider" min="0" max="100" value="10" 
-                                                   style="width: 100%; height: 8px; border-radius: 4px; background: #ddd; outline: none;" 
+                                            <input type="range" id="position-slider" min="0" max="100" value="10"
+                                                   style="width: 100%; height: 8px; border-radius: 4px; background: #ddd; outline: none;"
                                                    oninput="navigateToPosition(this.value)" onchange="navigateToPosition(this.value)">
                                         </div>
-                                        
+
                                         <button id="nav-next" onclick="navigateDirection('next')" style="padding: 8px 16px; border: 1px solid #007acc; background: white; border-radius: 6px; cursor: pointer; font-size: 14px;">➡️ Next</button>
                                         <button id="nav-last" onclick="navigateToPosition('last')" style="padding: 8px 16px; border: 1px solid #007acc; background: white; border-radius: 6px; cursor: pointer; font-size: 14px;">⏩ Last</button>
                                     </div>
-                                    
+
                                     <!-- Position Info -->
                                     <div style="display: flex; justify-content: space-between; font-size: 14px; color: #666;">
                                         <div id="position-info">Position 10 of 101</div>
@@ -2340,7 +2340,7 @@ class UnifiedAnalyticsService:
                                         <div id="loading-status" style="color: #007acc; display: none;">🔄 Loading...</div>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Multi-Timeframe OHLC Charts Grid -->
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
                                     <!-- 5-Minute Chart -->
@@ -2348,58 +2348,58 @@ class UnifiedAnalyticsService:
                                         <h4 style="margin: 0 0 10px 0; font-size: 14px;">📈 5-Minute OHLC</h4>
                                         <div id="ohlc-chart-5m" style="height: 300px;"></div>
                                     </div>
-                                    
+
                                     <!-- 15-Minute Chart -->
                                     <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
                                         <h4 style="margin: 0 0 10px 0; font-size: 14px;">📈 15-Minute OHLC</h4>
                                         <div id="ohlc-chart-15m" style="height: 300px;"></div>
                                     </div>
-                                    
+
                                     <!-- 1-Hour Chart -->
                                     <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
                                         <h4 style="margin: 0 0 10px 0; font-size: 14px;">📈 1-Hour OHLC</h4>
                                         <div id="ohlc-chart-1h" style="height: 300px;"></div>
                                     </div>
-                                    
+
                                     <!-- Daily Chart -->
                                     <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
                                         <h4 style="margin: 0 0 10px 0; font-size: 14px;">📈 Daily OHLC</h4>
                                         <div id="ohlc-chart-1d" style="height: 300px;"></div>
                                     </div>
-                                    
+
                                     <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
                                         <h4 style="margin: 0 0 10px 0; font-size: 14px;">📈 Weekly OHLC</h4>
                                         <div id="ohlc-chart-1w" style="height: 300px;"></div>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Dataset Information -->
                                 <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
                                     <h4 style="margin-top: 0;">📊 Multi-Timeframe Dataset Information</h4>
                                     <div id="dataset-info"></div>
                                 </div>
                                 </div>
-                                
+
                                 <!-- Sequence Data Table -->
                                 <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
                                     <h4 style="margin-top: 0;">📋 Training Sequence Data (±10 bars from selected row)</h4>
                                     <div id="sequence-table" style="overflow-x: auto;"></div>
                                 </div>
                             </div>
-                            
+
                             <!-- Available Datasets Summary -->
                             <div style="margin-top: 20px; background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
                                 <h4>📚 Available Datasets Summary (${data.total_count} total)</h4>
                                 <div id="datasets-summary"></div>
                             </div>
                         `;
-                        
+
                         document.getElementById('analysis-content').innerHTML = html;
-                        
+
                         // Populate dataset selector
                         const selector = document.getElementById('dataset-selector');
                         console.log('🔍 DATASET DEBUG: Dataset selector found:', !!selector);
-                        
+
                         if (data.datasets && data.datasets.length > 0) {
                             console.log('🔍 DATASET DEBUG: Populating selector with', data.datasets.length, 'datasets');
                             data.datasets.forEach((dataset, index) => {
@@ -2409,7 +2409,7 @@ class UnifiedAnalyticsService:
                                 selector.appendChild(option);
                                 console.log(`🔍 DATASET DEBUG: Added dataset ${index + 1}:`, option.textContent);
                             });
-                            
+
                             // Show datasets summary
                             let summaryHtml = `
                                 <div style="display: grid; grid-template-columns: auto 2fr 1fr 1fr 1fr; gap: 10px; padding: 10px; background: #f8f9fa; border-bottom: 2px solid #dee2e6; font-weight: bold;">
@@ -2436,31 +2436,31 @@ class UnifiedAnalyticsService:
                             console.log('🔍 DATASET DEBUG: No datasets found in response');
                             document.getElementById('datasets-summary').innerHTML = '<p>No training datasets found.</p>';
                         }
-                        
+
                     } catch (error) {
                         console.error('🔍 DATASET DEBUG: Error loading datasets:', error);
-                        document.getElementById('analysis-content').innerHTML = 
+                        document.getElementById('analysis-content').innerHTML =
                             '<h3>🤖 Training Datasets</h3><p style="color: red;">Error loading training datasets: ' + error.message + '</p>';
                     }
                 }
-                
+
                 async function loadSequenceFiles() {
                     const datasetId = document.getElementById('dataset-selector').value;
                     const sequenceSelector = document.getElementById('sequence-selector');
-                    
+
                     if (!datasetId) {
                         sequenceSelector.innerHTML = '<option value="">Choose a sequence...</option>';
                         sequenceSelector.disabled = true;
                         return;
                     }
-                    
+
                     sequenceSelector.innerHTML = '<option value="">Loading sequences...</option>';
                     sequenceSelector.disabled = true;
-                    
+
                     try {
                         const response = await fetch(`/api/v1/training-datasets/${datasetId}/sequences`);
                         const data = await response.json();
-                        
+
                         if (data.sequences && data.sequences.length > 0) {
                             let options = '<option value="">Choose a sequence...</option>';
                             data.sequences.forEach(seq => {
@@ -2479,62 +2479,62 @@ class UnifiedAnalyticsService:
                         sequenceSelector.disabled = true;
                     }
                 }
-                
+
                 async function loadDatasetVisualization() {
                     const datasetId = document.getElementById('dataset-selector').value;
                     const sequenceId = document.getElementById('sequence-selector').value;
                     const rowIndex = document.getElementById('row-selector').value || 0;
-                    
+
                     console.log('🎯 CLIENT DEBUG: Starting visualization load');
                     console.log(`   Dataset ID: ${datasetId}`);
                     console.log(`   Sequence ID: ${sequenceId}`);
                     console.log(`   Row Index: ${rowIndex}`);
-                    
+
                     if (!datasetId) {
                         alert('Please select a dataset first');
                         return;
                     }
-                    
+
                     if (!sequenceId) {
                         alert('Please select a sequence first');
                         return;
                     }
-                    
+
                     // Show loading state
                     document.getElementById('dataset-visualization').style.display = 'block';
-                    
+
                     // Set loading state for all timeframe charts
                     const timeframes = ['5m', '15m', '1h', '1d', '1w'];
                     timeframes.forEach(tf => {
                         document.getElementById(`ohlc-chart-${tf}`).innerHTML = `<p>Loading ${tf} chart...</p>`;
                     });
-                    
+
                     document.getElementById('dataset-info').innerHTML = '<p>Loading dataset info...</p>';
                     document.getElementById('sequence-table').innerHTML = '<p>Loading sequence data...</p>';
-                    
+
                     try {
                         // Use NEW multi-timeframe endpoint with row index parameter
                         const apiUrl = `/api/v1/training-datasets/${datasetId}/sequences/${sequenceId}/multi-timeframe?row_index=${rowIndex}`;
                         console.log(`🌐 CLIENT DEBUG: Fetching from ${apiUrl} (row index: ${rowIndex})`);
-                        
+
                         const response = await fetch(apiUrl);
                         const multiTimeframeData = await response.json();
-                        
+
                         console.log('✅ CLIENT DEBUG: Multi-timeframe data received');
                         console.log(`   Success: ${multiTimeframeData.success}`);
                         console.log(`   Sequence ID: ${multiTimeframeData.sequence_id}`);
                         console.log(`   Available timeframes: ${multiTimeframeData.available_timeframes}`);
                         console.log(`   OHLC data keys: ${Object.keys(multiTimeframeData.ohlc_data || {})}`);
                         console.log(`   Table rows: ${multiTimeframeData.table_data?.length || 0}`);
-                        
+
                         if (multiTimeframeData.error) {
                             throw new Error(multiTimeframeData.error);
                         }
-                        
+
                         if (!multiTimeframeData.success) {
                             throw new Error('Multi-timeframe data fetch failed');
                         }
-                        
+
                         // Display dataset info
                         const symbol = multiTimeframeData.sequence_id ? multiTimeframeData.sequence_id.split('_')[0] : 'UNKNOWN';
                         document.getElementById('dataset-info').innerHTML = `
@@ -2546,31 +2546,31 @@ class UnifiedAnalyticsService:
                                 <p><strong>Total OHLC Records:</strong> ${Object.values(multiTimeframeData.ohlc_data || {}).reduce((total, data) => total + data.length, 0)}</p>
                             </div>
                         `;
-                        
+
                         console.log('📊 CLIENT DEBUG: Starting Plotly chart creation');
-                        
+
                         // Create OHLC charts for each timeframe
                         for (const timeframe of timeframes) {
                             const chartDiv = document.getElementById('ohlc-chart-' + timeframe);
                             const ohlcData = multiTimeframeData.ohlc_data[timeframe];
-                            
+
                             console.log('📈 CLIENT DEBUG: Processing ' + timeframe + ' chart');
                             console.log('   Data available: ' + !!ohlcData);
                             console.log('   Data length: ' + (ohlcData ? ohlcData.length : 0));
-                            
+
                             if (ohlcData && ohlcData.length > 0) {
                                 console.log('   Sample data: ', ohlcData[0]);
-                                
+
                                 // Prepare data for Plotly - timestamp is Unix epoch seconds
                                 const dates = ohlcData.map(bar => new Date(bar.timestamp * 1000));
                                 const opens = ohlcData.map(bar => bar.open);
                                 const highs = ohlcData.map(bar => bar.high);
                                 const lows = ohlcData.map(bar => bar.low);
                                 const closes = ohlcData.map(bar => bar.close);
-                                
+
                                 console.log('   Prepared ' + dates.length + ' data points for ' + timeframe);
                                 console.log('   Date range: ' + dates[0] + ' to ' + dates[dates.length-1]);
-                                
+
                                 const plotlyData = [{
                                     x: dates,
                                     open: opens,
@@ -2582,7 +2582,7 @@ class UnifiedAnalyticsService:
                                     increasing: { line: { color: '#00CC88' }},
                                     decreasing: { line: { color: '#FF6B6B' }}
                                 }];
-                                
+
                                 const layout = {
                                     title: symbol + ' - ' + timeframe.toUpperCase() + ' OHLC',
                                     xaxis: { title: 'Time' },
@@ -2591,9 +2591,9 @@ class UnifiedAnalyticsService:
                                     margin: { t: 40, b: 40, l: 60, r: 20 },
                                     showlegend: false
                                 };
-                                
+
                                 console.log('🎨 CLIENT DEBUG: Creating ' + timeframe + ' Plotly chart');
-                                
+
                                 try {
                                     await Plotly.newPlot(chartDiv, plotlyData, layout, {responsive: true});
                                     console.log('✅ CLIENT DEBUG: ' + timeframe + ' chart created successfully');
@@ -2606,15 +2606,15 @@ class UnifiedAnalyticsService:
                                 chartDiv.innerHTML = '<p style="color: orange;">No ' + timeframe + ' data available</p>';
                             }
                         }
-                        
+
                         console.log('📋 CLIENT DEBUG: Creating table view');
-                        
+
                         // Create table view from 1h data
                         const tableData = multiTimeframeData.table_data;
                         if (tableData && tableData.length > 0) {
                             console.log('✅ CLIENT DEBUG: Table data available: ' + tableData.length + ' rows');
                             console.log('   Sample table row:', tableData[0]);
-                            
+
                             let tableHtml = '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">' +
                                 '<thead>' +
                                 '<tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">' +
@@ -2627,7 +2627,7 @@ class UnifiedAnalyticsService:
                                 '</tr>' +
                                 '</thead>' +
                                 '<tbody>';
-                            
+
                             tableData.forEach((row, idx) => {
                                 const date = new Date(row.timestamp * 1000);
                                 const bgColor = idx % 2 === 0 ? 'background: #f9f9f9;' : '';
@@ -2640,21 +2640,21 @@ class UnifiedAnalyticsService:
                                     '<td style="padding: 6px; text-align: right;">' + (row.volume?.toLocaleString() || 'N/A') + '</td>' +
                                     '</tr>';
                             });
-                            
+
                             tableHtml += '</tbody></table>';
                             document.getElementById('sequence-table').innerHTML = tableHtml;
-                            
+
                             console.log('✅ CLIENT DEBUG: Table created with ' + tableData.length + ' rows');
                         } else {
                             console.log('⚠️  CLIENT DEBUG: No table data available');
                             document.getElementById('sequence-table').innerHTML = '<p style="color: orange;">No table data available</p>';
                         }
-                        
+
                         console.log('✅ CLIENT DEBUG: Visualization loading completed');
-                        
+
                     } catch (error) {
                         console.error('❌ CLIENT DEBUG: Visualization error:', error);
-                        
+
                         // Set error state for all charts
                         timeframes.forEach(tf => {
                             document.getElementById(`ohlc-chart-${tf}`).innerHTML = `<p style="color: red;">Error loading ${tf} chart: ${error.message}</p>`;
@@ -2663,16 +2663,16 @@ class UnifiedAnalyticsService:
                         document.getElementById('sequence-table').innerHTML = `<p style="color: red;">Error loading sequence data: ${error.message}</p>`;
                     }
                 }
-                
+
                 function createTimeframeOHLCChart(timeframe, sequenceData) {
                     const data = sequenceData.data;
                     const chartId = `ohlc-chart-${timeframe}`;
-                    
+
                     if (!data || data.length === 0) {
                         document.getElementById(chartId).innerHTML = `<p>No ${timeframe} sequence data available</p>`;
                         return;
                     }
-                    
+
                     // Generate x-axis values (time steps or actual datetime if available)
                     const xValues = data.map((bar, idx) => {
                         // Use datetime if available, otherwise time steps
@@ -2681,7 +2681,7 @@ class UnifiedAnalyticsService:
                         }
                         return `Step ${idx + 1}`;
                     });
-                    
+
                     // Create OHLC candlestick trace
                     const ohlcTrace = {
                         x: xValues,
@@ -2695,9 +2695,9 @@ class UnifiedAnalyticsService:
                         decreasing: {line: {color: '#ff4444'}},
                         showlegend: false  // Hide legend in individual charts to save space
                     };
-                    
+
                     const traces = [ohlcTrace];
-                    
+
                     // Add envelope_top indicator
                     if (data.some(d => d.envelope_top > 0)) {
                         traces.push({
@@ -2711,7 +2711,7 @@ class UnifiedAnalyticsService:
                             showlegend: false
                         });
                     }
-                    
+
                     // Add envelope_bot indicator
                     if (data.some(d => d.envelope_bot > 0)) {
                         traces.push({
@@ -2725,7 +2725,7 @@ class UnifiedAnalyticsService:
                             showlegend: false
                         });
                     }
-                    
+
                     // Add pldot indicator
                     const pldotValues = data.map(d => d.pldot || null);
                     if (pldotValues.some(v => v !== null && v > 0)) {
@@ -2740,7 +2740,7 @@ class UnifiedAnalyticsService:
                             showlegend: false
                         });
                     }
-                    
+
                     // Chart layout with compact design for grid
                     const layout = {
                         title: {
@@ -2763,21 +2763,21 @@ class UnifiedAnalyticsService:
                         height: 300,
                         margin: {l: 50, r: 20, t: 30, b: 30}
                     };
-                    
+
                     // Create the plot
                     Plotly.newPlot(chartId, traces, layout, {responsive: true});
                 }
-                
+
                 function createSequenceTable(sequenceData) {
                     const data = sequenceData.data;
                     if (!data || data.length === 0) {
                         document.getElementById('sequence-table').innerHTML = '<p>No sequence data available</p>';
                         return;
                     }
-                    
+
                     // Check if datetime features are available
                     const hasDatetimeFeatures = data[0] && data[0].datetime && data[0].datetime !== null;
-                    
+
                     // Create table with all sequence data
                     let tableHtml = `
                         <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
@@ -2798,11 +2798,11 @@ class UnifiedAnalyticsService:
                             </thead>
                             <tbody>
                     `;
-                    
+
                     data.forEach((bar, index) => {
                         const isSelectedBar = index === sequenceData.selected_bar;
                         const rowStyle = isSelectedBar ? 'background: #fff3cd; font-weight: bold;' : '';
-                        
+
                         tableHtml += `
                             <tr style="${rowStyle}">
                                 <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${bar.time_step + 1}${isSelectedBar ? ' 🎯' : ''}</td>
@@ -2819,9 +2819,9 @@ class UnifiedAnalyticsService:
                             </tr>
                         `;
                     });
-                    
+
                     tableHtml += '</tbody></table>';
-                    
+
                     // Add summary information
                     const summaryHtml = `
                         <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
@@ -2830,10 +2830,10 @@ class UnifiedAnalyticsService:
                             <p style="margin: 5px 0;"><strong>Technical Indicators:</strong> Envelope Top/Bottom (support/resistance), PL Dot (pivot lows)</p>
                         </div>
                     `;
-                    
+
                     document.getElementById('sequence-table').innerHTML = tableHtml + summaryHtml;
                 }
-                
+
                 async function loadMultiPanelVisualization() {
                     document.getElementById('analysis-content').innerHTML = `
                         <h3>🎨 Multi-Panel Trading Charts</h3>
@@ -2842,7 +2842,7 @@ class UnifiedAnalyticsService:
                             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; align-items: center; margin-bottom: 15px;">
                                 <div>
                                     <label for="symbol-input" style="font-weight: bold;">Symbol:</label>
-                                    <input type="text" id="symbol-input" value="AAPL" placeholder="Enter symbol" 
+                                    <input type="text" id="symbol-input" value="AAPL" placeholder="Enter symbol"
                                            style="margin-left: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 100px;">
                                 </div>
                                 <div>
@@ -2859,12 +2859,12 @@ class UnifiedAnalyticsService:
                                     <input type="number" id="dataset-input" value="1" min="1" placeholder="Dataset ID"
                                            style="margin-left: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 80px;">
                                 </div>
-                                <button onclick="generateMultiPanelChart()" id="generate-btn" 
+                                <button onclick="generateMultiPanelChart()" id="generate-btn"
                                         style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
                                     🎨 Generate Chart
                                 </button>
                             </div>
-                            
+
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #007bff;">
                                 <h5 style="margin: 0 0 10px 0;">📊 Chart Layout</h5>
                                 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 10px;">
@@ -2883,18 +2883,18 @@ class UnifiedAnalyticsService:
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Status Panel -->
                         <div id="status-panel" style="display: none; margin-bottom: 20px;">
                             <div id="status-message"></div>
                         </div>
-                        
+
                         <!-- Features Panel -->
                         <div id="features-panel" style="display: none; background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
                             <h4>📋 Extracted Features</h4>
                             <div id="features-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;"></div>
                         </div>
-                        
+
                         <!-- Chart Panel -->
                         <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
                             <h4>📈 Multi-Panel Trading Visualization</h4>
@@ -2915,34 +2915,34 @@ class UnifiedAnalyticsService:
                         </div>
                     `;
                 }
-                
+
                 async function generateMultiPanelChart() {
                     const symbol = document.getElementById('symbol-input').value.toUpperCase().trim();
                     const timeframe = document.getElementById('timeframe-select').value;
                     const datasetId = document.getElementById('dataset-input').value;
-                    
+
                     if (!symbol || !datasetId) {
                         showStatus('error', 'Please enter both symbol and dataset ID');
                         return;
                     }
-                    
+
                     const generateBtn = document.getElementById('generate-btn');
                     const chartContainer = document.getElementById('chart-container');
-                    
+
                     // Show loading state
                     generateBtn.disabled = true;
                     generateBtn.textContent = '⏳ Generating...';
                     chartContainer.innerHTML = '<div style="text-align: center; padding: 40px;"><h4>⏳ Generating Multi-Panel Chart...</h4><p>Extracting features and creating visualization...</p></div>';
                     showStatus('info', `Generating multi-panel chart for ${symbol} (${timeframe}) from dataset ${datasetId}...`);
-                    
+
                     try {
                         const response = await fetch(`/api/multi-panel-chart?symbol=${symbol}&timeframe=${timeframe}&dataset_id=${datasetId}`);
                         const result = await response.json();
-                        
+
                         if (result.success) {
                             // Display the chart image
                             chartContainer.innerHTML = `
-                                <img src="data:image/png;base64,${result.chart_image}" 
+                                <img src="data:image/png;base64,${result.chart_image}"
                                      style="width: 100%; height: auto; border-radius: 6px; border: 2px solid #ddd;"
                                      alt="Multi-Panel Trading Chart">
                                 <div style="text-align: center; color: #666; margin-top: 15px; font-size: 14px;">
@@ -2950,7 +2950,7 @@ class UnifiedAnalyticsService:
                                     Generated: ${result.timestamp} | Features: ${result.features_count} | Dataset: ${datasetId}
                                 </div>
                             `;
-                            
+
                             // Show extracted features
                             displayFeatures(result.features);
                             showStatus('success', `Multi-panel chart generated successfully! Extracted ${result.features_count} features.`);
@@ -2966,13 +2966,13 @@ class UnifiedAnalyticsService:
                         generateBtn.textContent = '🎨 Generate Chart';
                     }
                 }
-                
+
                 function displayFeatures(features) {
                     if (!features) return;
-                    
+
                     const featuresGrid = document.getElementById('features-grid');
                     const featuresPanel = document.getElementById('features-panel');
-                    
+
                     // Group features by type
                     const featureGroups = {
                         'OHLCV': [],
@@ -2981,11 +2981,11 @@ class UnifiedAnalyticsService:
                         'BX Trender': [],
                         'Other': []
                     };
-                    
+
                     Object.entries(features).forEach(([key, value]) => {
                         const formattedValue = typeof value === 'number' ? value.toFixed(4) : value;
                         const item = `${key}: ${formattedValue}`;
-                        
+
                         if (key.includes('open') || key.includes('high') || key.includes('low') || key.includes('close') || key.includes('volume')) {
                             if (!key.includes('volume_profile')) featureGroups['OHLCV'].push(item);
                             else featureGroups['Volume Profile'].push(item);
@@ -2999,7 +2999,7 @@ class UnifiedAnalyticsService:
                             featureGroups['Other'].push(item);
                         }
                     });
-                    
+
                     // Create feature cards
                     featuresGrid.innerHTML = '';
                     Object.entries(featureGroups).forEach(([group, items]) => {
@@ -3016,24 +3016,24 @@ class UnifiedAnalyticsService:
                             featuresGrid.appendChild(card);
                         }
                     });
-                    
+
                     featuresPanel.style.display = 'block';
                 }
-                
+
                 function showStatus(type, message) {
                     const statusPanel = document.getElementById('status-panel');
                     const statusMessage = document.getElementById('status-message');
-                    
+
                     const colors = {
                         'error': '#f8d7da; color: #721c24; border-left: 4px solid #dc3545;',
                         'success': '#d4edda; color: #155724; border-left: 4px solid #28a745;',
                         'info': '#d1ecf1; color: #0c5460; border-left: 4px solid #17a2b8;'
                     };
-                    
+
                     statusMessage.style.cssText = `background: ${colors[type]} padding: 15px; border-radius: 6px;`;
                     statusMessage.innerHTML = `<strong>${type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️'} ${type.toUpperCase()}:</strong> ${message}`;
                     statusPanel.style.display = 'block';
-                    
+
                     // Auto-hide success/info messages
                     if (type !== 'error') {
                         setTimeout(() => {
@@ -3041,61 +3041,61 @@ class UnifiedAnalyticsService:
                         }, 5000);
                     }
                 }
-                
+
                 function loadRayAnalytics() {
-                    document.getElementById('analysis-content').innerHTML = 
+                    document.getElementById('analysis-content').innerHTML =
                         '<h3>⚡ Distributed Analytics</h3><p>Loading Ray distributed computing...</p>';
                     // Implementation would load Ray analytics interface
                 }
-                
+
                 // ==============================================
                 // TIME NAVIGATION FUNCTIONS
                 // ==============================================
-                
+
                 let currentRowIndex = 10;
                 let currentDatasetId = null;
                 let currentSequenceId = null;
                 let isNavigating = false;
                 let navigationMetadata = null;
-                
+
                 async function loadNavigationMetadata() {
                     if (!currentDatasetId || !currentSequenceId) return;
-                    
+
                     try {
                         const url = `/api/v1/training-datasets/${currentDatasetId}/sequences/${currentSequenceId}/navigation-metadata`;
                         const response = await fetch(url);
-                        
+
                         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                        
+
                         navigationMetadata = await response.json();
                         updateNavigationRanges();
-                        
+
                         console.log('✅ Navigation metadata loaded:', navigationMetadata);
-                        
+
                     } catch (error) {
                         console.error('❌ Failed to load navigation metadata:', error);
                     }
                 }
-                
+
                 function updateNavigationRanges() {
                     if (!navigationMetadata) return;
-                    
+
                     const slider = document.getElementById('position-slider');
                     const nav = navigationMetadata.navigation;
-                    
+
                     if (slider) {
                         slider.min = nav.min_row_index;
                         slider.max = nav.max_row_index;
                         slider.value = currentRowIndex;
                     }
                 }
-                
+
                 async function navigateToPosition(position) {
                     if (isNavigating || !currentDatasetId || !currentSequenceId) return;
-                    
+
                     try {
                         setNavigationLoadingState(true);
-                        
+
                         let url;
                         if (typeof position === 'string') {
                             // Direction-based navigation
@@ -3108,21 +3108,21 @@ class UnifiedAnalyticsService:
                             // Position-based navigation
                             url = `/api/v1/training-datasets/${currentDatasetId}/sequences/${currentSequenceId}/navigate?row_index=${position}`;
                         }
-                        
+
                         console.log('🎯 Navigating to:', url);
-                        
+
                         const response = await fetch(url);
                         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                        
+
                         const data = await response.json();
-                        
+
                         if (data.success) {
                             updateVisualizationFromNavigation(data);
                             console.log('✅ Navigation successful:', data.navigation_context);
                         } else {
                             throw new Error('Navigation was not successful');
                         }
-                        
+
                     } catch (error) {
                         console.error('❌ Navigation failed:', error);
                         showNavigationError(`Navigation failed: ${error.message}`);
@@ -3130,31 +3130,31 @@ class UnifiedAnalyticsService:
                         setNavigationLoadingState(false);
                     }
                 }
-                
+
                 async function navigateDirection(direction) {
                     await navigateToPosition(direction);
                 }
-                
+
                 function updateVisualizationFromNavigation(navigationData) {
                     console.log('🔍 CLIENT DEBUG: Navigation data received:', navigationData);
-                    
+
                     const navContext = navigationData.navigation_context;
                     const tableData = navigationData.table_data || [];
                     // The API returns 'ohlc_data' not 'multi_timeframe_data'
                     const multiTimeframeData = navigationData.ohlc_data || navigationData.multi_timeframe_data || {};
-                    
+
                     console.log('🔍 CLIENT DEBUG: Table data count:', tableData.length);
                     console.log('🔍 CLIENT DEBUG: Multi-timeframe keys:', Object.keys(multiTimeframeData));
                     console.log('🔍 CLIENT DEBUG: Navigation context:', navContext);
                     console.log('🔍 CLIENT DEBUG: All response keys:', Object.keys(navigationData));
-                    
+
                     // Update current position
                     currentRowIndex = navContext.current_row_index;
                     console.log('🔍 CLIENT DEBUG: Updated currentRowIndex to:', currentRowIndex);
-                    
+
                     // Update navigation UI
                     updateNavigationDisplay(navContext, tableData);
-                    
+
                     // Update charts with new data
                     if (multiTimeframeData && Object.keys(multiTimeframeData).length > 0) {
                         const timeframes = ['5m', '15m', '1h', '1d', '1w'];
@@ -3171,7 +3171,7 @@ class UnifiedAnalyticsService:
                     } else {
                         console.log('🔍 CLIENT DEBUG: No multi-timeframe data to update charts');
                     }
-                    
+
                     // Update table
                     if (tableData.length > 0) {
                         console.log('🔍 CLIENT DEBUG: Updating table with', tableData.length, 'rows');
@@ -3179,45 +3179,45 @@ class UnifiedAnalyticsService:
                     } else {
                         console.log('🔍 CLIENT DEBUG: No table data to update');
                     }
-                    
+
                     // Update dataset info
                     updateDatasetInfo(navigationData);
                 }
-                
+
                 function updateNavigationDisplay(navContext, tableData) {
                     const positionInfo = document.getElementById('position-info');
                     const dateInfo = document.getElementById('date-info');
                     const barsInfo = document.getElementById('bars-info');
                     const slider = document.getElementById('position-slider');
-                    
+
                     if (positionInfo && navigationMetadata) {
                         const totalPositions = navigationMetadata.navigation.total_positions;
                         positionInfo.textContent = `Position ${currentRowIndex} of ${totalPositions}`;
                     }
-                    
+
                     if (dateInfo && navContext.timestamp_range && navContext.timestamp_range.start) {
                         const startDate = new Date(navContext.timestamp_range.start * 1000);
                         dateInfo.textContent = startDate.toLocaleDateString() + ' ' + startDate.toLocaleTimeString();
                     }
-                    
+
                     if (barsInfo) {
                         barsInfo.textContent = `${tableData.length} bars`;
                     }
-                    
+
                     if (slider) {
                         slider.value = currentRowIndex;
                     }
                 }
-                
+
                 function updateSequenceTable(tableData) {
                     const tableDiv = document.getElementById('sequence-table');
                     if (!tableDiv || !tableData || tableData.length === 0) {
                         console.log('🔍 CLIENT DEBUG: Cannot update table - missing tableDiv or data');
                         return;
                     }
-                    
+
                     console.log('🔍 CLIENT DEBUG: First row data sample:', tableData[0]);
-                    
+
                     let tableHtml = `
                         <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
                             <thead>
@@ -3232,16 +3232,16 @@ class UnifiedAnalyticsService:
                             </thead>
                             <tbody>
                     `;
-                    
+
                     // Show first 10 rows
                     tableData.slice(0, 10).forEach((row, index) => {
                         const timestamp = new Date(row.timestamp * 1000);
                         const timeStr = timestamp.toLocaleTimeString();
-                        
+
                         if (index === 0) {
                             console.log(`🔍 CLIENT DEBUG: First row - timestamp: ${row.timestamp}, open: ${row.open}, close: ${row.close}`);
                         }
-                        
+
                         tableHtml += `
                             <tr>
                                 <td style="padding: 8px; border: 1px solid #ddd;">${timeStr}</td>
@@ -3253,20 +3253,20 @@ class UnifiedAnalyticsService:
                             </tr>
                         `;
                     });
-                    
+
                     tableHtml += '</tbody></table>';
                     const oldHtml = tableDiv.innerHTML;
                     tableDiv.innerHTML = tableHtml;
-                    
+
                     console.log(`🔍 CLIENT DEBUG: Table updated - HTML changed: ${oldHtml !== tableHtml}`);
                 }
-                
+
                 function updateDatasetInfo(navigationData) {
                     const infoDiv = document.getElementById('dataset-info');
                     if (!infoDiv) return;
-                    
+
                     const symbol = navigationData.sequence_id ? navigationData.sequence_id.split('_')[0] : 'UNKNOWN';
-                    
+
                     infoDiv.innerHTML = `
                         <div style="line-height: 1.6;">
                             <p><strong>Dataset:</strong> ${navigationData.dataset_name || 'Loading...'}</p>
@@ -3276,53 +3276,53 @@ class UnifiedAnalyticsService:
                         </div>
                     `;
                 }
-                
+
                 function setNavigationLoadingState(loading) {
                     isNavigating = loading;
                     const loadingStatus = document.getElementById('loading-status');
                     const buttons = document.querySelectorAll('#nav-first, #nav-prev, #nav-next, #nav-last');
                     const slider = document.getElementById('position-slider');
-                    
+
                     if (loadingStatus) {
                         loadingStatus.style.display = loading ? 'block' : 'none';
                     }
-                    
+
                     buttons.forEach(btn => {
                         if (btn) btn.disabled = loading;
                     });
-                    
+
                     if (slider) {
                         slider.disabled = loading;
                     }
                 }
-                
+
                 function showNavigationError(message) {
                     console.error('Navigation Error:', message);
                     // You could add a toast notification here
                 }
-                
+
                 // Override the existing loadDatasetVisualization to integrate navigation
                 const originalLoadDatasetVisualization = loadDatasetVisualization;
                 loadDatasetVisualization = async function() {
                     // Store current selection for navigation
                     currentDatasetId = document.getElementById('dataset-selector').value;
                     currentSequenceId = document.getElementById('sequence-selector').value;
-                    
+
                     // Call the original function
                     await originalLoadDatasetVisualization();
-                    
+
                     // Load navigation metadata after visualization loads
                     await loadNavigationMetadata();
                 };
-                
+
                 // Add keyboard shortcuts for navigation
                 document.addEventListener('keydown', function(e) {
                     if (isNavigating || !currentDatasetId || !currentSequenceId) return;
-                    
+
                     // Only handle navigation shortcuts when in training datasets view
                     const datasetVisualization = document.getElementById('dataset-visualization');
                     if (!datasetVisualization || datasetVisualization.style.display === 'none') return;
-                    
+
                     switch(e.key) {
                         case 'ArrowLeft':
                             e.preventDefault();
@@ -3342,9 +3342,9 @@ class UnifiedAnalyticsService:
                             break;
                     }
                 });
-                
+
                 console.log('🎮 Time Navigation initialized. Keyboard shortcuts: ← → (prev/next), Home/End (first/last)');
-                
+
             </script>
         </body>
         </html>
@@ -3356,16 +3356,16 @@ class UnifiedAnalyticsService:
 
 class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
     """HTTP request handler for the unified analytics service."""
-    
+
     def __init__(self, *args, **kwargs):
         self.analytics_service = UnifiedAnalyticsService()
         super().__init__(*args, **kwargs)
-    
+
     def do_GET(self):
         """Handle GET requests."""
         try:
             logger.info(f"📍 GET request: {self.path}")
-            
+
             if self.path == '/health':
                 self._serve_health_check()
             elif self.path == '/eda' or self.path == '/':
@@ -3409,17 +3409,17 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_table_distributions()
             else:
                 self._serve_404()
-                
+
         except Exception as e:
             logger.error(f"Error handling GET request: {e}")
             self._serve_500(str(e))
-    
+
     def _serve_health_check(self):
         """Serve health check response."""
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         health_status = {
             "status": "healthy",
             "service": "ats-unified-analytics",
@@ -3431,41 +3431,41 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 "training_datasets": True
             }
         }
-        
+
         self.wfile.write(json.dumps(health_status).encode('utf-8'))
-    
+
     def _serve_eda_dashboard(self):
         """Serve the unified EDA dashboard."""
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
-        
+
         html_content = self.analytics_service.get_eda_dashboard_html()
         self.wfile.write(html_content.encode('utf-8'))
-    
+
     def _serve_intelligent_filters(self):
         """Serve intelligent filter definitions."""
         # Extract table name from path
         path_parts = self.path.split('/')
         table_name = path_parts[-1] if len(path_parts) > 3 else 'default'
-        
+
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         # This would be async in a real implementation
         filters = asyncio.run(self.analytics_service.get_intelligent_filters(table_name))
         self.wfile.write(json.dumps(filters, indent=2).encode('utf-8'))
-    
+
     def _serve_universe_analytics(self):
         """Serve universe analytics."""
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         analytics = asyncio.run(self.analytics_service.get_universe_analytics())
         self.wfile.write(json.dumps(analytics, indent=2).encode('utf-8'))
-    
+
     async def _serve_multi_panel_chart(self):
         """Serve multi-panel chart generation API."""
         try:
@@ -3473,57 +3473,57 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             from urllib.parse import urlparse, parse_qs
             parsed_url = urlparse(self.path)
             params = parse_qs(parsed_url.query)
-            
+
             symbol = params.get('symbol', ['AAPL'])[0]
             timeframe = params.get('timeframe', ['1h'])[0]
             dataset_id = int(params.get('dataset_id', ['1'])[0])
-            
+
             # Generate chart
             result = await self.analytics_service.generate_multi_panel_chart(
                 symbol=symbol,
                 timeframe=timeframe,
                 dataset_id=dataset_id
             )
-            
+
             # Send response
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
-            
+
             self.wfile.write(json.dumps(result).encode('utf-8'))
-            
+
         except Exception as e:
             logger.error(f"❌ Error serving multi-panel chart: {e}")
-            
+
             error_response = {
                 "success": False,
                 "error": f"Server error: {str(e)}"
             }
-            
+
             self.send_response(500)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            
+
             self.wfile.write(json.dumps(error_response).encode('utf-8'))
-    
+
     def _serve_training_datasets(self):
         """Serve training datasets."""
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         datasets = self.analytics_service.get_training_datasets()
         self.wfile.write(json.dumps(datasets, indent=2).encode('utf-8'))
-    
+
     def _serve_training_dataset_sequence(self):
         """Serve training dataset sequence data for OHLC visualization."""
         from urllib.parse import urlparse, parse_qs
-        
+
         # Parse URL and query parameters
         parsed_url = urlparse(self.path)
         query_params = parse_qs(parsed_url.query)
-        
+
         # Extract dataset_id and row_index from path like /api/v1/training-datasets/sequence/1/50
         path_parts = parsed_url.path.split('/')
         try:
@@ -3535,14 +3535,14 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"error": "Invalid dataset_id or row_index"}).encode('utf-8'))
             return
-        
+
         # Extract timeframe from query parameters (e.g., ?timeframe=5m)
         timeframe = query_params.get('timeframe', ['5m'])[0]  # Default to 5m if not specified
-        
+
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         try:
             sequence_data = self.analytics_service.get_training_dataset_sequence(dataset_id, row_index, timeframe)
             self.wfile.write(json.dumps(sequence_data, indent=2, default=str).encode('utf-8'))
@@ -3556,11 +3556,11 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 "message": "No ArrayRecord data available - please generate training data first"
             }
             self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
-    
+
     def _serve_training_dataset_sequences(self):
         """Serve available sequences for a training dataset."""
         from urllib.parse import urlparse
-        
+
         # Extract dataset_id from path like /api/v1/training-datasets/38/sequences
         path_parts = urlparse(self.path).path.split('/')
         try:
@@ -3571,11 +3571,11 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"error": "Invalid dataset_id"}).encode('utf-8'))
             return
-        
+
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         try:
             sequences = self.analytics_service.get_training_dataset_sequences(dataset_id)
             self.wfile.write(json.dumps(sequences, indent=2).encode('utf-8'))
@@ -3588,15 +3588,15 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 "total_count": 0
             }
             self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
-    
+
     def _serve_training_dataset_visualization_data(self):
         """Serve visualization data for training dataset sequences."""
         from urllib.parse import urlparse, parse_qs
-        
-        # Parse URL and query parameters  
+
+        # Parse URL and query parameters
         parsed_url = urlparse(self.path)
         query_params = parse_qs(parsed_url.query)
-        
+
         # Extract dataset_id from path like /api/v1/training-datasets/{dataset_id}/visualization-data
         path_parts = parsed_url.path.split('/')
         try:
@@ -3607,15 +3607,15 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"error": "Invalid dataset_id"}).encode('utf-8'))
             return
-        
+
         # Extract query parameters
         start_idx = int(query_params.get('start_idx', ['0'])[0])
         sequence_id = query_params.get('sequence_id', [None])[0]
-        
+
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         try:
             # Get visualization data from the analytics service
             viz_data = self.analytics_service.get_training_dataset_visualization_data(dataset_id, start_idx, sequence_id)
@@ -3629,15 +3629,15 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 "message": "No ArrayRecord data available - please generate training data first"
             }
             self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
-    
+
     def _serve_training_dataset_multi_timeframe(self):
         """Serve multi-timeframe OHLC data for a specific sequence."""
         from urllib.parse import urlparse, parse_qs
-        
+
         # Parse URL and query parameters
         parsed_url = urlparse(self.path)
         query_params = parse_qs(parsed_url.query)
-        
+
         # Extract dataset_id and sequence_id from path like /api/v1/training-datasets/{dataset_id}/sequences/{sequence_id}/multi-timeframe
         path_parts = parsed_url.path.split('/')
         try:
@@ -3649,15 +3649,15 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"error": "Invalid dataset_id or sequence_id"}).encode('utf-8'))
             return
-        
+
         # Extract row_index from query parameters (e.g., ?row_index=50)
         row_index = int(query_params.get('row_index', [50])[0])
         logger.info(f"Multi-timeframe request: dataset_id={dataset_id}, sequence_id={sequence_id}, row_index={row_index}")
-        
+
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         try:
             # Get multi-timeframe data from the analytics service with row index
             multi_data = self.analytics_service.get_training_dataset_sequence_multi_timeframe(dataset_id, sequence_id, row_index)
@@ -3671,11 +3671,11 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 "message": "Failed to load multi-timeframe data"
             }
             self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
-    
+
     def _serve_navigation_metadata(self):
         """Serve navigation metadata for a sequence."""
         from urllib.parse import urlparse, parse_qs
-        
+
         # Parse URL - /api/v1/training-datasets/{dataset_id}/sequences/{sequence_id}/navigation-metadata
         path_parts = self.path.split('/')
         try:
@@ -3687,23 +3687,23 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"error": "Invalid dataset_id or sequence_id"}).encode('utf-8'))
             return
-        
+
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         try:
             # Test multiple row_index values to find available range
             available_positions = []
             max_position = 0
-            
+
             # Test positions to find working range
             for test_index in [0, 10, 25, 50, 75, 100]:
                 try:
                     result = self.analytics_service.get_training_dataset_sequence_multi_timeframe(
                         dataset_id, sequence_id, test_index
                     )
-                    
+
                     if result.get('success') and result.get('table_data'):
                         table_data = result['table_data']
                         if table_data and len(table_data) > 0:
@@ -3716,10 +3716,10 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                 'end_price': table_data[-1].get('close')
                             })
                             max_position = max(max_position, test_index)
-                            
+
                 except Exception:
                     break
-            
+
             # Convert timestamps to readable dates
             def format_timestamp(ts):
                 if ts:
@@ -3729,7 +3729,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     except:
                         return ts
                 return None
-            
+
             # Prepare metadata
             metadata = {
                 'sequence_id': sequence_id,
@@ -3756,9 +3756,9 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 ],
                 'timeframes_available': ['5m', '15m', '1h', '1d', '1w']
             }
-            
+
             self.wfile.write(json.dumps(metadata, indent=2, default=str).encode('utf-8'))
-            
+
         except Exception as e:
             logger.error(f"Error getting navigation metadata: {e}")
             error_response = {
@@ -3767,15 +3767,15 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 'dataset_id': dataset_id
             }
             self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
-    
+
     def _serve_navigation(self):
         """Serve navigation to a specific position in the sequence."""
         from urllib.parse import urlparse, parse_qs
-        
+
         # Parse URL and query parameters
         parsed_url = urlparse(self.path)
         query_params = parse_qs(parsed_url.query)
-        
+
         # Extract dataset_id and sequence_id from path
         path_parts = parsed_url.path.split('/')
         try:
@@ -3787,17 +3787,17 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"error": "Invalid dataset_id or sequence_id"}).encode('utf-8'))
             return
-        
+
         # Get navigation parameters
         row_index = int(query_params.get('row_index', [10])[0])
         direction = query_params.get('direction', [None])[0]
-        
+
         logger.info(f"🔍 NAVIGATION DEBUG: dataset_id={dataset_id}, sequence_id={sequence_id}, initial_row_index={row_index}, direction={direction}")
-        
+
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         try:
             # Handle navigation directions
             original_row_index = row_index
@@ -3805,7 +3805,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 # Get current valid range (simplified)
                 max_position = 100  # Default max, could be determined dynamically
                 min_position = 0
-                
+
                 if direction == 'next':
                     row_index = min(row_index + 10, max_position)
                 elif direction == 'prev':
@@ -3814,16 +3814,16 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     row_index = min_position
                 elif direction == 'last':
                     row_index = max_position
-                    
+
             logger.info(f"🔍 NAVIGATION DEBUG: direction={direction}, original_row={original_row_index} -> new_row={row_index}")
-            
+
             # Get the data for the specified position
             result = self.analytics_service.get_training_dataset_sequence_multi_timeframe(
                 dataset_id, sequence_id, row_index
             )
-            
+
             logger.info(f"🔍 NAVIGATION DEBUG: API call result success={result.get('success')}, table_data_count={len(result.get('table_data', []))}")
-            
+
             # Add navigation context to the response
             if result.get('success'):
                 result['navigation_context'] = {
@@ -3834,9 +3834,9 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         'end': result['table_data'][-1].get('timestamp') if result.get('table_data') else None
                     }
                 }
-            
+
             self.wfile.write(json.dumps(result, indent=2, default=str).encode('utf-8'))
-            
+
         except Exception as e:
             logger.error(f"Navigation failed: {e}")
             error_response = {
@@ -3846,52 +3846,52 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 'requested_row_index': row_index
             }
             self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
-    
+
     def _serve_ray_analytics(self):
         """Serve Ray distributed analytics."""
         # Extract dataset ID from path
         path_parts = self.path.split('/')
         dataset_id = path_parts[-1] if len(path_parts) > 3 else '1'
-        
+
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         analytics = asyncio.run(self.analytics_service.get_ray_analytics(dataset_id))
         self.wfile.write(json.dumps(analytics, indent=2).encode('utf-8'))
-    
+
     def _serve_bar_collection_metrics(self):
         """Serve bar collection metrics."""
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         metrics = self.analytics_service.get_bar_collection_metrics()
         self.wfile.write(json.dumps(metrics, indent=2, default=str).encode('utf-8'))
-    
+
     def _serve_tables_list(self):
         """Serve list of database tables."""
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         try:
             from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
-            
+
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                     cursor.execute("""
-                        SELECT tablename 
-                        FROM pg_tables 
-                        WHERE schemaname = 'public' 
+                        SELECT tablename
+                        FROM pg_tables
+                        WHERE schemaname = 'public'
                         AND tablename LIKE %s
                         ORDER BY tablename
                     """, ('dev_%',))
-                    
+
                     tables = [row['tablename'] for row in cursor.fetchall()]
                     response = {"tables": tables}
-                    
+
         except Exception as e:
             logger.error(f"Error getting tables list: {e}")
             response = {
@@ -3901,22 +3901,22 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 ],
                 "error": str(e)
             }
-        
+
         self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
-    
+
     def _serve_table_info(self):
         """Serve table information."""
         table_name = self.path.split('/')[-1]
-        
+
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         try:
             from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
             from psycopg2 import sql
-            
+
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                     # Get row count (using safe SQL identifier)
@@ -3926,21 +3926,21 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         )
                     )
                     row_count = cursor.fetchone()['count']
-                    
+
                     # Get column count
                     cursor.execute("""
                         SELECT COUNT(*) as count
-                        FROM information_schema.columns 
+                        FROM information_schema.columns
                         WHERE table_name = %s
                     """, (table_name,))
                     column_count = cursor.fetchone()['count']
-                    
+
                     # Get table size
                     cursor.execute("""
                         SELECT pg_size_pretty(pg_total_relation_size(%s)) as size
                     """, (table_name,))
                     size = cursor.fetchone()['size']
-                    
+
                     response = {
                         "table_name": table_name,
                         "row_count": row_count,
@@ -3948,34 +3948,34 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         "size": size,
                         "last_updated": "Unknown"
                     }
-                    
+
         except Exception as e:
             logger.error(f"Error getting table info for {table_name}: {e}")
             response = {"error": str(e), "table_name": table_name}
-        
+
         self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
-    
+
     def _serve_table_columns(self):
         """Serve table column information."""
         table_name = self.path.split('/')[-1]
-        
+
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         try:
             from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
-            
+
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
                     cursor.execute("""
                         SELECT column_name, data_type, is_nullable
-                        FROM information_schema.columns 
+                        FROM information_schema.columns
                         WHERE table_name = %s
                         ORDER BY ordinal_position
                     """, (table_name,))
-                    
+
                     columns = []
                     for row in cursor.fetchall():
                         columns.append({
@@ -3983,27 +3983,27 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                             "type": row['data_type'],
                             "nullable": row['is_nullable'] == 'YES'
                         })
-                    
+
                     response = {"table_name": table_name, "columns": columns}
-                    
+
         except Exception as e:
             logger.error(f"Error getting columns for {table_name}: {e}")
             response = {"error": str(e), "table_name": table_name, "columns": []}
-        
+
         self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
-    
+
     def _serve_table_sample(self):
         """Serve sample data from table."""
         table_name = self.path.split('/')[-1]
-        
+
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         try:
             from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
-            
+
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                     from psycopg2 import sql
@@ -4012,7 +4012,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                             sql.Identifier(table_name)
                         )
                     )
-                    
+
                     rows = []
                     for row in cursor.fetchall():
                         row_dict = dict(row)
@@ -4021,38 +4021,38 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                             if hasattr(value, 'isoformat'):
                                 row_dict[key] = value.isoformat()
                         rows.append(row_dict)
-                    
+
                     response = {"table_name": table_name, "rows": rows}
-                    
+
         except Exception as e:
             logger.error(f"Error getting sample data for {table_name}: {e}")
             response = {"error": str(e), "table_name": table_name, "rows": []}
-        
+
         self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
-    
+
     def _serve_table_distributions(self):
         """Serve column distributions and statistics."""
         table_name = self.path.split('/')[-1]
-        
+
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         try:
             from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from psycopg2 import sql
-            
+
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
                     # Get column info first
                     cursor.execute("""
                         SELECT column_name, data_type
-                        FROM information_schema.columns 
+                        FROM information_schema.columns
                         WHERE table_name = %s
                         ORDER BY ordinal_position
                     """, (table_name,))
-                    
+
                     columns = {}
                     for row in cursor.fetchall():
                         column_name, data_type = row['column_name'], row['data_type']
@@ -4060,7 +4060,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                             # Basic statistics for each column using safe query construction
                             cursor.execute(
                                 sql.SQL("""
-                                    SELECT 
+                                    SELECT
                                         COUNT(*) as count,
                                         COUNT(DISTINCT {}) as unique,
                                         COUNT(*) - COUNT({}) as nulls
@@ -4071,17 +4071,17 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                     sql.Identifier(table_name)
                                 )
                             )
-                            
+
                             result = cursor.fetchone()
                             count, unique, nulls = result['count'], result['unique'], result['nulls']
-                            
+
                             stats = {
                                 "count": count,
                                 "unique": unique,
                                 "nulls": nulls,
                                 "type": data_type
                             }
-                            
+
                             # For numeric columns, get min/max using safe query construction
                             if data_type in ['integer', 'bigint', 'numeric', 'real', 'double precision']:
                                 cursor.execute(
@@ -4095,16 +4095,16 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                 if result['min_val'] is not None:
                                     stats["min"] = result['min_val']
                                     stats["max"] = result['max_val']
-                            
+
                             # For text columns, get top values using safe query construction
                             elif data_type in ['text', 'character varying', 'character']:
                                 cursor.execute(
                                     sql.SQL("""
-                                        SELECT {}, COUNT(*) as freq 
-                                        FROM {} 
+                                        SELECT {}, COUNT(*) as freq
+                                        FROM {}
                                         WHERE {} IS NOT NULL
-                                        GROUP BY {} 
-                                        ORDER BY freq DESC 
+                                        GROUP BY {}
+                                        ORDER BY freq DESC
                                         LIMIT 5
                                     """).format(
                                         sql.Identifier(column_name),
@@ -4113,52 +4113,52 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                         sql.Identifier(column_name)
                                     )
                                 )
-                                
+
                                 top_values = [row[column_name] for row in cursor.fetchall()]
                                 if top_values:
                                     stats["top_values"] = top_values
-                            
+
                             columns[column_name] = stats
-                            
+
                         except Exception as col_error:
                             logger.error(f"Error analyzing column {column_name}: {col_error}")
                             columns[column_name] = {"error": str(col_error)}
-                    
+
                     response = {"table_name": table_name, "columns": columns}
-                    
+
         except Exception as e:
             logger.error(f"Error getting distributions for {table_name}: {e}")
             response = {"error": str(e), "table_name": table_name, "columns": {}}
-        
+
         self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
-    
+
     def _serve_news_events(self):
         """Serve news events from Polygon and Tiingo sources."""
         from urllib.parse import urlparse, parse_qs
-        
+
         # Parse query parameters
         parsed_url = urlparse(self.path)
         query_params = parse_qs(parsed_url.query)
-        
+
         # Get parameters
         limit = int(query_params.get('limit', [100])[0])
         symbol = query_params.get('symbol', [None])[0]
         start_date = query_params.get('start_date', [None])[0]
         end_date = query_params.get('end_date', [None])[0]
-        
+
         # Limit the results to reasonable bounds
         limit = min(limit, 500)  # Max 500 events
-        
+
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
-        
+
         try:
             # Get news events from the analytics service
             news_data = self.analytics_service.get_news_events(limit=limit, symbol=symbol, start_date=start_date, end_date=end_date)
             self.wfile.write(json.dumps(news_data, indent=2, default=str).encode('utf-8'))
-            
+
         except Exception as e:
             logger.error(f"Error serving news events: {e}")
             error_response = {
@@ -4168,13 +4168,13 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 "total_events": 0
             }
             self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
-    
+
     def _serve_404(self):
         """Serve 404 response."""
         self.send_response(404)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         error_response = {
             "error": "Not found",
             "path": self.path,
@@ -4184,21 +4184,21 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 "/api/news-events", "/api/ray-analytics/{dataset_id}", "/api/multi-panel-chart"
             ]
         }
-        
+
         self.wfile.write(json.dumps(error_response).encode('utf-8'))
-    
+
     def _serve_500(self, error_message: str):
         """Serve 500 response."""
         self.send_response(500)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         error_response = {
             "error": "Internal server error",
             "message": error_message,
             "timestamp": datetime.now().isoformat()
         }
-        
+
         self.wfile.write(json.dumps(error_response).encode('utf-8'))
 
 
@@ -4207,9 +4207,9 @@ def start_unified_analytics_server(port: int = 3000):
     logger.info("🚀 Starting ATS Unified Analytics Service")
     logger.info(f"   Port: {port}")
     logger.info("   Features: Type-aware EDA, Universe Analytics, Ray Computing, Training Datasets")
-    
+
     server = ThreadingHTTPServer(('0.0.0.0', port), UnifiedAnalyticsRequestHandler)
-    
+
     try:
         logger.info(f"✅ Server started at http://0.0.0.0:{port}")
         logger.info("   Available endpoints:")
@@ -4219,9 +4219,9 @@ def start_unified_analytics_server(port: int = 3000):
         logger.info("   • /api/universe-analytics - Cross-instrument analysis")
         logger.info("   • /api/v1/training-datasets - ML dataset management")
         logger.info("   • /api/ray-analytics/{dataset_id} - Distributed analytics")
-        
+
         server.serve_forever()
-        
+
     except KeyboardInterrupt:
         logger.info("🛑 Shutting down unified analytics service...")
         server.shutdown()

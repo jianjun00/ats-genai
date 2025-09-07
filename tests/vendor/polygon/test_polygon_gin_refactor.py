@@ -11,13 +11,13 @@ import gin
 
 def test_polygon_adapter_default_config():
     """Test that PolygonAdapter uses default configuration properly"""
-    
+
     # Clear gin configuration
     gin.clear_config()
-    
+
     # Import after clearing to avoid cached values
     from domains.market_data.services.agent.polygon_adapter import PolygonAdapterConfig, PolygonAdapter
-    
+
     # Test default values (without gin)
     config = PolygonAdapterConfig()
     assert config.api_limit == 50000
@@ -29,15 +29,15 @@ def test_polygon_adapter_default_config():
     assert config.debug_end_date == "2024-12-31"
     assert config.debug_log_path == "tests/data"
     print("✅ Default PolygonAdapterConfig values confirmed")
-    
+
     return True
 
 def test_polygon_adapter_gin_config():
     """Test that PolygonAdapter uses gin configuration properly"""
-    
+
     # Clear gin configuration
     gin.clear_config()
-    
+
     # Test with gin configuration
     gin.parse_config([
         'market_data.agent.polygon_adapter.PolygonAdapterConfig.api_limit = 25000',
@@ -46,10 +46,10 @@ def test_polygon_adapter_gin_config():
         'market_data.agent.polygon_adapter.PolygonAdapterConfig.debug_end_date = "2023-12-31"',
         'market_data.agent.polygon_adapter.PolygonAdapterConfig.debug_log_path = "custom/debug/path"'
     ])
-    
+
     # Import after gin config
     from domains.market_data.services.agent.polygon_adapter import PolygonAdapterConfig
-    
+
     # Create new config with gin values
     gin_config = PolygonAdapterConfig()
     assert gin_config.api_limit == 25000
@@ -58,18 +58,18 @@ def test_polygon_adapter_gin_config():
     assert gin_config.debug_end_date == "2023-12-31"
     assert gin_config.debug_log_path == "custom/debug/path"
     print("✅ Gin-configured PolygonAdapterConfig values confirmed")
-    
+
     return True
 
 def test_polygon_adapter_integration():
     """Test that PolygonAdapter integrates with configuration properly"""
-    
+
     # Clear gin configuration
     gin.clear_config()
-    
+
     # Import modules
     from domains.market_data.services.agent.polygon_adapter import PolygonAdapterConfig, PolygonAdapter
-    
+
     # Test adapter uses configuration
     try:
         # This will fail without API key, but we just want to test config integration
@@ -89,27 +89,27 @@ def test_polygon_adapter_integration():
 
 def test_gin_file_loading_polygon():
     """Test loading PolygonAdapter configuration from the gin file"""
-    
+
     # Clear configuration
     gin.clear_config()
-    
+
     # Load our hardcoded values configuration
     if os.path.exists("config/hardcoded_values.gin"):
         try:
             gin.parse_config_file("config/hardcoded_values.gin")
             print("✅ Successfully loaded hardcoded_values.gin with PolygonAdapter config")
-            
+
             # Test that values were loaded
             from domains.market_data.services.agent.polygon_adapter import PolygonAdapterConfig
-            
+
             config = PolygonAdapterConfig()
-            
+
             # These should be the values from the gin file
             assert config.api_limit == 50000  # From gin file
             assert "AAPL" in config.debug_tickers  # From gin file
             assert "TSLA" in config.debug_tickers  # From gin file
             assert config.debug_log_path == "tests/data"  # From gin file
-            
+
             print("✅ PolygonAdapter gin file values loaded correctly")
             return True
         except Exception as e:
@@ -122,13 +122,13 @@ def test_gin_file_loading_polygon():
 if __name__ == "__main__":
     print("🧪 Testing PolygonAdapter Gin Configuration Refactor")
     print("=" * 60)
-    
+
     try:
         test_polygon_adapter_default_config()
         test_polygon_adapter_gin_config()
         test_polygon_adapter_integration()
         test_gin_file_loading_polygon()
-        
+
         print("\n🎉 All PolygonAdapter gin configuration tests passed!")
         print("✅ PolygonAdapter hardcoded values successfully moved to gin config")
         print("\n📋 Refactored hardcoded values:")
@@ -137,7 +137,7 @@ if __name__ == "__main__":
         print("  • Debug tickers: ['AAPL', 'TSLA'] → gin configurable list")
         print("  • Debug date range: 2020-01-10 to 2024-12-31 → gin configurable")
         print("  • Debug log path: 'tests/data' → gin configurable")
-        
+
     except Exception as e:
         print(f"\n❌ Test failed: {e}")
         import traceback

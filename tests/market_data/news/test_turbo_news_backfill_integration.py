@@ -18,7 +18,7 @@ async def test_end_to_end_polygon_news_backfill(unit_test_db):
     """Test end-to-end Polygon news backfill with real database."""
     # Setup test environment
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
-    
+
     # Sample news data (simulating API response processing)
     sample_news_data = [
         {
@@ -68,7 +68,7 @@ async def test_end_to_end_polygon_news_backfill(unit_test_db):
             }
         }
     ]
-    
+
     # Test database insertion
     db_config = {
         'host': env.get_database_config()['host'],
@@ -77,15 +77,15 @@ async def test_end_to_end_polygon_news_backfill(unit_test_db):
         'password': env.get_database_config()['password'],
         'database': env.get_database_config()['database']
     }
-    
+
     async with TurboNewsDatabaseInserter(db_config, pool_size=1) as db_inserter:
         # Insert sample data
         inserted_count = await db_inserter.bulk_insert_polygon_news(sample_news_data)
         assert inserted_count == 2
-        
+
         # Verify data was inserted correctly
         import asyncpg
-        
+
         pool = await asyncpg.create_pool(
             host=db_config['host'],
             port=db_config['port'],
@@ -93,16 +93,16 @@ async def test_end_to_end_polygon_news_backfill(unit_test_db):
             password=db_config['password'],
             database=db_config['database']
         )
-        
+
         try:
             async with pool.acquire() as conn:
                 # Get inserted news articles
                 news_articles = await conn.fetch(
                     "SELECT * FROM test_news_polygon ORDER BY published_utc"
                 )
-                
+
                 assert len(news_articles) == 2
-                
+
                 # Verify first article
                 first_article = news_articles[0]
                 assert first_article['polygon_id'] == 'test-polygon-news-1'
@@ -111,24 +111,24 @@ async def test_end_to_end_polygon_news_backfill(unit_test_db):
                 assert first_article['publisher_name'] == 'Test Publisher'
                 assert first_article['keywords'] == ['test', 'integration', 'news']
                 assert first_article['tickers'] == ['AAPL', 'MSFT']
-                
+
                 # Verify insights JSON structure
                 insights_data = json.loads(first_article['insights'])
                 assert len(insights_data) == 1
                 assert insights_data[0]['sentiment'] == 'positive'
-                
+
                 # Verify original data JSON structure
                 original_data = json.loads(first_article['data'])
                 assert original_data['original_api_response'] == 'test_data'
                 assert original_data['additional_fields'] == ['field1', 'field2']
-                
+
                 # Verify second article (with null handling)
                 second_article = news_articles[1]
                 assert second_article['polygon_id'] == 'test-polygon-news-2'
                 assert second_article['image_url'] is None
                 assert second_article['publisher_logo_url'] is None
                 assert second_article['insights'] is None
-                
+
         finally:
             await pool.close()
 
@@ -139,7 +139,7 @@ async def test_end_to_end_tiingo_news_backfill(unit_test_db):
     """Test end-to-end Tiingo news backfill with real database."""
     # Setup test environment
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
-    
+
     # Sample Tiingo news data
     sample_tiingo_data = [
         {
@@ -173,7 +173,7 @@ async def test_end_to_end_tiingo_news_backfill(unit_test_db):
             }
         }
     ]
-    
+
     # Test database insertion
     db_config = {
         'host': env.get_database_config()['host'],
@@ -182,15 +182,15 @@ async def test_end_to_end_tiingo_news_backfill(unit_test_db):
         'password': env.get_database_config()['password'],
         'database': env.get_database_config()['database']
     }
-    
+
     async with TurboNewsDatabaseInserter(db_config, pool_size=1) as db_inserter:
         # Insert sample data
         inserted_count = await db_inserter.bulk_insert_tiingo_news(sample_tiingo_data)
         assert inserted_count == 2
-        
+
         # Verify data was inserted correctly
         import asyncpg
-        
+
         pool = await asyncpg.create_pool(
             host=db_config['host'],
             port=db_config['port'],
@@ -198,16 +198,16 @@ async def test_end_to_end_tiingo_news_backfill(unit_test_db):
             password=db_config['password'],
             database=db_config['database']
         )
-        
+
         try:
             async with pool.acquire() as conn:
                 # Get inserted news articles
                 news_articles = await conn.fetch(
                     "SELECT * FROM test_news_tiingo ORDER BY published_date"
                 )
-                
+
                 assert len(news_articles) == 2
-                
+
                 # Verify first article
                 first_article = news_articles[0]
                 assert first_article['tiingo_id'] == 12345
@@ -215,17 +215,17 @@ async def test_end_to_end_tiingo_news_backfill(unit_test_db):
                 assert first_article['source'] == 'test-source.com'
                 assert first_article['tags'] == ['finance', 'technology', 'integration']
                 assert first_article['tickers'] == ['aapl', 'msft']
-                
+
                 # Verify data JSON structure
                 original_data = json.loads(first_article['data'])
                 assert original_data['source_metadata'] == 'test_metadata'
                 assert original_data['crawl_info']['version'] == '1.0'
-                
+
                 # Verify second article
                 second_article = news_articles[1]
                 assert second_article['tiingo_id'] == 67890
                 assert second_article['url'] == 'https://example.com/tiingo-test-2'
-                
+
         finally:
             await pool.close()
 
@@ -236,7 +236,7 @@ async def test_duplicate_news_handling(unit_test_db):
     """Test that duplicate news articles are handled correctly."""
     # Setup test environment
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
-    
+
     # Sample data with potential duplicate
     sample_data = [
         {
@@ -257,7 +257,7 @@ async def test_duplicate_news_handling(unit_test_db):
             'data': {'test': 'data'}
         }
     ]
-    
+
     # Database config
     db_config = {
         'host': env.get_database_config()['host'],
@@ -266,19 +266,19 @@ async def test_duplicate_news_handling(unit_test_db):
         'password': env.get_database_config()['password'],
         'database': env.get_database_config()['database']
     }
-    
+
     async with TurboNewsDatabaseInserter(db_config, pool_size=1) as db_inserter:
         # Insert data first time
         first_insert = await db_inserter.bulk_insert_polygon_news(sample_data)
         assert first_insert == 1
-        
+
         # Insert same data again (should handle duplicates)
         second_insert = await db_inserter.bulk_insert_polygon_news(sample_data)
         assert second_insert == 1  # Reports attempted insert
-        
+
         # Verify only one record exists
         import asyncpg
-        
+
         pool = await asyncpg.create_pool(
             host=db_config['host'],
             port=db_config['port'],
@@ -286,15 +286,15 @@ async def test_duplicate_news_handling(unit_test_db):
             password=db_config['password'],
             database=db_config['database']
         )
-        
+
         try:
             async with pool.acquire() as conn:
                 news_articles = await conn.fetch(
                     "SELECT * FROM test_news_polygon WHERE polygon_id = 'test-duplicate-news'"
                 )
-                
+
                 assert len(news_articles) == 1  # Should still be only 1 record
-                
+
         finally:
             await pool.close()
 
@@ -305,7 +305,7 @@ async def test_concurrent_news_insertions(unit_test_db):
     """Test concurrent news insertions work correctly."""
     # Setup test environment
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
-    
+
     # Create sample data for concurrent insertion
     batch_1 = [
         {
@@ -327,7 +327,7 @@ async def test_concurrent_news_insertions(unit_test_db):
         }
         for i in range(5)
     ]
-    
+
     batch_2 = [
         {
             'polygon_id': f'test-concurrent-2-{i}',
@@ -348,7 +348,7 @@ async def test_concurrent_news_insertions(unit_test_db):
         }
         for i in range(5)
     ]
-    
+
     # Database config
     db_config = {
         'host': env.get_database_config()['host'],
@@ -357,23 +357,23 @@ async def test_concurrent_news_insertions(unit_test_db):
         'password': env.get_database_config()['password'],
         'database': env.get_database_config()['database']
     }
-    
+
     async with TurboNewsDatabaseInserter(db_config, pool_size=3) as db_inserter:
         # Execute concurrent insertions
         tasks = [
             db_inserter.bulk_insert_polygon_news(batch_1),
             db_inserter.bulk_insert_polygon_news(batch_2)
         ]
-        
+
         results = await asyncio.gather(*tasks)
-        
+
         # Verify all insertions succeeded
         assert results[0] == 5  # batch_1
         assert results[1] == 5  # batch_2
-        
+
         # Verify data was inserted correctly
         import asyncpg
-        
+
         pool = await asyncpg.create_pool(
             host=db_config['host'],
             port=db_config['port'],
@@ -381,7 +381,7 @@ async def test_concurrent_news_insertions(unit_test_db):
             password=db_config['password'],
             database=db_config['database']
         )
-        
+
         try:
             async with pool.acquire() as conn:
                 # Check total count
@@ -389,21 +389,21 @@ async def test_concurrent_news_insertions(unit_test_db):
                     "SELECT COUNT(*) FROM test_news_polygon WHERE polygon_id LIKE 'test-concurrent-%'"
                 )
                 assert total_count == 10
-                
+
                 # Check batch 1 articles
                 batch1_articles = await conn.fetch(
                     "SELECT * FROM test_news_polygon WHERE polygon_id LIKE 'test-concurrent-1-%' ORDER BY polygon_id"
                 )
                 assert len(batch1_articles) == 5
                 assert all('batch1' in article['keywords'] for article in batch1_articles)
-                
+
                 # Check batch 2 articles
                 batch2_articles = await conn.fetch(
                     "SELECT * FROM test_news_polygon WHERE polygon_id LIKE 'test-concurrent-2-%' ORDER BY polygon_id"
                 )
                 assert len(batch2_articles) == 5
                 assert all('batch2' in article['keywords'] for article in batch2_articles)
-                
+
         finally:
             await pool.close()
 
@@ -414,10 +414,10 @@ async def test_large_news_batch_processing(unit_test_db):
     """Test processing of large batches of news data."""
     # Setup test environment
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
-    
+
     # Create large batch of sample news data (50 articles)
     large_batch = []
-    
+
     for i in range(50):
         article = {
             'tiingo_id': 10000 + i,
@@ -436,7 +436,7 @@ async def test_large_news_batch_processing(unit_test_db):
             }
         }
         large_batch.append(article)
-    
+
     # Database config
     db_config = {
         'host': env.get_database_config()['host'],
@@ -445,15 +445,15 @@ async def test_large_news_batch_processing(unit_test_db):
         'password': env.get_database_config()['password'],
         'database': env.get_database_config()['database']
     }
-    
+
     async with TurboNewsDatabaseInserter(db_config, pool_size=1) as db_inserter:
         # Insert large batch
         inserted_count = await db_inserter.bulk_insert_tiingo_news(large_batch)
         assert inserted_count == 50
-        
+
         # Verify all data was inserted
         import asyncpg
-        
+
         pool = await asyncpg.create_pool(
             host=db_config['host'],
             port=db_config['port'],
@@ -461,7 +461,7 @@ async def test_large_news_batch_processing(unit_test_db):
             password=db_config['password'],
             database=db_config['database']
         )
-        
+
         try:
             async with pool.acquire() as conn:
                 # Check total count
@@ -469,29 +469,29 @@ async def test_large_news_batch_processing(unit_test_db):
                     "SELECT COUNT(*) FROM test_news_tiingo WHERE tiingo_id BETWEEN 10000 AND 10049"
                 )
                 assert total_count == 50
-                
+
                 # Verify data integrity (check first and last records)
                 first_article = await conn.fetchrow(
                     "SELECT * FROM test_news_tiingo WHERE tiingo_id = 10000"
                 )
                 assert first_article['title'] == 'Large Batch Test Article 0'
                 assert first_article['source'] == 'source-0.com'
-                
+
                 last_article = await conn.fetchrow(
                     "SELECT * FROM test_news_tiingo WHERE tiingo_id = 10049"
                 )
                 assert last_article['title'] == 'Large Batch Test Article 49'
                 assert last_article['source'] == 'source-4.com'
-                
+
                 # Verify JSON data structure
                 first_data = json.loads(first_article['data'])
                 assert first_data['article_index'] == 0
                 assert first_data['batch_info'] == 'large_batch_test'
-                
+
                 last_data = json.loads(last_article['data'])
                 assert last_data['article_index'] == 49
                 assert last_data['metadata']['word_count'] == 500 + 49 * 10
-                
+
         finally:
             await pool.close()
 
@@ -502,7 +502,7 @@ async def test_json_data_integrity(unit_test_db):
     """Test that complex JSON data structures maintain integrity through the database."""
     # Setup test environment
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
-    
+
     # Complex data structure to test JSON handling
     complex_insights = [
         {
@@ -528,7 +528,7 @@ async def test_json_data_integrity(unit_test_db):
             ]
         }
     ]
-    
+
     complex_data = {
         'api_metadata': {
             'version': '2.1',
@@ -552,7 +552,7 @@ async def test_json_data_integrity(unit_test_db):
             'engagement_rate': 0.045
         }
     }
-    
+
     sample_data = [
         {
             'polygon_id': 'test-json-integrity',
@@ -572,7 +572,7 @@ async def test_json_data_integrity(unit_test_db):
             'data': complex_data
         }
     ]
-    
+
     # Database config
     db_config = {
         'host': env.get_database_config()['host'],
@@ -581,15 +581,15 @@ async def test_json_data_integrity(unit_test_db):
         'password': env.get_database_config()['password'],
         'database': env.get_database_config()['database']
     }
-    
+
     async with TurboNewsDatabaseInserter(db_config, pool_size=1) as db_inserter:
         # Insert data
         inserted_count = await db_inserter.bulk_insert_polygon_news(sample_data)
         assert inserted_count == 1
-        
+
         # Verify data integrity
         import asyncpg
-        
+
         pool = await asyncpg.create_pool(
             host=db_config['host'],
             port=db_config['port'],
@@ -597,13 +597,13 @@ async def test_json_data_integrity(unit_test_db):
             password=db_config['password'],
             database=db_config['database']
         )
-        
+
         try:
             async with pool.acquire() as conn:
                 article = await conn.fetchrow(
                     "SELECT * FROM test_news_polygon WHERE polygon_id = 'test-json-integrity'"
                 )
-                
+
                 # Parse and verify insights JSON
                 retrieved_insights = json.loads(article['insights'])
                 assert len(retrieved_insights) == 2
@@ -611,17 +611,17 @@ async def test_json_data_integrity(unit_test_db):
                 assert retrieved_insights[0]['confidence_score'] == 0.85
                 assert retrieved_insights[0]['entities']['companies'] == ['Apple Inc.', 'Samsung']
                 assert retrieved_insights[1]['related_articles'][0]['id'] == 'article-1'
-                
+
                 # Parse and verify data JSON
                 retrieved_data = json.loads(article['data'])
                 assert retrieved_data['api_metadata']['version'] == '2.1'
                 assert retrieved_data['content_analysis']['word_count'] == 1500
                 assert retrieved_data['content_analysis']['named_entities']['persons'] == ['Tim Cook', 'Satya Nadella']
                 assert retrieved_data['social_metrics']['engagement_rate'] == 0.045
-                
+
                 # Verify the original complex structure is preserved
                 assert retrieved_insights == complex_insights
                 assert retrieved_data == complex_data
-                
+
         finally:
             await pool.close()

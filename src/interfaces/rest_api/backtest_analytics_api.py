@@ -46,7 +46,7 @@ class BacktestCORSConfig:
     allow_credentials: bool = True
     allow_methods: List[str] = None
     allow_headers: List[str] = None
-    
+
     def __post_init__(self):
         if self.allow_origins is None:
             self.allow_origins = ["http://localhost:3000", "http://localhost:8080"]
@@ -141,23 +141,23 @@ class ModelComparisonResult(BaseModel):
 # WebSocket connection manager
 class ConnectionManager:
     """Manage WebSocket connections for real-time updates"""
-    
+
     def __init__(self):
         self.active_connections: Dict[str, List[WebSocket]] = {}
-    
+
     async def connect(self, websocket: WebSocket, backtest_run_id: str):
         """Connect a new WebSocket client"""
         await websocket.accept()
         if backtest_run_id not in self.active_connections:
             self.active_connections[backtest_run_id] = []
         self.active_connections[backtest_run_id].append(websocket)
-    
+
     def disconnect(self, websocket: WebSocket, backtest_run_id: str):
         """Disconnect a WebSocket client"""
         if backtest_run_id in self.active_connections:
             if websocket in self.active_connections[backtest_run_id]:
                 self.active_connections[backtest_run_id].remove(websocket)
-    
+
     async def broadcast(self, message: dict, backtest_run_id: str):
         """Broadcast message to all connected clients for a backtest"""
         if backtest_run_id in self.active_connections:
@@ -167,7 +167,7 @@ class ConnectionManager:
                     await connection.send_json(message)
                 except WebSocketDisconnect:
                     disconnected.append(connection)
-            
+
             # Remove disconnected clients
             for connection in disconnected:
                 self.active_connections[backtest_run_id].remove(connection)
@@ -184,9 +184,9 @@ async def lifespan(app: FastAPI):
     analytics_engine = PortfolioAnalyticsEngine()
     await analytics_engine.initialize()
     logging.info("Backtest Analytics API started")
-    
+
     yield
-    
+
     # Shutdown
     if analytics_engine:
         await analytics_engine.close()
@@ -196,7 +196,7 @@ async def lifespan(app: FastAPI):
 try:
     detected_env = load_gin_config()
     logging.info(f"🚀 Backtest Analytics API starting in {detected_env.value} environment")
-    
+
     # Validate configuration
     validation_result = validate_current_config()
     if not validation_result.is_valid:
@@ -207,7 +207,7 @@ try:
             logging.error(f"   ❌ {error}")
     else:
         logging.info("✅ Configuration validation passed")
-    
+
 except Exception as e:
     logging.error(f"❌ Failed to load environment configuration: {e}")
     logging.info("🔄 Falling back to default configuration...")
@@ -249,7 +249,7 @@ async def health_check():
     """Health check endpoint"""
     current_env = get_current_env()
     return {
-        "status": "healthy", 
+        "status": "healthy",
         "timestamp": datetime.now(),
         "environment": current_env.value if current_env else "unknown",
         "configuration_loaded": current_env is not None,
@@ -262,21 +262,21 @@ async def get_configuration_info():
     try:
         env_info = get_env_info()
         current_env = get_current_env()
-        
+
         # Add API configuration details
         api_info = {
             "title": api_config.title,
             "description": api_config.description,
             "version": api_config.version
         }
-        
+
         server_info = {
             "host": server_config.host,
             "port": server_config.port,
             "reload": server_config.reload,
             "log_level": server_config.log_level
         }
-        
+
         query_info = {
             "default_limit": query_config.default_limit,
             "max_limit": query_config.max_limit,
@@ -284,7 +284,7 @@ async def get_configuration_info():
             "max_offset": query_config.max_offset,
             "max_comparison_runs": query_config.max_comparison_runs
         }
-        
+
         return {
             "current_environment": current_env.value if current_env else None,
             "environment_info": env_info,
@@ -297,7 +297,7 @@ async def get_configuration_info():
             },
             "configuration_status": "loaded" if current_env else "not_loaded"
         }
-        
+
     except Exception as e:
         logging.error(f"Configuration info retrieval failed: {str(e)}")
         return {
@@ -348,15 +348,15 @@ async def list_backtests(
                 updated_at=datetime(2024, 7, 1, 16, 45, 0)
             )
         ]
-        
+
         # Apply filters
         filtered_backtests = mock_backtests
         if strategy_type:
             filtered_backtests = [bt for bt in filtered_backtests if bt.strategy_type == strategy_type]
-        
+
         # Apply pagination
         return filtered_backtests[offset:offset + limit]
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list backtests: {str(e)}")
 
@@ -397,10 +397,10 @@ async def get_portfolio_performance(
         performance_data = await engine._fetch_portfolio_performance_data(
             backtest_run_id, start_date, end_date
         )
-        
+
         if performance_data.empty:
             return []
-        
+
         # Convert to response format
         result = []
         for idx, row in performance_data.iterrows():
@@ -412,9 +412,9 @@ async def get_portfolio_performance(
                 drawdown=float(row['drawdown']) if pd.notna(row['drawdown']) else None,
                 positions_count=int(row['positions_count']) if pd.notna(row['positions_count']) else None
             ))
-        
+
         return result
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get performance data: {str(e)}")
 
@@ -493,7 +493,7 @@ async def compare_portfolios(
     """Compare performance between multiple backtest runs"""
     try:
         individual_metrics = {}
-        
+
         # Get metrics for each backtest
         for run_id in request.backtest_run_ids:
             metrics = await engine.compute_portfolio_metrics(
@@ -502,35 +502,35 @@ async def compare_portfolios(
                 end_date=request.end_date
             )
             individual_metrics[run_id] = metrics
-        
+
         # Compute comparison summary
         comparison_summary = {
             "best_return": max(individual_metrics.items(), key=lambda x: x[1].total_return)[0],
             "best_sharpe": max(individual_metrics.items(), key=lambda x: x[1].sharpe_ratio)[0],
             "lowest_drawdown": min(individual_metrics.items(), key=lambda x: x[1].max_drawdown)[0]
         }
-        
+
         # Compute relative performance (vs first strategy)
         baseline_run_id = request.backtest_run_ids[0]
         baseline_return = individual_metrics[baseline_run_id].total_return
-        
+
         relative_performance = {}
         for run_id, metrics in individual_metrics.items():
             relative_performance[run_id] = metrics.total_return - baseline_return
-        
+
         # Statistical significance (simplified)
         statistical_significance = {
-            run_id: abs(relative_performance[run_id]) > 0.02 
+            run_id: abs(relative_performance[run_id]) > 0.02
             for run_id in request.backtest_run_ids
         }
-        
+
         return PortfolioComparisonResult(
             comparison_summary=comparison_summary,
             individual_metrics=individual_metrics,
             relative_performance=relative_performance,
             statistical_significance=statistical_significance
         )
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to compare portfolios: {str(e)}")
 
@@ -542,7 +542,7 @@ async def compare_models(
     """Compare model performance between different strategies"""
     try:
         individual_performance = {}
-        
+
         # Get model performance for each backtest
         for run_id in request.backtest_run_ids:
             performance = await engine.compute_model_performance(
@@ -551,33 +551,33 @@ async def compare_models(
                 end_date=request.end_date
             )
             individual_performance[run_id] = performance
-        
+
         # Compute comparison summary
         comparison_summary = {
             "best_accuracy": max(individual_performance.items(), key=lambda x: x[1].overall_accuracy)[0],
             "best_confidence": max(individual_performance.items(), key=lambda x: x[1].confidence_correlation)[0],
             "lowest_mae": min(individual_performance.items(), key=lambda x: x[1].overall_mae)[0]
         }
-        
+
         # Accuracy comparison
         accuracy_comparison = {
-            run_id: perf.overall_accuracy 
+            run_id: perf.overall_accuracy
             for run_id, perf in individual_performance.items()
         }
-        
+
         # Confidence analysis
         confidence_analysis = {
             "average_correlation": sum(perf.confidence_correlation for perf in individual_performance.values()) / len(individual_performance),
             "best_calibrated": max(individual_performance.items(), key=lambda x: x[1].confidence_correlation)[0]
         }
-        
+
         return ModelComparisonResult(
             comparison_summary=comparison_summary,
             individual_performance=individual_performance,
             accuracy_comparison=accuracy_comparison,
             confidence_analysis=confidence_analysis
         )
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to compare models: {str(e)}")
 
@@ -649,13 +649,13 @@ async def portfolio_websocket(websocket: WebSocket, backtest_run_id: str):
         # Send initial data
         engine = await get_analytics_engine()
         initial_metrics = await engine.compute_portfolio_metrics(backtest_run_id)
-        
+
         await websocket.send_json({
             "type": "portfolio_metrics",
             "data": initial_metrics.to_dict(),
             "timestamp": datetime.now().isoformat()
         })
-        
+
         # Keep connection alive and handle client messages
         while True:
             try:
@@ -663,7 +663,7 @@ async def portfolio_websocket(websocket: WebSocket, backtest_run_id: str):
                 # Handle client requests (e.g., filter changes)
                 import json
                 message = json.loads(data)
-                
+
                 if message.get("type") == "request_update":
                     # Send updated metrics
                     metrics = await engine.compute_portfolio_metrics(backtest_run_id)
@@ -672,7 +672,7 @@ async def portfolio_websocket(websocket: WebSocket, backtest_run_id: str):
                         "data": metrics.to_dict(),
                         "timestamp": datetime.now().isoformat()
                     })
-                    
+
             except WebSocketDisconnect:
                 break
             except Exception as e:
@@ -681,7 +681,7 @@ async def portfolio_websocket(websocket: WebSocket, backtest_run_id: str):
                     "message": str(e),
                     "timestamp": datetime.now().isoformat()
                 })
-                
+
     except WebSocketDisconnect:
         pass
     finally:
@@ -695,18 +695,18 @@ async def model_websocket(websocket: WebSocket, backtest_run_id: str):
         # Send initial model performance data
         engine = await get_analytics_engine()
         initial_performance = await engine.compute_model_performance(backtest_run_id)
-        
+
         await websocket.send_json({
             "type": "model_performance",
             "data": initial_performance.to_dict(),
             "timestamp": datetime.now().isoformat()
         })
-        
+
         # Keep connection alive
         while True:
             await websocket.receive_text()
             # Handle model-specific requests - data processing not yet implemented
-            
+
     except WebSocketDisconnect:
         pass
     finally:

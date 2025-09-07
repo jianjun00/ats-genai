@@ -81,22 +81,22 @@ logger = logging.getLogger("polygon_news_backfill")
 # Custom wrapper for news-specific metrics
 class NewsBackfillStats(BackfillStats):
     """News-specific backfill statistics"""
-    
-    @property 
+
+    @property
     def total_articles_fetched(self) -> int:
         """Alias for records_fetched"""
         return self.records_fetched
-    
+
     @property
     def articles_inserted(self) -> int:
-        """Alias for records_inserted""" 
+        """Alias for records_inserted"""
         return self.records_inserted
-    
+
     @property
     def articles_updated(self) -> int:
         """Alias for records_updated"""
         return self.records_updated
-    
+
     @property
     def articles_skipped(self) -> int:
         """Alias for records_skipped"""
@@ -104,7 +104,7 @@ class NewsBackfillStats(BackfillStats):
 
 class PolygonNewsBackfill:
     """Polygon.io News Backfill Service"""
-    
+
     def __init__(self, api_key: str, pool: asyncpg.Pool, table_name: str = "dev_news"):
         self.api_key = api_key
         self.pool = pool
@@ -112,8 +112,8 @@ class PolygonNewsBackfill:
         self.table_name = table_name
         self.stats = NewsBackfillStats()
         self.rate_limiter = VendorRateLimiters.polygon_free()
-        
-    async def backfill_news_data(self, 
+
+    async def backfill_news_data(self,
                                 start_date: datetime,
                                 end_date: Optional[datetime] = None,
                                 symbols: Optional[List[str]] = None,
@@ -121,7 +121,7 @@ class PolygonNewsBackfill:
                                 max_requests: Optional[int] = None) -> BackfillStats:
         """
         Backfill news data from Polygon.io
-        
+
         Args:
             start_date: Start date for backfill
             end_date: End date for backfill (defaults to now)
@@ -131,36 +131,36 @@ class PolygonNewsBackfill:
         """
         if not end_date:
             end_date = datetime.now()
-            
+
         logger.info(f"Starting Polygon news backfill from {start_date} to {end_date}")
         if symbols:
             logger.info(f"Filtering for symbols: {symbols}")
-            
+
         # Ensure news table exists
         await self._ensure_news_table_exists()
-        
+
         # Create session with timeout
         timeout = aiohttp.ClientTimeout(total=30)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            
+
             if symbols:
                 # Backfill for specific symbols
                 for symbol in symbols:
                     await self._backfill_symbol_news(
-                        session, symbol, start_date, end_date, 
+                        session, symbol, start_date, end_date,
                         limit_per_request, max_requests
                     )
             else:
                 # General news backfill (all market news)
                 await self._backfill_general_news(
-                    session, start_date, end_date, 
+                    session, start_date, end_date,
                     limit_per_request, max_requests
                 )
-        
+
         logger.info("Backfill completed!")
         self.stats.log_progress(logger)
         return self.stats
-    
+
     async def _backfill_symbol_news(self,
                                    session: aiohttp.ClientSession,
                                    symbol: str,
@@ -170,7 +170,7 @@ class PolygonNewsBackfill:
                                    max_requests: Optional[int]):
         """Backfill news for a specific symbol"""
         logger.info(f"Backfilling news for symbol: {symbol}")
-        
+
         # Polygon API parameters for symbol-specific news
         params = {
             "ticker": symbol,
@@ -180,9 +180,9 @@ class PolygonNewsBackfill:
             "sort": "published_utc",
             "apikey": self.api_key
         }
-        
+
         await self._fetch_paginated_news(session, params, max_requests, f"symbol {symbol}")
-    
+
     async def _backfill_general_news(self,
                                     session: aiohttp.ClientSession,
                                     start_date: datetime,
@@ -191,12 +191,12 @@ class PolygonNewsBackfill:
                                     max_requests: Optional[int]):
         """Backfill general market news"""
         logger.info("Backfilling general market news")
-        
+
         # Break down into daily chunks to avoid API limits
         current_date = start_date
         while current_date < end_date:
             next_date = min(current_date + timedelta(days=1), end_date)
-            
+
             params = {
                 "published_utc.gte": current_date.strftime("%Y-%m-%dT%H:%M:%S"),
                 "published_utc.lt": next_date.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -204,17 +204,17 @@ class PolygonNewsBackfill:
                 "sort": "published_utc",
                 "apikey": self.api_key
             }
-            
+
             await self._fetch_paginated_news(
-                session, params, max_requests, 
+                session, params, max_requests,
                 f"date {current_date.strftime('%Y-%m-%d')}"
             )
-            
+
             current_date = next_date
-            
+
             # Respect rate limits
             await asyncio.sleep(0.1)
-    
+
     async def _fetch_paginated_news(self,
                                    session: aiohttp.ClientSession,
                                    base_params: Dict[str, Any],
@@ -223,12 +223,12 @@ class PolygonNewsBackfill:
         """Fetch paginated news data"""
         next_url = None
         request_count = 0
-        
+
         while True:
             if max_requests and request_count >= max_requests:
                 logger.warning(f"Reached max requests limit ({max_requests}) for {description}")
                 break
-                
+
             try:
                 # Use next_url if available, otherwise construct URL
                 if next_url:
@@ -239,13 +239,13 @@ class PolygonNewsBackfill:
                 else:
                     url = self.base_url
                     params = base_params
-                
+
                 # Make API request
                 if next_url:
                     async with session.get(url) as response:
                         self.stats.api_calls_made += 1
                         request_count += 1
-                        
+
                         if response.status == 429:
                             logger.warning("Rate limited, waiting 12 seconds...")
                             await asyncio.sleep(12)
@@ -254,13 +254,13 @@ class PolygonNewsBackfill:
                             logger.error(f"API error {response.status}: {await response.text()}")
                             self.stats.api_errors += 1
                             break
-                            
+
                         data = await response.json()
                 else:
                     async with session.get(url, params=params) as response:
                         self.stats.api_calls_made += 1
                         request_count += 1
-                        
+
                         if response.status == 429:
                             logger.warning("Rate limited, waiting 12 seconds...")
                             await asyncio.sleep(12)
@@ -269,57 +269,57 @@ class PolygonNewsBackfill:
                             logger.error(f"API error {response.status}: {await response.text()}")
                             self.stats.api_errors += 1
                             break
-                            
+
                         data = await response.json()
-                
+
                 # Process results
                 results = data.get("results", [])
                 if not results:
                     logger.info(f"No more results for {description}")
                     break
-                
+
                 # Process and store articles
                 processed_articles = []
                 for article in results:
                     processed_article = self._process_polygon_article(article)
                     if processed_article:
                         processed_articles.append(processed_article)
-                
+
                 if processed_articles:
                     inserted, updated, skipped = await self._store_articles(processed_articles)
                     self.stats.records_fetched += len(processed_articles)
                     self.stats.records_inserted += inserted
                     self.stats.records_updated += updated
                     self.stats.records_skipped += skipped
-                
+
                 logger.info(f"Processed {len(processed_articles)} articles for {description}")
                 self.stats.log_progress(logger)
-                
+
                 # Get next page URL
                 next_url = data.get("next_url")
                 if not next_url:
                     logger.info(f"No more pages for {description}")
                     break
-                
+
                 # Rate limiting using shared utility
                 await self.rate_limiter.wait_if_needed()
-                
+
             except Exception as e:
                 logger.error(f"Error processing {description}: {e}")
                 self.stats.api_errors += 1
                 break
-    
+
     def _process_polygon_article(self, article: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Process a Polygon news article into our standard format"""
         try:
             # Generate unique ID from URL or content hash
             article_id = article.get("id") or self._generate_article_id(article)
-            
+
             # Parse publication date
             published_date = self._parse_polygon_date(article.get("published_utc"))
             if not published_date:
                 return None
-                
+
             # Extract tickers
             tickers = []
             for ticker_obj in article.get("tickers", []):
@@ -329,7 +329,7 @@ class PolygonNewsBackfill:
                         tickers.append(ticker)
                 elif isinstance(ticker_obj, str):
                     tickers.append(ticker_obj)
-            
+
             return {
                 "article_id": article_id,
                 "title": article.get("title", ""),
@@ -347,12 +347,12 @@ class PolygonNewsBackfill:
         except Exception as e:
             logger.warning(f"Error processing Polygon article: {e}")
             return None
-    
+
     def _generate_article_id(self, article: Dict[str, Any]) -> str:
         """Generate a unique ID for an article based on its content"""
         content = f"{article.get('title', '')}{article.get('article_url', '')}{article.get('published_utc', '')}"
         return hashlib.md5(content.encode()).hexdigest()
-    
+
     def _parse_polygon_date(self, date_str: Optional[str]) -> Optional[datetime]:
         """Parse Polygon date format"""
         if not date_str:
@@ -370,16 +370,16 @@ class PolygonNewsBackfill:
             except:
                 logger.warning(f"Could not parse date: {date_str}")
                 return None
-    
+
     async def _store_articles(self, articles: List[Dict[str, Any]]) -> tuple[int, int, int]:
         """Store articles in database, returning (inserted, updated, skipped) counts"""
         if not articles:
             return 0, 0, 0
-        
+
         inserted_count = 0
         updated_count = 0
         skipped_count = 0
-        
+
         try:
             async with self.pool.acquire() as conn:
                 # Prepare records for insertion
@@ -399,11 +399,11 @@ class PolygonNewsBackfill:
                         article["vendor"],
                         json.dumps(article["raw_data"])
                     ))
-                
+
                 # Use ON CONFLICT to handle duplicates
                 result = await conn.executemany(f"""
                     INSERT INTO {self.table_name}
-                    (article_id, title, description, content, url, author, 
+                    (article_id, title, description, content, url, author,
                      published_date, source, tickers, keywords, vendor, raw_data)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                     ON CONFLICT (article_id, vendor) DO UPDATE SET
@@ -421,16 +421,16 @@ class PolygonNewsBackfill:
                     WHERE {self.table_name}.title IS DISTINCT FROM EXCLUDED.title
                     OR {self.table_name}.description IS DISTINCT FROM EXCLUDED.description
                 """, news_records)
-                
+
                 # For simplicity, consider all as inserted (PostgreSQL doesn't easily return insert vs update counts)
                 inserted_count = len(news_records)
-                
+
         except Exception as e:
             logger.error(f"Error storing articles: {e}")
             raise
-        
+
         return inserted_count, updated_count, skipped_count
-    
+
     async def _ensure_news_table_exists(self):
         """Ensure the news table exists with proper schema"""
         async with self.pool.acquire() as conn:
@@ -451,29 +451,29 @@ class PolygonNewsBackfill:
                     raw_data JSONB,
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                    
+
                     UNIQUE(article_id, vendor)
                 )
             """)
-            
+
             # Create indexes for performance
             await conn.execute(f"""
-                CREATE INDEX IF NOT EXISTS idx_news_published_date 
+                CREATE INDEX IF NOT EXISTS idx_news_published_date
                 ON {self.table_name}(published_date DESC)
             """)
-            
+
             await conn.execute(f"""
-                CREATE INDEX IF NOT EXISTS idx_news_vendor 
+                CREATE INDEX IF NOT EXISTS idx_news_vendor
                 ON {self.table_name}(vendor)
             """)
-            
+
             await conn.execute(f"""
-                CREATE INDEX IF NOT EXISTS idx_news_tickers 
+                CREATE INDEX IF NOT EXISTS idx_news_tickers
                 ON {self.table_name} USING GIN(tickers)
             """)
-            
+
             await conn.execute(f"""
-                CREATE INDEX IF NOT EXISTS idx_news_source 
+                CREATE INDEX IF NOT EXISTS idx_news_source
                 ON {self.table_name}(source)
             """)
 
@@ -509,20 +509,20 @@ API KEY MANAGEMENT:
 
 This script automatically finds the Polygon API key from:
 1. POLYGON_API_KEY environment variable
-2. Polygon utils system (infrastructure.vendor.polygon.utils) 
+2. Polygon utils system (infrastructure.vendor.polygon.utils)
 3. Gin configuration files (env.get_api_key('polygon'))
 
 No need to provide API key on command line - it uses existing codebase infrastructure.
         """
     )
-    
-    parser.add_argument('--start-date', type=str, default='2025-08-25', 
+
+    parser.add_argument('--start-date', type=str, default='2025-08-25',
                        help='Start date for backfill (YYYY-MM-DD)')
     parser.add_argument('--end-date', type=str, default=None,
                        help='End date for backfill (YYYY-MM-DD), defaults to now')
     parser.add_argument('--symbols', type=str, default=None,
                        help='Comma-separated symbols to filter by (optional)')
-    parser.add_argument('--environment', type=str, default='dev', 
+    parser.add_argument('--environment', type=str, default='dev',
                        choices=['dev', 'test', 'intg', 'prod'],
                        help='Environment to use (default: dev)')
     parser.add_argument('--limit-per-request', type=int, default=1000,
@@ -533,13 +533,13 @@ No need to provide API key on command line - it uses existing codebase infrastru
                        help='Enable debug logging')
     parser.add_argument('--dry-run', action='store_true',
                        help='Test mode: simulate operations without API calls or database writes')
-    
+
     args = parser.parse_args()
-    
+
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
-    
+
     # Parse dates
     try:
         start_date = datetime.strptime(args.start_date, '%Y-%m-%d')
@@ -547,23 +547,23 @@ No need to provide API key on command line - it uses existing codebase infrastru
     except ValueError as e:
         logger.error(f"Invalid date format: {e}")
         return 1
-    
+
     # Parse symbols
     symbols = None
     if args.symbols:
         symbols = [s.strip().upper() for s in args.symbols.split(',')]
-    
-    # Setup environment 
+
+    # Setup environment
     os.environ["ENVIRONMENT"] = args.environment
-    
+
     # Load gin config if available
     gin_config_map = {
         'test': 'config/app_test.gin',
-        'intg': 'config/app_intg.gin', 
+        'intg': 'config/app_intg.gin',
         'prod': 'config/app_prod.gin',
         'dev': 'config/app_dev.gin',
     }
-    
+
     gin_config_path = gin_config_map.get(args.environment)
     if gin_config_path and os.path.exists(gin_config_path):
         try:
@@ -571,27 +571,27 @@ No need to provide API key on command line - it uses existing codebase infrastru
             logger.info(f"Loaded gin config: {gin_config_path}")
         except Exception as e:
             logger.warning(f"Failed to load gin config: {e}")
-    
+
     # API Key Management - Uses shared utility
     polygon_api_key = get_polygon_api_key(required=not args.dry_run)
-    
+
     if not polygon_api_key and args.dry_run:
         logger.warning("POLYGON_API_KEY not available, but running in dry-run mode")
         polygon_api_key = "test-key"
     elif not polygon_api_key:
         logger.error("No Polygon API key found. Use shared.utils.vendor_api_keys for details.")
         return 1
-    
+
     try:
         # Create database connection pool using shared utility
         logger.info("Creating database connection pool...")
         pool = await get_database_pool(args.environment, max_retries=3, timeout=10.0)
         table_name = get_table_name("news", args.environment)
-        
+
         try:
             # Create backfill service
             backfill_service = PolygonNewsBackfill(polygon_api_key, pool, table_name)
-            
+
             if args.dry_run:
                 logger.info("DRY RUN MODE - No data will be stored")
                 # In dry run, mock API calls and return test results
@@ -611,15 +611,15 @@ No need to provide API key on command line - it uses existing codebase infrastru
                     limit_per_request=args.limit_per_request,
                     max_requests=args.max_requests
                 )
-            
+
             logger.info("Backfill completed successfully!")
             stats.log_final_summary(logger)
-            
+
             return 0
-            
+
         finally:
             await pool.close()
-            
+
     except Exception as e:
         logger.error(f"Backfill failed: {e}")
         import traceback

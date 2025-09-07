@@ -7,17 +7,17 @@ from db.migration_manager import MigrationManager
 def test_select_statement_prefixing():
     """Test that SELECT statements are correctly prefixed."""
     manager = MigrationManager("postgresql://postgres:password@localhost:5432/test_db")
-    
+
     # Test simple SELECT statement
     sql = "SELECT * FROM daily_prices;"
     prefixed_sql = manager._apply_table_prefixes(sql)
     assert "SELECT * FROM test_daily_prices" in prefixed_sql
-    
+
     # Test SELECT with WHERE clause
     sql = "SELECT * FROM daily_prices WHERE date = '2025-01-01';"
     prefixed_sql = manager._apply_table_prefixes(sql)
     assert "SELECT * FROM test_daily_prices WHERE date = '2025-01-01'" in prefixed_sql
-    
+
     # Test SELECT with JOIN
     sql = "SELECT * FROM daily_prices JOIN instruments ON daily_prices.instrument_id = instruments.id;"
     prefixed_sql = manager._apply_table_prefixes(sql)
@@ -29,7 +29,7 @@ def test_select_statement_prefixing():
 def test_foreign_key_references_prefixing():
     """Test that REFERENCES in foreign key constraints are correctly prefixed."""
     manager = MigrationManager("postgresql://postgres:password@localhost:5432/test_db")
-    
+
     # Test REFERENCES in CREATE TABLE
     sql = """
     CREATE TABLE daily_prices (
@@ -41,7 +41,7 @@ def test_foreign_key_references_prefixing():
     prefixed_sql = manager._apply_table_prefixes(sql)
     assert "CREATE TABLE test_daily_prices" in prefixed_sql
     assert "REFERENCES test_instruments(id)" in prefixed_sql
-    
+
     # Test REFERENCES with ON DELETE CASCADE
     sql = """
     CREATE TABLE universe_membership (
@@ -59,13 +59,13 @@ def test_foreign_key_references_prefixing():
 def test_regclass_cast_prefixing():
     """Test that regclass casts are correctly prefixed."""
     manager = MigrationManager("postgresql://postgres:password@localhost:5432/test_db")
-    
+
     # Test regclass cast in DO block
     sql = """
     DO $$
     BEGIN
         IF NOT EXISTS (
-            SELECT 1 FROM pg_constraint WHERE 
+            SELECT 1 FROM pg_constraint WHERE
             conrelid = 'universe_state_interval'::regclass AND
             conname = 'universe_state_interval_pkey'
         ) THEN
@@ -83,7 +83,7 @@ def test_regclass_cast_prefixing():
 def test_no_double_prefixing():
     """Test that tables are not double-prefixed."""
     manager = MigrationManager("postgresql://postgres:password@localhost:5432/test_db")
-    
+
     # Test already prefixed table name
     sql = """
     CREATE TABLE test_events (id SERIAL PRIMARY KEY);
@@ -99,15 +99,15 @@ def test_no_double_prefixing():
 def test_complex_sql_prefixing():
     """Test prefixing in complex SQL with multiple statements and comments."""
     manager = MigrationManager("postgresql://postgres:password@localhost:5432/test_db")
-    
+
     sql = """
     -- Create tables
     CREATE TABLE instruments (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL
     );
-    
-    /* 
+
+    /*
      * Create daily_prices table with foreign key
      */
     CREATE TABLE daily_prices (
@@ -120,25 +120,25 @@ def test_complex_sql_prefixing():
         close NUMERIC,
         volume BIGINT
     );
-    
+
     -- Add index
     CREATE INDEX idx_daily_prices_instrument_date ON daily_prices(instrument_id, date);
-    
+
     -- Insert some data
     INSERT INTO instruments (name) VALUES ('AAPL'), ('TSLA');
     """
-    
+
     prefixed_sql = manager._apply_table_prefixes(sql)
-    
+
     # Check table creation
     assert "CREATE TABLE test_instruments" in prefixed_sql
     assert "CREATE TABLE test_daily_prices" in prefixed_sql
-    
+
     # Check foreign key reference
     assert "REFERENCES test_instruments(id)" in prefixed_sql
-    
+
     # Check index creation
     assert "CREATE INDEX idx_daily_prices_instrument_date ON test_daily_prices" in prefixed_sql
-    
+
     # Check insert statement
     assert "INSERT INTO test_instruments" in prefixed_sql

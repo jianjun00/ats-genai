@@ -62,10 +62,10 @@ __all__ = [
     'validate_stock_symbol',
     'validate_stock_price',
     'validate_financial_data_record',
-    
+
     # Secure error handling
     'SecureErrorHandler',
-    'SecureError', 
+    'SecureError',
     'ErrorSeverity',
     'ErrorCategory',
     'CircuitBreaker',
@@ -73,7 +73,7 @@ __all__ = [
     'get_secure_error_handler',
     'secure_financial_operation',
     'with_validation_error_handling',
-    
+
     # Resource management
     'DefensiveResourceManager',
     'ResourceType',

@@ -22,7 +22,7 @@ def polygon_api_key():
     return os.getenv('POLYGON_API_KEY', 'test_api_key_placeholder')
 
 
-@pytest.fixture  
+@pytest.fixture
 def test_symbols():
     """Test symbols that should have historical data"""
     return ["AAPL", "MSFT", "GOOGL", "TSLA", "AMZN"]
@@ -35,7 +35,7 @@ class TestPolygonApiStatusHandling:
     @pytest.mark.asyncio
     async def test_api_accepts_ok_status(self):
         """Test that API correctly accepts standard OK status"""
-        
+
         # Mock API response with OK status
         mock_response_data = {
             "status": "OK",
@@ -43,7 +43,7 @@ class TestPolygonApiStatusHandling:
                 {
                     "t": 1640995200000,  # 2022-01-01 timestamp in ms
                     "o": 100.0,
-                    "h": 105.0, 
+                    "h": 105.0,
                     "l": 99.0,
                     "c": 102.5,
                     "v": 1000000,
@@ -52,11 +52,11 @@ class TestPolygonApiStatusHandling:
                 }
             ]
         }
-        
+
         # Test the status validation logic
         api_status = mock_response_data.get('status', '')
         assert api_status in ['OK', 'DELAYED'], f"API status '{api_status}' should be accepted"
-        
+
         # Verify results are processed
         results = mock_response_data.get('results', [])
         assert len(results) > 0, "Should process results when status is OK"
@@ -65,7 +65,7 @@ class TestPolygonApiStatusHandling:
     @pytest.mark.asyncio
     async def test_api_accepts_delayed_status(self):
         """Test that API correctly accepts DELAYED status (the fix)"""
-        
+
         # Mock API response with DELAYED status (the issue we fixed)
         mock_response_data = {
             "status": "DELAYED",  # This was being rejected before the fix
@@ -74,7 +74,7 @@ class TestPolygonApiStatusHandling:
                     "t": 1640995200000,
                     "o": 100.0,
                     "h": 105.0,
-                    "l": 99.0, 
+                    "l": 99.0,
                     "c": 102.5,
                     "v": 1000000,
                     "vw": 102.0,
@@ -82,11 +82,11 @@ class TestPolygonApiStatusHandling:
                 }
             ]
         }
-        
+
         # Test the FIXED status validation logic
         api_status = mock_response_data.get('status', '')
         assert api_status in ['OK', 'DELAYED'], f"API status '{api_status}' should be accepted after fix"
-        
+
         # Verify results are processed (this was failing before)
         results = mock_response_data.get('results', [])
         assert len(results) > 0, "Should process DELAYED status results (critical fix)"
@@ -95,22 +95,22 @@ class TestPolygonApiStatusHandling:
     @pytest.mark.asyncio
     async def test_api_rejects_error_status(self):
         """Test that API correctly rejects actual error statuses"""
-        
+
         # Mock API response with error status
         mock_response_data = {
             "status": "ERROR",
             "error": "Invalid API key"
         }
-        
+
         # Test that error statuses are still rejected
         api_status = mock_response_data.get('status', '')
         assert api_status not in ['OK', 'DELAYED'], "Error statuses should still be rejected"
 
-    @pytest.mark.asyncio  
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_polygon_data_transformation(self):
         """Test that Polygon API data transforms correctly to our schema"""
-        
+
         # Mock Polygon API response format
         polygon_bar = {
             "t": 1640995200000,  # 2022-01-01 00:00:00 UTC in milliseconds
@@ -122,12 +122,12 @@ class TestPolygonApiStatusHandling:
             "vw": 102.15,
             "n": 7500
         }
-        
+
         symbol = "AAPL"
-        
+
         # Transform using the same logic as the collector
         price_date = datetime.fromtimestamp(polygon_bar['t'] / 1000).date()
-        
+
         record = {
             'symbol': symbol,
             'price_date': price_date,
@@ -140,7 +140,7 @@ class TestPolygonApiStatusHandling:
             'transactions': int(polygon_bar.get('n', 0)),
             'data_source': 'polygon'
         }
-        
+
         # Validate transformation
         assert record['symbol'] == "AAPL"
         assert record['price_date'] == date(2022, 1, 1)
@@ -157,7 +157,7 @@ class TestPolygonApiStatusHandling:
     @pytest.mark.asyncio
     async def test_status_handling_before_fix(self):
         """Test that demonstrates the original bug (for regression testing)"""
-        
+
         # This simulates the OLD logic that was causing the issue
         def old_status_check(data):
             api_status = data.get('status', '')
@@ -165,12 +165,12 @@ class TestPolygonApiStatusHandling:
             if api_status != 'OK':
                 return False
             return True
-        
+
         # Test with DELAYED status (what Polygon actually returns)
         delayed_response = {"status": "DELAYED", "results": [{"t": 1640995200000}]}
         assert not old_status_check(delayed_response), "Old logic incorrectly rejected DELAYED status"
-        
-        # Test with OK status 
+
+        # Test with OK status
         ok_response = {"status": "OK", "results": [{"t": 1640995200000}]}
         assert old_status_check(ok_response), "Old logic correctly accepted OK status"
 
@@ -178,7 +178,7 @@ class TestPolygonApiStatusHandling:
     @pytest.mark.asyncio
     async def test_status_handling_after_fix(self):
         """Test that demonstrates the NEW logic (the fix)"""
-        
+
         # This simulates the NEW logic that fixes the issue
         def new_status_check(data):
             api_status = data.get('status', '')
@@ -186,15 +186,15 @@ class TestPolygonApiStatusHandling:
             if api_status not in ['OK', 'DELAYED']:
                 return False
             return True
-        
+
         # Test with DELAYED status (now accepted!)
         delayed_response = {"status": "DELAYED", "results": [{"t": 1640995200000}]}
         assert new_status_check(delayed_response), "New logic correctly accepts DELAYED status"
-        
+
         # Test with OK status (still accepted)
         ok_response = {"status": "OK", "results": [{"t": 1640995200000}]}
         assert new_status_check(ok_response), "New logic still accepts OK status"
-        
+
         # Test with error status (still rejected)
         error_response = {"status": "ERROR", "error": "Bad request"}
         assert not new_status_check(error_response), "New logic still rejects error statuses"
@@ -203,24 +203,24 @@ class TestPolygonApiStatusHandling:
     @pytest.mark.asyncio
     async def test_real_polygon_api_delayed_status(self, polygon_api_key, test_symbols):
         """Integration test with real Polygon API to verify DELAYED status handling"""
-        
+
         async with aiohttp.ClientSession() as session:
             for symbol in test_symbols[:2]:  # Test first 2 symbols only
                 # Request 1 year of historical data (likely to return DELAYED status)
                 url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/day/2024-01-01/2024-12-31"
                 params = {
                     'adjusted': 'true',
-                    'sort': 'asc', 
+                    'sort': 'asc',
                     'limit': 100,
                     'apikey': polygon_api_key
                 }
-                
+
                 try:
                     async with session.get(url, params=params) as response:
                         if response.status == 200:
                             data = await response.json()
                             api_status = data.get('status', '')
-                            
+
                             # Verify our fix handles both OK and DELAYED
                             if api_status in ['OK', 'DELAYED']:
                                 results = data.get('results', [])
@@ -228,16 +228,16 @@ class TestPolygonApiStatusHandling:
                                 assert len(results) >= 0, f"Should accept {api_status} status for {symbol}"
                             else:
                                 print(f"⚠️ {symbol}: Unexpected status={api_status}")
-                                
+
                         elif response.status == 429:
                             print(f"⏳ Rate limited for {symbol} (expected)")
                             continue
                         else:
                             print(f"❌ {symbol}: HTTP {response.status}")
-                            
+
                 except Exception as e:
                     print(f"💥 {symbol}: Request failed: {e}")
-                    
+
                 # Rate limiting
                 await asyncio.sleep(2)
 
@@ -245,10 +245,10 @@ class TestPolygonApiStatusHandling:
     @pytest.mark.asyncio
     async def test_checkpoint_recovery_after_fix(self):
         """Test that checkpoint system works correctly after the API status fix"""
-        
+
         # Mock database connection
         mock_conn = AsyncMock()
-        
+
         # Mock job progress tracking
         mock_conn.execute = AsyncMock()
         mock_conn.fetchrow = AsyncMock(return_value={
@@ -258,59 +258,59 @@ class TestPolygonApiStatusHandling:
             'processing': 0,
             'pending': 45
         })
-        
+
         # Simulate checkpoint-based processing with DELAYED status responses
         test_responses = [
             {"status": "OK", "results": [{"t": 1640995200000, "c": 100}]},
             {"status": "DELAYED", "results": [{"t": 1641081600000, "c": 101}]},  # This would have failed before
-            {"status": "DELAYED", "results": [{"t": 1641168000000, "c": 102}]},  # This would have failed before  
+            {"status": "DELAYED", "results": [{"t": 1641168000000, "c": 102}]},  # This would have failed before
         ]
-        
+
         successful_processing = 0
         failed_processing = 0
-        
+
         for response in test_responses:
             api_status = response.get('status', '')
-            
-            # Use the FIXED status logic 
+
+            # Use the FIXED status logic
             if api_status in ['OK', 'DELAYED']:
                 results = response.get('results', [])
                 if results:
                     successful_processing += 1
                     # Mock checkpoint update for successful processing
                     await mock_conn.execute(
-                        "UPDATE vendor_job_progress SET status = 'completed'", 
+                        "UPDATE vendor_job_progress SET status = 'completed'",
                         "test_job", "polygon", "TEST_SYMBOL"
                     )
             else:
                 failed_processing += 1
-                
+
         # Verify the fix allows processing of DELAYED responses
         assert successful_processing == 3, "All responses should be processed successfully after fix"
         assert failed_processing == 0, "No responses should fail with the fix"
-        
+
         # Verify database calls were made for successful processing
         assert mock_conn.execute.call_count >= 3, "Checkpoint updates should be called for each success"
 
 
 class TestPolygonDataValidation:
     """Test suite for Polygon data validation and edge cases"""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_missing_fields_handling(self):
         """Test handling of missing or null fields in Polygon responses"""
-        
+
         # Mock response with missing fields
         incomplete_bar = {
             "t": 1640995200000,
             "c": 100.0,
             # Missing: o, h, l, v, vw, n
         }
-        
+
         symbol = "TEST"
         price_date = datetime.fromtimestamp(incomplete_bar['t'] / 1000).date()
-        
+
         # Transform with missing field handling (using .get() with defaults)
         record = {
             'symbol': symbol,
@@ -324,10 +324,10 @@ class TestPolygonDataValidation:
             'transactions': int(incomplete_bar.get('n', 0)) if incomplete_bar.get('n') else None,
             'data_source': 'polygon'
         }
-        
+
         # Verify defaults are applied correctly
         assert record['open_price'] == Decimal('0')
-        assert record['high_price'] == Decimal('0') 
+        assert record['high_price'] == Decimal('0')
         assert record['low_price'] == Decimal('0')
         assert record['close_price'] == Decimal('100.0')
         assert record['volume'] == 0
@@ -338,7 +338,7 @@ class TestPolygonDataValidation:
     @pytest.mark.asyncio
     async def test_large_volume_handling(self):
         """Test handling of large volume numbers from Polygon"""
-        
+
         # Mock response with very large volume (realistic for major stocks)
         large_volume_bar = {
             "t": 1640995200000,
@@ -349,10 +349,10 @@ class TestPolygonDataValidation:
             "v": 500000000,  # 500 million volume
             "n": 100000      # 100k transactions
         }
-        
+
         symbol = "AAPL"
         price_date = datetime.fromtimestamp(large_volume_bar['t'] / 1000).date()
-        
+
         record = {
             'symbol': symbol,
             'price_date': price_date,
@@ -361,7 +361,7 @@ class TestPolygonDataValidation:
             'transactions': int(large_volume_bar['n']),
             'data_source': 'polygon'
         }
-        
+
         # Verify large numbers are handled correctly
         assert record['volume'] == 500000000
         assert record['transactions'] == 100000

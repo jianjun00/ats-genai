@@ -37,7 +37,7 @@ class LLMAnalysisResult:
 class DeepSeekPilotClient:
     """
     Pilot integration with DeepSeek-R1 for financial news analysis.
-    
+
     Features:
     - Structured financial news analysis
     - Cost tracking and optimization
@@ -45,26 +45,26 @@ class DeepSeekPilotClient:
     - Automatic fallback to FinBERT
     - Request caching for efficiency
     """
-    
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = config or self._default_config()
         self.endpoint = self.config['endpoint']
         self.model_name = self.config['model_name']
-        
+
         # Initialize tracking and monitoring
         self.cost_tracker = CostTracker()
         self.performance_monitor = PerformanceMonitor()
-        
+
         # Request caching for efficiency
         self.request_cache = {}
         self.cache_ttl = 3600  # 1 hour cache
-        
+
         # Session for connection pooling
         self.session = None
-        
+
         # Fallback system
         self._fallback_analyzer = None
-        
+
     def _default_config(self) -> Dict[str, Any]:
         """Default configuration for DeepSeek pilot"""
         return {
@@ -76,26 +76,26 @@ class DeepSeekPilotClient:
             'max_retries': 2,
             'cost_per_1k_tokens': 0.014  # Estimated DeepSeek-R1 pricing
         }
-    
+
     async def __aenter__(self):
         """Async context manager entry"""
         self.session = aiohttp.ClientSession(
             timeout=aiohttp.ClientTimeout(total=self.config['timeout'])
         )
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit"""
         if self.session:
             await self.session.close()
-    
+
     async def analyze_financial_news(self, article: NewsArticle) -> Dict[str, Any]:
         """
         Analyze financial news article using DeepSeek-R1 with structured output.
-        
+
         Args:
             article: NewsArticle object containing title, content, symbols, etc.
-            
+
         Returns:
             Dict containing structured analysis and metadata
         """
@@ -106,26 +106,26 @@ class DeepSeekPilotClient:
             if cached_result:
                 logger.info(f"Using cached result for article: {article.url}")
                 return cached_result
-            
+
             # Create analysis prompt
             prompt = self._create_analysis_prompt(article)
-            
+
             # Call DeepSeek with performance tracking
             start_time = time.time()
             response = await self._call_deepseek(prompt)
             latency = time.time() - start_time
-            
+
             # Parse structured response
             analysis = self._parse_response(response)
-            
+
             # Calculate costs
             input_tokens = len(prompt.split()) * 1.3  # Rough tokenization estimate
             output_tokens = len(response.split()) * 1.3
             cost = self.cost_tracker.calculate_cost(input_tokens, output_tokens)
-            
+
             # Record performance metrics
             self.performance_monitor.record_request(latency, len(response))
-            
+
             # Create result object
             result = {
                 'analysis': analysis,
@@ -139,25 +139,25 @@ class DeepSeekPilotClient:
                     'cached': False
                 }
             }
-            
+
             # Cache successful result
             self._cache_result(cache_key, result)
-            
+
             logger.info(f"DeepSeek analysis completed: {article.url} "
                        f"(latency: {latency:.2f}s, cost: ${cost:.4f})")
-            
+
             return result
-            
+
         except Exception as e:
             logger.error(f"DeepSeek analysis failed for {article.url}: {e}")
             raise RuntimeError(f"Failed to analyze article {article.url}: {e}. No fallback analysis available")
-    
+
     def _create_analysis_prompt(self, article: NewsArticle) -> str:
         """Create structured prompt for financial analysis"""
-        
+
         # Get primary symbol for context
         primary_symbol = article.symbols[0] if article.symbols else 'Unknown'
-        
+
         prompt = f"""You are a financial analyst AI. Analyze this news article and provide structured output in JSON format.
 
 News Article:
@@ -190,13 +190,13 @@ Guidelines:
 Provide only the JSON response, no other text."""
 
         return prompt
-    
+
     async def _call_deepseek(self, prompt: str) -> str:
         """Make API call to DeepSeek model"""
-        
+
         if not self.session:
             raise RuntimeError("Client session not initialized. Use async context manager.")
-        
+
         payload = {
             "model": self.model_name,
             "messages": [
@@ -211,7 +211,7 @@ Provide only the JSON response, no other text."""
             "frequency_penalty": 0.0,
             "presence_penalty": 0.0
         }
-        
+
         for attempt in range(self.config['max_retries'] + 1):
             try:
                 async with self.session.post(
@@ -219,7 +219,7 @@ Provide only the JSON response, no other text."""
                     json=payload,
                     headers={"Content-Type": "application/json"}
                 ) as response:
-                    
+
                     if response.status == 200:
                         result = await response.json()
                         return result['choices'][0]['message']['content']
@@ -228,7 +228,7 @@ Provide only the JSON response, no other text."""
                         raise aiohttp.ClientError(
                             f"DeepSeek API error {response.status}: {error_text}"
                         )
-                        
+
             except asyncio.TimeoutError:
                 if attempt < self.config['max_retries']:
                     wait_time = 2 ** attempt  # Exponential backoff
@@ -243,10 +243,10 @@ Provide only the JSON response, no other text."""
                     await asyncio.sleep(wait_time)
                 else:
                     raise
-    
+
     def _parse_response(self, response: str) -> LLMAnalysisResult:
         """Parse structured JSON response from DeepSeek"""
-        
+
         try:
             # Clean response - remove any markdown formatting
             cleaned_response = response.strip()
@@ -254,21 +254,21 @@ Provide only the JSON response, no other text."""
                 cleaned_response = cleaned_response[7:]
             if cleaned_response.endswith('```'):
                 cleaned_response = cleaned_response[:-3]
-            
+
             # Parse JSON
             parsed = json.loads(cleaned_response.strip())
-            
+
             # Validate required fields
             required_fields = [
-                'sentiment_score', 'confidence', 'event_type', 
-                'impact_timeline', 'quantified_impact', 'risk_factors', 
+                'sentiment_score', 'confidence', 'event_type',
+                'impact_timeline', 'quantified_impact', 'risk_factors',
                 'key_points', 'reasoning'
             ]
-            
+
             for field in required_fields:
                 if field not in parsed:
                     raise ValueError(f"Missing required field: {field}")
-            
+
             # Create structured result
             return LLMAnalysisResult(
                 sentiment_score=float(parsed['sentiment_score']),
@@ -281,11 +281,11 @@ Provide only the JSON response, no other text."""
                 reasoning=str(parsed['reasoning']),
                 metadata={'raw_response': response}
             )
-            
+
         except (json.JSONDecodeError, ValueError, KeyError) as e:
             logger.error(f"Failed to parse DeepSeek response: {e}")
             logger.error(f"Raw response: {response}")
-            
+
             # Return default analysis with low confidence
             return LLMAnalysisResult(
                 sentiment_score=0.0,
@@ -298,49 +298,49 @@ Provide only the JSON response, no other text."""
                 reasoning='Response parsing failed',
                 metadata={'error': str(e), 'raw_response': response}
             )
-    
+
     def _generate_cache_key(self, article: NewsArticle) -> str:
         """Generate cache key for article"""
         # Use URL + published date for uniqueness
         return f"deepseek:{hash(article.url + str(article.published_date))}"
-    
+
     def _get_cached_result(self, cache_key: str) -> Optional[Dict[str, Any]]:
         """Get cached result if available and not expired"""
-        
+
         if cache_key not in self.request_cache:
             return None
-        
+
         cached_data = self.request_cache[cache_key]
         cache_time = cached_data.get('cache_time', 0)
-        
+
         # Check if cache is expired
         if time.time() - cache_time > self.cache_ttl:
             del self.request_cache[cache_key]
             return None
-        
+
         # Update metadata to indicate cached result
         result = cached_data['result'].copy()
         result['metadata']['cached'] = True
-        
+
         return result
-    
+
     def _cache_result(self, cache_key: str, result: Dict[str, Any]):
         """Cache successful analysis result"""
-        
+
         # Don't cache if cache is getting too large
         if len(self.request_cache) > 1000:
             # Remove oldest entries (simple FIFO)
             oldest_key = next(iter(self.request_cache))
             del self.request_cache[oldest_key]
-        
+
         self.request_cache[cache_key] = {
             'result': result.copy(),
             'cache_time': time.time()
         }
-    
+
     def get_performance_stats(self) -> Dict[str, Any]:
         """Get performance statistics for monitoring"""
-        
+
         return {
             'total_requests': self.performance_monitor.total_requests,
             'avg_latency': self.performance_monitor.avg_latency,
@@ -349,14 +349,14 @@ Provide only the JSON response, no other text."""
             'cache_hit_rate': self._calculate_cache_hit_rate(),
             'error_rate': self.performance_monitor.error_rate
         }
-    
+
     def _calculate_cache_hit_rate(self) -> float:
         """Calculate cache hit rate"""
         if not hasattr(self, '_cache_hits'):
             self._cache_hits = 0
         if not hasattr(self, '_total_requests'):
             self._total_requests = 0
-            
+
         return self._cache_hits / self._total_requests if self._total_requests > 0 else 0.0
 
 
@@ -364,16 +364,16 @@ Provide only the JSON response, no other text."""
 async def analyze_news_with_deepseek(articles: List[NewsArticle]) -> List[Dict[str, Any]]:
     """
     Convenience function to analyze multiple articles with DeepSeek.
-    
+
     Args:
         articles: List of NewsArticle objects to analyze
-        
+
     Returns:
         List of analysis results
     """
-    
+
     results = []
-    
+
     async with DeepSeekPilotClient() as client:
         for article in articles:
             try:
@@ -385,5 +385,5 @@ async def analyze_news_with_deepseek(articles: List[NewsArticle]) -> List[Dict[s
                     'analysis': None,
                     'metadata': {'error': str(e), 'article_url': article.url}
                 })
-    
+
     return results

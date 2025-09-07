@@ -64,34 +64,34 @@ async def list_datasets():
     """List available database tables for EDA"""
     try:
         conn = await get_db_connection()
-        
+
         # Query for tables with row counts
         tables_query = """
-        SELECT 
+        SELECT
             schemaname,
             tablename as name,
             COALESCE(n_tup_ins - n_tup_del, 0) as estimated_rows
-        FROM pg_stat_user_tables 
+        FROM pg_stat_user_tables
         WHERE schemaname = 'public'
         AND tablename LIKE 'dev_%'
         ORDER BY tablename
         """
-        
+
         tables = await conn.fetch(tables_query)
-        
+
         datasets = []
         for table in tables:
             # Get actual row count and column count
             try:
                 row_count = await conn.fetchval(f"SELECT COUNT(*) FROM {table['name']}")
-                
+
                 columns_query = """
-                SELECT COUNT(*) 
-                FROM information_schema.columns 
+                SELECT COUNT(*)
+                FROM information_schema.columns
                 WHERE table_name = $1
                 """
                 column_count = await conn.fetchval(columns_query, table['name'])
-                
+
                 datasets.append(DatasetInfo(
                     name=table['name'],
                     row_count=row_count,
@@ -106,14 +106,14 @@ async def list_datasets():
                     column_count=0,
                     table_type="table"
                 ))
-        
+
         await conn.close()
-        
+
         return DatasetListResponse(
             datasets=datasets,
             total_count=len(datasets)
         )
-        
+
     except Exception as e:
         logger.error(f"Error listing datasets: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to list datasets: {str(e)}")
@@ -123,7 +123,7 @@ async def get_table_distributions(table_name: str):
     """Get column statistics and distributions for a table"""
     try:
         conn = await get_db_connection()
-        
+
         # Validate table exists and get column info
         columns_query = """
         SELECT column_name, data_type, is_nullable
@@ -131,18 +131,18 @@ async def get_table_distributions(table_name: str):
         WHERE table_name = $1 AND table_schema = 'public'
         ORDER BY ordinal_position
         """
-        
+
         columns = await conn.fetch(columns_query, table_name)
         if not columns:
             raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
-        
+
         column_stats = {}
         distributions = {}
-        
+
         for column in columns:
             col_name = column['column_name']
             col_type = column['data_type']
-            
+
             try:
                 # Basic stats for all columns
                 non_null_count = await conn.fetchval(
@@ -151,13 +151,13 @@ async def get_table_distributions(table_name: str):
                 unique_count = await conn.fetchval(
                     f"SELECT COUNT(DISTINCT {col_name}) FROM {table_name}"
                 )
-                
+
                 stats = ColumnStats(
                     data_type=col_type,
                     non_null_count=non_null_count,
                     unique_count=unique_count
                 )
-                
+
                 # Numeric column additional stats
                 if col_type in ['integer', 'bigint', 'numeric', 'double precision', 'real']:
                     try:
@@ -169,7 +169,7 @@ async def get_table_distributions(table_name: str):
                             stats.std = float(numeric_stats['std']) if numeric_stats['std'] else None
                             stats.min_value = str(numeric_stats['min']) if numeric_stats['min'] is not None else None
                             stats.max_value = str(numeric_stats['max']) if numeric_stats['max'] is not None else None
-                        
+
                         # Simple histogram for numeric columns
                         if non_null_count > 0 and unique_count > 1:
                             histogram_query = f"""
@@ -191,7 +191,7 @@ async def get_table_distributions(table_name: str):
                             GROUP BY bin_num, bin_start, bin_end
                             ORDER BY bin_num
                             """
-                            
+
                             histogram_data = await conn.fetch(histogram_query)
                             distributions[col_name] = {
                                 "histogram": [
@@ -201,9 +201,9 @@ async def get_table_distributions(table_name: str):
                             }
                     except Exception as e:
                         logger.warning(f"Error computing numeric stats for {col_name}: {e}")
-                
+
                 column_stats[col_name] = stats
-                
+
             except Exception as e:
                 logger.warning(f"Error processing column {col_name}: {e}")
                 column_stats[col_name] = ColumnStats(
@@ -211,14 +211,14 @@ async def get_table_distributions(table_name: str):
                     non_null_count=0,
                     unique_count=0
                 )
-        
+
         await conn.close()
-        
+
         return DatasetDistributionsResponse(
             columns=column_stats,
             distributions=distributions
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:

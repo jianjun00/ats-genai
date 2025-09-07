@@ -18,27 +18,27 @@ from populate_firstrate_minute_bars import FirstRateBackfillProcessor
 
 async def test_small_backfill():
     """Test backfill with just 2 symbols"""
-    
+
     # Setup logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-    
+
     processor = FirstRateBackfillProcessor(
         data_path="/data/firstrate-data",
-        output_path="/data/minute-bars/firstrate", 
+        output_path="/data/minute-bars/firstrate",
         checkpoint_file="test_checkpoint.json"
     )
-    
+
     # Run with limited symbols
     result = await processor.run_backfill(
         asset_type='stock',
-        symbols=['AAPL', 'MSFT'],  # Just test with these 2 
+        symbols=['AAPL', 'MSFT'],  # Just test with these 2
         limit=2,
         resume=False
     )
-    
+
     print(f"🎉 Test backfill completed!")
     print(f"📊 Stats: {result['processing_stats']}")
-    
+
     return result
 
 if __name__ == "__main__":

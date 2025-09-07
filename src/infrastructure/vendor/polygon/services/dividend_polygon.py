@@ -17,7 +17,7 @@ def fetch_dividends_polygon(ticker, api_key):
 
 async def insert_dividends_polygon(dividends, ticker, dao=None):
     if dao is None:
-        
+
         from infrastructure.database.repositories.dividend_polygon_dao import DividendPolygonDAO
         env = Environment()
         dao = DividendPolygonDAO(env)

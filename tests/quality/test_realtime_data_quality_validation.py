@@ -4,7 +4,7 @@ Data Quality Validation Tests for Real-time Collection System
 
 Comprehensive tests for data quality validation including:
 - OHLCV price relationship validation
-- Volume and trade data validation  
+- Volume and trade data validation
 - Cross-vendor consistency checks
 - Time series continuity validation
 - Statistical outlier detection
@@ -45,15 +45,15 @@ async def quality_db_pool():
 
 class DataQualityValidator:
     """Comprehensive data quality validation"""
-    
+
     def __init__(self, db_pool):
         self.db_pool = db_pool
-        
+
     async def validate_ohlc_relationships(self, table_name: str, time_window: int = 60) -> Dict[str, Any]:
         """Validate OHLC price relationships"""
         async with self.db_pool.acquire() as conn:
             violations = await conn.fetch(f"""
-                SELECT 
+                SELECT
                     symbol,
                     timestamp,
                     open_price,
@@ -86,19 +86,19 @@ class DataQualityValidator:
                         low_price <= 0
                     )
             """)
-            
+
             # Count violations by type
             violation_counts = {}
             for row in violations:
                 vtype = row['violation_type']
                 violation_counts[vtype] = violation_counts.get(vtype, 0) + 1
-            
+
             # Get total records for comparison
             total_records = await conn.fetchval(f"""
-                SELECT COUNT(*) FROM {table_name} 
+                SELECT COUNT(*) FROM {table_name}
                 WHERE timestamp >= NOW() - INTERVAL '{time_window} minutes'
             """)
-            
+
             return {
                 'total_records': total_records,
                 'total_violations': len(violations),
@@ -106,16 +106,16 @@ class DataQualityValidator:
                 'violation_counts': violation_counts,
                 'violations': [dict(row) for row in violations[:10]]  # First 10 for debugging
             }
-    
+
     async def validate_price_continuity(self, table_name: str, symbol: str = None) -> Dict[str, Any]:
         """Validate price continuity and detect gaps"""
         symbol_filter = f"AND symbol = '{symbol}'" if symbol else ""
-        
+
         async with self.db_pool.acquire() as conn:
             # Find time gaps in the data
             gaps = await conn.fetch(f"""
                 WITH ordered_data AS (
-                    SELECT 
+                    SELECT
                         symbol,
                         timestamp,
                         close_price,
@@ -127,7 +127,7 @@ class DataQualityValidator:
                     ORDER BY symbol, timestamp
                 ),
                 gaps AS (
-                    SELECT 
+                    SELECT
                         symbol,
                         prev_timestamp,
                         timestamp,
@@ -144,25 +144,25 @@ class DataQualityValidator:
                 )
                 SELECT * FROM gaps ORDER BY gap_seconds DESC LIMIT 20
             """)
-            
+
             # Calculate continuity metrics
             total_points = await conn.fetchval(f"""
-                SELECT COUNT(*) FROM {table_name} 
+                SELECT COUNT(*) FROM {table_name}
                 WHERE timestamp >= NOW() - INTERVAL '2 hours' {symbol_filter}
             """)
-            
+
             return {
                 'total_data_points': total_points,
                 'time_gaps_found': len(gaps),
                 'gaps': [dict(row) for row in gaps],
                 'continuity_score': max(0, 1 - (len(gaps) / total_points)) if total_points > 0 else 0
             }
-    
+
     async def validate_volume_consistency(self, table_name: str) -> Dict[str, Any]:
         """Validate volume data consistency"""
         async with self.db_pool.acquire() as conn:
             volume_stats = await conn.fetchrow(f"""
-                SELECT 
+                SELECT
                     COUNT(*) as total_records,
                     COUNT(CASE WHEN volume = 0 THEN 1 END) as zero_volume_count,
                     COUNT(CASE WHEN volume < 0 THEN 1 END) as negative_volume_count,
@@ -176,11 +176,11 @@ class DataQualityValidator:
                 WHERE timestamp >= NOW() - INTERVAL '1 hour'
                     AND volume IS NOT NULL
             """)
-            
+
             # Detect volume outliers
             outliers = await conn.fetch(f"""
                 WITH volume_stats AS (
-                    SELECT 
+                    SELECT
                         AVG(volume) as mean_vol,
                         STDDEV(volume) as std_vol
                     FROM {table_name}
@@ -188,7 +188,7 @@ class DataQualityValidator:
                         AND volume > 0
                 ),
                 outlier_detection AS (
-                    SELECT 
+                    SELECT
                         symbol,
                         timestamp,
                         volume,
@@ -201,20 +201,20 @@ class DataQualityValidator:
                 )
                 SELECT * FROM outlier_detection ORDER BY ABS(z_score) DESC LIMIT 10
             """)
-            
+
             return {
                 'volume_stats': dict(volume_stats),
                 'volume_outliers': [dict(row) for row in outliers],
                 'zero_volume_rate': volume_stats['zero_volume_count'] / volume_stats['total_records'] if volume_stats['total_records'] > 0 else 0,
                 'negative_volume_rate': volume_stats['negative_volume_count'] / volume_stats['total_records'] if volume_stats['total_records'] > 0 else 0
             }
-    
+
     async def validate_cross_vendor_consistency(self, time_window: int = 30) -> Dict[str, Any]:
         """Validate consistency between vendors for same symbols and timestamps"""
         async with self.db_pool.acquire() as conn:
             # Find matching records between vendors
             matches = await conn.fetch(f"""
-                SELECT 
+                SELECT
                     t.symbol,
                     t.timestamp,
                     t.close_price as tiingo_close,
@@ -224,21 +224,21 @@ class DataQualityValidator:
                     ABS(t.close_price - p.close_price) / t.close_price as price_diff_pct,
                     ABS(CAST(t.volume as NUMERIC) - p.volume) / CAST(t.volume as NUMERIC) as volume_diff_pct
                 FROM intg_one_minute_live_tiingo t
-                INNER JOIN intg_one_minute_live_polygon p 
+                INNER JOIN intg_one_minute_live_polygon p
                     ON t.symbol = p.symbol AND t.timestamp = p.timestamp
                 WHERE t.timestamp >= NOW() - INTERVAL '{time_window} minutes'
                     AND t.close_price > 0 AND p.close_price > 0
                     AND t.volume > 0
                 ORDER BY t.symbol, t.timestamp DESC
             """)
-            
+
             if matches:
                 price_diffs = [float(row['price_diff_pct']) for row in matches if row['price_diff_pct'] is not None]
                 volume_diffs = [float(row['volume_diff_pct']) for row in matches if row['volume_diff_pct'] is not None and row['volume_diff_pct'] < 10]  # Cap at 1000%
-                
+
                 # Identify significant discrepancies
                 large_discrepancies = [row for row in matches if row['price_diff_pct'] and float(row['price_diff_pct']) > 0.05]  # > 5% difference
-                
+
                 consistency_metrics = {
                     'matched_records': len(matches),
                     'avg_price_diff_pct': statistics.mean(price_diffs) if price_diffs else 0,
@@ -258,14 +258,14 @@ class DataQualityValidator:
                     'price_consistency_score': 0,
                     'discrepancy_examples': []
                 }
-            
+
             return consistency_metrics
-    
+
     async def validate_quality_scores(self, table_name: str) -> Dict[str, Any]:
         """Validate quality score distribution and accuracy"""
         async with self.db_pool.acquire() as conn:
             quality_stats = await conn.fetchrow(f"""
-                SELECT 
+                SELECT
                     COUNT(*) as total_records,
                     COUNT(quality_score) as non_null_scores,
                     AVG(quality_score) as avg_quality,
@@ -278,11 +278,11 @@ class DataQualityValidator:
                 FROM {table_name}
                 WHERE timestamp >= NOW() - INTERVAL '1 hour'
             """)
-            
+
             # Distribution analysis
             distribution = await conn.fetch(f"""
-                SELECT 
-                    CASE 
+                SELECT
+                    CASE
                         WHEN quality_score >= 0.9 THEN 'Excellent (0.9-1.0)'
                         WHEN quality_score >= 0.8 THEN 'Good (0.8-0.9)'
                         WHEN quality_score >= 0.7 THEN 'Fair (0.7-0.8)'
@@ -296,7 +296,7 @@ class DataQualityValidator:
                 GROUP BY quality_bracket
                 ORDER BY MIN(quality_score) DESC
             """)
-            
+
             return {
                 'quality_stats': dict(quality_stats),
                 'quality_distribution': [dict(row) for row in distribution],
@@ -307,53 +307,53 @@ class DataQualityValidator:
 
 class TestOHLCValidation:
     """Test OHLC data validation"""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_tiingo_ohlc_relationships(self, quality_db_pool):
         """Test OHLC relationships in Tiingo data"""
         validator = DataQualityValidator(quality_db_pool)
-        
+
         # Generate some data first
         collector = AAPLTSLASyntheticCollector()
         collector.pool = quality_db_pool
-        
+
         for _ in range(10):
             await collector.generate_and_store_data()
-        
+
         # Validate OHLC relationships
         validation_result = await validator.validate_ohlc_relationships('intg_one_minute_live_tiingo')
-        
+
         logger.info(f"Tiingo OHLC validation: {validation_result['total_records']} records, {validation_result['total_violations']} violations")
-        
+
         # Assertions
         assert validation_result['total_records'] > 0
         assert validation_result['violation_rate'] < 0.01  # Less than 1% violations
         assert 'invalid_open' not in validation_result['violation_counts']
         assert 'invalid_close' not in validation_result['violation_counts']
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_polygon_ohlc_relationships(self, quality_db_pool):
         """Test OHLC relationships in Polygon data"""
         validator = DataQualityValidator(quality_db_pool)
-        
+
         # Generate data
         collector = AAPLTSLASyntheticCollector()
         collector.pool = quality_db_pool
-        
+
         for _ in range(10):
             await collector.generate_and_store_data()
-        
+
         # Validate OHLC relationships
         validation_result = await validator.validate_ohlc_relationships('intg_one_minute_live_polygon')
-        
+
         logger.info(f"Polygon OHLC validation: {validation_result['total_records']} records, {validation_result['total_violations']} violations")
-        
+
         # Assertions
         assert validation_result['total_records'] > 0
         assert validation_result['violation_rate'] < 0.01  # Less than 1% violations
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_price_range_validation(self, quality_db_pool):
@@ -361,7 +361,7 @@ class TestOHLCValidation:
         async with quality_db_pool.acquire() as conn:
             # Check price ranges for known symbols
             price_ranges = await conn.fetch("""
-                SELECT 
+                SELECT
                     symbol,
                     MIN(close_price) as min_price,
                     MAX(close_price) as max_price,
@@ -371,70 +371,70 @@ class TestOHLCValidation:
                     SELECT symbol, close_price FROM intg_one_minute_live_tiingo
                     WHERE timestamp >= NOW() - INTERVAL '1 hour'
                     UNION ALL
-                    SELECT symbol, close_price FROM intg_one_minute_live_polygon  
+                    SELECT symbol, close_price FROM intg_one_minute_live_polygon
                     WHERE timestamp >= NOW() - INTERVAL '1 hour'
                 ) combined
                 GROUP BY symbol
             """)
-            
+
             for row in price_ranges:
                 symbol = row['symbol']
                 min_price = float(row['min_price'])
                 max_price = float(row['max_price'])
                 avg_price = float(row['avg_price'])
-                
+
                 logger.info(f"{symbol}: ${min_price:.2f} - ${max_price:.2f} (avg: ${avg_price:.2f})")
-                
+
                 # Validate reasonable price ranges
                 if symbol == 'AAPL':
                     assert 200 <= avg_price <= 250, f"AAPL average price {avg_price} outside expected range"
                     assert max_price - min_price < avg_price * 0.1, f"AAPL price range too large"
                 elif symbol == 'TSLA':
-                    assert 300 <= avg_price <= 360, f"TSLA average price {avg_price} outside expected range" 
+                    assert 300 <= avg_price <= 360, f"TSLA average price {avg_price} outside expected range"
                     assert max_price - min_price < avg_price * 0.1, f"TSLA price range too large"
 
 
 class TestVolumeValidation:
     """Test volume data validation"""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_volume_consistency(self, quality_db_pool):
         """Test volume data consistency"""
         validator = DataQualityValidator(quality_db_pool)
-        
+
         # Generate data
         collector = AAPLTSLASyntheticCollector()
         collector.pool = quality_db_pool
-        
+
         for _ in range(15):
             await collector.generate_and_store_data()
-        
+
         # Test Tiingo volume consistency
         tiingo_validation = await validator.validate_volume_consistency('intg_one_minute_live_tiingo')
-        
+
         logger.info(f"Tiingo volume validation: {tiingo_validation['volume_stats']['total_records']} records")
         logger.info(f"Zero volume rate: {tiingo_validation['zero_volume_rate']:.2%}")
         logger.info(f"Negative volume rate: {tiingo_validation['negative_volume_rate']:.2%}")
-        
+
         # Assertions
         assert tiingo_validation['zero_volume_rate'] < 0.1  # Less than 10% zero volume
         assert tiingo_validation['negative_volume_rate'] == 0  # No negative volume
         assert tiingo_validation['volume_stats']['avg_volume'] > 0
-        
+
         # Test Polygon volume consistency
         polygon_validation = await validator.validate_volume_consistency('intg_one_minute_live_polygon')
-        
+
         assert polygon_validation['negative_volume_rate'] == 0
         assert polygon_validation['volume_stats']['avg_volume'] > 0
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_volume_distribution(self, quality_db_pool):
         """Test volume distribution patterns"""
         async with quality_db_pool.acquire() as conn:
             volume_distribution = await conn.fetch("""
-                SELECT 
+                SELECT
                     symbol,
                     vendor,
                     COUNT(*) as record_count,
@@ -443,30 +443,30 @@ class TestVolumeValidation:
                     MIN(volume) as min_volume,
                     MAX(volume) as max_volume
                 FROM (
-                    SELECT symbol, 'tiingo' as vendor, volume 
+                    SELECT symbol, 'tiingo' as vendor, volume
                     FROM intg_one_minute_live_tiingo
                     WHERE timestamp >= NOW() - INTERVAL '30 minutes'
                     UNION ALL
-                    SELECT symbol, 'polygon' as vendor, volume 
+                    SELECT symbol, 'polygon' as vendor, volume
                     FROM intg_one_minute_live_polygon
                     WHERE timestamp >= NOW() - INTERVAL '30 minutes'
                 ) combined
                 GROUP BY symbol, vendor
                 ORDER BY symbol, vendor
             """)
-            
+
             for row in volume_distribution:
                 symbol = row['symbol']
                 vendor = row['vendor']
                 avg_volume = float(row['avg_volume']) if row['avg_volume'] else 0
                 volume_stddev = float(row['volume_stddev']) if row['volume_stddev'] else 0
-                
+
                 logger.info(f"{symbol} {vendor}: avg_vol={avg_volume:.0f}, stddev={volume_stddev:.0f}")
-                
+
                 # Volume should be reasonable
                 assert avg_volume > 1000, f"Average volume too low for {symbol} {vendor}"
                 assert volume_stddev > 0, f"Volume should have variability for {symbol} {vendor}"
-                
+
                 # Coefficient of variation should be reasonable
                 cv = volume_stddev / avg_volume if avg_volume > 0 else 0
                 assert cv < 2.0, f"Volume variability too high for {symbol} {vendor}"
@@ -474,35 +474,35 @@ class TestVolumeValidation:
 
 class TestCrossVendorConsistency:
     """Test consistency between vendors"""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_vendor_price_consistency(self, quality_db_pool):
         """Test price consistency between Tiingo and Polygon"""
         validator = DataQualityValidator(quality_db_pool)
-        
+
         # Generate synchronized data
         collector = AAPLTSLASyntheticCollector()
         collector.pool = quality_db_pool
-        
+
         for _ in range(10):
             await collector.generate_and_store_data()
             await asyncio.sleep(0.1)  # Small delay
-        
+
         # Validate cross-vendor consistency
         consistency_result = await validator.validate_cross_vendor_consistency()
-        
+
         logger.info(f"Cross-vendor consistency: {consistency_result['matched_records']} matched records")
         if consistency_result['avg_price_diff_pct'] is not None:
             logger.info(f"Average price difference: {consistency_result['avg_price_diff_pct']:.3%}")
             logger.info(f"Price consistency score: {consistency_result['price_consistency_score']:.3f}")
-        
+
         # Assertions
         assert consistency_result['matched_records'] > 0
         if consistency_result['avg_price_diff_pct'] is not None:
             assert consistency_result['avg_price_diff_pct'] < 0.05  # Less than 5% average difference
             assert consistency_result['large_discrepancies'] < consistency_result['matched_records'] * 0.1  # Less than 10% large discrepancies
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_vendor_coverage_consistency(self, quality_db_pool):
@@ -510,7 +510,7 @@ class TestCrossVendorConsistency:
         async with quality_db_pool.acquire() as conn:
             coverage_comparison = await conn.fetchrow("""
                 WITH tiingo_coverage AS (
-                    SELECT 
+                    SELECT
                         COUNT(DISTINCT symbol) as symbols,
                         COUNT(DISTINCT DATE_TRUNC('minute', timestamp)) as time_points,
                         COUNT(*) as total_records
@@ -518,14 +518,14 @@ class TestCrossVendorConsistency:
                     WHERE timestamp >= NOW() - INTERVAL '30 minutes'
                 ),
                 polygon_coverage AS (
-                    SELECT 
+                    SELECT
                         COUNT(DISTINCT symbol) as symbols,
-                        COUNT(DISTINCT DATE_TRUNC('minute', timestamp)) as time_points,  
+                        COUNT(DISTINCT DATE_TRUNC('minute', timestamp)) as time_points,
                         COUNT(*) as total_records
                     FROM intg_one_minute_live_polygon
                     WHERE timestamp >= NOW() - INTERVAL '30 minutes'
                 )
-                SELECT 
+                SELECT
                     t.symbols as tiingo_symbols,
                     p.symbols as polygon_symbols,
                     t.time_points as tiingo_timepoints,
@@ -535,12 +535,12 @@ class TestCrossVendorConsistency:
                 FROM tiingo_coverage t
                 CROSS JOIN polygon_coverage p
             """)
-            
+
             logger.info(f"Coverage comparison: Tiingo {coverage_comparison['tiingo_symbols']} symbols, Polygon {coverage_comparison['polygon_symbols']} symbols")
-            
+
             # Both vendors should cover same symbols
             assert coverage_comparison['tiingo_symbols'] == coverage_comparison['polygon_symbols']
-            
+
             # Time point coverage should be similar
             time_diff_ratio = abs(coverage_comparison['tiingo_timepoints'] - coverage_comparison['polygon_timepoints']) / max(coverage_comparison['tiingo_timepoints'], 1)
             assert time_diff_ratio < 0.2  # Less than 20% difference in time point coverage
@@ -548,76 +548,76 @@ class TestCrossVendorConsistency:
 
 class TestQualityScoreValidation:
     """Test quality score validation"""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_quality_score_ranges(self, quality_db_pool):
         """Test quality score ranges and distributions"""
         validator = DataQualityValidator(quality_db_pool)
-        
+
         # Generate data
         collector = AAPLTSLASyntheticCollector()
         collector.pool = quality_db_pool
-        
+
         for _ in range(20):
             await collector.generate_and_store_data()
-        
+
         # Test Tiingo quality scores
         tiingo_quality = await validator.validate_quality_scores('intg_one_minute_live_tiingo')
-        
+
         logger.info(f"Tiingo quality: avg={tiingo_quality['quality_stats']['avg_quality']:.3f}")
         logger.info(f"Quality distribution: {tiingo_quality['quality_distribution']}")
-        
+
         # Assertions
         assert tiingo_quality['score_coverage'] > 0.95  # 95% of records should have quality scores
         assert tiingo_quality['invalid_score_rate'] == 0  # No invalid scores
         assert tiingo_quality['quality_stats']['avg_quality'] > 0.7  # Average quality should be good
-        
+
         # Test Polygon quality scores
         polygon_quality = await validator.validate_quality_scores('intg_one_minute_live_polygon')
-        
+
         assert polygon_quality['score_coverage'] > 0.95
         assert polygon_quality['invalid_score_rate'] == 0
         assert polygon_quality['quality_stats']['avg_quality'] > 0.7
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_quality_score_correlation(self, quality_db_pool):
         """Test correlation between quality scores and other metrics"""
         async with quality_db_pool.acquire() as conn:
             correlations = await conn.fetch("""
-                SELECT 
+                SELECT
                     symbol,
                     CORR(quality_score, volume) as quality_volume_corr,
                     CORR(quality_score, data_latency_ms) as quality_latency_corr,
                     AVG(quality_score) as avg_quality,
                     COUNT(*) as record_count
                 FROM (
-                    SELECT symbol, quality_score, volume, data_latency_ms 
+                    SELECT symbol, quality_score, volume, data_latency_ms
                     FROM intg_one_minute_live_tiingo
                     WHERE timestamp >= NOW() - INTERVAL '30 minutes'
                         AND quality_score IS NOT NULL
                         AND volume > 0
                         AND data_latency_ms > 0
                     UNION ALL
-                    SELECT symbol, quality_score, volume, data_latency_ms 
+                    SELECT symbol, quality_score, volume, data_latency_ms
                     FROM intg_one_minute_live_polygon
                     WHERE timestamp >= NOW() - INTERVAL '30 minutes'
                         AND quality_score IS NOT NULL
-                        AND volume > 0  
+                        AND volume > 0
                         AND data_latency_ms > 0
                 ) combined
                 GROUP BY symbol
                 HAVING COUNT(*) >= 10
             """)
-            
+
             for row in correlations:
                 symbol = row['symbol']
                 vol_corr = float(row['quality_volume_corr']) if row['quality_volume_corr'] else 0
                 latency_corr = float(row['quality_latency_corr']) if row['quality_latency_corr'] else 0
-                
+
                 logger.info(f"{symbol}: quality-volume corr={vol_corr:.3f}, quality-latency corr={latency_corr:.3f}")
-                
+
                 # Quality scores should have reasonable correlations
                 # High volume might correlate with higher quality
                 # High latency might correlate with lower quality
@@ -627,42 +627,42 @@ class TestQualityScoreValidation:
 
 class TestTimeSeriesContinuity:
     """Test time series continuity and gaps"""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_time_series_gaps(self, quality_db_pool):
         """Test detection of time series gaps"""
         validator = DataQualityValidator(quality_db_pool)
-        
+
         # Generate continuous data
         collector = AAPLTSLASyntheticCollector()
         collector.pool = quality_db_pool
-        
+
         for _ in range(15):
             await collector.generate_and_store_data()
             await asyncio.sleep(0.05)  # Very short delay
-        
+
         # Test continuity for AAPL
         aapl_continuity = await validator.validate_price_continuity('intg_one_minute_live_tiingo', 'AAPL')
-        
+
         logger.info(f"AAPL continuity: {aapl_continuity['time_gaps_found']} gaps in {aapl_continuity['total_data_points']} points")
         logger.info(f"Continuity score: {aapl_continuity['continuity_score']:.3f}")
-        
+
         # Assertions
         assert aapl_continuity['total_data_points'] > 0
         assert aapl_continuity['continuity_score'] > 0.8  # Good continuity
-        
+
         # Test for TSLA as well
         tsla_continuity = await validator.validate_price_continuity('intg_one_minute_live_polygon', 'TSLA')
         assert tsla_continuity['continuity_score'] > 0.8
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_timestamp_precision(self, quality_db_pool):
         """Test timestamp precision and ordering"""
         async with quality_db_pool.acquire() as conn:
             timestamp_analysis = await conn.fetchrow("""
-                SELECT 
+                SELECT
                     COUNT(*) as total_records,
                     COUNT(DISTINCT timestamp) as unique_timestamps,
                     MIN(timestamp) as earliest,
@@ -672,15 +672,15 @@ class TestTimeSeriesContinuity:
                     SELECT timestamp FROM intg_one_minute_live_tiingo
                     WHERE timestamp >= NOW() - INTERVAL '1 hour'
                     UNION
-                    SELECT timestamp FROM intg_one_minute_live_polygon  
+                    SELECT timestamp FROM intg_one_minute_live_polygon
                     WHERE timestamp >= NOW() - INTERVAL '1 hour'
                 ) combined
             """)
-            
+
             # Check timestamp ordering
             ordering_check = await conn.fetchval("""
                 SELECT COUNT(*) FROM (
-                    SELECT 
+                    SELECT
                         timestamp,
                         LAG(timestamp) OVER (ORDER BY timestamp) as prev_timestamp
                     FROM intg_one_minute_live_tiingo
@@ -689,10 +689,10 @@ class TestTimeSeriesContinuity:
                 ) ordered
                 WHERE timestamp < prev_timestamp  -- Out of order
             """)
-            
+
             logger.info(f"Timestamp analysis: {timestamp_analysis['total_records']} records, {timestamp_analysis['unique_timestamps']} unique timestamps")
             logger.info(f"Out of order timestamps: {ordering_check}")
-            
+
             # Assertions
             assert timestamp_analysis['total_records'] > 0
             assert ordering_check == 0  # All timestamps should be in order
@@ -701,29 +701,29 @@ class TestTimeSeriesContinuity:
 
 class TestComprehensiveDataQuality:
     """Comprehensive data quality assessment"""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_overall_data_quality_score(self, quality_db_pool):
         """Calculate comprehensive data quality score"""
         validator = DataQualityValidator(quality_db_pool)
-        
+
         # Generate substantial test data
         collector = AAPLTSLASyntheticCollector()
         collector.pool = quality_db_pool
-        
+
         for _ in range(30):
             await collector.generate_and_store_data()
-        
+
         # Run all validations
         tiingo_ohlc = await validator.validate_ohlc_relationships('intg_one_minute_live_tiingo')
-        polygon_ohlc = await validator.validate_ohlc_relationships('intg_one_minute_live_polygon') 
+        polygon_ohlc = await validator.validate_ohlc_relationships('intg_one_minute_live_polygon')
         tiingo_volume = await validator.validate_volume_consistency('intg_one_minute_live_tiingo')
         polygon_volume = await validator.validate_volume_consistency('intg_one_minute_live_polygon')
         cross_vendor = await validator.validate_cross_vendor_consistency()
         tiingo_quality = await validator.validate_quality_scores('intg_one_minute_live_tiingo')
         polygon_quality = await validator.validate_quality_scores('intg_one_minute_live_polygon')
-        
+
         # Calculate composite quality score
         quality_components = {
             'tiingo_ohlc_quality': 1 - tiingo_ohlc['violation_rate'],
@@ -734,7 +734,7 @@ class TestComprehensiveDataQuality:
             'tiingo_quality_scores': tiingo_quality['quality_stats']['avg_quality'] or 0.5,
             'polygon_quality_scores': polygon_quality['quality_stats']['avg_quality'] or 0.5
         }
-        
+
         # Weighted composite score
         composite_score = (
             quality_components['tiingo_ohlc_quality'] * 0.2 +
@@ -745,15 +745,15 @@ class TestComprehensiveDataQuality:
             quality_components['tiingo_quality_scores'] * 0.075 +
             quality_components['polygon_quality_scores'] * 0.075
         )
-        
+
         logger.info("Data Quality Assessment:")
         for component, score in quality_components.items():
             logger.info(f"  {component}: {score:.3f}")
         logger.info(f"Composite Quality Score: {composite_score:.3f}")
-        
+
         # Overall quality should be high
         assert composite_score > 0.8, f"Composite quality score {composite_score:.3f} below threshold"
-        
+
         # Individual components should be reasonable
         assert quality_components['tiingo_ohlc_quality'] > 0.95
         assert quality_components['polygon_ohlc_quality'] > 0.95

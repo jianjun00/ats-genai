@@ -20,6 +20,6 @@ __all__ = [
     'standardize_price_data',
     'resample_price_data',
     'chunk_dataframe',
-    'merge_dataframes_safely', 
+    'merge_dataframes_safely',
     'clean_numeric_data'
 ]

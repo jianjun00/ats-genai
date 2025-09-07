@@ -16,12 +16,12 @@ def calculate_returns(
 ) -> pd.Series:
     """
     Calculate returns from price series.
-    
+
     Args:
         prices: Price series
         method: Return calculation method ('simple', 'log')
         periods: Number of periods for return calculation
-    
+
     Returns:
         Returns series
     """
@@ -31,7 +31,7 @@ def calculate_returns(
         returns = np.log(prices / prices.shift(periods))
     else:
         raise ValueError(f"Unknown return method: {method}")
-    
+
     return returns
 
 
@@ -42,12 +42,12 @@ def calculate_volatility(
 ) -> Union[float, pd.Series]:
     """
     Calculate volatility from returns.
-    
+
     Args:
         returns: Returns series
         window: Rolling window for calculation
         annualize: Whether to annualize volatility
-    
+
     Returns:
         Volatility (scalar or series)
     """
@@ -55,10 +55,10 @@ def calculate_volatility(
         vol = returns.std()
     else:
         vol = returns.rolling(window=window).std()
-    
+
     if annualize:
         vol *= np.sqrt(252)  # Annualize assuming 252 trading days
-    
+
     return vol
 
 
@@ -68,11 +68,11 @@ def calculate_technical_levels(
 ) -> Dict[str, float]:
     """
     Calculate key technical levels (support, resistance, etc.).
-    
+
     Args:
         data: Price data
         lookback_periods: Number of periods to look back
-    
+
     Returns:
         Dictionary of technical levels
     """
@@ -80,23 +80,23 @@ def calculate_technical_levels(
         recent_data = data
     else:
         recent_data = data.tail(lookback_periods)
-    
+
     levels = {}
-    
+
     if "high" in recent_data.columns:
         levels["resistance"] = recent_data["high"].max()
         levels["resistance_52w"] = recent_data["high"].max()
-    
+
     if "low" in recent_data.columns:
         levels["support"] = recent_data["low"].min()
         levels["support_52w"] = recent_data["low"].min()
-    
+
     if "close" in recent_data.columns:
         closes = recent_data["close"]
         levels["current_price"] = closes.iloc[-1]
         levels["average_price"] = closes.mean()
         levels["median_price"] = closes.median()
-    
+
     # Calculate pivot points if OHLC available
     if all(col in recent_data.columns for col in ["open", "high", "low", "close"]):
         last_row = recent_data.iloc[-1]
@@ -104,7 +104,7 @@ def calculate_technical_levels(
         levels["pivot_point"] = pivot
         levels["resistance_1"] = 2 * pivot - last_row["low"]
         levels["support_1"] = 2 * pivot - last_row["high"]
-    
+
     return levels
 
 

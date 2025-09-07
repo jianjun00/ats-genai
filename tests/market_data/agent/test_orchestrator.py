@@ -12,19 +12,19 @@ from domains.market_data.services.agent.reconciliation import ReconciliationEngi
 # Mock adapter for testing
 class MockAdapter(VendorAdapter):
     vendor_name = "mock"
-    
+
     def __init__(self, eod_data=None):
         self.eod_data = eod_data or []
-    
+
     def fetch_instruments(self):
         return []
-    
+
     def fetch_eod(self, symbols, start_date, end_date):
         return [p for p in self.eod_data if p.instrument_id in symbols and start_date <= p.date <= end_date]
-    
+
     def fetch_ticks(self, symbol, start_dt, end_dt):
         return []
-    
+
     def fetch_interval(self, symbol, interval, start_dt, end_dt):
         return []
 
@@ -32,15 +32,15 @@ class MockAdapter(VendorAdapter):
 class MockReconciledRecordDAO:
     def __init__(self):
         self.records = {}
-    
+
     async def insert(self, record):
         key = (record.instrument_id, record.as_of, record.data_type)
         self.records[key] = record
-    
+
     async def get(self, instrument_id, as_of, data_type):
         key = (instrument_id, as_of, data_type)
         return self.records.get(key)
-    
+
     async def list_for_instrument(self, instrument_id, data_type="eod"):
         return [r for (i, _, t), r in self.records.items() if i == instrument_id and t == data_type]
 
@@ -48,31 +48,31 @@ class MockReconciledRecordDAO:
 class MockPool:
     def acquire(self):
         return MockConnection()
-    
+
     def release(self, conn):
         pass
-        
+
     async def __aenter__(self):
         return self
-        
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         pass
 
 class MockConnection:
     async def __aenter__(self):
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         pass
-    
+
     async def fetch(self, query, *args):
         if "instrument_id" in query:
             return [{"instrument_id": "AAPL"}, {"instrument_id": "MSFT"}]
         return []
-    
+
     async def fetchrow(self, query, *args):
         return None
-    
+
     async def execute(self, query, *args):
         pass
 
@@ -88,7 +88,7 @@ def mock_dao():
 def mock_adapters():
     today = date.today()
     yesterday = today - timedelta(days=1)
-    
+
     # Create sample EOD data
     polygon_data = [
         EODPrice(
@@ -116,7 +116,7 @@ def mock_adapters():
             quality_score=0.9
         )
     ]
-    
+
     tiingo_data = [
         EODPrice(
             instrument_id="AAPL",
@@ -143,7 +143,7 @@ def mock_adapters():
             quality_score=0.95
         )
     ]
-    
+
     return {
         "polygon": MockAdapter(polygon_data),
         "tiingo": MockAdapter(tiingo_data)
@@ -158,7 +158,7 @@ def orchestrator(mock_pool, mock_adapters, reconciliation_engine, monkeypatch):
     # Patch the DAO to use our mock
     dao = MockReconciledRecordDAO()
     monkeypatch.setattr("src.market_data.agent.data_agent_orchestrator.ReconciledRecordDAO", lambda pool: dao)
-    
+
     return DataAgentOrchestrator(
         pool=mock_pool,
         adapters=mock_adapters,
@@ -179,10 +179,10 @@ async def test_get_missing_data_points(orchestrator):
     """Test identifying missing data points"""
     # Mock the get_all_symbols method to return a fixed set
     orchestrator.get_all_symbols = mock.AsyncMock(return_value={"AAPL"})
-    
+
     # Call the method
     missing_points = await orchestrator.get_missing_data_points()
-    
+
     # Should have entries for each day in the lookback period
     assert len(missing_points) > 0
     assert all(p["symbol"] == "AAPL" for p in missing_points)
@@ -194,10 +194,10 @@ async def test_process_data_point(orchestrator):
     """Test processing a single data point"""
     yesterday = date.today() - timedelta(days=1)
     data_point = {"symbol": "AAPL", "date": yesterday}
-    
+
     # Process the data point
     await orchestrator._process_data_point(data_point)
-    
+
     # Check if record was stored
     records = await orchestrator.core.dao.list_for_instrument("AAPL")
     assert len(records) == 1
@@ -208,7 +208,7 @@ async def test_process_data_point(orchestrator):
     else:
         assert records[0].as_of == yesterday
     assert records[0].data_type == "eod"
-    
+
     # Verify values were reconciled
     value = records[0].value
     assert value["close"] is not None
@@ -226,10 +226,10 @@ async def test_run_backfill_loop(orchestrator):
         ]
     )
     orchestrator._process_batch = mock.AsyncMock()
-    
+
     # Run backfill loop with max 2 iterations
     await orchestrator.run_backfill_loop(batch_size=10, max_iterations=2)
-    
+
     # Verify methods were called
     assert orchestrator.get_missing_data_points.call_count == 2
     orchestrator._process_batch.assert_called_once()
@@ -242,10 +242,10 @@ async def test_run_frontfill_loop(orchestrator):
     orchestrator._is_market_closed = mock.MagicMock(return_value=True)
     orchestrator.get_all_symbols = mock.AsyncMock(return_value={"AAPL", "MSFT"})
     orchestrator._process_data_point = mock.AsyncMock()
-    
+
     # Run frontfill loop
     await orchestrator.run_frontfill_loop()
-    
+
     # Verify methods were called
     orchestrator._is_market_closed.assert_called_once()
     orchestrator.get_all_symbols.assert_called_once()
@@ -260,11 +260,11 @@ async def test_market_closed_check(orchestrator):
         # Market open (10 AM ET)
         mock_dt.now.return_value = datetime(2025, 1, 1, 15, 0)  # 10 AM ET (assuming UTC-5)
         assert not orchestrator._is_market_closed()
-        
+
         # Market closed (5 PM ET)
         mock_dt.now.return_value = datetime(2025, 1, 1, 22, 0)  # 5 PM ET (assuming UTC-5)
         assert orchestrator._is_market_closed()
-        
+
         # Market closed (before open, 8 AM ET)
         mock_dt.now.return_value = datetime(2025, 1, 1, 13, 0)  # 8 AM ET (assuming UTC-5)
         assert orchestrator._is_market_closed()

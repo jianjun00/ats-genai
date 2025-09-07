@@ -8,17 +8,17 @@ from pathlib import Path
 
 def main():
     print("🔍 Checking data paths in container...")
-    
+
     # Check container data paths
     data_paths = [
         "/data",
-        "/data/firstrate-data", 
+        "/data/firstrate-data",
         "/data/firstrate-data/stock",
         "/mnt/d/ats-data",
         "/mnt/d/ats-data/firstrate-data",
         "/mnt/d/ats-data/firstrate-data/stock"
     ]
-    
+
     for path in data_paths:
         path_obj = Path(path)
         if path_obj.exists():
@@ -31,13 +31,13 @@ def main():
                 print(f"✅ {path}: File exists")
         else:
             print(f"❌ {path}: Does not exist")
-    
+
     print("\n🔍 Checking for zip files...")
     zip_patterns = [
         "/data/firstrate-data/stock/stock_*.zip",
         "/mnt/d/ats-data/firstrate-data/stock/stock_*.zip"
     ]
-    
+
     for pattern in zip_patterns:
         path_obj = Path(pattern).parent
         if path_obj.exists():

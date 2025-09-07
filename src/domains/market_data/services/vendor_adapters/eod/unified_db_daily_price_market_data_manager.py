@@ -79,7 +79,7 @@ class UnifiedDBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
         Optimized batch OHLC fetching using parallel execution and bulk database queries.
         Performance improvement: ~10x faster for large instrument lists (100+ instruments).
         """
-        
+
         # Performance monitoring (optional - gracefully handle import failures)
         try:
             from infrastructure.monitoring.data_pipeline_performance_monitor import time_operation
@@ -92,15 +92,15 @@ class UnifiedDBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                 def record_cache_miss(self): pass
                 def record_database_query(self): pass
             def time_operation(operation, instrument_count=0): return DummyTimer()
-        
+
         with time_operation("get_ohlc_batch", instrument_count=len(instrument_ids)) as timer:
             # Get all symbols for batch processing
             symbols_to_ids = {}
             id_to_symbols = {}
-            
+
             # Use optimized batch symbol resolution
             print(f"[DEBUG][get_ohlc_batch] Batch resolving symbols for {len(instrument_ids)} instruments")
-            
+
             # Track symbol resolution performance
             with time_operation("batch_symbol_resolution", instrument_count=len(instrument_ids)) as symbol_timer:
                 symbol_mappings = await self.resolve_symbols_batch(instrument_ids)
@@ -108,47 +108,47 @@ class UnifiedDBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                 valid_mappings = sum(1 for s in symbol_mappings.values() if s is not None)
                 symbol_timer.cache_hits = valid_mappings  # Approximate
                 symbol_timer.record_database_query()  # At least one query
-            
+
             for instrument_id, symbol in symbol_mappings.items():
                 if symbol:
                     symbols_to_ids[symbol] = instrument_id
                     id_to_symbols[instrument_id] = symbol
-            
+
             valid_symbols = [s for s in symbol_mappings.values() if s is not None]
             print(f"[DEBUG][get_ohlc_batch] Resolved {len(valid_symbols)} valid symbols")
-            
+
             if not valid_symbols:
                 return {iid: None for iid in instrument_ids}
-            
+
             # Use bulk unify operation for all symbols at once
             with time_operation("bulk_unify_prices", instrument_count=len(valid_symbols)) as unify_timer:
                 bulk_results = await self.unifier.unify_daily_prices_batch(
-                    valid_symbols, 
-                    (start.date(), end.date()), 
+                    valid_symbols,
+                    (start.date(), end.date()),
                     current_date
                 )
                 unify_timer.record_database_query()  # Bulk database operations
                 unify_timer.record_database_query()  # Both Tiingo and Polygon queries
-            
+
             print(f"[DEBUG][get_ohlc_batch] Bulk unifier returned {len(bulk_results)} results")
-            
+
             # Map results back to instrument IDs
             batch = {}
             target_date = start.date()
-            
+
             for instrument_id in instrument_ids:
                 symbol = id_to_symbols.get(instrument_id)
                 if not symbol:
                     batch[instrument_id] = None
                     continue
-                    
+
                 symbol_results = bulk_results.get(symbol, [])
                 matching_row = next((row for row in symbol_results if row['date'] == target_date), None)
-                
+
                 if matching_row:
                     batch[instrument_id] = {
                         'open': matching_row['open'],
-                        'high': matching_row['high'], 
+                        'high': matching_row['high'],
                         'low': matching_row['low'],
                         'close': matching_row['close'],
                         'traded_volume': matching_row['volume'],
@@ -158,8 +158,8 @@ class UnifiedDBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                     }
                 else:
                     batch[instrument_id] = None
-                    
+
             print(f"[DEBUG][get_ohlc_batch] Returning batch with {len(batch)} entries")
             timer.record_database_query()  # Overall operation used database
-            
+
             return batch

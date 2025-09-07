@@ -29,31 +29,31 @@ class TiingoEconomicConfig:
 
 class TiingoEconomicEventsClient:
     """Client for Tiingo Economic Events API."""
-    
+
     def __init__(self, api_key: str, config: TiingoEconomicConfig = None):
         self.api_key = api_key
         self.config = config or TiingoEconomicConfig()
-    
+
     async def fetch_economic_events(self, start_date: date, end_date: date) -> List[Dict[str, Any]]:
         """
         Fetch economic events from Tiingo API.
-        Note: Tiingo's economic calendar endpoint might be limited, 
+        Note: Tiingo's economic calendar endpoint might be limited,
         but they do have news feeds that include economic event mentions.
-        
+
         Args:
             start_date: Start date for events
             end_date: End date for events
-            
+
         Returns:
             List of economic events data
         """
         timeout = aiohttp.ClientTimeout(total=self.config.timeout_seconds)
-        
+
         async with aiohttp.ClientSession(timeout=timeout) as session:
             # Tiingo doesn't have a dedicated economic events endpoint like Polygon
             # We'll use their news API to find economic event mentions
             url = f"{self.config.base_url}/tiingo/news"
-            
+
             params = {
                 "token": self.api_key,
                 "startDate": start_date.strftime("%Y-%m-%d"),
@@ -61,18 +61,18 @@ class TiingoEconomicEventsClient:
                 "limit": self.config.news_limit,
                 "search": "economic|GDP|inflation|employment|fed|unemployment|CPI|PPI|retail|jobless|payrolls"
             }
-            
+
             try:
                 async with session.get(url, params=params) as response:
                     if response.status == 200:
                         data = await response.json()
-                        
+
                         # Filter news articles for economic events
                         economic_events = []
                         for article in data:
                             if self._is_economic_event(article):
                                 economic_events.append(article)
-                        
+
                         logger.info(f"Fetched {len(economic_events)} economic events from Tiingo news")
                         return economic_events
                     elif response.status == 429:
@@ -82,27 +82,27 @@ class TiingoEconomicEventsClient:
                     else:
                         logger.error(f"Tiingo API error: {response.status}")
                         return []
-                        
+
             except aiohttp.ClientError as e:
                 logger.error(f"Connection error fetching Tiingo events: {e}")
                 return []
-    
+
     async def fetch_crypto_economic_events(self, start_date: date, end_date: date) -> List[Dict[str, Any]]:
         """
         Fetch crypto-related economic events from Tiingo.
-        
+
         Args:
             start_date: Start date for events
             end_date: End date for events
-            
+
         Returns:
             List of crypto economic events
         """
         timeout = aiohttp.ClientTimeout(total=self.config.timeout_seconds)
-        
+
         async with aiohttp.ClientSession(timeout=timeout) as session:
             url = f"{self.config.base_url}/tiingo/crypto/news"
-            
+
             params = {
                 "token": self.api_key,
                 "startDate": start_date.strftime("%Y-%m-%d"),
@@ -110,42 +110,42 @@ class TiingoEconomicEventsClient:
                 "limit": self.config.crypto_news_limit,
                 "search": "economic|regulation|fed|policy|SEC|CFTC"
             }
-            
+
             try:
                 async with session.get(url, params=params) as response:
                     if response.status == 200:
                         data = await response.json()
-                        
+
                         # Filter for regulatory/economic crypto events
                         economic_events = []
                         for article in data:
                             if self._is_crypto_economic_event(article):
                                 economic_events.append(article)
-                        
+
                         logger.info(f"Fetched {len(economic_events)} crypto economic events from Tiingo")
                         return economic_events
                     else:
                         logger.error(f"Tiingo crypto API error: {response.status}")
                         return []
-                        
+
             except aiohttp.ClientError as e:
                 logger.error(f"Connection error fetching Tiingo crypto events: {e}")
                 return []
-    
+
     def _is_economic_event(self, article: Dict[str, Any]) -> bool:
         """
         Determine if a news article represents an economic event.
-        
+
         Args:
             article: Tiingo news article data
-            
+
         Returns:
             True if article is about economic events
         """
         title = article.get("title", "").lower()
         description = article.get("description", "").lower()
         text = f"{title} {description}"
-        
+
         # Keywords that indicate economic events
         economic_keywords = [
             "nonfarm payrolls", "unemployment rate", "cpi", "consumer price index",
@@ -155,23 +155,23 @@ class TiingoEconomicEventsClient:
             "housing starts", "jobless claims", "inflation", "deflation",
             "economic data", "economic indicator", "economic report"
         ]
-        
+
         return any(keyword in text for keyword in economic_keywords)
-    
+
     def _is_crypto_economic_event(self, article: Dict[str, Any]) -> bool:
         """
         Determine if a crypto news article represents an economic/regulatory event.
-        
+
         Args:
             article: Tiingo crypto news article
-            
+
         Returns:
             True if article is about crypto economic events
         """
         title = article.get("title", "").lower()
         description = article.get("description", "").lower()
         text = f"{title} {description}"
-        
+
         # Keywords for crypto economic/regulatory events
         crypto_economic_keywords = [
             "sec", "securities and exchange commission", "cftc", "regulation",
@@ -179,16 +179,16 @@ class TiingoEconomicEventsClient:
             "treasury", "yellen", "powell", "fed", "federal reserve",
             "legislation", "bill", "congress", "senate", "house"
         ]
-        
+
         return any(keyword in text for keyword in crypto_economic_keywords)
-    
+
     def parse_tiingo_event(self, article_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Parse Tiingo news article into economic event format.
-        
+
         Args:
             article_data: Raw Tiingo article data
-            
+
         Returns:
             Parsed event data
         """
@@ -199,13 +199,13 @@ class TiingoEconomicEventsClient:
                 event_date = datetime.fromisoformat(
                     article_data["publishedDate"].replace("Z", "+00:00")
                 ).date()
-            
+
             # Extract event name from title
             event_name = article_data.get("title", "").strip()
-            
+
             # Categorize the event based on title/description
             self._categorize_event(article_data)
-            
+
             return {
                 "event_name": event_name,
                 "event_date": event_date,
@@ -226,7 +226,7 @@ class TiingoEconomicEventsClient:
                 },
                 "raw_data": article_data
             }
-            
+
         except Exception as e:
             logger.error(f"Error parsing Tiingo event data: {e}")
             return {
@@ -235,21 +235,21 @@ class TiingoEconomicEventsClient:
                 "raw_data": article_data,
                 "parse_error": str(e)
             }
-    
+
     def _categorize_event(self, article_data: Dict[str, Any]) -> str:
         """
         Categorize the economic event based on article content.
-        
+
         Args:
             article_data: Article data
-            
+
         Returns:
             Event category
         """
         title = article_data.get("title", "") or ""
         description = article_data.get("description", "") or ""
         text = f"{title.lower()} {description.lower()}"
-        
+
         if any(word in text for word in ["employment", "jobless", "payroll", "unemployment"]):
             return "Employment"
         elif any(word in text for word in ["inflation", "cpi", "consumer price", "ppi", "producer price"]):
@@ -264,33 +264,33 @@ class TiingoEconomicEventsClient:
             return "Housing"
         else:
             return "General Economic"
-    
+
     def _estimate_importance(self, article_data: Dict[str, Any]) -> int:
         """
         Estimate importance level of economic event based on article.
-        
+
         Args:
             article_data: Article data
-            
+
         Returns:
             Importance level (1-5)
         """
         title = article_data.get("title", "").lower()
         description = article_data.get("description", "").lower()
         text = f"{title} {description}"
-        
+
         # High importance indicators
         high_importance_keywords = [
             "federal reserve", "fed decision", "interest rate", "fomc",
             "nonfarm payrolls", "unemployment rate", "cpi", "gdp"
         ]
-        
+
         # Medium importance indicators
         medium_importance_keywords = [
             "retail sales", "consumer confidence", "industrial production",
             "housing starts", "jobless claims"
         ]
-        
+
         if any(keyword in text for keyword in high_importance_keywords):
             return 5
         elif any(keyword in text for keyword in medium_importance_keywords):

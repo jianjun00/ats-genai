@@ -17,12 +17,12 @@ async def main():
     db_user = os.getenv("DB_USER", "postgres")
     db_password = os.getenv("DB_PASSWORD", "dev_password")
     db_name = os.getenv("DB_NAME", "dev_db")
-    
+
     db_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
     print(f"🔗 Connecting to: postgresql://{db_user}:***@{db_host}:{db_port}/{db_name}")
-    
+
     migration_manager = MigrationManager(db_url)
-    
+
     print("🚀 Running database migrations...")
     try:
         success = await migration_manager.migrate_to_latest()

@@ -26,18 +26,18 @@ class AlphaVantageEconomicConfig:
 
 class AlphaVantageEconomicClient:
     """Client for Alpha Vantage Economic Indicators API."""
-    
+
     def __init__(self, api_key: str, config: AlphaVantageEconomicConfig = None):
         self.api_key = api_key
         self.config = config or AlphaVantageEconomicConfig()
-    
+
     async def fetch_real_gdp(self, interval: str = "quarterly") -> List[Dict[str, Any]]:
         """
         Fetch Real GDP data.
-        
+
         Args:
             interval: quarterly or annual
-            
+
         Returns:
             List of GDP data points
         """
@@ -46,25 +46,25 @@ class AlphaVantageEconomicClient:
             "interval": interval,
             "apikey": self.api_key
         }
-        
+
         return await self._fetch_economic_data(params, "Real GDP")
-    
+
     async def fetch_real_gdp_per_capita(self) -> List[Dict[str, Any]]:
         """Fetch Real GDP per capita data."""
         params = {
             "function": "REAL_GDP_PER_CAPITA",
             "apikey": self.api_key
         }
-        
+
         return await self._fetch_economic_data(params, "Real GDP per capita")
-    
+
     async def fetch_federal_funds_rate(self, interval: str = "monthly") -> List[Dict[str, Any]]:
         """
         Fetch Federal Funds Rate data.
-        
+
         Args:
             interval: daily, weekly, or monthly
-            
+
         Returns:
             List of federal funds rate data
         """
@@ -73,16 +73,16 @@ class AlphaVantageEconomicClient:
             "interval": interval,
             "apikey": self.api_key
         }
-        
+
         return await self._fetch_economic_data(params, "Federal Funds Rate")
-    
+
     async def fetch_cpi(self, interval: str = "monthly") -> List[Dict[str, Any]]:
         """
         Fetch Consumer Price Index data.
-        
+
         Args:
             interval: monthly or semiannual
-            
+
         Returns:
             List of CPI data points
         """
@@ -91,92 +91,92 @@ class AlphaVantageEconomicClient:
             "interval": interval,
             "apikey": self.api_key
         }
-        
+
         return await self._fetch_economic_data(params, "Consumer Price Index")
-    
+
     async def fetch_inflation(self) -> List[Dict[str, Any]]:
         """Fetch inflation rate data."""
         params = {
             "function": "INFLATION",
             "apikey": self.api_key
         }
-        
+
         return await self._fetch_economic_data(params, "Inflation Rate")
-    
+
     async def fetch_retail_sales(self) -> List[Dict[str, Any]]:
         """Fetch retail sales data."""
         params = {
             "function": "RETAIL_SALES",
             "apikey": self.api_key
         }
-        
+
         return await self._fetch_economic_data(params, "Retail Sales")
-    
+
     async def fetch_unemployment_rate(self) -> List[Dict[str, Any]]:
         """Fetch unemployment rate data."""
         params = {
             "function": "UNEMPLOYMENT",
             "apikey": self.api_key
         }
-        
+
         return await self._fetch_economic_data(params, "Unemployment Rate")
-    
+
     async def fetch_nonfarm_payroll(self) -> List[Dict[str, Any]]:
         """Fetch nonfarm payroll data."""
         params = {
             "function": "NONFARM_PAYROLL",
             "apikey": self.api_key
         }
-        
+
         return await self._fetch_economic_data(params, "Nonfarm Payroll")
-    
+
     async def fetch_consumer_sentiment(self) -> List[Dict[str, Any]]:
         """Fetch consumer sentiment data."""
         params = {
             "function": "CONSUMER_SENTIMENT",
             "apikey": self.api_key
         }
-        
+
         return await self._fetch_economic_data(params, "Consumer Sentiment")
-    
+
     async def fetch_durable_goods_orders(self) -> List[Dict[str, Any]]:
         """Fetch durable goods orders data."""
         params = {
             "function": "DURABLE",
             "apikey": self.api_key
         }
-        
+
         return await self._fetch_economic_data(params, "Durable Goods Orders")
-    
-    async def _fetch_economic_data(self, params: Dict[str, str], 
+
+    async def _fetch_economic_data(self, params: Dict[str, str],
                                  indicator_name: str) -> List[Dict[str, Any]]:
         """
         Generic method to fetch economic data from Alpha Vantage.
-        
+
         Args:
             params: API parameters
             indicator_name: Name of the economic indicator
-            
+
         Returns:
             List of economic data points
         """
         timeout = aiohttp.ClientTimeout(total=self.config.timeout_seconds)
-        
+
         async with aiohttp.ClientSession(timeout=timeout) as session:
             try:
                 async with session.get(self.config.base_url, params=params) as response:
                     if response.status == 200:
                         data = await response.json()
-                        
+
                         # Check for API error messages
                         if "Error Message" in data:
                             logger.error(f"Alpha Vantage API error for {indicator_name}: {data['Error Message']}")
                             return []
-                        
+
                         if "Note" in data:
                             logger.warning(f"Alpha Vantage API note for {indicator_name}: {data['Note']}")
                             return []
-                        
+
                         # Parse the data
                         parsed_data = self._parse_alpha_vantage_response(data, indicator_name)
                         logger.info(f"Fetched {len(parsed_data)} {indicator_name} data points from Alpha Vantage")
@@ -184,46 +184,46 @@ class AlphaVantageEconomicClient:
                     else:
                         logger.error(f"Alpha Vantage API error for {indicator_name}: {response.status}")
                         return []
-                        
+
             except aiohttp.ClientError as e:
                 logger.error(f"Connection error fetching {indicator_name} from Alpha Vantage: {e}")
                 return []
-    
-    def _parse_alpha_vantage_response(self, data: Dict[str, Any], 
+
+    def _parse_alpha_vantage_response(self, data: Dict[str, Any],
                                     indicator_name: str) -> List[Dict[str, Any]]:
         """
         Parse Alpha Vantage API response into standardized format.
-        
+
         Args:
             data: Raw API response
             indicator_name: Name of the indicator
-            
+
         Returns:
             List of parsed data points
         """
         try:
             parsed_events = []
-            
+
             # Alpha Vantage response structure varies by endpoint
             # Common patterns: "data", "Time Series", or direct data key
             time_series_data = None
-            
+
             # Find the time series data in the response
             for key, value in data.items():
-                if isinstance(value, dict) and any(date_key for date_key in value.keys() 
+                if isinstance(value, dict) and any(date_key for date_key in value.keys()
                                                  if self._is_date_string(date_key)):
                     time_series_data = value
                     break
-            
+
             if not time_series_data:
                 logger.warning(f"No time series data found in Alpha Vantage response for {indicator_name}")
                 return []
-            
+
             # Parse each data point
             for date_str, values in time_series_data.items():
                 try:
                     event_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-                    
+
                     # Extract the main value (usually 'value' or similar key)
                     actual_value = None
                     for value_key in ["value", "price", "rate", "index"]:
@@ -233,7 +233,7 @@ class AlphaVantageEconomicClient:
                                 break
                             except (ValueError, TypeError):
                                 continue
-                    
+
                     # If no standard key found, try the first numeric value
                     if actual_value is None:
                         for key, val in values.items():
@@ -242,7 +242,7 @@ class AlphaVantageEconomicClient:
                                 break
                             except (ValueError, TypeError):
                                 continue
-                    
+
                     parsed_event = {
                         "event_name": indicator_name,
                         "event_date": event_date,
@@ -266,19 +266,19 @@ class AlphaVantageEconomicClient:
                             "metadata": {k: v for k, v in data.items() if not isinstance(v, dict)}
                         }
                     }
-                    
+
                     parsed_events.append(parsed_event)
-                    
+
                 except ValueError as e:
                     logger.warning(f"Error parsing date {date_str} for {indicator_name}: {e}")
                     continue
-            
+
             return parsed_events
-            
+
         except Exception as e:
             logger.error(f"Error parsing Alpha Vantage response for {indicator_name}: {e}")
             return []
-    
+
     def _is_date_string(self, s: str) -> bool:
         """Check if a string looks like a date."""
         try:
@@ -286,7 +286,7 @@ class AlphaVantageEconomicClient:
             return True
         except ValueError:
             return False
-    
+
     def _get_unit_for_indicator(self, indicator_name: str) -> str:
         """Get the unit for a specific economic indicator."""
         unit_mapping = {
@@ -301,9 +301,9 @@ class AlphaVantageEconomicClient:
             "Consumer Sentiment": "index",
             "Durable Goods Orders": "percentage_change"
         }
-        
+
         return unit_mapping.get(indicator_name, "unknown")
-    
+
     def _get_importance_for_indicator(self, indicator_name: str) -> int:
         """Get the importance level for a specific economic indicator."""
         importance_mapping = {
@@ -318,26 +318,26 @@ class AlphaVantageEconomicClient:
             "Consumer Sentiment": 3,
             "Durable Goods Orders": 3
         }
-        
+
         return importance_mapping.get(indicator_name, 3)
-    
+
     async def fetch_all_indicators(self, start_date: Optional[date] = None,
                                  end_date: Optional[date] = None) -> List[Dict[str, Any]]:
         """
         Fetch all available economic indicators.
-        
+
         Args:
             start_date: Filter start date (not all indicators support date filtering)
             end_date: Filter end date
-            
+
         Returns:
             List of all economic events
         """
         logger.info("Fetching all economic indicators from Alpha Vantage...")
-        
+
         # Fetch all indicator types
         all_events = []
-        
+
         indicators = [
             self.fetch_real_gdp(),
             self.fetch_federal_funds_rate(),
@@ -349,19 +349,19 @@ class AlphaVantageEconomicClient:
             self.fetch_consumer_sentiment(),
             self.fetch_durable_goods_orders()
         ]
-        
+
         # Execute requests with rate limiting
         for indicator_coro in indicators:
             try:
                 indicator_data = await indicator_coro
                 all_events.extend(indicator_data)
-                
+
                 # Rate limiting - Alpha Vantage free tier allows 5 requests per minute
                 await asyncio.sleep(self.config.rate_limit_delay_seconds)  # Wait between requests for rate limiting
-                
+
             except Exception as e:
                 logger.error(f"Error fetching indicator data: {e}")
-        
+
         # Filter by date range if provided
         if start_date or end_date:
             filtered_events = []
@@ -374,6 +374,6 @@ class AlphaVantageEconomicClient:
                         continue
                     filtered_events.append(event)
             all_events = filtered_events
-        
+
         logger.info(f"Fetched total of {len(all_events)} economic events from Alpha Vantage")
         return all_events

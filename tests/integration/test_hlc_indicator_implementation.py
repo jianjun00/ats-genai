@@ -91,7 +91,7 @@ class MockInterval:
     low: float
     close: float
     status: str = 'ok'
-    
+
     # Add open for compatibility (should not be used in HLC-only calculations)
     @property
     def open(self):
@@ -99,72 +99,72 @@ class MockInterval:
 
 class TestHLCIndicators:
     """Test suite for HLC-only indicator implementations."""
-    
+
     def __init__(self):
         self.test_results = {}
         self.errors = []
-        
+
     def calculate_expected_value(self, indicator_name: str, hlc_features: List[float]) -> float:
         """Calculate expected indicator value using derived coefficients."""
         coeffs = HLC_COEFFICIENTS[indicator_name]
         return sum(coef * feat for coef, feat in zip(coeffs, hlc_features))
-    
+
     def extract_hlc_features(self, data_rows: List[List], row_index: int) -> List[float]:
         """Extract HLC features for 3 previous days from row_index."""
         if row_index < 3:
             raise ValueError(f"Need at least 3 prior rows, got index {row_index}")
-        
+
         features = []
         for i in range(3):  # t-3, t-2, t-1
             prev_row = data_rows[row_index - 3 + i]
             high, low, close = prev_row[1], prev_row[2], prev_row[3]  # Skip date column
             features.extend([high, low, close])
-        
+
         return features
-    
+
     def test_coefficient_validation(self) -> bool:
         """Test that all coefficient arrays have correct length and structure."""
         print("🔍 Testing coefficient validation...")
-        
+
         success = True
         for indicator_name, coeffs in HLC_COEFFICIENTS.items():
             if len(coeffs) != 9:
                 self.errors.append(f"{indicator_name}: Expected 9 coefficients, got {len(coeffs)}")
                 success = False
-            
+
             # Validate coefficient grouping (3 days × 3 HLC)
             for day in range(3):
                 day_coeffs = coeffs[day*3:(day+1)*3]
                 if len(day_coeffs) != 3:
                     self.errors.append(f"{indicator_name}: Day {day} should have 3 HLC coefficients")
                     success = False
-        
+
         if success:
             print("✅ All coefficient arrays have correct 9-feature HLC structure")
         else:
             print(f"❌ Coefficient validation failed: {len([e for e in self.errors if 'coefficient' in e.lower()])} errors")
-        
+
         return success
-    
+
     def test_calculation_accuracy(self) -> bool:
         """Test calculation accuracy against known expected values."""
         print("🔍 Testing calculation accuracy...")
-        
+
         success = True
         target_indices = [4, 5, 6, 7, 8, 9, 10, 11, 12]  # h11, l11, z1b, z2b, ebot, pldot, etop, z5t, z6t
         indicator_names = ['h11', 'l11', 'z1b', 'z2b', 'ebot', 'pldot', 'etop', 'z5t', 'z6t']
-        
+
         for row_idx in range(3, len(HLC_TEST_DATA)):  # Start from row 3 (need 3 prior days)
             hlc_features = self.extract_hlc_features(HLC_TEST_DATA, row_idx)
             current_row = HLC_TEST_DATA[row_idx]
-            
+
             for target_idx, indicator_name in zip(target_indices, indicator_names):
                 expected_value = current_row[target_idx]
                 calculated_value = self.calculate_expected_value(indicator_name, hlc_features)
-                
+
                 error = abs(expected_value - calculated_value)
                 relative_error = (error / abs(expected_value)) * 100 if expected_value != 0 else 0
-                
+
                 # Tolerance: 0.25% relative error or 0.1 absolute error
                 if relative_error > 0.25 and error > 0.1:
                     self.errors.append(
@@ -172,79 +172,79 @@ class TestHLCIndicators:
                         f"got {calculated_value:.4f}, error {error:.4f} ({relative_error:.3f}%)"
                     )
                     success = False
-        
+
         if success:
             print("✅ All calculations match expected values within tolerance")
         else:
             print(f"❌ Calculation accuracy failed: {len([e for e in self.errors if 'Expected' in e])} mismatches")
-        
+
         return success
-    
+
     def test_feature_extraction_hlc_only(self) -> bool:
         """Test that feature extraction uses only HLC (no open prices)."""
         print("🔍 Testing HLC-only feature extraction...")
-        
+
         success = True
-        
+
         # Test with mock intervals that return None for open
         test_intervals = []
         for i in range(4):  # Need 4 intervals (3 for features + 1 current)
             row = HLC_TEST_DATA[i]
             interval = MockInterval(high=row[1], low=row[2], close=row[3])
             test_intervals.append(interval)
-        
+
         # Extract features manually
         hlc_features = []
         for i in range(3):  # Last 3 intervals for features
             interval = test_intervals[i]
             hlc_features.extend([interval.high, interval.low, interval.close])
-        
+
         # Validate feature vector length
         if len(hlc_features) != 9:
             self.errors.append(f"Feature vector should have 9 elements (3×HLC), got {len(hlc_features)}")
             success = False
-        
+
         # Validate no open prices are used
         for i, feature in enumerate(hlc_features):
             if feature is None:
                 self.errors.append(f"Feature {i} is None - should be valid HLC value")
                 success = False
-        
+
         if success:
             print("✅ Feature extraction correctly uses only HLC data (9 features)")
         else:
             print("❌ Feature extraction validation failed")
-        
+
         return success
-    
+
     def test_cross_scale_validation(self) -> bool:
         """Test formulas work correctly across different price scales."""
         print("🔍 Testing cross-scale validation...")
-        
+
         # Scale test data by 7x (original validation dataset was 7x higher)
         scale_factor = 7.0
         success = True
-        
+
         for row_idx in range(3, len(HLC_TEST_DATA)):
             # Scale input HLC features
             hlc_features = self.extract_hlc_features(HLC_TEST_DATA, row_idx)
             scaled_features = [f * scale_factor for f in hlc_features]
-            
+
             # Scale expected outputs
             current_row = HLC_TEST_DATA[row_idx]
             target_indices = [4, 5, 6, 7, 8, 9, 10, 11, 12]
             indicator_names = ['h11', 'l11', 'z1b', 'z2b', 'ebot', 'pldot', 'etop', 'z5t', 'z6t']
-            
+
             for target_idx, indicator_name in zip(target_indices, indicator_names):
                 original_expected = current_row[target_idx]
                 scaled_expected = original_expected * scale_factor
-                
+
                 # Calculate with scaled features
                 scaled_calculated = self.calculate_expected_value(indicator_name, scaled_features)
-                
+
                 error = abs(scaled_expected - scaled_calculated)
                 relative_error = (error / abs(scaled_expected)) * 100 if scaled_expected != 0 else 0
-                
+
                 # Same tolerance as original: 0.25%
                 if relative_error > 0.25 and error > 0.7:  # Higher absolute tolerance for scaled values
                     self.errors.append(
@@ -252,73 +252,73 @@ class TestHLCIndicators:
                         f"got {scaled_calculated:.2f}, error {error:.2f} ({relative_error:.3f}%)"
                     )
                     success = False
-        
+
         if success:
             print("✅ Formulas maintain accuracy across 7x price scale")
         else:
             print(f"❌ Cross-scale validation failed: scale-sensitive formulas detected")
-        
+
         return success
-    
+
     def test_performance_metrics(self) -> bool:
         """Test that all formulas meet performance requirements."""
         print("🔍 Testing performance metrics...")
-        
+
         success = True
         target_indices = [4, 5, 6, 7, 8, 9, 10, 11, 12]
         indicator_names = ['h11', 'l11', 'z1b', 'z2b', 'ebot', 'pldot', 'etop', 'z5t', 'z6t']
-        
+
         for indicator_name in indicator_names:
             errors = []
             actual_values = []
             predicted_values = []
-            
+
             for row_idx in range(3, len(HLC_TEST_DATA)):
                 hlc_features = self.extract_hlc_features(HLC_TEST_DATA, row_idx)
                 target_idx = target_indices[indicator_names.index(indicator_name)]
-                
+
                 actual = HLC_TEST_DATA[row_idx][target_idx]
                 predicted = self.calculate_expected_value(indicator_name, hlc_features)
-                
+
                 actual_values.append(actual)
                 predicted_values.append(predicted)
                 errors.append(abs(actual - predicted))
-            
+
             # Calculate metrics
             avg_error = np.mean(errors)
             max_error = np.max(errors)
             rmse = np.sqrt(np.mean([(a-p)**2 for a, p in zip(actual_values, predicted_values)]))
-            
+
             # Calculate R²
             ss_res = sum((a - p) ** 2 for a, p in zip(actual_values, predicted_values))
             ss_tot = sum((a - np.mean(actual_values)) ** 2 for a in actual_values)
             r2 = 1 - (ss_res / ss_tot) if ss_tot > 0 else 1.0
-            
+
             # Performance requirements: R² > 0.999995, avg error < 0.25%
             avg_relative_error = np.mean([e/abs(a) for e, a in zip(errors, actual_values) if a != 0]) * 100
-            
+
             print(f"  {indicator_name}: R²={r2:.8f}, Avg Error={avg_error:.4f} ({avg_relative_error:.3f}%), RMSE={rmse:.4f}")
-            
+
             if r2 < 0.999995:
                 self.errors.append(f"{indicator_name}: R² {r2:.8f} below requirement 0.999995")
                 success = False
-            
+
             if avg_relative_error > 0.25:
                 self.errors.append(f"{indicator_name}: Avg error {avg_relative_error:.3f}% above 0.25% limit")
                 success = False
-        
+
         if success:
             print("✅ All indicators meet performance requirements (R² > 0.999995, error < 0.25%)")
         else:
             print("❌ Performance requirements not met for some indicators")
-        
+
         return success
-    
+
     def run_all_tests(self) -> bool:
         """Run complete test suite."""
         print("🚀 Running HLC-Only Indicator Implementation Test Suite")
         print("=" * 80)
-        
+
         tests = [
             ("Coefficient Validation", self.test_coefficient_validation),
             ("Calculation Accuracy", self.test_calculation_accuracy),
@@ -326,14 +326,14 @@ class TestHLCIndicators:
             ("Cross-Scale Validation", self.test_cross_scale_validation),
             ("Performance Metrics", self.test_performance_metrics),
         ]
-        
+
         passed_tests = 0
         total_tests = len(tests)
-        
+
         for test_name, test_func in tests:
             print(f"\n📋 {test_name}")
             print("-" * 60)
-            
+
             try:
                 if test_func():
                     passed_tests += 1
@@ -344,40 +344,40 @@ class TestHLCIndicators:
                 self.errors.append(f"{test_name}: Exception - {str(e)}")
                 self.test_results[test_name] = "ERROR"
                 print(f"❌ Test failed with exception: {e}")
-        
+
         # Summary
         print("\n" + "=" * 80)
         print("🎯 TEST SUITE SUMMARY")
         print("=" * 80)
-        
+
         for test_name, result in self.test_results.items():
             status_icon = "✅" if result == "PASS" else "❌"
             print(f"{status_icon} {test_name}: {result}")
-        
+
         print(f"\n📊 Results: {passed_tests}/{total_tests} tests passed")
-        
+
         if self.errors:
             print(f"\n⚠️  {len(self.errors)} errors found:")
             for error in self.errors[:10]:  # Show first 10 errors
                 print(f"   • {error}")
             if len(self.errors) > 10:
                 print(f"   ... and {len(self.errors) - 10} more errors")
-        
+
         success = passed_tests == total_tests
-        
+
         if success:
             print("\n🎉 ALL TESTS PASSED - HLC-only implementation is validated!")
             print("✅ Ready for production deployment")
         else:
             print(f"\n❌ {total_tests - passed_tests} tests failed - implementation needs fixes")
-        
+
         return success
 
 def main():
     """Run the complete test suite."""
     tester = TestHLCIndicators()
     success = tester.run_all_tests()
-    
+
     # Return appropriate exit code
     sys.exit(0 if success else 1)
 

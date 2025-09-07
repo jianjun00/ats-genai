@@ -24,13 +24,13 @@ from domains.market_data.services.agent.models import EODPrice, ReconciledRecord
 class MockPool:
     def acquire(self):
         return MockConnection()
-    
+
     def release(self, conn):
         pass
-        
+
     async def __aenter__(self):
         return self
-        
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         pass
 
@@ -38,13 +38,13 @@ class MockConnection:
     def __init__(self):
         self.tables = {}
         self.executed_queries = []
-    
+
     async def __aenter__(self):
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         pass
-    
+
     async def fetch(self, query, *args):
         if "universe_membership" in query:
             return [{"instrument_id": "AAPL"}, {"instrument_id": "MSFT"}]
@@ -74,10 +74,10 @@ class MockConnection:
                 ]
             return []
         return []
-    
+
     async def fetchrow(self, query, *args):
         return None
-    
+
     async def execute(self, query, *args):
         # Handle date serialization in insert queries
         if "INSERT INTO" in query and len(args) >= 8:
@@ -175,12 +175,12 @@ def data_agent(mock_pool, mock_polygon_adapter, mock_tiingo_adapter):
         "tiingo": mock_tiingo_adapter
     }
     reconciliation_engine = ReconciliationEngine(vendor_priority=["tiingo", "polygon"])
-    
+
     # Patch json.dumps to handle date/datetime objects
     original_dumps = json.dumps
     def patched_dumps(obj, *args, **kwargs):
         return original_dumps(obj, *args, cls=DateTimeEncoder, **kwargs)
-    
+
     with mock.patch('json.dumps', side_effect=patched_dumps):
         return DataAgentOrchestrator(
             pool=mock_pool,
@@ -197,13 +197,13 @@ async def test_backfill_workflow(data_agent):
     original_dumps = json.dumps
     def patched_dumps(obj, *args, **kwargs):
         return original_dumps(obj, *args, cls=DateTimeEncoder, **kwargs)
-    
+
     # Mock the market closed check to always return True
     with mock.patch('json.dumps', side_effect=patched_dumps):
         with mock.patch.object(data_agent, '_is_market_closed', return_value=True):
             # Run backfill with max 1 iteration
             await data_agent.run_backfill_loop(batch_size=10, max_iterations=1)
-    
+
     # Verify that data was processed and stored
     # This is an indirect test since we're using mocks
     # In a real test, we would check the database for the inserted records
@@ -216,13 +216,13 @@ async def test_frontfill_workflow(data_agent):
     original_dumps = json.dumps
     def patched_dumps(obj, *args, **kwargs):
         return original_dumps(obj, *args, cls=DateTimeEncoder, **kwargs)
-    
+
     # Mock the market closed check to always return True
     with mock.patch('json.dumps', side_effect=patched_dumps):
         with mock.patch.object(data_agent, '_is_market_closed', return_value=True):
             # Run frontfill
             await data_agent.run_frontfill_loop()
-    
+
     # Verify that today's data was processed and stored
     # This is an indirect test since we're using mocks
     # In a real test, we would check the database for the inserted records
@@ -235,16 +235,16 @@ async def test_end_to_end_workflow(data_agent):
     original_dumps = json.dumps
     def patched_dumps(obj, *args, **kwargs):
         return original_dumps(obj, *args, cls=DateTimeEncoder, **kwargs)
-    
+
     # Mock the market closed check to always return True
     with mock.patch('json.dumps', side_effect=patched_dumps):
         with mock.patch.object(data_agent, '_is_market_closed', return_value=True):
             # Run backfill with max 1 iteration
             await data_agent.run_backfill_loop(batch_size=10, max_iterations=1)
-            
+
             # Run frontfill
             await data_agent.run_frontfill_loop()
-    
+
     # In a real test, we would verify the database state
 
 @pytest.mark.asyncio
@@ -255,13 +255,13 @@ async def test_data_point_processing(data_agent):
     original_dumps = json.dumps
     def patched_dumps(obj, *args, **kwargs):
         return original_dumps(obj, *args, cls=DateTimeEncoder, **kwargs)
-    
+
     today = date.today()
     data_point = {"symbol": "AAPL", "date": today}
-    
+
     # Process the data point
     with mock.patch('json.dumps', side_effect=patched_dumps):
         await data_agent._process_data_point(data_point)
-    
+
     # Verify that the data was processed
     # In a real test, we would check the database for the inserted record

@@ -67,7 +67,7 @@ INSTRUMENT_SCHEMA = EntitySchema(
             eda_priority=0,
             eda_default_visible=False
         ),
-        
+
         "symbol": FieldDefinition(
             name="symbol",
             field_type=FieldType.STRING,
@@ -83,9 +83,9 @@ INSTRUMENT_SCHEMA = EntitySchema(
             eda_priority=10,  # Highest priority for filtering
             eda_default_visible=True
         ),
-        
+
         "name": FieldDefinition(
-            name="name", 
+            name="name",
             field_type=FieldType.STRING,
             semantics=FieldSemantics.SEARCHABLE_STRING,
             nullable=True,
@@ -98,7 +98,7 @@ INSTRUMENT_SCHEMA = EntitySchema(
             eda_priority=8,
             eda_default_visible=True
         ),
-        
+
         "exchange": FieldDefinition(
             name="exchange",
             field_type=FieldType.ENUM,
@@ -112,10 +112,10 @@ INSTRUMENT_SCHEMA = EntitySchema(
             eda_priority=9,  # Very high priority
             eda_default_visible=True
         ),
-        
+
         "type": FieldDefinition(
             name="type",
-            field_type=FieldType.ENUM, 
+            field_type=FieldType.ENUM,
             semantics=FieldSemantics.CATEGORICAL,
             nullable=True,
             enum_values=INSTRUMENT_TYPE_VALUES,
@@ -126,7 +126,7 @@ INSTRUMENT_SCHEMA = EntitySchema(
             eda_priority=7,
             eda_default_visible=True
         ),
-        
+
         "currency": FieldDefinition(
             name="currency",
             field_type=FieldType.ENUM,
@@ -140,7 +140,7 @@ INSTRUMENT_SCHEMA = EntitySchema(
             eda_priority=5,
             eda_default_visible=False
         ),
-        
+
         "active": FieldDefinition(
             name="active",
             field_type=FieldType.BOOLEAN,
@@ -153,7 +153,7 @@ INSTRUMENT_SCHEMA = EntitySchema(
             eda_priority=8,
             eda_default_visible=True
         ),
-        
+
         "list_date": FieldDefinition(
             name="list_date",
             field_type=FieldType.DATE,
@@ -166,7 +166,7 @@ INSTRUMENT_SCHEMA = EntitySchema(
             eda_priority=4,
             eda_default_visible=False
         ),
-        
+
         "delist_date": FieldDefinition(
             name="delist_date",
             field_type=FieldType.DATE,
@@ -179,7 +179,7 @@ INSTRUMENT_SCHEMA = EntitySchema(
             eda_priority=3,
             eda_default_visible=False
         ),
-        
+
         "sector": FieldDefinition(
             name="sector",
             field_type=FieldType.STRING,
@@ -187,13 +187,13 @@ INSTRUMENT_SCHEMA = EntitySchema(
             nullable=True,
             max_length=100,
             description="Business sector classification",
-            ui_label="Sector", 
+            ui_label="Sector",
             ui_help_text="Industry sector (Technology, Healthcare, etc.)",
             ui_group="Classification",
             eda_priority=6,
             eda_default_visible=False
         ),
-        
+
         "created_at": FieldDefinition(
             name="created_at",
             field_type=FieldType.DATETIME,
@@ -205,7 +205,7 @@ INSTRUMENT_SCHEMA = EntitySchema(
             eda_priority=0,
             eda_default_visible=False
         ),
-        
+
         "updated_at": FieldDefinition(
             name="updated_at",
             field_type=FieldType.DATETIME,
@@ -244,7 +244,7 @@ PRICE_SCHEMA = EntitySchema(
             eda_priority=10,
             eda_default_visible=True
         ),
-        
+
         "date": FieldDefinition(
             name="date",
             field_type=FieldType.DATE,
@@ -257,7 +257,7 @@ PRICE_SCHEMA = EntitySchema(
             eda_priority=9,
             eda_default_visible=True
         ),
-        
+
         "open": FieldDefinition(
             name="open",
             field_type=FieldType.DECIMAL,
@@ -271,9 +271,9 @@ PRICE_SCHEMA = EntitySchema(
             eda_priority=6,
             eda_default_visible=True
         ),
-        
+
         "high": FieldDefinition(
-            name="high", 
+            name="high",
             field_type=FieldType.DECIMAL,
             semantics=FieldSemantics.NUMERIC_RANGE,
             nullable=True,
@@ -285,10 +285,10 @@ PRICE_SCHEMA = EntitySchema(
             eda_priority=5,
             eda_default_visible=True
         ),
-        
+
         "low": FieldDefinition(
             name="low",
-            field_type=FieldType.DECIMAL, 
+            field_type=FieldType.DECIMAL,
             semantics=FieldSemantics.NUMERIC_RANGE,
             nullable=True,
             min_value=0,
@@ -299,11 +299,11 @@ PRICE_SCHEMA = EntitySchema(
             eda_priority=5,
             eda_default_visible=True
         ),
-        
+
         "close": FieldDefinition(
             name="close",
             field_type=FieldType.DECIMAL,
-            semantics=FieldSemantics.NUMERIC_RANGE, 
+            semantics=FieldSemantics.NUMERIC_RANGE,
             nullable=True,
             min_value=0,
             description="Closing price for the trading day",
@@ -313,7 +313,7 @@ PRICE_SCHEMA = EntitySchema(
             eda_priority=8,  # Close price very important
             eda_default_visible=True
         ),
-        
+
         "volume": FieldDefinition(
             name="volume",
             field_type=FieldType.INTEGER,
@@ -331,7 +331,7 @@ PRICE_SCHEMA = EntitySchema(
 )
 
 # =============================================================================
-# INSTRUMENT CROSS-REFERENCE SCHEMA 
+# INSTRUMENT CROSS-REFERENCE SCHEMA
 # =============================================================================
 
 INSTRUMENT_XREF_SCHEMA = EntitySchema(
@@ -351,7 +351,7 @@ INSTRUMENT_XREF_SCHEMA = EntitySchema(
             eda_priority=0,
             eda_default_visible=False
         ),
-        
+
         "instrument_id": FieldDefinition(
             name="instrument_id",
             field_type=FieldType.INTEGER,
@@ -364,20 +364,20 @@ INSTRUMENT_XREF_SCHEMA = EntitySchema(
             eda_priority=3,
             eda_default_visible=False
         ),
-        
+
         "vendor_id": FieldDefinition(
             name="vendor_id",
             field_type=FieldType.INTEGER,
             semantics=FieldSemantics.CATEGORICAL,
             nullable=False,
             description="Data vendor ID reference",
-            ui_label="Vendor ID", 
+            ui_label="Vendor ID",
             ui_help_text="Data provider identifier",
             ui_group="References",
             eda_priority=5,
             eda_default_visible=True
         ),
-        
+
         "external_symbol": FieldDefinition(
             name="external_symbol",
             field_type=FieldType.STRING,
@@ -392,7 +392,7 @@ INSTRUMENT_XREF_SCHEMA = EntitySchema(
             eda_priority=8,
             eda_default_visible=True
         ),
-        
+
         "start_date": FieldDefinition(
             name="start_date",
             field_type=FieldType.DATE,
@@ -405,7 +405,7 @@ INSTRUMENT_XREF_SCHEMA = EntitySchema(
             eda_priority=4,
             eda_default_visible=False
         ),
-        
+
         "end_date": FieldDefinition(
             name="end_date",
             field_type=FieldType.DATE,
@@ -414,7 +414,7 @@ INSTRUMENT_XREF_SCHEMA = EntitySchema(
             description="Date when mapping expired (NULL if still active)",
             ui_label="End Date",
             ui_help_text="When this mapping ended",
-            ui_group="Dates", 
+            ui_group="Dates",
             eda_priority=3,
             eda_default_visible=False
         )

@@ -31,7 +31,7 @@ async def get_db_connection():
                 await conn.fetchval('SELECT 1')
         except Exception as e:
             raise HTTPException(
-                status_code=503, 
+                status_code=503,
                 detail=f"Database connection failed: {str(e)}. No mock data available."
             )
     return db_pool
@@ -43,17 +43,17 @@ async def get_jobs():
         pool = await get_db_connection()
         async with pool.acquire() as conn:
             jobs = await conn.fetch("""
-                SELECT job_id, vendor, symbol, status, started_at, completed_at, 
-                       records_collected, error_message, created_at 
-                FROM vendor_job_progress 
-                ORDER BY created_at DESC 
+                SELECT job_id, vendor, symbol, status, started_at, completed_at,
+                       records_collected, error_message, created_at
+                FROM vendor_job_progress
+                ORDER BY created_at DESC
                 LIMIT 10
             """)
-            
+
             if not jobs:
                 # Return empty but valid response - no mock data
                 return {"jobs": [], "message": "No jobs found in database"}
-            
+
             return {"jobs": [dict(job) for job in jobs]}
     except HTTPException:
         raise  # Re-raise HTTP exceptions
@@ -70,16 +70,16 @@ async def get_datasets():
         pool = await get_db_connection()
         async with pool.acquire() as conn:
             datasets = await conn.fetch("""
-                SELECT id, dataset_name, symbol, file_size_mb, 
+                SELECT id, dataset_name, symbol, file_size_mb,
                        record_count, creation_timestamp, status
-                FROM dev_training_dataset 
-                ORDER BY creation_timestamp DESC 
+                FROM dev_training_dataset
+                ORDER BY creation_timestamp DESC
                 LIMIT 10
             """)
-            
+
             if not datasets:
                 return {"datasets": [], "message": "No datasets found in database"}
-            
+
             return {"datasets": [dict(dataset) for dataset in datasets]}
     except HTTPException:
         raise
@@ -97,15 +97,15 @@ async def get_coverage_stats():
         async with pool.acquire() as conn:
             # Get actual record counts from price tables
             polygon_count = await conn.fetchval("SELECT COUNT(*) FROM dev_polygon_prices")
-            tiingo_count = await conn.fetchval("SELECT COUNT(*) FROM dev_tiingo_prices") 
+            tiingo_count = await conn.fetchval("SELECT COUNT(*) FROM dev_tiingo_prices")
             eodhd_count = await conn.fetchval("SELECT COUNT(*) FROM dev_eodhd_prices")
             unique_symbols = await conn.fetchval("SELECT COUNT(DISTINCT symbol) FROM dev_polygon_prices")
-            
+
             return {
                 "total_records": polygon_count + tiingo_count + eodhd_count,
                 "vendors": {
                     "polygon": polygon_count,
-                    "tiingo": tiingo_count, 
+                    "tiingo": tiingo_count,
                     "eodhd": eodhd_count
                 },
                 "unique_symbols": unique_symbols,
@@ -126,7 +126,7 @@ async def health():
         pool = await get_db_connection()
         async with pool.acquire() as conn:
             await conn.fetchval('SELECT 1')
-        
+
         return {
             'status': 'healthy',
             'service': 'real-data-analytics-dashboard',
@@ -239,7 +239,7 @@ async def dashboard():
                 document.getElementById('coverage-error').textContent = 'Database connection failed: ' + e.message;
                 document.getElementById('coverage-error').style.display = 'block';
             }
-            
+
             // Load job data (real database data)
             try {
                 const jobs = await fetch('/api/jobs');
@@ -249,9 +249,9 @@ async def dashboard():
                     if (data.jobs.length === 0) {
                         document.getElementById('recent-jobs').innerHTML = '<em>No jobs found in database</em>';
                     } else {
-                        document.getElementById('recent-jobs').innerHTML = data.jobs.slice(0, 5).map(job => 
+                        document.getElementById('recent-jobs').innerHTML = data.jobs.slice(0, 5).map(job =>
                             `<div style="margin: 3px 0; padding: 3px; border-left: 3px solid #ddd;">
-                                <strong>${job.vendor}/${job.symbol}</strong> 
+                                <strong>${job.vendor}/${job.symbol}</strong>
                                 <span class="status ${job.status === 'completed' ? 'healthy' : job.status === 'running' ? 'running' : 'error'}" style="font-size: 0.7em; padding: 1px 4px;">${job.status}</span><br>
                                 <small>Records: ${job.records_collected || 0} • ${new Date(job.created_at).toLocaleDateString()}</small>
                             </div>`
@@ -267,7 +267,7 @@ async def dashboard():
                 document.getElementById('jobs-error').textContent = 'Database connection failed: ' + e.message;
                 document.getElementById('jobs-error').style.display = 'block';
             }
-            
+
             // Load dataset data (real database data)
             try {
                 const datasets = await fetch('/api/datasets');
@@ -277,7 +277,7 @@ async def dashboard():
                     if (data.datasets.length === 0) {
                         document.getElementById('recent-datasets').innerHTML = '<em>No datasets found in database</em>';
                     } else {
-                        document.getElementById('recent-datasets').innerHTML = data.datasets.slice(0, 5).map(ds => 
+                        document.getElementById('recent-datasets').innerHTML = data.datasets.slice(0, 5).map(ds =>
                             `<div style="margin: 3px 0; padding: 3px; border-left: 3px solid #ddd;">
                                 <strong>${ds.dataset_name}</strong><br>
                                 <small>${ds.symbol} • ${(ds.file_size_mb || 0).toFixed(1)}MB • ${ds.record_count || 0} records</small><br>
@@ -295,7 +295,7 @@ async def dashboard():
                 document.getElementById('datasets-error').textContent = 'Database connection failed: ' + e.message;
                 document.getElementById('datasets-error').style.display = 'block';
             }
-            
+
             // Check system health
             try {
                 const health = await fetch('/health');
@@ -314,17 +314,17 @@ async def dashboard():
                 document.getElementById('system-error').style.display = 'block';
             }
         }
-        
+
         function refreshData() {
             loadData();
             document.getElementById('time').textContent = new Date().toLocaleTimeString();
         }
-        
+
         // Update time every second
         setInterval(() => {
             document.getElementById('time').textContent = new Date().toLocaleTimeString();
         }, 1000);
-        
+
         // Load data initially and every 30 seconds
         loadData();
         setInterval(loadData, 30000);

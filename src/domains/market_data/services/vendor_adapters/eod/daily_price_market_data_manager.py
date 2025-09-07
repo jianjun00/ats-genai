@@ -132,7 +132,7 @@ class DailyPriceMarketDataManager(MarketDataManager):
         # Placeholder: in production, this should return all symbols in the universe
         # For now, returns an empty list
         return []
-        
+
     async def get_ohlc_batch(self, instrument_ids: List[int], start: datetime, end: datetime) -> Dict[int, Optional[Dict[str, float]]]:
         import logging
         logger = logging.getLogger(__name__)

@@ -22,16 +22,16 @@ class UniverseStateMetadata:
 
 class MetadataManager:
     """Handles metadata operations for universe state."""
-    
+
     def __init__(self, base_path: str):
         self.base_path = Path(base_path)
-        
+
     def create_metadata(self, df, timestamp: str, data_sources: List[str]) -> UniverseStateMetadata:
         """Create metadata for a universe state dataframe."""
-        
+
         # Calculate checksum
         data_hash = hashlib.md5(df.to_string().encode()).hexdigest()
-        
+
         return UniverseStateMetadata(
             timestamp=timestamp,
             record_count=len(df),
@@ -41,13 +41,13 @@ class MetadataManager:
             columns=df.columns.tolist(),
             data_sources=data_sources
         )
-        
+
     def save_metadata(self, metadata: UniverseStateMetadata, filepath: Path) -> None:
         """Save metadata to file."""
         metadata_path = filepath.with_suffix('.metadata.json')
         with open(metadata_path, 'w') as f:
             json.dump(asdict(metadata), f, indent=2)
-            
+
     def load_metadata(self, filepath: Path) -> UniverseStateMetadata:
         """Load metadata from file."""
         metadata_path = filepath.with_suffix('.metadata.json')

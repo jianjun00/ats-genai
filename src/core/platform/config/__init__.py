@@ -12,6 +12,6 @@ from .settings import Settings
 __all__ = [
     "Environment",
     "EnvironmentType",
-    "GinConfigLoader", 
+    "GinConfigLoader",
     "Settings",
 ]

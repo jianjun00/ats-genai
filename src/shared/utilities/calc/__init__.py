@@ -17,7 +17,7 @@ from .indicators import (
 
 __all__ = [
     'calculate_returns',
-    'calculate_volatility', 
+    'calculate_volatility',
     'calculate_technical_levels',
     'safe_divide',
     'detect_splits_and_dividends',

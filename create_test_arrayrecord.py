@@ -6,7 +6,7 @@ from pathlib import Path
 try:
     import array_record
     print("ArrayRecord top-level:", dir(array_record))
-    
+
     # Try to find writer classes through different paths
     import pkgutil
     for importer, modname, ispkg in pkgutil.iter_modules(array_record.__path__, array_record.__name__ + "."):
@@ -16,7 +16,7 @@ try:
             print(f"  {modname} attributes: {[attr for attr in dir(submod) if 'Writer' in attr or 'Record' in attr]}")
         except Exception as e:
             print(f"  Error importing {modname}: {e}")
-            
+
 except ImportError as e:
     print(f"ArrayRecord import error: {e}")
 
@@ -25,7 +25,7 @@ try:
     import array_record.python
     python_mod = array_record.python
     print(f"Python module path: {python_mod.__path__}")
-    
+
     # Check all submodules in python
     import pkgutil
     for importer, modname, ispkg in pkgutil.iter_modules(python_mod.__path__, python_mod.__name__ + "."):
@@ -45,7 +45,7 @@ try:
     print("✅ Found ArrayRecordWriter in array_record.python.array_record_writer")
 except ImportError as e:
     print(f"❌ ArrayRecordWriter import error: {e}")
-    
+
 try:
     from array_record.python import ArrayRecordWriter
     print("✅ Found ArrayRecordWriter in array_record.python")
@@ -55,7 +55,7 @@ except ImportError as e:
 # Create test data
 test_data = {
     'example_id': 'test_001',
-    'symbol': 'TSLA', 
+    'symbol': 'TSLA',
     'prediction_timestamp': '2025-08-01T00:00:00',
     'instrument_id': 12345,
     'base_features': [1.0, 2.0, 3.0],

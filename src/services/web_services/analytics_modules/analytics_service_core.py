@@ -105,7 +105,7 @@ DATASET_CACHE = {
 class UnifiedAnalyticsService:
     """
     Unified Analytics Service combining all analytics functionality.
-    
+
     This class consolidates:
     1. Web dashboard serving (from analytics_service.py)
     2. Type-aware analysis (from analytics_service_class.py & type_aware_analytics_service.py)
@@ -113,43 +113,43 @@ class UnifiedAnalyticsService:
     4. Training dataset management
     5. Ray distributed computing integration
     """
-    
+
     def __init__(self, db_manager=None):
         """Initialize unified analytics service with all capabilities."""
         self.db = db_manager
         self.type_system_enabled = TYPE_SYSTEM_AVAILABLE
         self.ray_enabled = RAY_AVAILABLE
         self.visualization_enabled = VISUALIZATION_AVAILABLE
-        
+
         # Initialize visualization components
         if self.visualization_enabled:
             self.multi_panel_chart = MultiPanelTradingChart()
             self.feature_extractor = MultiTimeframeFeatureExtractor(TrainingDataConfig())
-        
+
         logger.info("🚀 Unified Analytics Service initialized")
         logger.info(f"   Type system: {'✅ Enabled' if self.type_system_enabled else '❌ Disabled'}")
         logger.info(f"   Ray computing: {'✅ Enabled' if self.ray_enabled else '❌ Disabled'}")
         logger.info(f"   Multi-panel visualization: {'✅ Enabled' if self.visualization_enabled else '❌ Disabled'}")
-        
+
         if self.type_system_enabled:
             logger.info(f"   Available schemas: {list(schema_registry.get_schema_summary()['entities'].keys())}")
 
     # ==============================================
     # TYPE-AWARE ANALYSIS (from analytics_service_class.py)
     # ==============================================
-    
+
     async def get_intelligent_filters(self, table_name: str) -> Dict[str, Any]:
         """Generate intelligent filter definitions using type system."""
         if not self.type_system_enabled:
             logger.warning("Type system not available, falling back to basic filters")
             return self._get_basic_filters(table_name)
-            
+
         try:
             filterable_fields = {}
-            
+
             # Try to get schema for this table
             schema = schema_registry.get_table_schema(table_name)
-            
+
             # Get all filterable fields from schema
             for field_name, field_def in schema.fields.items():
                 if field_def.is_filterable:
@@ -164,7 +164,7 @@ class UnifiedAnalyticsService:
                         "nullable": field_def.nullable,
                         "eda_priority": field_def.eda_priority
                     }
-                    
+
                     # Add semantic-specific configurations
                     if field_def.semantics == FieldSemantics.PRICE:
                         filter_config.update({
@@ -182,16 +182,16 @@ class UnifiedAnalyticsService:
                             "autocomplete": True,
                             "multi_select": True
                         })
-                    
+
                     filterable_fields[field_name] = filter_config
-            
+
             return {
                 "table_name": table_name,
                 "filterable_fields": filterable_fields,
                 "schema_available": True,
                 "total_filterable": len(filterable_fields)
             }
-            
+
         except Exception as e:
             logger.error(f"Error generating intelligent filters for {table_name}: {e}")
             return self._get_basic_filters(table_name)
@@ -206,7 +206,7 @@ class UnifiedAnalyticsService:
             "volume": {"field_type": "numeric", "min_value": 0},
             "exchange": {"field_type": "string", "multi_select": True}
         }
-        
+
         return {
             "table_name": table_name,
             "filterable_fields": basic_filters,

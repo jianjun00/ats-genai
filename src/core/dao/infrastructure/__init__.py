@@ -12,7 +12,7 @@ from .vendors_dao import VendorsDAO
 
 __all__ = [
     'DBVersionDAO',
-    'StatusCodeDAO', 
+    'StatusCodeDAO',
     'VendorDAO',
     'VendorsDAO'
 ]

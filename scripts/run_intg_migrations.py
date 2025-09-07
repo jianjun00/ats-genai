@@ -13,9 +13,9 @@ import asyncio
 async def main():
     # Use integration database connection with correct password
     db_url = "postgresql://postgres:intg_password@host.docker.internal:5433/intg_db"
-    
+
     migration_manager = MigrationManager(db_url)
-    
+
     print("🚀 Running database migrations for integration environment...")
     try:
         success = await migration_manager.migrate_to_latest()

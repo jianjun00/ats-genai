@@ -31,11 +31,11 @@ async def test_migration_manager_initial_version(unit_test_db_clean):
 async def test_migration_validation(unit_test_db_clean):
     """Test migration validation functionality."""
     manager = MigrationManager(unit_test_db_clean)
-    
+
     await manager.get_current_version()
     # Apply migrations
     await manager.migrate_to_latest()
-    
+
     # Validate migrations
     is_valid = await manager.validate_migrations()
     assert is_valid is True
@@ -48,13 +48,13 @@ async def test_migration_validation(unit_test_db_clean):
 async def test_table_prefix_application(unit_test_db_clean):
     """Test that table prefixes are correctly applied in migrations."""
     manager = MigrationManager(unit_test_db_clean)
-    
+
     # Check that table prefix is applied
     assert manager.table_prefix == "test_"
-    
+
     # Apply migrations
     await manager.migrate_to_latest()
-    
+
     # Verify that tables have correct prefix
     import asyncpg
     pool = await asyncpg.create_pool(unit_test_db_clean)
@@ -62,7 +62,7 @@ async def test_table_prefix_application(unit_test_db_clean):
         async with pool.acquire() as conn:
             # Check if prefixed table exists
             result = await conn.fetchval("""
-                SELECT COUNT(*) FROM information_schema.tables 
+                SELECT COUNT(*) FROM information_schema.tables
                 WHERE table_name = 'test_db_version'
             """)
             assert result == 1

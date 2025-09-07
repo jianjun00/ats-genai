@@ -56,11 +56,11 @@ def is_market_hours(dt: Optional[datetime] = None) -> bool:
         dt = get_current_market_time()
     else:
         dt = to_market_time(dt)
-    
+
     # Check if weekday (Monday=0, Sunday=6)
     if dt.weekday() > 4:  # Saturday or Sunday
         return False
-    
+
     # Check if between market hours
     current_time = dt.time()
     return MARKET_OPEN_TIME <= current_time <= MARKET_CLOSE_TIME
@@ -72,10 +72,10 @@ def is_pre_market(dt: Optional[datetime] = None) -> bool:
         dt = get_current_market_time()
     else:
         dt = to_market_time(dt)
-    
+
     if dt.weekday() > 4:  # Weekend
         return False
-    
+
     current_time = dt.time()
     return PRE_MARKET_OPEN <= current_time < MARKET_OPEN_TIME
 
@@ -86,10 +86,10 @@ def is_after_hours(dt: Optional[datetime] = None) -> bool:
         dt = get_current_market_time()
     else:
         dt = to_market_time(dt)
-    
+
     if dt.weekday() > 4:  # Weekend
         return False
-    
+
     current_time = dt.time()
     return MARKET_CLOSE_TIME < current_time <= AFTER_HOURS_CLOSE
 
@@ -112,7 +112,7 @@ def get_next_market_open(dt: Optional[datetime] = None) -> datetime:
         dt = get_current_market_time()
     else:
         dt = to_market_time(dt)
-    
+
     # If it's before market open today and it's a weekday
     if dt.weekday() < 5 and dt.time() < MARKET_OPEN_TIME:
         return dt.replace(
@@ -121,14 +121,14 @@ def get_next_market_open(dt: Optional[datetime] = None) -> datetime:
             second=0,
             microsecond=0
         )
-    
+
     # Otherwise, next business day
     days_ahead = 1
     if dt.weekday() == 4:  # Friday
         days_ahead = 3  # Skip to Monday
     elif dt.weekday() == 5:  # Saturday
         days_ahead = 2  # Skip to Monday
-    
+
     next_open = dt + timedelta(days=days_ahead)
     return next_open.replace(
         hour=MARKET_OPEN_TIME.hour,
@@ -144,7 +144,7 @@ def get_next_market_close(dt: Optional[datetime] = None) -> datetime:
         dt = get_current_market_time()
     else:
         dt = to_market_time(dt)
-    
+
     # If it's before market close today and it's a weekday
     if dt.weekday() < 5 and dt.time() < MARKET_CLOSE_TIME:
         return dt.replace(
@@ -153,14 +153,14 @@ def get_next_market_close(dt: Optional[datetime] = None) -> datetime:
             second=0,
             microsecond=0
         )
-    
+
     # Otherwise, next business day
     days_ahead = 1
     if dt.weekday() == 4:  # Friday
         days_ahead = 3  # Skip to Monday
     elif dt.weekday() == 5:  # Saturday
         days_ahead = 2  # Skip to Monday
-    
+
     next_close = dt + timedelta(days=days_ahead)
     return next_close.replace(
         hour=MARKET_CLOSE_TIME.hour,
@@ -179,15 +179,15 @@ def generate_business_days(
         start_date = start_date.date()
     if isinstance(end_date, datetime):
         end_date = end_date.date()
-    
+
     business_days = []
     current_date = start_date
-    
+
     while current_date <= end_date:
         if current_date.weekday() < 5:  # Monday-Friday
             business_days.append(current_date)
         current_date += timedelta(days=1)
-    
+
     return business_days
 
 
@@ -202,7 +202,7 @@ def get_trading_days_in_range(
 def format_datetime_for_api(dt: datetime, vendor: str = "polygon") -> str:
     """Format datetime for specific API vendor."""
     utc_dt = to_utc(dt)
-    
+
     if vendor.lower() == "polygon":
         return utc_dt.strftime("%Y-%m-%d")
     elif vendor.lower() == "tiingo":
@@ -230,10 +230,10 @@ def get_session_times(session_date: Union[date, datetime]) -> dict:
     """Get all session times for a given date."""
     if isinstance(session_date, datetime):
         session_date = session_date.date()
-    
+
     # Create datetime for the session date in market timezone
     base_dt = datetime.combine(session_date, time(0, 0), tzinfo=US_EASTERN)
-    
+
     return {
         "pre_market_open": base_dt.replace(
             hour=PRE_MARKET_OPEN.hour,
@@ -258,7 +258,7 @@ def time_until_market_open(dt: Optional[datetime] = None) -> timedelta:
     """Get time until next market open."""
     if dt is None:
         dt = get_current_market_time()
-    
+
     next_open = get_next_market_open(dt)
     return next_open - dt
 
@@ -267,7 +267,7 @@ def time_until_market_close(dt: Optional[datetime] = None) -> timedelta:
     """Get time until next market close."""
     if dt is None:
         dt = get_current_market_time()
-    
+
     next_close = get_next_market_close(dt)
     return next_close - dt
 
@@ -293,7 +293,7 @@ def get_timeframe_duration(timeframe: str) -> timedelta:
         "1d": timedelta(days=1),
         "1w": timedelta(weeks=1),
     }
-    
+
     return timeframe_map.get(timeframe.lower(), timedelta(minutes=1))
 
 

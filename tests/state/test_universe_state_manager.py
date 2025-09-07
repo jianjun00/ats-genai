@@ -166,7 +166,7 @@ class TestUniverseStateManager:
         """Test successful universe state saving to DB."""
         state_manager._interval_core.dao.create.return_value = 42
         db_uri = await state_manager.save_universe_state(
-            sample_universe_data, 
+            sample_universe_data,
             valid_timestamp,
             metadata={
                 'universe_id': 1,
@@ -182,7 +182,7 @@ class TestUniverseStateManager:
         # Verify data in cache
         assert valid_timestamp in state_manager._cache
         assert len(state_manager._cache[valid_timestamp]) == 5
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_save_universe_state_empty_data(self, state_manager, valid_timestamp):
@@ -191,7 +191,7 @@ class TestUniverseStateManager:
         empty_data = pd.DataFrame()
         with pytest.raises(ValueError, match="Cannot save empty universe state"):
             await state_manager.save_universe_state(empty_data, valid_timestamp)
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_save_universe_state_invalid_timestamp(self, state_manager, sample_universe_data):
@@ -199,7 +199,7 @@ class TestUniverseStateManager:
         invalid_timestamp = "invalid_format"
         with pytest.raises(ValueError, match="Invalid timestamp format"):
             await state_manager.save_universe_state(sample_universe_data, invalid_timestamp)
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_load_universe_state_success(self, state_manager, sample_universe_data, valid_timestamp):
@@ -220,7 +220,7 @@ class TestUniverseStateManager:
         assert len(loaded_data) == 5
         assert set(list(loaded_data['symbol'])) == set(['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'AMZN'])
         assert loaded_data['market_cap'].dtype in ['float64', 'float32', 'int64', 'uint64', 'int32', 'uint32']  # DB may return float
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_load_universe_state_with_filters(self, state_manager, sample_universe_data, valid_timestamp):
@@ -472,7 +472,7 @@ class TestUniverseStateManager:
         import time
         results = []
         errors = []
-        
+
         def save_and_load(thread_id):
             try:
                 timestamp = f"20231201_{thread_id:06d}"
@@ -484,23 +484,23 @@ class TestUniverseStateManager:
                 results.append((thread_id, len(loaded_data)))
             except Exception as e:
                 errors.append((thread_id, str(e)))
-        
+
         # Create multiple threads
         threads = []
         for i in range(5):
             thread = threading.Thread(target=save_and_load, args=(i,))
             threads.append(thread)
             thread.start()
-        
+
         # Wait for all threads
         for thread in threads:
             thread.join()
-        
+
         # Check results
         assert len(errors) == 0, f"Errors occurred: {errors}"
         assert len(results) == 5
         assert all(result[1] == 5 for result in results)  # All should have 5 records
-    
+
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_large_dataset_handling(self, state_manager):
@@ -512,9 +512,9 @@ class TestUniverseStateManager:
             'sector': ['Technology'] * 5000 + ['Finance'] * 5000,
             'price': [100.0 + i * 0.01 for i in range(10000)]
         })
-        
+
         timestamp = "20231201_120000"
-        
+
         # Should handle large dataset without issues using async DB-backed save
         from unittest.mock import AsyncMock
         # Ensure DAO create returns a concrete ID
@@ -537,41 +537,41 @@ class TestUniverseStateManager:
         # Load and verify (load_universe_state is synchronous)
         loaded_data = state_manager.load_universe_state(timestamp)
         assert len(loaded_data) == 10000
-        
+
         # Check storage stats (cache-based) - DB-backed path may not update file-based metadata
         stats = state_manager.get_storage_stats()
         assert stats['cache_size'] >= 1
-    
+
     def test_edge_case_empty_directory(self, temp_dir):
         """Test behavior with empty directory."""
         manager = UniverseStateManager(base_path=temp_dir)
-        
+
         # Should handle empty directory gracefully
         assert manager.get_latest_timestamp() is None
         assert manager.list_available_states() == []
-        
+
         with pytest.raises(FileNotFoundError):
             manager.load_universe_state()
-    
+
     def test_malformed_files_handling(self, state_manager, sample_universe_data, valid_timestamp):
         """Test handling of malformed files."""
         # Save valid data first
         state_manager.save_universe_state_sync(sample_universe_data, valid_timestamp)
-        
+
         # Corrupt the parquet file
         parquet_file = state_manager.states_dir / f"universe_state_{valid_timestamp}.parquet"
         with open(parquet_file, 'w') as f:
             f.write("corrupted data")
-        
+
         # Should handle corrupted file gracefully
         with pytest.raises(IOError):
             state_manager.load_universe_state(valid_timestamp, use_cache=False)
-    
+
     @pytest.mark.parametrize("compression", ['snappy', 'gzip', 'brotli'])
     def test_compression_options(self, state_manager, sample_universe_data, compression):
         """Test different compression options."""
         timestamp = f"20231201_120000_{compression}"
-        
+
         # Mock to_parquet to verify compression parameter
         with patch('pyarrow.parquet.write_table') as mock_write_table:
             try:

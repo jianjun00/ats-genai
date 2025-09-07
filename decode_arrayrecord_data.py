@@ -9,18 +9,18 @@ import json
 def decode_arrayrecord_file(file_path):
     """Decode ArrayRecord file and show actual content"""
     print(f"🔍 Decoding: {file_path}")
-    
+
     try:
         reader = ArrayRecordReader(file_path)
         total_records = reader.num_records()
         print(f"📊 Total records: {total_records}")
-        
+
         for i in range(total_records):
             reader.seek(i)
             record = reader.read()
-            
+
             print(f"\n📋 Record {i}:")
-            
+
             if i == 0:  # Column names record
                 try:
                     columns_str = record.decode('utf-8')
@@ -28,44 +28,44 @@ def decode_arrayrecord_file(file_path):
                     print(f"   Column names record ({len(columns)} columns)")
                     print(f"   First 10 columns: {columns[:10]}")
                     print(f"   Last 10 columns: {columns[-10:]}")
-                    
+
                     # Check for expected OHLCV columns
                     ohlcv_count = sum(1 for col in columns if any(x in col for x in ['open', 'high', 'low', 'close', 'volume']))
                     print(f"   OHLCV-related columns: {ohlcv_count}")
-                    
+
                 except Exception as e:
                     print(f"   Error decoding columns: {e}")
                     print(f"   Raw bytes (first 200): {record[:200]}")
-                    
+
             elif i == 1:  # Training data record
                 print(f"   Training data record ({len(record)} bytes)")
-                
+
                 # Try to interpret as numpy array
                 try:
                     # The data might be stored as float32
                     float_array = np.frombuffer(record, dtype=np.float32)
                     print(f"   As float32 array: {len(float_array)} elements")
-                    
+
                     non_zero = np.count_nonzero(float_array)
                     print(f"   Non-zero elements: {non_zero} / {len(float_array)} ({100*non_zero/len(float_array):.1f}%)")
-                    
+
                     if non_zero > 0:
                         print(f"   First 20 non-zero values: {float_array[float_array != 0][:20]}")
-                        
+
                         # Look for price-like data
                         realistic = float_array[(float_array > 0.1) & (float_array < 10000)]
                         if len(realistic) > 0:
                             print(f"   Price-like values (0.1-10000): {len(realistic)} found")
                             print(f"   Price range: {realistic.min():.2f} - {realistic.max():.2f}")
                             print(f"   Sample prices: {realistic[:20]}")
-                            
+
                             # This looks like we have actual OHLCV data!
                             if len(realistic) > 100:
                                 print(f"   🎉 SUFFICIENT DATA: {len(realistic)} price values found!")
-                            
+
                 except Exception as e:
                     print(f"   Error interpreting as float32: {e}")
-                
+
                 # Try float64 too
                 try:
                     float64_array = np.frombuffer(record, dtype=np.float64)
@@ -77,10 +77,10 @@ def decode_arrayrecord_file(file_path):
                             print(f"   Float64 price-like values: {len(realistic_64)} found")
                 except:
                     pass
-        
+
         reader.close()
         return total_records > 0
-        
+
     except Exception as e:
         print(f"❌ Error reading ArrayRecord: {e}")
         import traceback

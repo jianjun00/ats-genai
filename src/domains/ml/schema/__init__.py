@@ -10,8 +10,8 @@ from .registry import schema_registry
 from .entities import INSTRUMENT_SCHEMA, PRICE_SCHEMA
 
 __all__ = [
-    'FieldType', 
-    'FieldSemantics', 
+    'FieldType',
+    'FieldSemantics',
     'FieldDefinition',
     'schema_registry',
     'INSTRUMENT_SCHEMA',

@@ -6,7 +6,7 @@ SINGLE RESPONSIBILITY:
 
 STRICTLY ONLY:
 - Coordinate data flow between MarketDataManager and IndicatorBuilder
-- Manage rolling windows of InstrumentInterval objects (business logic)  
+- Manage rolling windows of InstrumentInterval objects (business logic)
 - Transform raw OHLC data to business InstrumentInterval objects
 - Handle multi-timeframe aggregation and duration logic
 - Implement data validation and business rules
@@ -154,13 +154,13 @@ class UniverseStateIntervalBuilder(RunnerCallback):
                 instrument_intervals=interval_map
             )
             instrument_indicator_intervals = {}
-            
+
             # Get history for each instrument
             instrument_histories = {inst_id: self.instrument_history.get(inst_id, []) for inst_id in instrument_ids}
-            
+
             # Check if we have enough history for indicators
             has_enough_history = all(len(hist) >= 3 for hist in instrument_histories.values())
-            
+
             if has_enough_history:
                 # Normal indicator calculation
                 self.logger.debug(f"[handleInterval] Using normal indicator calculation with sufficient history")
@@ -173,11 +173,11 @@ class UniverseStateIntervalBuilder(RunnerCallback):
                 # Create synthetic indicators with default values for testing
                 self.logger.warning(f"[handleInterval] Not enough history for indicators, using default values")
                 default_indicators = {}
-                
+
                 # Get indicator names from config
                 indicator_config = getattr(self.env, 'get_indicator_config', lambda: IndicatorConfig.empty_config())()
                 indicator_names = list(indicator_config.indicators.keys())
-                
+
                 # Create default indicators for each instrument
                 for inst_id in instrument_ids:
                     indicators = {}
@@ -187,7 +187,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
                             'status': 'ok',
                             'update_at': datetime.now()
                         }
-                    
+
                     # Create indicator interval with default values
                     default_indicators[inst_id] = IndicatorInterval(
                         instrument_id=inst_id,
@@ -195,7 +195,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
                         end_date_time=d_end_time,
                         indicators=indicators
                     )
-                
+
                 instrument_indicator_intervals['default'] = default_indicators
             universe_state = UniverseStateInterval(
                 universe_id=runner.universe_id,
@@ -246,7 +246,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
     """
     Builds universe state from multiple data sources with business logic,
     validation, and transformation rules.
-    
+
     Handles data collection, validation, corporate actions, and derived calculations.
     """
 

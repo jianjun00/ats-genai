@@ -27,34 +27,34 @@ from core.config.settings import get_settings
     # ==============================================
     # TRAINING DATASET MANAGEMENT (from analytics_service.py)
     # ==============================================
-    
+
     def get_training_datasets(self):
         """Get training datasets from database for dual-tab functionality."""
         try:
             from core.database.connection_manager import get_raw_connection
-            
+
             environment = os.getenv('ENVIRONMENT', 'dev')
             table_name = f"{environment}_training_datasets"
-            
+
             with get_raw_connection() as conn:
                 from psycopg2.extras import RealDictCursor
-                
+
                 with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                     query = f"""
-                    SELECT 
+                    SELECT
                         id, dataset_name, total_sequences, sequence_length, feature_count,
                         label_count, data_quality_score, feature_completeness, label_completeness,
-                        file_size_mb, technical_indicators, symbols, date_range_start, 
+                        file_size_mb, technical_indicators, symbols, date_range_start,
                         date_range_end, created_at
-                    FROM {table_name}  
+                    FROM {table_name}
                     WHERE status IN ('completed', 'generating')
                     ORDER BY created_at DESC
                     LIMIT 50
                     """
-                    
+
                     cursor.execute(query)
                     datasets = cursor.fetchall()
-                    
+
                     # Convert to list of dictionaries for JSON serialization
                     datasets_list = []
                     for dataset in datasets:
@@ -66,19 +66,19 @@ from core.config.settings import get_settings
                             dataset_dict['date_range_start'] = dataset_dict['date_range_start'].isoformat()
                         if 'date_range_end' in dataset_dict and dataset_dict['date_range_end']:
                             dataset_dict['date_range_end'] = dataset_dict['date_range_end'].isoformat()
-                        
+
                         # Split symbols field into array if it's a string
                         if 'symbols' in dataset_dict and isinstance(dataset_dict['symbols'], str):
                             dataset_dict['symbols'] = [s.strip() for s in dataset_dict['symbols'].split(',') if s.strip()]
-                        
+
                         datasets_list.append(dataset_dict)
-                    
+
                     logger.info(f"Retrieved {len(datasets_list)} training datasets from {table_name}")
                     return {
                         'datasets': datasets_list,
                         'total_count': len(datasets_list)
                     }
-                    
+
         except Exception as e:
             logger.error(f"Error getting training datasets: {e}")
             return {
@@ -86,7 +86,7 @@ from core.config.settings import get_settings
                 'total_count': 0,
                 'error': str(e)
             }
-    
+
     def get_training_dataset_sequence(self, dataset_id: int, row_index: int, timeframe: str = "5m") -> Dict[str, Any]:
         """Get training dataset sequence data for OHLC visualization."""
         try:
@@ -94,11 +94,11 @@ from core.config.settings import get_settings
             import psycopg2.extras
             import numpy as np
             from pathlib import Path
-            
+
             # Determine environment and table name - assume dev for now
             environment = "dev"  # Can be made configurable later
             table_name = f"{environment}_training_datasets"
-            
+
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
                     # Get dataset info
@@ -108,39 +108,39 @@ from core.config.settings import get_settings
                         FROM {table_name}
                         WHERE id = %s
                     """, (dataset_id,))
-                    
+
                     dataset_info = cursor.fetchone()
                     if not dataset_info:
                         raise ValueError(f"Dataset {dataset_id} not found")
-                    
+
                     # Try to load actual sequence data from files
                     try:
                         # Check for the generated Riegeli-compatible files
                         symbol = dataset_info['symbols'] or 'unknown'
                         symbol_lower = symbol.lower()
-                        
+
                         logger.info(f"Looking for training data files for symbol: {symbol} (dataset_id: {dataset_id})")
-                        
+
                         # Look for timeframe-specific training data files
                         # Priority order: Riegeli format > numpy files > fallback paths
                         possible_file_paths = [
                             # New structure: /data/training_data/<run_id>/<timeframe>/<symbol>_<startdatetime>_<enddatetime>.arrayrecord
                             f"/data/training_data/*/{timeframe}/{symbol_lower}_*.arrayrecord",
                             f"/data/training_data/*/*/{symbol_lower}_*.arrayrecord",
-                            # Legacy numpy files (existing structure)  
+                            # Legacy numpy files (existing structure)
                             f"/data/training/arrayrecord_aapl_tsla_2025/{symbol_lower}_features.npy",
                             f"/data/training/{dataset_info['dataset_name'].lower()}/{symbol_lower}_features.npy",
                             f"/data/training/{dataset_id}/{symbol_lower}_features.npy",
                         ]
-                        
+
                         logger.info(f"Checking file paths for timeframe {timeframe}: {possible_file_paths}")
-                        
+
                         features_file = None
                         import glob
-                        
+
                         for path_pattern in possible_file_paths:
                             logger.info(f"Checking pattern: {path_pattern}")
-                            
+
                             # Handle glob patterns for new file structure
                             if '*' in path_pattern:
                                 matching_files = glob.glob(path_pattern)
@@ -158,20 +158,20 @@ from core.config.settings import get_settings
                                     break
                                 else:
                                     logger.info(f"File not found: {path_pattern}")
-                        
+
                         if features_file:
                             logger.info(f"Loading training data from: {features_file}")
                             # Load numpy features file
                             features = np.load(features_file)
                             logger.info(f"Loaded features shape: {features.shape}")
-                            
+
                             # Ensure row_index is within bounds
                             if row_index >= len(features):
                                 row_index = min(len(features) - 1, 0)
-                            
+
                             # Get the sequence for the specified row
                             sequence = features[row_index]  # Shape should be (sequence_length, feature_count)
-                            
+
                             # Convert to OHLC format - features are ordered as:
                             # [open, high, low, close, volume, envelope_top, envelope_bot, pldot, datetime_features...]
                             # Enhanced to handle variable feature counts with new datetime features
@@ -203,7 +203,7 @@ from core.config.settings import get_settings
                                     "year": int(time_step[17]) if len(time_step) > 17 else 2025,
                                 }
                                 ohlc_sequence.append(bar)
-                            
+
                             return {
                                 "dataset_id": dataset_id,
                                 "dataset_name": dataset_info['dataset_name'],
@@ -217,12 +217,12 @@ from core.config.settings import get_settings
                                 "source": "arrayrecord_compatible_numpy" if features_file.endswith('.npy') else "arrayrecord_format",
                                 "file_path": features_file
                             }
-                        
+
                     except Exception as file_error:
                         logger.warning(f"Could not load actual sequence data: {file_error}")
                         # Fall back to sample data
                         pass
-                    
+
                     # Generate sample data if actual data not available
                     sample_data = self._generate_sample_sequence_for_dataset(dataset_info)
                     sample_data.update({
@@ -232,7 +232,7 @@ from core.config.settings import get_settings
                         "source": "sample_data"
                     })
                     return sample_data
-                    
+
         except Exception as e:
             logger.error(f"Error getting sequence data for dataset {dataset_id}: {e}")
             # Return sample data as fallback
@@ -243,38 +243,38 @@ from core.config.settings import get_settings
             }, dataset_id, row_index)
             sample_data['timeframe'] = timeframe
             return sample_data
-    
+
     def _generate_sample_sequence_for_dataset(self, dataset_info: Dict, dataset_id: int = 0, row_index: int = 0) -> Dict[str, Any]:
         """Generate sample sequence data based on dataset info."""
         import random
-        
+
         sequence_length = dataset_info.get('sequence_length', 21)
         symbol = dataset_info.get('symbols', 'DEMO').split(',')[0] if dataset_info.get('symbols') else 'DEMO'
-        
+
         # Generate realistic OHLC sequence
         base_price = 150.0 + random.uniform(-50, 50)  # Start price
         sequence = []
-        
+
         for i in range(sequence_length):
             # Simulate price movement
             change = random.uniform(-3.0, 3.0)
             base_price += change
             base_price = max(base_price, 10.0)  # Minimum price
-            
+
             open_price = base_price + random.uniform(-1.0, 1.0)
             high_price = open_price + random.uniform(0, 4.0)
             low_price = open_price - random.uniform(0, 3.0)
             close_price = open_price + random.uniform(-2.0, 2.0)
-            
+
             # Ensure OHLC consistency
             high_price = max(high_price, open_price, close_price)
             low_price = min(low_price, open_price, close_price)
-            
+
             # Technical indicators
             envelope_top = high_price * 1.025  # 2.5% above high
             envelope_bot = low_price * 0.975   # 2.5% below low
             pldot = low_price * 0.99 if i % 4 == 0 else 0  # Pivot low dots occasionally
-            
+
             bar = {
                 "time_step": i,
                 "open": round(open_price, 2),
@@ -287,7 +287,7 @@ from core.config.settings import get_settings
                 "pldot": round(pldot, 2) if pldot > 0 else 0
             }
             sequence.append(bar)
-        
+
         return {
             "dataset_id": dataset_id,
             "dataset_name": dataset_info.get('dataset_name', f'Dataset {dataset_id}'),

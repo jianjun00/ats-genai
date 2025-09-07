@@ -5,7 +5,7 @@ from pathlib import Path
 print("🔍 Checking Docker container paths:")
 paths_to_check = [
     '/data',
-    '/workspace', 
+    '/workspace',
     '/mnt/d',
     '/mnt/d/ats-data',
     '/mnt/d/ats-data/minute-bars',
@@ -17,7 +17,7 @@ for path in paths_to_check:
     exists = Path(path).exists()
     status = "✅" if exists else "❌"
     print(f"{status} {path}: {exists}")
-    
+
     if exists and Path(path).is_dir():
         try:
             contents = list(Path(path).iterdir())[:5]  # First 5 items

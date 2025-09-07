@@ -17,7 +17,7 @@ def fetch_splits_polygon(ticker, api_key):
 
 async def insert_splits_polygon(splits, ticker, dao=None):
     if dao is None:
-        
+
         from infrastructure.database.repositories.stock_splits_polygon_dao import StockSplitsPolygonDAO
         env = Environment()
         dao = StockSplitsPolygonDAO(env)
@@ -53,7 +53,7 @@ async def main():
     parser.add_argument('--environment', type=str, default='intg', choices=['test', 'intg', 'prod'], help='Environment to use (test, intg, prod)')
     parser.add_argument('--start_ticker', type=str, default='', help='Only process tickers > start_ticker (lexical order)')
     args = parser.parse_args()
-    
+
     env = Environment()
     api_key = env.get_api_key('polygon')
     if not api_key:

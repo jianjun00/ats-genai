@@ -9,7 +9,7 @@ from .environment import Environment, EnvironmentType
 
 __all__ = [
     "Environment",
-    "EnvironmentType", 
+    "EnvironmentType",
 
 
 ]

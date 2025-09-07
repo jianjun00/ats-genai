@@ -43,7 +43,7 @@ class MigrationManager:
             return prefix
         print("[PREFIX DEBUG] No underscore in db_name, using empty prefix.")
         return ''
-    
+
     def _get_migration_files(self) -> List[Tuple[int, str, Path]]:
         """Get all migration files sorted by version number."""
         migrations = []
@@ -53,14 +53,14 @@ class MigrationManager:
                 version = int(match.group(1))
                 description = match.group(2).replace("_", " ")
                 migrations.append((version, description, file_path))
-        
+
         return sorted(migrations, key=lambda x: x[0])
-    
+
     def _calculate_checksum(self, file_path: Path) -> str:
         """Calculate MD5 checksum of migration file."""
         with open(file_path, 'rb') as f:
             return hashlib.md5(f.read()).hexdigest()
-    
+
     async def get_current_version(self) -> int:
         """Get the current database version."""
         print(f"[MIGRATION DEBUG] Using table_prefix: '{self.table_prefix}' for db_url: {self.db_url}")
@@ -78,48 +78,48 @@ class MigrationManager:
                         migration_file TEXT
                     )
                 """)
-                
+
                 # Get current version
                 result = await conn.fetchval(f"""
-                    SELECT COALESCE(MAX(version), -1) 
+                    SELECT COALESCE(MAX(version), -1)
                     FROM {self.table_prefix}db_version
                 """)
                 return result if result is not None else -1
         finally:
             await pool.close()
-    
+
     async def apply_migration(self, version: int, description: str, migration_file: Path) -> bool:
         """Apply a single migration and record it in db_version table."""
         print(f"[DEBUG] Applying migration version {version:03d}: {description}")
         print(f"[DEBUG] Migration file: {migration_file}")
         sql_content = migration_file.read_text()
         print(f"[DEBUG] Original SQL content (first 200 chars): {sql_content[:200]}...")
-        
+
         # Special handling for initial schema migration
         if version == 1:  # Initial schema migration
             print("[DEBUG] Processing initial schema migration with special handling")
-            
+
             # Parse the SQL into individual statements
             import sqlparse
             statements = sqlparse.split(sql_content)
-            
+
             # Apply prefixes to each statement individually
             prefixed_statements = []
             for stmt in statements:
                 if not stmt.strip():
                     continue
-                    
+
                 # Apply prefixes to this statement
                 prefixed_stmt = self._apply_table_prefixes(stmt)
                 prefixed_statements.append(prefixed_stmt)
-                
+
             # Join the prefixed statements back together
             prefixed_sql = '\n'.join(prefixed_statements)
             print(f"[DEBUG] Prefixed SQL for initial schema (first 500 chars):\n{prefixed_sql[:500]}...")
         else:
             # Normal migration processing
             prefixed_sql = self._apply_table_prefixes(sql_content)
-            
+
         print(f"[DEBUG] Prefixed SQL (first 200 chars): {prefixed_sql[:200]}...")
         pool = await asyncpg.create_pool(self.db_url)
         try:
@@ -130,7 +130,7 @@ class MigrationManager:
             import psycopg2
             from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
             from urllib.parse import urlparse
-            
+
             # Parse db_url for psycopg2
             parsed = urlparse(self.db_url)
             db_name = parsed.path.lstrip('/')
@@ -143,7 +143,7 @@ class MigrationManager:
                 'options': '-c statement_timeout=60000'  # 60 second timeout
             }
             print(f"[DEBUG] Connecting to database with: {db_kwargs}")
-            
+
             # First verify connection works
             try:
                 test_conn = psycopg2.connect(**{**db_kwargs, 'dbname': 'postgres'})
@@ -212,7 +212,7 @@ class MigrationManager:
             return True
         finally:
             await pool.close()
-    
+
     def _safe_identifier(self, name: str) -> str:
         """
         Ensure identifier is <= 63 chars (PostgreSQL limit). If too long, truncate and append a hash.
@@ -241,34 +241,34 @@ class MigrationManager:
     INSERT INTO {self.table_prefix}events (id) VALUES (1);
     SELECT * FROM {self.table_prefix}daily_prices;
     """
-        
+
         # Define system tables that should never be prefixed
         system_tables = [
             'pg_constraint', 'pg_class', 'pg_namespace', 'pg_attribute',
             'information_schema', 'db_version'
         ]
-        
+
         # Handle SELECT statements
         # Match SELECT ... FROM table_name with optional whitespace and aliases
         select_pattern = re.compile(r'(SELECT\s+.+?\s+FROM\s+)(\w+)(\s|;|\(|\)|,)', re.IGNORECASE | re.DOTALL)
-        sql = select_pattern.sub(lambda m: 
-            m.group(1) + 
-            (self.table_prefix + m.group(2) 
-             if m.group(2).lower() not in system_tables and not m.group(2).lower().startswith('pg_') 
-             else m.group(2)) + 
-            m.group(3), 
+        sql = select_pattern.sub(lambda m:
+            m.group(1) +
+            (self.table_prefix + m.group(2)
+             if m.group(2).lower() not in system_tables and not m.group(2).lower().startswith('pg_')
+             else m.group(2)) +
+            m.group(3),
             sql)
-        
+
         # Handle JOIN statements
         join_pattern = re.compile(r'(\s+JOIN\s+)(\w+)(\s|\(|\)|;|,|\s+ON\s+)', re.IGNORECASE | re.DOTALL)
-        sql = join_pattern.sub(lambda m: 
-            m.group(1) + 
-            (self.table_prefix + m.group(2) 
-             if m.group(2).lower() not in system_tables and not m.group(2).lower().startswith('pg_') 
-             else m.group(2)) + 
-            m.group(3), 
+        sql = join_pattern.sub(lambda m:
+            m.group(1) +
+            (self.table_prefix + m.group(2)
+             if m.group(2).lower() not in system_tables and not m.group(2).lower().startswith('pg_')
+             else m.group(2)) +
+            m.group(3),
             sql)
-        
+
         # Handle table references in column qualifiers (e.g., table_name.column)
         # But exclude special SQL keywords like EXCLUDED in ON CONFLICT clauses
         # Also exclude system schemas and catalog tables/aliases
@@ -287,20 +287,20 @@ class MigrationManager:
             # PL/pgSQL special variables
             'new', 'old'
         ]
-        
+
         table_ref_pattern = re.compile(r'(\b)(\w+)(\.[a-zA-Z_][a-zA-Z0-9_]*\b)', re.DOTALL)
-        sql = table_ref_pattern.sub(lambda m: 
-            m.group(1) + (self.table_prefix + m.group(2) 
-                         if m.group(2).lower() not in excluded_identifiers 
-                         else m.group(2)) + m.group(3), 
+        sql = table_ref_pattern.sub(lambda m:
+            m.group(1) + (self.table_prefix + m.group(2)
+                         if m.group(2).lower() not in excluded_identifiers
+                         else m.group(2)) + m.group(3),
             sql)
-        
+
 
         # Special case: Don't prefix db_version table references in the initial migration
         if '000_initial_db_version.sql' in sql or '000_initial_db_version' in sql:
             print("[DEBUG] Handling special case for initial db_version migration")
             return sql.replace('db_version', f'{self.table_prefix}db_version')
-        
+
         # Extract all table names from the SQL
         # First, find all CREATE TABLE statements
         create_tables = []
@@ -310,20 +310,20 @@ class MigrationManager:
             if not table_name.startswith(self.table_prefix) and table_name != 'db_version':
                 create_tables.append(table_name)
                 print(f"[DEBUG] Found CREATE TABLE: {table_name}")
-        
+
         # Apply prefixes to all table names
         result = sql
-        
+
         # 1. Prefix CREATE TABLE statements
         for table in create_tables:
             if not table.startswith(self.table_prefix):
                 prefixed = f"{self.table_prefix}{table}"
                 print(f"[DEBUG] Prefixing CREATE TABLE: {table} -> {prefixed}")
-                
+
                 # Use word boundary to ensure we only match the table name
                 pattern = re.compile(fr'(CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?){table}\b', re.IGNORECASE)
                 result = pattern.sub(f'\\1{prefixed}', result)
-        
+
         # 2. Prefix table names in REFERENCES clauses
         references_pattern = re.compile(r'REFERENCES\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(', re.IGNORECASE)
         for match in references_pattern.finditer(result):
@@ -331,7 +331,7 @@ class MigrationManager:
             if not ref_table.startswith(self.table_prefix) and ref_table != 'db_version':
                 prefixed_ref = f"{self.table_prefix}{ref_table}"
                 print(f"[DEBUG] Prefixing REFERENCES: {ref_table} -> {prefixed_ref}")
-                
+
                 # Replace with word boundary
                 result = re.sub(
                     fr'REFERENCES\s+{ref_table}\b',
@@ -339,7 +339,7 @@ class MigrationManager:
                     result,
                     flags=re.IGNORECASE
                 )
-                
+
         # Also handle ON DELETE CASCADE references
         on_delete_pattern = re.compile(r'REFERENCES\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\([^)]+\)\s+ON\s+DELETE', re.IGNORECASE)
         for match in on_delete_pattern.finditer(result):
@@ -347,7 +347,7 @@ class MigrationManager:
             if not ref_table.startswith(self.table_prefix) and ref_table != 'db_version':
                 prefixed_ref = f"{self.table_prefix}{ref_table}"
                 print(f"[DEBUG] Prefixing REFERENCES with ON DELETE: {ref_table} -> {prefixed_ref}")
-                
+
                 # Replace with word boundary
                 result = re.sub(
                     fr'REFERENCES\s+{ref_table}\b',
@@ -355,7 +355,7 @@ class MigrationManager:
                     result,
                     flags=re.IGNORECASE
                 )
-        
+
         # 3. Prefix table names in INSERT statements
         insert_pattern = re.compile(r'INSERT\s+INTO\s+([a-zA-Z_][a-zA-Z0-9_]*)', re.IGNORECASE)
         for match in insert_pattern.finditer(result):
@@ -363,7 +363,7 @@ class MigrationManager:
             if not insert_table.startswith(self.table_prefix) and insert_table != 'db_version':
                 prefixed_insert = f"{self.table_prefix}{insert_table}"
                 print(f"[DEBUG] Prefixing INSERT INTO: {insert_table} -> {prefixed_insert}")
-                
+
                 # Replace with word boundary
                 result = re.sub(
                     fr'INSERT\s+INTO\s+{insert_table}\b',
@@ -371,7 +371,7 @@ class MigrationManager:
                     result,
                     flags=re.IGNORECASE
                 )
-        
+
         # 4. Prefix table names in ALTER TABLE statements
         alter_pattern = re.compile(r'ALTER\s+TABLE\s+([a-zA-Z_][a-zA-Z0-9_]*)', re.IGNORECASE)
         for match in alter_pattern.finditer(result):
@@ -379,7 +379,7 @@ class MigrationManager:
             if not alter_table.startswith(self.table_prefix) and alter_table != 'db_version':
                 prefixed_alter = f"{self.table_prefix}{alter_table}"
                 print(f"[DEBUG] Prefixing ALTER TABLE: {alter_table} -> {prefixed_alter}")
-                
+
                 # Replace with word boundary
                 result = re.sub(
                     fr'ALTER\s+TABLE\s+{alter_table}\b',
@@ -387,7 +387,7 @@ class MigrationManager:
                     result,
                     flags=re.IGNORECASE
                 )
-        
+
         # 5. Prefix table names in CREATE INDEX statements
         index_pattern = re.compile(r'CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?\w+\s+ON\s+([a-zA-Z_][a-zA-Z0-9_]*)', re.IGNORECASE)
         for match in index_pattern.finditer(result):
@@ -395,7 +395,7 @@ class MigrationManager:
             if not index_table.startswith(self.table_prefix) and index_table != 'db_version':
                 prefixed_index = f"{self.table_prefix}{index_table}"
                 print(f"[DEBUG] Prefixing table in CREATE INDEX: {index_table} -> {prefixed_index}")
-                
+
                 # Replace with word boundary
                 result = re.sub(
                     fr'(CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?\w+\s+ON\s+){index_table}\b',
@@ -403,7 +403,7 @@ class MigrationManager:
                     result,
                     flags=re.IGNORECASE
                 )
-        
+
         # 6. Prefix table names in DO blocks (PL/pgSQL code)
         # This handles the WHERE tc.table_name = 'table_name' pattern
         do_block_pattern = re.compile(r"WHERE\s+tc\.table_name\s*=\s*'([a-zA-Z_][a-zA-Z0-9_]*)'")
@@ -412,13 +412,13 @@ class MigrationManager:
             if not table_name.startswith(self.table_prefix) and table_name != 'db_version':
                 prefixed_name = f"{self.table_prefix}{table_name}"
                 print(f"[DEBUG] Prefixing table name in DO block: {table_name} -> {prefixed_name}")
-                
+
                 # Replace the table name in the DO block
                 result = result.replace(
                     f"WHERE tc.table_name = '{table_name}'",
                     f"WHERE tc.table_name = '{prefixed_name}'"
                 )
-        
+
         # Also handle WHERE table_name = 'table_name' pattern (without tc.)
         simple_where_pattern = re.compile(r"WHERE\s+table_name\s*=\s*'([a-zA-Z_][a-zA-Z0-9_]*)'")
         for match in simple_where_pattern.finditer(result):
@@ -426,13 +426,13 @@ class MigrationManager:
             if not table_name.startswith(self.table_prefix) and table_name != 'db_version':
                 prefixed_name = f"{self.table_prefix}{table_name}"
                 print(f"[DEBUG] Prefixing table name in simple WHERE: {table_name} -> {prefixed_name}")
-                
+
                 # Replace the table name in the WHERE clause
                 result = result.replace(
                     f"WHERE table_name = '{table_name}'",
                     f"WHERE table_name = '{prefixed_name}'"
                 )
-        
+
         # 7. Prefix table names in EXECUTE format statements
         # This handles the EXECUTE format('ALTER TABLE table_name ...) pattern
         execute_pattern = re.compile(r"EXECUTE\s+format\('ALTER\s+TABLE\s+([a-zA-Z_][a-zA-Z0-9_]*)")
@@ -441,39 +441,39 @@ class MigrationManager:
             if not table_name.startswith(self.table_prefix) and table_name != 'db_version':
                 prefixed_name = f"{self.table_prefix}{table_name}"
                 print(f"[DEBUG] Prefixing table name in EXECUTE format: {table_name} -> {prefixed_name}")
-                
+
                 # Replace the table name in the EXECUTE format statement
                 result = result.replace(
                     f"EXECUTE format('ALTER TABLE {table_name}",
                     f"EXECUTE format('ALTER TABLE {prefixed_name}"
                 )
-        
+
         # 8. Prefix table names in regclass casts
         # This handles the 'table_name'::regclass pattern
         regclass_pattern = re.compile(r"'([a-zA-Z_][a-zA-Z0-9_]*)'::regclass")
         for match in regclass_pattern.finditer(result):
             table_name = match.group(1)
             # Skip system tables and already prefixed tables
-            if (not table_name.startswith(self.table_prefix) and 
+            if (not table_name.startswith(self.table_prefix) and
                 table_name != 'db_version' and
                 not table_name.startswith('pg_') and
                 table_name not in excluded_identifiers):
                 prefixed_name = f"{self.table_prefix}{table_name}"
                 print(f"[DEBUG] Prefixing table name in regclass cast: {table_name} -> {prefixed_name}")
-                
+
                 # Replace the table name in the regclass cast
                 result = result.replace(
                     f"'{table_name}'::regclass",
                     f"'{prefixed_name}'::regclass"
                 )
-                
+
         return result
 
         # 1. First, handle CREATE TABLE statements with a more robust approach
         def prefix_table_in_create(sql_statement):
             # Split the statement into parts to find the table name
             parts = sql_statement.split()
-            
+
             # Find the position of 'TABLE' in the statement
             try:
                 table_idx = parts.index('TABLE')
@@ -483,27 +483,27 @@ class MigrationManager:
                 except ValueError:
                     # Not a CREATE TABLE statement, return as is
                     return sql_statement
-                
+
             # The table name is the first identifier after 'TABLE' or after 'IF NOT EXISTS'
             table_name_idx = table_idx + 1
-            if (table_name_idx + 2 < len(parts) and 
-                parts[table_name_idx].upper() == 'IF' and 
-                parts[table_name_idx+1].upper() == 'NOT' and 
+            if (table_name_idx + 2 < len(parts) and
+                parts[table_name_idx].upper() == 'IF' and
+                parts[table_name_idx+1].upper() == 'NOT' and
                 parts[table_name_idx+2].upper() == 'EXISTS'):
                 table_name_idx += 3
-                
+
             # Get the table name, handling cases where it might be followed by ( or ;
             table_name = parts[table_name_idx].strip(';()')
-            
+
             if not table_name.startswith(self.table_prefix):
                 # Replace the table name in the original SQL to preserve formatting
                 prefixed_name = f"{self.table_prefix}{table_name}"
                 print(f"[DEBUG] Prefixing table in CREATE TABLE: {table_name} -> {prefixed_name}")
-                
+
                 # Replace the table name, being careful with the context
                 parts[table_name_idx] = parts[table_name_idx].replace(table_name, prefixed_name, 1)
                 result = ' '.join(parts)
-                
+
                 # Now handle any REFERENCES in the CREATE TABLE statement
                 if 'REFERENCES' in result.upper():
                     # Find all table references in the statement
@@ -512,7 +512,7 @@ class MigrationManager:
                         result,
                         re.IGNORECASE
                     )
-                    
+
                     for match in ref_matches:
                         ref_table = match.group(1)
                         if not ref_table.startswith(self.table_prefix):
@@ -523,44 +523,44 @@ class MigrationManager:
                                 f"REFERENCES {prefixed_ref}",
                                 1
                             )
-                
+
                 return result
-            
+
             return sql_statement
-        
+
         # Split into individual statements while preserving the original structure
-        
+
         # First, process all CREATE TABLE statements to identify table names
         table_names = set()
-        
+
         # Pattern to match CREATE TABLE statements
         create_table_pattern = re.compile(
-            r'CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(["\w]+)', 
+            r'CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(["\w]+)',
             re.IGNORECASE | re.DOTALL
         )
-        
+
         # Find all table names from CREATE TABLE statements
         for match in create_table_pattern.finditer(sql):
             table_name = match.group(1).strip('"')
             if not table_name.startswith(self.table_prefix):
                 table_names.add(table_name)
-        
+
         # Add known tables that might be referenced
         known_tables = [
-            'migration_table', 'db_version', 'instruments', 'universe', 
+            'migration_table', 'db_version', 'instruments', 'universe',
             'universe_membership', 'events', 'daily_prices', 'complex'
         ]
         table_names.update(t for t in known_tables if not t.startswith(self.table_prefix))
-        
+
         # Now process the SQL to add prefixes to table names
         processed_sql = sql
         for table in sorted(table_names, key=len, reverse=True):
             if table == 'db_version' or table.startswith(self.table_prefix):
                 continue
-                
+
             prefixed_table = f"{self.table_prefix}{table}"
             print(f"[DEBUG] Prefixing table: {table} -> {prefixed_table}")
-            
+
             # Handle CREATE TABLE statements
             processed_sql = re.sub(
                 fr'(CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?)(\b){re.escape(table)}(?=\W|$)',
@@ -568,7 +568,7 @@ class MigrationManager:
                 processed_sql,
                 flags=re.IGNORECASE
             )
-            
+
             # Handle other table references
             for stmt in [
                 r'ALTER\s+TABLE', r'DROP\s+TABLE', r'TRUNCATE\s+TABLE',
@@ -582,7 +582,7 @@ class MigrationManager:
                     processed_sql,
                     flags=re.IGNORECASE
                 )
-            
+
             # Handle foreign key references in table definitions
             processed_sql = re.sub(
                 fr'(?<=\sREFERENCES\s+)(\b){re.escape(table)}(?=\s*\()',
@@ -590,7 +590,7 @@ class MigrationManager:
                 processed_sql,
                 flags=re.IGNORECASE
             )
-            
+
             # Handle other references (e.g., in WHERE clauses, etc.)
             processed_sql = re.sub(
                 fr'(?<!\w)({re.escape(table)})(?=\W|$)',
@@ -598,29 +598,29 @@ class MigrationManager:
                 processed_sql,
                 flags=re.IGNORECASE
             )
-        
+
         # Handle ALTER TABLE statements
         def process_alter_table(match):
             table_name = match.group(2)
             if not table_name.startswith(self.table_prefix):
                 table_name = f"{self.table_prefix}{table_name}"
             return f"{match.group(1)}{table_name}{match.group(3)}"
-            
+
         processed_sql = re.sub(
             r'(ALTER\s+TABLE\s+)(\w+)(\s+)',
             process_alter_table,
             processed_sql,
             flags=re.IGNORECASE
         )
-        
+
         return processed_sql
-        
+
         # 2. Get all table names that need to be prefixed
         table_names = set()
-        
+
         # Parse the SQL to find all table references
         # This is a simplified approach - for production, consider using a proper SQL parser
-        
+
         # First, find all table names from CREATE TABLE statements
         create_table_matches = re.finditer(
             r'CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+([a-zA-Z_]\w*)',
@@ -631,7 +631,7 @@ class MigrationManager:
             table_name = match.group(1).lower()
             if not table_name.startswith(self.table_prefix):
                 table_names.add(table_name)
-        
+
         # Find table names in REFERENCES clauses
         ref_matches = re.finditer(
             r'\bREFERENCES\s+([a-zA-Z_]\w*)(?:\s*\(|\s|$)',
@@ -642,7 +642,7 @@ class MigrationManager:
             table_name = match.group(1).lower()
             if not table_name.startswith(self.table_prefix):
                 table_names.add(table_name)
-        
+
         # Then find other table references (FROM, JOIN, etc.)
         other_refs = re.finditer(
             r'\b(?:FROM|JOIN|INTO|UPDATE|TABLE)\s+([a-zA-Z_]\w*)',
@@ -652,35 +652,35 @@ class MigrationManager:
         for match in other_refs:
             table_name = match.group(1).lower()
             # Skip SQL keywords and already prefixed tables
-            if (table_name not in ('select', 'where', 'group', 'order', 'having', 'if', 'not', 'exists') and 
+            if (table_name not in ('select', 'where', 'group', 'order', 'having', 'if', 'not', 'exists') and
                 not table_name.startswith(self.table_prefix) and
                 table_name != 'db_version'):  # Special case
                 table_names.add(table_name)
-        
+
         # Add daily_prices to known tables if not already there
         known_tables = [
             'migration_table', 'db_version', 'instruments', 'universe', 'universe_membership',
             'events', 'daily_prices', 'complex', 'test_complex', 'vendors', 'instrument_xrefs'
         ]
         table_names.update(t for t in known_tables if not t.startswith(self.table_prefix))
-        
+
         # Special handling for SELECT statements
         select_pattern = re.compile(r'SELECT\s+\*\s+FROM\s+([a-zA-Z_][a-zA-Z0-9_]*)', re.IGNORECASE)
         for match in select_pattern.finditer(sql):
             table_name = match.group(1)
             if not table_name.startswith(self.table_prefix) and table_name != 'db_version':
                 table_names.add(table_name)
-        
+
         print(f"[DEBUG] Tables to prefix: {sorted(table_names)}")
-        
+
         # 3. Process the SQL to add prefixes to other references
         for table in sorted(table_names, key=len, reverse=True):
             if table == 'db_version' or table.startswith(self.table_prefix):
                 continue
-                
+
             prefixed_table = f"{self.table_prefix}{table}"
             print(f"[DEBUG] Prefixing table: {table} -> {prefixed_table}")
-            
+
             # Handle other statements (SELECT, INSERT, UPDATE, DELETE, etc.)
             # Be more precise with word boundaries to avoid partial matches
             for stmt in [
@@ -695,7 +695,7 @@ class MigrationManager:
                     processed_sql,
                     flags=re.IGNORECASE
                 )
-                
+
             # Handle SELECT statements separately with more robust pattern matching
             # Use a direct string replacement for SELECT statements to avoid regex escape issues
             select_str = f"SELECT * FROM {table}"
@@ -707,7 +707,7 @@ class MigrationManager:
                     f"SELECT * FROM {prefixed_table}",
                     processed_sql
                 )
-        
+
             # Handle other references (e.g., in WHERE clauses, etc.)
             processed_sql = re.sub(
                 fr'(?<!\w)({re.escape(table)})(?=\W|$)',
@@ -715,37 +715,37 @@ class MigrationManager:
                 processed_sql,
                 flags=re.IGNORECASE
             )
-        
+
         # Handle ALTER TABLE statements
         def process_alter_table(match):
             table_name = match.group(2)
             if not table_name.startswith(self.table_prefix):
                 table_name = f"{self.table_prefix}{table_name}"
             return f"{match.group(1)}{table_name}{match.group(3)}"
-            
+
         processed_sql = re.sub(
             r'(ALTER\s+TABLE\s+)(\w+)(\s+)',
             process_alter_table,
             processed_sql,
             flags=re.IGNORECASE
         )
-        
+
         # 4. Process the SQL to handle constraint names and other patterns
         def patch_constraint_name(match):
             prefix, constraint, name, rest = match.groups()
             safe_name = self._safe_identifier(name)
             return f"{prefix}{constraint}{safe_name}{rest}"
-            
+
         processed_sql = re.sub(
             r'(ALTER\s+TABLE\s+\w+\s+ADD\s+CONSTRAINT\s+)(\w+)(\s+.+)',
             lambda m: m.group(1) + self._safe_identifier(m.group(2)) + m.group(3),
             processed_sql,
             flags=re.IGNORECASE
         )
-        
+
         # Debug: Print the modified SQL for inspection
         print("[DEBUG] Modified SQL (first 1000 chars):", processed_sql[:1000] + ("..." if len(processed_sql) > 1000 else ""))
-        
+
         return processed_sql
 
         # 5. Handle inline constraints in CREATE TABLE
@@ -753,7 +753,7 @@ class MigrationManager:
             before, name, after = match.groups()
             safe_name = self._safe_identifier(name)
             return f"{before}{safe_name}{after}"
-            
+
         processed_sql = re.sub(
             r'(CONSTRAINT\s+)(\w+)(\s+)',
             patch_inline_constraint_name,
@@ -765,44 +765,44 @@ class MigrationManager:
         for table in table_names:
             if table == 'db_version' or table.startswith(self.table_prefix):
                 continue  # Skip already prefixed tables and special cases
-                
+
             # Handle table references in INSERT/UPDATE/DELETE/SELECT statements
             for stmt in ['INSERT INTO', 'UPDATE', 'DELETE FROM', 'FROM']:
                 pattern = fr'({stmt}\s+)(\b{re.escape(table)}\b)'
                 replacement = f'\\1{self.table_prefix}\\2'
                 sql = re.sub(pattern, replacement, sql, flags=re.IGNORECASE)
-            
+
             # Handle other table references (e.g., in JOINs, WHERE clauses, etc.)
             pattern = fr'(?<![\w\.])({re.escape(table)})(?=\W|$)'
             replacement = f'{self.table_prefix}{table}'
             sql = re.sub(pattern, replacement, sql, flags=re.IGNORECASE)
-            
+
             # Handle quoted identifiers
             for quote in ['"', '`', '[']:
                 pattern = fr'({re.escape(quote)}){re.escape(table)}({re.escape(quote)})'
                 replacement = f'\\1{self.table_prefix}{table}\\2'
                 sql = re.sub(pattern, replacement, sql, flags=re.IGNORECASE)
-        
+
         # 3. Special case: ensure db_version is always prefixed
         if self.table_prefix and 'db_version' in processed_sql.lower() and 'test_db_version' not in processed_sql.lower():
             processed_sql = processed_sql.replace('db_version', f'{self.table_prefix}db_version')
-            
+
         # 4. Handle CREATE INDEX statements
         def process_create_index(match):
             index_name = match.group(2)
             table_name = match.group(3)
-            
+
             # Only prefix if the table name isn't already prefixed
             if not table_name.startswith(self.table_prefix):
                 table_name = f"{self.table_prefix}{table_name}"
-                
+
             # Ensure index name is safe and prefixed
             safe_index_name = self._safe_identifier(index_name)
             if not safe_index_name.startswith(self.table_prefix):
                 safe_index_name = f"{self.table_prefix}{safe_index_name}"
-                
+
             return f"{match.group(1)}{safe_index_name} ON {table_name}"
-            
+
         processed_sql = re.sub(
             r'(CREATE\s+INDEX(?:\s+IF\s+NOT\s+EXISTS)?\s+)(\w+)\s+ON\s+(\w+)',
             process_create_index,
@@ -816,7 +816,7 @@ class MigrationManager:
         print("====== END TRANSFORMED SQL ======\n")
 
         return processed_sql
-    
+
     def _get_backup_file(self):
         db_name = self.environment.get_database_config()['database']
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -862,24 +862,24 @@ class MigrationManager:
             print(f"[ERROR] Restore failed: {result.stderr}")
             raise RuntimeError(f"Restore failed: {result.stderr}")
         print(f"[INFO] Restore complete.")
-    
+
     async def migrate_to_latest(self) -> bool:
         """Apply all pending migrations with automatic backup and restore."""
         current_version = await self.get_current_version()
         migrations = self._get_migration_files()
-        
+
         pending_migrations = [
-            (v, d, p) for v, d, p in migrations 
+            (v, d, p) for v, d, p in migrations
             if v > current_version
         ]
-        
+
         if not pending_migrations:
             print(f"Database is up to date (version {current_version})")
             return True
-        
+
         print(f"Current version: {current_version}")
         print(f"Applying {len(pending_migrations)} pending migrations...")
-        
+
         success = True
         for version, description, file_path in pending_migrations:
             try:
@@ -889,21 +889,21 @@ class MigrationManager:
                 print(f"[ERROR] Migration failed. Fix the migration SQL and re-run migrations.")
                 success = False
                 break
-        
+
         if success:
             final_version = await self.get_current_version()
             print(f"Migration completed. Current version: {final_version}")
-        
+
         return success
-    
+
     async def validate_migrations(self) -> bool:
         """Validate that applied migrations haven't been modified."""
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
                 applied_migrations = await conn.fetch(f"""
-                    SELECT version, checksum, migration_file 
-                    FROM {self.table_prefix}db_version 
+                    SELECT version, checksum, migration_file
+                    FROM {self.table_prefix}db_version
                     ORDER BY version
                 """)
                 print("[DEBUG] validate_migrations: Applied migrations:")
@@ -925,7 +925,7 @@ class MigrationManager:
                         print(f"WARNING: Migration file missing: {file_path} (already applied, will not fail validation)")
                         continue
                 print("[DEBUG] All migrations validated successfully.")
-                
+
                 print("All applied migrations are valid")
                 return True
         finally:

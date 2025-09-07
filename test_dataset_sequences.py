@@ -10,18 +10,18 @@ def test_dataset_sequences():
     """Test if sequences are discovered for dataset 65"""
     try:
         from services.analytics_service import UnifiedAnalyticsService
-        
+
         analytics = UnifiedAnalyticsService()
-        
+
         print("Testing dataset 65 sequence discovery...")
         result = analytics.get_training_dataset_sequences(65)
-        
+
         print("Result:")
         import json
         print(json.dumps(result, indent=2))
-        
+
         return result
-        
+
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback

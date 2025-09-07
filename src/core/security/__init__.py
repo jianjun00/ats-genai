@@ -12,7 +12,7 @@ from . import validation
 
 __all__ = [
     'auth',
-    'defensive', 
+    'defensive',
     'exceptions',
     'validation'
 ]

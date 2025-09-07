@@ -50,18 +50,18 @@ class FMPFundamental:
 
 class FundamentalsFMPDAO:
     """Data Access Object for FMP fundamental data"""
-    
+
     def __init__(self, env: Environment):
         self.env = env
         self.table_name = self.env.get_table_name('fundamentals_comprehensive')
         self.db_url = self.env.get_database_url()
         self.logger = logging.getLogger(__name__)
         self.vendor = 'fmp'
-    
+
     async def insert_fundamental(self, fundamental: FMPFundamental) -> bool:
         """Insert or update FMP fundamental data"""
         self.logger.debug(f"Inserting FMP fundamental for {fundamental.symbol} on {fundamental.date}")
-        
+
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
@@ -108,11 +108,11 @@ class FundamentalsFMPDAO:
                         quick_ratio = EXCLUDED.quick_ratio,
                         raw_data = EXCLUDED.raw_data,
                         updated_at = CURRENT_TIMESTAMP
-                """, 
+                """,
                 fundamental.symbol, fundamental.date, self.vendor, fundamental.fiscal_period,
                 fundamental.revenue, fundamental.gross_profit, fundamental.operating_income,
                 fundamental.net_income, fundamental.ebitda, fundamental.eps,
-                fundamental.total_assets, fundamental.total_liabilities, 
+                fundamental.total_assets, fundamental.total_liabilities,
                 fundamental.shareholders_equity, fundamental.current_assets,
                 fundamental.current_liabilities, fundamental.total_debt,
                 fundamental.cash_and_equivalents, fundamental.operating_cash_flow,
@@ -122,28 +122,28 @@ class FundamentalsFMPDAO:
                 fundamental.roa, fundamental.current_ratio, fundamental.quick_ratio,
                 fundamental.raw_data, datetime.now(), datetime.now()
                 )
-                
+
                 self.logger.info(f"Successfully inserted/updated FMP fundamental for {fundamental.symbol}")
                 return True
-                
+
         except Exception as e:
             self.logger.error(f"Error inserting FMP fundamental for {fundamental.symbol}: {e}")
             return False
         finally:
             await pool.close()
-    
+
     async def get_fundamental(self, symbol: str, date: date) -> Optional[FMPFundamental]:
         """Get FMP fundamental data for a specific symbol and date"""
         self.logger.debug(f"Getting FMP fundamental for {symbol} on {date}")
-        
+
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
                 row = await conn.fetchrow(f"""
-                    SELECT * FROM {self.table_name} 
+                    SELECT * FROM {self.table_name}
                     WHERE symbol = $1 AND date = $2 AND vendor = $3
                 """, symbol, date, self.vendor)
-                
+
                 if row:
                     return FMPFundamental(
                         symbol=row['symbol'],
@@ -178,24 +178,24 @@ class FundamentalsFMPDAO:
                         raw_data=row['raw_data']
                     )
                 return None
-                
+
         except Exception as e:
             self.logger.error(f"Error getting FMP fundamental for {symbol}: {e}")
             return None
         finally:
             await pool.close()
-    
-    async def list_fundamentals(self, symbol: str, start_date: Optional[date] = None, 
+
+    async def list_fundamentals(self, symbol: str, start_date: Optional[date] = None,
                                end_date: Optional[date] = None, limit: int = 100) -> List[FMPFundamental]:
         """List FMP fundamentals for a symbol with optional date range"""
         self.logger.debug(f"Listing FMP fundamentals for {symbol}")
-        
+
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
                 query = f"SELECT * FROM {self.table_name} WHERE symbol = $1 AND vendor = $2"
                 params = [symbol, self.vendor]
-                
+
                 if start_date:
                     query += " AND date >= $3"
                     params.append(start_date)
@@ -205,15 +205,15 @@ class FundamentalsFMPDAO:
                 elif end_date:
                     query += " AND date <= $3"
                     params.append(end_date)
-                
+
                 query += " ORDER BY date DESC"
-                
+
                 if limit:
                     query += f" LIMIT ${len(params) + 1}"
                     params.append(limit)
-                
+
                 rows = await conn.fetch(query, *params)
-                
+
                 fundamentals = []
                 for row in rows:
                     fundamentals.append(FMPFundamental(
@@ -248,49 +248,49 @@ class FundamentalsFMPDAO:
                         quick_ratio=row['quick_ratio'],
                         raw_data=row['raw_data']
                     ))
-                
+
                 return fundamentals
-                
+
         except Exception as e:
             self.logger.error(f"Error listing FMP fundamentals for {symbol}: {e}")
             return []
         finally:
             await pool.close()
-    
+
     async def get_latest_fundamental(self, symbol: str) -> Optional[FMPFundamental]:
         """Get the most recent FMP fundamental data for a symbol"""
         fundamentals = await self.list_fundamentals(symbol, limit=1)
         return fundamentals[0] if fundamentals else None
-    
+
     async def delete_fundamental(self, symbol: str, date: date) -> bool:
         """Delete FMP fundamental data for a specific symbol and date"""
         self.logger.debug(f"Deleting FMP fundamental for {symbol} on {date}")
-        
+
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
                 result = await conn.execute(f"""
-                    DELETE FROM {self.table_name} 
+                    DELETE FROM {self.table_name}
                     WHERE symbol = $1 AND date = $2 AND vendor = $3
                 """, symbol, date, self.vendor)
-                
+
                 # Extract number of deleted rows from result string
                 deleted_count = int(result.split()[1]) if result.startswith('DELETE') else 0
-                
+
                 if deleted_count > 0:
                     self.logger.info(f"Successfully deleted FMP fundamental for {symbol}")
                     return True
                 else:
                     self.logger.warning(f"No FMP fundamental found to delete for {symbol} on {date}")
                     return False
-                    
+
         except Exception as e:
             self.logger.error(f"Error deleting FMP fundamental for {symbol}: {e}")
             return False
         finally:
             await pool.close()
-    
-    async def get_symbols_with_data(self, start_date: Optional[date] = None, 
+
+    async def get_symbols_with_data(self, start_date: Optional[date] = None,
                                    end_date: Optional[date] = None) -> List[str]:
         """Get list of symbols that have FMP fundamental data"""
         pool = await asyncpg.create_pool(self.db_url)
@@ -298,7 +298,7 @@ class FundamentalsFMPDAO:
             async with pool.acquire() as conn:
                 query = f"SELECT DISTINCT symbol FROM {self.table_name} WHERE vendor = $1"
                 params = [self.vendor]
-                
+
                 if start_date:
                     query += " AND date >= $2"
                     params.append(start_date)
@@ -308,12 +308,12 @@ class FundamentalsFMPDAO:
                 elif end_date:
                     query += " AND date <= $2"
                     params.append(end_date)
-                
+
                 query += " ORDER BY symbol"
-                
+
                 rows = await conn.fetch(query, *params)
                 return [row['symbol'] for row in rows]
-                
+
         except Exception as e:
             self.logger.error(f"Error getting FMP symbols: {e}")
             return []

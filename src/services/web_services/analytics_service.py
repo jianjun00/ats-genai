@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 def run_analytics_server(port: int = 3001, host: str = "localhost"):
     """Run the analytics server with modular architecture."""
-    
+
     logger.info(f"🚀 Starting Unified Analytics Server on {host}:{port}")
     logger.info("📦 Modular architecture loaded:")
     logger.info("   ✅ Core Service")
@@ -36,7 +36,7 @@ def run_analytics_server(port: int = 3001, host: str = "localhost"):
     logger.info("   ✅ News Events Handler")
     logger.info("   ✅ Dashboard Generator")
     logger.info("   ✅ Request Handler")
-    
+
     try:
         server = ThreadingHTTPServer((host, port), UnifiedAnalyticsRequestHandler)
         logger.info(f"✅ Analytics server running at http://{host}:{port}")
@@ -46,9 +46,9 @@ def run_analytics_server(port: int = 3001, host: str = "localhost"):
         logger.info("   /api/analysis - Data analysis engine")
         logger.info("   /api/news - News events and economic data")
         logger.info("   /api/health - Service health check")
-        
+
         server.serve_forever()
-        
+
     except KeyboardInterrupt:
         logger.info("👋 Analytics server stopped by user")
     except Exception as e:
@@ -61,13 +61,13 @@ def main():
     parser.add_argument("--port", type=int, default=3001, help="Server port (default: 3001)")
     parser.add_argument("--host", type=str, default="localhost", help="Server host (default: localhost)")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    
+
     args = parser.parse_args()
-    
+
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
         logger.debug("🐛 Debug logging enabled")
-    
+
     run_analytics_server(port=args.port, host=args.host)
 
 if __name__ == "__main__":

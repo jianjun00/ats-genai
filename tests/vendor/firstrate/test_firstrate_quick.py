@@ -19,15 +19,15 @@ from populate_firstrate_minute_bars import FirstRateBackfillProcessor
 
 async def test_quick():
     """Quick test with 1 symbol"""
-    
+
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-    
+
     processor = FirstRateBackfillProcessor(
         data_path="/data/firstrate-data",
-        output_path="/data/minute-bars/firstrate", 
+        output_path="/data/minute-bars/firstrate",
         checkpoint_file="test_quick_checkpoint.json"
     )
-    
+
     # Test with just 1 symbol, 1 month
     result = await processor.run_backfill(
         asset_type='stock',
@@ -35,10 +35,10 @@ async def test_quick():
         limit=1,
         resume=False
     )
-    
+
     print(f"🎉 Quick test completed!")
     print(f"📊 Stats: {result['processing_stats']}")
-    
+
     return result
 
 if __name__ == "__main__":

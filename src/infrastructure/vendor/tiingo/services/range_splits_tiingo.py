@@ -21,19 +21,19 @@ def parse_date(val):
 def fetch_tiingo_splits(symbol, api_key, stats=None, rate_limiter=None):
     url = f"https://api.tiingo.com/tiingo/daily/{symbol}/splits?token={api_key}"
     print(f"[DEBUG] Requesting Tiingo splits: {url}")
-    
+
     start_time = time.time()
     resp = requests.get(url)
     response_time = time.time() - start_time
-    
+
     print(f"[DEBUG] Response status: {resp.status_code}")
     print(f"[DEBUG] Response headers: {dict(resp.headers)}")
     print(f"[DEBUG] Response body (first 500 chars): {resp.text[:500]}")
-    
+
     # Record API call statistics
     if stats:
         stats.record_api_call(success=(resp.status_code == 200), response_time=response_time)
-    
+
     if resp.status_code != 200:
         print(f"Failed to fetch splits for {symbol}: {resp.status_code} {resp.text}")
         return []
@@ -85,34 +85,34 @@ async def main():
     parser.add_argument('--end_date', type=str, required=True, help='End date (YYYY-MM-DD)')
     args = parser.parse_args()
     env = Environment(env_type=EnvironmentType(args.environment))
-    
+
     # Use enhanced API key resolution from shared utilities
     api_key = get_tiingo_api_key(env=env)
     if not api_key:
         raise Exception("Please set your TIINGO_API_KEY in your environment or config.")
-    
+
     # Initialize shared utilities for comprehensive monitoring
     stats = BackfillStats()
     rate_limiter = VendorRateLimiters.tiingo()
-    
+
     symbols = await get_symbols_from_stock_splits_polygon(env, args.start_date, args.end_date)
     print(f"Found {len(symbols)} symbols with splits in stock_splits_polygon between {args.start_date} and {args.end_date}")
-    
+
     splits_dao = StockSplitsTiingoDAO(env)
     for i, symbol in enumerate(symbols):
         print(f"Processing {symbol} ({i+1}/{len(symbols)})")
-        
+
         # Use enhanced fetch with statistics and rate limiting
         tiingo_splits = fetch_tiingo_splits(symbol, api_key, stats=stats, rate_limiter=rate_limiter)
         await insert_splits_tiingo(tiingo_splits, splits_dao)
-        
+
         # Apply rate limiting between requests
         await rate_limiter.wait_if_needed()
-        
+
         # Progress reporting every 10 symbols
         if (i + 1) % 10 == 0:
             stats.log_progress(print)
-    
+
     # Final comprehensive statistics report
     print("\n=== COMPREHENSIVE STOCK SPLITS PROCESSING STATISTICS ===")
     stats.log_progress(print)

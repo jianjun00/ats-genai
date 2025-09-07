@@ -25,25 +25,25 @@ from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXref
 async def manager(vendors_dirs, unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     env.get_table_name = lambda table: f"test_{table}"
-    
+
     # Set up vendors, instruments, and xrefs
     vendors_dao = VendorsDAO(env)
     instruments_dao = InstrumentsDAO(env)
     xrefs_dao = InstrumentXrefsDAO(env)
-    
+
     # Add ticker vendor
     ticker_vendor_id = await vendors_core.dao.create_vendor("ticker")
-    
+
     # Add instruments
     aapl_id = await instruments_core.dao.create_instrument("AAPL", "Apple Inc.")
     tsla_id = await instruments_core.dao.create_instrument("TSLA", "Tesla Inc.")
-    
+
     # Add xrefs for ticker vendor
     from datetime import date
     today = date.today()
     await xrefs_core.dao.create_xref(aapl_id, ticker_vendor_id, "AAPL", start_at=today)
     await xrefs_core.dao.create_xref(tsla_id, ticker_vendor_id, "TSLA", start_at=today)
-    
+
     # Only test AAPL and TSLA (should exist in both dirs)
     mgr = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env, symbols=["AAPL", "TSLA"])
     return mgr
@@ -106,9 +106,9 @@ async def test_get_ohlc_batch(manager):
 async def test_tiingo_list_date_parsing(tmp_path, unit_test_db):
     import json
     from unittest.mock import AsyncMock, patch, MagicMock
-    
+
     print(f"[DEBUG][test_tiingo_list_date_parsing] Starting test with tmp_path={tmp_path}, unit_test_db={unit_test_db}")
-    
+
     try:
         # 1. Normal bars (control)
         normal = {'date': '2025-01-02T00:00:00.000Z', 'open': 10, 'high': 15, 'low': 8, 'close': 12, 'volume': 1000}
@@ -127,63 +127,63 @@ async def test_tiingo_list_date_parsing(tmp_path, unit_test_db):
         t_field_row = {'t': 1735776000000, 'open': 10, 'high': 15, 'low': 8, 'close': 12, 'volume': 1000}  # 2025-01-03
         # 8. Empty list
         tiingo_data = [normal, malformed_date, missing_date, missing_open, missing_close, extra_fields, non_dict, t_field_row]
-        
+
         # Create test data files
         tiingo_dir = tmp_path / "tiingo"
         tiingo_dir.mkdir()
         tiingo_file = tiingo_dir / "tiingo_aapl_response.json"
         with open(tiingo_file, "w") as f:
             json.dump(tiingo_data, f)
-        
+
         polygon_dir = tmp_path / "polygon"
         polygon_dir.mkdir()
         vendors_dirs = {"polygon": str(polygon_dir), "tiingo": str(tiingo_dir)}
-        
+
         print(f"[DEBUG][test_tiingo_list_date_parsing] Created test files in {tmp_path}")
-        
+
         # Set up environment with test database
         from shared.utils.environment import Environment, EnvironmentType
         env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
         env.get_table_name = lambda table: f"test_{table}"
-        
+
         # Mock all database interactions
         mock_xrefs_dao = MagicMock()
         mock_xrefs_dao.resolve_instrument_id_by_symbol = AsyncMock(return_value=1)
         mock_xrefs_dao.get_symbol_by_instrument_id_vendor_name = AsyncMock(return_value="AAPL")
-        
+
         mock_vendors_dao = MagicMock()
         mock_vendors_core.dao.get_vendor_by_name = AsyncMock(return_value={"id": 1, "name": "ticker"})
-        
+
         print("[DEBUG][test_tiingo_list_date_parsing] Setting up mocks...")
-        
+
         with patch('core.dao.instrument_xrefs_core.dao.InstrumentXrefsDAO', return_value=mock_xrefs_dao), \
              patch('core.dao.vendors_core.dao.VendorsDAO', return_value=mock_vendors_dao):
-            
+
             print("[DEBUG][test_tiingo_list_date_parsing] Creating FileDailyPriceMarketDataManager...")
             mgr = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env, symbols=["AAPL"])
-            
+
             print("[DEBUG][test_tiingo_list_date_parsing] Verifying data...")
             data = mgr.vendor_data["tiingo"]["AAPL"]
-            
+
             # Verify the data was loaded correctly
             assert isinstance(data, dict), f"Expected dict, got {type(data)}"
-            
+
             # Check that keys are dates for valid rows (normal, missing_open, missing_close, extra_fields)
             expected_dates = ["2025-01-02", "2025-01-04", "2025-01-05", "2025-01-06"]
             for d in expected_dates:
                 dt = datetime.strptime(d, "%Y-%m-%d").date()
                 assert dt in data, f"Expected date {d} not found in data: {data.keys()}"
-            
+
             # The row with a malformed date should not be present
             assert not any(k for k in data if isinstance(k, str) and k == "bad-date-format"), \
                 f"Found malformed date key in data: {data.keys()}"
-            
+
             # The row that's not a dict, or missing date/t, should not cause a crash
             # There should be no key for None
             assert None not in data, f"Found None key in data: {data.keys()}"
-            
+
             print("[DEBUG][test_tiingo_list_date_parsing] Test completed successfully")
-    
+
     except Exception as e:
         print(f"[DEBUG][test_tiingo_list_date_parsing] Test failed with error: {str(e)}")
         import traceback

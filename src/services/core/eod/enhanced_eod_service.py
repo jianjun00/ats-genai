@@ -57,7 +57,7 @@ class EODPrice:
     market_cap: Optional[int]
     vendor: str
     quality: DataQuality = DataQuality.GOOD
-    
+
     def to_dict(self) -> Dict:
         """Convert to dictionary for DAO insertion"""
         return {
@@ -76,25 +76,25 @@ class EODPrice:
 
 class EnhancedEODDAO(BaseDAO):
     """Enhanced DAO for EOD data - extends existing patterns with improvements"""
-    
+
     def __init__(self, env: Environment):
         super().__init__("daily_prices")
         self.env = env
         self.daily_prices_dao = DailyPricesDAO()
         self.instrument_dao = InstrumentXrefsDAO(env)
         self.logger = get_logger(f"{__name__}.EOD")
-    
+
     def get_schema(self) -> Dict[str, any]:
         """Reuse existing daily prices schema"""
         return self.daily_prices_dao.get_schema()
-    
+
     async def insert_eod_prices(self, prices: List[EODPrice]) -> Dict[str, int]:
         """Enhanced insertion with quality tracking and conflict resolution"""
         if not prices:
             return {"inserted": 0, "updated": 0, "errors": 0}
-        
+
         results = {"inserted": 0, "updated": 0, "errors": 0}
-        
+
         for price in prices:
             try:
                 # Resolve instrument_id using existing pattern
@@ -103,15 +103,15 @@ class EnhancedEODDAO(BaseDAO):
                     self.logger.warning(f"No instrument found for symbol {price.symbol}")
                     results["errors"] += 1
                     continue
-                
+
                 price_data = price.to_dict()
                 price_data['instrument_id'] = instrument_id
-                
+
                 # Check for existing data to determine insert vs update
                 existing = self.daily_prices_dao.get_price_by_symbol_date(
                     price.symbol, price.date, price.vendor
                 )
-                
+
                 if existing:
                     # Update with quality-based resolution
                     updated = await self._smart_update(existing, price_data)
@@ -124,13 +124,13 @@ class EnhancedEODDAO(BaseDAO):
                         results["inserted"] += 1
                     else:
                         results["errors"] += 1
-                        
+
             except Exception as e:
                 self.logger.error(f"Error processing price for {price.symbol}: {e}")
                 results["errors"] += 1
-        
+
         return results
-    
+
     async def _smart_update(self, existing: Dict, new_data: Dict) -> bool:
         """Smart update with quality-based conflict resolution"""
         # Implement quality-based update logic
@@ -141,89 +141,89 @@ class EnhancedEODDAO(BaseDAO):
         except Exception as e:
             self.logger.error(f"Update failed: {e}")
             return False
-    
+
     async def get_data_gaps(
-        self, 
-        symbol: str, 
-        start_date: date, 
+        self,
+        symbol: str,
+        start_date: date,
         end_date: date,
         vendor: Optional[str] = None
     ) -> List[date]:
         """Find missing data gaps using existing exchange calendar"""
         nyse_cal = ExchangeCalendar('NYSE')
         trading_days = set(nyse_cal.all_trading_days(start_date, end_date))
-        
+
         # Get existing data
         price_history = self.daily_prices_dao.get_price_history(
             symbol, start_date, end_date, vendor
         )
         existing_dates = {datetime.fromisoformat(str(row['date'])).date() for row in price_history}
-        
+
         return sorted(trading_days - existing_dates)
 
 class BaseVendorCollector:
     """Enhanced base collector - extends existing patterns"""
-    
+
     def __init__(self, vendor: str, env: Environment):
         self.vendor = vendor
         self.env = env
         self.dao = EnhancedEODDAO(env)
         self.logger = get_logger(f"{__name__}.{vendor}")
         self.rate_limit_delay = 1.0  # Default rate limiting
-        
+
     async def collect_eod_data(
-        self, 
-        symbols: List[str], 
-        start_date: date, 
+        self,
+        symbols: List[str],
+        start_date: date,
         end_date: date
     ) -> List[EODPrice]:
         """Abstract method for EOD collection"""
         raise NotImplementedError
-    
+
     async def backfill_missing_data(self, symbol: str, days_back: int = 30) -> int:
         """Backfill missing data for a symbol"""
         end_date = date.today()
         start_date = end_date - timedelta(days=days_back)
-        
+
         gaps = await self.dao.get_data_gaps(symbol, start_date, end_date, self.vendor)
         if not gaps:
             self.logger.info(f"No gaps found for {symbol}")
             return 0
-        
+
         # Collect data for gap periods
         prices = await self.collect_eod_data([symbol], min(gaps), max(gaps))
         results = await self.dao.insert_eod_prices(prices)
-        
+
         self.logger.info(f"Backfilled {symbol}: {results}")
         return results["inserted"] + results["updated"]
 
 class TiingoEODCollector(BaseVendorCollector):
     """Enhanced Tiingo collector - reuses existing patterns"""
-    
+
     def __init__(self, env: Environment):
         super().__init__('tiingo', env)
         self.api_key = TIINGO_API_KEY
         self.rate_limit_delay = 0.2  # Tiingo-specific rate limiting
-        
+
     async def collect_eod_data(
-        self, 
-        symbols: List[str], 
-        start_date: date, 
+        self,
+        symbols: List[str],
+        start_date: date,
         end_date: date
     ) -> List[EODPrice]:
         """Enhanced Tiingo collection using existing patterns"""
         prices = []
-        
+
         if not self.api_key:
             self.logger.warning("Tiingo API key not configured")
             return prices
-        
+
         async with aiohttp.ClientSession() as session:
             for symbol in symbols:
                 try:
                     # Use existing tiingo_url pattern
                     url = tiingo_url(symbol, start_date, end_date)
-                    
+
                     async with session.get(url, timeout=30) as response:
                         if response.status == 200:
                             data = await response.json()
@@ -248,21 +248,21 @@ class TiingoEODCollector(BaseVendorCollector):
                                     self.logger.warning(f"Invalid data for {symbol}: {e}")
                         else:
                             self.logger.warning(f"Tiingo API error for {symbol}: {response.status}")
-                    
+
                     # Rate limiting
                     await asyncio.sleep(self.rate_limit_delay)
-                    
+
                 except Exception as e:
                     self.logger.error(f"Error collecting Tiingo data for {symbol}: {e}")
-        
+
         self.logger.info(f"Collected {len(prices)} EOD prices from Tiingo")
         return prices
-    
+
     def _assess_quality(self, item: Dict) -> DataQuality:
         """Assess data quality based on completeness"""
         required_fields = ['open', 'high', 'low', 'close', 'volume']
         valid_fields = sum(1 for field in required_fields if item.get(field) is not None)
-        
+
         if valid_fields == len(required_fields):
             return DataQuality.EXCELLENT
         elif valid_fields >= 4:
@@ -274,43 +274,43 @@ class TiingoEODCollector(BaseVendorCollector):
 
 class PolygonEODCollector(BaseVendorCollector):
     """Enhanced Polygon collector - reuses existing patterns"""
-    
+
     def __init__(self, env: Environment):
         super().__init__('polygon', env)
         self.api_key = POLYGON_API_KEY or env.get_polygon_api_key()
         self.rate_limit_delay = 12  # 5 requests per minute
-        
+
     async def collect_eod_data(
-        self, 
-        symbols: List[str], 
-        start_date: date, 
+        self,
+        symbols: List[str],
+        start_date: date,
         end_date: date
     ) -> List[EODPrice]:
         """Enhanced Polygon collection using existing patterns"""
         prices = []
-        
+
         if not self.api_key:
             self.logger.warning("Polygon API key not configured")
             return prices
-        
+
         for symbol in symbols:
             try:
                 # Reuse existing download_prices_polygon function
                 raw_prices = download_prices_polygon(
-                    symbol, 
+                    symbol,
                     start_date.strftime('%Y-%m-%d'),
                     end_date.strftime('%Y-%m-%d'),
                     self.api_key
                 )
-                
+
                 # Get shares outstanding for market cap
                 shares_outstanding = await self._get_shares_outstanding(symbol)
-                
+
                 for item in raw_prices:
                     try:
                         price_date = datetime.utcfromtimestamp(item['t']/1000).date()
                         close_price = float(item['c'])
-                        
+
                         price = EODPrice(
                             symbol=symbol,
                             date=price_date,
@@ -327,24 +327,24 @@ class PolygonEODCollector(BaseVendorCollector):
                         prices.append(price)
                     except (ValueError, KeyError) as e:
                         self.logger.warning(f"Invalid Polygon data for {symbol}: {e}")
-                
+
                 # Rate limiting
                 await asyncio.sleep(self.rate_limit_delay)
-                
+
             except Exception as e:
                 self.logger.error(f"Error collecting Polygon data for {symbol}: {e}")
-        
+
         self.logger.info(f"Collected {len(prices)} EOD prices from Polygon")
         return prices
-    
+
     async def _get_shares_outstanding(self, symbol: str) -> Optional[int]:
         """Get shares outstanding for market cap calculation"""
         if not self.api_key:
             return None
-        
+
         try:
             url = f"https://api.polygon.io/v3/reference/tickers/{symbol}?apikey={self.api_key}"
-            
+
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, timeout=30) as response:
                     if response.status == 200:
@@ -352,30 +352,30 @@ class PolygonEODCollector(BaseVendorCollector):
                         return data.get('results', {}).get('share_class_shares_outstanding')
         except Exception as e:
             self.logger.error(f"Error fetching shares outstanding for {symbol}: {e}")
-        
+
         return None
 
 class FMPEODCollector(BaseVendorCollector):
     """FMP EOD collector - implements missing vendor"""
-    
+
     def __init__(self, env: Environment):
         super().__init__('fmp', env)
         self.api_key = os.getenv('FMP_API_KEY', '')
         self.rate_limit_delay = 1.0  # FMP rate limiting
-        
+
     async def collect_eod_data(
-        self, 
-        symbols: List[str], 
-        start_date: date, 
+        self,
+        symbols: List[str],
+        start_date: date,
         end_date: date
     ) -> List[EODPrice]:
         """FMP EOD collection"""
         prices = []
-        
+
         if not self.api_key:
             self.logger.warning("FMP API key not configured")
             return prices
-        
+
         async with aiohttp.ClientSession() as session:
             for symbol in symbols:
                 try:
@@ -385,16 +385,16 @@ class FMPEODCollector(BaseVendorCollector):
                         'from': start_date.strftime('%Y-%m-%d'),
                         'to': end_date.strftime('%Y-%m-%d')
                     }
-                    
+
                     async with session.get(url, params=params, timeout=30) as response:
                         if response.status == 200:
                             data = await response.json()
                             historical = data.get('historical', [])
-                            
+
                             for item in historical:
                                 try:
                                     price_date = datetime.strptime(item['date'], '%Y-%m-%d').date()
-                                    
+
                                     price = EODPrice(
                                         symbol=symbol,
                                         date=price_date,
@@ -413,15 +413,15 @@ class FMPEODCollector(BaseVendorCollector):
                                     self.logger.warning(f"Invalid FMP data for {symbol}: {e}")
                         else:
                             self.logger.warning(f"FMP API error for {symbol}: {response.status}")
-                    
+
                     await asyncio.sleep(self.rate_limit_delay)
-                    
+
                 except Exception as e:
                     self.logger.error(f"Error collecting FMP data for {symbol}: {e}")
-        
+
         self.logger.info(f"Collected {len(prices)} EOD prices from FMP")
         return prices
-    
+
     def _assess_quality(self, item: Dict) -> DataQuality:
         """Assess FMP data quality"""
         if all(item.get(field) is not None for field in ['open', 'high', 'low', 'close']):
@@ -438,7 +438,7 @@ app = FastAPI(
 
 class EnhancedEODService:
     """Enhanced EOD service orchestrator using existing patterns"""
-    
+
     def __init__(self):
         self.env = Environment(gin_config_path='config/app_dev.gin')
         self.collectors = {
@@ -456,13 +456,13 @@ class EnhancedEODService:
             'vendor_stats': {}
         }
         self.logger = get_logger(__name__)
-    
+
     async def initialize(self):
         """Initialize all collectors"""
         self.logger.info("Enhanced EOD service initialized")
-    
+
     async def run_collection_cycle(
-        self, 
+        self,
         symbols: Optional[List[str]] = None,
         days_back: int = 5,
         vendors: Optional[List[str]] = None
@@ -470,27 +470,27 @@ class EnhancedEODService:
         """Enhanced collection cycle with configurable parameters"""
         symbols = symbols or self.symbols
         vendors = vendors or list(self.collectors.keys())
-        
+
         end_date = date.today()
         start_date = end_date - timedelta(days=days_back)
-        
+
         self.logger.info(f"Starting EOD collection: {len(symbols)} symbols, {len(vendors)} vendors")
-        
+
         total_stats = {"collected": 0, "inserted": 0, "updated": 0, "errors": 0}
-        
+
         for vendor in vendors:
             if vendor not in self.collectors:
                 self.logger.warning(f"Unknown vendor: {vendor}")
                 continue
-            
+
             collector = self.collectors[vendor]
             try:
                 # Collect data
                 prices = await collector.collect_eod_data(symbols, start_date, end_date)
-                
+
                 # Insert/update data
                 results = await collector.dao.insert_eod_prices(prices)
-                
+
                 # Update metrics
                 vendor_stats = {
                     "collected": len(prices),
@@ -498,28 +498,28 @@ class EnhancedEODService:
                     "updated": results["updated"],
                     "errors": results["errors"]
                 }
-                
+
                 self.metrics['vendor_stats'][vendor] = vendor_stats
-                
+
                 for key in ["inserted", "updated", "errors"]:
                     total_stats[key] += results[key]
                 total_stats["collected"] += len(prices)
-                
+
                 self.logger.info(f"{vendor}: {vendor_stats}")
-                
+
             except Exception as e:
                 self.logger.error(f"Collection failed for {vendor}: {e}")
                 total_stats["errors"] += 1
-        
+
         # Update global metrics
         for key, value in total_stats.items():
             self.metrics[f'total_{key}'] += value
-        
+
         self.metrics['last_run'] = datetime.now().isoformat()
         self.logger.info(f"Collection cycle complete: {total_stats}")
-        
+
         return total_stats
-    
+
     async def backfill_data(self, symbol: str, days_back: int = 30):
         """Backfill missing data across all vendors"""
         results = {}
@@ -530,7 +530,7 @@ class EnhancedEODService:
             except Exception as e:
                 self.logger.error(f"Backfill failed for {vendor}: {e}")
                 results[vendor] = 0
-        
+
         return results
 
 # Global service instance
@@ -570,14 +570,14 @@ async def trigger_collection(
     """Manual collection trigger with parameters"""
     symbol_list = symbols.split(',') if symbols else None
     vendor_list = vendors.split(',') if vendors else None
-    
+
     background_tasks.add_task(
-        service.run_collection_cycle, 
-        symbol_list, 
-        days_back, 
+        service.run_collection_cycle,
+        symbol_list,
+        days_back,
         vendor_list
     )
-    
+
     return {
         "message": "Enhanced EOD collection triggered",
         "symbols": symbol_list or service.symbols,
@@ -588,13 +588,13 @@ async def trigger_collection(
 
 @app.post("/backfill/{symbol}")
 async def backfill_symbol(
-    symbol: str, 
+    symbol: str,
     background_tasks: BackgroundTasks,
     days_back: int = 30
 ):
     """Backfill missing data for a specific symbol"""
     background_tasks.add_task(service.backfill_data, symbol.upper(), days_back)
-    
+
     return {
         "message": f"Backfill triggered for {symbol.upper()}",
         "days_back": days_back,
@@ -606,7 +606,7 @@ async def get_data_gaps(symbol: str, days_back: int = 30):
     """Get data gaps for a symbol across all vendors"""
     end_date = date.today()
     start_date = end_date - timedelta(days=days_back)
-    
+
     gaps = {}
     for vendor, collector in service.collectors.items():
         try:
@@ -617,7 +617,7 @@ async def get_data_gaps(symbol: str, days_back: int = 30):
         except Exception as e:
             logger.error(f"Error getting gaps for {vendor}: {e}")
             gaps[vendor] = []
-    
+
     return {
         "symbol": symbol.upper(),
         "date_range": {"start": start_date.isoformat(), "end": end_date.isoformat()},

@@ -3,12 +3,12 @@
 Multi-Agent Analysis Framework
 
 This framework implements specialized LLM agents for comprehensive financial news analysis.
-Each agent focuses on a specific domain of expertise, working together to provide 
+Each agent focuses on a specific domain of expertise, working together to provide
 comprehensive market intelligence and signal generation.
 
 Agent Types:
 1. Sentiment Agent - Advanced sentiment analysis with market context
-2. Entity Recognition Agent - Financial entity extraction and classification  
+2. Entity Recognition Agent - Financial entity extraction and classification
 3. Event Detection Agent - Corporate actions and market-moving events
 4. Risk Assessment Agent - Risk evaluation and uncertainty quantification
 5. Market Impact Agent - Price/volume impact prediction
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 class AgentType(Enum):
     """Types of specialized analysis agents."""
     SENTIMENT = "sentiment"
-    ENTITY_RECOGNITION = "entity_recognition"  
+    ENTITY_RECOGNITION = "entity_recognition"
     EVENT_DETECTION = "event_detection"
     RISK_ASSESSMENT = "risk_assessment"
     MARKET_IMPACT = "market_impact"
@@ -59,14 +59,14 @@ class AgentAnalysis:
     processing_time_ms: int
     model_used: str
     timestamp: datetime = field(default_factory=datetime.now)
-    
+
     # Analysis-specific data (subclasses will extend this)
     analysis_data: Dict[str, Any] = field(default_factory=dict)
     reasoning: str = ""
     warnings: List[str] = field(default_factory=list)
 
 
-@dataclass 
+@dataclass
 class SentimentAnalysis(AgentAnalysis):
     """Sentiment analysis results."""
     sentiment_score: float  # -1.0 (very bearish) to 1.0 (very bullish)
@@ -133,42 +133,42 @@ class SignalGenerationAnalysis(AgentAnalysis):
 
 class BaseFinancialAgent(ABC):
     """Base class for all financial analysis agents."""
-    
-    def __init__(self, agent_type: AgentType, llm_client: MultiProviderLLMClient, 
+
+    def __init__(self, agent_type: AgentType, llm_client: MultiProviderLLMClient,
                  model_preference: Optional[str] = None):
         self.agent_type = agent_type
         self.llm_client = llm_client
         self.model_preference = model_preference
-        
+
         # Performance tracking
         self.analysis_count = 0
         self.total_processing_time_ms = 0
         self.error_count = 0
-        
+
     @abstractmethod
     def get_system_prompt(self) -> str:
         """Get the system prompt for this agent."""
         pass
-    
+
     @abstractmethod
     def create_analysis_prompt(self, article: NewsArticle, context: Dict[str, Any] = None) -> str:
         """Create analysis prompt for the given article."""
         pass
-    
+
     @abstractmethod
     def parse_llm_response(self, response: LLMResponse, processing_time_ms: int) -> AgentAnalysis:
         """Parse LLM response into structured analysis."""
         pass
-    
+
     async def analyze(self, article: NewsArticle, context: Dict[str, Any] = None) -> AgentAnalysis:
         """Perform analysis on the given article."""
         start_time = asyncio.get_event_loop().time()
-        
+
         try:
             # Create prompts
             system_prompt = self.get_system_prompt()
             analysis_prompt = self.create_analysis_prompt(article, context)
-            
+
             # Get LLM response
             response = await self.llm_client.generate_response(
                 prompt=analysis_prompt,
@@ -177,24 +177,24 @@ class BaseFinancialAgent(ABC):
                 temperature=0.1,  # Low temperature for consistent analysis
                 max_tokens=1500
             )
-            
+
             processing_time_ms = int((asyncio.get_event_loop().time() - start_time) * 1000)
-            
+
             # Parse response
             analysis = self.parse_llm_response(response, processing_time_ms)
-            
+
             # Update metrics
             self.analysis_count += 1
             self.total_processing_time_ms += processing_time_ms
-            
+
             logger.debug(f"{self.agent_type.value} analysis completed in {processing_time_ms}ms")
-            
+
             return analysis
-            
+
         except Exception as e:
             self.error_count += 1
             logger.error(f"Error in {self.agent_type.value} agent: {e}")
-            
+
             # Return error analysis
             processing_time_ms = int((asyncio.get_event_loop().time() - start_time) * 1000)
             return AgentAnalysis(
@@ -205,14 +205,14 @@ class BaseFinancialAgent(ABC):
                 reasoning=f"Analysis failed: {str(e)}",
                 warnings=[f"Agent processing error: {str(e)}"]
             )
-    
+
     def get_performance_metrics(self) -> Dict[str, Any]:
         """Get agent performance metrics."""
         avg_processing_time = (
-            self.total_processing_time_ms / self.analysis_count 
+            self.total_processing_time_ms / self.analysis_count
             if self.analysis_count > 0 else 0
         )
-        
+
         return {
             'agent_type': self.agent_type.value,
             'analysis_count': self.analysis_count,
@@ -225,33 +225,33 @@ class BaseFinancialAgent(ABC):
 
 class SentimentAgent(BaseFinancialAgent):
     """Specialized agent for sentiment analysis."""
-    
+
     def __init__(self, llm_client: MultiProviderLLMClient):
         super().__init__(AgentType.SENTIMENT, llm_client, model_preference="openai")
-    
+
     def get_system_prompt(self) -> str:
         return """You are a specialized financial sentiment analysis agent. Your expertise includes:
-        
+
         - Advanced sentiment analysis beyond basic positive/negative classification
-        - Understanding market psychology and behavioral finance principles  
+        - Understanding market psychology and behavioral finance principles
         - Contextualizing news sentiment within current market conditions
         - Identifying emotional indicators (fear, greed, uncertainty, optimism)
         - Recognizing sentiment patterns that drive market movements
-        
+
         Analyze financial news with precision, providing:
         1. Numerical sentiment score (-1.0 to 1.0)
         2. Sentiment strength (how confident the sentiment is)
         3. Emotional indicators and their intensities
         4. Market psychology context
         5. Potential sentiment-driven price impacts
-        
+
         Be objective and evidence-based. Consider market context and timing."""
-    
+
     def create_analysis_prompt(self, article: NewsArticle, context: Dict[str, Any] = None) -> str:
         market_context = ""
         if context and context.get('market_session'):
             market_context = f"Market Session: {context['market_session']}\n"
-        
+
         return f"""Analyze the sentiment of this financial news article:
 
 {market_context}
@@ -275,11 +275,11 @@ Provide your analysis in JSON format:
     "reasoning": "<detailed explanation of sentiment analysis>",
     "confidence": <float from 0.0 to 1.0>
 }}"""
-    
+
     def parse_llm_response(self, response: LLMResponse, processing_time_ms: int) -> SentimentAnalysis:
         try:
             data = json.loads(response.content)
-            
+
             return SentimentAnalysis(
                 agent_type=self.agent_type,
                 confidence=data.get('confidence', 0.5),
@@ -310,28 +310,28 @@ Provide your analysis in JSON format:
 
 class EntityRecognitionAgent(BaseFinancialAgent):
     """Specialized agent for financial entity recognition."""
-    
+
     def __init__(self, llm_client: MultiProviderLLMClient):
         super().__init__(AgentType.ENTITY_RECOGNITION, llm_client, model_preference="anthropic")
-    
+
     def get_system_prompt(self) -> str:
         return """You are a specialized financial entity recognition agent. Your expertise includes:
-        
+
         - Identifying and classifying financial entities (companies, people, products, locations)
-        - Understanding corporate hierarchies and ownership structures  
+        - Understanding corporate hierarchies and ownership structures
         - Recognizing regulatory bodies and their jurisdictions
         - Mapping entity relationships and dependencies
         - Extracting key financial metrics and ratios mentioned
-        
+
         Extract and classify entities with high precision, providing:
         1. Complete entity identification with proper names and identifiers
         2. Entity classification and sub-classification
         3. Relationship mapping between entities
         4. Confidence scores for each entity extraction
         5. Context around why entities are relevant to the news
-        
+
         Focus on accuracy over completeness. High-confidence extractions only."""
-    
+
     def create_analysis_prompt(self, article: NewsArticle, context: Dict[str, Any] = None) -> str:
         return f"""Extract and classify financial entities from this news article:
 
@@ -392,11 +392,11 @@ Identify entities in JSON format:
     ],
     "overall_confidence": <0.0 to 1.0>
 }}"""
-    
+
     def parse_llm_response(self, response: LLMResponse, processing_time_ms: int) -> EntityRecognitionAnalysis:
         try:
             data = json.loads(response.content)
-            
+
             return EntityRecognitionAnalysis(
                 agent_type=self.agent_type,
                 confidence=data.get('overall_confidence', 0.5),
@@ -424,28 +424,28 @@ Identify entities in JSON format:
 
 class EventDetectionAgent(BaseFinancialAgent):
     """Specialized agent for detecting financial events."""
-    
+
     def __init__(self, llm_client: MultiProviderLLMClient):
         super().__init__(AgentType.EVENT_DETECTION, llm_client, model_preference="google")
-    
+
     def get_system_prompt(self) -> str:
         return """You are a specialized financial event detection agent. Your expertise includes:
-        
+
         - Identifying market-moving events (earnings, M&A, regulatory changes, etc.)
         - Classifying event types and their typical market impacts
         - Understanding event timing and sequencing
         - Detecting causal relationships between events
         - Assessing event importance and market significance
-        
+
         Detect and classify events with precision, providing:
         1. Complete event identification with proper classification
         2. Event timing and expected duration
         3. Importance scoring based on historical market impact
         4. Causal event chains and dependencies
         5. Affected market participants and sectors
-        
+
         Focus on events that drive significant market movements."""
-    
+
     def create_analysis_prompt(self, article: NewsArticle, context: Dict[str, Any] = None) -> str:
         return f"""Detect and classify financial events in this news article:
 
@@ -487,18 +487,18 @@ Extract events in JSON format:
     ],
     "overall_confidence": <0.0 to 1.0>
 }}"""
-    
+
     def parse_llm_response(self, response: LLMResponse, processing_time_ms: int) -> EventDetectionAnalysis:
         try:
             data = json.loads(response.content)
-            
+
             # Calculate event importance scores
             event_importance = {}
             for event in data.get('events', []):
                 event_type = event.get('event_type', 'unknown')
                 importance = event.get('importance_score', 0.5)
                 event_importance[event_type] = max(event_importance.get(event_type, 0.0), importance)
-            
+
             return EventDetectionAnalysis(
                 agent_type=self.agent_type,
                 confidence=data.get('overall_confidence', 0.5),
@@ -524,10 +524,10 @@ Extract events in JSON format:
 
 class MultiAgentAnalysisOrchestrator:
     """Orchestrates analysis across multiple specialized agents."""
-    
+
     def __init__(self, llm_client: MultiProviderLLMClient):
         self.llm_client = llm_client
-        
+
         # Initialize specialized agents
         self.agents = {
             AgentType.SENTIMENT: SentimentAgent(llm_client),
@@ -535,20 +535,20 @@ class MultiAgentAnalysisOrchestrator:
             AgentType.EVENT_DETECTION: EventDetectionAgent(llm_client),
             # Additional agents will be added here
         }
-        
+
         # Analysis coordination settings
         self.parallel_execution = True
         self.timeout_seconds = 30
-        
+
         # Performance tracking
         self.orchestration_count = 0
         self.total_orchestration_time_ms = 0
-    
-    async def analyze_article(self, article: NewsArticle, 
+
+    async def analyze_article(self, article: NewsArticle,
                             context: Dict[str, Any] = None) -> Dict[AgentType, AgentAnalysis]:
         """Orchestrate comprehensive analysis across all agents."""
         start_time = asyncio.get_event_loop().time()
-        
+
         try:
             if self.parallel_execution:
                 # Run all agents in parallel for speed
@@ -556,14 +556,14 @@ class MultiAgentAnalysisOrchestrator:
                 for agent_type, agent in self.agents.items():
                     task = asyncio.create_task(agent.analyze(article, context))
                     tasks.append((agent_type, task))
-                
+
                 # Wait for all analyses with timeout
                 results = {}
                 done_tasks = await asyncio.wait_for(
                     asyncio.gather(*[task for _, task in tasks], return_exceptions=True),
                     timeout=self.timeout_seconds
                 )
-                
+
                 # Collect results
                 for i, (agent_type, _) in enumerate(tasks):
                     result = done_tasks[i]
@@ -579,9 +579,9 @@ class MultiAgentAnalysisOrchestrator:
                         )
                     else:
                         results[agent_type] = result
-            
+
             else:
-                # Run agents sequentially  
+                # Run agents sequentially
                 results = {}
                 for agent_type, agent in self.agents.items():
                     try:
@@ -599,20 +599,20 @@ class MultiAgentAnalysisOrchestrator:
                             model_used="error",
                             reasoning=f"Agent error: {str(e)}"
                         )
-            
+
             # Update metrics
             orchestration_time_ms = int((asyncio.get_event_loop().time() - start_time) * 1000)
             self.orchestration_count += 1
             self.total_orchestration_time_ms += orchestration_time_ms
-            
+
             logger.info(f"Multi-agent analysis completed in {orchestration_time_ms}ms")
             logger.debug(f"Agent results: {[f'{k.value}({v.confidence:.2f})' for k, v in results.items()]}")
-            
+
             return results
-            
+
         except Exception as e:
             logger.error(f"Multi-agent orchestration failed: {e}")
-            
+
             # Return error results for all agents
             error_results = {}
             for agent_type in self.agents.keys():
@@ -623,20 +623,20 @@ class MultiAgentAnalysisOrchestrator:
                     model_used="error",
                     reasoning=f"Orchestration failed: {str(e)}"
                 )
-            
+
             return error_results
-    
+
     def get_orchestration_metrics(self) -> Dict[str, Any]:
         """Get orchestration performance metrics."""
         avg_orchestration_time = (
             self.total_orchestration_time_ms / self.orchestration_count
             if self.orchestration_count > 0 else 0
         )
-        
+
         agent_metrics = {}
         for agent_type, agent in self.agents.items():
             agent_metrics[agent_type.value] = agent.get_performance_metrics()
-        
+
         return {
             'orchestration_count': self.orchestration_count,
             'avg_orchestration_time_ms': avg_orchestration_time,
@@ -644,29 +644,29 @@ class MultiAgentAnalysisOrchestrator:
             'timeout_seconds': self.timeout_seconds,
             'agent_metrics': agent_metrics
         }
-    
+
     def get_ensemble_confidence(self, analyses: Dict[AgentType, AgentAnalysis]) -> float:
         """Calculate ensemble confidence across all agent analyses."""
         if not analyses:
             return 0.0
-        
+
         # Weight confidence by agent reliability and consistency
         total_confidence = 0.0
         total_weight = 0.0
-        
+
         for agent_type, analysis in analyses.items():
             # Base weight for each agent type
             agent_weight = 1.0
-            
+
             # Adjust weight based on historical performance
             agent_metrics = self.agents[agent_type].get_performance_metrics()
             error_rate = agent_metrics.get('error_rate', 0.0)
             reliability_factor = max(0.1, 1.0 - error_rate)
-            
+
             weighted_confidence = analysis.confidence * agent_weight * reliability_factor
             total_confidence += weighted_confidence
             total_weight += agent_weight * reliability_factor
-        
+
         return total_confidence / total_weight if total_weight > 0 else 0.0
 
 
@@ -674,7 +674,7 @@ class MultiAgentAnalysisOrchestrator:
 async def create_multi_agent_orchestrator(llm_client: MultiProviderLLMClient) -> MultiAgentAnalysisOrchestrator:
     """Create and initialize multi-agent analysis orchestrator."""
     orchestrator = MultiAgentAnalysisOrchestrator(llm_client)
-    
+
     logger.info(f"Multi-agent orchestrator created with {len(orchestrator.agents)} agents")
-    
+
     return orchestrator

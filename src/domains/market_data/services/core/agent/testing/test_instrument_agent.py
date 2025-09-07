@@ -17,14 +17,14 @@ async def test_agent_stats():
     """Test the agent's ability to gather statistics about instruments."""
     env = Environment()
     agent = InstrumentDataAgent(env)
-    
+
     # Get stats
     stats = await agent.get_instrument_stats()
-    
+
     # Print stats
     print("Instrument Statistics:")
     print(json.dumps(stats, indent=2, default=str))
-    
+
     return stats
 
 
@@ -32,10 +32,10 @@ async def test_agent_get_instrument():
     """Test the agent's ability to get instrument data by symbol."""
     env = Environment()
     agent = InstrumentDataAgent(env)
-    
+
     # Test symbols
     symbols = ["AAPL", "MSFT", "GOOGL"]
-    
+
     for symbol in symbols:
         print(f"\nFetching instrument data for {symbol}:")
         instrument = await agent.get_instrument_by_symbol(symbol)
@@ -55,7 +55,7 @@ async def test_agent_plan_execution():
     """Test the agent's ability to execute a simple plan."""
     env = Environment()
     agent = InstrumentDataAgent(env)
-    
+
     # Create a test plan
     test_plan = {
         "name": "test_plan",
@@ -67,11 +67,11 @@ async def test_agent_plan_execution():
             }
         ]
     }
-    
+
     # Execute the plan
     print("\nExecuting test plan:")
     await agent.execute_plan(test_plan)
-    
+
     # Print plan results
     print("Plan execution results:")
     print(json.dumps(test_plan, indent=2, default=str))
@@ -81,14 +81,14 @@ async def test_agent_report_generation():
     """Test the agent's ability to generate a report."""
     env = Environment()
     agent = InstrumentDataAgent(env)
-    
+
     # Generate a report
     print("\nGenerating test report:")
     report = await agent.generate_report("test_report")
-    
+
     # Print report path
     print(f"Report saved to: {report}")
-    
+
     # Print report contents
     if os.path.exists(report):
         with open(report, 'r') as f:
@@ -100,7 +100,7 @@ async def main():
     """Run all tests."""
     print("=== Testing Instrument Data Agent ===")
     print(f"Current time: {datetime.now()}")
-    
+
     try:
         await test_agent_stats()
         await test_agent_get_instrument()

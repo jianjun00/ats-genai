@@ -1,7 +1,7 @@
 """
 Training Dataset Schema Management System
 
-Provides comprehensive schema definitions, validation, and management 
+Provides comprehensive schema definitions, validation, and management
 for ATS training datasets with financial-specific feature types.
 """
 
@@ -32,25 +32,25 @@ class FeatureType(Enum):
     """Financial-specific feature types for ATS training data."""
     # Basic price data
     OHLC_INTERVALS = "ohlc_intervals"              # [time_steps, 4] OHLC price matrices
-    PRICE_SERIES = "price_series"                  # [time_steps, 1] single price series  
+    PRICE_SERIES = "price_series"                  # [time_steps, 1] single price series
     VOLUME_SERIES = "volume_series"                # [time_steps, 1] volume series
-    
+
     # Technical indicators
     TECHNICAL_INDICATOR = "technical_indicator"     # Single technical indicator values
     PRICE_INDICATOR_INTERVALS = "price_indicator_intervals"   # Price-based indicator time series
     VOLUME_INDICATOR_INTERVALS = "volume_indicator_intervals" # Volume-based indicator time series
     CROSS_TIMEFRAME_INDICATORS = "cross_timeframe_indicators" # Multi-timeframe combinations
-    
+
     # Derived features
     RETURN_SERIES = "return_series"                # Price return calculations
     VOLATILITY_SERIES = "volatility_series"       # Volatility measurements
     MOMENTUM_SERIES = "momentum_series"            # Momentum indicators
-    
+
     # Market context
     MARKET_REGIME_INDICATORS = "market_regime_indicators"       # Bull/bear market indicators
     RELATIVE_STRENGTH_INDICATORS = "relative_strength_indicators" # RSI, relative performance
     SEASONAL_INDICATORS = "seasonal_indicators"    # Day/month/quarter seasonality
-    
+
     # Label types
     CLASSIFICATION_LABEL = "classification_label"  # Categorical labels (up/down/sideways)
     REGRESSION_LABEL = "regression_label"          # Continuous target values
@@ -205,13 +205,13 @@ class TrainingDatasetSchema:
                 return obj.hex() if obj else ""
             else:
                 return obj
-        
+
         return _convert_dataclass(self)
-    
+
     def to_json(self) -> str:
         """Convert schema to JSON string."""
         return json.dumps(self.to_dict(), indent=2, default=str)
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'TrainingDatasetSchema':
         """Create schema from dictionary."""
@@ -222,7 +222,7 @@ class TrainingDatasetSchema:
             dataset_name=data.get('dataset_name', ''),
             dataset_description=data.get('dataset_description', ''),
         )
-    
+
     def get_schema_hash(self) -> str:
         """Generate unique hash for schema."""
         schema_str = json.dumps(self.to_dict(), sort_keys=True)
@@ -242,12 +242,12 @@ class SchemaRegistryEntry:
 
 class TrainingSchemaManager:
     """Manages training data schemas with validation and registry."""
-    
+
     def __init__(self, registry_path: Optional[str] = None):
         self.registry_path = Path(registry_path) if registry_path else Path("schema_registry.json")
         self.schemas: Dict[str, SchemaRegistryEntry] = {}
         self.load_registry()
-    
+
     def create_financial_schema(
         self,
         dataset_name: str,
@@ -259,10 +259,10 @@ class TrainingSchemaManager:
         **kwargs
     ) -> TrainingDatasetSchema:
         """Create schema optimized for financial training data."""
-        
+
         features = []
-        
-        # OHLC features - [time_steps, 4] shape  
+
+        # OHLC features - [time_steps, 4] shape
         for feature_name in ohlc_features:
             features.append(FeatureSchema(
                 name=feature_name,
@@ -274,7 +274,7 @@ class TrainingSchemaManager:
                 visualization_type=VisualizationType.CANDLESTICK,
                 source_column=feature_name
             ))
-        
+
         # Technical indicators
         for indicator in technical_indicators:
             features.append(FeatureSchema(
@@ -291,7 +291,7 @@ class TrainingSchemaManager:
                     'calculation_method': indicator.get('method', '')
                 }
             ))
-        
+
         # Labels
         label_schemas = []
         for label_def in labels:
@@ -304,7 +304,7 @@ class TrainingSchemaManager:
                 forecast_horizon=label_def.get('horizon', 1),
                 target_metric=label_def.get('metric', 'return')
             ))
-        
+
         # Dataset metadata
         metadata = DatasetMetadata(
             symbol=symbol,
@@ -314,7 +314,7 @@ class TrainingSchemaManager:
             data_quality_score=kwargs.get('data_quality_score', 1.0),
             generation_params=kwargs.get('generation_params', {})
         )
-        
+
         schema = TrainingDatasetSchema(
             schema_version="1.0.0",
             dataset_name=dataset_name,
@@ -325,9 +325,9 @@ class TrainingSchemaManager:
             created_at=datetime.now().isoformat(),
             created_by=kwargs.get('created_by', 'ATS Training System')
         )
-        
+
         return schema
-    
+
     def validate_training_data(
         self,
         schema: TrainingDatasetSchema,
@@ -335,10 +335,10 @@ class TrainingSchemaManager:
         labels: Optional[np.ndarray] = None
     ) -> ValidationResult:
         """Validate actual training data against schema definition."""
-        
+
         errors = []
         warnings = []
-        
+
         try:
             # Shape validation
             expected_features = len(schema.features)
@@ -350,12 +350,12 @@ class TrainingSchemaManager:
                     expected_value=str(expected_features),
                     actual_value=str(features.shape[-1])
                 ))
-            
+
             # Individual feature validation
             for i, feature_spec in enumerate(schema.features):
                 if i >= features.shape[-1]:
                     continue
-                    
+
                 # Extract feature data
                 if features.ndim == 3:
                     feature_data = features[:, :, i]
@@ -363,7 +363,7 @@ class TrainingSchemaManager:
                     feature_data = features[:, i]
                 else:
                     feature_data = features
-                
+
                 # Type validation
                 if feature_spec.data_type == DataType.FLOAT32:
                     if not np.issubdtype(feature_data.dtype, np.floating):
@@ -373,7 +373,7 @@ class TrainingSchemaManager:
                             warning_message=f"Expected float32, got {feature_data.dtype}",
                             recommendation="Consider converting to float32 for consistency"
                         ))
-                
+
                 # Constraint validation
                 constraints = feature_spec.constraints
                 if constraints.min_value is not None:
@@ -386,7 +386,7 @@ class TrainingSchemaManager:
                             expected_value=f">= {constraints.min_value}",
                             actual_value=f"min: {np.min(feature_data)}"
                         ))
-                
+
                 if constraints.max_value is not None:
                     if np.any(feature_data > constraints.max_value):
                         violation_count = np.sum(feature_data > constraints.max_value)
@@ -397,7 +397,7 @@ class TrainingSchemaManager:
                             expected_value=f"<= {constraints.max_value}",
                             actual_value=f"max: {np.max(feature_data)}"
                         ))
-                
+
                 # NaN validation
                 nan_count = np.sum(np.isnan(feature_data))
                 if nan_count > 0:
@@ -416,7 +416,7 @@ class TrainingSchemaManager:
                             warning_message=f"Feature has {nan_count} NaN values",
                             recommendation="Consider imputation or data cleaning"
                         ))
-            
+
             # Label validation
             if labels is not None and schema.labels:
                 expected_labels = len(schema.labels)
@@ -428,19 +428,19 @@ class TrainingSchemaManager:
                         expected_value=str(expected_labels),
                         actual_value=str(labels.shape[-1])
                     ))
-            
+
         except Exception as e:
             errors.append(ValidationError(
                 feature_name="validation_system",
                 error_type="validation_error",
                 error_message=f"Validation system error: {str(e)}",
             ))
-        
+
         # Calculate confidence score
         total_checks = len(schema.features) * 3  # Shape, type, constraint checks
         failed_checks = len([e for e in errors if e.error_type != "validation_error"])
         confidence_score = max(0.0, 1.0 - (failed_checks / total_checks)) if total_checks > 0 else 1.0
-        
+
         return ValidationResult(
             is_valid=len(errors) == 0,
             errors=errors,
@@ -448,7 +448,7 @@ class TrainingSchemaManager:
             confidence_score=confidence_score,
             validation_timestamp=datetime.now().isoformat()
         )
-    
+
     def register_schema(self, schema: TrainingDatasetSchema) -> str:
         """Register schema in the registry."""
         entry = SchemaRegistryEntry(
@@ -459,19 +459,19 @@ class TrainingSchemaManager:
             created_by=schema.created_by,
             tags=[schema.metadata.symbol, schema.metadata.base_timeframe]
         )
-        
+
         registry_key = f"{schema.dataset_name}:{schema.schema_version}"
         self.schemas[registry_key] = entry
         self.save_registry()
-        
+
         return schema.get_schema_hash()
-    
+
     def get_schema(self, schema_name: str, version: str = "latest") -> Optional[TrainingDatasetSchema]:
         """Retrieve schema from registry."""
         if version == "latest":
             # Find latest version
             matching_schemas = [
-                (k, v) for k, v in self.schemas.items() 
+                (k, v) for k, v in self.schemas.items()
                 if k.startswith(f"{schema_name}:")
             ]
             if not matching_schemas:
@@ -483,7 +483,7 @@ class TrainingSchemaManager:
             registry_key = f"{schema_name}:{version}"
             entry = self.schemas.get(registry_key)
             return entry.schema if entry else None
-    
+
     def save_registry(self):
         """Save schema registry to file."""
         try:
@@ -499,28 +499,28 @@ class TrainingSchemaManager:
                 }
                 for key, entry in self.schemas.items()
             }
-            
+
             self.registry_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self.registry_path, 'w') as f:
                 json.dump(registry_data, f, indent=2, default=str)
-                
+
         except Exception as e:
             logger.error(f"Failed to save schema registry: {e}")
-    
+
     def load_registry(self):
         """Load schema registry from file."""
         if not self.registry_path.exists():
             return
-        
+
         try:
             with open(self.registry_path, 'r') as f:
                 registry_data = json.load(f)
-            
+
             for key, entry_data in registry_data.items():
                 # This would need proper deserialization
                 # For now, store basic info
                 self.schemas[key] = entry_data
-                
+
         except Exception as e:
             logger.error(f"Failed to load schema registry: {e}")
 
@@ -534,13 +534,13 @@ def create_ohlcv_schema(
     technical_indicators: Optional[List[str]] = None
 ) -> TrainingDatasetSchema:
     """Create a standard OHLCV schema with optional technical indicators."""
-    
+
     manager = TrainingSchemaManager()
-    
+
     ohlc_features = ["open", "high", "low", "close"]
     if include_volume:
         ohlc_features.append("volume")
-    
+
     indicators = []
     if technical_indicators:
         for indicator in technical_indicators:
@@ -549,7 +549,7 @@ def create_ohlcv_schema(
                 'type': 'technical_indicator',
                 'description': f"{indicator} technical indicator"
             })
-    
+
     labels = [{
         'name': 'future_return_1d',
         'type': 'regression',
@@ -557,7 +557,7 @@ def create_ohlcv_schema(
         'horizon': 1,
         'metric': 'return'
     }]
-    
+
     return manager.create_financial_schema(
         dataset_name=dataset_name,
         symbol=symbol,
@@ -575,11 +575,11 @@ def create_multi_horizon_schema(
     sequence_length: int = 60
 ) -> TrainingDatasetSchema:
     """Create schema for multi-horizon predictions."""
-    
+
     manager = TrainingSchemaManager()
-    
+
     ohlc_features = ["open", "high", "low", "close", "volume"]
-    
+
     # Common technical indicators
     indicators = [
         {'name': 'sma_10', 'type': 'moving_average', 'description': '10-period simple moving average'},
@@ -587,7 +587,7 @@ def create_multi_horizon_schema(
         {'name': 'rsi_14', 'type': 'momentum', 'description': '14-period RSI'},
         {'name': 'macd', 'type': 'momentum', 'description': 'MACD indicator'},
     ]
-    
+
     # Multi-horizon labels
     labels = []
     for horizon in horizons:
@@ -598,7 +598,7 @@ def create_multi_horizon_schema(
             'horizon': horizon,
             'metric': 'return'
         })
-    
+
     return manager.create_financial_schema(
         dataset_name=dataset_name,
         symbol=symbol,

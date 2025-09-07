@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 async def register_datasets():
     """Register AAPL and TSLA datasets in database."""
-    
+
     # Connect to database
     conn = await asyncpg.connect(
         host='localhost',
@@ -23,7 +23,7 @@ async def register_datasets():
         password='dev_password',
         database='dev_db'
     )
-    
+
     datasets = [
         {
             'name': 'Riegeli_AAPL_2025-07-01_to_present',
@@ -31,19 +31,19 @@ async def register_datasets():
             'file_path': '/mnt/d/ats-data/training/riegeli_aapl_tsla_2025/aapl_features.npy'
         },
         {
-            'name': 'Riegeli_TSLA_2025-07-01_to_present', 
+            'name': 'Riegeli_TSLA_2025-07-01_to_present',
             'symbol': 'TSLA',
             'file_path': '/mnt/d/ats-data/training/riegeli_aapl_tsla_2025/tsla_features.npy'
         }
     ]
-    
+
     for dataset in datasets:
         # Check if files exist
         if Path(dataset['file_path']).exists():
             file_size_mb = Path(dataset['file_path']).stat().st_size / (1024*1024)
         else:
             file_size_mb = 0.5
-        
+
         # Insert dataset record (using only existing columns)
         insert_query = """
             INSERT INTO dev_training_dataset (
@@ -55,12 +55,12 @@ async def register_datasets():
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
             ) RETURNING id
         """
-        
+
         try:
             dataset_id = await conn.fetchval(
                 insert_query,
                 dataset['name'],                                        # dataset_name
-                50,                                                     # total_sequences  
+                50,                                                     # total_sequences
                 21,                                                     # sequence_length
                 12,                                                     # feature_count (OHLC + volume + indicators)
                 0,                                                      # label_count
@@ -76,12 +76,12 @@ async def register_datasets():
                 "riegeli_compatible",                                   # data_format
                 "daily"                                                 # time_resolution
             )
-            
+
             logger.info(f"✅ Registered {dataset['symbol']} dataset with ID: {dataset_id}")
-            
+
         except Exception as e:
             logger.error(f"❌ Failed to register {dataset['symbol']} dataset: {e}")
-    
+
     await conn.close()
 
 if __name__ == "__main__":

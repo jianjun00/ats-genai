@@ -63,7 +63,7 @@ def setup_logging(
 ) -> None:
     """
     Configure logging for the data agent.
-    
+
     Args:
         config_path: Path to a JSON or YAML logging config file
         log_level: Override log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
@@ -71,7 +71,7 @@ def setup_logging(
         json_format: Whether to use JSON formatting for logs
     """
     config = DEFAULT_CONFIG.copy()
-    
+
     # Load config from file if provided
     if config_path:
         try:
@@ -87,26 +87,26 @@ def setup_logging(
                             file_config = {}
                     else:
                         file_config = json.load(f)
-                
+
                 # Update config with file settings
                 if file_config:
                     _deep_update(config, file_config)
         except Exception as e:
             logging.warning(f"Error loading logging config from {config_path}: {e}")
-    
+
     # Override with environment variables
     env_log_level = os.environ.get('DATA_AGENT_LOG_LEVEL')
     if env_log_level:
         log_level = env_log_level
-        
+
     env_log_file = os.environ.get('DATA_AGENT_LOG_FILE')
     if env_log_file:
         log_file = env_log_file
-        
+
     env_json_format = os.environ.get('DATA_AGENT_JSON_LOGS', '').lower() in ('true', '1', 'yes')
     if env_json_format:
         json_format = True
-    
+
     # Override log level if provided
     if log_level:
         log_level = log_level.upper()
@@ -114,13 +114,13 @@ def setup_logging(
         config['root']['level'] = log_level
         for logger_name in config['loggers']:
             config['loggers'][logger_name]['level'] = log_level
-    
+
     # Override log file if provided
     if log_file:
         for handler_name, handler_config in config['handlers'].items():
             if handler_config.get('class') == 'logging.handlers.RotatingFileHandler':
                 handler_config['filename'] = log_file
-    
+
     # Use JSON formatter if requested
     if json_format:
         try:
@@ -136,10 +136,10 @@ def setup_logging(
                 handler_config['formatter'] = 'json'
         except ImportError:
             logging.warning("python-json-logger not installed, falling back to standard formatter")
-    
+
     # Apply the configuration
     logging.config.dictConfig(config)
-    
+
     # Log the configuration
     logging.info(f"Logging configured with level: {log_level or config['root']['level']}")
     if log_file:
@@ -150,11 +150,11 @@ def setup_logging(
 def _deep_update(d: Dict[str, Any], u: Dict[str, Any]) -> Dict[str, Any]:
     """
     Recursively update a dictionary.
-    
+
     Args:
         d: Dictionary to update
         u: Dictionary with updates
-        
+
     Returns:
         Updated dictionary
     """
@@ -168,10 +168,10 @@ def _deep_update(d: Dict[str, Any], u: Dict[str, Any]) -> Dict[str, Any]:
 def get_logger(name: str) -> logging.Logger:
     """
     Get a logger with the given name.
-    
+
     Args:
         name: Logger name
-        
+
     Returns:
         Logger instance
     """

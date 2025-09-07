@@ -84,22 +84,22 @@ hlc_coefficients = {
 def parse_validation_data():
     """Parse the validation dataset."""
     lines = [line.strip() for line in validation_data_raw.strip().split('\n') if line.strip()]
-    
+
     data = []
     for line in lines:
         parts = line.split()
         date = parts[0]
         values = [float(x) for x in parts[1:]]
-        
+
         # Values: high, low, close, h11, l11, z1b, z2b, ebot, pldot, etop, z5t, z6t
         hlc = values[:3]
         expected = {
             'h11': values[3], 'l11': values[4], 'z1b': values[5], 'z2b': values[6],
             'ebot': values[7], 'pldot': values[8], 'etop': values[9], 'z5t': values[10], 'z6t': values[11]
         }
-        
+
         data.append((date, hlc, expected))
-    
+
     return data
 
 def calculate_hlc_indicator(hlc_history, coefficients):
@@ -107,122 +107,122 @@ def calculate_hlc_indicator(hlc_history, coefficients):
     features = []
     for hlc in hlc_history:
         features.extend(hlc)
-    
+
     return np.dot(coefficients, features)
 
 def test_hlc_cross_scale_validation():
     """Test HLC-only formulas on validation dataset with different price scale."""
-    
+
     print("TESTING HLC-ONLY FORMULAS ON CROSS-SCALE VALIDATION DATASET")
     print("=" * 80)
     print("Training Scale: ~3,300-3,500 (price range used to derive formulas)")
     print("Validation Scale: ~22,800-24,100 (7x larger price range)")
     print("Test: Cross-scale generalization capability")
     print("=" * 80)
-    
+
     # Parse validation data
     parsed_data = parse_validation_data()
     print(f"Loaded {len(parsed_data)} validation data points")
-    
+
     # Get price range information
     all_prices = []
     for _, hlc, _ in parsed_data:
         all_prices.extend(hlc)
-    
+
     min_price = min(all_prices)
     max_price = max(all_prices)
     print(f"Validation price range: {min_price:.1f} - {max_price:.1f}")
     print(f"Scale factor vs training: ~{min_price/3300:.1f}x larger")
-    
+
     # Test starting from day 4 (need 3 prior days for features)
     results = []
     total_tests = 0
     passed_tests = 0
-    
+
     # Collect all results first
     all_errors = {indicator: [] for indicator in hlc_coefficients.keys()}
     all_actuals = {indicator: [] for indicator in hlc_coefficients.keys()}
     all_predictions = {indicator: [] for indicator in hlc_coefficients.keys()}
-    
+
     print(f"\nDetailed Results (Testing days 4-{len(parsed_data)}):")
     print("=" * 80)
-    
+
     for i in range(3, len(parsed_data)):  # Start from 4th day
         test_date = parsed_data[i][0]
         current_expected = parsed_data[i][2]
-        
+
         print(f"\nTesting {test_date}:")
         print("-" * 50)
-        
+
         # Get HLC history from previous 3 days
         hlc_history = []
         for j in range(i-3, i):  # Previous 3 days
             hlc = parsed_data[j][1]
             hlc_history.append(hlc)
-        
+
         # Test each indicator
         day_results = {'date': test_date, 'tests': {}}
-        
+
         for indicator_name, coeffs in hlc_coefficients.items():
             if indicator_name in current_expected:
                 # Calculate prediction using HLC formula
                 predicted = calculate_hlc_indicator(hlc_history, coeffs)
                 actual = current_expected[indicator_name]
-                
+
                 # Skip anomalous H11 value on 08/06 (2329.33 vs expected ~23000)
                 if indicator_name == 'h11' and test_date == '08/06' and actual < 3000:
                     print(f"  {indicator_name.upper():6}: Skipping anomalous value {actual} (data error)")
                     continue
-                
+
                 error = abs(predicted - actual)
                 error_pct = (error / actual) * 100 if actual != 0 else 0
-                
+
                 # Collect statistics
                 all_errors[indicator_name].append(error)
                 all_actuals[indicator_name].append(actual)
                 all_predictions[indicator_name].append(predicted)
-                
+
                 # Determine pass/fail (generous threshold for cross-scale testing)
                 error_threshold = 100.0  # Allow larger errors for 7x different price scale
                 test_passed = error < error_threshold
                 status = "✅ PASS" if test_passed else "❌ FAIL"
-                
+
                 print(f"  {indicator_name.upper():6}: Expected={actual:8.1f}, Predicted={predicted:8.1f}, Error={error:6.1f} ({error_pct:5.2f}%) {status}")
-                
+
                 total_tests += 1
                 if test_passed:
                     passed_tests += 1
-        
+
         results.append(day_results)
-    
+
     # Calculate comprehensive statistics
     print(f"\n" + "=" * 80)
     print("CROSS-SCALE VALIDATION STATISTICS")
     print("=" * 80)
-    
+
     print(f"{'Indicator':<8} {'Samples':>8} {'Avg Error':>10} {'Max Error':>10} {'RMSE':>10} {'R²':>10} {'Assessment':<15}")
     print("-" * 80)
-    
+
     excellent_count = 0
     good_count = 0
     poor_count = 0
-    
+
     for indicator_name in hlc_coefficients.keys():
         if indicator_name in all_errors and len(all_errors[indicator_name]) > 0:
             errors = np.array(all_errors[indicator_name])
             actuals = np.array(all_actuals[indicator_name])
             predictions = np.array(all_predictions[indicator_name])
-            
+
             # Calculate statistics
             avg_error = np.mean(errors)
             max_error = np.max(errors)
             rmse = np.sqrt(np.mean(errors**2))
-            
+
             # Calculate R²
             ss_res = np.sum((actuals - predictions) ** 2)
             ss_tot = np.sum((actuals - np.mean(actuals)) ** 2)
             r2 = 1 - (ss_res / ss_tot) if ss_tot > 0 else 1.0
-            
+
             # Assessment (adjusted for cross-scale testing)
             if r2 > 0.98 and avg_error < 50:
                 assessment = "🎉 EXCELLENT"
@@ -235,35 +235,35 @@ def test_hlc_cross_scale_validation():
             else:
                 assessment = "❌ POOR"
                 poor_count += 1
-            
+
             print(f"{indicator_name.upper():<8} {len(errors):>8} {avg_error:>10.1f} {max_error:>10.1f} {rmse:>10.1f} {r2:>10.6f} {assessment:<15}")
-    
+
     # Overall summary
     total_indicators = len([k for k in hlc_coefficients.keys() if k in all_errors and len(all_errors[k]) > 0])
     success_rate = (excellent_count + good_count) / total_indicators if total_indicators > 0 else 0
-    
+
     print(f"\n" + "=" * 80)
     print("CROSS-SCALE GENERALIZATION SUMMARY")
     print("=" * 80)
-    
+
     print(f"Scale Challenge:")
     print(f"• Training data: 3,300-3,500 price range")
     print(f"• Validation data: 22,800-24,100 price range (7x larger)")
     print(f"• Formula coefficients unchanged from training")
-    
+
     print(f"\nPerformance Results:")
     print(f"• Total indicators tested: {total_indicators}")
     print(f"• 🎉 EXCELLENT performance: {excellent_count}")
     print(f"• ✅ GOOD performance: {good_count}")
     print(f"• ❌ POOR performance: {poor_count}")
     print(f"• Overall success rate: {success_rate*100:.1f}%")
-    
+
     print(f"\nDetailed Pass/Fail Analysis:")
     print(f"• Total individual tests: {total_tests}")
     print(f"• Passed tests (error < 100 points): {passed_tests}")
     print(f"• Failed tests: {total_tests - passed_tests}")
     print(f"• Point-by-point success rate: {(passed_tests/total_tests)*100:.1f}%")
-    
+
     # Final assessment
     if success_rate >= 0.7:
         conclusion = "🎉 EXCELLENT: Formulas show strong cross-scale generalization!"
@@ -273,65 +273,65 @@ def test_hlc_cross_scale_validation():
         conclusion = "⚠️ MODERATE: Mixed results on cross-scale testing"
     else:
         conclusion = "❌ POOR: Formulas fail to generalize across price scales"
-    
+
     print(f"\n🏆 FINAL ASSESSMENT: {conclusion}")
-    
+
     # Show worst and best performing indicators
     if all_errors:
         avg_errors_by_indicator = {name: np.mean(errors) for name, errors in all_errors.items() if len(errors) > 0}
         best_indicator = min(avg_errors_by_indicator, key=avg_errors_by_indicator.get)
         worst_indicator = max(avg_errors_by_indicator, key=avg_errors_by_indicator.get)
-        
+
         print(f"\nPerformance Highlights:")
         print(f"• Best performer: {best_indicator.upper()} (avg error: {avg_errors_by_indicator[best_indicator]:.1f})")
         print(f"• Worst performer: {worst_indicator.upper()} (avg error: {avg_errors_by_indicator[worst_indicator]:.1f})")
-    
+
     # Show sample predictions for first few test days
     print(f"\n" + "=" * 80)
     print("SAMPLE CROSS-SCALE PREDICTIONS (First 3 Test Days)")
     print("=" * 80)
-    
+
     sample_count = 0
     for i in range(3, min(6, len(parsed_data))):  # Show first 3 test days
         test_date = parsed_data[i][0]
         current_expected = parsed_data[i][2]
-        
+
         # Skip anomalous data day
         if test_date == '08/06':
             continue
-            
+
         print(f"\n{test_date}:")
-        
+
         # Get HLC history from previous 3 days
         hlc_history = []
         for j in range(i-3, i):
             hlc = parsed_data[j][1]
             hlc_history.append(hlc)
-        
+
         # Show predictions for each indicator
         for indicator_name, coeffs in hlc_coefficients.items():
             if indicator_name in current_expected:
                 predicted = calculate_hlc_indicator(hlc_history, coeffs)
                 actual = current_expected[indicator_name]
                 error = abs(predicted - actual)
-                
+
                 print(f"  {indicator_name.upper():6}: Actual={actual:8.1f}, Predicted={predicted:8.1f}, Error={error:6.1f}")
-        
+
         sample_count += 1
         if sample_count >= 3:
             break
-    
+
     return success_rate > 0.5
 
 if __name__ == "__main__":
     success = test_hlc_cross_scale_validation()
-    
+
     if success:
         print(f"\n🚀 CROSS-SCALE VALIDATION PASSED: HLC formulas demonstrate good generalization across price ranges")
         exit_code = 0
     else:
         print(f"\n⚠️ CROSS-SCALE VALIDATION CONCERNS: Limited generalization across different price scales")
         exit_code = 1
-    
+
     import sys
     sys.exit(exit_code)

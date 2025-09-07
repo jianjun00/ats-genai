@@ -20,11 +20,11 @@ def get_navigation_metadata(dataset_id, sequence_id):
     """Get navigation metadata for a sequence (available time range, etc.)."""
     try:
         analytics_service = AnalyticsService()
-        
+
         # Test multiple row_index values to find available range
         available_positions = []
         max_position = 0
-        
+
         # Test row indices to find the working range
         for test_index in [0, 10, 25, 50, 75, 100, 150, 200]:
             try:
@@ -32,7 +32,7 @@ def get_navigation_metadata(dataset_id, sequence_id):
                 result = analytics_service.get_training_dataset_sequence_multi_timeframe(
                     dataset_id, sequence_id, test_index
                 )
-                
+
                 if result.get('success') and result.get('table_data'):
                     table_data = result['table_data']
                     if table_data and len(table_data) > 0:
@@ -45,11 +45,11 @@ def get_navigation_metadata(dataset_id, sequence_id):
                             'end_price': table_data[-1].get('close')
                         })
                         max_position = max(max_position, test_index)
-                        
+
             except Exception as e:
                 # If this position fails, we've likely reached the end
                 break
-        
+
         # Estimate total available range based on successful positions
         if available_positions:
             # Find the actual maximum by testing a bit beyond the last successful
@@ -64,7 +64,7 @@ def get_navigation_metadata(dataset_id, sequence_id):
                         break
                 except:
                     break
-        
+
         # Convert timestamps to readable dates
         def format_timestamp(ts):
             if ts:
@@ -74,7 +74,7 @@ def get_navigation_metadata(dataset_id, sequence_id):
                 except:
                     return ts
             return None
-        
+
         # Prepare metadata
         metadata = {
             'sequence_id': sequence_id,
@@ -107,9 +107,9 @@ def get_navigation_metadata(dataset_id, sequence_id):
                 'Each position shows a 21-bar window centered around that time'
             ]
         }
-        
+
         return jsonify(metadata)
-        
+
     except Exception as e:
         return jsonify({
             'error': f'Failed to get navigation metadata: {str(e)}',
@@ -124,9 +124,9 @@ def navigate_sequence(dataset_id, sequence_id):
         # Get parameters
         row_index = request.args.get('row_index', 10, type=int)
         direction = request.args.get('direction')  # 'next', 'prev', 'first', 'last'
-        
+
         analytics_service = AnalyticsService()
-        
+
         # Handle navigation directions
         if direction:
             # First get current valid range
@@ -136,7 +136,7 @@ def navigate_sequence(dataset_id, sequence_id):
                 nav_info = metadata.get('navigation', {})
                 min_idx = nav_info.get('min_row_index', 0)
                 max_idx = nav_info.get('max_row_index', 100)
-                
+
                 if direction == 'next':
                     row_index = min(row_index + 10, max_idx)
                 elif direction == 'prev':
@@ -145,12 +145,12 @@ def navigate_sequence(dataset_id, sequence_id):
                     row_index = min_idx
                 elif direction == 'last':
                     row_index = max_idx
-        
+
         # Get the data for the specified position
         result = analytics_service.get_training_dataset_sequence_multi_timeframe(
             dataset_id, sequence_id, row_index
         )
-        
+
         # Add navigation context to the response
         if result.get('success'):
             result['navigation_context'] = {
@@ -161,9 +161,9 @@ def navigate_sequence(dataset_id, sequence_id):
                     'end': result['table_data'][-1].get('timestamp') if result.get('table_data') else None
                 }
             }
-        
+
         return jsonify(result)
-        
+
     except Exception as e:
         return jsonify({
             'error': f'Navigation failed: {str(e)}',

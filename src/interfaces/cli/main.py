@@ -31,7 +31,7 @@ class CORSConfig:
     allow_credentials: bool = True
     allow_methods: List[str] = None
     allow_headers: List[str] = None
-    
+
     def __post_init__(self):
         if self.allow_origins is None:
             self.allow_origins = ["*"]
@@ -44,7 +44,7 @@ class CORSConfig:
 try:
     detected_env = load_gin_config()
     print(f"🚀 ATS GenAI API starting in {detected_env.value} environment")
-    
+
     # Validate configuration
     validation_result = validate_current_config()
     if not validation_result.is_valid:
@@ -55,7 +55,7 @@ try:
             print(f"   ❌ {error}")
     else:
         print("✅ Configuration validation passed")
-    
+
 except Exception as e:
     print(f"❌ Failed to load environment configuration: {e}")
     print("🔄 Falling back to default configuration...")
@@ -122,7 +122,7 @@ async def health_check():
     try:
         db_connected = await check_db_connection()
         current_env = get_current_env()
-        
+
         return {
             "status": "healthy",
             "database": "connected" if db_connected else "disconnected",
@@ -150,21 +150,21 @@ async def get_configuration_info():
     try:
         env_info = get_env_info()
         current_env = get_current_env()
-        
+
         # Add FastAPI configuration details
         fastapi_info = {
             "title": fastapi_config.title,
             "description": fastapi_config.description,
             "version": fastapi_config.version
         }
-        
+
         cors_info = {
             "allow_origins": cors_config.allow_origins,
             "allow_credentials": cors_config.allow_credentials,
             "allow_methods": cors_config.allow_methods,
             "allow_headers": cors_config.allow_headers
         }
-        
+
         return {
             "current_environment": current_env.value if current_env else None,
             "environment_info": env_info,
@@ -172,7 +172,7 @@ async def get_configuration_info():
             "cors_config": cors_info,
             "configuration_status": "loaded" if current_env else "not_loaded"
         }
-        
+
     except Exception as e:
         logger.error(f"Configuration info retrieval failed: {str(e)}")
         return {
@@ -186,19 +186,19 @@ async def check_db_connection() -> bool:
         # Import here to avoid circular imports
         from core.platform.config.environment import Environment
         import asyncpg
-        
+
         # Create a new environment instance which will use the Gin config
         env = Environment()
-        
+
         # Get the database URL from the environment
         db_url = env.get_database_url()
         if not db_url:
             logger.error("No database URL configured")
             return False
-            
+
         # Parse the database URL to get connection parameters
         from urllib.parse import urlparse
-        
+
         parsed = urlparse(db_url)
         db_params = {
             'host': parsed.hostname,
@@ -207,12 +207,12 @@ async def check_db_connection() -> bool:
             'password': parsed.password,
             'database': parsed.path.lstrip('/')
         }
-        
+
         # Try to connect to the database
         conn = await asyncpg.connect(**db_params)
         await conn.close()
         return True
-        
+
     except Exception as e:
         logger.error(f"Database connection check failed: {str(e)}")
         logger.error(traceback.format_exc())

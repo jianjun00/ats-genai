@@ -86,30 +86,30 @@ class TrainingDataMetadata:
     prediction_horizon: int
     feature_count: int
     label_count: int
-    
+
     # Feature and label metadata
     features: List[FeatureMetadata] = field(default_factory=list)
     labels: List[LabelMetadata] = field(default_factory=list)
-    
+
     # Data source information
     symbols: List[str] = field(default_factory=list)
     date_range: Dict[str, str] = field(default_factory=dict)
     data_sources: List[str] = field(default_factory=list)
-    
+
     # File paths and identifiers
     data_file_path: Optional[str] = None
     feature_file_path: Optional[str] = None
     label_file_path: Optional[str] = None
     sample_ids: List[str] = field(default_factory=list)
-    
+
     # Primary key information
     primary_key_feature: Optional[str] = None
     primary_key_type: Optional[str] = None
-    
+
     # Configuration used to generate data
     gin_config_path: Optional[str] = None
     generation_parameters: Dict[str, Any] = field(default_factory=dict)
-    
+
     # Data quality metrics
     data_quality_metrics: Dict[str, float] = field(default_factory=dict)
     outlier_count: int = 0
@@ -118,11 +118,11 @@ class TrainingDataMetadata:
 
 class TrainingDataMetadataManager:
     """Manager for creating and handling training data metadata."""
-    
+
     def __init__(self, output_dir: str):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     def create_feature_metadata(
         self,
         name: str,
@@ -131,11 +131,11 @@ class TrainingDataMetadataManager:
         config: Optional[Dict] = None
     ) -> FeatureMetadata:
         """Create metadata for a feature from its data and configuration."""
-        
+
         # Determine data type and statistics
         data_flat = data.flatten() if data.ndim > 1 else data
         valid_data = data_flat[~np.isnan(data_flat)]
-        
+
         # Determine visualization type based on feature type
         viz_type_map = {
             FeatureType.OHLC: VisualizationType.CANDLESTICK,
@@ -146,10 +146,10 @@ class TrainingDataMetadataManager:
             FeatureType.BINARY: VisualizationType.BAR_CHART,
         }
         viz_type = viz_type_map.get(feature_type, VisualizationType.HISTOGRAM)
-        
+
         # Generate description based on feature type and config
         description = self._generate_feature_description(name, feature_type, config or {})
-        
+
         return FeatureMetadata(
             name=name,
             feature_type=feature_type,
@@ -167,7 +167,7 @@ class TrainingDataMetadataManager:
             std_value=float(valid_data.std()) if len(valid_data) > 0 else None,
             null_count=int(np.isnan(data_flat).sum())
         )
-    
+
     def create_label_metadata(
         self,
         name: str,
@@ -176,10 +176,10 @@ class TrainingDataMetadataManager:
         config: Optional[Dict] = None
     ) -> LabelMetadata:
         """Create metadata for a label from its data and configuration."""
-        
+
         data_flat = data.flatten() if data.ndim > 1 else data
         valid_data = data_flat[~np.isnan(data_flat)]
-        
+
         # For classification labels, get unique values and distribution
         unique_values = None
         class_distribution = None
@@ -188,11 +188,11 @@ class TrainingDataMetadataManager:
             if len(unique_values) < 20:  # Only for reasonable number of classes
                 unique, counts = np.unique(valid_data, return_counts=True)
                 class_distribution = dict(zip(unique.tolist(), counts.tolist()))
-        
+
         viz_type = VisualizationType.BAR_CHART if 'classification' in label_type.lower() else VisualizationType.DISTRIBUTION
-        
+
         description = self._generate_label_description(name, label_type, config or {})
-        
+
         return LabelMetadata(
             name=name,
             label_type=label_type,
@@ -207,7 +207,7 @@ class TrainingDataMetadataManager:
             unique_values=unique_values,
             class_distribution=class_distribution
         )
-    
+
     def create_training_metadata(
         self,
         dataset_name: str,
@@ -222,9 +222,9 @@ class TrainingDataMetadataManager:
         **kwargs
     ) -> TrainingDataMetadata:
         """Create complete training data metadata."""
-        
+
         from datetime import datetime
-        
+
         # Create feature metadata
         features_meta = []
         for i, (name, config) in enumerate(zip(feature_names, feature_configs)):
@@ -232,20 +232,20 @@ class TrainingDataMetadataManager:
             feature_data = features_data[:, :, i] if features_data.ndim == 3 else features_data[:, i]
             meta = self.create_feature_metadata(name, feature_type, feature_data, config)
             features_meta.append(meta)
-        
+
         # Create label metadata
         labels_meta = []
         for i, (name, config) in enumerate(zip(label_names, label_configs)):
             label_data = labels_data[:, :, i] if labels_data.ndim == 3 else labels_data[:, i]
             meta = self.create_label_metadata(name, config.get('label_type', 'unknown'), label_data, config)
             labels_meta.append(meta)
-        
+
         # Determine primary key feature (prefer symbol or datetime features)
         primary_key_feature = self._determine_primary_key_feature(feature_names, feature_configs)
-        
+
         # Calculate data quality metrics
         data_quality_metrics = self._calculate_data_quality_metrics(features_data, labels_data)
-        
+
         return TrainingDataMetadata(
             dataset_name=dataset_name,
             creation_timestamp=datetime.now().isoformat(),
@@ -262,30 +262,30 @@ class TrainingDataMetadataManager:
             data_quality_metrics=data_quality_metrics,
             **kwargs
         )
-    
+
     def save_metadata(self, metadata: TrainingDataMetadata, filename: str = "metadata.json") -> str:
         """Save metadata to JSON file."""
         filepath = self.output_dir / filename
-        
+
         # Convert to dictionary and handle non-serializable types
         metadata_dict = self._metadata_to_dict(metadata)
-        
+
         with open(filepath, 'w') as f:
             json.dump(metadata_dict, f, indent=2, default=self._json_serializer)
-        
+
         return str(filepath)
-    
+
     def load_metadata(self, filepath: str) -> TrainingDataMetadata:
         """Load metadata from JSON file."""
         with open(filepath, 'r') as f:
             data = json.load(f)
-        
+
         return self._dict_to_metadata(data)
-    
+
     def _infer_feature_type(self, name: str, config: Dict) -> FeatureType:
         """Infer feature type from name and configuration."""
         name_lower = name.lower()
-        
+
         if any(x in name_lower for x in ['open', 'high', 'low', 'close']) and 'ohlc' in name_lower:
             return FeatureType.OHLC
         elif any(x in name_lower for x in ['sma', 'ema', 'price', 'bollinger', 'rsi']):
@@ -304,13 +304,13 @@ class TrainingDataMetadataManager:
             return FeatureType.INT
         else:
             return FeatureType.FLOAT
-    
+
     def _generate_feature_description(self, name: str, feature_type: FeatureType, config: Dict) -> str:
         """Generate human-readable description for feature."""
         descriptions = {
             FeatureType.OHLC: f"OHLC price data",
             FeatureType.PRICE_INDICATOR: f"Price-based technical indicator",
-            FeatureType.VOLUME_INDICATOR: f"Volume-based indicator", 
+            FeatureType.VOLUME_INDICATOR: f"Volume-based indicator",
             FeatureType.RETURN: f"Return calculation",
             FeatureType.CLASSIFICATION: f"Classification feature",
             FeatureType.BINARY: f"Binary indicator",
@@ -318,26 +318,26 @@ class TrainingDataMetadataManager:
             FeatureType.INT: f"Integer feature",
             FeatureType.FLOAT: f"Floating point feature"
         }
-        
+
         base_desc = descriptions.get(feature_type, "Feature")
-        
+
         # Add configuration details
         if config.get('lag_periods'):
             base_desc += f" with {config['lag_periods']} period lag"
         if config.get('window_size'):
             base_desc += f" using {config['window_size']} period window"
-        
+
         return base_desc
-    
+
     def _generate_label_description(self, name: str, label_type: str, config: Dict) -> str:
         """Generate human-readable description for label."""
         base_desc = f"{label_type.capitalize()} label"
-        
+
         if config.get('lead_periods'):
             base_desc += f" predicting {config['lead_periods']} periods ahead"
-        
+
         return base_desc
-    
+
     def _determine_primary_key_feature(self, feature_names: List[str], feature_configs: List[Dict]) -> Optional[str]:
         """Determine which feature can serve as primary key."""
         # Look for symbol, datetime, or ID features
@@ -345,18 +345,18 @@ class TrainingDataMetadataManager:
             name_lower = name.lower()
             if any(x in name_lower for x in ['symbol', 'ticker', 'id', 'datetime', 'timestamp']):
                 return name
-        
+
         # Fallback to first feature
         return feature_names[0] if feature_names else None
-    
+
     def _calculate_data_quality_metrics(self, features_data: np.ndarray, labels_data: np.ndarray) -> Dict[str, float]:
         """Calculate data quality metrics."""
         total_features = features_data.size
         total_labels = labels_data.size
-        
+
         feature_missing = np.isnan(features_data).sum()
         label_missing = np.isnan(labels_data).sum()
-        
+
         return {
             'feature_missing_ratio': float(feature_missing / total_features),
             'label_missing_ratio': float(label_missing / total_labels),
@@ -364,7 +364,7 @@ class TrainingDataMetadataManager:
             'feature_completeness': float(1.0 - feature_missing / total_features),
             'label_completeness': float(1.0 - label_missing / total_labels)
         }
-    
+
     def _metadata_to_dict(self, metadata: TrainingDataMetadata) -> Dict:
         """Convert metadata to dictionary for JSON serialization."""
         result = {}
@@ -383,12 +383,12 @@ class TrainingDataMetadataManager:
             else:
                 result[field_name] = field_value
         return result
-    
+
     def _dict_to_metadata(self, data: Dict) -> TrainingDataMetadata:
         """Convert dictionary back to metadata object."""
         # This is a simplified version - full implementation would need proper deserialization
         return TrainingDataMetadata(**data)
-    
+
     def _json_serializer(self, obj):
         """Custom JSON serializer for non-standard types."""
         if isinstance(obj, np.ndarray):

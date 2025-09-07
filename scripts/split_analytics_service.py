@@ -8,15 +8,15 @@ from pathlib import Path
 
 def split_analytics_service():
     """Split the large analytics service into focused modules."""
-    
+
     source_file = Path("/home/jianjun/ats-genai-data/src/services/web_services/analytics_service.py")
     modules_dir = Path("/home/jianjun/ats-genai-data/src/services/web_services/analytics_modules")
-    
+
     modules_dir.mkdir(exist_ok=True)
-    
+
     with open(source_file, 'r', encoding='utf-8') as f:
         lines = f.readlines()
-    
+
     # Define split points based on section analysis
     splits = {
         "analytics_service_core.py": {
@@ -55,7 +55,7 @@ def split_analytics_service():
             "description": "HTTP request handling and server management"
         }
     }
-    
+
     # Common imports for all modules
     common_imports = """#!/usr/bin/env python3
 import asyncio
@@ -79,31 +79,31 @@ from core.database.connection_manager import get_connection_manager
 from core.config.settings import get_settings
 
 """
-    
+
     for module_name, config in splits.items():
         print(f"Creating {module_name}...")
-        
+
         module_path = modules_dir / module_name
         start_line = config["start"] - 1  # Convert to 0-based index
         end_line = config["end"] if config["end"] != -1 else len(lines)
-        
+
         with open(module_path, 'w', encoding='utf-8') as f:
             f.write('"""' + f'\n{config["description"]}\n' + '"""\n\n')
             f.write(common_imports)
             f.write('\n')
-            
+
             # Write the specific section
             for i in range(start_line, end_line):
                 if i < len(lines):
                     f.write(lines[i])
-        
+
         print(f"  ✅ Created {module_name} ({end_line - start_line} lines)")
-    
+
     # Create __init__.py for the modules package
     init_path = modules_dir / "__init__.py"
     with open(init_path, 'w', encoding='utf-8') as f:
         f.write('"""Analytics Service Modules Package"""\n')
-    
+
     print(f"\n🎯 Successfully split analytics_service.py into 7 focused modules")
     print(f"   Original file: {len(lines)} lines")
     print(f"   Modules directory: {modules_dir}")

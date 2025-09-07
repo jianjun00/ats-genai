@@ -22,7 +22,7 @@ class Exchange:
     updated_at: Optional[datetime] = None
 
 
-@dataclass 
+@dataclass
 class ExchangeEntry:
     """Exchange entry model for instrument cross-references."""
     id: Optional[int] = None
