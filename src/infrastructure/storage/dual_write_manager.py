@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from enum import Enum
 import json
 
-from infrastructure.storage.time_series_file_manager import (
+from storage.time_series_file_manager import (
     TimeSeriesFileManager,
     MinuteRecord,
     TimeSeriesQueryEngine

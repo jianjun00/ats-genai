@@ -104,6 +104,21 @@ class StandaloneMonitoringDashboard:
                 <h3>🎯 Data Quality</h3>
                 <div id="quality-status">Loading...</div>
             </div>
+            <div class="status-card">
+                <h3>🔌 API Health</h3>
+                <div id="api-health-status">Loading...</div>
+            </div>
+            <div class="status-card">
+                <h3>📈 Collection Rate</h3>
+                <div id="collection-rate-status">Loading...</div>
+            </div>
+        </div>
+        
+        <div class="status-grid">
+            <div class="status-card" style="grid-column: 1 / -1;">
+                <h3>📋 Vendor Performance (24h)</h3>
+                <div id="vendor-performance">Loading...</div>
+            </div>
         </div>
     </div>
     
@@ -135,6 +150,72 @@ class StandaloneMonitoringDashboard:
                         <div class="metric-value ${qualityClass}">${(avgQuality * 100).toFixed(1)}%</div>
                         <div class="metric-label">Average Data Quality</div>
                     `;
+                }
+                
+                // Update API health
+                const apiHealthDiv = document.getElementById('api-health-status');
+                if (data.vendor_health && data.vendor_health.length > 0) {
+                    const avgSuccessRate = data.vendor_health.reduce((sum, v) => sum + v.success_rate, 0) / data.vendor_health.length;
+                    const healthClass = avgSuccessRate > 95 ? 'good' : avgSuccessRate > 85 ? 'warning' : 'critical';
+                    const totalCalls = data.vendor_health.reduce((sum, v) => sum + v.total_calls, 0);
+                    
+                    apiHealthDiv.innerHTML = `
+                        <div class="metric-value ${healthClass}">${avgSuccessRate.toFixed(1)}%</div>
+                        <div class="metric-label">${totalCalls} API calls</div>
+                    `;
+                } else {
+                    apiHealthDiv.innerHTML = '<div class="metric-label">No API data</div>';
+                }
+                
+                // Update collection rate
+                const collectionRateDiv = document.getElementById('collection-rate-status');
+                if (data.collection_stats && data.collection_stats.live_data_stats) {
+                    const totalRecords = data.collection_stats.live_data_stats.reduce((sum, s) => sum + (s.current_records || 0), 0);
+                    const activeStreams = data.collection_stats.live_data_stats.filter(s => (s.minutes_since_last || 0) < 5).length;
+                    const totalStreams = data.collection_stats.live_data_stats.length;
+                    const rateClass = activeStreams === totalStreams ? 'good' : activeStreams > totalStreams/2 ? 'warning' : 'critical';
+                    
+                    collectionRateDiv.innerHTML = `
+                        <div class="metric-value ${rateClass}">${totalRecords}</div>
+                        <div class="metric-label">${activeStreams}/${totalStreams} streams active</div>
+                    `;
+                } else {
+                    collectionRateDiv.innerHTML = '<div class="metric-label">No collection data</div>';
+                }
+                
+                // Update vendor performance table
+                const vendorPerfDiv = document.getElementById('vendor-performance');
+                if (data.vendor_health && data.vendor_health.length > 0) {
+                    let html = `
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="text-align: left; padding: 8px;">Vendor</th>
+                                <th style="text-align: right; padding: 8px;">API Calls</th>
+                                <th style="text-align: right; padding: 8px;">Success Rate</th>
+                                <th style="text-align: right; padding: 8px;">Avg Response</th>
+                                <th style="text-align: right; padding: 8px;">Rate Limits</th>
+                            </tr>
+                    `;
+                    
+                    data.vendor_health.forEach(vendor => {
+                        const successClass = vendor.success_rate > 95 ? 'good' : vendor.success_rate > 85 ? 'warning' : 'critical';
+                        html += `
+                            <tr style="border-bottom: 1px solid #f0f0f0;">
+                                <td style="padding: 8px;"><strong>${vendor.vendor.toUpperCase()}</strong></td>
+                                <td style="padding: 8px; text-align: right;">${vendor.total_calls.toLocaleString()}</td>
+                                <td style="padding: 8px; text-align: right; color: ${successClass === 'good' ? '#4CAF50' : successClass === 'warning' ? '#FF9800' : '#F44336'};">
+                                    ${vendor.success_rate.toFixed(1)}%
+                                </td>
+                                <td style="padding: 8px; text-align: right;">${vendor.avg_response_time_ms.toFixed(0)}ms</td>
+                                <td style="padding: 8px; text-align: right;">${vendor.rate_limit_hits}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += '</table>';
+                    vendorPerfDiv.innerHTML = html;
+                } else {
+                    vendorPerfDiv.innerHTML = '<div class="metric-label">No vendor performance data available</div>';
                 }
             });
     </script>
@@ -212,10 +293,9 @@ class MonitoringSystem:
         self.dashboard.get_metrics_endpoint = self.get_metrics_endpoint
         
     async def get_real_data_metrics(self) -> Dict[str, Any]:
-        """Get real data metrics from database connection."""
+        """Get real data metrics."""
         if not DEPS_AVAILABLE:
-            logger.error("❌ Required dependencies not available for monitoring")
-            raise RuntimeError("Unable to retrieve monitoring metrics: required database dependencies not available")
+            raise RuntimeError("Database dependencies not available - cannot get real data metrics")
         
         try:
             # Try container connection first
@@ -285,6 +365,33 @@ class MonitoringSystem:
         """API endpoint for metrics."""
         metrics = await self.get_real_data_metrics()
         alerts = await self.evaluate_alerts(metrics)
+        
+        # Add vendor-specific metrics if available
+        try:
+            from monitoring.vendor_metrics_service import VendorMetricsService
+            vendor_service = VendorMetricsService()
+            
+            # Get vendor health and collection stats
+            vendor_health = await vendor_service.get_vendor_health_summary(hours=24)
+            collection_stats = await vendor_service.get_minute_bar_collection_stats(hours=24)
+            api_status = await vendor_service.get_api_status_breakdown(hours=24)
+            
+            metrics.update({
+                "vendor_health": [
+                    {
+                        "vendor": h.vendor,
+                        "total_calls": h.total_calls,
+                        "success_rate": h.success_rate,
+                        "avg_response_time_ms": h.avg_response_time_ms,
+                        "rate_limit_hits": h.rate_limit_hits
+                    }
+                    for h in vendor_health
+                ],
+                "collection_stats": collection_stats,
+                "api_status": api_status
+            })
+        except Exception as e:
+            logger.warning(f"Could not load vendor metrics: {e}")
         
         return web.json_response({
             **metrics,
