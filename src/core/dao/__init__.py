@@ -13,14 +13,27 @@ Key Principles:
 - Follows existing BaseDAO infrastructure patterns
 """
 
+# Import base classes
 from .base.base_dao import BaseDAO
-from .exchange_dao import ExchangeDAO
-from .instrument_xref_dao import InstrumentXrefDAO
-from .vendor_dao import VendorDAO
+from .base.vendor_dao import VendorDAO
+
+# Import organized DAO modules
+from . import analytics
+from . import corporate_actions
+from . import infrastructure
+from . import instruments
+from . import market_data
+from . import trading
+from . import vendors
 
 __all__ = [
     'BaseDAO',
-    'ExchangeDAO',
-    'InstrumentXrefDAO', 
     'VendorDAO',
+    'analytics',
+    'corporate_actions', 
+    'infrastructure',
+    'instruments',
+    'market_data',
+    'trading',
+    'vendors'
 ]

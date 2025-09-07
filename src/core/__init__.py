@@ -1,9 +1,27 @@
 """
-Core shared functionality for ATS-GenAI.
+Core Platform Components.
 
-This module provides centralized infrastructure components used across
-the entire trading system including configuration, database management,
-validation, logging, and utilities.
+Organized into logical domains following the 7-item directory structure:
+- business: Analytics and domain-specific business logic
+- dao: Data Access Objects organized by domain
+- platform: Infrastructure (config, database, logging)
+- security: Auth, validation, defensive programming
+- shared: Common utilities and cross-cutting concerns
 """
 
 __version__ = "1.0.0"
+
+# Import organized core modules
+from . import business
+from . import dao
+from . import platform
+from . import security
+from . import shared
+
+__all__ = [
+    'business',
+    'dao',
+    'platform', 
+    'security',
+    'shared'
+]
