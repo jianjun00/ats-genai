@@ -12,6 +12,7 @@ Enhanced with Ray for parallel processing:
 """
 
 import logging
+import pandas as pd
 from datetime import datetime, date, timedelta
 from typing import Any, Optional, List, Dict, Union
 from pathlib import Path
@@ -580,20 +581,46 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             self.logger.info(f"Processed interval {self.interval_counter}: {len(examples_generated)} examples generated")
     
     async def _generate_multi_timeframe_example(self, symbol: str, current_time: datetime) -> Optional[Dict]:
-        """Generate training example with multi-timeframe OHLC and signal features using enhanced API."""
+        """
+        Generate training example with multi-timeframe OHLC and signal features using enhanced API.
+        
+        CRITICAL QR4 REQUIREMENT: This method now generates examples that will be processed into 
+        separate ArrayRecord files per timeframe, each containing only base feature names.
+        """
+        debug_info = {
+            'symbol': symbol,
+            'timestamp': current_time.isoformat(),
+            'step': 'initialization'
+        }
+        
         if not hasattr(self, 'minute_data_manager') or not self.config:
+            self.logger.debug(f"🔍 GENERATE_EXAMPLE_DEBUG: {debug_info} - Missing minute_data_manager or config")
             return None
+        
+        debug_info['step'] = 'calculate_lookback'
         
         # Calculate lookback window (need enough data for largest sequence)
         max_sequence_length = max(self.config.sequence_lengths.values()) if self.config.sequence_lengths else 100
-        max_timeframe_minutes = max(self.config.timeframes.values()) if self.config.timeframes else 1440  # 1 day
+        max_timeframe_minutes = max([self._timeframe_to_minutes(tf) for tf in self.config.timeframes.keys()]) if self.config.timeframes else 1440
         
         # Calculate total lookback needed (conservative estimate)
         lookback_minutes = max_sequence_length * max_timeframe_minutes
         start_time = current_time - timedelta(minutes=lookback_minutes)
         
+        debug_info.update({
+            'max_sequence_length': max_sequence_length,
+            'max_timeframe_minutes': max_timeframe_minutes,
+            'lookback_minutes': lookback_minutes,
+            'start_time': start_time.isoformat()
+        })
+        
+        self.logger.debug(f"🔍 GENERATE_EXAMPLE_DEBUG: {debug_info}")
+        
         # Define signals to compute
         signals = ['sma_20', 'ema_12', 'ema_26', 'rsi_14', 'etop', 'ebot', 'pldot', 'vwap']
+        
+        debug_info['step'] = 'fetch_data'
+        debug_info['signals'] = signals
         
         # Use enhanced API to get multi-timeframe data
         try:
@@ -605,71 +632,181 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             )
             
             if symbol not in multi_timeframe_data:
-                self.logger.warning(f"No multi-timeframe data available for {symbol}")
+                debug_info['error'] = 'No multi-timeframe data available'
+                self.logger.warning(f"🔍 GENERATE_EXAMPLE_DEBUG: {debug_info}")
                 return None
                 
             symbol_data = multi_timeframe_data[symbol]
+            debug_info['timeframes_received'] = list(symbol_data.keys())
+            debug_info['data_shapes'] = {tf: len(df) for tf, df in symbol_data.items()}
             
         except Exception as e:
-            self.logger.error(f"Failed to get multi-timeframe data for {symbol}: {e}")
+            debug_info['error'] = str(e)
+            self.logger.error(f"🔍 GENERATE_EXAMPLE_DEBUG: {debug_info}")
             return None
         
-        # Build multi-timeframe features using enhanced data
-        features = {}
+        debug_info['step'] = 'extract_features'
+        
+        # CRITICAL QR4 FIX: Extract features per timeframe but preserve structure for later separation
+        all_timeframe_features = {}
         
         for timeframe_name in self.config.timeframes.keys():
             if timeframe_name not in symbol_data or symbol_data[timeframe_name].empty:
+                debug_info[f'{timeframe_name}_status'] = 'no_data'
                 self.logger.warning(f"No {timeframe_name} data for {symbol}")
                 continue
                 
             try:
-                tf_df = symbol_data[timeframe_name]
-                sequence_length = self.config.sequence_lengths.get(timeframe_name, 20)
+                tf_features = self._extract_timeframe_features(
+                    timeframe_name, 
+                    symbol_data[timeframe_name], 
+                    signals, 
+                    symbol
+                )
                 
-                # Extract the most recent sequence_length bars
-                if len(tf_df) >= sequence_length:
-                    recent_data = tf_df.tail(sequence_length)
+                if tf_features:
+                    # Store with timeframe prefix for now - will be separated later per QR4
+                    for feature_name, feature_data in tf_features.items():
+                        prefixed_name = f'{timeframe_name}_{feature_name}' if timeframe_name != '5m' else feature_name
+                        all_timeframe_features[prefixed_name] = feature_data
                     
-                    # CRITICAL FIX: ALL timeframes use base names per QR4 requirement
-                    # Timeframe separation happens via directory structure, NOT feature prefixes
-                    features['open'] = recent_data['open'].fillna(0).tolist()
-                    features['high'] = recent_data['high'].fillna(0).tolist()
-                    features['low'] = recent_data['low'].fillna(0).tolist()
-                    features['close'] = recent_data['close'].fillna(0).tolist()
-                    features['volume'] = recent_data['volume'].fillna(0).tolist()
-                    features['vwap'] = recent_data.get('vwap', recent_data['close']).fillna(0).tolist()
-                    
-                    # Add technical signals with base names (no timeframe prefixes)
-                    for signal in signals:
-                        if signal in recent_data.columns:
-                            features[signal] = recent_data[signal].fillna(0).tolist()
-                        else:
-                            self.logger.debug(f"Signal {signal} not available for {timeframe_name}")
-                    
-                    self.logger.debug(f"Added {timeframe_name} features: {len(recent_data)} bars with {len(signals)} signals")
-                    
+                    debug_info[f'{timeframe_name}_features'] = len(tf_features)
+                    debug_info[f'{timeframe_name}_status'] = 'success'
                 else:
-                    self.logger.warning(f"Insufficient {timeframe_name} data for {symbol}: {len(tf_df)} < {sequence_length}")
-                        
+                    debug_info[f'{timeframe_name}_status'] = 'no_features'
+                    
             except Exception as e:
+                debug_info[f'{timeframe_name}_error'] = str(e)
                 self.logger.error(f"Failed to process {timeframe_name} data for {symbol}: {e}")
         
-        if not features:
-            self.logger.warning(f"No features generated for {symbol}")
+        if not all_timeframe_features:
+            debug_info['final_status'] = 'no_features_generated'
+            self.logger.warning(f"🔍 GENERATE_EXAMPLE_DEBUG: {debug_info}")
             return None
+        
+        debug_info.update({
+            'step': 'build_example',
+            'total_features': len(all_timeframe_features),
+            'feature_names_sample': list(all_timeframe_features.keys())[:10],
+            'final_status': 'success'
+        })
         
         # Build training example structure with enhanced features
         example = {
             'symbol': symbol,
             'timestamp': current_time.isoformat(),
-            'features': features,
-            'feature_count': sum(len(v) if isinstance(v, list) else 1 for v in features.values()),
+            'features': all_timeframe_features,
+            'feature_count': len(all_timeframe_features),
             'timeframes': list(self.config.timeframes.keys()),
             'signals': signals,
-            'data_source': 'FileBasedMinuteMarketDataManager_enhanced_api'
+            'data_source': 'FileBasedMinuteMarketDataManager_enhanced_api',
+            'debug_info': debug_info
         }
         
+        self.logger.debug(f"🔍 GENERATE_EXAMPLE_DEBUG: {debug_info}")
+        
         return example
+    
+    def _timeframe_to_minutes(self, timeframe: str) -> int:
+        """Convert timeframe string to minutes for lookback calculation."""
+        timeframe_minutes = {
+            '1m': 1, '5m': 5, '15m': 15, '30m': 30, 
+            '1h': 60, '2h': 120, '4h': 240, '1d': 1440, '1w': 10080
+        }
+        return timeframe_minutes.get(timeframe, 60)  # Default to 1 hour
+    
+    def _extract_timeframe_features(self, timeframe_name: str, tf_df: pd.DataFrame, 
+                                   signals: List[str], symbol: str) -> Dict[str, List[float]]:
+        """
+        Extract features for a specific timeframe from DataFrame.
+        
+        This method is separated for easier unit testing.
+        Returns features as lists (sequences) that will later be flattened per QR4.
+        """
+        sequence_length = self.config.sequence_lengths.get(timeframe_name, 20)
+        
+        # Extract the most recent sequence_length bars
+        if len(tf_df) < sequence_length:
+            self.logger.warning(f"Insufficient {timeframe_name} data for {symbol}: {len(tf_df)} < {sequence_length}")
+            return {}
+        
+        recent_data = tf_df.tail(sequence_length)
+        features = {}
+        
+        # CRITICAL: Extract base OHLCV features
+        base_features = ['open', 'high', 'low', 'close', 'volume']
+        for feature in base_features:
+            if feature in recent_data.columns:
+                features[feature] = recent_data[feature].fillna(0).tolist()
+            else:
+                self.logger.warning(f"Missing base feature {feature} in {timeframe_name} data for {symbol}")
+        
+        # Add VWAP (use close if not available)
+        if 'vwap' in recent_data.columns:
+            features['vwap'] = recent_data['vwap'].fillna(0).tolist()
+        else:
+            features['vwap'] = recent_data['close'].fillna(0).tolist()
+        
+        # Add technical signals
+        for signal in signals:
+            if signal in recent_data.columns:
+                features[signal] = recent_data[signal].fillna(0).tolist()
+            else:
+                self.logger.debug(f"Signal {signal} not available for {timeframe_name}")
+        
+        self.logger.debug(f"✅ Extracted {len(features)} features for {timeframe_name}: {list(features.keys())}")
+        
+        return features
+    
+    def _convert_sequence_to_qr4_rows(self, example: Dict, symbol: str, timeframe: str) -> List[Dict]:
+        """
+        Convert sequence-based features to QR4-compliant individual timestamp rows.
+        
+        CRITICAL QR4 TRANSFORMATION: 
+        Input:  {'open': [100, 101, 102], 'high': [105, 106, 107], ...}
+        Output: [
+            {'timestamp': t1, 'symbol': 'AAPL', 'open': 100, 'high': 105, ...},
+            {'timestamp': t2, 'symbol': 'AAPL', 'open': 101, 'high': 106, ...},
+            {'timestamp': t3, 'symbol': 'AAPL', 'open': 102, 'high': 107, ...}
+        ]
+        """
+        features = example.get('features', {})
+        base_timestamp = example.get('timestamp')
+        
+        # QR4 CRITICAL: Only use base feature names
+        qr4_base_features = ['open', 'high', 'low', 'close', 'volume', 'vwap']
+        
+        # Find sequence length (should be consistent across all features)
+        sequence_length = 0
+        sequence_features = {}
+        
+        # Extract only sequence features that are in QR4 base features
+        for feature_name, feature_values in features.items():
+            if feature_name in qr4_base_features and isinstance(feature_values, list):
+                sequence_features[feature_name] = feature_values
+                if len(feature_values) > sequence_length:
+                    sequence_length = len(feature_values)
+        
+        # Create individual rows for each timestamp in the sequence
+        qr4_rows = []
+        for i in range(sequence_length):
+            row = {
+                'timestamp': base_timestamp,  # Same base timestamp for all sequence steps
+                'symbol': symbol
+            }
+            
+            # Add QR4 base features as scalar values
+            for feature_name in qr4_base_features:
+                if feature_name in sequence_features and i < len(sequence_features[feature_name]):
+                    row[feature_name] = sequence_features[feature_name][i]
+                else:
+                    row[feature_name] = 0.0  # Fill missing values with 0
+            
+            qr4_rows.append(row)
+        
+        self.logger.debug(f"✅ QR4 conversion: {symbol} {timeframe} - {len(sequence_features)} features → {len(qr4_rows)} rows")
+        
+        return qr4_rows
     
     async def _save_interval_examples(self, examples: List[Dict], current_time: datetime):
         """Save multi-timeframe examples in symbol-specific .arrayrecord files."""
@@ -713,16 +850,17 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                         end_date = sequence_id.split('_')[3]    # YYYYMMDD_HHMMSS
                         
                         # Create canonical ArrayRecord file path per PRD/DRD QR4
-                        arrayrecord_path = TrainingDatasetPaths.get_arrayrecord_filepath(
+                        arrayrecord_path_str = TrainingDatasetPaths.get_arrayrecord_filepath(
                             run_id=str(self.output_dir.name),  # Use output dir name as run_id
                             symbol=symbol,
                             start_date=start_date,
                             end_date=end_date,
                             timeframe=timeframe
                         )
+                        arrayrecord_path = Path(arrayrecord_path_str)
                         
                         # Ensure directory exists
-                        Path(arrayrecord_path).parent.mkdir(parents=True, exist_ok=True)
+                        arrayrecord_path.parent.mkdir(parents=True, exist_ok=True)
                         
                         # CRITICAL FIX: Filter examples for this specific timeframe
                         timeframe_filtered_examples = self._extract_timeframe_data(symbol_examples, timeframe)
@@ -737,11 +875,11 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                         await self._save_symbol_arrayrecord(timeframe_filtered_examples, arrayrecord_path, symbol, timeframe)
                         
                         # Save companion metadata using canonical path
-                        metadata_path = Path(arrayrecord_path).with_suffix('_metadata.json')
+                        metadata_path = arrayrecord_path.with_suffix('.json').with_name(arrayrecord_path.stem + '_metadata.json')
                         await self._save_symbol_metadata(timeframe_filtered_examples, metadata_path, symbol, current_time, timeframe)
                         
                         # Track file metadata for database storage
-                        file_stats = Path(arrayrecord_path).stat()
+                        file_stats = arrayrecord_path.stat()
                         file_info = {
                             "symbol": symbol,
                             "timeframe": timeframe,
@@ -820,17 +958,28 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         return timeframe_examples
     
     async def _save_symbol_arrayrecord(self, examples: List[Dict], arrayrecord_path: Path, symbol: str, timeframe: str = None):
-        """Save symbol-specific examples in ArrayRecord format.
+        """
+        Save symbol-specific examples in ArrayRecord format.
         
-        CRITICAL FIX: This method now receives properly filtered timeframe-specific
-        examples and logs the filtering results for verification.
+        CRITICAL QR4 FIX: This method now properly creates timeframe-separated ArrayRecords
+        where each row contains scalar OHLCV values (not indexed sequences).
+        
+        QR4 STRUCTURE: Each ArrayRecord contains multiple rows where:
+        - Row 0: Column names ['timestamp', 'symbol', 'open', 'high', 'low', 'close', 'volume', 'vwap']  
+        - Row N: Scalar values for each timestamp
         """
         try:
             import pandas as pd
             
-            # Convert timeframe-specific examples to structured format for ArrayRecord
-            # Each row represents one training interval with TIMEFRAME-SPECIFIC features only
-            rows = []
+            debug_info = {
+                'symbol': symbol,
+                'timeframe': timeframe,
+                'examples_count': len(examples),
+                'arrayrecord_path': str(arrayrecord_path)
+            }
+            
+            # QR4 CRITICAL FIX: Convert sequence-based features to individual timestamp rows
+            all_rows = []
             total_original_features = 0
             total_filtered_features = 0
             
@@ -841,35 +990,35 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                     total_original_features += metadata['original_feature_count']
                     total_filtered_features += metadata['filtered_feature_count']
                 
-                # Create row with timeframe-specific features only
-                row = {
-                    'timestamp': example['timestamp'],
-                    'symbol': symbol
-                }
+                # QR4 FIX: Convert sequence features to individual rows per timestamp
+                qr4_rows = self._convert_sequence_to_qr4_rows(example, symbol, timeframe)
+                all_rows.extend(qr4_rows)
                 
-                # Add ONLY timeframe-specific features (already filtered by _extract_timeframe_data)
-                for feature_name, feature_values in example['features'].items():
-                    if isinstance(feature_values, list):
-                        # For sequence features, add each value with index
-                        for i, value in enumerate(feature_values):
-                            row[f"{feature_name}_{i:03d}"] = value
-                    else:
-                        row[feature_name] = feature_values
-                
-                rows.append(row)
+                debug_info[f'example_{len(all_rows)}_rows_created'] = len(qr4_rows)
+            
+            debug_info['total_rows_created'] = len(all_rows)
             
             # Log filtering verification
             if total_original_features > 0:
                 filtering_ratio = (total_original_features - total_filtered_features) / total_original_features
-                self.logger.info(f"🔍 FILTERING VERIFICATION for {timeframe} timeframe:")
+                self.logger.info(f"🔍 QR4 ARRAYRECORD CREATION for {timeframe} timeframe:")
                 self.logger.info(f"   Original features: {total_original_features}")
                 self.logger.info(f"   Filtered features: {total_filtered_features}")
                 self.logger.info(f"   Filtering ratio: {filtering_ratio:.1%} features removed")
+                self.logger.info(f"   QR4 rows created: {len(all_rows)}")
                 if filtering_ratio < 0.1:  # Less than 10% filtered = potential issue
                     self.logger.warning(f"⚠️  Low filtering ratio may indicate timeframe separation issue")
             
-            # Convert to DataFrame
-            df = pd.DataFrame(rows)
+            # Convert to DataFrame with QR4 structure
+            if all_rows:
+                df = pd.DataFrame(all_rows)
+                debug_info['dataframe_shape'] = df.shape
+                debug_info['columns'] = list(df.columns)
+            else:
+                self.logger.warning(f"❌ No QR4 rows created for {symbol} {timeframe}")
+                return
+            
+            self.logger.debug(f"🔍 QR4_ARRAYRECORD_DEBUG: {debug_info}")
             
             # Save as ArrayRecord format
             import array_record

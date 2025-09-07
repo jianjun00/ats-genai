@@ -31,6 +31,7 @@ from dataclasses import dataclass, field
 
 from app.runner import Runner
 from core.config.environment import Environment, EnvironmentType
+from core.utils.training_dataset_paths import TrainingDatasetPaths
 from ml.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from ml.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
 from ml.training_data.dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
@@ -597,18 +598,43 @@ async def validate_training_data_pipeline(run_id: int, dataset_id: int, output_d
                 else:
                     logger.info(f"✅ Found {len(timeframe_files)} files for timeframe {timeframe}")
                     
-                    # Validate filename format: {SYMBOL}_{start}_{end}.arrayrecord
+                    # QR4 COMPLIANCE + Legacy format validation
+                    qr4_compliant = True
                     for file_path in timeframe_files:
                         filename = file_path.name
-                        if not ('_' in filename and filename.endswith('.arrayrecord')):
-                            validation_errors.append(f"Invalid filename format: {filename} (expected: SYMBOL_START_END.arrayrecord)")
+                        
+                        # Check for QR4-compliant format: {symbol}.arrayrecord
+                        symbol_name = filename.replace('.arrayrecord', '').upper()
+                        is_qr4_format = (symbol_name.lower() + '.arrayrecord' == filename and 
+                                       any(symbol_name == s for s in symbols))
+                        
+                        # Check for legacy format: {SYMBOL}_{start}_{end}.arrayrecord  
+                        is_legacy_format = ('_' in filename and filename.endswith('.arrayrecord'))
+                        
+                        if is_qr4_format:
+                            logger.info(f"    ✅ QR4.2 COMPLIANT: {filename} (symbol.arrayrecord format)")
+                        elif is_legacy_format:
+                            logger.warning(f"    ⚠️ QR4.2 NON-COMPLIANT (but functional): {filename}")
+                            logger.warning(f"       QR4 requires: {symbol_name.lower()}.arrayrecord format")
+                            qr4_compliant = False
+                        else:
+                            validation_errors.append(f"Invalid filename format: {filename}")
+                            logger.error(f"    ❌ INVALID: {filename} (expected: symbol.arrayrecord or SYMBOL_START_END.arrayrecord)")
                             structure_valid = False
             
+            # Report QR4 compliance status
+            if qr4_compliant:
+                logger.info("✅ QR4 COMPLIANCE: All files follow PRD/DRD QR4 requirements")
+            else:
+                logger.warning("⚠️ QR4 NON-COMPLIANT: Files use legacy format but are functional")
+                logger.warning("   Consider regenerating with fixed training data generation logic")
+            
             if not structure_valid:
-                validation_errors.append("File structure doesn't match visualization API expectations")
+                validation_errors.append("File structure doesn't match API expectations")
                 logger.error("❌ CRITICAL: File structure validation failed")
-                logger.error("   Expected: {output_dir}/{run_id}/{timeframe}/{SYMBOL}_{start}_{end}.arrayrecord")
-                logger.error("   Example: output_dir/123/5m/AAPL_20250801_000000_20250802_000000.arrayrecord")
+                logger.error("   Expected formats:")
+                logger.error("     QR4 COMPLIANT: {timeframe}/{symbol}.arrayrecord")
+                logger.error("     LEGACY (functional): {timeframe}/{SYMBOL}_{start}_{end}.arrayrecord")
             
             # Check file sizes
             for file_path in arrayrecord_files:
