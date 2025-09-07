@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Polygon 30-Year Daily Price Backfill
+Tiingo 30-Year Daily Price Backfill
 
 Comprehensive backfill of historical daily price data for all active instruments
-using Polygon API with 30-year historical depth. Based on existing working patterns
+using Tiingo API with 30-year historical depth. Based on existing working patterns
 with enhanced idempotent operations.
 """
 
@@ -15,43 +15,36 @@ import asyncio
 import asyncpg
 import requests
 import logging
-from datetime import datetime, timedelta, date, timezone
+from datetime import datetime, timedelta, date
 import time
 import json
 import argparse
 
-from shared.utils.vendor_api_keys import get_polygon_api_key
-from shared.utils.database_connections import get_database_pool, get_table_name
-from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
-
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("polygon_30_year_daily_backfill")
+logger = logging.getLogger("tiingo_30_year_daily_backfill")
 
-class Polygon30YearBackfiller:
+class Tiingo30YearBackfiller:
     """
-    Polygon 30-year daily price backfiller with idempotent operations.
+    Tiingo 30-year daily price backfiller with idempotent operations.
     
     Features:
     - 30-year historical data collection
     - Idempotent UPSERT operations
-    - Rate limiting (5 requests/minute for free tier, adjustable)
+    - Rate limiting (1000 requests/hour for paid Tiingo)
     - Resume capability with existing data detection
     - Uses dev_instruments table for symbol list
     """
     
-    def __init__(self, api_key: str = None):
-        self.api_key = api_key or get_polygon_api_key()
-        self.base_url = "https://api.polygon.io/v2/aggs/ticker"
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.base_url = "https://api.tiingo.com/tiingo/daily"
         
-        # Use shared rate limiter for consistent behavior
-        self.rate_limiter = VendorRateLimiters.polygon_free()
+        # Rate limiting (Tiingo allows ~1000 requests/hour for paid plans)
+        self.request_delay = 3.6  # seconds between requests (safer than 3.6 limit)
         
-        # Use enhanced BackfillStats for comprehensive monitoring
-        self.stats = BackfillStats()
-        
-        # Legacy stats for compatibility
-        self.legacy_stats = {
+        # Statistics
+        self.stats = {
             'total_instruments': 0,
             'processed_instruments': 0,
             'total_records': 0,
@@ -60,8 +53,8 @@ class Polygon30YearBackfiller:
             'skipped_instruments': 0
         }
         
-        logger.info(f"📊 Polygon 30-Year Backfiller initialized")
-        logger.info(f"   Rate limit: {60/self.request_delay:.1f} requests/minute")
+        logger.info(f"📊 Tiingo 30-Year Backfiller initialized")
+        logger.info(f"   Rate limit: {3600/self.request_delay:.1f} requests/hour")
 
     async def get_database_connection(self):
         """Get database connection (Docker-compatible)."""
@@ -84,42 +77,6 @@ class Polygon30YearBackfiller:
                 password='dev_password',
                 database='dev_db'
             )
-
-    async def ensure_table_exists(self, conn):
-        """Ensure Polygon daily table exists - using existing table structure."""
-        env = os.getenv('ENV_TYPE', 'intg').lower()
-        table_name = 'intg_daily_prices_polygon' if env == 'intg' else 'dev_daily_prices_polygon'
-        
-        try:
-            # Check if table already exists (it should for intg environment)
-            result = await conn.fetchrow(f"""
-                SELECT to_regclass('{table_name}')
-            """)
-            
-            if result[0] is None:
-                # Create table only if it doesn't exist (mainly for dev environment)
-                await conn.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {table_name} (
-                        date DATE NOT NULL,
-                        symbol TEXT,
-                        open DOUBLE PRECISION,
-                        high DOUBLE PRECISION,
-                        low DOUBLE PRECISION,
-                        close DOUBLE PRECISION,
-                        volume BIGINT,
-                        market_cap DOUBLE PRECISION,
-                        instrument_id INTEGER NOT NULL,
-                        created_at TIMESTAMP WITH TIME ZONE,
-                        updated_at TIMESTAMP WITH TIME ZONE,
-                        PRIMARY KEY(date, instrument_id)
-                    )
-                """)
-                logger.info(f"✅ Created Polygon daily price table: {table_name}")
-            else:
-                logger.info(f"✅ Polygon daily price table exists: {table_name}")
-        except Exception as e:
-            logger.error(f"❌ Failed to ensure table exists: {e}")
-            raise
 
     async def get_instruments_for_backfill(self, conn, limit=None):
         """Get active instruments from instruments table."""
@@ -144,53 +101,39 @@ class Polygon30YearBackfiller:
         logger.info(f"📊 Found {len(instruments)} instruments for 30-year backfill")
         return instruments
 
-    async def download_polygon_daily_prices(self, symbol, start_date, end_date):
-        """Download daily prices from Polygon API."""
-        url = f"{self.base_url}/{symbol}/range/1/day/{start_date.strftime('%Y-%m-%d')}/{end_date.strftime('%Y-%m-%d')}"
+    def download_tiingo_daily_prices(self, symbol, start_date, end_date):
+        """Download daily prices from Tiingo API."""
+        url = f"{self.base_url}/{symbol}/prices"
         params = {
-            'adjusted': 'true',
-            'sort': 'asc',
-            'limit': 50000,
-            'apikey': self.api_key
+            'startDate': start_date.strftime('%Y-%m-%d'),
+            'endDate': end_date.strftime('%Y-%m-%d'),
+            'format': 'json',
+            'token': self.api_key
         }
         
-        start_time = time.time()
         try:
             response = requests.get(url, params=params)
-            response_time = time.time() - start_time
-            self.legacy_stats['api_calls'] += 1
+            self.stats['api_calls'] += 1
             
             if response.status_code == 200:
                 data = response.json()
-                self.stats.record_api_call(success=True, response_time=response_time)
-                logger.info(f"🔍 Polygon API response for {symbol}: status={data.get('status')}, results_count={len(data.get('results', []))}")
-                
-                if data.get('status') in ['OK', 'DELAYED'] and 'results' in data:
-                    results = data['results']
-                    logger.info(f"✅ Downloaded {len(results)} records for {symbol}")
-                    return results
-                elif data.get('status') == 'ERROR':
-                    logger.info(f"⚠️ API error for {symbol}: {data.get('error', 'Unknown error')}")
-                    return []
-                else:
-                    logger.info(f"⚠️ No data available for {symbol}, full response: {data}")
-                    return []
+                logger.debug(f"✅ Downloaded {len(data)} records for {symbol}")
+                return data
+            elif response.status_code == 404:
+                logger.debug(f"⚠️ No data available for {symbol}")
+                return []
             elif response.status_code == 429:
-                logger.warning(f"⚠️ Rate limit hit for {symbol}, using intelligent backoff...")
-                self.stats.record_api_call(success=False, response_time=response_time)
-                # Use shared rate limiter for intelligent handling
-                await self.rate_limiter.wait_if_needed()
-                return await self.download_polygon_daily_prices(symbol, start_date, end_date)
+                logger.warning(f"⚠️ Rate limit hit for {symbol}, waiting...")
+                time.sleep(60)  # Wait 1 minute
+                return self.download_tiingo_daily_prices(symbol, start_date, end_date)
             else:
-                logger.error(f"❌ Polygon API error for {symbol}: {response.status_code}")
-                self.stats.record_api_call(success=False, response_time=response_time)
-                self.legacy_stats['errors'] += 1
+                logger.error(f"❌ Tiingo API error for {symbol}: {response.status_code}")
+                self.stats['errors'] += 1
                 return []
                 
         except Exception as e:
             logger.error(f"❌ Error downloading {symbol}: {e}")
-            self.stats.record_api_call(success=False, response_time=time.time() - start_time)
-            self.legacy_stats['errors'] += 1
+            self.stats['errors'] += 1
             return []
 
     async def insert_daily_prices_idempotent(self, conn, instrument_id, symbol, prices):
@@ -202,20 +145,20 @@ class Polygon30YearBackfiller:
         rows = []
         for price in prices:
             try:
-                # Convert Polygon timestamp to date
-                if 't' in price:
-                    date_val = datetime.fromtimestamp(price['t']/1000, tz=timezone.utc).date()
+                # Parse Tiingo date format
+                if isinstance(price['date'], str):
+                    date_val = datetime.strptime(price['date'][:10], '%Y-%m-%d').date()
                 else:
-                    continue
+                    date_val = price['date']
                 
                 rows.append((
                     date_val,
                     symbol,
-                    price.get('o'),  # open
-                    price.get('h'),  # high
-                    price.get('l'),  # low
-                    price.get('c'),  # close
-                    price.get('v', 0),  # volume
+                    price.get('open'),
+                    price.get('high'),
+                    price.get('low'),
+                    price.get('close'),
+                    price.get('volume', 0),
                     instrument_id
                 ))
             except Exception as e:
@@ -225,23 +168,22 @@ class Polygon30YearBackfiller:
         if not rows:
             return 0
         
-        # Insert with idempotent UPSERT
+        # Insert with idempotent UPSERT (using existing Tiingo table schema)
         env = os.getenv('ENV_TYPE', 'intg').lower()
-        table_name = 'intg_daily_prices_polygon' if env == 'intg' else 'dev_daily_prices_polygon'
+        table_name = 'intg_daily_prices_tiingo' if env == 'intg' else 'dev_daily_prices_tiingo'
         
         try:
             result = await conn.executemany(f"""
-                INSERT INTO {table_name}
-                (date, symbol, open, high, low, close, volume, market_cap, instrument_id, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, $8, NOW(), NOW())
+                INSERT INTO {table_name} 
+                (date, symbol, open, high, low, close, volume, instrument_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 ON CONFLICT (date, instrument_id) DO UPDATE SET
                     symbol = EXCLUDED.symbol,
                     open = EXCLUDED.open,
                     high = EXCLUDED.high,
                     low = EXCLUDED.low,
                     close = EXCLUDED.close,
-                    volume = EXCLUDED.volume,
-                    updated_at = NOW()
+                    volume = EXCLUDED.volume
             """, rows)
             
             logger.info(f"💾 Inserted {len(rows)} price records for {symbol}")
@@ -256,7 +198,7 @@ class Polygon30YearBackfiller:
     async def check_existing_data(self, conn, instrument_id, start_date, end_date):
         """Check if instrument already has data in the date range."""
         env = os.getenv('ENV_TYPE', 'intg').lower()
-        table_name = 'intg_daily_prices_polygon' if env == 'intg' else 'dev_daily_prices_polygon'
+        table_name = 'intg_daily_prices_tiingo' if env == 'intg' else 'dev_daily_prices_tiingo'
         
         count = await conn.fetchval(f"""
             SELECT COUNT(*) FROM {table_name}
@@ -281,8 +223,8 @@ class Polygon30YearBackfiller:
             
             logger.info(f"📈 Processing {symbol} (ID: {instrument_id}) for 30-year backfill...")
             
-            # Download data from Polygon
-            prices = await self.download_polygon_daily_prices(symbol, start_date, end_date)
+            # Download data from Tiingo
+            prices = self.download_tiingo_daily_prices(symbol, start_date, end_date)
             
             if not prices:
                 logger.warning(f"⚠️ No price data for {symbol}")
@@ -294,8 +236,8 @@ class Polygon30YearBackfiller:
             logger.info(f"✅ Completed {symbol}: {inserted_count} records inserted")
             self.stats['processed_instruments'] += 1
             
-            # Use shared rate limiter for consistent behavior
-            await self.rate_limiter.wait_if_needed()
+            # Rate limiting delay
+            time.sleep(self.request_delay)
             
             return inserted_count
             
@@ -306,15 +248,12 @@ class Polygon30YearBackfiller:
 
     async def run_backfill(self, start_date, end_date, limit=None, skip_existing=True):
         """Run the complete 30-year backfill process."""
-        logger.info("🚀 Starting Polygon 30-year daily price backfill...")
+        logger.info("🚀 Starting Tiingo 30-year daily price backfill...")
         logger.info(f"📅 Date range: {start_date} to {end_date}")
         
         conn = await self.get_database_connection()
         
         try:
-            # Ensure table exists
-            await self.ensure_table_exists(conn)
-            
             # Get instruments to process
             instruments = await self.get_instruments_for_backfill(conn, limit)
             
@@ -352,7 +291,7 @@ class Polygon30YearBackfiller:
     def log_final_summary(self):
         """Log comprehensive final summary."""
         logger.info("=" * 80)
-        logger.info("🎉 POLYGON 30-YEAR DAILY PRICE BACKFILL COMPLETE")
+        logger.info("🎉 TIINGO 30-YEAR DAILY PRICE BACKFILL COMPLETE")
         logger.info("=" * 80)
         logger.info(f"📊 PROCESSING SUMMARY:")
         logger.info(f"  Total Instruments: {self.stats['total_instruments']:,}")
@@ -371,7 +310,7 @@ class Polygon30YearBackfiller:
         logger.info("=" * 80)
 
 async def main():
-    parser = argparse.ArgumentParser(description="Polygon 30-year daily price backfill")
+    parser = argparse.ArgumentParser(description="Tiingo 30-year daily price backfill")
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--limit', type=int, default=int(os.getenv('LIMIT', '0')) or None, 
                        help='Limit number of instruments to process')
@@ -392,13 +331,13 @@ async def main():
         logger.setLevel(logging.DEBUG)
     
     try:
-        # Get Polygon API key using shared utilities
-        polygon_api_key = get_polygon_api_key()
-        if not polygon_api_key:
-            logger.error("❌ POLYGON_API_KEY not found. Please set environment variable or configure in gin files.")
+        # Get Tiingo API key
+        tiingo_api_key = os.environ.get("TIINGO_API_KEY")
+        if not tiingo_api_key:
+            logger.error("❌ TIINGO_API_KEY environment variable not set")
             sys.exit(1)
         
-        logger.info("✅ Polygon API key found")
+        logger.info("✅ Tiingo API key found")
         
         # Calculate date range
         if args.start_date:
@@ -411,10 +350,10 @@ async def main():
         else:
             end_date = datetime.now().date()
         
-        logger.info(f"📅 Backfilling Polygon prices from {start_date} to {end_date}")
+        logger.info(f"📅 Backfilling Tiingo prices from {start_date} to {end_date}")
         
         # Initialize backfiller
-        backfiller = Polygon30YearBackfiller(polygon_api_key)
+        backfiller = Tiingo30YearBackfiller(tiingo_api_key)
         
         # Run backfill
         await backfiller.run_backfill(
@@ -426,13 +365,10 @@ async def main():
         # Log final summary
         backfiller.log_final_summary()
         
-        # Log comprehensive statistics from shared framework
-        backfiller.stats.log_progress(logger)
-        
-        logger.info("✅ Polygon 30-year daily price backfill complete")
+        logger.info("✅ Tiingo 30-year daily price backfill complete")
         
     except Exception as e:
-        logger.error(f"❌ Failed to run Polygon 30-year backfill: {e}")
+        logger.error(f"❌ Failed to run Tiingo 30-year backfill: {e}")
         import traceback
         logger.error(traceback.format_exc())
         sys.exit(1)

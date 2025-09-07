@@ -20,10 +20,6 @@ import time
 import json
 import argparse
 
-from shared.utils.vendor_api_keys import get_polygon_api_key
-from shared.utils.database_connections import get_database_pool, get_table_name
-from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
-
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("polygon_30_year_daily_backfill")
@@ -40,18 +36,15 @@ class Polygon30YearBackfiller:
     - Uses dev_instruments table for symbol list
     """
     
-    def __init__(self, api_key: str = None):
-        self.api_key = api_key or get_polygon_api_key()
+    def __init__(self, api_key: str):
+        self.api_key = api_key
         self.base_url = "https://api.polygon.io/v2/aggs/ticker"
         
-        # Use shared rate limiter for consistent behavior
-        self.rate_limiter = VendorRateLimiters.polygon_free()
+        # Rate limiting (Polygon allows 5 requests/minute for free tier, more for paid)
+        self.request_delay = 12.0  # 12 seconds between requests (safer than 12 limit)
         
-        # Use enhanced BackfillStats for comprehensive monitoring
-        self.stats = BackfillStats()
-        
-        # Legacy stats for compatibility
-        self.legacy_stats = {
+        # Statistics
+        self.stats = {
             'total_instruments': 0,
             'processed_instruments': 0,
             'total_records': 0,
@@ -144,7 +137,7 @@ class Polygon30YearBackfiller:
         logger.info(f"📊 Found {len(instruments)} instruments for 30-year backfill")
         return instruments
 
-    async def download_polygon_daily_prices(self, symbol, start_date, end_date):
+    def download_polygon_daily_prices(self, symbol, start_date, end_date):
         """Download daily prices from Polygon API."""
         url = f"{self.base_url}/{symbol}/range/1/day/{start_date.strftime('%Y-%m-%d')}/{end_date.strftime('%Y-%m-%d')}"
         params = {
@@ -154,15 +147,12 @@ class Polygon30YearBackfiller:
             'apikey': self.api_key
         }
         
-        start_time = time.time()
         try:
             response = requests.get(url, params=params)
-            response_time = time.time() - start_time
-            self.legacy_stats['api_calls'] += 1
+            self.stats['api_calls'] += 1
             
             if response.status_code == 200:
                 data = response.json()
-                self.stats.record_api_call(success=True, response_time=response_time)
                 logger.info(f"🔍 Polygon API response for {symbol}: status={data.get('status')}, results_count={len(data.get('results', []))}")
                 
                 if data.get('status') in ['OK', 'DELAYED'] and 'results' in data:
@@ -176,21 +166,17 @@ class Polygon30YearBackfiller:
                     logger.info(f"⚠️ No data available for {symbol}, full response: {data}")
                     return []
             elif response.status_code == 429:
-                logger.warning(f"⚠️ Rate limit hit for {symbol}, using intelligent backoff...")
-                self.stats.record_api_call(success=False, response_time=response_time)
-                # Use shared rate limiter for intelligent handling
-                await self.rate_limiter.wait_if_needed()
-                return await self.download_polygon_daily_prices(symbol, start_date, end_date)
+                logger.warning(f"⚠️ Rate limit hit for {symbol}, waiting...")
+                time.sleep(60)  # Wait 1 minute
+                return self.download_polygon_daily_prices(symbol, start_date, end_date)
             else:
                 logger.error(f"❌ Polygon API error for {symbol}: {response.status_code}")
-                self.stats.record_api_call(success=False, response_time=response_time)
-                self.legacy_stats['errors'] += 1
+                self.stats['errors'] += 1
                 return []
                 
         except Exception as e:
             logger.error(f"❌ Error downloading {symbol}: {e}")
-            self.stats.record_api_call(success=False, response_time=time.time() - start_time)
-            self.legacy_stats['errors'] += 1
+            self.stats['errors'] += 1
             return []
 
     async def insert_daily_prices_idempotent(self, conn, instrument_id, symbol, prices):
@@ -282,7 +268,7 @@ class Polygon30YearBackfiller:
             logger.info(f"📈 Processing {symbol} (ID: {instrument_id}) for 30-year backfill...")
             
             # Download data from Polygon
-            prices = await self.download_polygon_daily_prices(symbol, start_date, end_date)
+            prices = self.download_polygon_daily_prices(symbol, start_date, end_date)
             
             if not prices:
                 logger.warning(f"⚠️ No price data for {symbol}")
@@ -294,8 +280,8 @@ class Polygon30YearBackfiller:
             logger.info(f"✅ Completed {symbol}: {inserted_count} records inserted")
             self.stats['processed_instruments'] += 1
             
-            # Use shared rate limiter for consistent behavior
-            await self.rate_limiter.wait_if_needed()
+            # Rate limiting delay
+            time.sleep(self.request_delay)
             
             return inserted_count
             
@@ -392,10 +378,10 @@ async def main():
         logger.setLevel(logging.DEBUG)
     
     try:
-        # Get Polygon API key using shared utilities
-        polygon_api_key = get_polygon_api_key()
+        # Get Polygon API key
+        polygon_api_key = os.environ.get("POLYGON_API_KEY")
         if not polygon_api_key:
-            logger.error("❌ POLYGON_API_KEY not found. Please set environment variable or configure in gin files.")
+            logger.error("❌ POLYGON_API_KEY environment variable not set")
             sys.exit(1)
         
         logger.info("✅ Polygon API key found")
@@ -425,9 +411,6 @@ async def main():
         
         # Log final summary
         backfiller.log_final_summary()
-        
-        # Log comprehensive statistics from shared framework
-        backfiller.stats.log_progress(logger)
         
         logger.info("✅ Polygon 30-year daily price backfill complete")
         

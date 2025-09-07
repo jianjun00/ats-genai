@@ -20,6 +20,10 @@ import time
 import json
 import argparse
 
+from shared.utils.vendor_api_keys import get_eodhd_api_key
+from shared.utils.database_connections import get_database_pool, get_table_name
+from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("eodhd_30_year_daily_backfill")
@@ -36,15 +40,18 @@ class EODHD30YearBackfiller:
     - Uses dev_instruments table for symbol list
     """
     
-    def __init__(self, api_key: str):
-        self.api_key = api_key
+    def __init__(self, api_key: str = None):
+        self.api_key = api_key or get_eodhd_api_key()
         self.base_url = "https://eodhd.com/api/eod"
         
-        # Rate limiting (EODHD allows 20 requests/minute for free tier)
-        self.request_delay = 3.0  # 3 seconds between requests
+        # Use shared rate limiter for consistent behavior
+        self.rate_limiter = VendorRateLimiters.eodhd()
         
-        # Statistics
-        self.stats = {
+        # Use enhanced BackfillStats for comprehensive monitoring
+        self.stats = BackfillStats()
+        
+        # Legacy stats for compatibility
+        self.legacy_stats = {
             'total_instruments': 0,
             'processed_instruments': 0,
             'total_records': 0,
@@ -366,10 +373,10 @@ async def main():
         logger.setLevel(logging.DEBUG)
     
     try:
-        # Get EODHD API key
-        eodhd_api_key = os.environ.get("EODHD_API_KEY")
+        # Get EODHD API key using shared utilities
+        eodhd_api_key = get_eodhd_api_key()
         if not eodhd_api_key:
-            logger.error("❌ EODHD_API_KEY environment variable not set")
+            logger.error("❌ EODHD_API_KEY not found. Please set environment variable or configure in gin files.")
             sys.exit(1)
         
         logger.info("✅ EODHD API key found")
@@ -399,6 +406,9 @@ async def main():
         
         # Log final summary
         backfiller.log_final_summary()
+        
+        # Log comprehensive statistics from shared framework
+        backfiller.stats.log_progress(logger)
         
         logger.info("✅ EODHD 30-year daily price backfill complete")
         
