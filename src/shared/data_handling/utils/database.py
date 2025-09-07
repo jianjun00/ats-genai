@@ -19,23 +19,12 @@ class Database:
         # Set host based on environment
         db_host = os.getenv("DB_HOST")
         if not db_host:
-            # Check if we're in a Kubernetes environment
-            if os.getenv("KUBERNETES_SERVICE_HOST"):
-                if env_type == "dev":
-                    # Use fully qualified service name for Kubernetes
-                    db_host = "timescaledb.ats-dev.svc.cluster.local"
-                    logger.info(f"Using Kubernetes service host for dev environment: {db_host}")
-                elif env_type == "intg":
-                    db_host = "timescaledb.ats-intg.svc.cluster.local"
-                    logger.info(f"Using Kubernetes service host for intg environment: {db_host}")
-                elif env_type == "prod":
-                    db_host = "timescaledb.ats-prod.svc.cluster.local"
-                    logger.info(f"Using Kubernetes service host for prod environment: {db_host}")
+            # For local development or Docker Compose
+            if env_type == "dev" or env_type == "intg":
+                db_host = "timescaledb"
+                logger.info(f"Using Docker service name for {env_type} environment: {db_host}")
             else:
-                # For local development or Docker Compose
-                if env_type == "dev" or env_type == "intg":
-                    db_host = "timescaledb"
-                    logger.info(f"Using Docker service name for {env_type} environment: {db_host}")
+                db_host = "localhost"
 
         self.host = db_host or host or 'localhost'
         self.port = int(os.getenv("DB_PORT") or port or 5432)
@@ -68,32 +57,21 @@ class Database:
         if not all([self.host, self.port, self.user, self.password, self.database]):
             logger.warning(f"Incomplete database configuration: host={self.host}, port={self.port}, user={self.user}, password={'*****' if self.password else None}, database={self.database}")
 
-        # Check if this is a Kubernetes environment
-        is_kubernetes = os.getenv("KUBERNETES_SERVICE_HOST") is not None
+        # Check for custom connection parameters from environment
+        custom_params = os.getenv("DB_CONNECTION_PARAMS")
+        if custom_params:
+            logger.info(f"Using custom connection parameters from DB_CONNECTION_PARAMS: {custom_params}")
+            return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}?{custom_params}"
 
-        # For Kubernetes environments, use appropriate connection parameters
-        if is_kubernetes:
-            logger.info(f"Kubernetes environment detected for {self.env_type}, using connection for {self.host}")
+        # Check if connect_timeout should be disabled
+        disable_connect_timeout = os.getenv("DB_DISABLE_CONNECT_TIMEOUT", "").lower() in ("true", "1", "yes")
 
-            # Check for custom connection parameters from environment
-            custom_params = os.getenv("DB_CONNECTION_PARAMS")
-            if custom_params:
-                logger.info(f"Using custom connection parameters from DB_CONNECTION_PARAMS: {custom_params}")
-                return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}?{custom_params}"
-
-            # Check if connect_timeout should be disabled
-            disable_connect_timeout = os.getenv("DB_DISABLE_CONNECT_TIMEOUT", "").lower() in ("true", "1", "yes")
-
-            if disable_connect_timeout:
-                logger.info("DB_DISABLE_CONNECT_TIMEOUT is set, omitting connect_timeout parameter")
-                return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}?sslmode=disable"
-            else:
-                # Use connection timeout and disable SSL for all Kubernetes environments
-                logger.info("Using connection with connect_timeout parameter")
-                return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}?connect_timeout=10&sslmode=disable"
+        if disable_connect_timeout:
+            logger.info("DB_DISABLE_CONNECT_TIMEOUT is set, omitting connect_timeout parameter")
+            return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}?sslmode=disable"
         else:
-            # For local development, use standard connection string
-            logger.info(f"Local environment detected, using standard connection for {self.host}")
+            # Standard connection string
+            logger.info(f"Using standard connection for {self.host}")
             return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
 
     async def create_pool_with_retry(self, max_retries=3, initial_delay=1.0, timeout=10.0):
