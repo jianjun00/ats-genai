@@ -29,6 +29,12 @@ try:
 except ImportError:
     TimeSeriesSequenceTrainingGenerator = None
 
+# Import EconomicEventsDAO for news event detection
+try:
+    from core.dao.economic_events_dao import EconomicEventsDAO
+except ImportError:
+    EconomicEventsDAO = None
+
 # Optional import - will be None if not available
 try:
     from ml.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
@@ -109,12 +115,14 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                  symbols: List[str],
                  config: Optional[Any] = None,  # Accept any config object
                  storage_manager: Optional[SequenceStorageManager] = None,
-                 output_dir: str = "/data/training/sequences"):
+                 output_dir: str = "/data/training/sequences",
+                 economic_events_dao: Optional[EconomicEventsDAO] = None):
         """Initialize interval-based callback."""
         self.symbols = symbols
         self.config = config  # Use provided config or None
         self.storage_manager = storage_manager
         self.output_dir = Path(output_dir)
+        self.economic_events_dao = economic_events_dao  # For news event detection
         
         self.logger = logging.getLogger(__name__)
         self.training_generator = None
@@ -160,14 +168,93 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         
         self.logger.info("Interval-based sequence-based training data generator initialized")
     
+    async def _check_news_events_around_time(self, symbol: str, current_time: datetime, 
+                                           time_window_hours: int = 24) -> bool:
+        """
+        Check if there are economic/news events for the symbol around the current interval time.
+        
+        Args:
+            symbol: Stock symbol to check for events
+            current_time: Current interval timestamp
+            time_window_hours: Time window in hours to search for events (default 24 hours = ±12 hours)
+            
+        Returns:
+            True if economic events are found for this symbol around the current time, False otherwise
+        """
+        if not self.economic_events_dao:
+            self.logger.warning(f"No EconomicEventsDAO provided, skipping news event check for {symbol}")
+            return False  # No DAO means no event filtering - skip generation
+            
+        try:
+            # Calculate search window around current time
+            time_delta = timedelta(hours=time_window_hours // 2)  # Split window evenly before/after
+            start_date = (current_time - time_delta).date()
+            end_date = (current_time + time_delta).date()
+            
+            # Get high-importance economic events in the time window
+            economic_events = await self.economic_events_dao.get_economic_events_with_types(
+                start_date=start_date,
+                end_date=end_date,
+                min_importance=3  # Only high-importance events (3+ importance level)
+            )
+            
+            # Check if any events are related to this symbol or general market
+            # For now, we'll be permissive and consider any high-importance events
+            # as potentially relevant for all symbols (market-wide events)
+            symbol_relevant_events = []
+            
+            for event in economic_events:
+                # Check if event is within our time window (more precise than just date)
+                event_datetime = event.get('release_time')
+                if event_datetime:
+                    # Convert to datetime if it's not already
+                    if isinstance(event_datetime, str):
+                        from datetime import datetime
+                        try:
+                            event_datetime = datetime.fromisoformat(event_datetime.replace('Z', '+00:00'))
+                        except ValueError:
+                            continue
+                    
+                    # Check if event is within time window
+                    time_diff = abs((current_time - event_datetime).total_seconds())
+                    if time_diff <= (time_window_hours * 3600):  # Within time window
+                        symbol_relevant_events.append(event)
+                else:
+                    # If no release_time, just check by date
+                    event_date = event.get('date')
+                    if event_date and start_date <= event_date <= end_date:
+                        symbol_relevant_events.append(event)
+            
+            if symbol_relevant_events:
+                event_names = [e.get('event_name', 'Unknown') for e in symbol_relevant_events[:3]]  # Show first 3
+                self.logger.info(f"📰 Found {len(symbol_relevant_events)} relevant economic events for {symbol} "
+                               f"around {current_time}: {', '.join(event_names)}")
+                return True
+            else:
+                self.logger.debug(f"No relevant economic events found for {symbol} around {current_time}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Error checking news events for {symbol} around {current_time}: {e}")
+            return False  # On error, skip training data generation for safety
+    
     async def handleInterval(self, runner: Any, current_time: datetime):
-        """Generate multi-timeframe training data for current interval."""
+        """Generate multi-timeframe training data for current interval only if news events are detected."""
         self.interval_counter += 1
         examples_generated = []
         
         # Generate multi-timeframe examples for all symbols
         for symbol in self.symbols:
             try:
+                # Check if there are news/economic events for this symbol around current interval time
+                has_news_events = await self._check_news_events_around_time(symbol, current_time)
+                
+                if not has_news_events:
+                    self.logger.debug(f"No news events for {symbol} around {current_time}, skipping training data generation")
+                    continue
+                
+                self.logger.info(f"📰 News events detected for {symbol} around {current_time}, generating training data")
+                
                 if hasattr(self, 'minute_data_manager'):
                     example = await self._generate_multi_timeframe_example(
                         symbol=symbol,
@@ -190,7 +277,9 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         # Save immediately if we have examples
         if examples_generated:
             await self._save_interval_examples(examples_generated, current_time)
-            self.logger.info(f"Processed interval {self.interval_counter}: {len(examples_generated)} examples generated")
+            self.logger.info(f"Processed interval {self.interval_counter}: {len(examples_generated)} examples generated (news event driven)")
+        else:
+            self.logger.debug(f"Processed interval {self.interval_counter}: No examples generated (no news events detected)")
     
     async def _generate_multi_timeframe_example(self, symbol: str, current_time: datetime) -> Optional[Dict]:
         """
