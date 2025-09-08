@@ -1,9 +1,9 @@
-# ATS Event System Redesign: PRD & DRD
+# ATS Event System Redesign: PRD & DRD (Python-Based)
 
-**Version**: 1.0  
-**Date**: December 2024  
+**Version**: 2.0  
+**Date**: January 2025  
 **Authors**: ATS Engineering Team  
-**Status**: Draft for Review  
+**Status**: Updated for Python/Hourly Event Processing  
 
 ---
 
@@ -12,16 +12,17 @@
 ## 1. Executive Summary
 
 ### 1.1 Vision Statement
-Redesign the ATS event system to create a unified, scalable, and intelligent event-driven architecture that processes financial events with sub-100ms latency while providing advanced correlation detection and causal inference capabilities.
+Redesign the ATS event system to create a unified, Python-native event-driven architecture that processes financial events with hourly frequency while providing correlation detection and seamless integration with training datasets using Protocol Buffers for serialization.
 
 ### 1.2 Problem Statement
-The current ATS event system has architectural limitations that constrain scalability, event correlation capabilities, and real-time processing performance. We need a modern event-driven architecture to support advanced algorithmic trading strategies and risk management.
+The current ATS event system lacks standardized event representation and efficient serialization for both database persistence and training dataset storage. We need a Python-based architecture with Protocol Buffer schemas that enables consistent event handling across the entire ML pipeline.
 
 ### 1.3 Success Criteria
-- **Performance**: Process >1M events/second with <100ms end-to-end latency
-- **Intelligence**: 40% reduction in false signals through advanced correlation
-- **Reliability**: 99.95% system availability with automated recovery
-- **Compliance**: 90% automation of regulatory reporting processes
+- **Performance**: Process 1K-10K events/hour with <30 second end-to-end processing
+- **Integration**: Seamless event flow from ingestion → database → training datasets
+- **Standardization**: Protocol Buffer schemas for all event types with versioning
+- **Intelligence**: 40% reduction in false signals through improved event correlation
+- **Reliability**: 99.9% system availability with simple recovery mechanisms
 
 ## 2. Current State Analysis
 
@@ -51,14 +52,14 @@ The current ATS event system has architectural limitations that constrain scalab
   - Extensible taxonomy allowing new event types without schema changes
   - Consistent event IDs across all systems and vendors
 
-#### FR2: Real-Time Event Streaming
+#### FR2: Python-Native Event Processing
 - **Priority**: P0 (Critical)  
-- **Description**: High-throughput event streaming infrastructure with guaranteed delivery
+- **Description**: Python-based event processing pipeline with Redis queue and Celery workers
 - **Acceptance Criteria**:
-  - Process >1M events/second sustained throughput
-  - <10ms event ingestion latency (99th percentile)
-  - Exactly-once delivery semantics for critical events
-  - Automatic failover and recovery within 30 seconds
+  - Process 1K-10K events/hour sustained throughput  
+  - <30 second end-to-end processing latency (99th percentile)
+  - At-least-once delivery semantics with idempotency
+  - Simple recovery mechanisms using existing Docker infrastructure
 
 #### FR3: Event Correlation Engine
 - **Priority**: P1 (High)
@@ -90,22 +91,22 @@ The current ATS event system has architectural limitations that constrain scalab
 ### 3.2 Non-Functional Requirements
 
 #### NFR1: Performance
-- **Ingestion Latency**: <10ms (99th percentile)
-- **Processing Latency**: <100ms end-to-end for critical events
-- **Throughput**: >1M events/second sustained
-- **Query Response**: <1ms for cached event lookups, <100ms for complex queries
+- **Ingestion Latency**: <5 seconds (99th percentile) 
+- **Processing Latency**: <30 seconds end-to-end for critical events
+- **Throughput**: 1K-10K events/hour sustained
+- **Query Response**: <100ms for cached event lookups, <500ms for complex queries
 
-#### NFR2: Scalability
-- **Horizontal Scaling**: Auto-scale to 100+ processing nodes
-- **Storage**: Support petabyte-scale event storage with tiered archival
-- **Concurrent Users**: Support 10,000+ simultaneous event consumers
-- **Data Volume**: Handle 10TB+ daily event ingestion
+#### NFR2: Scalability  
+- **Horizontal Scaling**: Scale to 5-10 Celery workers as needed
+- **Storage**: Support terabyte-scale event storage with PostgreSQL partitioning
+- **Concurrent Users**: Support 50-100 simultaneous API consumers
+- **Data Volume**: Handle 1-10GB daily event ingestion
 
 #### NFR3: Reliability
-- **Availability**: 99.95% uptime (26 minutes downtime/year)
-- **Durability**: 99.999999999% (11 9's) event durability
-- **Recovery**: <5 minutes automated recovery from failures
-- **Data Consistency**: Strong consistency for critical events, eventual consistency for analytics
+- **Availability**: 99.9% uptime (8.76 hours downtime/year)
+- **Durability**: 99.99% event durability with PostgreSQL backups
+- **Recovery**: <15 minutes recovery from failures using run_dev restart
+- **Data Consistency**: Strong consistency for all events using PostgreSQL transactions
 
 #### NFR4: Security & Compliance
 - **Encryption**: End-to-end encryption for all event data
@@ -221,39 +222,46 @@ The current ATS event system has architectural limitations that constrain scalab
 
 ## 6. Technical Architecture
 
-### 6.1 High-Level Architecture
+### 6.1 Python-Native High-Level Architecture
 
 ```
 ┌─────────────────┐    ┌──────────────┐    ┌─────────────────┐
-│  Event Sources  │────│  Event Bus   │────│ Stream Proc.    │
-│  (External APIs)│    │   (Kafka)    │    │  (Flink CEP)    │
+│  Event Sources  │────│ Redis Queue  │────│ Celery Workers  │
+│  (Polygon, etc.)│    │   (LPUSH)    │    │ (Python + Proto)│
 └─────────────────┘    └──────────────┘    └─────────────────┘
                               │                       │
                        ┌──────────────┐    ┌─────────────────┐
-                       │  Event Store │    │  Query Engine   │
-                       │(PostgreSQL + │    │   (Clickhouse)  │
-                       │   S3)        │    │                 │
+                       │ PostgreSQL   │    │   FastAPI       │
+                       │ (JSONB Events│    │ (GraphQL + REST)│
+                       │  + Proto)    │    │                 │
                        └──────────────┘    └─────────────────┘
                               │                       │
                        ┌──────────────┐    ┌─────────────────┐
-                       │  API Gateway │    │   Web UI/APIs   │
-                       │   (GraphQL)  │    │   (React/Next)  │
+                       │Training Data │    │   Frontend      │
+                       │(.riegeli     │    │   (React/Next)  │
+                       │ Proto Arrays)│    │                 │
                        └──────────────┘    └─────────────────┘
 ```
 
-### 6.2 Technology Stack
+### 6.2 Python-Based Technology Stack
 
-#### Event Streaming Layer
-- **Apache Kafka**: Core event streaming platform
-  - **Justification**: Industry standard, handles millions of events/second
-  - **Configuration**: 10-node cluster, 3x replication, 7-day retention
-  - **Topics**: Partitioned by event type and symbol for parallelism
+#### Event Queue Layer
+- **Redis**: Simple, reliable message queue
+  - **Justification**: Python-native, handles 10K events/hour easily, existing Docker setup
+  - **Configuration**: Single Redis instance with persistence, 1-day retention
+  - **Usage**: LPUSH for producers, BRPOP for consumers
 
-#### Stream Processing
-- **Apache Flink**: Complex event processing and analytics
-  - **Justification**: Superior CEP capabilities, exactly-once processing
-  - **Use Cases**: Event correlation, pattern detection, real-time aggregations
-  - **Scaling**: Auto-scale from 5-50 task managers based on load
+#### Event Processing
+- **Celery**: Distributed task queue for Python
+  - **Justification**: Perfect for Python, handles async processing, integrates with existing codebase
+  - **Use Cases**: Event processing, correlation detection, database storage
+  - **Scaling**: 5-10 workers based on load, can scale horizontally
+
+#### Protocol Buffers Integration
+- **protobuf**: Event serialization for DB and training datasets
+  - **Database**: Store proto as JSONB in PostgreSQL using `MessageToDict()`
+  - **Training Data**: Serialize proto arrays to .riegeli files  
+  - **Python**: Generated classes provide type safety and validation
 
 #### Event Storage
 - **PostgreSQL**: Hot storage for recent events (1-3 months)
@@ -277,46 +285,296 @@ The current ATS event system has architectural limitations that constrain scalab
   - **Batching**: DataLoader pattern for efficient bulk queries
   - **Caching**: Redis for frequently accessed event data
 
-### 6.3 Event Schema Design
+### 6.3 Protocol Buffer Event Schema Design
 
-#### 6.3.1 Core Event Structure
+#### 6.3.1 Core Event Protocol Buffer Schema
 
-```typescript
-interface BaseEvent {
+**Key Requirements**:
+- **Database Persistence**: Events stored as JSONB in PostgreSQL 
+- **Training Dataset Integration**: Events serialized as proto arrays in .riegeli files
+- **Python Native**: Generated Python classes for type safety
+- **Versioning**: Forward/backward compatibility with schema evolution
+
+```protobuf
+// events.proto - Core event schema
+syntax = "proto3";
+package ats.events.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+// Core event message - used for DB storage and training datasets
+message Event {
   // Identity & Versioning
-  eventId: string;           // UUID v4
-  eventType: EventType;      // Enum of supported event types
-  eventVersion: string;      // Semantic versioning (e.g., "1.2.0")
+  string event_id = 1;           // UUID v4
+  EventType event_type = 2;      // Enum of supported event types  
+  string event_version = 3;      // Semantic versioning (e.g., "1.2.0")
   
   // Temporal Properties
-  timestamp: string;         // ISO8601 with nanosecond precision
-  timeZone: string;         // IANA timezone identifier
-  validFrom?: string;       // Event validity start time
-  validTo?: string;         // Event validity end time
+  google.protobuf.Timestamp timestamp = 4;        // Event occurrence time
+  string time_zone = 5;                           // IANA timezone identifier  
+  google.protobuf.Timestamp valid_from = 6;       // Optional validity start
+  google.protobuf.Timestamp valid_to = 7;         // Optional validity end
   
   // Source & Attribution
-  source: EventSource;      // Vendor/system that generated event
-  sourceId?: string;        // Original ID from source system
-  ingestionTime: string;    // When event entered our system
+  string source = 8;                              // Vendor/system (e.g., "polygon", "tiingo")
+  string source_id = 9;                           // Original ID from source system
+  google.protobuf.Timestamp ingestion_time = 10;  // When event entered ATS system
   
   // Event Relationships
-  causationId?: string;     // ID of event that caused this event
-  correlationId?: string;   // Business process or workflow ID
-  parentEventId?: string;   // Hierarchical parent relationship
-  rootEventId?: string;     // Root event in event chain
+  string causation_id = 11;      // ID of event that caused this event
+  string correlation_id = 12;    // Business process or workflow ID
+  string parent_event_id = 13;   // Hierarchical parent relationship
+  string root_event_id = 14;     // Root event in event chain
   
-  // Subject & Context
-  subject: EventSubject;    // What the event is about
-  context?: EventContext;   // Additional contextual information
+  // Subject (What the event is about)
+  EventSubject subject = 15;
   
-  // Content & Metadata
-  data: EventData;          // Event-specific payload
-  metadata: EventMetadata;  // System metadata and flags
+  // Event-specific data (polymorphic based on event_type)
+  oneof event_data {
+    NewsEventData news_data = 16;
+    EarningsEventData earnings_data = 17;
+    TechnicalSignalEventData technical_data = 18;
+    CorporateActionEventData corporate_action_data = 19;
+    EconomicEventData economic_data = 20;
+  }
   
-  // Quality & Confidence
-  confidence?: number;      // Confidence score (0.0-1.0)
-  reliability?: string;     // Source reliability rating
-  dataQuality?: DataQuality; // Data quality indicators
+  // System metadata
+  EventMetadata metadata = 21;
+  
+  // Quality indicators
+  double confidence = 22;        // Confidence score (0.0-1.0)
+  string reliability = 23;       // Source reliability rating
+}
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  // External Events
+  EVENT_TYPE_NEWS = 1;
+  EVENT_TYPE_EARNINGS = 2;
+  EVENT_TYPE_CORPORATE_ACTION = 3;
+  EVENT_TYPE_ECONOMIC_INDICATOR = 4;
+  EVENT_TYPE_ANALYST_RECOMMENDATION = 5;
+  EVENT_TYPE_REGULATORY_FILING = 6;
+  // Internal Events (Generated by ATS)
+  EVENT_TYPE_PRICE_GAP = 7;
+  EVENT_TYPE_SUPPORT_RESISTANCE_BREAK = 8; 
+  EVENT_TYPE_VOLUME_ANOMALY = 9;
+  EVENT_TYPE_TECHNICAL_SIGNAL = 10;
+  EVENT_TYPE_RISK_ALERT = 11;
+}
+
+message EventSubject {
+  string instrument_id = 1;      // Internal instrument identifier
+  string symbol = 2;             // Ticker symbol (e.g., "AAPL")
+  string isin = 3;               // International identifier
+  string cusip = 4;              // US identifier  
+  string exchange = 5;           // Exchange code (e.g., "NASDAQ")
+  string asset_class = 6;        // "equity", "bond", "derivative", etc.
+  string sector = 7;             // GICS sector classification
+  string industry = 8;           // GICS industry classification
+  string country = 9;            // ISO country code
+  string currency = 10;          // ISO currency code
+}
+
+message EventMetadata {
+  Priority priority = 1;
+  Classification classification = 2;
+  repeated string tags = 3;      // Searchable tags
+  string processed_by = 4;       // System/service that processed event
+  int64 processing_time_ms = 5;  // Processing duration in milliseconds
+  int32 retry_count = 6;         // Number of processing retries
+  string checksum = 7;           // Content integrity hash
+}
+
+enum Priority {
+  PRIORITY_UNSPECIFIED = 0;
+  PRIORITY_LOW = 1;
+  PRIORITY_MEDIUM = 2;
+  PRIORITY_HIGH = 3;
+  PRIORITY_CRITICAL = 4;
+}
+
+enum Classification {
+  CLASSIFICATION_UNSPECIFIED = 0;
+  CLASSIFICATION_PUBLIC = 1;
+  CLASSIFICATION_INTERNAL = 2;
+  CLASSIFICATION_CONFIDENTIAL = 3;
+  CLASSIFICATION_RESTRICTED = 4;
+}
+```
+
+#### 6.3.2 Event-Specific Data Structures
+
+**News Event Data:**
+```protobuf
+message NewsEventData {
+  string headline = 1;
+  string summary = 2;
+  string full_text = 3;
+  string url = 4;
+  string author = 5;
+  string publisher = 6;
+  string language = 7;
+  
+  // Sentiment analysis
+  SentimentAnalysis sentiment = 8;
+  
+  // Named entities
+  repeated Entity entities = 9;
+  repeated string categories = 10;
+  double importance = 11;        // 0.0 to 1.0 importance score
+  
+  // Market impact assessment
+  MarketImpact market_impact = 12;
+}
+
+message SentimentAnalysis {
+  double overall = 1;            // -1.0 to 1.0
+  double confidence = 2;         // 0.0 to 1.0
+  repeated AspectSentiment aspects = 3;
+}
+
+message AspectSentiment {
+  string aspect = 1;
+  double sentiment = 2;
+  double confidence = 3;
+}
+
+message Entity {
+  EntityType type = 1;
+  string name = 2;
+  double relevance = 3;          // 0.0 to 1.0
+  string identifier = 4;         // Internal ID if known
+}
+
+enum EntityType {
+  ENTITY_TYPE_UNSPECIFIED = 0;
+  ENTITY_TYPE_PERSON = 1;
+  ENTITY_TYPE_ORGANIZATION = 2;
+  ENTITY_TYPE_LOCATION = 3;
+  ENTITY_TYPE_INSTRUMENT = 4;
+}
+
+message MarketImpact {
+  ImpactDirection expected = 1;
+  ImpactMagnitude magnitude = 2;
+  TimeHorizon time_horizon = 3;
+}
+
+enum ImpactDirection {
+  IMPACT_DIRECTION_UNSPECIFIED = 0;
+  IMPACT_DIRECTION_POSITIVE = 1;
+  IMPACT_DIRECTION_NEGATIVE = 2;
+  IMPACT_DIRECTION_NEUTRAL = 3;
+}
+
+enum ImpactMagnitude {
+  IMPACT_MAGNITUDE_UNSPECIFIED = 0;
+  IMPACT_MAGNITUDE_LOW = 1;
+  IMPACT_MAGNITUDE_MEDIUM = 2;
+  IMPACT_MAGNITUDE_HIGH = 3;
+}
+
+enum TimeHorizon {
+  TIME_HORIZON_UNSPECIFIED = 0;
+  TIME_HORIZON_IMMEDIATE = 1;
+  TIME_HORIZON_SHORT_TERM = 2;
+  TIME_HORIZON_LONG_TERM = 3;
+}
+```
+
+**Earnings Event Data:**
+```protobuf
+message EarningsEventData {
+  ReportType report_type = 1;
+  EarningsPeriod period = 2;
+  EarningsAnnouncement announcement = 3;
+  EarningsEstimates estimates = 4;
+  EarningsGuidance guidance = 5;
+  ConferenceCallInfo call_info = 6;
+}
+
+enum ReportType {
+  REPORT_TYPE_UNSPECIFIED = 0;
+  REPORT_TYPE_PRELIMINARY = 1;
+  REPORT_TYPE_OFFICIAL = 2;
+  REPORT_TYPE_RESTATEMENT = 3;
+}
+
+message EarningsPeriod {
+  PeriodType type = 1;
+  int32 year = 2;
+  int32 quarter = 3;           // Only for quarterly
+  int32 fiscal_year = 4;
+  int32 fiscal_quarter = 5;    // Only for quarterly
+}
+
+enum PeriodType {
+  PERIOD_TYPE_UNSPECIFIED = 0;
+  PERIOD_TYPE_QUARTERLY = 1;
+  PERIOD_TYPE_ANNUAL = 2;
+}
+
+message EarningsAnnouncement {
+  google.protobuf.Timestamp date = 1;
+  string time = 2;             // Time if known
+  bool is_premarket = 3;
+  bool is_after_hours = 4;
+}
+
+message EarningsEstimates {
+  EpsEstimate eps = 1;
+  RevenueEstimate revenue = 2;
+}
+
+message EpsEstimate {
+  double actual = 1;
+  double consensus = 2;
+  double surprise = 3;         // actual - consensus
+  double surprise_percent = 4;
+}
+
+message RevenueEstimate {
+  double actual = 1;
+  double consensus = 2;
+  double surprise = 3;
+  double surprise_percent = 4;
+}
+```
+
+**Technical Signal Event Data:**
+```protobuf
+message TechnicalSignalEventData {
+  SignalType signal_type = 1;
+  string indicator = 2;        // RSI, MACD, Moving Average, etc.
+  string timeframe = 3;        // 1m, 5m, 15m, 1h, 1d, etc.
+  
+  Signal signal = 4;
+  PriceContext price_context = 5;
+  TechnicalLevels technical_levels = 6;
+}
+
+enum SignalType {
+  SIGNAL_TYPE_UNSPECIFIED = 0;
+  SIGNAL_TYPE_BREAKOUT = 1;
+  SIGNAL_TYPE_BREAKDOWN = 2;
+  SIGNAL_TYPE_REVERSAL = 3;
+  SIGNAL_TYPE_CONTINUATION = 4;
+  SIGNAL_TYPE_DIVERGENCE = 5;
+}
+
+message Signal {
+  SignalDirection direction = 1;
+  double strength = 2;         // 0.0 to 1.0
+  double confidence = 3;       // 0.0 to 1.0
+}
+
+enum SignalDirection {
+  SIGNAL_DIRECTION_UNSPECIFIED = 0;
+  SIGNAL_DIRECTION_BULLISH = 1;
+  SIGNAL_DIRECTION_BEARISH = 2;
+  SIGNAL_DIRECTION_NEUTRAL = 3;
 }
 
 enum EventType {
@@ -485,43 +743,75 @@ interface TechnicalSignalEventData {
 
 #### 6.4.1 Ingestion Layer
 
-**Event Producers:**
+**Python Event Producers with Protocol Buffers:**
+
 ```python
+# src/events/producer.py
+import redis
+import uuid
+from datetime import datetime
+from google.protobuf.json_format import MessageToDict
+from google.protobuf.timestamp_pb2 import Timestamp
+from events.proto.events_pb2 import Event, EventType, Priority, Classification
+
 class EventProducer:
-    def __init__(self, kafka_client: KafkaClient, schema_registry: SchemaRegistry):
-        self.kafka = kafka_client
-        self.schema_registry = schema_registry
-        self.validator = EventValidator()
+    def __init__(self, redis_client: redis.Redis):
+        self.redis = redis_client
         
-    async def publish_event(self, event: BaseEvent) -> EventPublishResult:
-        # 1. Validate event against schema
-        validation_result = await self.validator.validate(event)
-        if not validation_result.is_valid:
-            raise EventValidationError(validation_result.errors)
-            
-        # 2. Assign routing key based on event properties
-        partition_key = self._get_partition_key(event)
-        topic = self._get_topic_name(event.eventType)
+    def publish_event(self, event: Event) -> str:
+        """Publish event to Redis queue with Protocol Buffer serialization"""
         
-        # 3. Add system metadata
-        event.metadata.ingestionTime = datetime.utcnow().isoformat()
-        event.metadata.checksum = self._calculate_checksum(event.data)
+        # 1. Set system metadata
+        event.event_id = str(uuid.uuid4()) if not event.event_id else event.event_id
+        event.ingestion_time.CopyFrom(Timestamp(seconds=int(datetime.utcnow().timestamp())))
         
-        # 4. Serialize and publish
-        serialized_event = self._serialize_event(event)
-        await self.kafka.produce(
-            topic=topic,
-            key=partition_key,
-            value=serialized_event,
-            headers=self._get_headers(event)
-        )
+        # 2. Validate event (basic validation)
+        self._validate_event(event)
         
-        return EventPublishResult(
-            event_id=event.eventId,
-            topic=topic,
-            partition=partition_key,
-            timestamp=event.metadata.ingestionTime
-        )
+        # 3. Serialize to bytes and publish to Redis
+        serialized_event = event.SerializeToString()
+        queue_name = f"events:{event.event_type.name.lower()}"
+        
+        # 4. Push to Redis queue (atomic operation)
+        self.redis.lpush(queue_name, serialized_event)
+        
+        return event.event_id
+        
+    def _validate_event(self, event: Event):
+        """Basic event validation"""
+        if not event.event_id:
+            raise ValueError("Event ID is required")
+        if not event.subject.symbol and not event.subject.instrument_id:
+            raise ValueError("Event subject must have symbol or instrument_id")
+        if event.event_type == EventType.EVENT_TYPE_UNSPECIFIED:
+            raise ValueError("Event type must be specified")
+
+# Usage example:
+def create_news_event(headline: str, symbol: str, sentiment: float = 0.0):
+    """Factory function to create news events"""
+    from events.proto.events_pb2 import NewsEventData, SentimentAnalysis
+    
+    event = Event()
+    event.event_type = EventType.EVENT_TYPE_NEWS
+    event.event_version = "1.0.0"
+    event.timestamp.CopyFrom(Timestamp(seconds=int(datetime.utcnow().timestamp())))
+    event.source = "polygon"
+    
+    # Subject
+    event.subject.symbol = symbol
+    event.subject.exchange = "NASDAQ"  # Could be determined from symbol lookup
+    
+    # News-specific data
+    event.news_data.headline = headline
+    event.news_data.sentiment.overall = sentiment
+    event.news_data.sentiment.confidence = 0.8
+    
+    # Metadata  
+    event.metadata.priority = Priority.PRIORITY_HIGH if abs(sentiment) > 0.5 else Priority.PRIORITY_MEDIUM
+    event.metadata.classification = Classification.CLASSIFICATION_PUBLIC
+    event.metadata.tags.extend(["automated", "sentiment-analyzed"])
+    
+    return event
 ```
 
 **Event Validation:**
@@ -556,9 +846,202 @@ class EventValidator:
         )
 ```
 
-#### 6.4.2 Stream Processing Layer
+#### 6.4.2 Celery Event Processing Layer
 
-**Complex Event Processing (CEP) with Apache Flink:**
+**Celery Workers with Protocol Buffers:**
+
+```python
+# src/events/consumers.py
+import redis
+from celery import Celery
+from sqlalchemy.orm import Session
+from google.protobuf.json_format import MessageToDict
+from events.proto.events_pb2 import Event
+from events.database import EventStorage
+from events.correlation import CorrelationEngine
+
+# Celery app configuration
+celery_app = Celery('event_processor')
+celery_app.conf.update(
+    broker_url='redis://localhost:6379/0',
+    result_backend='redis://localhost:6379/0',
+    task_serializer='json',
+    accept_content=['json'],
+    result_serializer='json',
+    timezone='UTC'
+)
+
+@celery_app.task(bind=True, max_retries=3)
+def process_event_from_queue(self, queue_name: str):
+    """Process single event from Redis queue"""
+    redis_client = redis.Redis(host='localhost', port=6379, db=0)
+    event_storage = EventStorage()
+    correlation_engine = CorrelationEngine()
+    
+    try:
+        # 1. Pop event from queue (blocking with timeout)
+        result = redis_client.brpop([queue_name], timeout=30)
+        if not result:
+            return f"No events in queue {queue_name}"
+            
+        queue, serialized_event = result
+        
+        # 2. Deserialize Protocol Buffer
+        event = Event()
+        event.ParseFromString(serialized_event)
+        
+        # 3. Store event in PostgreSQL (as JSONB)
+        event_dict = MessageToDict(event, preserving_proto_field_name=True)
+        event_storage.store_event(event_dict)
+        
+        # 4. Run correlation analysis
+        correlations = correlation_engine.find_correlations(event)
+        if correlations:
+            for correlation in correlations:
+                correlation_storage.store_correlation(correlation)
+                
+        # 5. Generate training dataset record if needed
+        if should_include_in_training(event):
+            training_dataset_writer.append_event(event)
+            
+        return f"Successfully processed event {event.event_id}"
+        
+    except Exception as exc:
+        # Retry with exponential backoff
+        countdown = 2 ** self.request.retries
+        raise self.retry(exc=exc, countdown=countdown)
+
+@celery_app.task
+def batch_process_events(queue_names: list, batch_size: int = 100):
+    """Process events in batches for efficiency"""
+    for queue_name in queue_names:
+        for _ in range(batch_size):
+            process_event_from_queue.delay(queue_name)
+
+# Periodic tasks
+@celery_app.task
+def hourly_event_processing():
+    """Scheduled task to process events every hour"""
+    queues = ['events:news', 'events:earnings', 'events:technical']
+    batch_process_events.delay(queues, batch_size=50)
+```
+
+**Simple Correlation Engine:**
+
+```python
+# src/events/correlation.py
+from typing import List, Optional
+from datetime import datetime, timedelta
+from events.proto.events_pb2 import Event, EventType
+
+class CorrelationEngine:
+    def __init__(self, db_session):
+        self.db = db_session
+        
+    def find_correlations(self, event: Event) -> List[dict]:
+        """Find correlations with recent events for the same symbol"""
+        correlations = []
+        
+        # Look for events in the last hour for the same symbol
+        if not event.subject.symbol:
+            return correlations
+            
+        time_window = timedelta(hours=1)
+        cutoff_time = datetime.utcnow() - time_window
+        
+        # Query recent events for same symbol
+        recent_events = self.db.query_events(
+            symbol=event.subject.symbol,
+            after_timestamp=cutoff_time,
+            limit=50
+        )
+        
+        for recent_event in recent_events:
+            if recent_event['event_id'] == event.event_id:
+                continue
+                
+            # Simple correlation rules
+            correlation_score = self._calculate_correlation_score(event, recent_event)
+            if correlation_score > 0.5:
+                correlations.append({
+                    'primary_event_id': event.event_id,
+                    'related_event_id': recent_event['event_id'],
+                    'correlation_type': 'temporal',
+                    'correlation_score': correlation_score,
+                    'time_lag_seconds': int((datetime.utcnow() - recent_event['timestamp']).total_seconds())
+                })
+                
+        return correlations
+        
+    def _calculate_correlation_score(self, event1: Event, event2: dict) -> float:
+        """Calculate simple correlation score between events"""
+        score = 0.0
+        
+        # Same symbol = +0.3
+        if event1.subject.symbol == event2.get('subject', {}).get('symbol'):
+            score += 0.3
+            
+        # News followed by technical signal = +0.4
+        if (event1.event_type == EventType.EVENT_TYPE_NEWS and 
+            event2.get('event_type') == 'technical_signal'):
+            score += 0.4
+            
+        # Similar sentiment direction = +0.3
+        if self._similar_sentiment(event1, event2):
+            score += 0.3
+            
+        return min(score, 1.0)  # Cap at 1.0
+```
+
+**Database Storage with Protocol Buffers:**
+
+```python
+# src/events/database.py
+import json
+from sqlalchemy import Column, String, DateTime, Text, Index
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from google.protobuf.json_format import MessageToDict
+
+class EventStorage:
+    def store_event(self, event_dict: dict):
+        """Store Protocol Buffer event as JSONB in PostgreSQL"""
+        
+        # Create event record
+        event_record = {
+            'event_id': event_dict['event_id'],
+            'event_type': event_dict['event_type'],
+            'symbol': event_dict.get('subject', {}).get('symbol'),
+            'timestamp': event_dict['timestamp'],
+            'source': event_dict['source'],
+            'event_data': event_dict,  # Full proto as JSONB
+            'search_vector': self._create_search_vector(event_dict)
+        }
+        
+        # Insert into PostgreSQL
+        self.db.execute("""
+            INSERT INTO events (event_id, event_type, symbol, timestamp, source, event_data, search_vector)
+            VALUES (:event_id, :event_type, :symbol, :timestamp, :source, :event_data, to_tsvector(:search_vector))
+            ON CONFLICT (event_id) DO NOTHING
+        """, event_record)
+        
+    def query_events(self, symbol=None, event_type=None, limit=100):
+        """Query events from PostgreSQL"""
+        query = "SELECT * FROM events WHERE 1=1"
+        params = {}
+        
+        if symbol:
+            query += " AND symbol = :symbol"
+            params['symbol'] = symbol
+            
+        if event_type:
+            query += " AND event_type = :event_type" 
+            params['event_type'] = event_type
+            
+        query += " ORDER BY timestamp DESC LIMIT :limit"
+        params['limit'] = limit
+        
+        return self.db.execute(query, params).fetchall()
+```
 ```java
 public class EventCorrelationProcessor extends RichCoProcessFunction<BaseEvent, BaseEvent, CorrelatedEvent> {
     
@@ -1514,74 +1997,78 @@ class EventEncryptionService:
 
 ## 7. Implementation Plan
 
-### 7.1 Development Phases
+### 7.1 Python-Based Development Phases
 
-#### Phase 1: Foundation (Months 1-3)
+#### Phase 1: Protocol Buffer Foundation (Weeks 1-4)
 **Deliverables:**
-- [ ] Event schema design and validation
-- [ ] Kafka cluster setup and configuration  
-- [ ] Basic event producers for existing data sources
-- [ ] PostgreSQL event store with time-based partitioning
-- [ ] Simple event consumers for core event types
-- [ ] GraphQL API with basic event queries
+- [ ] Protocol Buffer schema design and Python code generation
+- [ ] Redis queue setup and configuration using existing Docker
+- [ ] Basic event producers for existing data sources (Polygon, Tiingo)
+- [ ] PostgreSQL event table with JSONB support and time-based partitioning
+- [ ] Simple Celery workers for core event types
+- [ ] Integration with existing `run_dev.py` workflow
 
 **Success Criteria:**
-- 100K events/second throughput
-- <50ms ingestion latency
-- All existing news/earnings data migrated
+- 1K events/hour throughput 
+- <30 second end-to-end processing
+- All existing news/earnings data can be converted to proto format
 
-#### Phase 2: Stream Processing (Months 4-6)  
+#### Phase 2: Event Processing & Correlation (Weeks 5-8)  
 **Deliverables:**
-- [ ] Apache Flink deployment for CEP
-- [ ] Event correlation detection algorithms
-- [ ] Real-time materialized views in ClickHouse
-- [ ] WebSocket API for live event streams
-- [ ] Advanced filtering and search capabilities
-- [ ] Monitoring and alerting system
+- [ ] Celery worker deployment and scaling
+- [ ] Simple correlation detection algorithms 
+- [ ] FastAPI + GraphQL endpoint for event queries
+- [ ] Basic event search and filtering capabilities
+- [ ] Integration with training dataset generation (.riegeli proto arrays)
+- [ ] Simple monitoring using existing infrastructure
 
 **Success Criteria:**
-- Real-time correlation detection
-- <100ms end-to-end processing latency
-- 99.9% system availability
+- Basic event correlation working
+- <30 second processing latency maintained
+- Events flowing to training datasets correctly
 
-#### Phase 3: Advanced Analytics (Months 7-12)
+#### Phase 3: Enhancement & Integration (Weeks 9-12)
 **Deliverables:**
-- [ ] Causal inference models for event relationships
-- [ ] ML-powered anomaly detection
-- [ ] Advanced pattern recognition algorithms
-- [ ] Regulatory compliance reporting automation
-- [ ] Performance optimization and scaling
-- [ ] Comprehensive testing and validation
+- [ ] Enhanced correlation algorithms and pattern detection
+- [ ] Complete API coverage for all event types
+- [ ] Event analytics and reporting capabilities
+- [ ] Performance optimization and horizontal scaling
+- [ ] Integration testing with existing ML pipeline
+- [ ] Documentation and deployment procedures
 
 **Success Criteria:**
-- 40% reduction in false signals
-- 90% automated compliance reporting
-- 1M+ events/second sustained throughput
+- 40% reduction in false signals through better correlation
+- 10K events/hour sustained throughput
+- Complete integration with training data pipeline
 
-### 7.2 Resource Requirements
+### 7.2 Python-Based Resource Requirements
 
-#### Team Structure
-- **Tech Lead**: Overall architecture and technical decisions
-- **Backend Engineers (3)**: Event processing, APIs, database optimization
-- **Data Engineers (2)**: ETL, data quality, vendor integrations  
-- **DevOps Engineer (1)**: Infrastructure, monitoring, deployments
-- **QA Engineer (1)**: Testing, validation, performance testing
-- **Product Manager (0.5)**: Requirements, stakeholder management
+#### Team Structure (Simplified)
+- **Senior Backend Engineer (1)**: Python development, Protocol Buffers, event processing
+- **Backend Engineer (1)**: API development, database optimization, integration
+- **DevOps/SRE (0.5)**: Docker, Redis, deployment automation (leverages existing)
 
-#### Infrastructure Requirements
-- **Kafka Cluster**: 10-node cluster (m5.2xlarge)
-- **Flink Cluster**: 15-node cluster (m5.xlarge) 
-- **PostgreSQL**: Multi-AZ RDS (db.r5.2xlarge)
-- **ClickHouse**: 5-node cluster (m5.2xlarge)
-- **Redis**: ElastiCache cluster (r5.xlarge)
-- **Load Balancers**: Application Load Balancer
-- **Monitoring**: Prometheus + Grafana + ELK Stack
+**Total Team: 2.5 people vs 8 people in original plan**
 
-#### Budget Estimation
-- **Development Team**: $2.1M annually
-- **Infrastructure Costs**: $400K annually  
-- **Third-party Software**: $100K annually
-- **Total Implementation Cost**: $2.6M for first year
+#### Infrastructure Requirements (Minimal)
+- **Redis**: Single instance with persistence (existing Docker setup)
+- **PostgreSQL**: Existing database with additional event tables
+- **Celery Workers**: 3-5 Python processes (can run on existing servers)
+- **FastAPI Service**: Single Python service (existing pattern)
+- **Monitoring**: Existing Prometheus/Grafana stack
+
+**Key Point**: Leverages existing Docker infrastructure managed by `run_dev.py`
+
+#### Budget Estimation (Dramatically Reduced)
+- **Development Team**: $350K for 3 months (2.5 people × $140K annual × 0.25 year)
+- **Infrastructure Costs**: $200/month additional (Redis persistence, minor scaling)
+- **Third-party Software**: $0 (using open source: Redis, Celery, PostgreSQL, FastAPI)
+- **Total Implementation Cost**: ~$355K vs $2.6M (86% cost reduction)
+
+#### ROI Comparison
+- **Original Plan**: $2.6M implementation, 4-month payback
+- **Python Plan**: $355K implementation, 1-2 month payback  
+- **Risk Reduction**: Much lower complexity, faster delivery, easier maintenance
 
 ### 7.3 Risk Mitigation Plan
 
@@ -1633,12 +2120,12 @@ class EventEncryptionService:
 
 | Metric | Current | Target | Measurement Method |
 |--------|---------|--------|-------------------|
-| Event Ingestion Latency | 500ms | <10ms (p99) | Prometheus histogram |
-| Processing Throughput | 10K/sec | 1M+/sec | Events processed counter |
-| End-to-End Latency | 2000ms | <100ms (p99) | Distributed tracing |
-| System Availability | 99.5% | 99.95% | Uptime monitoring |
-| Query Response Time | 200ms | <50ms (p95) | API response metrics |
-| Storage Efficiency | N/A | 10:1 compression | Storage usage metrics |
+| Event Ingestion Latency | 500ms | <5 seconds (p99) | Celery task timing |
+| Processing Throughput | Manual | 1K-10K/hour | Events processed counter |
+| End-to-End Latency | Manual | <30 seconds (p99) | Redis queue + DB timing |
+| System Availability | 95% | 99.9% | Docker container uptime |
+| Query Response Time | 1000ms | <500ms (p95) | FastAPI response metrics |
+| Storage Efficiency | N/A | Proto compression | PostgreSQL storage metrics |
 
 ### 8.2 Business Impact Metrics
 
@@ -1663,29 +2150,35 @@ class EventEncryptionService:
 
 ## 9. Conclusion
 
-This comprehensive PRD and DRD outlines the transformation of the ATS event system into a world-class, event-driven architecture capable of processing financial events at unprecedented scale and intelligence. The proposed system leverages industry best practices including event sourcing, stream processing, and advanced analytics to deliver significant competitive advantages.
+This revised PRD and DRD outlines a practical, Python-native transformation of the ATS event system that balances functionality with implementation simplicity. The proposed system leverages Protocol Buffers for standardization while using familiar Python technologies to deliver significant value at a fraction of the cost and complexity.
 
-**Key Benefits:**
-- **Performance**: Sub-100ms event processing with 1M+ events/second throughput
-- **Intelligence**: Advanced correlation detection and causal inference capabilities
-- **Reliability**: 99.95% availability with automated recovery and resilience
-- **Compliance**: Automated regulatory reporting and audit trail capabilities
-- **Scalability**: Cloud-native architecture that scales with business growth
+**Key Benefits of Python-Based Approach:**
+- **Performance**: <30 second event processing with 1K-10K events/hour throughput (appropriate for hourly data)
+- **Integration**: Seamless Protocol Buffer serialization for database + training dataset storage  
+- **Simplicity**: Python-native stack (Redis, Celery, FastAPI) integrated with existing infrastructure
+- **Cost-Effective**: 86% cost reduction ($355K vs $2.6M) with 1-2 month payback
+- **Low Risk**: Builds on existing Docker patterns and team Python expertise
 
 **Success Factors:**
-1. **Strong Technical Foundation**: Proven technologies (Kafka, Flink, PostgreSQL)
-2. **Phased Implementation**: Incremental value delivery with minimal disruption
-3. **Comprehensive Testing**: Extensive validation at every level
-4. **Performance Focus**: Optimization for low-latency, high-throughput processing
-5. **Security-First**: Data protection and compliance built into the architecture
+1. **Appropriate Scale**: Right-sized for hourly event frequency vs high-frequency trading
+2. **Protocol Buffer Foundation**: Standardized serialization across DB and training data
+3. **Existing Infrastructure**: Leverages current Docker, PostgreSQL, and `run_dev.py` workflows
+4. **Team Skills**: Matches existing Python expertise and reduces learning curve
+5. **Incremental Value**: Quick wins in 3-month timeline with immediate ROI
+
+**Implementation Advantages:**
+- **Faster Delivery**: 3 months vs 12 months
+- **Lower Complexity**: Simple message queue vs complex streaming platform
+- **Better Integration**: Native integration with existing training data pipeline
+- **Easier Maintenance**: Familiar Python stack vs specialized streaming infrastructure
 
 **Next Steps:**
-1. **Stakeholder Approval**: Review and approval of technical architecture
-2. **Team Formation**: Assemble development team with required skills
-3. **Infrastructure Setup**: Provision development and testing environments
-4. **Phase 1 Kickoff**: Begin implementation with event schema and basic streaming
+1. **Stakeholder Approval**: Review Python-based architecture approach
+2. **Protocol Buffer Design**: Finalize event schemas and generate Python code
+3. **Infrastructure Setup**: Configure Redis and Celery within existing Docker environment  
+4. **Phase 1 Kickoff**: Begin with basic event ingestion and storage
 
-This event system redesign positions ATS as a leader in financial technology, providing the foundation for advanced algorithmic trading, risk management, and regulatory compliance capabilities that will drive significant competitive advantage and business value.
+This Python-native event system redesign provides the foundation for improved event correlation and training data integration while maintaining the simplicity and reliability that matches ATS's current operational model and hourly data processing requirements.
 
 ---
 
