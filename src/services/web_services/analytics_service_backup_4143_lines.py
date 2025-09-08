@@ -1586,8 +1586,8 @@ class UnifiedAnalyticsService:
                 'total_events': 0
             }
 
-    def get_earnings_events(self, limit: int = 100, symbol: str = None) -> Dict[str, Any]:
-        """Get recent earnings events from dev_earnings_events table."""
+    def get_earnings_events(self, limit: int = 100, symbol: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
+        """Get recent earnings events from dev_earnings_events table with optional filters."""
         try:
             from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
@@ -1619,11 +1619,21 @@ class UnifiedAnalyticsService:
                         WHERE 1=1
                     """
 
+                    params = []
+
+                    # Add symbol filter
                     if symbol:
                         earnings_query += " AND UPPER(symbol) = UPPER(%s)"
-                        params = [symbol]
-                    else:
-                        params = []
+                        params.append(symbol)
+
+                    # Add date range filters
+                    if start_date:
+                        earnings_query += " AND report_period >= %s"
+                        params.append(start_date)
+                    
+                    if end_date:
+                        earnings_query += " AND report_period <= %s"
+                        params.append(end_date)
 
                     earnings_query += " ORDER BY report_period DESC, created_at DESC LIMIT %s"
                     params.append(limit)
@@ -1682,7 +1692,11 @@ class UnifiedAnalyticsService:
                             'guidance_raised': guidance_raised_count,
                             'guidance_lowered': guidance_lowered_count
                         },
-                        'symbol_filter': symbol,
+                        'filters': {
+                            'symbol_filter': symbol,
+                            'start_date': start_date,
+                            'end_date': end_date
+                        },
                         'query_timestamp': datetime.now().isoformat()
                     }
 
@@ -2379,19 +2393,51 @@ class UnifiedAnalyticsService:
                     loadNewsEvents();
                 }
 
-                async function loadEarningsEvents() {
+                async function loadEarningsEvents(symbolFilter = '', startDate = '', endDate = '') {
                     document.getElementById('analysis-content').innerHTML =
                         '<h3>📊 Earnings Events</h3><p>Loading earnings events data...</p>';
 
                     try {
+                        // Build query parameters
+                        let params = new URLSearchParams();
+                        params.append('limit', '50');
+                        if (symbolFilter) params.append('symbol', symbolFilter);
+                        if (startDate) params.append('start_date', startDate);
+                        if (endDate) params.append('end_date', endDate);
+
                         // Fetch earnings events
-                        const response = await fetch('/api/earnings-events?limit=50');
+                        const response = await fetch('/api/earnings-events?' + params.toString());
                         const data = await response.json();
 
                         let html = '';
 
                         if (data.success && data.events) {
                             html = '<h3>📊 Earnings Events Analysis</h3>' +
+                                
+                                '<!-- Filter Controls -->' +
+                                '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">' +
+                                    '<h4 style="margin: 0 0 15px 0;">🔍 Filters</h4>' +
+                                    '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end;">' +
+                                        '<div>' +
+                                            '<label style="display: block; margin-bottom: 5px; font-weight: bold;">Symbol:</label>' +
+                                            '<input type="text" id="symbol-filter" placeholder="e.g. AAPL" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" value="' + (symbolFilter || '') + '">' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<label style="display: block; margin-bottom: 5px; font-weight: bold;">Start Date:</label>' +
+                                            '<input type="date" id="start-date-filter" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" value="' + (startDate || '') + '">' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<label style="display: block; margin-bottom: 5px; font-weight: bold;">End Date:</label>' +
+                                            '<input type="date" id="end-date-filter" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" value="' + (endDate || '') + '">' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<button onclick="applyEarningsFilters()" style="background: #673ab7; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; width: 100%;">Apply Filters</button>' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<button onclick="clearEarningsFilters()" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; width: 100%;">Clear</button>' +
+                                        '</div>' +
+                                    '</div>' +
+                                '</div>' +
                                 
                                 '<!-- Summary Cards -->' +
                                 '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">' +
@@ -2529,6 +2575,22 @@ class UnifiedAnalyticsService:
                         document.getElementById('analysis-content').innerHTML =
                             '<h3>📊 Earnings Events</h3><p style="color: red;">Error loading earnings events: ' + error.message + '</p>';
                     }
+                }
+
+                function applyEarningsFilters() {
+                    const symbolFilter = document.getElementById('symbol-filter').value.trim();
+                    const startDate = document.getElementById('start-date-filter').value;
+                    const endDate = document.getElementById('end-date-filter').value;
+                    
+                    loadEarningsEvents(symbolFilter, startDate, endDate);
+                }
+
+                function clearEarningsFilters() {
+                    document.getElementById('symbol-filter').value = '';
+                    document.getElementById('start-date-filter').value = '';
+                    document.getElementById('end-date-filter').value = '';
+                    
+                    loadEarningsEvents('', '', '');
                 }
 
                 async function loadTrainingDatasets() {
@@ -4454,12 +4516,14 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 limit = 100  # Default fallback
 
             symbol = query_params.get('symbol', [None])[0]
+            start_date = query_params.get('start_date', [None])[0]
+            end_date = query_params.get('end_date', [None])[0]
 
             # Limit the results to reasonable bounds
             limit = min(max(limit, 1), 500)  # Between 1 and 500 events
 
             # Get earnings events from the analytics service
-            earnings_data = self.analytics_service.get_earnings_events(limit=limit, symbol=symbol)
+            earnings_data = self.analytics_service.get_earnings_events(limit=limit, symbol=symbol, start_date=start_date, end_date=end_date)
             self.wfile.write(json.dumps(earnings_data, indent=2, default=str).encode('utf-8'))
 
         except Exception as e:
