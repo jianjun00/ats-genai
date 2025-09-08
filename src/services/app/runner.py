@@ -3,17 +3,16 @@ from typing import List, Optional
 
 
 from core.platform.config.environment import Environment, EnvironmentType
-from market_data.market_data_manager import MarketDataManager
-from market_data.eod.daily_price_market_data_manager import DailyPriceMarketDataManager
-from secmaster.security_master import SecurityMaster
-from state.universe_state_manager import UniverseStateManager
-from state.run_aware_universe_state_manager import RunAwareUniverseStateManager
+from domains.market_data.services.core.market_data_manager import MarketDataManager
+from domains.market_data.services.vendor_adapters.eod.daily_price_market_data_manager import DailyPriceMarketDataManager
+from domains.instruments.services.secmaster.security_master import SecurityMaster
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from core.business.calendars.time_duration import TimeDuration
-from universe.universe_manager import UniverseManager
+from domains.trading.services.universe.universe_manager import UniverseManager
 from core.shared.run_context import RunContext, create_run_context
 from core.shared.run_aware_logging import setup_run_aware_logging, get_run_aware_logger
 
-from state.runner_callback import RunnerCallback
+from domains.trading.services.state.runner_callback import RunnerCallback
 
 import gin
 
@@ -78,19 +77,19 @@ class Runner:
         # Disable metadata generation during tests
         is_test_env = self.env and self.env.env_type == EnvironmentType.TEST
         
-        # Use run-aware universe state manager if run isolation is enabled
+        # Initialize universe state manager with run context support
         if universe_state_manager is not None:
             self.universe_state_manager = universe_state_manager
-        elif enable_run_isolation and self.run_context:
-            self.universe_state_manager = RunAwareUniverseStateManager(
-                self.env, 
-                run_context=self.run_context,
-                write_metadata=not is_test_env
-            )
-            self.logger.info(f"Using run-aware universe state manager with run_id: {self.run_context.run_id}")
         else:
-            self.universe_state_manager = UniverseStateManager(self.env, write_metadata=not is_test_env)
-            self.logger.info("Using legacy universe state manager")
+            self.universe_state_manager = UniverseStateManager(
+                self.env, 
+                write_metadata=not is_test_env,
+                run_context=self.run_context if enable_run_isolation else None
+            )
+            if enable_run_isolation and self.run_context:
+                self.logger.info(f"Using run-aware universe state manager with run_id: {self.run_context.run_id}")
+            else:
+                self.logger.info("Using legacy universe state manager")
         
         self.universe_manager = universe_manager if universe_manager is not None else UniverseManager(self.env, self.universe_id)
         self.market_data_manager = market_data_manager if market_data_manager is not None else DailyPriceMarketDataManager(self.env)
@@ -156,10 +155,15 @@ class Runner:
             if last_sod_date != day:
                 yield (sod_time, "sod")
                 last_sod_date = day
-            # Yield interval event (at SOD for now, can adjust for intraday if needed)
-            logging.debug(f"[Runner.iter_events] Yielding interval: {sod_time}")
-            print(f"[PRINT][Runner.iter_events] Yielding interval: {sod_time}")
-            yield (sod_time, "interval")
+            # Yield multiple interval events throughout the day based on base_duration
+            current_interval_time = sod_time
+            next_day = sod_time + timedelta(days=1)
+            
+            while current_interval_time < next_day:
+                logging.debug(f"[Runner.iter_events] Yielding interval: {current_interval_time}")
+                print(f"[PRINT][Runner.iter_events] Yielding interval: {current_interval_time}")
+                yield (current_interval_time, "interval")
+                current_interval_time = self._advance_time(current_interval_time)
             # EOD event
             eod_time = sod_time.replace(hour=23, minute=59, second=59, microsecond=0)
             logging.debug(f"[Runner.iter_events] Yielding eod: {eod_time}")
@@ -212,7 +216,9 @@ class Runner:
                     await end_update
                 for cb in self.callbacks:
                     if hasattr(cb, 'handleEnd'):
-                        cb.handleEnd(self, event_time)
+                        handle_end_result = cb.handleEnd(self, event_time)
+                        if hasattr(handle_end_result, '__await__'):
+                            await handle_end_result
 
     async def update_for_sod(self, current_time: datetime):
         """
