@@ -246,6 +246,54 @@ class TechnicalSignalEventData:
         return result
 
 @dataclass
+class GapFillData:
+    fill_date: Optional[datetime] = None
+    days_to_fill: int = 0
+    fill_percentage: float = 0.0
+    fill_type: str = ""  # full, partial, none
+    
+    def to_dict(self) -> dict:
+        return {
+            'fill_date': self.fill_date.isoformat() if self.fill_date else None,
+            'days_to_fill': self.days_to_fill,
+            'fill_percentage': self.fill_percentage,
+            'fill_type': self.fill_type
+        }
+
+@dataclass  
+class GapEventData:
+    gap_points: float = 0.0
+    gap_percentage: float = 0.0
+    gap_size_class: str = ""        # micro, small, medium, large, extreme
+    direction: str = ""             # gap_up, gap_down
+    prev_close: float = 0.0
+    open_price: float = 0.0
+    volume: int = 0
+    avg_volume: float = 0.0
+    volume_confirmed: bool = False
+    significance_score: float = 0.0
+    gap_context: str = ""           # earnings, news, market, continuation, reversal
+    fill_data: Optional[GapFillData] = None
+    
+    def to_dict(self) -> dict:
+        result = {
+            'gap_points': self.gap_points,
+            'gap_percentage': self.gap_percentage,
+            'gap_size_class': self.gap_size_class,
+            'direction': self.direction,
+            'prev_close': self.prev_close,
+            'open_price': self.open_price,
+            'volume': self.volume,
+            'avg_volume': self.avg_volume,
+            'volume_confirmed': self.volume_confirmed,
+            'significance_score': self.significance_score,
+            'gap_context': self.gap_context
+        }
+        if self.fill_data:
+            result['fill_data'] = self.fill_data.to_dict()
+        return result
+
+@dataclass
 class Event:
     event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     event_type: EventType = EventType.EVENT_TYPE_UNSPECIFIED
@@ -270,6 +318,7 @@ class Event:
     news_data: Optional[NewsEventData] = None
     earnings_data: Optional[EarningsEventData] = None
     technical_data: Optional[TechnicalSignalEventData] = None
+    gap_data: Optional[GapEventData] = None
     
     def __post_init__(self):
         if not self.timestamp:
@@ -321,6 +370,8 @@ class Event:
             result['earnings_data'] = self.earnings_data.to_dict()
         elif self.technical_data:
             result['technical_data'] = self.technical_data.to_dict()
+        elif self.gap_data:
+            result['gap_data'] = self.gap_data.to_dict()
             
         return result
     
@@ -495,5 +546,72 @@ def create_technical_signal_event(symbol: str, signal_type: SignalType,
     event.metadata.priority = (Priority.PRIORITY_HIGH if strength > 0.7
                               else Priority.PRIORITY_MEDIUM)
     event.metadata.tags = ["technical-analysis", indicator.lower()]
+    
+    return event
+
+def create_gap_event(symbol: str, gap_points: float, gap_percentage: float,
+                    direction: str, prev_close: float, open_price: float,
+                    volume: int, significance: float, gap_context: str = "market",
+                    fill_date: Optional[datetime] = None, days_to_fill: int = 0,
+                    fill_percentage: float = 0.0, fill_type: str = "") -> Event:
+    """Factory function to create price gap events"""
+    event = Event()
+    event.event_type = EventType.EVENT_TYPE_PRICE_GAP
+    event.source = "ats-internal"
+    
+    # Subject
+    event.subject.symbol = symbol
+    
+    # Classify gap size
+    gap_size = abs(gap_percentage)
+    if gap_size >= 5.0:
+        gap_size_class = "extreme"
+    elif gap_size >= 2.5:
+        gap_size_class = "large"
+    elif gap_size >= 1.0:
+        gap_size_class = "medium" 
+    elif gap_size >= 0.5:
+        gap_size_class = "small"
+    else:
+        gap_size_class = "micro"
+    
+    # Gap fill data if provided
+    fill_data = None
+    if fill_date:
+        fill_data = GapFillData(
+            fill_date=fill_date,
+            days_to_fill=days_to_fill,
+            fill_percentage=fill_percentage,
+            fill_type=fill_type
+        )
+    
+    # Gap-specific data
+    event.gap_data = GapEventData(
+        gap_points=gap_points,
+        gap_percentage=gap_percentage,
+        gap_size_class=gap_size_class,
+        direction=direction,
+        prev_close=prev_close,
+        open_price=open_price,
+        volume=volume,
+        avg_volume=volume,  # Will be calculated properly in backfill
+        volume_confirmed=False,  # Will be calculated properly
+        significance_score=significance,
+        gap_context=gap_context,
+        fill_data=fill_data
+    )
+    
+    # Set priority based on gap size and significance
+    if gap_size_class == "extreme" or significance > 10.0:
+        event.metadata.priority = Priority.PRIORITY_CRITICAL
+    elif gap_size_class == "large" or significance > 5.0:
+        event.metadata.priority = Priority.PRIORITY_HIGH
+    elif gap_size_class == "medium" or significance > 2.0:
+        event.metadata.priority = Priority.PRIORITY_MEDIUM
+    else:
+        event.metadata.priority = Priority.PRIORITY_LOW
+    
+    event.metadata.classification = Classification.CLASSIFICATION_INTERNAL
+    event.metadata.tags = ["gap-detection", direction, gap_size_class, gap_context]
     
     return event
