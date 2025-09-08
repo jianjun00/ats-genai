@@ -1586,6 +1586,115 @@ class UnifiedAnalyticsService:
                 'total_events': 0
             }
 
+    def get_earnings_events(self, limit: int = 100, symbol: str = None) -> Dict[str, Any]:
+        """Get recent earnings events from dev_earnings_events table."""
+        try:
+            from core.platform.database.connection_manager import get_raw_connection
+            import psycopg2.extras
+            from datetime import datetime, timedelta
+
+            with get_raw_connection() as conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+
+                    # Query earnings events
+                    earnings_query = """
+                        SELECT
+                            symbol,
+                            report_period,
+                            report_type,
+                            eps_actual_cents,
+                            eps_estimated_cents,
+                            eps_surprise_pct,
+                            revenue_actual_cents,
+                            revenue_estimated_cents,
+                            revenue_surprise_pct,
+                            earnings_call_datetime,
+                            earnings_beat,
+                            revenue_beat,
+                            guidance_raised,
+                            guidance_lowered,
+                            created_at,
+                            updated_at
+                        FROM dev_earnings_events
+                        WHERE 1=1
+                    """
+
+                    if symbol:
+                        earnings_query += " AND UPPER(symbol) = UPPER(%s)"
+                        params = [symbol]
+                    else:
+                        params = []
+
+                    earnings_query += " ORDER BY report_period DESC, created_at DESC LIMIT %s"
+                    params.append(limit)
+
+                    cursor.execute(earnings_query, params)
+                    earnings_events = cursor.fetchall()
+
+                    # Process earnings data
+                    processed_events = []
+                    for event in earnings_events:
+                        processed_event = {
+                            'symbol': event['symbol'],
+                            'report_period': event['report_period'].strftime('%Y-%m-%d') if event['report_period'] else None,
+                            'report_type': event['report_type'],
+                            'eps_actual': round(event['eps_actual_cents'] / 100, 2) if event['eps_actual_cents'] is not None else None,
+                            'eps_estimated': round(event['eps_estimated_cents'] / 100, 2) if event['eps_estimated_cents'] is not None else None,
+                            'eps_surprise_pct': float(event['eps_surprise_pct']) if event['eps_surprise_pct'] is not None else None,
+                            'revenue_actual_millions': round(event['revenue_actual_cents'] / 100_000_000, 1) if event['revenue_actual_cents'] is not None else None,
+                            'revenue_estimated_millions': round(event['revenue_estimated_cents'] / 100_000_000, 1) if event['revenue_estimated_cents'] is not None else None,
+                            'revenue_surprise_pct': float(event['revenue_surprise_pct']) if event['revenue_surprise_pct'] is not None else None,
+                            'earnings_call_datetime': event['earnings_call_datetime'].isoformat() if event['earnings_call_datetime'] else None,
+                            'earnings_beat': event['earnings_beat'],
+                            'revenue_beat': event['revenue_beat'],
+                            'guidance_raised': event['guidance_raised'],
+                            'guidance_lowered': event['guidance_lowered'],
+                            'created_at': event['created_at'].isoformat() if event['created_at'] else None,
+                            'updated_at': event['updated_at'].isoformat() if event['updated_at'] else None
+                        }
+                        processed_events.append(processed_event)
+
+                    # Get summary statistics
+                    unique_symbols = set(event['symbol'] for event in processed_events)
+                    
+                    # Count beats and misses
+                    eps_beats = sum(1 for event in processed_events if event['earnings_beat'] is True)
+                    eps_misses = sum(1 for event in processed_events if event['earnings_beat'] is False)
+                    revenue_beats = sum(1 for event in processed_events if event['revenue_beat'] is True)
+                    revenue_misses = sum(1 for event in processed_events if event['revenue_beat'] is False)
+                    
+                    # Count guidance changes
+                    guidance_raised_count = sum(1 for event in processed_events if event['guidance_raised'] is True)
+                    guidance_lowered_count = sum(1 for event in processed_events if event['guidance_lowered'] is True)
+
+                    logger.info(f"Retrieved {len(processed_events)} earnings events")
+
+                    return {
+                        'success': True,
+                        'events': processed_events,
+                        'total_events': len(processed_events),
+                        'unique_symbols': len(unique_symbols),
+                        'summary': {
+                            'eps_beats': eps_beats,
+                            'eps_misses': eps_misses,
+                            'revenue_beats': revenue_beats,
+                            'revenue_misses': revenue_misses,
+                            'guidance_raised': guidance_raised_count,
+                            'guidance_lowered': guidance_lowered_count
+                        },
+                        'symbol_filter': symbol,
+                        'query_timestamp': datetime.now().isoformat()
+                    }
+
+        except Exception as e:
+            logger.error(f"Error getting earnings events: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'events': [],
+                'total_events': 0
+            }
+
     # ==============================================
     # MULTI-PANEL VISUALIZATION (NEW)
     # ==============================================
@@ -1707,7 +1816,7 @@ class UnifiedAnalyticsService:
         <head>
             <meta charset="UTF-8">
             <title>ATS Unified Analytics - EDA Dashboard</title>
-            <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+            <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
             <style>
                 body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
                 .header { background: #2c3e50; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
@@ -1736,6 +1845,7 @@ class UnifiedAnalyticsService:
                 <button onclick="loadUniverseAnalytics()">🌐 Universe Analytics</button>
                 <button onclick="loadTrainingDatasets()">🤖 Training Datasets</button>
                 <button onclick="loadNewsEvents()">📰 News Events</button>
+                <button onclick="loadEarningsEvents()">📊 Earnings Events</button>
                 <button onclick="loadMultiPanelVisualization()">🎨 Multi-Panel Trading Charts</button>
                 <button onclick="loadRayAnalytics()">⚡ Distributed Analytics</button>
 
@@ -2267,6 +2377,158 @@ class UnifiedAnalyticsService:
 
                     // Reload news events without filters
                     loadNewsEvents();
+                }
+
+                async function loadEarningsEvents() {
+                    document.getElementById('analysis-content').innerHTML =
+                        '<h3>📊 Earnings Events</h3><p>Loading earnings events data...</p>';
+
+                    try {
+                        // Fetch earnings events
+                        const response = await fetch('/api/earnings-events?limit=50');
+                        const data = await response.json();
+
+                        let html = '';
+
+                        if (data.success && data.events) {
+                            html = '<h3>📊 Earnings Events Analysis</h3>' +
+                                
+                                '<!-- Summary Cards -->' +
+                                '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">' +
+                                    '<div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #1976d2;">Total Events</h4>' +
+                                        '<div style="font-size: 24px; font-weight: bold; color: #333;">' + data.total_events + '</div>' +
+                                    '</div>' +
+                                    '<div style="background: #e8f5e8; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #388e3c;">EPS Beats</h4>' +
+                                        '<div style="font-size: 24px; font-weight: bold; color: #333;">' + data.summary.eps_beats + '</div>' +
+                                        '<div style="font-size: 12px; color: #666;">vs ' + data.summary.eps_misses + ' misses</div>' +
+                                    '</div>' +
+                                    '<div style="background: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #f57c00;">Revenue Beats</h4>' +
+                                        '<div style="font-size: 24px; font-weight: bold; color: #333;">' + data.summary.revenue_beats + '</div>' +
+                                        '<div style="font-size: 12px; color: #666;">vs ' + data.summary.revenue_misses + ' misses</div>' +
+                                    '</div>' +
+                                    '<div style="background: #f3e5f5; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #7b1fa2;">Guidance Changes</h4>' +
+                                        '<div style="font-size: 16px; color: #333;">' +
+                                            '<span style="color: #4caf50;">↑' + data.summary.guidance_raised + '</span> |' +
+                                            '<span style="color: #f44336;">↓' + data.summary.guidance_lowered + '</span>' +
+                                        '</div>' +
+                                    '</div>' +
+                                    '<div style="background: #fce4ec; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #c2185b;">Unique Symbols</h4>' +
+                                        '<div style="font-size: 24px; font-weight: bold; color: #333;">' + data.unique_symbols + '</div>' +
+                                    '</div>' +
+                                '</div>' +
+
+                                '<!-- Earnings Events Table -->' +
+                                '<div style="background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">' +
+                                    '<div style="background: #673ab7; color: white; padding: 15px;">' +
+                                        '<h4 style="margin: 0;">📊 Recent Earnings Events</h4>' +
+                                    '</div>' +
+                                    '<div style="max-height: 600px; overflow-y: auto;">' +
+                                        '<table style="width: 100%; border-collapse: collapse;">' +
+                                            '<thead style="background: #f8f9fa; position: sticky; top: 0;">' +
+                                                '<tr>' +
+                                                    '<th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Symbol</th>' +
+                                                    '<th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Period</th>' +
+                                                    '<th style="padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6;">EPS</th>' +
+                                                    '<th style="padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6;">Revenue (M)</th>' +
+                                                    '<th style="padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6;">Beats</th>' +
+                                                    '<th style="padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6;">Guidance</th>' +
+                                                '</tr>' +
+                                            '</thead>' +
+                                            '<tbody>';
+
+                            data.events.forEach((event, index) => {
+                                const backgroundColor = index % 2 === 0 ? 'white' : '#f8f9fa';
+                                const reportDate = event.report_period ? event.report_period : 'N/A';
+                                
+                                // Format EPS data
+                                const epsActual = event.eps_actual !== null ? '$' + event.eps_actual : 'N/A';
+                                const epsEstimated = event.eps_estimated !== null ? '$' + event.eps_estimated : 'N/A';
+                                const epsSurprise = event.eps_surprise_pct !== null ? event.eps_surprise_pct.toFixed(1) + '%' : 'N/A';
+                                
+                                // Format Revenue data
+                                const revenueActual = event.revenue_actual_millions !== null ? '$' + event.revenue_actual_millions + 'M' : 'N/A';
+                                const revenueEstimated = event.revenue_estimated_millions !== null ? '$' + event.revenue_estimated_millions + 'M' : 'N/A';
+                                const revenueSurprise = event.revenue_surprise_pct !== null ? event.revenue_surprise_pct.toFixed(1) + '%' : 'N/A';
+                                
+                                // Beat/miss indicators
+                                const epsBeat = event.earnings_beat === true ? '✅' : event.earnings_beat === false ? '❌' : '❓';
+                                const revenueBeat = event.revenue_beat === true ? '✅' : event.revenue_beat === false ? '❌' : '❓';
+                                
+                                // Guidance indicators
+                                let guidanceIndicator = '➖';
+                                if (event.guidance_raised === true) guidanceIndicator = '📈';
+                                else if (event.guidance_lowered === true) guidanceIndicator = '📉';
+
+                                html += '<tr style="background: ' + backgroundColor + ';">' +
+                                    '<td style="padding: 12px; border-bottom: 1px solid #dee2e6;">' +
+                                        '<div style="font-weight: bold; color: #333;">' + event.symbol + '</div>' +
+                                        '<div style="font-size: 12px; color: #666;">' + event.report_type + '</div>' +
+                                    '</td>' +
+                                    '<td style="padding: 12px; border-bottom: 1px solid #dee2e6; font-size: 14px;">' +
+                                        reportDate +
+                                    '</td>' +
+                                    '<td style="padding: 12px; border-bottom: 1px solid #dee2e6; text-align: center;">' +
+                                        '<div style="font-weight: bold;">' + epsActual + '</div>' +
+                                        '<div style="font-size: 12px; color: #666;">est: ' + epsEstimated + '</div>' +
+                                        '<div style="font-size: 12px; color: ' + (event.eps_surprise_pct > 0 ? '#4caf50' : '#f44336') + ';">' + epsSurprise + '</div>' +
+                                    '</td>' +
+                                    '<td style="padding: 12px; border-bottom: 1px solid #dee2e6; text-align: center;">' +
+                                        '<div style="font-weight: bold;">' + revenueActual + '</div>' +
+                                        '<div style="font-size: 12px; color: #666;">est: ' + revenueEstimated + '</div>' +
+                                        '<div style="font-size: 12px; color: ' + (event.revenue_surprise_pct > 0 ? '#4caf50' : '#f44336') + ';">' + revenueSurprise + '</div>' +
+                                    '</td>' +
+                                    '<td style="padding: 12px; border-bottom: 1px solid #dee2e6; text-align: center;">' +
+                                        '<div>EPS: ' + epsBeat + '</div>' +
+                                        '<div>Rev: ' + revenueBeat + '</div>' +
+                                    '</td>' +
+                                    '<td style="padding: 12px; border-bottom: 1px solid #dee2e6; text-align: center; font-size: 20px;">' +
+                                        guidanceIndicator +
+                                    '</td>' +
+                                '</tr>';
+                            });
+
+                            html += '</tbody>' +
+                                        '</table>' +
+                                    '</div>' +
+                                '</div>' +
+
+                                '<div style="margin-top: 20px; padding: 15px; background: #e9ecef; border-radius: 8px;">' +
+                                    '<h5>📈 Performance Summary:</h5>' +
+                                    '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">' +
+                                        '<div>' +
+                                            '<strong>EPS Performance:</strong><br>' +
+                                            'Beats: ' + data.summary.eps_beats + ' | Misses: ' + data.summary.eps_misses + '<br>' +
+                                            'EPS Success Rate: ' + (data.summary.eps_beats + data.summary.eps_misses > 0 ? 
+                                                Math.round(data.summary.eps_beats / (data.summary.eps_beats + data.summary.eps_misses) * 100) : 0) + '%' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<strong>Revenue Performance:</strong><br>' +
+                                            'Beats: ' + data.summary.revenue_beats + ' | Misses: ' + data.summary.revenue_misses + '<br>' +
+                                            'Revenue Success Rate: ' + (data.summary.revenue_beats + data.summary.revenue_misses > 0 ? 
+                                                Math.round(data.summary.revenue_beats / (data.summary.revenue_beats + data.summary.revenue_misses) * 100) : 0) + '%' +
+                                        '</div>' +
+                                    '</div>' +
+                                '</div>';
+
+                        } else {
+                            html = '<h3>📊 Earnings Events</h3>' +
+                                '<div style="text-align: center; padding: 40px;">' +
+                                    '<p>No earnings events available or error occurred.</p>' +
+                                    (data.error ? '<p style="color: red;">Error: ' + data.error + '</p>' : '') +
+                                '</div>';
+                        }
+
+                        document.getElementById('analysis-content').innerHTML = html;
+
+                    } catch (error) {
+                        document.getElementById('analysis-content').innerHTML =
+                            '<h3>📊 Earnings Events</h3><p style="color: red;">Error loading earnings events: ' + error.message + '</p>';
+                    }
                 }
 
                 async function loadTrainingDatasets() {
@@ -3395,6 +3657,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_ray_analytics()
             elif self.path.startswith('/api/news-events'):
                 self._serve_news_events()
+            elif self.path.startswith('/api/earnings-events'):
+                self._serve_earnings_events()
             elif self.path == '/api/bar-collection-metrics':
                 self._serve_bar_collection_metrics()
             elif self.path == '/api/tables':
@@ -4169,6 +4433,45 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             }
             self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
 
+    def _serve_earnings_events(self):
+        """Serve earnings events from dev_earnings_events table."""
+        from urllib.parse import urlparse, parse_qs
+
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+
+        try:
+            # Parse query parameters
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+
+            # Get parameters with error handling
+            try:
+                limit = int(query_params.get('limit', [100])[0])
+            except (ValueError, TypeError):
+                limit = 100  # Default fallback
+
+            symbol = query_params.get('symbol', [None])[0]
+
+            # Limit the results to reasonable bounds
+            limit = min(max(limit, 1), 500)  # Between 1 and 500 events
+
+            # Get earnings events from the analytics service
+            earnings_data = self.analytics_service.get_earnings_events(limit=limit, symbol=symbol)
+            self.wfile.write(json.dumps(earnings_data, indent=2, default=str).encode('utf-8'))
+
+        except Exception as e:
+            logger.error(f"Error serving earnings events: {e}")
+            error_response = {
+                "success": False,
+                "error": str(e),
+                "events": [],
+                "total_events": 0
+            }
+            self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
+
     def _serve_404(self):
         """Serve 404 response."""
         self.send_response(404)
@@ -4181,7 +4484,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             "available_endpoints": [
                 "/health", "/eda", "/api/intelligent-filters/{table}",
                 "/api/universe-analytics", "/api/v1/training-datasets",
-                "/api/news-events", "/api/ray-analytics/{dataset_id}", "/api/multi-panel-chart"
+                "/api/news-events", "/api/earnings-events", "/api/ray-analytics/{dataset_id}", "/api/multi-panel-chart"
             ]
         }
 

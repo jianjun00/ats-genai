@@ -28,6 +28,115 @@ from core.config.settings import get_settings
     # NEWS EVENTS ANALYSIS
     # ==============================================
 
+    def get_earnings_events(self, limit: int = 100, symbol: str = None) -> Dict[str, Any]:
+        """Get recent earnings events from dev_earnings_events table."""
+        try:
+            from core.database.connection_manager import get_raw_connection
+            import psycopg2.extras
+            from datetime import datetime, timedelta
+
+            with get_raw_connection() as conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+
+                    # Query earnings events
+                    earnings_query = """
+                        SELECT
+                            symbol,
+                            report_period,
+                            report_type,
+                            eps_actual_cents,
+                            eps_estimated_cents,
+                            eps_surprise_pct,
+                            revenue_actual_cents,
+                            revenue_estimated_cents,
+                            revenue_surprise_pct,
+                            earnings_call_datetime,
+                            earnings_beat,
+                            revenue_beat,
+                            guidance_raised,
+                            guidance_lowered,
+                            created_at,
+                            updated_at
+                        FROM dev_earnings_events
+                        WHERE 1=1
+                    """
+
+                    if symbol:
+                        earnings_query += " AND UPPER(symbol) = UPPER(%s)"
+                        params = [symbol]
+                    else:
+                        params = []
+
+                    earnings_query += " ORDER BY report_period DESC, created_at DESC LIMIT %s"
+                    params.append(limit)
+
+                    cursor.execute(earnings_query, params)
+                    earnings_events = cursor.fetchall()
+
+                    # Process earnings data
+                    processed_events = []
+                    for event in earnings_events:
+                        processed_event = {
+                            'symbol': event['symbol'],
+                            'report_period': event['report_period'].strftime('%Y-%m-%d') if event['report_period'] else None,
+                            'report_type': event['report_type'],
+                            'eps_actual': round(event['eps_actual_cents'] / 100, 2) if event['eps_actual_cents'] is not None else None,
+                            'eps_estimated': round(event['eps_estimated_cents'] / 100, 2) if event['eps_estimated_cents'] is not None else None,
+                            'eps_surprise_pct': float(event['eps_surprise_pct']) if event['eps_surprise_pct'] is not None else None,
+                            'revenue_actual_millions': round(event['revenue_actual_cents'] / 100_000_000, 1) if event['revenue_actual_cents'] is not None else None,
+                            'revenue_estimated_millions': round(event['revenue_estimated_cents'] / 100_000_000, 1) if event['revenue_estimated_cents'] is not None else None,
+                            'revenue_surprise_pct': float(event['revenue_surprise_pct']) if event['revenue_surprise_pct'] is not None else None,
+                            'earnings_call_datetime': event['earnings_call_datetime'].isoformat() if event['earnings_call_datetime'] else None,
+                            'earnings_beat': event['earnings_beat'],
+                            'revenue_beat': event['revenue_beat'],
+                            'guidance_raised': event['guidance_raised'],
+                            'guidance_lowered': event['guidance_lowered'],
+                            'created_at': event['created_at'].isoformat() if event['created_at'] else None,
+                            'updated_at': event['updated_at'].isoformat() if event['updated_at'] else None
+                        }
+                        processed_events.append(processed_event)
+
+                    # Get summary statistics
+                    unique_symbols = set(event['symbol'] for event in processed_events)
+                    
+                    # Count beats and misses
+                    eps_beats = sum(1 for event in processed_events if event['earnings_beat'] is True)
+                    eps_misses = sum(1 for event in processed_events if event['earnings_beat'] is False)
+                    revenue_beats = sum(1 for event in processed_events if event['revenue_beat'] is True)
+                    revenue_misses = sum(1 for event in processed_events if event['revenue_beat'] is False)
+                    
+                    # Count guidance changes
+                    guidance_raised_count = sum(1 for event in processed_events if event['guidance_raised'] is True)
+                    guidance_lowered_count = sum(1 for event in processed_events if event['guidance_lowered'] is True)
+
+                    logger.info(f"Retrieved {len(processed_events)} earnings events")
+
+                    return {
+                        'success': True,
+                        'events': processed_events,
+                        'total_events': len(processed_events),
+                        'unique_symbols': len(unique_symbols),
+                        'summary': {
+                            'eps_beats': eps_beats,
+                            'eps_misses': eps_misses,
+                            'revenue_beats': revenue_beats,
+                            'revenue_misses': revenue_misses,
+                            'guidance_raised': guidance_raised_count,
+                            'guidance_lowered': guidance_lowered_count
+                        },
+                        'symbol_filter': symbol,
+                        'query_timestamp': datetime.now().isoformat()
+                    }
+
+        except Exception as e:
+            logger.error(f"Error getting earnings events: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'events': [],
+                'total_events': 0
+            }
+
     def get_news_events(self, limit: int = 100, symbol: str = None) -> Dict[str, Any]:
         """Get recent news events from Polygon and Tiingo sources."""
         try:

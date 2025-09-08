@@ -64,6 +64,7 @@ from core.config.settings import get_settings
                 <button onclick="loadUniverseAnalytics()">🌐 Universe Analytics</button>
                 <button onclick="loadTrainingDatasets()">🤖 Training Datasets</button>
                 <button onclick="loadNewsEvents()">📰 News Events</button>
+                <button onclick="loadEarningsEvents()">📊 Earnings Events</button>
                 <button onclick="loadMultiPanelVisualization()">🎨 Multi-Panel Trading Charts</button>
                 <button onclick="loadRayAnalytics()">⚡ Distributed Analytics</button>
 
@@ -530,6 +531,166 @@ from core.config.settings import get_settings
                     } catch (error) {
                         document.getElementById('analysis-content').innerHTML =
                             '<h3>📰 News Events</h3><p style="color: red;">Error loading news events: ' + error.message + '</p>';
+                    }
+                }
+
+                async function loadEarningsEvents() {
+                    document.getElementById('analysis-content').innerHTML =
+                        '<h3>📊 Earnings Events</h3><p>Loading earnings events data...</p>';
+
+                    try {
+                        // Fetch earnings events
+                        const response = await fetch('/api/earnings-events?limit=50');
+                        const data = await response.json();
+
+                        let html = '';
+
+                        if (data.success && data.events) {
+                            html = `
+                                <h3>📊 Earnings Events Analysis</h3>
+                                
+                                <!-- Summary Cards -->
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                                    <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
+                                        <h4 style="margin: 0; color: #1976d2;">Total Events</h4>
+                                        <div style="font-size: 24px; font-weight: bold; color: #333;">${data.total_events}</div>
+                                    </div>
+                                    <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; text-align: center;">
+                                        <h4 style="margin: 0; color: #388e3c;">EPS Beats</h4>
+                                        <div style="font-size: 24px; font-weight: bold; color: #333;">${data.summary.eps_beats}</div>
+                                        <div style="font-size: 12px; color: #666;">vs ${data.summary.eps_misses} misses</div>
+                                    </div>
+                                    <div style="background: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">
+                                        <h4 style="margin: 0; color: #f57c00;">Revenue Beats</h4>
+                                        <div style="font-size: 24px; font-weight: bold; color: #333;">${data.summary.revenue_beats}</div>
+                                        <div style="font-size: 12px; color: #666;">vs ${data.summary.revenue_misses} misses</div>
+                                    </div>
+                                    <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; text-align: center;">
+                                        <h4 style="margin: 0; color: #7b1fa2;">Guidance Changes</h4>
+                                        <div style="font-size: 16px; color: #333;">
+                                            <span style="color: #4caf50;">↑${data.summary.guidance_raised}</span> |
+                                            <span style="color: #f44336;">↓${data.summary.guidance_lowered}</span>
+                                        </div>
+                                    </div>
+                                    <div style="background: #fce4ec; padding: 15px; border-radius: 8px; text-align: center;">
+                                        <h4 style="margin: 0; color: #c2185b;">Unique Symbols</h4>
+                                        <div style="font-size: 24px; font-weight: bold; color: #333;">${data.unique_symbols}</div>
+                                    </div>
+                                </div>
+
+                                <!-- Earnings Events Table -->
+                                <div style="background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
+                                    <div style="background: #673ab7; color: white; padding: 15px;">
+                                        <h4 style="margin: 0;">📊 Recent Earnings Events</h4>
+                                    </div>
+                                    <div style="max-height: 600px; overflow-y: auto;">
+                                        <table style="width: 100%; border-collapse: collapse;">
+                                            <thead style="background: #f8f9fa; position: sticky; top: 0;">
+                                                <tr>
+                                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Symbol</th>
+                                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Period</th>
+                                                    <th style="padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6;">EPS</th>
+                                                    <th style="padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6;">Revenue (M)</th>
+                                                    <th style="padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6;">Beats</th>
+                                                    <th style="padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6;">Guidance</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                            `;
+
+                            data.events.forEach((event, index) => {
+                                const backgroundColor = index % 2 === 0 ? 'white' : '#f8f9fa';
+                                const reportDate = event.report_period ? event.report_period : 'N/A';
+                                
+                                // Format EPS data
+                                const epsActual = event.eps_actual !== null ? `$${event.eps_actual}` : 'N/A';
+                                const epsEstimated = event.eps_estimated !== null ? `$${event.eps_estimated}` : 'N/A';
+                                const epsSurprise = event.eps_surprise_pct !== null ? `${event.eps_surprise_pct.toFixed(1)}%` : 'N/A';
+                                
+                                // Format Revenue data
+                                const revenueActual = event.revenue_actual_millions !== null ? `$${event.revenue_actual_millions}M` : 'N/A';
+                                const revenueEstimated = event.revenue_estimated_millions !== null ? `$${event.revenue_estimated_millions}M` : 'N/A';
+                                const revenueSurprise = event.revenue_surprise_pct !== null ? `${event.revenue_surprise_pct.toFixed(1)}%` : 'N/A';
+                                
+                                // Beat/miss indicators
+                                const epsBeat = event.earnings_beat === true ? '✅' : event.earnings_beat === false ? '❌' : '❓';
+                                const revenueBeat = event.revenue_beat === true ? '✅' : event.revenue_beat === false ? '❌' : '❓';
+                                
+                                // Guidance indicators
+                                let guidanceIndicator = '➖';
+                                if (event.guidance_raised === true) guidanceIndicator = '📈';
+                                else if (event.guidance_lowered === true) guidanceIndicator = '📉';
+
+                                html += `
+                                    <tr style="background: ${backgroundColor};">
+                                        <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
+                                            <div style="font-weight: bold; color: #333;">${event.symbol}</div>
+                                            <div style="font-size: 12px; color: #666;">${event.report_type}</div>
+                                        </td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #dee2e6; font-size: 14px;">
+                                            ${reportDate}
+                                        </td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #dee2e6; text-align: center;">
+                                            <div style="font-weight: bold;">${epsActual}</div>
+                                            <div style="font-size: 12px; color: #666;">est: ${epsEstimated}</div>
+                                            <div style="font-size: 12px; color: ${event.eps_surprise_pct > 0 ? '#4caf50' : '#f44336'};">${epsSurprise}</div>
+                                        </td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #dee2e6; text-align: center;">
+                                            <div style="font-weight: bold;">${revenueActual}</div>
+                                            <div style="font-size: 12px; color: #666;">est: ${revenueEstimated}</div>
+                                            <div style="font-size: 12px; color: ${event.revenue_surprise_pct > 0 ? '#4caf50' : '#f44336'};">${revenueSurprise}</div>
+                                        </td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #dee2e6; text-align: center;">
+                                            <div>EPS: ${epsBeat}</div>
+                                            <div>Rev: ${revenueBeat}</div>
+                                        </td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #dee2e6; text-align: center; font-size: 20px;">
+                                            ${guidanceIndicator}
+                                        </td>
+                                    </tr>
+                                `;
+                            });
+
+                            html += `
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <div style="margin-top: 20px; padding: 15px; background: #e9ecef; border-radius: 8px;">
+                                    <h5>📈 Performance Summary:</h5>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                        <div>
+                                            <strong>EPS Performance:</strong><br>
+                                            Beats: ${data.summary.eps_beats} | Misses: ${data.summary.eps_misses}<br>
+                                            Success Rate: ${data.summary.eps_beats + data.summary.eps_misses > 0 ? 
+                                                Math.round(data.summary.eps_beats / (data.summary.eps_beats + data.summary.eps_misses) * 100) : 0}%
+                                        </div>
+                                        <div>
+                                            <strong>Revenue Performance:</strong><br>
+                                            Beats: ${data.summary.revenue_beats} | Misses: ${data.summary.revenue_misses}<br>
+                                            Success Rate: ${data.summary.revenue_beats + data.summary.revenue_misses > 0 ? 
+                                                Math.round(data.summary.revenue_beats / (data.summary.revenue_beats + data.summary.revenue_misses) * 100) : 0}%
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+
+                        } else {
+                            html = `
+                                <h3>📊 Earnings Events</h3>
+                                <div style="text-align: center; padding: 40px;">
+                                    <p>No earnings events available or error occurred.</p>
+                                    ${data.error ? `<p style="color: red;">Error: ${data.error}</p>` : ''}
+                                </div>
+                            `;
+                        }
+
+                        document.getElementById('analysis-content').innerHTML = html;
+
+                    } catch (error) {
+                        document.getElementById('analysis-content').innerHTML =
+                            '<h3>📊 Earnings Events</h3><p style="color: red;">Error loading earnings events: ' + error.message + '</p>';
                     }
                 }
 

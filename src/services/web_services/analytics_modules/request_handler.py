@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 # Import core components
 from core.database.connection_manager import get_connection_manager
 from core.config.settings import get_settings
+from http.server import BaseHTTPRequestHandler
+from .analytics_service_core import UnifiedAnalyticsService
 
 
 # ==============================================
@@ -69,6 +71,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_ray_analytics()
             elif self.path.startswith('/api/news-events'):
                 self._serve_news_events()
+            elif self.path.startswith('/api/earnings-events'):
+                self._serve_earnings_events()
             elif self.path == '/api/bar-collection-metrics':
                 self._serve_bar_collection_metrics()
             elif self.path == '/api/tables':
@@ -841,6 +845,41 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             }
             self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
 
+    def _serve_earnings_events(self):
+        """Serve earnings events from dev_earnings_events table."""
+        from urllib.parse import urlparse, parse_qs
+
+        # Parse query parameters
+        parsed_url = urlparse(self.path)
+        query_params = parse_qs(parsed_url.query)
+
+        # Get parameters
+        limit = int(query_params.get('limit', [100])[0])
+        symbol = query_params.get('symbol', [None])[0]
+
+        # Limit the results to reasonable bounds
+        limit = min(limit, 500)  # Max 500 events
+
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+
+        try:
+            # Get earnings events from the analytics service
+            earnings_data = self.analytics_service.get_earnings_events(limit=limit, symbol=symbol)
+            self.wfile.write(json.dumps(earnings_data, indent=2, default=str).encode('utf-8'))
+
+        except Exception as e:
+            logger.error(f"Error serving earnings events: {e}")
+            error_response = {
+                "success": False,
+                "error": str(e),
+                "events": [],
+                "total_events": 0
+            }
+            self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
+
     def _serve_404(self):
         """Serve 404 response."""
         self.send_response(404)
@@ -853,7 +892,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             "available_endpoints": [
                 "/health", "/eda", "/api/intelligent-filters/{table}",
                 "/api/universe-analytics", "/api/v1/training-datasets",
-                "/api/news-events", "/api/ray-analytics/{dataset_id}", "/api/multi-panel-chart"
+                "/api/news-events", "/api/earnings-events", "/api/ray-analytics/{dataset_id}", "/api/multi-panel-chart"
             ]
         }
 

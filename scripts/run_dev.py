@@ -300,7 +300,7 @@ class DevCLI:
             "analytics": {
                 "image": "dragonflyer762/ats-genai:latest",
                 "port": "3000:3000",
-                "command": "python src/services/analytics_service.py",
+                "command": "python src/services/web_services/analytics_service_backup_4143_lines.py",
                 "env": {
                     "DB_HOST": "ats-dev-postgres",
                     "DB_PORT": "5432",
