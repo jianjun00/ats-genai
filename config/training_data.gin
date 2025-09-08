@@ -1,40 +1,20 @@
 # Gin configuration for multi-timeframe training data generation
 # Uses 1-minute base intervals with multi-timeframe sequences
 
-# Training Data Configuration - Using constructor parameters
+# Training Data Configuration - Using actual class parameters
 ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.base_interval_minutes = 1
 ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.training_interval_minutes = 60
-
-# Sequence lengths per timeframe
-ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.sequence_lengths = {
-    '5m': 52,    # 52 5-minute intervals
-    '15m': 52,   # 52 15-minute intervals
-    '1h': 24,    # 24 hourly intervals
-    '1d': 20,    # 20 daily intervals
-}
-
-# Prediction horizons per timeframe
-ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.prediction_horizons = {
-    '1h': 6,     # 6 hours ahead
-    '1d': 5,     # 5 days ahead
-}
 
 # Available timeframes
 ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.timeframes = ['5m', '15m', '1h', '1d']
 
 # Technical Indicators Configuration
 ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.signal_names = [
-    "etop", "ebot", "pldot", "envelope_top", "envelope_bot",
-    "z1b", "z2b", "z5t", "z6t", "sma_20", "ema_12", "rsi_14",
-    "macd_line", "macd_signal", "bb_upper", "bb_lower", "bb_middle",
-    "BXTrenderBasic_14", "BXTrenderDirectional_14", "BXTrenderVolumeWeighted_14"
+    "etop", "ebot", "pldot"
 ]
 
 # Feature Types Configuration
 ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.feature_types = [
     "ohlcv", "returns", "volatility", "volume_profile", 
-    "technical", "indicators", "market_structure"
+    "technical", "indicators"
 ]
-
-# FileBasedMinuteMarketDataManager Configuration (Container-friendly paths)
-FileBasedMinuteMarketDataManager.base_path = "/data/minute-bars"

@@ -6,7 +6,7 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 
 ### **🚫 NO MOCK/SYNTHETIC DATA IN NON-TEST CODE**
 - **❌ NEVER use mock data, fake data, synthetic data, demo data** outside of unit tests
-- **❌ NEVER create fallbacks to demo data** when real data is unavailable
+- **❌ NEVER create fallbacks to demo data** when real data is unavailable  
 - **❌ NEVER return 200 OK with fake data** when database queries fail
 - **✅ Demo data ONLY in unit tests** - isolated, controlled test scenarios
 - **✅ Fail fast and clearly** when real data/database is unavailable
@@ -38,44 +38,28 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 
 **ALWAYS USE DOCKER FOR ALL OPERATIONS:**
 - ✅ **DEV Environment = Docker containers on localhost**
-- ✅ **GPU Support = Docker with --gpus all flag**
+- ✅ **GPU Support = Docker with --gpus all flag**  
 - ✅ **Database = PostgreSQL container or localhost**
 - ✅ **All operations = Use run_dev (handles Docker automatically)**
 - ❌ **NEVER run complex setup manually**
 - ❌ **NEVER manually manage container lifecycle**
 
-### Environment-Specific Interfaces: run_dev vs run_intg
+### Primary Interface: run_dev
 
-**🔧 DEV Environment - Use `run_dev.py`:**
 ```bash
-# Development environment operations (dev_db, localhost)
+# Your primary interface - use for ALL operations
 python scripts/run_dev.py setup                    # Setup dev environment
 python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_instruments"
 python scripts/run_dev.py run --script scripts/data_generation/create_sample_data.py
 python scripts/run_dev.py run --script scripts/training/train_model.py --gpu  # With GPU
-python scripts/run_dev.py start --service postgres # Start dev database
-python scripts/run_dev.py start --service analytics # Start dev analytics service
-python scripts/run_dev.py status                   # Check dev services
-python scripts/run_dev.py test                     # Run dev tests
-```
+python scripts/run_dev.py start --service postgres # Start database
+python scripts/run_dev.py start --service analytics # Start analytics service
+python scripts/run_dev.py status                   # Check running services
+python scripts/run_dev.py test                     # Run tests
 
-**🏭 INTG Environment - Use `run_intg.py`:**
-```bash
-# Integration environment operations (intg_db, remote hosts)
-python scripts/run_intg.py setup                   # Setup intg environment
-python scripts/run_intg.py query --query "SELECT COUNT(*) FROM intg_instruments"
-python scripts/run_intg.py run --script scripts/data_generation/create_sample_data.py
-python scripts/run_intg.py start --service postgres # Start intg database
-python scripts/run_intg.py start --service analytics # Start intg analytics service
-python scripts/run_intg.py status                  # Check intg services
-python scripts/run_intg.py test                    # Run intg tests
+# ❌ NEVER run docker commands manually for dev work
+# ✅ ALWAYS use python scripts/run_dev.py
 ```
-
-**🎯 Environment Selection Rules:**
-- **✅ Use `run_dev.py` for local development, testing, and dev database work**
-- **✅ Use `run_intg.py` for integration testing, staging, and intg database work**
-- **❌ NEVER mix environments** - dev scripts connect to dev_db, intg scripts connect to intg_db
-- **❌ NEVER run docker commands manually** - always use environment-specific scripts
 
 ## 🧪 **Test-Driven Development (MANDATORY)**
 
@@ -83,28 +67,22 @@ python scripts/run_intg.py test                    # Run intg tests
 ```bash
 # 1. Write failing test FIRST
 touch tests/integration/test_new_feature.py
-
-# DEV Environment Testing:
 python scripts/run_dev.py test --test tests/integration/test_new_feature.py
 # ✅ Should FAIL (proves test works)
 
 # 2. Write minimal code to make test pass
 # (write your code in src/)
 
-# 3. Verify test passes in DEV
+# 3. Verify test passes  
 python scripts/run_dev.py test --test tests/integration/test_new_feature.py
 # ✅ Should PASS
 
-# 4. Run all tests in DEV
+# 4. Run all tests
 python scripts/run_dev.py test
 
-# 5. Integration testing with services (DEV)
-python scripts/run_dev.py setup  # Start dev services
+# 5. Integration testing with services
+python scripts/run_dev.py setup  # Start required services
 python scripts/run_dev.py test --test tests/integration/
-
-# 6. INTG Environment Validation (if needed):
-python scripts/run_intg.py setup  # Start intg services
-python scripts/run_intg.py test --test tests/integration/test_new_feature.py
 ```
 
 ## 🎭 **Playwright UX Testing (MANDATORY for Frontend Changes)**
@@ -112,16 +90,11 @@ python scripts/run_intg.py test --test tests/integration/test_new_feature.py
 ### ⚠️ **CRITICAL:** ALWAYS test UX changes with Playwright BEFORE claiming success
 
 ```bash
-# 1. Start services for testing (choose environment)
-# DEV Environment:
+# 1. Start services for testing
 python scripts/run_dev.py start --service analytics
 python scripts/run_dev.py start --service postgres
 
-# OR INTG Environment:
-python scripts/run_intg.py start --service analytics
-python scripts/run_intg.py start --service postgres
-
-# 2. MANDATORY: Test complete user flows
+# 2. MANDATORY: Test complete user flows 
 PYTHONPATH=src python3 -m pytest tests/browser_tests/test_eda_playwright.py -v --tb=short
 
 # 3. Test specific features (dataset visualization, sequence selection, etc.)
@@ -137,118 +110,63 @@ PYTHONPATH=src python3 -m pytest tests/browser_tests/test_new_ux_feature.py -v
 
 ### UX Testing Requirements:
 - **✅ REQUIRED:** Test complete user workflow from UI interaction to data display
-- **✅ REQUIRED:** Verify API endpoints return expected data structure
+- **✅ REQUIRED:** Verify API endpoints return expected data structure  
 - **✅ REQUIRED:** Test error cases and edge conditions in UI
 - **❌ FORBIDDEN:** Claiming UX changes work without Playwright verification
 
 ## 📋 **Common Commands**
 
-### DEV Environment Setup
+### Development Setup
 ```bash
-# Setup DEV environment (dev_db, localhost)
+# Setup complete development environment
 python scripts/run_dev.py setup
 
-# DEV Testing (MANDATORY for UX/API changes)
+# Testing (MANDATORY for UX/API changes)
 python scripts/run_dev.py test
 python scripts/run_dev.py test --test tests/integration/
 python scripts/run_dev.py test --test tests/unit/
 
-# DEV Database operations
+# Playwright Testing (REQUIRED for all UX changes)
+PYTHONPATH=src python3 -m pytest tests/browser_tests/ -v
+PYTHONPATH=src python3 -m pytest tests/ui/ -v --tb=short
+
+# Database operations
 python scripts/run_dev.py query --query "SELECT version()"
 python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_instruments"
 
-# DEV Run tracking and metadata
+# Run tracking and metadata
 python scripts/run_dev.py get --run-id <run_id>             # Get run details with gin config tracking
 python scripts/run_dev.py query --query "SELECT id, run_type, status, command_line FROM dev_runs ORDER BY id DESC LIMIT 10"
 
-# DEV Training dataset management
+# Training dataset management
 python scripts/run_dev.py training_dataset get <dataset_id> # Get training dataset details
 python scripts/run_dev.py query --query "SELECT id, dataset_name, symbols, creation_timestamp FROM dev_training_dataset ORDER BY id DESC LIMIT 10"
 ```
 
-### INTG Environment Setup
-```bash
-# Setup INTG environment (intg_db, remote hosts)
-python scripts/run_intg.py setup
-
-# INTG Testing
-python scripts/run_intg.py test
-python scripts/run_intg.py test --test tests/integration/
-
-# INTG Database operations
-python scripts/run_intg.py query --query "SELECT version()"
-python scripts/run_intg.py query --query "SELECT COUNT(*) FROM intg_instruments"
-
-# INTG Run tracking and metadata
-python scripts/run_intg.py get --run-id <run_id>
-python scripts/run_intg.py query --query "SELECT id, run_type, status, command_line FROM intg_runs ORDER BY id DESC LIMIT 10"
-
-# INTG Training dataset management
-python scripts/run_intg.py training_dataset get <dataset_id>
-python scripts/run_intg.py query --query "SELECT id, dataset_name, symbols, creation_timestamp FROM intg_training_dataset ORDER BY id DESC LIMIT 10"
-```
-
-### Universal Testing (Works with Both Environments)
-```bash
-# Playwright Testing (REQUIRED for all UX changes)
-PYTHONPATH=src python3 -m pytest tests/browser_tests/ -v
-PYTHONPATH=src python3 -m pytest tests/ui/ -v --tb=short
-```
-
 ### Service Management
-
-**DEV Environment Services:**
 ```bash
-# Start DEV services
+# Start services
 python scripts/run_dev.py start --service postgres
 python scripts/run_dev.py start --service analytics
 python scripts/run_dev.py start --service api
 
-# Check DEV services
+# Check running services
 python scripts/run_dev.py status
 
-# Stop DEV services
+# Stop services
 python scripts/run_dev.py stop --service analytics
 ```
 
-**INTG Environment Services:**
-```bash
-# Start INTG services
-python scripts/run_intg.py start --service postgres
-python scripts/run_intg.py start --service analytics
-python scripts/run_intg.py start --service api
-
-# Check INTG services
-python scripts/run_intg.py status
-
-# Stop INTG services
-python scripts/run_intg.py stop --service analytics
-```
-
 ### Script Execution
-
-**DEV Environment Script Execution:**
 ```bash
-# Run DEV data generation scripts
+# Run data generation scripts
 python scripts/run_dev.py run --script scripts/data_generation/create_sample_data.py
 
-# Run DEV ML training with GPU
+# Run ML training with GPU
 python scripts/run_dev.py run --script scripts/training/train_model.py --gpu
 
-# Check DEV service logs
+# Check service logs
 python scripts/run_dev.py logs --service analytics
-```
-
-**INTG Environment Script Execution:**
-```bash
-# Run INTG data generation scripts
-python scripts/run_intg.py run --script scripts/data_generation/create_sample_data.py
-
-# Run INTG ML training with GPU
-python scripts/run_intg.py run --script scripts/training/train_model.py --gpu
-
-# Check INTG service logs
-python scripts/run_intg.py logs --service analytics
 ```
 
 ## 🤖 **Training Data & Run Management**
@@ -257,12 +175,12 @@ python scripts/run_intg.py logs --service analytics
 ```bash
 # Track training data generation runs with gin config
 python scripts/run_dev.py get --run-id 35    # Shows: command_line, gin config, git hash, environment
-# Example output:
+# Example output: 
 # command_line: training_data_callback_runner.py --gin-config config/training_data.gin --symbols AAPL TSLA
 # git_commit_hash: f35265c1242abea4509aab15214e5eb9516d7227
 # environment: dev
 
-# List recent runs by type
+# List recent runs by type  
 python scripts/run_dev.py query --query "SELECT id, run_type, status, LEFT(command_line, 50) as command FROM dev_runs WHERE run_type = 'training_data_generation' ORDER BY id DESC LIMIT 5"
 
 # View all runs with gin config tracking
@@ -288,9 +206,9 @@ python scripts/run_dev.py query --query "SELECT dataset_name, data_quality_score
 ### **Training Data Generation Workflow**
 ```bash
 # 1. Generate training data using gin config (tracks metadata automatically)
-python scripts/run_dev.py run --script src/ml/training_data/runners/training_data_callback_runner.py
+python scripts/run_dev.py run --script src/domains/ml/services/training_data/runners/training_data_callback_runner.py
 
-# 2. Check the run was tracked
+# 2. Check the run was tracked  
 python scripts/run_dev.py query --query "SELECT MAX(id) as latest_run_id FROM dev_runs WHERE run_type = 'training_data_generation'"
 
 # 3. Get run details including gin config used
@@ -303,18 +221,23 @@ python scripts/run_dev.py query --query "SELECT id, dataset_name, creation_times
 python scripts/run_dev.py training_dataset get <dataset_id>
 ```
 
-### **Multi-Timeframe Training Data Structure**
+### **Training Data Structure (ArrayRecord Format Only)**
 ```bash
-# Training data is organized in multi-timeframe structure:
-# /mnt/d/ats-data/training/{run_id}/5m/SYMBOL_START_END.riegeli
-# /mnt/d/ats-data/training/{run_id}/15m/SYMBOL_START_END.riegeli
-# /mnt/d/ats-data/training/{run_id}/1h/SYMBOL_START_END.riegeli
-# /mnt/d/ats-data/training/{run_id}/1d/SYMBOL_START_END.riegeli
+# Training data is organized in multi-timeframe structure using ArrayRecord format:
+# /mnt/d/ats-data/training-data/{dataset_id}/SYMBOL_STARTDATE_STARTTIME_ENDDATE_ENDTIME/{timeframe}/SYMBOL_STARTDATE_STARTTIME_ENDDATE_ENDTIME.arrayrecord
+# 
+# Example structure:
+# /mnt/d/ats-data/training-data/89/TSLA_20250701_000000_20250906_000000/5m/TSLA_20250701_000000_20250906_000000.arrayrecord
+# /mnt/d/ats-data/training-data/89/TSLA_20250701_000000_20250906_000000/15m/TSLA_20250701_000000_20250906_000000.arrayrecord
+# /mnt/d/ats-data/training-data/89/TSLA_20250701_000000_20250906_000000/1h/TSLA_20250701_000000_20250906_000000.arrayrecord
+# /mnt/d/ats-data/training-data/89/TSLA_20250701_000000_20250906_000000/1d/TSLA_20250701_000000_20250906_000000.arrayrecord
 
-# Check training data files for a specific run
-ls -la /mnt/d/ats-data/training/35/*/
+# Container path mapping: /data/training_data (container) = /mnt/d/ats-data/training-data (host)
 
-# Verify training data structure
+# Check training data files for a specific dataset
+ls -la /mnt/d/ats-data/training-data/89/*/
+
+# Verify training data structure  
 python scripts/run_dev.py query --query "SELECT run_type, parameters, command_line FROM dev_runs WHERE id = 35"
 ```
 
@@ -322,7 +245,7 @@ python scripts/run_dev.py query --query "SELECT run_type, parameters, command_li
 
 **Infrastructure:**
 - ❌ Running docker commands directly for dev operations
-- ❌ Setting environment variables manually
+- ❌ Setting environment variables manually  
 - ❌ Creating new container patterns when existing ones work
 - ❌ Installing packages manually in containers
 - ❌ Running services without using run_dev
@@ -342,216 +265,6 @@ python scripts/run_dev.py query --query "SELECT run_type, parameters, command_li
 - ❌ **Generating training data without gin config tracking**
 - ❌ **CRITICAL: Claiming UX/frontend changes work without Playwright testing**
 - ❌ **Modifying APIs without testing complete user workflow end-to-end**
-
-## 🚨 **MANDATORY DEVELOPMENT PROTOCOLS**
-
-### **🔍 ROOT CAUSE ANALYSIS BEFORE FILE CREATION**
-
-**❌ FORBIDDEN: Creating new files as first response to problems**
-
-**✅ MANDATORY SEQUENCE:**
-1. **INVESTIGATE existing files first** - Why don't they work?
-2. **IDENTIFY root cause** - Configuration? Missing dependency? Logic error?
-3. **ATTEMPT to fix existing files** - Enhance, refactor, debug
-4. **ONLY create new files** if existing files are fundamentally incompatible
-
-**❌ ANTI-PATTERN EXAMPLES:**
-```bash
-# WRONG: Creating new simple script because existing one is "complex"
-touch scripts/simple_data_loader.py
-# This hides the real issue in the existing loader
-
-# WRONG: Creating new test file because existing tests fail
-touch tests/test_simplified_api.py
-# This masks the real API problems
-```
-
-**✅ CORRECT APPROACH:**
-```bash
-# RIGHT: Debug why existing file fails
-python scripts/run_dev.py run --script scripts/data_loader.py --verbose
-# Analyze error messages, fix dependencies, enhance logic
-
-# RIGHT: Fix failing tests to understand real issues
-python scripts/run_dev.py test --test tests/test_api.py -v
-# Fix the actual bugs revealed by test failures
-```
-
-**🔥 ENFORCEMENT RULES:**
-- **MUST** read and understand existing relevant files BEFORE creating new ones
-- **MUST** document why existing files cannot be enhanced
-- **MUST** show attempt to fix existing files in commit messages
-
-### **🔄 MANDATORY CODE REUSE ANALYSIS**
-
-**❌ FORBIDDEN: Duplicating logic with slight variations**
-
-**✅ MANDATORY PROCESS:**
-1. **SEARCH codebase** for similar functionality before writing
-2. **ANALYZE existing patterns** - Can they be parameterized?
-3. **REFACTOR existing code** to handle new requirements
-4. **CONSOLIDATE duplicated logic** into reusable components
-
-**❌ ANTI-PATTERN EXAMPLES:**
-```python
-# WRONG: Creating similar but slightly different functions
-def process_daily_data(data): ...
-def process_hourly_data(data): ...  # 90% same logic
-def process_minute_data(data): ...  # 95% same logic
-
-# WRONG: Copy-pasting with minor changes
-class DailyAnalyzer: ...
-class HourlyAnalyzer: ...  # Nearly identical class
-```
-
-**✅ CORRECT APPROACH:**
-```python
-# RIGHT: Parameterized reusable function
-def process_market_data(data, timeframe): ...
-
-# RIGHT: Base class with specialization
-class BaseAnalyzer:
-    def analyze(self, timeframe): ...
-```
-
-**🔥 ENFORCEMENT RULES:**
-- **MUST** use Grep/Glob tools to find similar functionality BEFORE writing
-- **MUST** refactor existing code instead of duplicating
-- **MUST** consolidate duplicate logic found during development
-- **MUST** justify why new similar code cannot reuse existing patterns
-
-### **📊 COMPREHENSIVE END-TO-END TESTING REQUIREMENTS**
-
-**❌ FORBIDDEN: Superficial testing (logs, status codes, mocks only)**
-
-**✅ MANDATORY TESTING HIERARCHY:**
-1. **DATA VALIDATION** - Verify actual data is produced correctly
-2. **BUSINESS LOGIC TESTING** - Test real calculations, transformations
-3. **INTEGRATION TESTING** - Test complete workflows with real data
-4. **USER WORKFLOW TESTING** - Test actual user interactions (Playwright)
-
-**❌ SUPERFICIAL TEST EXAMPLES:**
-```python
-# WRONG: Only testing logs
-def test_data_processing():
-    process_data()
-    assert "Processing complete" in logs  # Meaningless
-
-# WRONG: Only testing status codes
-def test_api_endpoint():
-    response = client.get("/data")
-    assert response.status_code == 200  # No data validation
-
-# WRONG: Mock everything, test nothing real
-def test_calculation():
-    with patch('get_real_data') as mock_data:
-        mock_data.return_value = [1,2,3]
-        result = calculate()
-        assert result == "mocked"  # No real logic tested
-```
-
-**✅ COMPREHENSIVE TEST EXAMPLES:**
-```python
-# RIGHT: Test actual data and business logic
-def test_data_processing():
-    # Use real test data
-    input_data = load_real_test_data()
-    result = process_data(input_data)
-
-    # Validate actual output structure and values
-    assert len(result) > 0
-    assert all(isinstance(r.price, float) for r in result)
-    assert all(r.timestamp is not None for r in result)
-
-    # Test business logic with known inputs/outputs
-    known_input = create_known_test_case()
-    expected_output = calculate_expected_result()
-    actual_output = process_data(known_input)
-    assert actual_output == expected_output
-
-# RIGHT: Test complete workflow with real services
-def test_complete_data_pipeline():
-    # Start real services
-    start_database()
-    start_api_server()
-
-    # Test entire flow
-    raw_data = fetch_market_data()
-    processed_data = transform_data(raw_data)
-    stored_data = save_to_database(processed_data)
-    api_response = query_api_endpoint()
-
-    # Validate end-to-end data integrity
-    assert api_response.data == stored_data
-    assert len(api_response.data) == len(processed_data)
-```
-
-**🔥 ENFORCEMENT RULES:**
-- **MUST** test actual data production and consumption
-- **MUST** validate business logic with known inputs/outputs
-- **MUST** test complete workflows, not isolated units only
-- **MUST** use real data/services in integration tests
-
-### **✅ MANDATORY VERIFICATION CHECKPOINTS**
-
-**❌ FORBIDDEN: Stopping work without complete verification**
-
-**✅ MANDATORY END-TO-END VERIFICATION SEQUENCE:**
-
-**For API/Backend Changes:**
-1. **DATA VERIFICATION** - Query database to verify data is stored correctly
-2. **API TESTING** - Test endpoints return correct data structure
-3. **INTEGRATION TESTING** - Test complete request/response cycle
-4. **PERFORMANCE TESTING** - Verify performance meets requirements
-
-**For UI/Frontend Changes:**
-1. **PLAYWRIGHT TESTING** - Verify UI interactions work completely
-2. **DATA FLOW TESTING** - Verify data reaches UI from backend
-3. **USER WORKFLOW TESTING** - Complete user journey works end-to-end
-4. **ERROR HANDLING TESTING** - Verify error states display correctly
-
-**For Data/Analytics Changes:**
-1. **OUTPUT VALIDATION** - Verify correct files/tables are created
-2. **DATA QUALITY TESTING** - Verify data accuracy and completeness
-3. **CALCULATION VERIFICATION** - Verify mathematical correctness
-4. **INTEGRATION TESTING** - Verify data flows to downstream systems
-
-**❌ INCOMPLETE VERIFICATION EXAMPLES:**
-```bash
-# WRONG: Stopping after implementation without testing
-git commit -m "Added new API endpoint"  # No verification it works
-
-# WRONG: Only testing logs, not functionality
-echo "API returns 200" # No actual data validation
-
-# WRONG: Testing in isolation only
-pytest tests/unit/ # No integration or end-to-end testing
-```
-
-**✅ COMPLETE VERIFICATION EXAMPLES:**
-```bash
-# RIGHT: Full API verification
-python scripts/run_dev.py start --service api
-curl http://localhost:8000/new-endpoint  # Test actual response
-python scripts/run_dev.py query --query "SELECT * FROM new_table"  # Verify data
-python scripts/run_dev.py test --test tests/integration/test_new_endpoint.py
-
-# RIGHT: Full UI verification
-python scripts/run_dev.py start --service analytics
-PYTHONPATH=src python3 -m pytest tests/browser_tests/test_new_feature.py -v
-# Manually verify: Click through UI, verify data appears correctly
-
-# RIGHT: Full data pipeline verification
-python scripts/run_dev.py run --script scripts/data_processor.py
-ls -la /output/directory/  # Verify files created
-python scripts/run_dev.py query --query "SELECT COUNT(*) FROM processed_data"  # Verify database
-```
-
-**🔥 ENFORCEMENT RULES:**
-- **MUST** complete ALL verification steps before claiming success
-- **MUST** test actual user interactions for UI changes
-- **MUST** verify data is produced and consumable correctly
-- **MUST** provide evidence of working functionality in commit messages
 
 ## 🎯 **Success Criteria**
 
@@ -574,13 +287,6 @@ python scripts/run_dev.py query --query "SELECT COUNT(*) FROM processed_data"  #
 - [ ] **CRITICAL: Testing ALL UX changes with Playwright before claiming success**
 - [ ] **Verifying complete user workflows work end-to-end via browser automation**
 
-**MANDATORY DEVELOPMENT PROTOCOLS COMPLIANCE:**
-- [ ] **ROOT CAUSE ANALYSIS: Investigated existing files before creating new ones**
-- [ ] **CODE REUSE: Searched codebase and refactored existing logic instead of duplicating**
-- [ ] **COMPREHENSIVE TESTING: Tested actual data and business logic, not just logs/status**
-- [ ] **COMPLETE VERIFICATION: Verified end-to-end functionality actually works**
-- [ ] **EVIDENCE PROVIDED: Commit messages show verification steps were completed**
-
 ## 🚨 **CRITICAL: Training Data Generation Flow**
 
 **❌ DO NOT use `dev_daily_prices` - This table is NOT used for training data**
@@ -591,7 +297,7 @@ python scripts/run_dev.py query --query "SELECT COUNT(*) FROM processed_data"  #
 1. Minute Bar Files (INPUT - Raw Data)
    ↓
 2. FileBasedMinuteManager (Reads parquet files)
-   ↓
+   ↓  
 3. FileBasedMinuteMarketDataManager (Aggregates timeframes)
    ↓
 4. Training Data Generator (Creates sequences, features, labels)
@@ -600,20 +306,21 @@ python scripts/run_dev.py query --query "SELECT COUNT(*) FROM processed_data"  #
 ```
 
 **🔹 INPUT: Minute Bar Files (Raw OHLCV Data)**
-- **Location**: `/mnt/d/ats-data/minute-bars/firstrate/`
+- **Location**: `/mnt/d/ats-data/minute-bars/firstrate/` 
 - **Structure**: `{first_letter}/{SYMBOL}/{YYYY}/{MM}/{SYMBOL}_{YYYY}_{MM}.parquet`
 - **Example**: `/mnt/d/ats-data/minute-bars/firstrate/A/AAPL/2025/07/AAPL_2025_07.parquet`
 - **Content**: Raw minute-level OHLCV data from market
 
 **🔹 PROCESSOR: Training Data Infrastructure**
 - **Data Reader**: `FileBasedMinuteManager` - Reads parquet files from disk
-- **Data Manager**: `FileBasedMinuteMarketDataManager` - Provides aggregated timeframes
-- **Generator**: `src/ml/training_data/runners/training_data_callback_runner.py`
+- **Data Manager**: `FileBasedMinuteMarketDataManager` - Provides aggregated timeframes  
+- **Generator**: `src/domains/ml/services/training_data/runners/training_data_callback_runner.py`
 - **Callback**: `DateBasedTrainingDataCallback` - Processes intervals into sequences
 
 **🔹 OUTPUT: Training Datasets (ML-Ready Sequences)**
-- **Location**: `/data/training/` (container) = `/mnt/d/ats-data/training/` (host)
-- **Format**: Numpy arrays (.npy), Riegeli files, with metadata
+- **Location**: `/data/training_data/` (container) = `/mnt/d/ats-data/training-data/` (host)
+- **Format**: ArrayRecord format only (.arrayrecord files)
+- **Structure**: `{dataset_id}/SYMBOL_STARTDATE_STARTTIME_ENDDATE_ENDTIME/{timeframe}/SYMBOL_STARTDATE_STARTTIME_ENDDATE_ENDTIME.arrayrecord`
 - **Content**: Sequences with features (OHLCV + indicators) and labels (future returns)
 - **Database**: Registered in `dev_training_dataset` table
 - **Tracking**: All runs logged in `dev_runs` table with command_line, git_commit_hash

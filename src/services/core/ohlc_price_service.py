@@ -21,7 +21,7 @@ from fastapi.responses import JSONResponse
 import uvicorn
 
 from core.platform.config.environment import Environment
-from core.platform.config.database import Database
+from core.config.database import Database
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

@@ -303,8 +303,9 @@ class DailyPricesDAO(BaseDAO):
         Returns:
             List of price records for the date
         """
+        from datetime import date as date_type
         params = {
-            "date": date if isinstance(date, date) else date.date()
+            "date": date if isinstance(date, date_type) else date.date()
         }
 
         query_str = f"""

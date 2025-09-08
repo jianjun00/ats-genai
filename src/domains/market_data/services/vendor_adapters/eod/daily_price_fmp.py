@@ -15,7 +15,7 @@ from typing import List, Dict, Any
 from shared.utils.environment import Environment, EnvironmentType
 from vendor.fmp.dao.daily_prices_fmp_dao import DailyPricesFmpDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-from core.calendars.exchange_calendar import ExchangeCalendar
+from core.business.calendars.exchange_calendar import ExchangeCalendar
 
 logger = logging.getLogger(__name__)
 
