@@ -1709,6 +1709,150 @@ class UnifiedAnalyticsService:
                 'total_events': 0
             }
 
+    def get_gap_events(self, limit: int = 100, symbol: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
+        """Get gap events from gap_events table with optional filters."""
+        try:
+            from core.platform.database.connection_manager import get_raw_connection
+            import psycopg2.extras
+            from datetime import datetime, timedelta
+
+            with get_raw_connection() as conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+
+                    # Query gap events
+                    gap_query = """
+                        SELECT
+                            symbol,
+                            gap_date,
+                            gap_datetime,
+                            gap_points,
+                            gap_percentage,
+                            gap_size_class,
+                            direction,
+                            prev_close,
+                            open_price,
+                            volume,
+                            avg_volume,
+                            volume_confirmed,
+                            significance_score,
+                            gap_context,
+                            fill_date,
+                            days_to_fill,
+                            fill_percentage,
+                            fill_type,
+                            processed,
+                            created_at,
+                            updated_at
+                        FROM gap_events
+                        WHERE 1=1
+                    """
+
+                    params = []
+
+                    # Add symbol filter
+                    if symbol:
+                        gap_query += " AND UPPER(symbol) = UPPER(%s)"
+                        params.append(symbol)
+
+                    # Add date range filters
+                    if start_date:
+                        gap_query += " AND gap_date >= %s"
+                        params.append(start_date)
+                    
+                    if end_date:
+                        gap_query += " AND gap_date <= %s"
+                        params.append(end_date)
+
+                    gap_query += " ORDER BY gap_date DESC, significance_score DESC LIMIT %s"
+                    params.append(limit)
+
+                    cursor.execute(gap_query, params)
+                    gap_events = cursor.fetchall()
+
+                    # Process gap data
+                    processed_events = []
+                    for event in gap_events:
+                        processed_event = {
+                            'symbol': event['symbol'],
+                            'gap_date': event['gap_date'].strftime('%Y-%m-%d') if event['gap_date'] else None,
+                            'gap_datetime': event['gap_datetime'].isoformat() if event['gap_datetime'] else None,
+                            'gap_points': float(event['gap_points']) if event['gap_points'] is not None else None,
+                            'gap_percentage': float(event['gap_percentage']) if event['gap_percentage'] is not None else None,
+                            'gap_size_class': event['gap_size_class'],
+                            'direction': event['direction'],
+                            'prev_close': float(event['prev_close']) if event['prev_close'] is not None else None,
+                            'open_price': float(event['open_price']) if event['open_price'] is not None else None,
+                            'volume': int(event['volume']) if event['volume'] is not None else None,
+                            'avg_volume': int(event['avg_volume']) if event['avg_volume'] is not None else None,
+                            'volume_confirmed': event['volume_confirmed'],
+                            'significance_score': float(event['significance_score']) if event['significance_score'] is not None else None,
+                            'gap_context': event['gap_context'],
+                            'fill_date': event['fill_date'].strftime('%Y-%m-%d') if event['fill_date'] else None,
+                            'days_to_fill': event['days_to_fill'],
+                            'fill_percentage': float(event['fill_percentage']) if event['fill_percentage'] is not None else None,
+                            'fill_type': event['fill_type'],
+                            'is_filled': event['fill_date'] is not None,
+                            'created_at': event['created_at'].isoformat() if event['created_at'] else None,
+                            'updated_at': event['updated_at'].isoformat() if event['updated_at'] else None
+                        }
+                        processed_events.append(processed_event)
+
+                    # Get summary statistics
+                    unique_symbols = set(event['symbol'] for event in processed_events)
+                    
+                    # Count gap types and directions
+                    gap_ups = sum(1 for event in processed_events if event['direction'] == 'gap_up')
+                    gap_downs = sum(1 for event in processed_events if event['direction'] == 'gap_down')
+                    
+                    # Count gap sizes
+                    micro_gaps = sum(1 for event in processed_events if event['gap_size_class'] == 'micro')
+                    small_gaps = sum(1 for event in processed_events if event['gap_size_class'] == 'small') 
+                    medium_gaps = sum(1 for event in processed_events if event['gap_size_class'] == 'medium')
+                    large_gaps = sum(1 for event in processed_events if event['gap_size_class'] == 'large')
+                    
+                    # Count filled vs unfilled gaps
+                    filled_gaps = sum(1 for event in processed_events if event['is_filled'] is True)
+                    unfilled_gaps = sum(1 for event in processed_events if event['is_filled'] is False)
+                    
+                    # Calculate average significance score
+                    sig_scores = [event['significance_score'] for event in processed_events if event['significance_score'] is not None]
+                    avg_significance = sum(sig_scores) / len(sig_scores) if sig_scores else 0
+
+                    logger.info(f"Retrieved {len(processed_events)} gap events")
+
+                    return {
+                        'success': True,
+                        'events': processed_events,
+                        'total_events': len(processed_events),
+                        'unique_symbols': len(unique_symbols),
+                        'summary': {
+                            'gap_ups': gap_ups,
+                            'gap_downs': gap_downs,
+                            'micro_gaps': micro_gaps,
+                            'small_gaps': small_gaps,
+                            'medium_gaps': medium_gaps,
+                            'large_gaps': large_gaps,
+                            'filled_gaps': filled_gaps,
+                            'unfilled_gaps': unfilled_gaps,
+                            'avg_significance_score': round(avg_significance, 2)
+                        },
+                        'filters': {
+                            'symbol_filter': symbol,
+                            'start_date': start_date,
+                            'end_date': end_date
+                        },
+                        'query_timestamp': datetime.now().isoformat()
+                    }
+
+        except Exception as e:
+            logger.error(f"Error getting gap events: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'events': [],
+                'total_events': 0
+            }
+
     # ==============================================
     # MULTI-PANEL VISUALIZATION (NEW)
     # ==============================================
@@ -1860,6 +2004,7 @@ class UnifiedAnalyticsService:
                 <button onclick="loadTrainingDatasets()">🤖 Training Datasets</button>
                 <button onclick="loadNewsEvents()">📰 News Events</button>
                 <button onclick="loadEarningsEvents()">📊 Earnings Events</button>
+                <button onclick="loadGapEvents()">⚡ Gap Events</button>
                 <button onclick="loadMultiPanelVisualization()">🎨 Multi-Panel Trading Charts</button>
                 <button onclick="loadRayAnalytics()">⚡ Distributed Analytics</button>
 
@@ -2591,6 +2736,177 @@ class UnifiedAnalyticsService:
                     document.getElementById('end-date-filter').value = '';
                     
                     loadEarningsEvents('', '', '');
+                }
+
+                async function loadGapEvents(symbolFilter = '', startDate = '', endDate = '') {
+                    document.getElementById('analysis-content').innerHTML =
+                        '<h3>⚡ Gap Events</h3><p>Loading gap events data...</p>';
+
+                    try {
+                        // Build query parameters
+                        let params = new URLSearchParams();
+                        params.append('limit', '50');
+                        if (symbolFilter) params.append('symbol', symbolFilter);
+                        if (startDate) params.append('start_date', startDate);
+                        if (endDate) params.append('end_date', endDate);
+
+                        // Fetch gap events
+                        const response = await fetch('/api/gap-events?' + params.toString());
+                        const data = await response.json();
+
+                        let html = '';
+
+                        if (data.success && data.events) {
+                            html = '<h3>⚡ Gap Events Analysis</h3>' +
+                                
+                                '<!-- Filter Controls -->' +
+                                '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">' +
+                                    '<h4 style="margin: 0 0 15px 0;">🔍 Filters</h4>' +
+                                    '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end;">' +
+                                        '<div>' +
+                                            '<label style="display: block; margin-bottom: 5px; font-weight: bold;">Symbol:</label>' +
+                                            '<input type="text" id="gap-symbol-filter" placeholder="e.g. AAPL" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" value="' + (symbolFilter || '') + '">' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<label style="display: block; margin-bottom: 5px; font-weight: bold;">Start Date:</label>' +
+                                            '<input type="date" id="gap-start-date-filter" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" value="' + (startDate || '') + '">' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<label style="display: block; margin-bottom: 5px; font-weight: bold;">End Date:</label>' +
+                                            '<input type="date" id="gap-end-date-filter" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" value="' + (endDate || '') + '">' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<button onclick="applyGapFilters()" style="background: #17a2b8; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; width: 100%;">Apply Filters</button>' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<button onclick="clearGapFilters()" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; width: 100%;">Clear</button>' +
+                                        '</div>' +
+                                    '</div>' +
+                                '</div>' +
+                                
+                                '<!-- Summary Cards -->' +
+                                '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">' +
+                                    '<div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #1976d2;">Total Gaps</h4>' +
+                                        '<div style="font-size: 24px; font-weight: bold; color: #333;">' + data.total_events + '</div>' +
+                                    '</div>' +
+                                    '<div style="background: #e8f5e8; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #388e3c;">Gap Ups ↗️</h4>' +
+                                        '<div style="font-size: 24px; font-weight: bold; color: #333;">' + data.summary.gap_ups + '</div>' +
+                                        '<div style="font-size: 12px; color: #666;">vs ' + data.summary.gap_downs + ' downs</div>' +
+                                    '</div>' +
+                                    '<div style="background: #ffebee; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #d32f2f;">Gap Downs ↘️</h4>' +
+                                        '<div style="font-size: 24px; font-weight: bold; color: #333;">' + data.summary.gap_downs + '</div>' +
+                                        '<div style="font-size: 12px; color: #666;">vs ' + data.summary.gap_ups + ' ups</div>' +
+                                    '</div>' +
+                                    '<div style="background: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #f57c00;">Filled Gaps</h4>' +
+                                        '<div style="font-size: 24px; font-weight: bold; color: #333;">' + data.summary.filled_gaps + '</div>' +
+                                        '<div style="font-size: 12px; color: #666;">of ' + data.total_events + ' total</div>' +
+                                    '</div>' +
+                                    '<div style="background: #f3e5f5; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #7b1fa2;">Avg Score</h4>' +
+                                        '<div style="font-size: 24px; font-weight: bold; color: #333;">' + data.summary.avg_significance_score + '</div>' +
+                                        '<div style="font-size: 12px; color: #666;">significance</div>' +
+                                    '</div>' +
+                                    '<div style="background: #fce4ec; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #c2185b;">Unique Symbols</h4>' +
+                                        '<div style="font-size: 24px; font-weight: bold; color: #333;">' + data.unique_symbols + '</div>' +
+                                    '</div>' +
+                                '</div>' +
+
+                                '<!-- Gap Events Table -->' +
+                                '<div style="background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">' +
+                                    '<div style="background: #17a2b8; color: white; padding: 15px;">' +
+                                        '<h4 style="margin: 0;">⚡ Recent Gap Events</h4>' +
+                                    '</div>' +
+                                    '<div style="overflow-x: auto;">' +
+                                        '<table style="width: 100%; border-collapse: collapse;">' +
+                                            '<thead style="background: #f8f9fa;">' +
+                                                '<tr>' +
+                                                    '<th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Symbol</th>' +
+                                                    '<th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Date</th>' +
+                                                    '<th style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">Gap %</th>' +
+                                                    '<th style="padding: 12px; text-align: center; border-bottom: 1px solid #dee2e6;">Direction</th>' +
+                                                    '<th style="padding: 12px; text-align: center; border-bottom: 1px solid #dee2e6;">Size</th>' +
+                                                    '<th style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">Score</th>' +
+                                                    '<th style="padding: 12px; text-align: center; border-bottom: 1px solid #dee2e6;">Filled</th>' +
+                                                '</tr>' +
+                                            '</thead>' +
+                                            '<tbody>';
+
+                            // Add gap events rows
+                            data.events.forEach((event, index) => {
+                                const directionIcon = event.direction === 'gap_up' ? '↗️' : '↘️';
+                                const directionClass = event.direction === 'gap_up' ? 'color: #4caf50' : 'color: #f44336';
+                                const sizeClass = {
+                                    'micro': 'background: #e0e0e0; color: #424242',
+                                    'small': 'background: #fff3e0; color: #f57c00',
+                                    'medium': 'background: #e8f5e8; color: #388e3c',
+                                    'large': 'background: #ffebee; color: #d32f2f'
+                                }[event.gap_size_class] || 'background: #f5f5f5; color: #666';
+                                
+                                const filledStatus = event.is_filled ? 
+                                    '✅ ' + (event.days_to_fill || 'N/A') + 'd' : 
+                                    '⏳ Open';
+
+                                html += '<tr style="border-bottom: 1px solid #f0f0f0;">' +
+                                    '<td style="padding: 10px; font-weight: bold;">' + event.symbol + '</td>' +
+                                    '<td style="padding: 10px;">' + event.gap_date + '</td>' +
+                                    '<td style="padding: 10px; text-align: right; font-weight: bold; ' + directionClass + '">' + 
+                                        (event.gap_percentage !== null ? event.gap_percentage.toFixed(2) + '%' : 'N/A') + '</td>' +
+                                    '<td style="padding: 10px; text-align: center; ' + directionClass + '">' + directionIcon + '</td>' +
+                                    '<td style="padding: 10px; text-align: center;"><span style="padding: 4px 8px; border-radius: 12px; font-size: 11px; ' + sizeClass + '">' + 
+                                        (event.gap_size_class || 'unknown').toUpperCase() + '</span></td>' +
+                                    '<td style="padding: 10px; text-align: right;">' + 
+                                        (event.significance_score !== null ? event.significance_score.toFixed(2) : 'N/A') + '</td>' +
+                                    '<td style="padding: 10px; text-align: center;">' + filledStatus + '</td>' +
+                                '</tr>';
+                            });
+
+                            html += '</tbody></table></div></div>';
+
+                            // Add gap size breakdown
+                            html += '<div style="margin-top: 20px; padding: 15px; background: #e9ecef; border-radius: 8px;">' +
+                                '<h5>📊 Gap Size Breakdown:</h5>' +
+                                '<div style="display: flex; gap: 20px; flex-wrap: wrap;">' +
+                                    '<div><strong>Micro:</strong> ' + data.summary.micro_gaps + ' gaps</div>' +
+                                    '<div><strong>Small:</strong> ' + data.summary.small_gaps + ' gaps</div>' +
+                                    '<div><strong>Medium:</strong> ' + data.summary.medium_gaps + ' gaps</div>' +
+                                    '<div><strong>Large:</strong> ' + data.summary.large_gaps + ' gaps</div>' +
+                                '</div>' +
+                            '</div>';
+
+                        } else {
+                            html = '<h3>⚡ Gap Events</h3>' +
+                                '<div style="text-align: center; padding: 40px;">' +
+                                    '<p>No gap events found.</p>' +
+                                '</div>';
+                        }
+
+                        document.getElementById('analysis-content').innerHTML = html;
+
+                    } catch (error) {
+                        document.getElementById('analysis-content').innerHTML =
+                            '<h3>⚡ Gap Events</h3><p style="color: red;">Error loading gap events: ' + error.message + '</p>';
+                    }
+                }
+
+                function applyGapFilters() {
+                    const symbolFilter = document.getElementById('gap-symbol-filter').value.trim();
+                    const startDate = document.getElementById('gap-start-date-filter').value;
+                    const endDate = document.getElementById('gap-end-date-filter').value;
+                    
+                    loadGapEvents(symbolFilter, startDate, endDate);
+                }
+
+                function clearGapFilters() {
+                    document.getElementById('gap-symbol-filter').value = '';
+                    document.getElementById('gap-start-date-filter').value = '';
+                    document.getElementById('gap-end-date-filter').value = '';
+                    
+                    loadGapEvents('', '', '');
                 }
 
                 async function loadTrainingDatasets() {
@@ -3721,6 +4037,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_news_events()
             elif self.path.startswith('/api/earnings-events'):
                 self._serve_earnings_events()
+            elif self.path.startswith('/api/gap-events'):
+                self._serve_gap_events()
             elif self.path == '/api/bar-collection-metrics':
                 self._serve_bar_collection_metrics()
             elif self.path == '/api/tables':
@@ -4536,6 +4854,47 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             }
             self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
 
+    def _serve_gap_events(self):
+        """Serve gap events from gap_events table."""
+        from urllib.parse import urlparse, parse_qs
+
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+
+        try:
+            # Parse query parameters
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+
+            # Get parameters with error handling
+            try:
+                limit = int(query_params.get('limit', [100])[0])
+            except (ValueError, TypeError):
+                limit = 100  # Default fallback
+
+            symbol = query_params.get('symbol', [None])[0]
+            start_date = query_params.get('start_date', [None])[0]
+            end_date = query_params.get('end_date', [None])[0]
+
+            # Limit the results to reasonable bounds
+            limit = min(max(limit, 1), 500)  # Between 1 and 500 events
+
+            # Get gap events from the analytics service
+            gap_data = self.analytics_service.get_gap_events(limit=limit, symbol=symbol, start_date=start_date, end_date=end_date)
+            self.wfile.write(json.dumps(gap_data, indent=2, default=str).encode('utf-8'))
+
+        except Exception as e:
+            logger.error(f"Error serving gap events: {e}")
+            error_response = {
+                "success": False,
+                "error": str(e),
+                "events": [],
+                "total_events": 0
+            }
+            self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
+
     def _serve_404(self):
         """Serve 404 response."""
         self.send_response(404)
@@ -4548,7 +4907,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             "available_endpoints": [
                 "/health", "/eda", "/api/intelligent-filters/{table}",
                 "/api/universe-analytics", "/api/v1/training-datasets",
-                "/api/news-events", "/api/earnings-events", "/api/ray-analytics/{dataset_id}", "/api/multi-panel-chart"
+                "/api/news-events", "/api/earnings-events", "/api/gap-events", "/api/ray-analytics/{dataset_id}", "/api/multi-panel-chart"
             ]
         }
 
