@@ -101,9 +101,21 @@ tail -50 /mnt/d/ats-logs/minute-bars-backfill.log  # Recent processing activity
 
 ### **🎯 Primary Dashboard: Grafana**
 ```bash
-🌐 URL: http://localhost:4002/d/f9afe708-9be9-4c39-b901-f5c43a0a479f/ats-vendor-monitoring-dashboard-fixed
+🌐 URL: http://10.0.0.79:4002/d/f9afe708-9be9-4c39-b901-f5c43a0a479f/ats-vendor-monitoring-dashboard-fixed
 📊 Login: admin/admin (change on first login)
-🔧 Data Source: PostgreSQL queries + Prometheus metrics
+🔧 Data Source: ATS-INTG-PostgreSQL (172.17.0.1:4432/intg_db) + Prometheus metrics
+📈 Auto-refresh: 30s intervals
+
+# ⚠️ CRITICAL: Grafana Data Source Configuration Fix
+# If dashboard shows "no data" or connection errors:
+# 1. Ensure PostgreSQL started with: docker-compose -f docker-compose.ats.yml up -d postgres-intg
+# 2. Connect networks: docker network connect ats-network ats-grafana-intg  
+# 3. Update data source to use: 172.17.0.1:4432 (Docker bridge gateway)
+#    - URL: http://10.0.0.79:4002/datasources/edit/2
+#    - Host: 172.17.0.1:4432
+#    - Database: intg_db
+#    - User: postgres  
+#    - Password: intg_password
 ```
 
 **Minute Bar Metrics Available:**

@@ -18,7 +18,7 @@ from pathlib import Path
 class IntgCLI:
     def __init__(self):
         self.db_host = "localhost"
-        self.db_port = "4434"  # Integration PostgreSQL port (updated to 400x range)
+        self.db_port = "4432"  # Integration PostgreSQL port (matches docker-compose.ats.yml)
         self.db_user = "postgres"
         self.db_password = "intg_password"
         self.db_name = "intg_db"
@@ -61,15 +61,15 @@ class IntgCLI:
 
     def check_database_connection(self):
         """Check which database connection works"""
-        # Try localhost:5433 first (integration PostgreSQL)
-        if self.test_db_connection("localhost", "4434"):
+        # Try localhost:4432 first (integration PostgreSQL)
+        if self.test_db_connection("localhost", "4432"):
             self.db_host = "localhost"
-            self.db_port = "4434"
+            self.db_port = "4432"
             return
 
         print("⚠️  No integration database connection available. You may need to:")
         print("   1. Start integration PostgreSQL: python scripts/run_intg.py start --service postgres")
-        print("   2. Or check integration database is running on port 5433")
+        print("   2. Or check integration database is running on port 4432")
 
     def test_db_connection(self, host, port):
         """Test database connection"""
