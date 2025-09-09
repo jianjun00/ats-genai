@@ -1,0 +1,33 @@
+[Unit]
+Description=ATS Daily Prices Sync
+After=postgresql.service network.target
+Wants=postgresql.service
+
+[Service]
+Type=oneshot
+User=jianjun
+Group=jianjun
+WorkingDirectory=/home/jianjun/ats-genai-data
+Environment=PYTHONPATH=/home/jianjun/ats-genai-data/src
+Environment=PROMETHEUS_GATEWAY=localhost:9091
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+
+# EODHD Sync (DEV -> INTG)
+ExecStart=/usr/bin/python3 scripts/eodhd_database_sync.py --vendor eodhd --source-port 3432 --target-port 4432
+
+# Tiingo Sync (DEV -> INTG) 
+ExecStartPost=/usr/bin/python3 scripts/eodhd_database_sync.py --vendor tiingo --source-port 3432 --target-port 4432
+
+# Polygon Sync (DEV -> INTG)
+ExecStartPost=/usr/bin/python3 scripts/eodhd_database_sync.py --vendor polygon --source-port 3432 --target-port 4432
+
+# Logging
+StandardOutput=append:/mnt/d/ats-logs/daily-sync.log
+StandardError=append:/mnt/d/ats-logs/daily-sync-error.log
+
+# Restart policy
+Restart=no
+TimeoutStartSec=1800
+
+[Install]
+WantedBy=multi-user.target

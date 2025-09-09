@@ -1,0 +1,33 @@
+# ATS Daily Sync Monitoring Configuration
+# Alerting rules for Prometheus/Grafana
+
+alerts:
+  - name: "Daily Sync Failed"
+    condition: "ats_daily_prices_sync_success_rate < 0.8"
+    severity: "critical"
+    description: "Daily prices sync success rate dropped below 80% for {{ $labels.vendor }}"
+    
+  - name: "Daily Sync Duration Exceeded"
+    condition: "ats_daily_prices_sync_duration_seconds > 1800"
+    severity: "warning"
+    description: "Daily sync for {{ $labels.vendor }} took longer than 30 minutes"
+    
+  - name: "No Sync Activity"
+    condition: "rate(ats_daily_prices_sync_symbols_processed_total[24h]) == 0"
+    severity: "critical"
+    description: "No daily sync activity detected for {{ $labels.vendor }} in the last 24 hours"
+
+thresholds:
+  sync_success_rate_critical: 0.8
+  sync_success_rate_warning: 0.9
+  sync_duration_warning: 1800  # 30 minutes
+  sync_duration_critical: 3600  # 1 hour
+  
+notifications:
+  # Configure your notification channels here
+  slack_webhook: ""  # Add your Slack webhook URL
+  email_recipients: []  # Add email addresses
+  
+monitoring:
+  check_interval: "5m"
+  retention: "7d"

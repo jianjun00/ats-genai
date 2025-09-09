@@ -1,0 +1,15 @@
+[Unit]
+Description=Run ATS Daily Prices Sync
+Requires=ats-daily-sync.service
+
+[Timer]
+# Run Monday-Friday at 1:00 AM (after midnight market close, before 2AM backups)
+OnCalendar=Mon-Fri 01:00:00
+Persistent=true
+AccuracySec=1min
+
+# Ensure it doesn't run if the previous job is still running
+Unit=ats-daily-sync.service
+
+[Install]
+WantedBy=timers.target
