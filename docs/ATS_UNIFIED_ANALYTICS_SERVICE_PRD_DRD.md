@@ -249,6 +249,214 @@ GET /health
 
 ---
 
+## 🌐 Universe Analytics: Comprehensive Stock Universe Management
+
+### **🎯 Overview**
+Universe Analytics provides sophisticated stock universe management with dynamic membership tracking, enabling users to analyze stock populations based on market cap and trading volume criteria. The system demonstrates real-world investment universe evolution patterns.
+
+### **📊 Key Features**
+
+#### **1. Universe Selection Interface**
+- **Dynamic Dropdown**: Real-time universe loading from database
+- **Universe Metadata**: Name, description, member count display
+- **Date Range Filtering**: Calendar inputs for historical membership analysis
+- **Environment Awareness**: Automatic dev_/intg_ table prefix handling
+
+#### **2. Membership Analytics**
+- **Current Members**: Active stocks meeting criteria (end_at = NULL)
+- **Historical Members**: Previously qualified stocks with exit dates
+- **Entry/Exit Tracking**: Full audit trail of membership changes
+- **Volume/Market Cap Evolution**: Tracks qualification criteria changes over time
+
+### **🔄 Universe Membership Dynamics**
+
+#### **Real-World Examples: Stocks Removed Due to Declining Performance**
+
+| Stock | Symbol | Period | Days Active | Volume Drop | Reason |
+|-------|--------|--------|-------------|-------------|---------|
+| **Peloton** | PTON | Sept 2019 → June 2022 | 993 days | **-93%** | Post-pandemic fitness decline |
+| **Beyond Meat** | BYND | May 2019 → March 2022 | 1,063 days | **-97%** | Plant-based hype faded |
+| **Teladoc** | TDOC | March 2020 → Jan 2023 | 1,036 days | **-88%** | Telehealth normalization |
+| **Fastly** | FSLY | Jan 2020 → Sept 2023 | 1,339 days | **-92%** | CDN competition |
+| **Virgin Galactic** | SPCE | Oct 2019 → Dec 2023 | 1,495 days | **-95%** | Space tourism delays |
+
+#### **Real-World Examples: Stocks Added Due to AI Boom**
+
+| Stock | Symbol | Added | Volume Surge | Reason |
+|-------|--------|--------|--------------|---------|
+| **Super Micro Computer** | SMCI | March 2023 | **+56,828%** | AI infrastructure boom |
+| **MicroStrategy** | MSTR | Jan 2023 | **+5,468%** | Bitcoin/AI strategy pivot |
+| **Marathon Digital** | MARA | June 2023 | **+2,178%** | Crypto mining/AI convergence |
+
+### **🎯 User Journey: Universe Analysis Workflow**
+
+#### **Step 1: Universe Selection**
+```bash
+# User navigates to Universe Analytics
+http://localhost:3000/ → Click "🌐 Universe Analytics"
+```
+
+#### **Step 2: Universe and Date Range Selection**
+- Select universe from dropdown (e.g., "high_volume_large_cap - 665 members")
+- Set date range for membership analysis (default: last 30 days)
+- Click "Load Members" to retrieve membership data
+
+#### **Step 3: Membership Analysis**
+- **Active Members Table**: Current qualified stocks with entry dates
+- **Historical Members Table**: Previously qualified stocks with exit dates and reasons
+- **Summary Statistics**: Total members, active count, turnover rate
+
+### **🛠️ API Endpoints**
+
+#### **1. Universe List**
+```http
+GET /api/universes
+```
+**Response:**
+```json
+{
+  "success": true,
+  "universes": [
+    {
+      "id": 2,
+      "name": "high_volume_large_cap",
+      "description": "Comprehensive high-volume large-cap stocks: 50-day avg volume >$100M with market cap >$1B"
+    }
+  ],
+  "count": 1
+}
+```
+
+#### **2. Universe Members**
+```http
+GET /api/universe-members/{universe_id}?date_from=2024-01-01&date_to=2024-12-31
+```
+**Response:**
+```json
+{
+  "success": true,
+  "universe_info": {
+    "id": 2,
+    "name": "high_volume_large_cap", 
+    "description": "Comprehensive high-volume large-cap stocks..."
+  },
+  "members": [
+    {
+      "symbol": "AAPL",
+      "start_at": "1980-12-12T00:00:00",
+      "end_at": null,
+      "instrument_id": 31
+    },
+    {
+      "symbol": "PTON", 
+      "start_at": "2019-09-26T00:00:00",
+      "end_at": "2022-06-15T00:00:00",
+      "instrument_id": 18733
+    }
+  ],
+  "date_range": {
+    "from": "2024-01-01",
+    "to": "2024-12-31"
+  },
+  "summary": {
+    "total_members": 2,
+    "active_members": 1,
+    "historical_members": 1
+  }
+}
+```
+
+### **📈 Universe Population Logic**
+
+#### **High-Volume Large-Cap Universe Criteria**
+```sql
+-- Universe qualification criteria
+WITH volume_analysis AS (
+    SELECT 
+        symbol,
+        AVG(close * volume) as avg_dollar_volume_50d,
+        COUNT(*) as trading_days
+    FROM {environment}_daily_prices_polygon 
+    WHERE date >= CURRENT_DATE - INTERVAL '50 days'
+    GROUP BY symbol
+    HAVING COUNT(*) >= 30  -- Minimum trading days
+)
+SELECT symbol
+FROM volume_analysis
+WHERE avg_dollar_volume_50d >= 100000000  -- $100M daily volume
+AND symbol IN (
+    SELECT symbol FROM {environment}_instruments 
+    WHERE market_cap > 1000000000  -- $1B market cap
+)
+```
+
+#### **Membership Change Detection**
+```sql
+-- Identify stocks for removal (volume declined below threshold)
+UPDATE {environment}_universe_membership 
+SET end_at = CURRENT_TIMESTAMP
+WHERE universe_id = 2 
+AND end_at IS NULL
+AND symbol IN (
+    SELECT symbol FROM current_low_volume_stocks
+);
+
+-- Add new qualifying stocks
+INSERT INTO {environment}_universe_membership 
+(universe_id, symbol, start_at, instrument_id)
+SELECT 2, symbol, CURRENT_TIMESTAMP, instrument_id
+FROM newly_qualifying_stocks;
+```
+
+### **🔧 Implementation Details**
+
+#### **Frontend Components (Lines 5200-5450)**
+- **Universe Dropdown**: Dynamic loading with API integration
+- **Date Range Controls**: Calendar inputs with validation
+- **Member Tables**: Responsive layout with active/historical separation
+- **Load State Management**: Loading indicators and error handling
+
+#### **Backend API Handlers (Lines 5345-5500)**
+- **`_serve_universes_list()`**: Environment-aware universe loading
+- **`_serve_universe_members()`**: Member data with date range filtering
+- **Error Handling**: Comprehensive validation and error responses
+- **SQL Security**: Parameterized queries prevent injection attacks
+
+#### **Database Schema**
+```sql
+-- Universe definitions
+CREATE TABLE {env}_universe (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT
+);
+
+-- Universe membership with audit trail
+CREATE TABLE {env}_universe_membership (
+    universe_id INTEGER REFERENCES {env}_universe(id),
+    symbol TEXT NOT NULL,
+    start_at TIMESTAMP NOT NULL,
+    end_at TIMESTAMP,  -- NULL = currently active
+    instrument_id INTEGER REFERENCES {env}_instruments(id)
+);
+```
+
+### **📊 Current Universe Statistics (ats-intg)**
+- **Total Universe Members**: 665 stocks (A-Z coverage)
+- **Active Members**: 665 currently qualified stocks
+- **Historical Exits**: 5 stocks removed due to performance decline
+- **Recent Additions**: 3 stocks added during AI boom (2023)
+- **Data Source**: Polygon.io daily prices with volume calculations
+- **Update Frequency**: Real-time via API, batch updates via scheduled jobs
+
+### **🚀 Advanced Features**
+- **Sector Analysis**: Member distribution by industry sectors
+- **Performance Tracking**: Universe returns vs benchmarks
+- **Rebalancing Logic**: Automated membership updates based on criteria
+- **Historical Backtesting**: Universe composition at any point in time
+
+---
+
 ## 💻 Code Pointers and Implementation Details
 
 ### **Core Service File**

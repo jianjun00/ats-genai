@@ -5349,14 +5349,19 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         
         try:
+            import os
             from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
             
+            # Get environment-aware table name
+            environment = os.getenv('ENVIRONMENT', 'dev')
+            universe_table = f"{environment}_universe"
+            
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                    cursor.execute("""
-                        SELECT id, name, description, created_at, updated_at 
-                        FROM dev_universe 
+                    cursor.execute(f"""
+                        SELECT id, name, description 
+                        FROM {universe_table} 
                         ORDER BY name
                     """)
                     
@@ -5365,9 +5370,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         universes.append({
                             "id": row['id'],
                             "name": row['name'],
-                            "description": row['description'],
-                            "created_at": row['created_at'].isoformat() if row['created_at'] else None,
-                            "updated_at": row['updated_at'].isoformat() if row['updated_at'] else None
+                            "description": row['description']
                         })
                     
                     response = {
@@ -5394,9 +5397,15 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         
         try:
+            import os
             from urllib.parse import urlparse, parse_qs
             from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
+            
+            # Get environment-aware table names
+            environment = os.getenv('ENVIRONMENT', 'dev')
+            universe_table = f"{environment}_universe"
+            membership_table = f"{environment}_universe_membership"
             
             # Parse universe ID from URL path
             universe_id = self.path.split('/')[-1].split('?')[0]
@@ -5418,9 +5427,9 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                     # Get universe information
-                    cursor.execute("""
+                    cursor.execute(f"""
                         SELECT id, name, description 
-                        FROM dev_universe 
+                        FROM {universe_table} 
                         WHERE id = %s
                     """, (universe_id,))
                     
@@ -5434,9 +5443,9 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         return
                     
                     # Get universe members within date range
-                    cursor.execute("""
+                    cursor.execute(f"""
                         SELECT um.universe_id, um.symbol, um.start_at, um.end_at, um.instrument_id
-                        FROM dev_universe_membership um
+                        FROM {membership_table} um
                         WHERE um.universe_id = %s
                         AND (
                             (um.start_at <= %s AND (um.end_at IS NULL OR um.end_at >= %s))
