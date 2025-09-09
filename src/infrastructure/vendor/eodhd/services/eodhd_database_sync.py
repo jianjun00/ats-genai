@@ -11,9 +11,18 @@ import asyncio
 import asyncpg
 import sys
 import time
+import os
 from datetime import datetime
 from typing import Dict, Any
 import logging
+
+# Prometheus metrics support
+try:
+    from prometheus_client import Counter, Gauge, Histogram, push_to_gateway
+    PROMETHEUS_AVAILABLE = True
+except ImportError:
+    PROMETHEUS_AVAILABLE = False
+    logging.warning("prometheus_client not installed. Metrics will not be pushed to Prometheus.")
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +34,34 @@ class VendorDatabaseSync:
         self.source_config = source_config
         self.target_config = target_config
         self.batch_size = 10000
+        
+        # Initialize Prometheus metrics if available
+        if PROMETHEUS_AVAILABLE:
+            self.sync_symbols_processed = Counter(
+                'ats_daily_prices_sync_symbols_processed_total',
+                'Total number of symbols processed during daily prices sync',
+                ['vendor', 'source_env', 'target_env']
+            )
+            self.sync_prices_processed = Counter(
+                'ats_daily_prices_sync_prices_processed_total', 
+                'Total number of price records processed during sync',
+                ['vendor', 'source_env', 'target_env']
+            )
+            self.sync_duration_seconds = Histogram(
+                'ats_daily_prices_sync_duration_seconds',
+                'Duration of daily prices sync operations in seconds',
+                ['vendor', 'source_env', 'target_env']
+            )
+            self.sync_success_rate = Gauge(
+                'ats_daily_prices_sync_success_rate',
+                'Success rate of daily prices sync operations (0.0 to 1.0)', 
+                ['vendor', 'source_env', 'target_env']
+            )
+        else:
+            self.sync_symbols_processed = None
+            self.sync_prices_processed = None
+            self.sync_duration_seconds = None
+            self.sync_success_rate = None
         
     async def __aenter__(self):
         """Async context manager entry."""
@@ -157,6 +194,55 @@ class VendorDatabaseSync:
             
             elapsed_time = time.time() - start_time
             
+            # Calculate unique symbols processed
+            symbols_query = f"""
+                SELECT COUNT(DISTINCT symbol) FROM {source_table}
+                WHERE instrument_id IN (SELECT id FROM dev_instruments)
+            """
+            unique_symbols = await source_conn.fetchval(symbols_query)
+            
+            # Calculate success rate
+            success_rate = (records_added / max(1, source_count - target_count_before - orphaned_count))
+            
+            # Update Prometheus metrics if available
+            if PROMETHEUS_AVAILABLE:
+                source_env = 'dev' if self.source_config.get('port') == 3432 else 'intg'
+                target_env = 'intg' if self.target_config.get('port') == 4432 else 'dev'
+                
+                self.sync_symbols_processed.labels(
+                    vendor=vendor,
+                    source_env=source_env, 
+                    target_env=target_env
+                ).inc(unique_symbols)
+                
+                self.sync_prices_processed.labels(
+                    vendor=vendor,
+                    source_env=source_env,
+                    target_env=target_env
+                ).inc(records_added)
+                
+                self.sync_duration_seconds.labels(
+                    vendor=vendor,
+                    source_env=source_env,
+                    target_env=target_env
+                ).observe(elapsed_time)
+                
+                self.sync_success_rate.labels(
+                    vendor=vendor,
+                    source_env=source_env,
+                    target_env=target_env
+                ).set(success_rate)
+                
+                # Push metrics to Prometheus gateway if configured
+                try:
+                    gateway = os.getenv('PROMETHEUS_GATEWAY', 'localhost:9091')
+                    job_name = f'daily-prices-sync-{vendor}'
+                    push_to_gateway(gateway, job=job_name, registry=None, 
+                                  grouping_key={'vendor': vendor})
+                    logger.info(f"📊 Pushed metrics to Prometheus gateway: {gateway}")
+                except Exception as e:
+                    logger.debug(f"Could not push to Prometheus gateway: {e}")
+            
             # Return results
             return {
                 'success': True,
@@ -167,9 +253,10 @@ class VendorDatabaseSync:
                 'target_count_after': target_count_after,
                 'remaining_gap': source_count - target_count_after,
                 'orphaned_records': orphaned_count,
+                'unique_symbols_processed': unique_symbols,
                 'total_time': elapsed_time,
                 'average_rate': total_processed/elapsed_time if elapsed_time > 0 else 0,
-                'sync_success_rate': (records_added / max(1, source_count - target_count_before - orphaned_count)) * 100
+                'sync_success_rate': success_rate * 100
             }
             
         except Exception as e:
