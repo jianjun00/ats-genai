@@ -187,6 +187,47 @@ class IntgCLI:
                 "image": "dragonflyer762/ats-genai:latest",
                 "port": "8001:8000",  # Different port for integration
                 "command": "python src/api/main.py"
+            },
+            "news-realtime": {
+                "image": "dragonflyer762/ats-genai:latest",
+                "port": "8081:8080",  # News metrics port
+                "command": "python scripts/realtime_news_ingestion.py --vendors tiingo,polygon,eodhd --interval 300 --daemon",
+                "env": {
+                    "DB_HOST": "ats-intg-postgres",
+                    "DB_PORT": "5432",
+                    "DB_USER": "postgres",
+                    "DB_PASSWORD": "intg_password",
+                    "DB_NAME": "intg_db",
+                    "METRICS_PORT": "8080",
+                    "TIINGO_API_KEY": os.getenv('TIINGO_API_KEY', '5f40b4f36e171405746304ec0e5a6f3aa9ca77e5'),
+                    "POLYGON_API_KEY": os.getenv('POLYGON_API_KEY', 'wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD'),
+                    "EODHD_API_KEY": os.getenv('EODHD_API_KEY', '675b5a33b36f43.67825763')
+                }
+            },
+            "news-backfill": {
+                "image": "dragonflyer762/ats-genai:latest",
+                "command": "bash -c 'while true; do python3 scripts/multi_vendor_news_backfill.py --vendors tiingo,polygon,eodhd --days 30; echo \"Backfill completed, sleeping 6 hours...\"; sleep 21600; done'",
+                "env": {
+                    "DB_HOST": "ats-intg-postgres",
+                    "DB_PORT": "5432",
+                    "DB_USER": "postgres",
+                    "DB_PASSWORD": "intg_password",
+                    "DB_NAME": "intg_db",
+                    "TIINGO_API_KEY": os.getenv('TIINGO_API_KEY', '5f40b4f36e171405746304ec0e5a6f3aa9ca77e5'),
+                    "POLYGON_API_KEY": os.getenv('POLYGON_API_KEY', 'wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD'),
+                    "EODHD_API_KEY": os.getenv('EODHD_API_KEY', '675b5a33b36f43.67825763')
+                }
+            },
+            "news-monitor": {
+                "image": "dragonflyer762/ats-genai:latest",
+                "command": "bash -c 'while true; do python3 scripts/news_health_monitor.py; echo \"Health check completed, sleeping 2 hours...\"; sleep 7200; done'",
+                "env": {
+                    "DB_HOST": "ats-intg-postgres",
+                    "DB_PORT": "5432",
+                    "DB_USER": "postgres",
+                    "DB_PASSWORD": "intg_password",
+                    "DB_NAME": "intg_db"
+                }
             }
         }
 
