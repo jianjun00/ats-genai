@@ -25,7 +25,6 @@ Daily health monitoring script that checks:
 
 | Time    | Job | Description |
 |---------|-----|-------------|
-| 1:00 AM | Daily Sync | Database sync DEV → INTG (Mon-Fri) |
 | 2:00 AM | DB Backups | PostgreSQL database backups |
 | 2:30 AM | FirstRate | Daily minute bar downloads |
 | 4:00 AM | Data Backup | Incremental data sync backup |

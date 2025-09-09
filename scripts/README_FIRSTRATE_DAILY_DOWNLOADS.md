@@ -89,12 +89,12 @@ PYTHONPATH=src uv run python scripts/firstrate_daily_download.py --all --debug
 - Easy monitoring via standard cron logs
 
 **Complete ATS Schedule:**
-- 1:00 AM: Daily prices sync (DEV → INTG)
 - 2:00 AM: Database backups
 - 2:30 AM: FirstRate minute bar downloads
 - 4:00 AM: Data backups
 - 5:00 AM: Backup cleanup
 - 6:30 AM: Health monitoring
+- 6:45 AM: Daily prices validation
 
 ## Data Organization
 

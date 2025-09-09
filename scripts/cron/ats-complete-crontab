@@ -2,21 +2,10 @@
 # Install with: crontab scripts/cron/ats-complete-crontab
 #
 # Schedule Overview:
-# 1:00 AM - Daily prices sync (Mon-Fri)
 # 2:00 AM - Database backups
 # 2:30 AM - FirstRate minute bar downloads
 # 4:00 AM - Data backups
 # 5:00 AM - Backup cleanup
-
-# ATS Daily Prices Sync - Weekdays at 1:00 AM (before backups)
-# Sync EODHD, Tiingo, Polygon from DEV to INTG databases
-0 1 * * 1-5 cd /home/jianjun/ats-genai-data && PYTHONPATH=src python3 scripts/eodhd_database_sync.py --vendor eodhd --source-port 3432 --target-port 4432 >> /mnt/d/ats-logs/daily-sync.log 2>> /mnt/d/ats-logs/daily-sync-error.log
-
-# Wait 5 minutes, then sync Tiingo
-5 1 * * 1-5 cd /home/jianjun/ats-genai-data && PYTHONPATH=src python3 scripts/eodhd_database_sync.py --vendor tiingo --source-port 3432 --target-port 4432 >> /mnt/d/ats-logs/daily-sync.log 2>> /mnt/d/ats-logs/daily-sync-error.log
-
-# Wait another 5 minutes, then sync Polygon
-10 1 * * 1-5 cd /home/jianjun/ats-genai-data && PYTHONPATH=src python3 scripts/eodhd_database_sync.py --vendor polygon --source-port 3432 --target-port 4432 >> /mnt/d/ats-logs/daily-sync.log 2>> /mnt/d/ats-logs/daily-sync-error.log
 
 # ATS Platform Daily Database Backups
 0 2 * * * /home/jianjun/ats-genai-data/scripts/daily_backup_ats_dev.sh

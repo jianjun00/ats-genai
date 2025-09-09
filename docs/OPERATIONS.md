@@ -104,11 +104,6 @@ tail -50 /mnt/d/ats-logs/minute-bars-backfill.log  # Recent processing activity
 # Complete ATS Platform Cron Configuration
 # Install with: crontab scripts/cron/ats-complete-crontab
 
-# 1:00 AM - Daily prices sync (Mon-Fri, DEV → INTG)
-0 1 * * 1-5   EODHD database sync (dev_db → intg_db)
-5 1 * * 1-5   Tiingo database sync (dev_db → intg_db)  
-10 1 * * 1-5  Polygon database sync (dev_db → intg_db)
-
 # 2:00 AM - Database backups
 0 2 * * *     ATS-DEV database backup
 15 2 * * *    ATS-INTG database backup
