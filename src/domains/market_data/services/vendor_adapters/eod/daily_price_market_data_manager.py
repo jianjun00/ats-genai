@@ -1,9 +1,9 @@
 from typing import List, Dict, Optional
 from datetime import datetime, date, time
 
-from domains.market_data.services.market_data_manager import MarketDataManager
+from domains.market_data.services.core.market_data_manager import MarketDataManager
 from domains.market_data.repositories.daily_prices_dao import DailyPricesDAO
-from core.calendars.exchange_calendar import ExchangeCalendar
+from core.business.calendars.exchange_calendar import ExchangeCalendar
 from domains.trading.services.state.instrument_interval import InstrumentInterval
 
 class DailyPriceMarketDataManager(MarketDataManager):

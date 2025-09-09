@@ -12,6 +12,8 @@ bind = ['strict_validation', True]
 
 import app.indicator_runner
 import core.config.environment
+import core.config.database
+import core.config.logging_config
 import signals.indicator
 
 # Configure the environment for Docker

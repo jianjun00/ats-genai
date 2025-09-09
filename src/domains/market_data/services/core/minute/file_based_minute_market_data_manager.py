@@ -11,9 +11,9 @@ from typing import List, Dict, Optional
 from pathlib import Path
 import logging
 
-from domains.market_data.services.market_data_manager import MarketDataManager
+from domains.market_data.services.core.market_data_manager import MarketDataManager
 from infrastructure.storage.file_based_minute_manager import FileBasedMinuteManager
-from shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 logger = logging.getLogger(__name__)
 

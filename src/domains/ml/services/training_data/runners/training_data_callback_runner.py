@@ -26,11 +26,12 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, field
 
-from app.runner import Runner
+from services.core.app.runner import Runner
 from shared.utils.environment import Environment, EnvironmentType
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
-from domains.ml.services.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
+# Removed: SequenceStorageManager - not needed per PRD/DRD QR5 single-step architecture
 from domains.ml.services.training_data.dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
+from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
 
 
 @gin.configurable
@@ -51,12 +52,12 @@ class TrainingDataConfig:
     sequence_lengths: Dict[str, int] = field(default_factory=lambda: {
         '5m': 52,   # Past 52 x 5-minute intervals (4.3 hours)
         '15m': 52,  # Past 52 x 15-minute intervals (13 hours)
-        '1h': 24,   # Past 24 x 1-hour intervals (1 day)
+        '60m': 24,  # Past 24 x 60-minute intervals (1 day)
         '1d': 20,   # Past 20 x daily intervals (4 weeks)
     })
 
     prediction_horizons: Dict[str, int] = field(default_factory=lambda: {
-        '1h': 6,    # Next 6 hours
+        '60m': 6,   # Next 6 hours
         '1d': 5,    # Next 5 days
     })
 
@@ -258,16 +259,13 @@ def parse_args():
     parser.add_argument('--predict-1d', type=int, default=5,
                        help='Number of daily intervals to predict (default: 5)')
 
-    # Output configuration
-    parser.add_argument('--output-dir', default='/data/training/sequences',
-                       help='Output directory for training data')
-    parser.add_argument('--storage-format', default='pickle',
-                       choices=['riegeli', 'tfrecord', 'pickle', 'parquet'],
-                       help='Storage format for training data')
-    parser.add_argument('--use-advanced-storage', action='store_true',
-                       help='Use SequenceStorageManager for advanced storage')
-    parser.add_argument('--compression-level', type=int, default=6,
-                       help='Compression level for advanced storage')
+    # Output configuration  
+    parser.add_argument('--output-dir', default='/data/training_data',
+                       help='Output directory for training data (follows PRD/DRD: /data/training_data/{dataset_id}/SYMBOL_STARTDATETIME_ENDDATETIME/{timeframe}/)')
+    parser.add_argument('--storage-format', default='arrayrecord',
+                       choices=['arrayrecord'],
+                       help='Storage format for training data (ArrayRecord per PRD/DRD QR4)')
+    # Removed: --use-advanced-storage, --compression-level (SequenceStorageManager not needed per PRD/DRD QR5)
 
     # Processing options
     parser.add_argument('--debug', action='store_true',
@@ -328,7 +326,7 @@ async def register_training_dataset(environment: Environment, symbols: List[str]
             "storage_format": storage_format,
             "output_directory": output_dir
         },
-        technical_indicators=get_technical_indicators(),
+        technical_indicators=','.join(get_technical_indicators()),
         feature_metadata=json.dumps({
             "timeframes": list(config.sequence_lengths.keys()),
             "features_per_timeframe": {tf: length * 7 for tf, length in config.sequence_lengths.items()},
@@ -400,14 +398,29 @@ async def main():
 
     # Load Gin configuration if provided
     if args.gin_config and Path(args.gin_config).exists():
+        print(f"🔧 DEBUG: Loading gin config from {args.gin_config}")
         gin.parse_config_file(args.gin_config)
+        print(f"🔧 DEBUG: Gin config loaded from {args.gin_config}")
+    else:
+        print(f"🔧 DEBUG: No gin config file found at {args.gin_config}")
+    
+    # Also load training data specific config
+    training_data_gin = Path("config/training_data.gin")
+    if training_data_gin.exists():
+        print(f"🔧 DEBUG: Loading training data gin config from {training_data_gin}")
+        gin.parse_config_file(str(training_data_gin))
+        print(f"🔧 DEBUG: Training data gin config loaded from {training_data_gin}")
+        print(f"🔧 DEBUG: Current gin operative config after loading:")
+        print(gin.operative_config_str())
+    else:
+        print(f"🔧 DEBUG: No training data gin config found at {training_data_gin}")
 
     # Map environment string to EnvironmentType
     env_map = {
         'dev': EnvironmentType.DEV,
         'test': EnvironmentType.TEST,
-        'intg': EnvironmentType.INTG,
-        'prod': EnvironmentType.PROD
+        'intg': EnvironmentType.INTEGRATION,
+        'prod': EnvironmentType.PRODUCTION
     }
 
     env_type = env_map.get(args.environment.lower())
@@ -415,62 +428,92 @@ async def main():
         raise ValueError(f"Unknown environment: {args.environment}")
 
     # Create environment
-    environment = Environment(args.gin_config, env_type)
+    gin_config_file = args.gin_config if args.gin_config else None
+    environment = Environment(gin_config_file, env_type)
 
     # Parse dates
-    start_date = datetime.strptime(args.start_date, "%Y-%m-%d").date()
-    end_date = datetime.strptime(args.end_date, "%Y-%m-%d").date()
+    from datetime import datetime as dt
+    start_date = dt.strptime(args.start_date, "%Y-%m-%d").date()
+    end_date = dt.strptime(args.end_date, "%Y-%m-%d").date()
 
-    # Create training data configuration
-    config = TrainingDataConfig(
-        base_interval_minutes=args.base_interval,
-        training_interval_minutes=args.training_interval,
-        sequence_lengths={
-            '5m': args.sequence_5m,
-            '15m': args.sequence_15m,
-            '1h': args.sequence_1h,
-            '1d': args.sequence_1d,
-        },
-        prediction_horizons={
-            '1h': args.predict_1h,
-            '1d': args.predict_1d,
-        }
-    )
+    # Create training data configuration using gin - let gin configure it properly
+    print("🔧 DEBUG: Creating TrainingDataConfig with gin configuration")
+    print(f"🔧 DEBUG: Current gin operative config:")
+    print(gin.operative_config_str())
+    
+    # Force gin to apply the configuration by using gin.get_configurable
+    try:
+        # Get the configured constructor
+        print("🔧 DEBUG: Attempting to get gin configured TrainingDataConfig")
+        configurable_constructor = gin.get_configurable('domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig')
+        print(f"🔧 DEBUG: Got configurable constructor: {configurable_constructor}")
+        
+        # Create using gin-configured constructor
+        config = configurable_constructor()
+        print("🔧 DEBUG: Successfully created config with gin configurable constructor")
+        
+    except Exception as e:
+        print(f"🔧 DEBUG: Failed to use gin configurable constructor: {e}")
+        print("🔧 DEBUG: Falling back to manual TrainingDataConfig() creation")
+        config = TrainingDataConfig()
+    
+    print(f"🔧 DEBUG: TrainingDataConfig created:")
+    print(f"  timeframes: {getattr(config, 'timeframes', 'MISSING')}")
+    print(f"  feature_types: {getattr(config, 'feature_types', 'MISSING')}")
+    print(f"  signal_names: {getattr(config, 'signal_names', 'MISSING')}")
 
-    # Set up storage manager if using advanced storage
-    storage_manager = None
-    if args.use_advanced_storage:
-        storage_config = StorageConfig(
-            primary_format=args.storage_format,
-            compression_level=args.compression_level,
-            chunk_size=1000,
-            enable_indexing=True,
-            enable_checksums=True
-        )
-        storage_manager = SequenceStorageManager(
-            base_path=args.output_dir,
-            config=storage_config
-        )
-        print(f"📦 Advanced storage enabled: {args.storage_format} format")
+    # Removed: SequenceStorageManager setup - using simple ArrayRecord storage per PRD/DRD QR5
+    # Simple storage will be handled directly in callback
 
-    # 📝 Register training dataset in database
-    dataset_id = await register_training_dataset(
-        environment=environment,
-        symbols=args.symbols,
-        start_date=start_date,
-        end_date=end_date,
-        config=config,
-        output_dir=args.output_dir,
-        storage_format=args.storage_format
-    )
+    # 📝 Simple dataset tracking: copy gin config to dataset directory and log command line
+    import shutil
+    import os
+    
+    # Create dataset directory
+    os.makedirs(args.output_dir, exist_ok=True)
+    
+    # Copy gin config to dataset directory
+    gin_config_path = "config/app_docker.gin"  # Current gin config
+    if os.path.exists(gin_config_path):
+        shutil.copy2(gin_config_path, os.path.join(args.output_dir, "gin_config.gin"))
+        print(f"📄 Copied gin config to: {args.output_dir}/gin_config.gin")
+    
+    # Save command line and metadata to dataset directory
+    import json
+    from datetime import datetime as dt_now
+    import sys
+    
+    dataset_metadata = {
+        "command_line": " ".join(sys.argv),
+        "symbols": args.symbols,
+        "start_date": str(start_date),
+        "end_date": str(end_date),
+        "base_duration": args.base_duration,
+        "output_dir": args.output_dir,
+        "storage_format": args.storage_format,
+        "generation_timestamp": dt_now.now().isoformat(),
+        "gin_config_file": "gin_config.gin",
+        "python_executable": sys.executable,
+        "working_directory": os.getcwd()
+    }
+    
+    metadata_file = os.path.join(args.output_dir, "dataset_metadata.json")
+    with open(metadata_file, 'w') as f:
+        json.dump(dataset_metadata, f, indent=2)
+    
+    print(f"📊 Saved dataset metadata to: {metadata_file}")
+    
+    # Generate dataset_id for directory structure (timestamp-based for uniqueness)
+    from datetime import datetime
+    dataset_id = f"dataset_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    print(f"📋 Generated dataset_id: {dataset_id}")
 
     # ✅ PURE CALLBACK APPROACH: Create ONLY the callback
     training_callback = IntervalBasedTrainingDataCallback(
         symbols=args.symbols,
         config=config,
         output_dir=args.output_dir,
-        save_format='advanced' if args.use_advanced_storage else 'pickle',
-        storage_manager=storage_manager
+        storage_format=args.storage_format
     )
 
     # Pass dataset_id to callback for completion tracking
@@ -519,23 +562,28 @@ async def main():
         intervals_per_day = 24 * 60 // config.training_interval_minutes
         estimated_actual_sequences = days_range * intervals_per_day * len(args.symbols)
 
-    await update_training_dataset_completion(
-        environment=environment,
-        dataset_id=dataset_id,
-        actual_sequences=estimated_actual_sequences,
-        generation_duration_seconds=generation_duration,
-        file_size_mb=0.0,  # Would calculate from actual files
-        data_quality_score=1.0  # Would calculate from actual data quality metrics
-    )
+    # 📝 Update dataset metadata with completion info
+    if os.path.exists(metadata_file):
+        with open(metadata_file, 'r') as f:
+            metadata = json.load(f)
+        
+        metadata.update({
+            "completion_timestamp": dt_now.now().isoformat(),
+            "generation_duration_seconds": generation_duration,
+            "estimated_sequences": estimated_actual_sequences,
+            "status": "completed"
+        })
+        
+        with open(metadata_file, 'w') as f:
+            json.dump(metadata, f, indent=2)
+        
+        print(f"📊 Updated dataset metadata with completion info")
 
-    print(f"\n✅ Pure callback-based training data generation completed!")
-    print(f"   Dataset registered and tracked: {dataset_id}")
-    print(f"   All logic handled by callback methods:")
-    print(f"   - handleStart: Initialize training generator")
-    print(f"   - handleStartOfDay: Open daily data collection")
-    print(f"   - handleInterval: Generate training examples")
-    print(f"   - handleEndOfDay: Save daily data")
-    print(f"   - handleEnd: Final summary and dataset completion")
+    print(f"\n✅ Training data generation completed!")
+    print(f"   Dataset directory: {args.output_dir}")
+    print(f"   Metadata file: {metadata_file}")
+    print(f"   Gin config: {args.output_dir}/gin_config.gin")
+    print(f"   Command line preserved in metadata for reproducibility")
 
     return 0
 

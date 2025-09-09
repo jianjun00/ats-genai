@@ -1,20 +1,20 @@
 # Gin configuration for multi-timeframe training data generation
 # Uses 1-minute base intervals with multi-timeframe sequences
 
-# Training Data Configuration - Using actual class parameters
-ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.base_interval_minutes = 1
-ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.training_interval_minutes = 60
+# Training Data Configuration - Using full module path
+domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.base_interval_minutes = 1
+domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.training_interval_minutes = 60
 
 # Available timeframes
-ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.timeframes = ['5m', '15m', '1h', '1d']
+domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.timeframes = ['5m', '15m', '1h', '1d']
 
 # Technical Indicators Configuration
-ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.signal_names = [
+domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.signal_names = [
     "etop", "ebot", "pldot"
 ]
 
 # Feature Types Configuration
-ml.training_data.timeseries_sequence_training_generator.TrainingDataConfig.feature_types = [
+domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.feature_types = [
     "ohlcv", "returns", "volatility", "volume_profile", 
     "technical", "indicators"
 ]

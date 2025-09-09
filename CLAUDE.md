@@ -513,18 +513,18 @@ python scripts/run_dev.py training_dataset get <dataset_id>
 ### **Training Data Structure (ArrayRecord Format Only)**
 ```bash
 # Training data is organized in multi-timeframe structure using ArrayRecord format:
-# /mnt/d/ats-data/training-data/{dataset_id}/SYMBOL_STARTDATE_STARTTIME_ENDDATE_ENDTIME/{timeframe}/SYMBOL_STARTDATE_STARTTIME_ENDDATE_ENDTIME.arrayrecord
+# /data/training_data/{dataset_id}/SYMBOL_STARTDATETIME_ENDDATETIME/{timeframe}/SYMBOL_STARTDATETIME_ENDDATETIME.arrayrecord
 # 
 # Example structure:
-# /mnt/d/ats-data/training-data/89/TSLA_20250701_000000_20250906_000000/5m/TSLA_20250701_000000_20250906_000000.arrayrecord
-# /mnt/d/ats-data/training-data/89/TSLA_20250701_000000_20250906_000000/15m/TSLA_20250701_000000_20250906_000000.arrayrecord
-# /mnt/d/ats-data/training-data/89/TSLA_20250701_000000_20250906_000000/1h/TSLA_20250701_000000_20250906_000000.arrayrecord
-# /mnt/d/ats-data/training-data/89/TSLA_20250701_000000_20250906_000000/1d/TSLA_20250701_000000_20250906_000000.arrayrecord
+# /data/training_data/dataset_20250701_120000/TSLA_20250701_000000_20250701_235959/5m/TSLA_20250701_000000_20250701_235959.arrayrecord
+# /data/training_data/dataset_20250701_120000/TSLA_20250701_000000_20250701_235959/15m/TSLA_20250701_000000_20250701_235959.arrayrecord
+# /data/training_data/dataset_20250701_120000/TSLA_20250701_000000_20250701_235959/1h/TSLA_20250701_000000_20250701_235959.arrayrecord
+# /data/training_data/dataset_20250701_120000/TSLA_20250701_000000_20250701_235959/1d/TSLA_20250701_000000_20250701_235959.arrayrecord
 
 # Container path mapping: /data/training_data (container) = /mnt/d/ats-data/training-data (host)
 
 # Check training data files for a specific dataset
-ls -la /mnt/d/ats-data/training-data/89/*/
+ls -la /data/training_data/dataset_20250701_120000/*/
 
 # Verify training data structure  
 python scripts/run_dev.py query --query "SELECT run_type, parameters, command_line FROM dev_runs WHERE id = 35"
@@ -627,10 +627,13 @@ python scripts/run_dev.py query --query "SELECT run_type, parameters, command_li
 - **Callback**: `DateBasedTrainingDataCallback` - Processes intervals into sequences
 
 **🔹 OUTPUT: Training Datasets (ML-Ready Sequences)**
-- **Location**: `/data/training_data/` (container) = `/mnt/d/ats-data/training-data/` (host)
+- **Location**: `/data/training_data/` (container path)
 - **Format**: ArrayRecord format only (.arrayrecord files)
-- **Structure**: `{dataset_id}/SYMBOL_STARTDATE_STARTTIME_ENDDATE_ENDTIME/{timeframe}/SYMBOL_STARTDATE_STARTTIME_ENDDATE_ENDTIME.arrayrecord`
-- **Content**: Sequences with features (OHLCV + indicators) and labels (future returns)
+- **Structure**: `{dataset_id}/SYMBOL_STARTDATETIME_ENDDATETIME/{timeframe}/SYMBOL_STARTDATETIME_ENDDATETIME.arrayrecord`
+- **✅ VERIFIED EXAMPLE**: `dataset_20250909_080134/TSLA_20250701_000000_20250701_235959/5m/TSLA_20250701_000000_20250701_235959.arrayrecord`
+- **Content**: QR4-compliant scalar data (timestamp, symbol, open, high, low, close, volume, vwap)
+- **Timeframes**: 5m, 15m, 1h, 1d (each gets separate ArrayRecord file)
+- **File Size**: ~131KB per timeframe (contains real TSLA minute bar data)
 - **Database**: Registered in `dev_training_dataset` table
 - **Tracking**: All runs logged in `dev_runs` table with command_line, git_commit_hash
 
