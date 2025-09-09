@@ -336,8 +336,8 @@ class DevCLI:
         env_vars = ""
         if 'env' in config:
             env_vars = " ".join([f"-e {k}={v}" for k, v in config['env'].items()])
-        if environment:
-            env_vars += " " + " ".join([f"-e {k}={v}" for k, v in environment.items()])
+        if 'environment' in config:
+            env_vars += " " + " ".join([f"-e {k}={v}" for k, v in config['environment'].items()])
         
         # Container name
         container_name = f"ats-dev-{service_name}"
