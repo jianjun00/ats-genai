@@ -96,24 +96,24 @@ CREATE TABLE IF NOT EXISTS dev_sr_levels (
     
     -- Audit trail
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
-    -- Indexes
-    INDEX idx_sr_levels_symbol (symbol),
-    INDEX idx_sr_levels_price (price),
-    INDEX idx_sr_levels_type (sr_type, level_type),
-    INDEX idx_sr_levels_timeframe (timeframe),
-    INDEX idx_sr_levels_strength (strength DESC),
-    INDEX idx_sr_levels_active (is_active, symbol, timeframe),
-    INDEX idx_sr_levels_last_tested (last_tested DESC),
-    
-    -- Composite indexes for common queries
-    INDEX idx_sr_levels_active_symbol_timeframe (symbol, timeframe, is_active, strength DESC),
-    INDEX idx_sr_levels_price_range (symbol, timeframe, price, is_active),
-    
-    -- JSON indexes for metadata queries
-    INDEX idx_sr_levels_metadata_gin (metadata) USING GIN
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Indexes for dev_sr_levels
+CREATE INDEX IF NOT EXISTS idx_sr_levels_symbol ON dev_sr_levels(symbol);
+CREATE INDEX IF NOT EXISTS idx_sr_levels_price ON dev_sr_levels(price);
+CREATE INDEX IF NOT EXISTS idx_sr_levels_type ON dev_sr_levels(sr_type, level_type);
+CREATE INDEX IF NOT EXISTS idx_sr_levels_timeframe ON dev_sr_levels(timeframe);
+CREATE INDEX IF NOT EXISTS idx_sr_levels_strength ON dev_sr_levels(strength DESC);
+CREATE INDEX IF NOT EXISTS idx_sr_levels_active ON dev_sr_levels(is_active, symbol, timeframe);
+CREATE INDEX IF NOT EXISTS idx_sr_levels_last_tested ON dev_sr_levels(last_tested DESC);
+
+-- Composite indexes for common queries
+CREATE INDEX IF NOT EXISTS idx_sr_levels_active_symbol_timeframe ON dev_sr_levels(symbol, timeframe, is_active, strength DESC);
+CREATE INDEX IF NOT EXISTS idx_sr_levels_price_range ON dev_sr_levels(symbol, timeframe, price, is_active);
+
+-- JSON indexes for metadata queries
+CREATE INDEX IF NOT EXISTS idx_sr_levels_metadata_gin ON dev_sr_levels USING GIN(metadata);
 
 -- Support/Resistance Level Tests
 CREATE TABLE IF NOT EXISTS dev_sr_tests (
@@ -146,22 +146,22 @@ CREATE TABLE IF NOT EXISTS dev_sr_tests (
     
     -- Audit trail  
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
-    -- Indexes
-    INDEX idx_sr_tests_level_id (sr_level_id),
-    INDEX idx_sr_tests_symbol (symbol),
-    INDEX idx_sr_tests_datetime (test_datetime DESC),
-    INDEX idx_sr_tests_outcome (outcome),
-    INDEX idx_sr_tests_timeframe (timeframe),
-    
-    -- Composite indexes
-    INDEX idx_sr_tests_level_outcome (sr_level_id, outcome, test_datetime DESC),
-    INDEX idx_sr_tests_symbol_timeframe (symbol, timeframe, test_datetime DESC),
-    
-    -- JSON indexes
-    INDEX idx_sr_tests_metadata_gin (metadata) USING GIN
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Indexes for dev_sr_tests
+CREATE INDEX IF NOT EXISTS idx_sr_tests_level_id ON dev_sr_tests(sr_level_id);
+CREATE INDEX IF NOT EXISTS idx_sr_tests_symbol ON dev_sr_tests(symbol);
+CREATE INDEX IF NOT EXISTS idx_sr_tests_datetime ON dev_sr_tests(test_datetime DESC);
+CREATE INDEX IF NOT EXISTS idx_sr_tests_outcome ON dev_sr_tests(outcome);
+CREATE INDEX IF NOT EXISTS idx_sr_tests_timeframe ON dev_sr_tests(timeframe);
+
+-- Composite indexes
+CREATE INDEX IF NOT EXISTS idx_sr_tests_level_outcome ON dev_sr_tests(sr_level_id, outcome, test_datetime DESC);
+CREATE INDEX IF NOT EXISTS idx_sr_tests_symbol_timeframe ON dev_sr_tests(symbol, timeframe, test_datetime DESC);
+
+-- JSON indexes
+CREATE INDEX IF NOT EXISTS idx_sr_tests_metadata_gin ON dev_sr_tests USING GIN(metadata);
 
 -- Support/Resistance Events (Integration with main events system)
 CREATE TABLE IF NOT EXISTS dev_sr_events (
@@ -196,7 +196,7 @@ CREATE TABLE IF NOT EXISTS dev_sr_events (
     event_data JSONB NOT NULL DEFAULT '{}',
     
     -- Integration with financial events system  
-    financial_event_id BIGINT NULL REFERENCES dev_financial_events(id),
+    financial_event_id BIGINT NULL,
     
     -- Status and processing
     processed BOOLEAN NOT NULL DEFAULT FALSE,
@@ -204,24 +204,24 @@ CREATE TABLE IF NOT EXISTS dev_sr_events (
     
     -- Audit trail
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
-    -- Indexes
-    INDEX idx_sr_events_symbol (symbol),
-    INDEX idx_sr_events_datetime (event_datetime DESC),
-    INDEX idx_sr_events_type (event_type, event_subtype),
-    INDEX idx_sr_events_timeframe (timeframe),
-    INDEX idx_sr_events_significance (significance_score DESC),
-    INDEX idx_sr_events_level_id (sr_level_id),
-    INDEX idx_sr_events_test_id (sr_test_id),
-    
-    -- Composite indexes for common analytical queries
-    INDEX idx_sr_events_symbol_timeframe_date (symbol, timeframe, event_datetime DESC),
-    INDEX idx_sr_events_significance_date (significance_score DESC, event_datetime DESC),
-    
-    -- JSON indexes
-    INDEX idx_sr_events_data_gin (event_data) USING GIN
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Indexes for dev_sr_events
+CREATE INDEX IF NOT EXISTS idx_sr_events_symbol ON dev_sr_events(symbol);
+CREATE INDEX IF NOT EXISTS idx_sr_events_datetime ON dev_sr_events(event_datetime DESC);
+CREATE INDEX IF NOT EXISTS idx_sr_events_type ON dev_sr_events(event_type, event_subtype);
+CREATE INDEX IF NOT EXISTS idx_sr_events_timeframe ON dev_sr_events(timeframe);
+CREATE INDEX IF NOT EXISTS idx_sr_events_significance ON dev_sr_events(significance_score DESC);
+CREATE INDEX IF NOT EXISTS idx_sr_events_level_id ON dev_sr_events(sr_level_id);
+CREATE INDEX IF NOT EXISTS idx_sr_events_test_id ON dev_sr_events(sr_test_id);
+
+-- Composite indexes for common analytical queries
+CREATE INDEX IF NOT EXISTS idx_sr_events_symbol_timeframe_date ON dev_sr_events(symbol, timeframe, event_datetime DESC);
+CREATE INDEX IF NOT EXISTS idx_sr_events_significance_date ON dev_sr_events(significance_score DESC, event_datetime DESC);
+
+-- JSON indexes
+CREATE INDEX IF NOT EXISTS idx_sr_events_data_gin ON dev_sr_events USING GIN(event_data);
 
 -- =============================================
 -- ANALYTICAL VIEWS  
