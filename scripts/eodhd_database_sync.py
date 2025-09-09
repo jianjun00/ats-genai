@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-EODHD Database Sync CLI
+Vendor Database Sync CLI
 
-Uses the EODHDDatabaseSync service for incremental database synchronization.
+Uses the VendorDatabaseSync service for incremental database synchronization.
+Supports EODHD, Tiingo, and other vendors.
 Consolidates functionality instead of duplicating code.
 """
 
@@ -14,18 +15,19 @@ from datetime import datetime
 # Add src to path
 sys.path.insert(0, '/home/jianjun/ats-genai-data/src')
 
-from infrastructure.vendor.eodhd.services.eodhd_database_sync import sync_eodhd_daily_prices
+from infrastructure.vendor.eodhd.services.eodhd_database_sync import sync_vendor_daily_prices
 
 
 async def main():
-    parser = argparse.ArgumentParser(description='EODHD Database Sync CLI')
+    parser = argparse.ArgumentParser(description='Vendor Database Sync CLI')
+    parser.add_argument('--vendor', type=str, default='eodhd', choices=['eodhd', 'tiingo', 'polygon'], help='Vendor to sync (eodhd, tiingo, polygon)')
     parser.add_argument('--source-port', type=int, default=3432, help='Source database port')
     parser.add_argument('--target-port', type=int, default=4432, help='Target database port')
     parser.add_argument('--source-db', type=str, default='dev_db', help='Source database name')
     parser.add_argument('--target-db', type=str, default='intg_db', help='Target database name')
     args = parser.parse_args()
     
-    print("🚀 Starting EODHD Database Synchronization")
+    print(f"🚀 Starting {args.vendor.upper()} Database Synchronization")
     start_time = datetime.now()
     
     # Configure database connections
@@ -46,7 +48,7 @@ async def main():
     }
     
     # Run sync using service
-    results = await sync_eodhd_daily_prices(source_config, target_config)
+    results = await sync_vendor_daily_prices(args.vendor, source_config, target_config)
     
     # Summary
     elapsed = (datetime.now() - start_time).total_seconds()

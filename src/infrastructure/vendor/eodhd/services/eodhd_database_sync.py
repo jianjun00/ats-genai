@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-EODHD Database Synchronization Service
+Vendor Database Synchronization Service
 
 Provides incremental synchronization of daily price data between databases.
+Supports EODHD and Tiingo vendors.
 Uses PostgreSQL ON CONFLICT DO NOTHING for safe incremental updates.
 """
 
@@ -17,8 +18,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class EODHDDatabaseSync:
-    """Service for syncing EODHD daily prices between databases."""
+class VendorDatabaseSync:
+    """Service for syncing vendor daily prices between databases (EODHD, Tiingo, etc.)."""
     
     def __init__(self, source_config: Dict[str, Any], target_config: Dict[str, Any]):
         self.source_config = source_config
@@ -33,12 +34,16 @@ class EODHDDatabaseSync:
         """Async context manager exit."""
         pass
     
-    async def sync_daily_prices_incremental(self) -> Dict[str, Any]:
+    async def sync_daily_prices_incremental(self, vendor: str = 'eodhd') -> Dict[str, Any]:
         """Incremental sync using direct INSERT with ON CONFLICT DO NOTHING."""
         
-        logger.info("🚀 Starting incremental sync of daily_prices_eodhd")
+        logger.info(f"🚀 Starting incremental sync of daily_prices_{vendor}")
         logger.info("🛡️  SAFE MODE: Using ON CONFLICT DO NOTHING (no deletions)")
         start_time = time.time()
+        
+        # Table names based on vendor
+        source_table = f"dev_daily_prices_{vendor}"
+        target_table = f"intg_daily_prices_{vendor}"
         
         # Connect to both databases
         source_conn = await asyncpg.connect(**self.source_config)
@@ -46,16 +51,16 @@ class EODHDDatabaseSync:
         
         try:
             # Get initial counts
-            source_count = await source_conn.fetchval("SELECT COUNT(*) FROM dev_daily_prices_eodhd")
-            target_count_before = await target_conn.fetchval("SELECT COUNT(*) FROM intg_daily_prices_eodhd")
+            source_count = await source_conn.fetchval(f"SELECT COUNT(*) FROM {source_table}")
+            target_count_before = await target_conn.fetchval(f"SELECT COUNT(*) FROM {target_table}")
             
             logger.info(f"📊 Source (dev): {source_count:,} records")
             logger.info(f"📊 Target (intg) before: {target_count_before:,} records")
             logger.info(f"📊 Records to process: {source_count:,}")
             
             # Check for orphaned records
-            orphaned_count = await source_conn.fetchval("""
-                SELECT COUNT(*) FROM dev_daily_prices_eodhd 
+            orphaned_count = await source_conn.fetchval(f"""
+                SELECT COUNT(*) FROM {source_table} 
                 WHERE instrument_id NOT IN (SELECT id FROM dev_instruments)
             """)
             
@@ -71,28 +76,68 @@ class EODHDDatabaseSync:
             
             while True:
                 # Fetch batch from source with valid instruments only
-                batch_data = await source_conn.fetch("""
-                    SELECT date, symbol, open, high, low, close, adjusted_close, volume, instrument_id
-                    FROM dev_daily_prices_eodhd 
-                    WHERE instrument_id IN (SELECT id FROM dev_instruments)
-                    ORDER BY date, instrument_id
-                    LIMIT $1 OFFSET $2
-                """, self.batch_size, offset)
+                if vendor == 'eodhd':
+                    batch_data = await source_conn.fetch(f"""
+                        SELECT date, symbol, open, high, low, close, adjusted_close, volume, instrument_id
+                        FROM {source_table} 
+                        WHERE instrument_id IN (SELECT id FROM dev_instruments)
+                        ORDER BY date, instrument_id
+                        LIMIT $1 OFFSET $2
+                    """, self.batch_size, offset)
+                elif vendor == 'polygon':
+                    batch_data = await source_conn.fetch(f"""
+                        SELECT date, symbol, open, high, low, close, volume, market_cap, instrument_id
+                        FROM {source_table} 
+                        WHERE instrument_id IN (SELECT id FROM dev_instruments)
+                        ORDER BY date, instrument_id
+                        LIMIT $1 OFFSET $2
+                    """, self.batch_size, offset)
+                else:  # tiingo and other vendors
+                    batch_data = await source_conn.fetch(f"""
+                        SELECT date, symbol, open, high, low, close, volume, instrument_id
+                        FROM {source_table} 
+                        WHERE instrument_id IN (SELECT id FROM dev_instruments)
+                        ORDER BY date, instrument_id
+                        LIMIT $1 OFFSET $2
+                    """, self.batch_size, offset)
                 
                 if not batch_data:
                     break
                 
                 # Insert batch with ON CONFLICT DO NOTHING (safe incremental)
-                result = await target_conn.executemany("""
-                    INSERT INTO intg_daily_prices_eodhd 
-                    (date, symbol, open, high, low, close, adjusted_close, volume, instrument_id)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                    ON CONFLICT (date, instrument_id) DO NOTHING
-                """, [
-                    (row['date'], row['symbol'], row['open'], row['high'], 
-                     row['low'], row['close'], row['adjusted_close'], row['volume'], row['instrument_id'])
-                    for row in batch_data
-                ])
+                if vendor == 'eodhd':
+                    result = await target_conn.executemany(f"""
+                        INSERT INTO {target_table} 
+                        (date, symbol, open, high, low, close, adjusted_close, volume, instrument_id)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                        ON CONFLICT (date, instrument_id) DO NOTHING
+                    """, [
+                        (row['date'], row['symbol'], row['open'], row['high'], 
+                         row['low'], row['close'], row['adjusted_close'], row['volume'], row['instrument_id'])
+                        for row in batch_data
+                    ])
+                elif vendor == 'polygon':
+                    result = await target_conn.executemany(f"""
+                        INSERT INTO {target_table} 
+                        (date, symbol, open, high, low, close, volume, market_cap, instrument_id)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                        ON CONFLICT (date, instrument_id) DO NOTHING
+                    """, [
+                        (row['date'], row['symbol'], row['open'], row['high'], 
+                         row['low'], row['close'], row['volume'], row['market_cap'], row['instrument_id'])
+                        for row in batch_data
+                    ])
+                else:  # tiingo and other vendors
+                    result = await target_conn.executemany(f"""
+                        INSERT INTO {target_table} 
+                        (date, symbol, open, high, low, close, volume, instrument_id)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                        ON CONFLICT (date, instrument_id) DO NOTHING
+                    """, [
+                        (row['date'], row['symbol'], row['open'], row['high'], 
+                         row['low'], row['close'], row['volume'], row['instrument_id'])
+                        for row in batch_data
+                    ])
                 
                 total_processed += len(batch_data)
                 offset += len(batch_data)
@@ -107,7 +152,7 @@ class EODHDDatabaseSync:
                     break
             
             # Final verification
-            target_count_after = await target_conn.fetchval("SELECT COUNT(*) FROM intg_daily_prices_eodhd")
+            target_count_after = await target_conn.fetchval(f"SELECT COUNT(*) FROM {target_table}")
             records_added = target_count_after - target_count_before
             
             elapsed_time = time.time() - start_time
@@ -138,15 +183,44 @@ class EODHDDatabaseSync:
             await target_conn.close()
 
 
-# Convenience function for simple usage
+# Convenience functions for simple usage
 async def sync_eodhd_daily_prices(
     source_config: Dict[str, Any] = None,
     target_config: Dict[str, Any] = None
 ) -> Dict[str, Any]:
     """
     Convenience function to sync EODHD daily prices.
+    """
+    return await sync_vendor_daily_prices('eodhd', source_config, target_config)
+
+async def sync_tiingo_daily_prices(
+    source_config: Dict[str, Any] = None,
+    target_config: Dict[str, Any] = None
+) -> Dict[str, Any]:
+    """
+    Convenience function to sync Tiingo daily prices.
+    """
+    return await sync_vendor_daily_prices('tiingo', source_config, target_config)
+
+async def sync_polygon_daily_prices(
+    source_config: Dict[str, Any] = None,
+    target_config: Dict[str, Any] = None
+) -> Dict[str, Any]:
+    """
+    Convenience function to sync Polygon daily prices.
+    """
+    return await sync_vendor_daily_prices('polygon', source_config, target_config)
+
+async def sync_vendor_daily_prices(
+    vendor: str,
+    source_config: Dict[str, Any] = None,
+    target_config: Dict[str, Any] = None
+) -> Dict[str, Any]:
+    """
+    Convenience function to sync vendor daily prices.
     
     Args:
+        vendor: Vendor name (eodhd, tiingo, etc.)
         source_config: Source database configuration (defaults to dev)
         target_config: Target database configuration (defaults to intg)
         
@@ -171,5 +245,5 @@ async def sync_eodhd_daily_prices(
             'database': 'intg_db'
         }
     
-    async with EODHDDatabaseSync(source_config, target_config) as sync_service:
-        return await sync_service.sync_daily_prices_incremental()
+    async with VendorDatabaseSync(source_config, target_config) as sync_service:
+        return await sync_service.sync_daily_prices_incremental(vendor)

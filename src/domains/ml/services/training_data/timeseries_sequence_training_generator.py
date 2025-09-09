@@ -88,6 +88,26 @@ class TrainingDataConfig:
             'bb_lower',       # Bollinger band lower
             'bb_middle'       # Bollinger band middle
         ]
+        
+        # DEBUG: Comprehensive debugging for gin configuration issues
+        print(f"🔧 DEBUG TrainingDataConfig.__init__:")
+        print(f"  📋 Parameters received:")
+        print(f"    base_interval_minutes: {base_interval_minutes}")
+        print(f"    training_interval_minutes: {training_interval_minutes}")
+        print(f"    timeframes parameter: {timeframes}")
+        print(f"    feature_types parameter: {feature_types}")
+        print(f"    signal_names parameter: {signal_names}")
+        print(f"  📊 Final attribute values:")
+        print(f"    self.timeframes: {self.timeframes}")
+        print(f"    self.feature_types: {self.feature_types}")
+        print(f"    self.signal_names: {self.signal_names}")
+        print(f"  🔄 Gin configuration status:")
+        try:
+            import gin
+            print(f"    gin module available: True")
+            print(f"    gin operative config: {gin.operative_config_str()}")
+        except Exception as e:
+            print(f"    gin error: {e}")
 
 
 @gin.configurable
@@ -99,7 +119,7 @@ class MultiTimeframeFeatureExtractor:
         self.logger = logging.getLogger(__name__)
 
         # Initialize S/R feature extractor if support_resistance is in feature_types
-        if 'support_resistance' in config.feature_types:
+        if hasattr(config, 'feature_types') and 'support_resistance' in config.feature_types:
             try:
                 from domains.ml.services.training_data.features.support_resistance_features import (
                     SupportResistanceFeatureExtractor
@@ -474,6 +494,18 @@ class TimeSeriesSequenceTrainingGenerator:
             self.env = env
 
         self.config = config or TrainingDataConfig()
+        
+        # DEBUG: Check what config we received
+        print(f"DEBUG TimeSeriesSequenceTrainingGenerator: received config = {config}")
+        print(f"DEBUG TimeSeriesSequenceTrainingGenerator: hasattr timeframes = {hasattr(self.config, 'timeframes')}")
+        print(f"DEBUG TimeSeriesSequenceTrainingGenerator: hasattr feature_types = {hasattr(self.config, 'feature_types')}")
+        print(f"DEBUG TimeSeriesSequenceTrainingGenerator: hasattr signal_names = {hasattr(self.config, 'signal_names')}")
+        if hasattr(self.config, 'timeframes'):
+            print(f"DEBUG TimeSeriesSequenceTrainingGenerator: timeframes = {self.config.timeframes}")
+        if hasattr(self.config, 'feature_types'):
+            print(f"DEBUG TimeSeriesSequenceTrainingGenerator: feature_types = {self.config.feature_types}")
+        if hasattr(self.config, 'signal_names'):
+            print(f"DEBUG TimeSeriesSequenceTrainingGenerator: signal_names = {self.config.signal_names}")
 
         if universe_manager is None and UniverseStateManager is not None and self.env is not None:
             self.universe_manager = UniverseStateManager(env=self.env)
