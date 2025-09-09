@@ -359,6 +359,229 @@
           "showThresholdMarkers": true
         },
         "gridPos": {"h": 8, "w": 24, "x": 0, "y": 32}
+      },
+      {
+        "id": 9,
+        "title": "Minute Bars - Missing Instruments by Vendor",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_minute_bars_missing_instruments_count{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} ({{source}})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 3},
+                {"color": "red", "value": 10}
+              ]
+            },
+            "unit": "none"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value"
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 40}
+      },
+      {
+        "id": 10,
+        "title": "Minute Bars - Missing Periods Percentage",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_minute_bars_missing_periods_percentage{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} ({{source}})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 20},
+                {"color": "red", "value": 50}
+              ]
+            },
+            "unit": "percent"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value"
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 40}
+      },
+      {
+        "id": 11,
+        "title": "Minute Bars File Count by Vendor",
+        "type": "barchart",
+        "targets": [
+          {
+            "expr": "ats_minute_bars_file_count{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisLabel": "File Count",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "fillOpacity": 80,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              },
+              "orientation": "auto"
+            },
+            "unit": "none"
+          }
+        },
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "single"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 48}
+      },
+      {
+        "id": 12,
+        "title": "Minute Bars Coverage Score",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "100 - ats_minute_bars_missing_instruments_percentage{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} ({{source}})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 70},
+                {"color": "green", "value": 90}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "options": {
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 48}
+      },
+      {
+        "id": 13,
+        "title": "Minute Bars vs Daily Prices Comparison",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "ats_minute_bars_missing_instruments_percentage{environment=\"intg\"}",
+            "legendFormat": "Minute Bars Missing - {{vendor}} ({{source}})",
+            "refId": "A"
+          },
+          {
+            "expr": "ats_daily_prices_missing_percentage{environment=\"intg\"}",
+            "legendFormat": "Daily Prices Missing - {{vendor}}",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisLabel": "Missing Percentage",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 2,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": 900000,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "unit": "percent",
+            "min": 0
+          }
+        },
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 56}
       }
     ],
     "time": {
@@ -382,6 +605,6 @@
         "type": "dashboards"
       }
     ],
-    "description": "Daily prices validation metrics showing missing and abnormal price data across EODHD, Tiingo, and Polygon vendors for the past 90 days."
+    "description": "Comprehensive data validation metrics showing missing and abnormal daily price data, plus minute bar coverage across EODHD, Tiingo, Polygon, and FirstRate vendors for the past 90 days."
   }
 }
