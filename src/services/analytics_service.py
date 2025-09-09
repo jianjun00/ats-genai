@@ -2057,6 +2057,37 @@ class UnifiedAnalyticsService:
                                 </select>
                             </div>
 
+                            <div id="filter-controls" style="display: none; background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
+                                <h4>🔍 Data Filters</h4>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; align-items: end;">
+                                    <div>
+                                        <label for="symbol-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">Symbol:</label>
+                                        <input type="text" id="symbol-filter" placeholder="e.g., AAPL, TSLA" 
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label for="date-from" style="display: block; margin-bottom: 5px; font-weight: bold;">From Date:</label>
+                                        <input type="date" id="date-from" 
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label for="date-to" style="display: block; margin-bottom: 5px; font-weight: bold;">To Date:</label>
+                                        <input type="date" id="date-to" 
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <button onclick="applyFilters()" 
+                                                style="padding: 8px 16px; background: #4285f4; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                            Apply Filters
+                                        </button>
+                                        <button onclick="clearFilters()" 
+                                                style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 5px;">
+                                            Clear
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div id="table-content" style="display: none;">
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                                     <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
@@ -2097,10 +2128,21 @@ class UnifiedAnalyticsService:
                     const tableName = document.getElementById('table-selector').value;
                     if (!tableName) {
                         document.getElementById('table-content').style.display = 'none';
+                        document.getElementById('filter-controls').style.display = 'none';
                         return;
                     }
 
                     document.getElementById('table-content').style.display = 'block';
+                    
+                    // Show filters for tables that typically have symbol and date columns
+                    const hasFiltering = tableName.includes('daily_prices') || 
+                                       tableName.includes('instruments') || 
+                                       tableName.includes('gap_events') ||
+                                       tableName.includes('fundamentals') ||
+                                       tableName.includes('news') ||
+                                       tableName.includes('earnings');
+                    
+                    document.getElementById('filter-controls').style.display = hasFiltering ? 'block' : 'none';
                     document.getElementById('table-info').innerHTML = '<p>Loading table information...</p>';
                     document.getElementById('column-summary').innerHTML = '<p>Loading column information...</p>';
                     document.getElementById('sample-data').innerHTML = '<p>Loading sample data...</p>';
@@ -2133,34 +2175,15 @@ class UnifiedAnalyticsService:
                         }
 
                         // Load sample data
-                        const sampleResponse = await fetch(`/api/table-sample/${tableName}`);
-                        if (sampleResponse.ok) {
-                            const sample = await sampleResponse.json();
-                            if (sample.rows && sample.rows.length > 0) {
-                                const headers = Object.keys(sample.rows[0]);
-                                const tableHtml = `
-                                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
-                                        <thead>
-                                            <tr style="background: #f1f3f4;">
-                                                ${headers.map(h => `<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">${h}</th>`).join('')}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            ${sample.rows.slice(0, 10).map(row => `
-                                                <tr>
-                                                    ${headers.map(h => `<td style="padding: 8px; border: 1px solid #ddd;">${row[h] !== null ? row[h] : '<em>null</em>'}</td>`).join('')}
-                                                </tr>
-                                            `).join('')}
-                                        </tbody>
-                                    </table>
-                                `;
-                                document.getElementById('sample-data').innerHTML = tableHtml;
-                            } else {
-                                document.getElementById('sample-data').innerHTML = '<p>No data found in table</p>';
-                            }
-                        }
+                        loadSampleData(tableName);
+                        
+                    } catch (error) {
+                        console.error('Error loading table data:', error);
+                        document.getElementById('table-info').innerHTML = '<p style="color: red;">Error loading table information</p>';
+                    }
 
-                        // Load column distributions
+                    // Load column distributions
+                    try {
                         const distResponse = await fetch(`/api/table-distributions/${tableName}`);
                         if (distResponse.ok) {
                             const distributions = await distResponse.json();
@@ -2172,21 +2195,166 @@ class UnifiedAnalyticsService:
                                         <h5>${colName}</h5>
                                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin: 10px 0;">
                                             <div><strong>Count:</strong> ${stats.count || 0}</div>
-                                            <div><strong>Unique:</strong> ${stats.unique || 0}</div>
-                                            <div><strong>Nulls:</strong> ${stats.nulls || 0}</div>
-                                            <div><strong>Type:</strong> ${stats.type || 'unknown'}</div>
+                                            <div><strong>Nulls:</strong> ${stats.null_count || 0}</div>
+                                            <div><strong>Unique:</strong> ${stats.unique_count || 'N/A'}</div>
+                                            <div><strong>Type:</strong> ${stats.data_type || 'Unknown'}</div>
+                                            ${stats.min !== undefined ? `<div><strong>Min:</strong> ${stats.min}</div>` : ''}
+                                            ${stats.max !== undefined ? `<div><strong>Max:</strong> ${stats.max}</div>` : ''}
+                                            ${stats.avg !== undefined ? `<div><strong>Avg:</strong> ${parseFloat(stats.avg).toFixed(2)}</div>` : ''}
                                         </div>
-                                        ${stats.min !== undefined ? `<div><strong>Min:</strong> ${stats.min} <strong>Max:</strong> ${stats.max}</div>` : ''}
-                                        ${stats.top_values ? `<div><strong>Top Values:</strong> ${stats.top_values.slice(0, 5).join(', ')}</div>` : ''}
+                                        ${stats.most_common ? `
+                                            <div style="margin-top: 10px;">
+                                                <strong>Most Common Values:</strong>
+                                                <div style="margin: 5px 0;">
+                                                    ${Object.entries(stats.most_common).slice(0, 5).map(([val, count]) => 
+                                                        `<span style="background: #e9ecef; padding: 2px 6px; margin: 2px; border-radius: 3px; display: inline-block;">${val} (${count})</span>`
+                                                    ).join('')}
+                                                </div>
+                                            </div>
+                                        ` : ''}
                                     </div>
                                 `;
                             }
 
                             document.getElementById('column-distributions').innerHTML = distHtml || '<p>No distribution data available</p>';
+                        } else {
+                            document.getElementById('column-distributions').innerHTML = '<p>Could not load column distributions</p>';
                         }
-
                     } catch (error) {
-                        document.getElementById('table-info').innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
+                        document.getElementById('column-distributions').innerHTML = '<p style="color: red;">Error loading distributions</p>';
+                    }
+                }
+
+                async function loadSampleData(tableName, filters = {}) {
+                    try {
+                        // Build query parameters for filtering and sorting
+                        let queryParams = '';
+                        if (filters.symbol) queryParams += `&symbol=${encodeURIComponent(filters.symbol)}`;
+                        if (filters.dateFrom) queryParams += `&date_from=${filters.dateFrom}`;
+                        if (filters.dateTo) queryParams += `&date_to=${filters.dateTo}`;
+                        if (filters.sortBy) queryParams += `&sort_by=${encodeURIComponent(filters.sortBy)}`;
+                        if (filters.sortDir) queryParams += `&sort_dir=${filters.sortDir}`;
+                        
+                        const sampleResponse = await fetch(`/api/table-sample/${tableName}?limit=50${queryParams}`);
+                        if (sampleResponse.ok) {
+                            const sample = await sampleResponse.json();
+                            if (sample.rows && sample.rows.length > 0) {
+                                window.currentTableData = sample.rows; // Store data
+                                renderSortableTable(sample.rows, sample.sort_applied);
+                            } else {
+                                document.getElementById('sample-data').innerHTML = '<p>No data found with current filters</p>';
+                            }
+                        } else {
+                            document.getElementById('sample-data').innerHTML = '<p>Error loading sample data</p>';
+                        }
+                    } catch (error) {
+                        console.error('Error loading sample data:', error);
+                        document.getElementById('sample-data').innerHTML = '<p style="color: red;">Error loading sample data</p>';
+                    }
+                }
+
+                function renderSortableTable(rows, sortApplied = null) {
+                    if (!rows || rows.length === 0) return;
+                    
+                    const headers = Object.keys(rows[0]);
+                    const tableHtml = `
+                        <div style="margin-bottom: 10px;">
+                            <small>Showing ${rows.length} rows. Click column headers to sort globally.</small>
+                            ${sortApplied && sortApplied.column ? `<br><small style="color: #666;">Sorted by: ${sortApplied.column} (${sortApplied.direction})</small>` : ''}
+                        </div>
+                        <table id="sortable-table" style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                            <thead>
+                                <tr style="background: #f1f3f4;">
+                                    ${headers.map(h => {
+                                        let sortIcon = '⇅';
+                                        if (sortApplied && sortApplied.column === h) {
+                                            sortIcon = sortApplied.direction === 'asc' ? '▲' : '▼';
+                                            currentSortColumn = h;
+                                            sortDirection = sortApplied.direction;
+                                        }
+                                        return `
+                                            <th onclick="sortTable('${h}')" 
+                                                style="padding: 8px; border: 1px solid #ddd; text-align: left; cursor: pointer; user-select: none;">
+                                                ${h} <span id="sort-${h}" style="color: #666;">${sortIcon}</span>
+                                            </th>
+                                        `;
+                                    }).join('')}
+                                </tr>
+                            </thead>
+                            <tbody id="table-body">
+                                ${rows.map(row => `
+                                    <tr>
+                                        ${headers.map(h => `<td style="padding: 8px; border: 1px solid #ddd;">${row[h] !== null ? row[h] : '<em>null</em>'}</td>`).join('')}
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    document.getElementById('sample-data').innerHTML = tableHtml;
+                }
+
+                // Server-side table sorting functionality
+                let currentSortColumn = null;
+                let sortDirection = 'asc';
+
+                function sortTable(column) {
+                    const tableName = document.getElementById('table-selector').value;
+                    if (!tableName) return;
+                    
+                    // Update sort indicators
+                    document.querySelectorAll('[id^="sort-"]').forEach(span => span.innerHTML = '⇅');
+                    
+                    // Determine sort direction
+                    if (currentSortColumn === column) {
+                        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSortColumn = column;
+                        sortDirection = 'asc';
+                    }
+                    
+                    // Update visual indicator
+                    document.getElementById(`sort-${column}`).innerHTML = sortDirection === 'asc' ? '▲' : '▼';
+                    
+                    // Get current filters and reload data with sorting
+                    const filters = {
+                        symbol: document.getElementById('symbol-filter').value.trim(),
+                        dateFrom: document.getElementById('date-from').value,
+                        dateTo: document.getElementById('date-to').value,
+                        sortBy: column,
+                        sortDir: sortDirection
+                    };
+                    
+                    // Show loading message
+                    document.getElementById('sample-data').innerHTML = '<p>Sorting data...</p>';
+                    
+                    // Reload data with server-side sorting
+                    loadSampleData(tableName, filters);
+                }
+
+                // Filter functionality
+                function applyFilters() {
+                    const tableName = document.getElementById('table-selector').value;
+                    if (!tableName) return;
+                    
+                    const filters = {
+                        symbol: document.getElementById('symbol-filter').value.trim(),
+                        dateFrom: document.getElementById('date-from').value,
+                        dateTo: document.getElementById('date-to').value
+                    };
+                    
+                    document.getElementById('sample-data').innerHTML = '<p>Applying filters...</p>';
+                    loadSampleData(tableName, filters);
+                }
+
+                function clearFilters() {
+                    document.getElementById('symbol-filter').value = '';
+                    document.getElementById('date-from').value = '';
+                    document.getElementById('date-to').value = '';
+                    
+                    const tableName = document.getElementById('table-selector').value;
+                    if (tableName) {
+                        document.getElementById('sample-data').innerHTML = '<p>Loading data...</p>';
+                        loadSampleData(tableName);
                     }
                 }
 
@@ -4654,8 +4822,13 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
 
     def _serve_table_sample(self):
-        """Serve sample data from table."""
-        table_name = self.path.split('/')[-1]
+        """Serve sample data from table with optional filtering."""
+        from urllib.parse import urlparse, parse_qs
+        
+        # Parse table name and query parameters
+        parsed_url = urlparse(self.path)
+        table_name = parsed_url.path.split('/')[-1]
+        query_params = parse_qs(parsed_url.query)
 
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
@@ -4664,14 +4837,67 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         try:
             from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
+            from psycopg2 import sql
+
+            # Extract filter and sort parameters
+            limit = int(query_params.get('limit', ['50'])[0])
+            symbol_filter = query_params.get('symbol', [None])[0]
+            date_from = query_params.get('date_from', [None])[0]
+            date_to = query_params.get('date_to', [None])[0]
+            sort_column = query_params.get('sort_by', [None])[0]
+            sort_direction = query_params.get('sort_dir', ['asc'])[0].lower()
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                    from psycopg2 import sql
+                    
+                    # Build base query
+                    base_query = "SELECT * FROM {}"
+                    where_conditions = []
+                    params = []
+                    
+                    # Add symbol filter if provided (simplified approach)
+                    if symbol_filter and 'daily_prices' in table_name:
+                        # For daily_prices tables, we know symbol column exists
+                        where_conditions.append('symbol ILIKE %s')
+                        params.append(f"%{symbol_filter}%")
+                    
+                    # Add date filters if provided (simplified approach)  
+                    if (date_from or date_to) and ('daily_prices' in table_name or 'gap_events' in table_name):
+                        # For price/event tables, we know date column exists
+                        if date_from:
+                            where_conditions.append('date >= %s')
+                            params.append(date_from)
+                        if date_to:
+                            where_conditions.append('date <= %s')
+                            params.append(date_to)
+                    
+                    # Build ORDER BY clause
+                    order_clause = ""
+                    if sort_column:
+                        # Validate sort direction
+                        if sort_direction not in ['asc', 'desc']:
+                            sort_direction = 'asc'
+                        
+                        # Validate column exists to prevent SQL injection
+                        cursor.execute("""
+                            SELECT column_name FROM information_schema.columns 
+                            WHERE table_name = %s AND column_name = %s
+                        """, (table_name, sort_column))
+                        
+                        if cursor.fetchone():
+                            order_clause = f" ORDER BY \"{sort_column}\" {sort_direction.upper()}"
+                    
+                    # Build final query
+                    if where_conditions:
+                        query = f"{base_query} WHERE {' AND '.join(where_conditions)}{order_clause} LIMIT %s"
+                        params.append(limit)
+                    else:
+                        query = f"{base_query}{order_clause} LIMIT %s"
+                        params = [limit]
+                    
                     cursor.execute(
-                        sql.SQL("SELECT * FROM {} LIMIT 10").format(
-                            sql.Identifier(table_name)
-                        )
+                        sql.SQL(query).format(sql.Identifier(table_name)),
+                        params
                     )
 
                     rows = []
@@ -4683,7 +4909,20 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                 row_dict[key] = value.isoformat()
                         rows.append(row_dict)
 
-                    response = {"table_name": table_name, "rows": rows}
+                    response = {
+                        "table_name": table_name, 
+                        "rows": rows,
+                        "filters_applied": {
+                            "symbol": symbol_filter,
+                            "date_from": date_from,
+                            "date_to": date_to,
+                            "limit": limit
+                        },
+                        "sort_applied": {
+                            "column": sort_column,
+                            "direction": sort_direction
+                        }
+                    }
 
         except Exception as e:
             logger.error(f"Error getting sample data for {table_name}: {e}")
