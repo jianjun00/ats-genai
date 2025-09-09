@@ -441,13 +441,292 @@ CREATE TABLE {env}_universe_membership (
 );
 ```
 
+### **⚡ CRITICAL: Universe Membership Date Logic & Entry/Exit Patterns**
+
+#### **🎯 Correct Business Logic for start_at/end_at Dates**
+
+**Universe membership dates MUST reflect actual qualification criteria, not placeholder dates:**
+
+```sql
+-- CORRECT: start_at = date when stock FIRST exceeds volume threshold
+-- CORRECT: end_at = date when stock falls below threshold  
+-- CORRECT: Re-entry creates NEW membership record with new start_at
+```
+
+| **Event** | **Action** | **Database Operation** |
+|-----------|------------|------------------------|
+| Stock first qualifies | **Entry** | `INSERT` new membership (start_at = qualification_date, end_at = NULL) |
+| Active stock disqualifies | **Exit** | `UPDATE` membership (end_at = disqualification_date) | 
+| Previously exited stock requalifies | **Re-entry** | `INSERT` new membership (new start_at = requalification_date) |
+| Stock maintains qualification | **Continue** | No database changes |
+
+#### **🔍 Real-World Entry/Exit Pattern Examples**
+
+##### **Pattern 1: Single Entry (Stable Large Cap)**
+```sql
+-- AAPL: IPO 1980, qualified for high volume around 2000s tech boom
+symbol: 'AAPL'
+start_at: '2001-03-15'  -- When volume first exceeded $100M (NOT IPO date)
+end_at: NULL            -- Still qualified
+```
+
+##### **Pattern 2: Entry → Exit (Performance Decline)**  
+```sql  
+-- PTON: Qualified during pandemic, lost qualification post-pandemic
+symbol: 'PTON'
+start_at: '2020-04-15'  -- When home fitness demand surged volume >$100M
+end_at: '2022-06-15'    -- When volume fell below $100M threshold
+```
+
+##### **Pattern 3: Entry → Exit → Re-entry (Volatility Cycle)**
+```sql
+-- BYND: Qualified during hype, lost qualification, may requalify
+symbol: 'BYND'  
+-- First membership period
+start_at: '2019-07-15'  -- Post-IPO hype drove volume >$100M
+end_at: '2022-03-30'    -- Hype faded, volume <$100M
+
+-- Potential second membership (if requalifies)
+start_at: '2024-11-01'  -- Hypothetical requalification 
+end_at: NULL            -- Currently active (example)
+```
+
+##### **Pattern 4: Recent Entry (AI Boom)**
+```sql
+-- SMCI: Low volume until AI infrastructure demand
+symbol: 'SMCI'
+start_at: '2023-03-15'  -- AI boom drove server demand, volume >$100M
+end_at: NULL            -- Still qualified
+```
+
+#### **🚨 CURRENT IMPLEMENTATION ISSUES**
+
+**❌ What's Wrong Now:**
+- **Placeholder dates**: Most stocks have `start_at = '1995-01-01'` (meaningless)
+- **IPO date confusion**: Using IPO dates instead of volume qualification dates
+- **Bulk assignment**: All entries created simultaneously with `CURRENT_TIMESTAMP`
+- **No historical tracking**: No process monitors actual qualification changes
+- **Manual exits**: Historical patterns appear hand-curated, not criteria-driven
+
+**✅ What Should Exist:**
+- **Daily evaluation process** checking each stock against volume criteria  
+- **Automated entry/exit** based on 50-day average volume thresholds
+- **Accurate historical timeline** showing real market dynamics
+- **Multiple membership periods** for stocks with volatility cycles
+
+#### **📈 Required Daily Evaluation Process**
+
+```python
+# Pseudo-code for correct universe membership tracking
+def evaluate_universe_membership(evaluation_date):
+    """Daily process to update universe memberships based on actual criteria"""
+    
+    # Calculate current volume metrics
+    current_qualifiers = get_stocks_exceeding_volume_threshold(evaluation_date)
+    active_members = get_active_universe_members()
+    
+    # Process exits (active members who no longer qualify)  
+    for stock in active_members:
+        if stock not in current_qualifiers:
+            update_membership_exit(stock.symbol, evaluation_date)
+            
+    # Process entries (new qualifiers not currently active)
+    for stock in current_qualifiers:
+        if not is_currently_active_member(stock):
+            insert_new_membership(stock.symbol, evaluation_date)
+```
+
+#### **🧪 Test Cases for Validation**
+
+**Required test scenarios with real examples:**
+
+1. **Initial Entry Test**: SMCI gaining qualification during AI boom (2023-03-15)
+2. **Volume Decline Exit**: PTON losing qualification post-pandemic (2022-06-15)  
+3. **Re-entry After Exit**: BYND hypothetical requalification after decline
+4. **Threshold Boundary**: Stock oscillating around $100M volume (multiple entries/exits)
+5. **Continuous Qualification**: AAPL maintaining qualification for 20+ years
+6. **IPO Entry**: New stock qualifying shortly after IPO when volume grows
+7. **Merger/Delisting Exit**: Stock losing qualification due to corporate actions
+
 ### **📊 Current Universe Statistics (ats-intg)**
-- **Total Universe Members**: 665 stocks (A-Z coverage)
+- **Total Universe Members**: 665 stocks (A-Z coverage)  
 - **Active Members**: 665 currently qualified stocks
 - **Historical Exits**: 5 stocks removed due to performance decline
+- **⚠️ Data Quality Issue**: Most start_at dates are placeholders, not actual qualification dates
 - **Recent Additions**: 3 stocks added during AI boom (2023)
 - **Data Source**: Polygon.io daily prices with volume calculations
 - **Update Frequency**: Real-time via API, batch updates via scheduled jobs
+
+### **🚀 EXECUTION PLAN: Critical Universe Membership Fixes**
+
+#### **P0 CRITICAL FIXES (In Progress)**
+
+##### **1. Replace Placeholder Dates with Actual Qualification Analysis**
+```sql
+-- BEFORE: 95% have placeholder dates
+start_at: '1995-01-01'  -- Meaningless placeholder
+
+-- AFTER: Actual qualification dates  
+start_at: '2023-01-09'  -- SMCI AI boom qualification
+start_at: '2020-12-17'  -- MSTR Bitcoin strategy qualification
+```
+
+**Implementation Status**: ✅ Analysis Complete, 🔄 Fix In Progress
+- Research completed with real market data
+- Volume qualification dates identified
+- Correction script being implemented
+
+##### **2. Daily Evaluation Process Implementation**
+```python
+# Automated daily process
+def evaluate_daily_membership(evaluation_date):
+    current_qualifiers = get_stocks_exceeding_threshold(evaluation_date)
+    active_members = get_active_universe_members()
+    
+    # Process exits (volume declined)
+    for member in active_members:
+        if member not in current_qualifiers:
+            set_membership_exit(member, evaluation_date)
+    
+    # Process entries (volume exceeded)  
+    for qualifier in current_qualifiers:
+        if qualifier not in active_members:
+            create_new_membership(qualifier, evaluation_date)
+```
+
+**Implementation Status**: ✅ Code Complete, 🔄 Integration In Progress
+- `UniverseMembershipManager` implemented
+- Daily evaluation logic complete
+- Scheduler integration pending
+
+##### **3. Historical Data Correction**
+**Target Corrections Based on Research**:
+- **SMCI**: `1995-01-01` → `2023-01-09` (AI boom entry)
+- **MSTR**: `1995-01-01` → `2020-12-17` (Bitcoin strategy entry)
+- **PTON**: Manual exit → `2023-04-27` (volume decline exit)
+- **BYND**: Single record → Multiple periods (hype volatility)
+
+**Implementation Status**: 🔄 Analysis Complete, Implementation Started
+
+##### **4. Multiple Membership Periods Support**
+```sql
+-- Example: BYND volatility cycles
+-- Period 1: Hype cycle  
+INSERT INTO universe_membership VALUES (2, 'BYND', '2019-07-15', '2022-07-11', ...);
+
+-- Period 2: Brief requalification
+INSERT INTO universe_membership VALUES (2, 'BYND', '2022-07-21', '2022-07-22', ...);
+
+-- Period 3: Potential recovery
+INSERT INTO universe_membership VALUES (2, 'BYND', '2024-11-01', NULL, ...);
+```
+
+**Implementation Status**: ✅ Schema Ready, 🔄 Business Logic In Progress
+
+##### **5. Scheduled Daily Job**
+```yaml
+# K8s CronJob specification
+apiVersion: batch/v1
+kind: CronJob
+spec:
+  schedule: "0 22 * * 1-5"  # 6 PM ET weekdays
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: universe-evaluator
+            image: ats-genai:latest
+            command: ["python", "universe_membership_manager.py", "evaluate"]
+```
+
+**Implementation Status**: 🔄 Design Complete, Implementation Pending
+
+##### **6. Monitoring & Alerts**  
+```python
+# Alert examples
+alerts = [
+    "🚨 NVDA volume surge: $45.2B (was $28.1B) - Universe entry",
+    "📊 Daily Summary: 3 entries, 1 exit - Universe 2 now 668 stocks", 
+    "⚠️ PTON oscillating around threshold - volatility alert"
+]
+```
+
+**Implementation Status**: 🔄 Specification Complete, Implementation Pending
+
+#### **VALIDATION & TESTING**
+
+##### **Test Framework Status**:
+- ✅ **Entry/Exit Pattern Tests**: Real market data validation
+- ✅ **Multiple Period Tests**: Volatility cycle simulation  
+- ✅ **Volume Threshold Tests**: Boundary condition validation
+- ✅ **Historical Analysis Tests**: Qualification event timing
+- 🔄 **End-to-End Integration Tests**: In progress
+
+##### **Data Quality Metrics**:
+```
+Current State (Before Fix):
+• Placeholder dates: 95%+ of records
+• Unique start dates: 17 for 670 memberships
+• Historical accuracy: 0% (all fake dates)
+
+Target State (After Fix):
+• Placeholder dates: 0%
+• Unique start dates: 400+ realistic dates
+• Historical accuracy: 95%+ based on volume data
+```
+
+#### **ROLLOUT PLAN**
+
+##### **Phase 1: Foundation (Week 1)**
+- [x] Research & analysis complete
+- [x] PRD/DRD updated with specifications
+- [x] Core implementation classes created
+- [ ] Historical correction script ready
+- [ ] Initial validation testing
+
+##### **Phase 2: Data Correction (Week 2)**  
+- [ ] Backup current universe data
+- [ ] Run historical volume analysis
+- [ ] Generate correct membership records
+- [ ] Validate against research findings
+- [ ] Deploy corrected data
+
+##### **Phase 3: Automation (Week 3)**
+- [ ] Deploy daily evaluation service
+- [ ] Configure scheduling (K8s CronJob)
+- [ ] Implement monitoring & alerts
+- [ ] End-to-end testing
+- [ ] Production deployment
+
+##### **Phase 4: Validation (Week 4)**
+- [ ] Monitor daily operations
+- [ ] Validate membership changes
+- [ ] Performance optimization
+- [ ] Documentation completion
+- [ ] Stakeholder review
+
+#### **SUCCESS METRICS**
+
+**Data Quality Improvements**:
+- ✅ Research: 6 key stocks analyzed across 4 market periods
+- 🎯 Target: 0% placeholder dates (from 95%+)  
+- 🎯 Target: 400+ unique qualification dates (from 17)
+- 🎯 Target: Multiple membership periods for volatile stocks
+
+**Operational Excellence**:
+- 🎯 Daily evaluation: 100% automated processing
+- 🎯 Alert coverage: Major entry/exit events monitored  
+- 🎯 Data accuracy: 95%+ dates match real qualification events
+- 🎯 Performance: <5 min daily evaluation runtime
+
+**Business Impact**:
+- 🎯 Historical Analysis: Accurate universe timeline for backtesting
+- 🎯 Investment Insights: Real qualification patterns identified
+- 🎯 Market Intelligence: AI boom, pandemic effects properly tracked
+- 🎯 Automated Operations: Reduced manual universe management
+
+---
 
 ### **🚀 Advanced Features**
 - **Sector Analysis**: Member distribution by industry sectors

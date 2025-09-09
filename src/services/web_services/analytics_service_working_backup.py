@@ -327,10 +327,9 @@ class UnifiedAnalyticsService:
             import psycopg2.extras
             import numpy as np
             from pathlib import Path
-            import os
 
-            # Determine environment and table name
-            environment = os.getenv('ENVIRONMENT', 'dev')
+            # Determine environment and table name - assume dev for now
+            environment = "dev"  # Can be made configurable later
             table_name = f"{environment}_training_datasets"
 
             with get_raw_connection() as conn:
@@ -542,10 +541,9 @@ class UnifiedAnalyticsService:
             from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from pathlib import Path
-            import os
 
             # Determine environment and table name
-            environment = os.getenv('ENVIRONMENT', 'dev')
+            environment = "dev"  # Can be made configurable later
             table_name = f"{environment}_training_datasets"
 
             with get_raw_connection() as conn:
@@ -687,10 +685,9 @@ class UnifiedAnalyticsService:
             import psycopg2.extras
             from pathlib import Path
             import json
-            import os
 
             # Determine environment and table name
-            environment = os.getenv('ENVIRONMENT', 'dev')
+            environment = "dev"  # Can be made configurable later
             table_name = f"{environment}_training_datasets"  # Fixed: plural form to match main API
 
             with get_raw_connection() as conn:
@@ -941,12 +938,11 @@ class UnifiedAnalyticsService:
             import psycopg2.extras
             from pathlib import Path
             import json
-            import os
 
             logger.info(f"Getting multi-timeframe data for dataset {dataset_id}, sequence {sequence_id}")
 
             # Determine environment and table name
-            environment = os.getenv('ENVIRONMENT', 'dev')
+            environment = "dev"
             table_name = f"{environment}_training_datasets"
 
             with get_raw_connection() as conn:
@@ -1591,22 +1587,17 @@ class UnifiedAnalyticsService:
             }
 
     def get_earnings_events(self, limit: int = 100, symbol: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
-        """Get recent earnings events from environment-specific earnings_events table with optional filters."""
+        """Get recent earnings events from dev_earnings_events table with optional filters."""
         try:
             from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from datetime import datetime, timedelta
-            import os
-
-            # Get environment-specific table name
-            environment = os.getenv('ENVIRONMENT', 'dev')
-            earnings_table = f"{environment}_earnings_events"
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
 
                     # Query earnings events
-                    earnings_query = f"""
+                    earnings_query = """
                         SELECT
                             symbol,
                             report_period,
@@ -1624,7 +1615,7 @@ class UnifiedAnalyticsService:
                             guidance_lowered,
                             created_at,
                             updated_at
-                        FROM {earnings_table}
+                        FROM dev_earnings_events
                         WHERE 1=1
                     """
 
@@ -2057,37 +2048,6 @@ class UnifiedAnalyticsService:
                                 </select>
                             </div>
 
-                            <div id="filter-controls" style="display: none; background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
-                                <h4>🔍 Data Filters</h4>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; align-items: end;">
-                                    <div>
-                                        <label for="symbol-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">Symbol:</label>
-                                        <input type="text" id="symbol-filter" placeholder="e.g., AAPL, TSLA" 
-                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                    </div>
-                                    <div>
-                                        <label for="date-from" style="display: block; margin-bottom: 5px; font-weight: bold;">From Date:</label>
-                                        <input type="date" id="date-from" 
-                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                    </div>
-                                    <div>
-                                        <label for="date-to" style="display: block; margin-bottom: 5px; font-weight: bold;">To Date:</label>
-                                        <input type="date" id="date-to" 
-                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                    </div>
-                                    <div>
-                                        <button onclick="applyFilters()" 
-                                                style="padding: 8px 16px; background: #4285f4; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                                            Apply Filters
-                                        </button>
-                                        <button onclick="clearFilters()" 
-                                                style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 5px;">
-                                            Clear
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
                             <div id="table-content" style="display: none;">
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                                     <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
@@ -2128,21 +2088,10 @@ class UnifiedAnalyticsService:
                     const tableName = document.getElementById('table-selector').value;
                     if (!tableName) {
                         document.getElementById('table-content').style.display = 'none';
-                        document.getElementById('filter-controls').style.display = 'none';
                         return;
                     }
 
                     document.getElementById('table-content').style.display = 'block';
-                    
-                    // Show filters for tables that typically have symbol and date columns
-                    const hasFiltering = tableName.includes('daily_prices') || 
-                                       tableName.includes('instruments') || 
-                                       tableName.includes('gap_events') ||
-                                       tableName.includes('fundamentals') ||
-                                       tableName.includes('news') ||
-                                       tableName.includes('earnings');
-                    
-                    document.getElementById('filter-controls').style.display = hasFiltering ? 'block' : 'none';
                     document.getElementById('table-info').innerHTML = '<p>Loading table information...</p>';
                     document.getElementById('column-summary').innerHTML = '<p>Loading column information...</p>';
                     document.getElementById('sample-data').innerHTML = '<p>Loading sample data...</p>';
@@ -2175,15 +2124,34 @@ class UnifiedAnalyticsService:
                         }
 
                         // Load sample data
-                        loadSampleData(tableName);
-                        
-                    } catch (error) {
-                        console.error('Error loading table data:', error);
-                        document.getElementById('table-info').innerHTML = '<p style="color: red;">Error loading table information</p>';
-                    }
+                        const sampleResponse = await fetch(`/api/table-sample/${tableName}`);
+                        if (sampleResponse.ok) {
+                            const sample = await sampleResponse.json();
+                            if (sample.rows && sample.rows.length > 0) {
+                                const headers = Object.keys(sample.rows[0]);
+                                const tableHtml = `
+                                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                                        <thead>
+                                            <tr style="background: #f1f3f4;">
+                                                ${headers.map(h => `<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">${h}</th>`).join('')}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${sample.rows.slice(0, 10).map(row => `
+                                                <tr>
+                                                    ${headers.map(h => `<td style="padding: 8px; border: 1px solid #ddd;">${row[h] !== null ? row[h] : '<em>null</em>'}</td>`).join('')}
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                `;
+                                document.getElementById('sample-data').innerHTML = tableHtml;
+                            } else {
+                                document.getElementById('sample-data').innerHTML = '<p>No data found in table</p>';
+                            }
+                        }
 
-                    // Load column distributions
-                    try {
+                        // Load column distributions
                         const distResponse = await fetch(`/api/table-distributions/${tableName}`);
                         if (distResponse.ok) {
                             const distributions = await distResponse.json();
@@ -2195,166 +2163,21 @@ class UnifiedAnalyticsService:
                                         <h5>${colName}</h5>
                                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin: 10px 0;">
                                             <div><strong>Count:</strong> ${stats.count || 0}</div>
-                                            <div><strong>Nulls:</strong> ${stats.null_count || 0}</div>
-                                            <div><strong>Unique:</strong> ${stats.unique_count || 'N/A'}</div>
-                                            <div><strong>Type:</strong> ${stats.data_type || 'Unknown'}</div>
-                                            ${stats.min !== undefined ? `<div><strong>Min:</strong> ${stats.min}</div>` : ''}
-                                            ${stats.max !== undefined ? `<div><strong>Max:</strong> ${stats.max}</div>` : ''}
-                                            ${stats.avg !== undefined ? `<div><strong>Avg:</strong> ${parseFloat(stats.avg).toFixed(2)}</div>` : ''}
+                                            <div><strong>Unique:</strong> ${stats.unique || 0}</div>
+                                            <div><strong>Nulls:</strong> ${stats.nulls || 0}</div>
+                                            <div><strong>Type:</strong> ${stats.type || 'unknown'}</div>
                                         </div>
-                                        ${stats.most_common ? `
-                                            <div style="margin-top: 10px;">
-                                                <strong>Most Common Values:</strong>
-                                                <div style="margin: 5px 0;">
-                                                    ${Object.entries(stats.most_common).slice(0, 5).map(([val, count]) => 
-                                                        `<span style="background: #e9ecef; padding: 2px 6px; margin: 2px; border-radius: 3px; display: inline-block;">${val} (${count})</span>`
-                                                    ).join('')}
-                                                </div>
-                                            </div>
-                                        ` : ''}
+                                        ${stats.min !== undefined ? `<div><strong>Min:</strong> ${stats.min} <strong>Max:</strong> ${stats.max}</div>` : ''}
+                                        ${stats.top_values ? `<div><strong>Top Values:</strong> ${stats.top_values.slice(0, 5).join(', ')}</div>` : ''}
                                     </div>
                                 `;
                             }
 
                             document.getElementById('column-distributions').innerHTML = distHtml || '<p>No distribution data available</p>';
-                        } else {
-                            document.getElementById('column-distributions').innerHTML = '<p>Could not load column distributions</p>';
                         }
+
                     } catch (error) {
-                        document.getElementById('column-distributions').innerHTML = '<p style="color: red;">Error loading distributions</p>';
-                    }
-                }
-
-                async function loadSampleData(tableName, filters = {}) {
-                    try {
-                        // Build query parameters for filtering and sorting
-                        let queryParams = '';
-                        if (filters.symbol) queryParams += `&symbol=${encodeURIComponent(filters.symbol)}`;
-                        if (filters.dateFrom) queryParams += `&date_from=${filters.dateFrom}`;
-                        if (filters.dateTo) queryParams += `&date_to=${filters.dateTo}`;
-                        if (filters.sortBy) queryParams += `&sort_by=${encodeURIComponent(filters.sortBy)}`;
-                        if (filters.sortDir) queryParams += `&sort_dir=${filters.sortDir}`;
-                        
-                        const sampleResponse = await fetch(`/api/table-sample/${tableName}?limit=50${queryParams}`);
-                        if (sampleResponse.ok) {
-                            const sample = await sampleResponse.json();
-                            if (sample.rows && sample.rows.length > 0) {
-                                window.currentTableData = sample.rows; // Store data
-                                renderSortableTable(sample.rows, sample.sort_applied);
-                            } else {
-                                document.getElementById('sample-data').innerHTML = '<p>No data found with current filters</p>';
-                            }
-                        } else {
-                            document.getElementById('sample-data').innerHTML = '<p>Error loading sample data</p>';
-                        }
-                    } catch (error) {
-                        console.error('Error loading sample data:', error);
-                        document.getElementById('sample-data').innerHTML = '<p style="color: red;">Error loading sample data</p>';
-                    }
-                }
-
-                function renderSortableTable(rows, sortApplied = null) {
-                    if (!rows || rows.length === 0) return;
-                    
-                    const headers = Object.keys(rows[0]);
-                    const tableHtml = `
-                        <div style="margin-bottom: 10px;">
-                            <small>Showing ${rows.length} rows. Click column headers to sort globally.</small>
-                            ${sortApplied && sortApplied.column ? `<br><small style="color: #666;">Sorted by: ${sortApplied.column} (${sortApplied.direction})</small>` : ''}
-                        </div>
-                        <table id="sortable-table" style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
-                            <thead>
-                                <tr style="background: #f1f3f4;">
-                                    ${headers.map(h => {
-                                        let sortIcon = '⇅';
-                                        if (sortApplied && sortApplied.column === h) {
-                                            sortIcon = sortApplied.direction === 'asc' ? '▲' : '▼';
-                                            currentSortColumn = h;
-                                            sortDirection = sortApplied.direction;
-                                        }
-                                        return `
-                                            <th onclick="sortTable('${h}')" 
-                                                style="padding: 8px; border: 1px solid #ddd; text-align: left; cursor: pointer; user-select: none;">
-                                                ${h} <span id="sort-${h}" style="color: #666;">${sortIcon}</span>
-                                            </th>
-                                        `;
-                                    }).join('')}
-                                </tr>
-                            </thead>
-                            <tbody id="table-body">
-                                ${rows.map(row => `
-                                    <tr>
-                                        ${headers.map(h => `<td style="padding: 8px; border: 1px solid #ddd;">${row[h] !== null ? row[h] : '<em>null</em>'}</td>`).join('')}
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    `;
-                    document.getElementById('sample-data').innerHTML = tableHtml;
-                }
-
-                // Server-side table sorting functionality
-                let currentSortColumn = null;
-                let sortDirection = 'asc';
-
-                function sortTable(column) {
-                    const tableName = document.getElementById('table-selector').value;
-                    if (!tableName) return;
-                    
-                    // Update sort indicators
-                    document.querySelectorAll('[id^="sort-"]').forEach(span => span.innerHTML = '⇅');
-                    
-                    // Determine sort direction
-                    if (currentSortColumn === column) {
-                        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-                    } else {
-                        currentSortColumn = column;
-                        sortDirection = 'asc';
-                    }
-                    
-                    // Update visual indicator
-                    document.getElementById(`sort-${column}`).innerHTML = sortDirection === 'asc' ? '▲' : '▼';
-                    
-                    // Get current filters and reload data with sorting
-                    const filters = {
-                        symbol: document.getElementById('symbol-filter').value.trim(),
-                        dateFrom: document.getElementById('date-from').value,
-                        dateTo: document.getElementById('date-to').value,
-                        sortBy: column,
-                        sortDir: sortDirection
-                    };
-                    
-                    // Show loading message
-                    document.getElementById('sample-data').innerHTML = '<p>Sorting data...</p>';
-                    
-                    // Reload data with server-side sorting
-                    loadSampleData(tableName, filters);
-                }
-
-                // Filter functionality
-                function applyFilters() {
-                    const tableName = document.getElementById('table-selector').value;
-                    if (!tableName) return;
-                    
-                    const filters = {
-                        symbol: document.getElementById('symbol-filter').value.trim(),
-                        dateFrom: document.getElementById('date-from').value,
-                        dateTo: document.getElementById('date-to').value
-                    };
-                    
-                    document.getElementById('sample-data').innerHTML = '<p>Applying filters...</p>';
-                    loadSampleData(tableName, filters);
-                }
-
-                function clearFilters() {
-                    document.getElementById('symbol-filter').value = '';
-                    document.getElementById('date-from').value = '';
-                    document.getElementById('date-to').value = '';
-                    
-                    const tableName = document.getElementById('table-selector').value;
-                    if (tableName) {
-                        document.getElementById('sample-data').innerHTML = '<p>Loading data...</p>';
-                        loadSampleData(tableName);
+                        document.getElementById('table-info').innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
                     }
                 }
 
@@ -2499,198 +2322,43 @@ class UnifiedAnalyticsService:
                     }
                 }
 
-async function loadUniverseAnalytics() {
+                async function loadUniverseAnalytics() {
                     document.getElementById('analysis-content').innerHTML =
-                        '<h3>🌐 Universe Analytics</h3><p>Loading universe selection menu...</p>';
-                    
+                        '<h3>🌐 Universe Analytics</h3><p>Loading cross-instrument analysis...</p>';
+
                     try {
-                        // Load available universes
-                        const universesResponse = await fetch('/api/universes');
-                        const universesData = await universesResponse.json();
-                        
-                        if (universesData.success) {
-                            let html = `
-                                <h3>🌐 Universe Analytics</h3>
-                                <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
-                                    <h4>🔍 Universe Selection</h4>
-                                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 15px; align-items: end; margin-bottom: 15px;">
-                                        <div>
-                                            <label for="universe-selector" style="display: block; margin-bottom: 5px; font-weight: bold;">Select Universe:</label>
-                                            <select id="universe-selector" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                                <option value="">-- Select a universe --</option>
-                            `;
-                            
-                            universesData.universes.forEach(universe => {
-                                html += `<option value="${universe.id}">${universe.name} - ${universe.description}</option>`;
-                            });
-                            
-                            html += `
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label for="universe-date-from" style="display: block; margin-bottom: 5px; font-weight: bold;">From Date:</label>
-                                            <input type="date" id="universe-date-from" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                        </div>
-                                        <div>
-                                            <label for="universe-date-to" style="display: block; margin-bottom: 5px; font-weight: bold;">To Date:</label>
-                                            <input type="date" id="universe-date-to" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                        </div>
-                                        <div>
-                                            <button onclick="loadUniverseMembers()" style="padding: 8px 16px; background: #4285f4; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                                                Load Members
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <p style="color: #666; font-size: 0.9em; margin: 0;">
-                                        <strong>Available Universes:</strong> ${universesData.universes.length} total
-                                    </p>
+                        const response = await fetch('/api/universe-analytics');
+                        const data = await response.json();
+
+                        const html = `
+                            <h3>🌐 Universe Analytics</h3>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                                <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+                                    <h4>📊 Composition</h4>
+                                    <p><strong>Total Instruments:</strong> ${data.composition.total_instruments}</p>
+                                    <p><strong>By Exchange:</strong> ${JSON.stringify(data.composition.by_exchange)}</p>
+                                    <p><strong>By Sector:</strong> ${JSON.stringify(data.composition.by_sector)}</p>
                                 </div>
-                                
-                                <div id="universe-members-content" style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
-                                    <h4>📊 Universe Members</h4>
-                                    <p style="color: #666;">Select a universe and date range above to view members.</p>
+                                <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+                                    <h4>📈 Performance</h4>
+                                    <p><strong>Sharpe Ratio:</strong> ${data.performance.sharpe_ratio}</p>
+                                    <p><strong>Max Drawdown:</strong> ${data.performance.max_drawdown}</p>
+                                    <p><strong>Analysis Time:</strong> ${data.analysis_timestamp}</p>
                                 </div>
-                            `;
-                            
-                            document.getElementById('analysis-content').innerHTML = html;
-                            
-                            // Set default date range (last 30 days)
-                            const today = new Date();
-                            const thirtyDaysAgo = new Date(today);
-                            thirtyDaysAgo.setDate(today.getDate() - 30);
-                            
-                            document.getElementById('universe-date-from').value = thirtyDaysAgo.toISOString().split('T')[0];
-                            document.getElementById('universe-date-to').value = today.toISOString().split('T')[0];
-                        }
+                            </div>
+                            <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-top: 20px;">
+                                <h4>🔗 Correlations</h4>
+                                <p><strong>Universe:</strong> ${data.universe_name}</p>
+                                <p><em>Note: This is a demonstration of the universe analytics API. In a full implementation,
+                                this would show correlation matrices, sector analysis, and interactive charts.</em></p>
+                            </div>
+                        `;
+
+                        document.getElementById('analysis-content').innerHTML = html;
+
                     } catch (error) {
                         document.getElementById('analysis-content').innerHTML =
                             '<h3>🌐 Universe Analytics</h3><p style="color: red;">Error loading universe analytics: ' + error.message + '</p>';
-                    }
-                }
-
-                async function loadUniverseMembers() {
-                    const universeId = document.getElementById('universe-selector').value;
-                    const dateFrom = document.getElementById('universe-date-from').value;
-                    const dateTo = document.getElementById('universe-date-to').value;
-                    
-                    if (!universeId) {
-                        alert('Please select a universe first.');
-                        return;
-                    }
-                    
-                    if (!dateFrom || !dateTo) {
-                        alert('Please select both from and to dates.');
-                        return;
-                    }
-                    
-                    const membersContent = document.getElementById('universe-members-content');
-                    membersContent.innerHTML = '<h4>📊 Universe Members</h4><p>Loading universe members...</p>';
-                    
-                    try {
-                        const response = await fetch(`/api/universe-members/${universeId}?date_from=${dateFrom}&date_to=${dateTo}`);
-                        const data = await response.json();
-                        
-                        if (data.success) {
-                            let html = `
-                                <h4>📊 Universe Members</h4>
-                                <div style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
-                                    <strong>Universe:</strong> ${data.universe_info.name}<br>
-                                    <strong>Description:</strong> ${data.universe_info.description}<br>
-                                    <strong>Date Range:</strong> ${dateFrom} to ${dateTo}<br>
-                                    <strong>Total Members:</strong> ${data.members.length} symbols
-                                </div>
-                            `;
-                            
-                            if (data.members.length > 0) {
-                                // Group members by status (active vs historical)
-                                const activeMembers = data.members.filter(member => !member.end_at);
-                                const historicalMembers = data.members.filter(member => member.end_at);
-                                
-                                html += `
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                                        <div>
-                                            <h5 style="color: #388e3c;">✅ Active Members (${activeMembers.length})</h5>
-                                            <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
-                                                <table style="width: 100%; border-collapse: collapse;">
-                                                    <thead style="background: #f5f5f5; position: sticky; top: 0;">
-                                                        <tr>
-                                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Symbol</th>
-                                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Start Date</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                `;
-                                
-                                activeMembers.forEach(member => {
-                                    const startDate = new Date(member.start_at).toISOString().split('T')[0];
-                                    html += `
-                                        <tr>
-                                            <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: #1976d2;">${member.symbol}</td>
-                                            <td style="padding: 8px; border: 1px solid #ddd;">${startDate}</td>
-                                        </tr>
-                                    `;
-                                });
-                                
-                                html += `
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                        
-                                        <div>
-                                            <h5 style="color: #f57c00;">📋 Historical Members (${historicalMembers.length})</h5>
-                                            <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
-                                                <table style="width: 100%; border-collapse: collapse;">
-                                                    <thead style="background: #f5f5f5; position: sticky; top: 0;">
-                                                        <tr>
-                                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Symbol</th>
-                                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Start Date</th>
-                                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">End Date</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                `;
-                                
-                                historicalMembers.forEach(member => {
-                                    const startDate = new Date(member.start_at).toISOString().split('T')[0];
-                                    const endDate = member.end_at ? new Date(member.end_at).toISOString().split('T')[0] : 'Active';
-                                    html += `
-                                        <tr>
-                                            <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: #666;">${member.symbol}</td>
-                                            <td style="padding: 8px; border: 1px solid #ddd;">${startDate}</td>
-                                            <td style="padding: 8px; border: 1px solid #ddd;">${endDate}</td>
-                                        </tr>
-                                    `;
-                                });
-                                
-                                html += `
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-                                `;
-                            } else {
-                                html += `
-                                    <div style="text-align: center; padding: 40px; color: #666;">
-                                        <p><strong>No members found</strong></p>
-                                        <p>The selected universe has no members in the specified date range.</p>
-                                    </div>
-                                `;
-                            }
-                            
-                            membersContent.innerHTML = html;
-                        } else {
-                            membersContent.innerHTML = `
-                                <h4>📊 Universe Members</h4>
-                                <p style="color: red;">Error: ${data.error}</p>
-                            `;
-                        }
-                    } catch (error) {
-                        membersContent.innerHTML = `
-                            <h4>📊 Universe Members</h4>
-                            <p style="color: red;">Error loading universe members: ${error.message}</p>
-                        `;
                     }
                 }
 
@@ -4346,10 +4014,6 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_intelligent_filters()
             elif self.path.startswith('/api/universe-analytics'):
                 self._serve_universe_analytics()
-            elif self.path == '/api/universes':
-                self._serve_universes_list()
-            elif self.path.startswith('/api/universe-members/'):
-                self._serve_universe_members()
             elif self.path.startswith('/api/multi-panel-chart'):
                 asyncio.run(self._serve_multi_panel_chart())
             elif self.path.startswith('/api/v1/training-datasets'):
@@ -4850,7 +4514,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(metrics, indent=2, default=str).encode('utf-8'))
 
     def _serve_tables_list(self):
-        """Serve list of database tables using environment-specific prefix."""
+        """Serve list of database tables."""
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
@@ -4858,11 +4522,6 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         try:
             from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
-            import os
-
-            # Get environment-specific table prefix
-            environment = os.getenv('ENVIRONMENT', 'dev')
-            table_prefix = f'{environment}_%'
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cursor:
@@ -4872,20 +4531,17 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         WHERE schemaname = 'public'
                         AND tablename LIKE %s
                         ORDER BY tablename
-                    """, (table_prefix,))
+                    """, ('dev_%',))
 
                     tables = [row['tablename'] for row in cursor.fetchall()]
                     response = {"tables": tables}
 
         except Exception as e:
             logger.error(f"Error getting tables list: {e}")
-            # Get environment-specific fallback tables
-            import os
-            environment = os.getenv('ENVIRONMENT', 'dev')
             response = {
                 "tables": [
-                    f"{environment}_daily_prices", f"{environment}_training_datasets", f"{environment}_instruments",
-                    f"{environment}_daily_prices_polygon", f"{environment}_daily_prices_tiingo", f"{environment}_daily_prices_eodhd"
+                    "dev_daily_prices", "dev_training_datasets", "dev_instruments",
+                    "dev_daily_prices_polygon", "dev_daily_prices_tiingo", "dev_daily_prices_eodhd"
                 ],
                 "error": str(e)
             }
@@ -4981,13 +4637,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
 
     def _serve_table_sample(self):
-        """Serve sample data from table with optional filtering."""
-        from urllib.parse import urlparse, parse_qs
-        
-        # Parse table name and query parameters
-        parsed_url = urlparse(self.path)
-        table_name = parsed_url.path.split('/')[-1]
-        query_params = parse_qs(parsed_url.query)
+        """Serve sample data from table."""
+        table_name = self.path.split('/')[-1]
 
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
@@ -4996,67 +4647,14 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         try:
             from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
-            from psycopg2 import sql
-
-            # Extract filter and sort parameters
-            limit = int(query_params.get('limit', ['50'])[0])
-            symbol_filter = query_params.get('symbol', [None])[0]
-            date_from = query_params.get('date_from', [None])[0]
-            date_to = query_params.get('date_to', [None])[0]
-            sort_column = query_params.get('sort_by', [None])[0]
-            sort_direction = query_params.get('sort_dir', ['asc'])[0].lower()
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                    
-                    # Build base query
-                    base_query = "SELECT * FROM {}"
-                    where_conditions = []
-                    params = []
-                    
-                    # Add symbol filter if provided (simplified approach)
-                    if symbol_filter and 'daily_prices' in table_name:
-                        # For daily_prices tables, we know symbol column exists
-                        where_conditions.append('symbol ILIKE %s')
-                        params.append(f"%{symbol_filter}%")
-                    
-                    # Add date filters if provided (simplified approach)  
-                    if (date_from or date_to) and ('daily_prices' in table_name or 'gap_events' in table_name):
-                        # For price/event tables, we know date column exists
-                        if date_from:
-                            where_conditions.append('date >= %s')
-                            params.append(date_from)
-                        if date_to:
-                            where_conditions.append('date <= %s')
-                            params.append(date_to)
-                    
-                    # Build ORDER BY clause
-                    order_clause = ""
-                    if sort_column:
-                        # Validate sort direction
-                        if sort_direction not in ['asc', 'desc']:
-                            sort_direction = 'asc'
-                        
-                        # Validate column exists to prevent SQL injection
-                        cursor.execute("""
-                            SELECT column_name FROM information_schema.columns 
-                            WHERE table_name = %s AND column_name = %s
-                        """, (table_name, sort_column))
-                        
-                        if cursor.fetchone():
-                            order_clause = f" ORDER BY \"{sort_column}\" {sort_direction.upper()}"
-                    
-                    # Build final query
-                    if where_conditions:
-                        query = f"{base_query} WHERE {' AND '.join(where_conditions)}{order_clause} LIMIT %s"
-                        params.append(limit)
-                    else:
-                        query = f"{base_query}{order_clause} LIMIT %s"
-                        params = [limit]
-                    
+                    from psycopg2 import sql
                     cursor.execute(
-                        sql.SQL(query).format(sql.Identifier(table_name)),
-                        params
+                        sql.SQL("SELECT * FROM {} LIMIT 10").format(
+                            sql.Identifier(table_name)
+                        )
                     )
 
                     rows = []
@@ -5068,20 +4666,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                 row_dict[key] = value.isoformat()
                         rows.append(row_dict)
 
-                    response = {
-                        "table_name": table_name, 
-                        "rows": rows,
-                        "filters_applied": {
-                            "symbol": symbol_filter,
-                            "date_from": date_from,
-                            "date_to": date_to,
-                            "limit": limit
-                        },
-                        "sort_applied": {
-                            "column": sort_column,
-                            "direction": sort_direction
-                        }
-                    }
+                    response = {"table_name": table_name, "rows": rows}
 
         except Exception as e:
             logger.error(f"Error getting sample data for {table_name}: {e}")
@@ -5341,158 +4926,6 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         }
 
         self.wfile.write(json.dumps(error_response).encode('utf-8'))
-
-    def _serve_universes_list(self):
-        """Serve list of available universes."""
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.end_headers()
-        
-        try:
-            import os
-            from core.platform.database.connection_manager import get_raw_connection
-            from psycopg2.extras import RealDictCursor
-            
-            # Get environment-aware table name
-            environment = os.getenv('ENVIRONMENT', 'dev')
-            universe_table = f"{environment}_universe"
-            
-            with get_raw_connection() as conn:
-                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                    cursor.execute(f"""
-                        SELECT id, name, description 
-                        FROM {universe_table} 
-                        ORDER BY name
-                    """)
-                    
-                    universes = []
-                    for row in cursor.fetchall():
-                        universes.append({
-                            "id": row['id'],
-                            "name": row['name'],
-                            "description": row['description']
-                        })
-                    
-                    response = {
-                        "success": True,
-                        "universes": universes,
-                        "count": len(universes)
-                    }
-                    
-        except Exception as e:
-            logger.error(f"Error loading universes: {e}")
-            response = {
-                "success": False,
-                "error": f"Failed to load universes: {str(e)}",
-                "universes": [],
-                "count": 0
-            }
-        
-        self.wfile.write(json.dumps(response).encode('utf-8'))
-
-    def _serve_universe_members(self):
-        """Serve universe members for a specific universe and date range."""
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.end_headers()
-        
-        try:
-            import os
-            from urllib.parse import urlparse, parse_qs
-            from core.platform.database.connection_manager import get_raw_connection
-            from psycopg2.extras import RealDictCursor
-            
-            # Get environment-aware table names
-            environment = os.getenv('ENVIRONMENT', 'dev')
-            universe_table = f"{environment}_universe"
-            membership_table = f"{environment}_universe_membership"
-            
-            # Parse universe ID from URL path
-            universe_id = self.path.split('/')[-1].split('?')[0]
-            
-            # Parse query parameters
-            parsed_url = urlparse(self.path)
-            query_params = parse_qs(parsed_url.query)
-            date_from_raw = query_params.get('date_from', [None])[0]
-            date_to_raw = query_params.get('date_to', [None])[0]
-            
-            if not universe_id or not date_from_raw or not date_to_raw:
-                response = {
-                    "success": False,
-                    "error": "Missing required parameters: universe_id, date_from, date_to"
-                }
-                self.wfile.write(json.dumps(response).encode('utf-8'))
-                return
-            
-            # Convert date_to to end of day to include all entries on that date
-            # date_from stays as start of day (default behavior)
-            date_from = date_from_raw
-            date_to = f"{date_to_raw} 23:59:59"
-            
-            with get_raw_connection() as conn:
-                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                    # Get universe information
-                    cursor.execute(f"""
-                        SELECT id, name, description 
-                        FROM {universe_table} 
-                        WHERE id = %s
-                    """, (universe_id,))
-                    
-                    universe_info = cursor.fetchone()
-                    if not universe_info:
-                        response = {
-                            "success": False,
-                            "error": f"Universe with ID {universe_id} not found"
-                        }
-                        self.wfile.write(json.dumps(response).encode('utf-8'))
-                        return
-                    
-                    # Get universe members within date range
-                    cursor.execute(f"""
-                        SELECT um.universe_id, um.symbol, um.start_at, um.end_at, um.instrument_id
-                        FROM {membership_table} um
-                        WHERE um.universe_id = %s
-                        AND (
-                            (um.start_at <= %s AND (um.end_at IS NULL OR um.end_at >= %s))
-                            OR (um.start_at >= %s AND um.start_at <= %s)
-                            OR (um.end_at IS NOT NULL AND um.end_at >= %s AND um.end_at <= %s)
-                        )
-                        ORDER BY um.symbol, um.start_at
-                    """, (universe_id, date_to, date_from, date_from, date_to, date_from, date_to))
-                    
-                    members = []
-                    for row in cursor.fetchall():
-                        members.append({
-                            "universe_id": row['universe_id'],
-                            "symbol": row['symbol'],
-                            "start_at": row['start_at'].isoformat() if row['start_at'] else None,
-                            "end_at": row['end_at'].isoformat() if row['end_at'] else None,
-                            "instrument_id": row['instrument_id']
-                        })
-                    
-                    response = {
-                        "success": True,
-                        "universe_info": {
-                            "id": universe_info['id'],
-                            "name": universe_info['name'],
-                            "description": universe_info['description']
-                        },
-                        "members": members,
-                        "date_range": {
-                            "from": date_from,
-                            "to": date_to
-                        },
-                        "count": len(members)
-                    }
-                    
-        except Exception as e:
-            logger.error(f"Error loading universe members: {e}")
-            response = {
-                "success": False,
-                "error": f"Failed to load universe members: {str(e)}"
-            }
-        
-        self.wfile.write(json.dumps(response).encode('utf-8'))
 
 
 def start_unified_analytics_server(port: int = 3000):

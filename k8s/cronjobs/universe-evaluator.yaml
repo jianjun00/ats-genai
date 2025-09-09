@@ -1,0 +1,197 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: universe-membership-evaluator
+  namespace: ats-platform
+  labels:
+    app: universe-evaluator
+    component: daily-job
+    environment: production
+spec:
+  # Run daily at 6 PM ET (22:00 UTC) on weekdays only
+  schedule: "0 22 * * 1-5"  # Mon-Fri at 22:00 UTC
+  timeZone: "UTC"
+  
+  # Keep last 10 successful jobs and 3 failed jobs for debugging
+  successfulJobsHistoryLimit: 10
+  failedJobsHistoryLimit: 3
+  
+  # Don't start new job if previous one is still running  
+  concurrencyPolicy: Forbid
+  
+  # Allow job to complete within 30 minutes
+  startingDeadlineSeconds: 1800
+  
+  jobTemplate:
+    metadata:
+      labels:
+        app: universe-evaluator
+        job-type: daily-membership-evaluation
+    spec:
+      # Complete within 30 minutes or terminate
+      activeDeadlineSeconds: 1800
+      
+      # Retry failed jobs up to 2 times
+      backoffLimit: 2
+      
+      template:
+        metadata:
+          labels:
+            app: universe-evaluator
+        spec:
+          restartPolicy: OnFailure
+          
+          containers:
+          - name: universe-evaluator
+            image: dragonflyer762/ats-genai:latest
+            imagePullPolicy: Always
+            
+            command:
+            - "python3"
+            - "src/jobs/daily_universe_evaluator.py"
+            - "--environment=prod"
+            
+            env:
+            - name: ENVIRONMENT
+              value: "prod"
+            - name: PYTHONPATH
+              value: "src"
+            - name: TZ
+              value: "America/New_York"
+            
+            # Resource limits
+            resources:
+              requests:
+                memory: "512Mi"
+                cpu: "250m"
+              limits:
+                memory: "1Gi" 
+                cpu: "500m"
+            
+            # Health check - job should complete within reasonable time
+            livenessProbe:
+              exec:
+                command:
+                - /bin/sh
+                - -c
+                - "ps aux | grep -v grep | grep daily_universe_evaluator || exit 1"
+              initialDelaySeconds: 60
+              periodSeconds: 300  # Check every 5 minutes
+              timeoutSeconds: 10
+              failureThreshold: 3
+          
+          # Use service account with database access
+          serviceAccountName: ats-platform-service-account
+          
+          # Node selection for reliable execution
+          nodeSelector:
+            node-type: compute
+          
+          # Tolerate scheduling delays but prefer consistent nodes
+          tolerations:
+          - key: "dedicated"
+            operator: "Equal"
+            value: "ats-platform"
+            effect: "NoSchedule"
+          
+          # Security context
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+
+---
+# Service Monitor for Prometheus metrics collection
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: universe-evaluator-monitor
+  namespace: ats-platform
+  labels:
+    app: universe-evaluator
+spec:
+  selector:
+    matchLabels:
+      app: universe-evaluator
+  endpoints:
+  - port: metrics
+    interval: 60s
+    path: /metrics
+    
+---
+# ConfigMap for environment-specific settings
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: universe-evaluator-config
+  namespace: ats-platform
+data:
+  # Logging configuration
+  logging.conf: |
+    [loggers]
+    keys=root,universe_evaluator
+
+    [handlers]
+    keys=consoleHandler,fileHandler
+
+    [formatters]
+    keys=standardFormatter
+
+    [logger_root]
+    level=INFO
+    handlers=consoleHandler
+
+    [logger_universe_evaluator]
+    level=DEBUG
+    handlers=consoleHandler,fileHandler
+    qualname=universe_evaluator
+    propagate=0
+
+    [handler_consoleHandler]
+    class=StreamHandler
+    level=INFO
+    formatter=standardFormatter
+    args=(sys.stdout,)
+
+    [handler_fileHandler]
+    class=FileHandler
+    level=DEBUG
+    formatter=standardFormatter
+    args=('/var/log/universe-evaluator.log', 'a')
+
+    [formatter_standardFormatter]
+    format=%(asctime)s - %(name)s - %(levelname)s - %(message)s
+    datefmt=%Y-%m-%d %H:%M:%S
+
+  # Alert thresholds
+  alerts.yaml: |
+    thresholds:
+      high_volume_changes: 10
+      major_stock_changes: ["AAPL", "MSFT", "GOOGL", "TSLA", "NVDA", "META", "AMZN"]
+      execution_time_warning: 300  # 5 minutes
+      execution_time_critical: 900  # 15 minutes
+    
+    notifications:
+      slack_webhook_url: "${SLACK_WEBHOOK_URL}"
+      email_recipients: ["trading-team@company.com"]
+      
+---  
+# Secret for sensitive configuration
+apiVersion: v1
+kind: Secret
+metadata:
+  name: universe-evaluator-secrets
+  namespace: ats-platform
+type: Opaque
+stringData:
+  # Database connection (if different from default)
+  DATABASE_URL: "postgresql://user:password@host:port/database"
+  
+  # Slack webhook for alerts
+  SLACK_WEBHOOK_URL: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+  
+  # Email configuration for alerts
+  SMTP_HOST: "smtp.company.com"
+  SMTP_PORT: "587"
+  SMTP_USER: "universe-alerts@company.com" 
+  SMTP_PASSWORD: "secure_password"
