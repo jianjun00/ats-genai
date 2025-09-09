@@ -290,6 +290,7 @@ PYTHONPATH=src ENVIRONMENT=dev DB_HOST=localhost DB_PORT=5432 DB_USER=postgres D
 ### 📚 **Architecture & Planning**
 - **[Source Overview](src/README.md)** - Complete source code architecture
 - **[Repository Analysis](REPOSITORY_ANALYSIS.md)** - Refactoring opportunities and code quality analysis
+- **[Autostart Services](docs/ATS_AUTOSTART_SERVICES.md)** - Complete service autostart configuration and troubleshooting
 
 ## 🧪 Testing
 

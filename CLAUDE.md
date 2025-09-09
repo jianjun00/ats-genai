@@ -646,6 +646,7 @@ python scripts/run_dev.py query --query "SELECT run_type, parameters, command_li
 
 For comprehensive operational procedures, infrastructure details, and development workflows, see:
 
+- **[ATS_AUTOSTART_SERVICES.md](docs/ATS_AUTOSTART_SERVICES.md)** - Complete autostart service configuration and troubleshooting
 - **[DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md)** - Complete development processes, TDD, CI/CD
 - **[OPERATIONS.md](docs/OPERATIONS.md)** - Daily operations, monitoring, troubleshooting, cron jobs
 - **[INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md)** - Database connections, Docker networking, service architecture

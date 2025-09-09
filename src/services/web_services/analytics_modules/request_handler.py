@@ -14,15 +14,17 @@ from datetime import datetime, date, timedelta
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from dataclasses import asdict
+from decimal import Decimal
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import core components
-from core.database.connection_manager import get_connection_manager
+from core.platform.database.connection_manager import get_connection_manager
 from core.config.settings import get_settings
-from http.server import BaseHTTPRequestHandler
+from core.sanitizers.json_sanitizer import JSONSanitizer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from .analytics_service_core import UnifiedAnalyticsService
 
 
@@ -554,7 +556,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from core.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
 
             with get_raw_connection() as conn:
@@ -591,7 +593,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from core.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
             from psycopg2 import sql
 
@@ -631,7 +633,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             logger.error(f"Error getting table info for {table_name}: {e}")
             response = {"error": str(e), "table_name": table_name}
 
-        self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
+        self.wfile.write(JSONSanitizer.safe_json_dumps(response, indent=2).encode('utf-8'))
 
     def _serve_table_columns(self):
         """Serve table column information."""
@@ -642,7 +644,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from core.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
 
             with get_raw_connection() as conn:
@@ -668,7 +670,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             logger.error(f"Error getting columns for {table_name}: {e}")
             response = {"error": str(e), "table_name": table_name, "columns": []}
 
-        self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
+        self.wfile.write(JSONSanitizer.safe_json_dumps(response, indent=2).encode('utf-8'))
 
     def _serve_table_sample(self):
         """Serve sample data from table."""
@@ -679,7 +681,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from core.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
 
             with get_raw_connection() as conn:
@@ -694,11 +696,9 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     rows = []
                     for row in cursor.fetchall():
                         row_dict = dict(row)
-                        # Convert dates/datetimes to strings for JSON serialization
-                        for key, value in row_dict.items():
-                            if hasattr(value, 'isoformat'):
-                                row_dict[key] = value.isoformat()
-                        rows.append(row_dict)
+                        # Use JSON sanitizer to handle all data types (Decimal, datetime, etc.)
+                        sanitized_row = JSONSanitizer.sanitize_value(row_dict)
+                        rows.append(sanitized_row)
 
                     response = {"table_name": table_name, "rows": rows}
 
@@ -706,7 +706,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             logger.error(f"Error getting sample data for {table_name}: {e}")
             response = {"error": str(e), "table_name": table_name, "rows": []}
 
-        self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
+        self.wfile.write(JSONSanitizer.safe_json_dumps(response, indent=2).encode('utf-8'))
 
     def _serve_table_distributions(self):
         """Serve column distributions and statistics."""
@@ -717,7 +717,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from core.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from psycopg2 import sql
 
@@ -771,8 +771,9 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                 )
                                 result = cursor.fetchone()
                                 if result['min_val'] is not None:
-                                    stats["min"] = result['min_val']
-                                    stats["max"] = result['max_val']
+                                    # Use JSON sanitizer for min/max values (handles Decimal types)
+                                    stats["min"] = JSONSanitizer.sanitize_value(result['min_val'])
+                                    stats["max"] = JSONSanitizer.sanitize_value(result['max_val'])
 
                             # For text columns, get top values using safe query construction
                             elif data_type in ['text', 'character varying', 'character']:
@@ -808,7 +809,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             logger.error(f"Error getting distributions for {table_name}: {e}")
             response = {"error": str(e), "table_name": table_name, "columns": {}}
 
-        self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
+        self.wfile.write(JSONSanitizer.safe_json_dumps(response, indent=2).encode('utf-8'))
 
     def _serve_news_events(self):
         """Serve news events from Polygon and Tiingo sources."""
@@ -896,7 +897,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             ]
         }
 
-        self.wfile.write(json.dumps(error_response).encode('utf-8'))
+        self.wfile.write(JSONSanitizer.safe_json_dumps(error_response).encode('utf-8'))
 
     def _serve_500(self, error_message: str):
         """Serve 500 response."""
@@ -910,7 +911,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             "timestamp": datetime.now().isoformat()
         }
 
-        self.wfile.write(json.dumps(error_response).encode('utf-8'))
+        self.wfile.write(JSONSanitizer.safe_json_dumps(error_response).encode('utf-8'))
 
 
 def start_unified_analytics_server(port: int = 3000):
