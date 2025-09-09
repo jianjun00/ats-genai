@@ -1,5 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from typing import List, Optional
+import pytz
 
 
 from core.platform.config.environment import Environment, EnvironmentType
@@ -18,15 +19,26 @@ import gin
 
 import logging
 @gin.configurable
-
 class Runner:
     def __init__(self, start_date: str, end_date: str, environment: Environment,
     universe_id: int, callbacks: List[str], base_duration: str,
     security_master=None, universe_state_manager=None, universe_manager=None, market_data_manager=None,
-    run_context: Optional[RunContext] = None, enable_run_isolation: bool = True):
+    run_context: Optional[RunContext] = None, enable_run_isolation: bool = True,
+    # Trading hours configuration (gin configurable)
+    trading_start_hour: int = 9, trading_start_minute: int = 35,   # 9:35 AM Eastern Time
+    trading_end_hour: int = 16, trading_end_minute: int = 0,       # 4:00 PM Eastern Time
+    timezone: str = 'America/New_York', enable_trading_hours_filter: bool = True):
         self.env = environment
         self.universe_id = universe_id
         self.enable_run_isolation = enable_run_isolation
+        
+        # Trading hours configuration
+        self.trading_start_hour = trading_start_hour
+        self.trading_start_minute = trading_start_minute
+        self.trading_end_hour = trading_end_hour
+        self.trading_end_minute = trading_end_minute
+        self.timezone = timezone
+        self.enable_trading_hours_filter = enable_trading_hours_filter
         
         from datetime import datetime, date
         print(f"[DEBUG] Runner.__init__ received start_date: {start_date!r} (type: {type(start_date)})")
@@ -156,13 +168,19 @@ class Runner:
                 yield (sod_time, "sod")
                 last_sod_date = day
             # Yield multiple interval events throughout the day based on base_duration
+            # Apply trading hours filter if enabled
             current_interval_time = sod_time
             next_day = sod_time + timedelta(days=1)
             
             while current_interval_time < next_day:
-                logging.debug(f"[Runner.iter_events] Yielding interval: {current_interval_time}")
-                print(f"[PRINT][Runner.iter_events] Yielding interval: {current_interval_time}")
-                yield (current_interval_time, "interval")
+                # Check if within trading hours before yielding interval
+                if self._is_within_trading_hours(current_interval_time):
+                    logging.debug(f"[Runner.iter_events] Yielding interval: {current_interval_time}")
+                    print(f"[PRINT][Runner.iter_events] Yielding interval: {current_interval_time}")
+                    yield (current_interval_time, "interval")
+                else:
+                    logging.debug(f"[Runner.iter_events] Skipping interval outside trading hours: {current_interval_time}")
+                
                 current_interval_time = self._advance_time(current_interval_time)
             # EOD event
             eod_time = sod_time.replace(hour=23, minute=59, second=59, microsecond=0)
@@ -298,3 +316,49 @@ class Runner:
             # Add more as needed
             else:
                 raise NotImplementedError(f"Unsupported duration type: {self.duration.duration_type}")
+    
+    def _is_within_trading_hours(self, dt: datetime) -> bool:
+        """
+        Check if a datetime is within configured trading hours.
+        Handles timezone conversion to ensure accurate market hours checking.
+        
+        Args:
+            dt: Datetime to check (assumed to be UTC)
+            
+        Returns:
+            bool: True if within trading hours, False otherwise
+        """
+        if not self.enable_trading_hours_filter:
+            return True
+            
+        # Convert UTC time to market timezone  
+        try:
+            market_tz = pytz.timezone(self.timezone)
+            utc_dt = dt.replace(tzinfo=pytz.UTC) if dt.tzinfo is None else dt
+            local_dt = utc_dt.astimezone(market_tz)
+            
+            # Create trading start and end times for the same date
+            trading_start = local_dt.replace(
+                hour=self.trading_start_hour, 
+                minute=self.trading_start_minute,
+                second=0,
+                microsecond=0
+            )
+            trading_end = local_dt.replace(
+                hour=self.trading_end_hour,
+                minute=self.trading_end_minute, 
+                second=0,
+                microsecond=0
+            )
+            
+            # Check if time is within trading hours
+            is_within = trading_start <= local_dt <= trading_end
+            
+            logging.debug(f"Trading hours check: {dt} UTC -> {local_dt} {self.timezone} | "
+                         f"Market: {trading_start.time()}-{trading_end.time()} | Within: {is_within}")
+            
+            return is_within
+            
+        except Exception as e:
+            logging.warning(f"Error checking trading hours for {dt}: {e}. Defaulting to True.")
+            return True

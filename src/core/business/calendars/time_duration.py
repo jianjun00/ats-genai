@@ -53,6 +53,38 @@ class TimeDuration:
         else:
             self.duration_type = duration_type
 
+    def get_start_time(self, end_time: datetime) -> datetime:
+        """
+        Calculate the start time based on the end time and duration type.
+        This is useful for getting historical data: [end_time - duration, end_time]
+
+        Args:
+            end_time: The ending datetime
+
+        Returns:
+            The calculated start datetime
+        """
+        if self.duration_type == DurationType.MINUTES_5:
+            return end_time - timedelta(minutes=5)
+        elif self.duration_type == DurationType.MINUTES_15:
+            return end_time - timedelta(minutes=15)
+        elif self.duration_type == DurationType.MINUTES_30:
+            return end_time - timedelta(minutes=30)
+        elif self.duration_type == DurationType.MINUTES_60:
+            return end_time - timedelta(hours=1)
+        elif self.duration_type == DurationType.DAILY:
+            return end_time - timedelta(days=1)
+        elif self.duration_type == DurationType.WEEKLY:
+            return end_time - timedelta(weeks=1)
+        elif self.duration_type == DurationType.MONTHLY:
+            return end_time - relativedelta(months=1)
+        elif self.duration_type == DurationType.QUARTERLY:
+            return end_time - relativedelta(months=3)
+        elif self.duration_type == DurationType.YEARLY:
+            return end_time - relativedelta(years=1)
+        else:
+            raise ValueError(f"Unsupported duration type: {self.duration_type}")
+
     def get_end_time(self, start_time: datetime) -> datetime:
         """
         Calculate the end time based on the start time and duration type.

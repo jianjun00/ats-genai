@@ -148,7 +148,24 @@ class UniverseStateManager:
         else:
             raise ValueError(f"cur_datetime must be a datetime or date object, got {type(cur_datetime)}")
 
-        # Use stored OHLCV data from InstrumentIntervalDAO (correct architecture)
+        # ✅ CRITICAL FIX: Use Runner's universe state builder data instead of direct FileBasedMinuteMarketDataManager calls
+        # The Runner has already collected data with corrected time ranges [current_time - duration, current_time]
+        # We should use that cached data instead of bypassing the fixed architecture
+        try:
+            print(f"DEBUG get_lag_prices: Attempting to use Runner's universe state data for instrument_id={instrument_id}, lag_periods={lag_periods}, time_interval={time_interval}")
+            
+            # Try to get data from Runner's universe state builder first
+            runner_data = self._get_lag_prices_from_runner_cache(instrument_id, lag_periods, time_interval, cur_datetime)
+            if runner_data is not None and len(runner_data) > 0:
+                print(f"DEBUG get_lag_prices: Successfully retrieved {len(runner_data)} records from Runner cache")
+                return runner_data
+            else:
+                print(f"DEBUG get_lag_prices: No data in Runner cache, falling back to direct FileBasedMinuteMarketDataManager")
+        
+        except Exception as e:
+            print(f"DEBUG get_lag_prices: Runner cache access failed: {e}, falling back to direct access")
+        
+        # Fallback: Use stored OHLCV data from InstrumentIntervalDAO (correct architecture)
         # This follows the same pattern as get_lagged_signals() but for OHLCV data
         try:
             from core.dao.trading.instrument_interval_dao import InstrumentIntervalDAO
@@ -229,7 +246,18 @@ class UniverseStateManager:
                     
                     if symbol in minute_df and not minute_df[symbol].empty:
                         df = minute_df[symbol]
-                        print(f"DEBUG get_lag_prices: Retrieved {len(df)} minute records for {symbol}")
+                        print(f"🔍 DEBUG get_lag_prices: Retrieved {len(df)} minute records for {symbol}")
+                        
+                        # Add detailed debugging for minute data
+                        print(f"📊 DEBUG get_lag_prices minute data for {symbol}:")
+                        print(f"   Columns: {list(df.columns)}")
+                        print(f"   Date range: {df['timestamp'].min()} to {df['timestamp'].max()}")
+                        if 'open' in df.columns and 'close' in df.columns:
+                            print(f"   Price range: {df['open'].min():.2f} - {df['close'].max():.2f}")
+                            print(f"   Sample prices: Open={df['open'].iloc[0]:.2f}, Close={df['close'].iloc[-1]:.2f}")
+                        if 'volume' in df.columns:
+                            print(f"   Volume range: {df['volume'].min()} - {df['volume'].max()}")
+                            print(f"   Total volume: {df['volume'].sum()}")
                         
                         # Aggregate to daily OHLCV
                         df['timestamp'] = pd.to_datetime(df['timestamp'])
@@ -247,7 +275,11 @@ class UniverseStateManager:
                         daily_df.reset_index(inplace=True)
                         daily_df = daily_df.tail(lag_periods)  # Get last lag_periods days
                         
-                        print(f"DEBUG get_lag_prices: Aggregated to {len(daily_df)} daily records")
+                        print(f"🔍 DEBUG get_lag_prices: Aggregated to {len(daily_df)} daily records")
+                        print(f"📊 DEBUG get_lag_prices daily aggregation results:")
+                        for _, row in daily_df.iterrows():
+                            print(f"   {row['timestamp'].date()}: O={row['open']:.2f}, H={row['high']:.2f}, L={row['low']:.2f}, C={row['close']:.2f}, V={row['volume']}")
+                        
                         return daily_df
                     else:
                         print(f"DEBUG get_lag_prices: No minute data found for {symbol}")
@@ -752,6 +784,70 @@ class UniverseStateManager:
                     pass
                 return inst_df
         raise ValueError(f"No data found for instrument_id={instrument_id}")
+
+    def _get_lag_prices_from_runner_cache(self, instrument_id: int, lag_periods: int, time_interval: str, cur_datetime: datetime) -> Optional[pd.DataFrame]:
+        """
+        ✅ CRITICAL FIX: Get lag prices from Runner's universe state builder cache instead of direct FileBasedMinuteMarketDataManager calls.
+        
+        This method uses the data that the Runner has already collected with the correct time range logic:
+        [current_time - base_duration, current_time] for past features.
+        
+        Args:
+            instrument_id: The instrument ID to get data for
+            lag_periods: Number of periods back to get
+            time_interval: Time interval ('1d', '1h', etc.)
+            cur_datetime: Current datetime
+            
+        Returns:
+            DataFrame with OHLCV data from Runner cache, or None if not available
+        """
+        try:
+            import pandas as pd
+            from datetime import timedelta
+            
+            print(f"DEBUG _get_lag_prices_from_runner_cache: Looking for cached data for instrument_id={instrument_id}")
+            
+            # Get cached instrument history from Runner's universe state builder
+            cached_data = self._get_instrument_history(instrument_id)
+            
+            if cached_data is None or cached_data.empty:
+                print(f"DEBUG _get_lag_prices_from_runner_cache: No cached data found for instrument_id={instrument_id}")
+                return None
+            
+            print(f"DEBUG _get_lag_prices_from_runner_cache: Found {len(cached_data)} cached records")
+            print(f"DEBUG _get_lag_prices_from_runner_cache: Cached data columns: {list(cached_data.columns)}")
+            
+            # The cached data is from the Runner's universe state builder which has the correct time ranges
+            # Convert it to the format expected by get_lag_prices
+            if time_interval == '1d':
+                # For daily data, group by date and get OHLCV aggregated values
+                if 'date' in cached_data.columns:
+                    daily_data = cached_data.groupby('date').agg({
+                        'open': 'first',
+                        'high': 'max', 
+                        'low': 'min',
+                        'close': 'last',
+                        'volume': 'sum'
+                    }).reset_index()
+                    
+                    # Sort by date and get last lag_periods
+                    daily_data = daily_data.sort_values('date').tail(lag_periods)
+                    
+                    print(f"DEBUG _get_lag_prices_from_runner_cache: Aggregated to {len(daily_data)} daily records")
+                    return daily_data
+            
+            # For intraday intervals, use the cached data directly
+            # The Runner has already collected this with the correct [past_time, current_time] range
+            result_data = cached_data.head(lag_periods)
+            
+            print(f"DEBUG _get_lag_prices_from_runner_cache: Returning {len(result_data)} records from cache")
+            return result_data
+            
+        except Exception as e:
+            print(f"DEBUG _get_lag_prices_from_runner_cache: Exception accessing cache: {e}")
+            import traceback
+            print(f"DEBUG _get_lag_prices_from_runner_cache: Full traceback: {traceback.format_exc()}")
+            return None
 
     """
     Handles fast persistence and retrieval of universe state data.

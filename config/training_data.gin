@@ -18,3 +18,13 @@ domains.ml.services.training_data.timeseries_sequence_training_generator.Trainin
     "ohlcv", "returns", "volatility", "volume_profile", 
     "technical", "indicators"
 ]
+
+# Trading Hours Configuration (Market Timezone)  
+# Default: Regular trading hours 9:35 AM - 4:00 PM Eastern Time
+# This prevents training data generation outside market hours
+services.core.app.runner.Runner.trading_start_hour = 9     # 9:35 AM Eastern Time
+services.core.app.runner.Runner.trading_start_minute = 35
+services.core.app.runner.Runner.trading_end_hour = 16     # 4:00 PM Eastern Time
+services.core.app.runner.Runner.trading_end_minute = 0
+services.core.app.runner.Runner.timezone = 'America/New_York'  # Handles EDT/EST conversion automatically
+services.core.app.runner.Runner.enable_trading_hours_filter = True

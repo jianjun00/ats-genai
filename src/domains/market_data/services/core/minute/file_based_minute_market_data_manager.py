@@ -61,31 +61,60 @@ class FileBasedMinuteMarketDataManager(MarketDataManager):
             Dict mapping symbol to DataFrame with columns: timestamp, open, high, low, close, volume
         """
         logger.debug(f"Getting minute OHLC for {len(symbols)} symbols from {start} to {end}")
+        print(f"🔍 DEBUG FileBasedMinuteMarketDataManager.get_minute_ohlc_batch:")
+        print(f"   📊 Symbols: {symbols}")
+        print(f"   ⏰ Time range: [{start}] to [{end}]")
+        print(f"   🎯 Timeframe minutes: {timeframe_minutes}")
 
         result = {}
 
         # Get data for each symbol
         for symbol in symbols:
             try:
+                print(f"🔄 DEBUG: Processing symbol {symbol}")
                 df = await self._get_symbol_minute_data(symbol, start, end)
+
+                print(f"📋 DEBUG: Raw data for {symbol}: {len(df) if not df.empty else 0} records")
+                if not df.empty:
+                    print(f"📊 DEBUG: Raw data sample for {symbol}:")
+                    print(f"   Columns: {list(df.columns)}")
+                    print(f"   First timestamp: {df['timestamp'].iloc[0] if 'timestamp' in df.columns else 'No timestamp'}")
+                    print(f"   Last timestamp: {df['timestamp'].iloc[-1] if 'timestamp' in df.columns else 'No timestamp'}")
+                    if 'open' in df.columns and 'close' in df.columns:
+                        print(f"   Price range: Open {df['open'].iloc[0]:.2f} - Close {df['close'].iloc[-1]:.2f}")
+                        print(f"   Volume total: {df['volume'].sum() if 'volume' in df.columns else 'No volume'}")
 
                 if not df.empty:
                     # Aggregate to target timeframe if needed
                     if timeframe_minutes > 1:
+                        print(f"🔄 DEBUG: Aggregating {symbol} to {timeframe_minutes}-minute bars")
                         df = self._aggregate_to_timeframe(df, timeframe_minutes)
+                        print(f"📊 DEBUG: After aggregation {symbol}: {len(df)} records")
 
                     if not df.empty:
                         result[symbol] = df
+                        print(f"✅ DEBUG: Final data for {symbol}: {len(df)} records")
+                        if 'open' in df.columns and 'close' in df.columns:
+                            print(f"   Final price range: Open {df['open'].iloc[0]:.2f} - Close {df['close'].iloc[-1]:.2f}")
                         logger.debug(f"Retrieved {len(df)} {timeframe_minutes}-minute bars for {symbol}")
                     else:
+                        print(f"❌ DEBUG: No data after aggregation for {symbol}")
                         logger.warning(f"No data after aggregation for {symbol}")
                 else:
+                    print(f"❌ DEBUG: No minute data found for {symbol} in date range")
                     logger.warning(f"No minute data found for {symbol} in date range")
 
             except Exception as e:
+                print(f"💥 DEBUG: Exception getting minute data for {symbol}: {e}")
+                import traceback
+                print(f"📋 DEBUG: Full traceback: {traceback.format_exc()}")
                 logger.error(f"Error getting minute data for {symbol}: {e}")
                 continue
 
+        print(f"🎯 DEBUG: Final result summary: {len(result)}/{len(symbols)} symbols with data")
+        for symbol, df in result.items():
+            print(f"   {symbol}: {len(df)} records")
+        
         logger.info(f"Retrieved minute data for {len(result)}/{len(symbols)} symbols")
         return result
 

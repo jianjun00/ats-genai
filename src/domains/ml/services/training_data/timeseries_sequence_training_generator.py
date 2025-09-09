@@ -350,27 +350,62 @@ class MultiTimeframeFeatureExtractor:
 
     def extract_all_features(self, data: pd.DataFrame, timeframe: str) -> Dict[str, float]:
         """Extract all configured feature types for a timeframe."""
+        print(f"🔍 DEBUG extract_all_features: Starting feature extraction for timeframe '{timeframe}'")
+        print(f"📊 DEBUG extract_all_features: Input data shape: {data.shape}")
+        print(f"📊 DEBUG extract_all_features: Input data columns: {list(data.columns)}")
+        if not data.empty:
+            print(f"📊 DEBUG extract_all_features: Sample data:")
+            if 'open' in data.columns and 'close' in data.columns:
+                print(f"   Latest record: O={data['open'].iloc[-1]:.2f}, H={data['high'].iloc[-1]:.2f}, L={data['low'].iloc[-1]:.2f}, C={data['close'].iloc[-1]:.2f}")
+        
         all_features = {}
 
+        print(f"🔄 DEBUG extract_all_features: Processing {len(self.config.feature_types)} feature types: {self.config.feature_types}")
+        
         for feature_type in self.config.feature_types:
+            print(f"🔄 DEBUG: Processing feature_type '{feature_type}'")
+            
             if feature_type == 'ohlcv':
-                all_features.update(self.extract_ohlcv_features(data, timeframe))
+                ohlcv_features = self.extract_ohlcv_features(data, timeframe)
+                print(f"   ✅ OHLCV features: {len(ohlcv_features)} items: {list(ohlcv_features.keys())}")
+                for key, value in ohlcv_features.items():
+                    print(f"      {key}: {value} (type: {type(value)})")
+                all_features.update(ohlcv_features)
             elif feature_type == 'returns':
-                all_features.update(self.extract_returns_features(data, timeframe))
+                returns_features = self.extract_returns_features(data, timeframe)
+                print(f"   ✅ Returns features: {len(returns_features)} items")
+                all_features.update(returns_features)
             elif feature_type == 'volume_profile':
-                all_features.update(self.extract_volume_features(data, timeframe))
+                volume_features = self.extract_volume_features(data, timeframe)
+                print(f"   ✅ Volume features: {len(volume_features)} items")
+                all_features.update(volume_features)
             elif feature_type == 'technical':
-                all_features.update(self.extract_technical_features(data, timeframe))
+                technical_features = self.extract_technical_features(data, timeframe)
+                print(f"   ✅ Technical features: {len(technical_features)} items")
+                all_features.update(technical_features)
             elif feature_type == 'indicators':
                 # Extract pre-computed indicators from IndicatorBuilder (via UniverseStateManager)
-                all_features.update(self.extract_technical_indicators(data, timeframe))
+                indicator_features = self.extract_technical_indicators(data, timeframe)
+                print(f"   ✅ Indicator features: {len(indicator_features)} items")
+                all_features.update(indicator_features)
             elif feature_type == 'support_resistance':
                 # Extract post-facto S/R features
-                all_features.update(self.extract_support_resistance_features(data, timeframe))
+                sr_features = self.extract_support_resistance_features(data, timeframe)
+                print(f"   ✅ S/R features: {len(sr_features)} items")
+                all_features.update(sr_features)
 
         # Always include technical indicators from UniverseStateManager if available
-        all_features.update(self.extract_technical_indicators(data, timeframe))
+        print(f"🔄 DEBUG: Adding additional technical indicators")
+        additional_indicators = self.extract_technical_indicators(data, timeframe)
+        print(f"   ✅ Additional indicators: {len(additional_indicators)} items")
+        all_features.update(additional_indicators)
 
+        print(f"✅ DEBUG extract_all_features: Final result: {len(all_features)} features")
+        print(f"📊 DEBUG extract_all_features: Final feature keys: {list(all_features.keys())}")
+        for key, value in all_features.items():
+            if key in ['open', 'high', 'low', 'close', 'volume']:
+                print(f"   {key}: {value} (type: {type(value)})")
+        
         return all_features
 
 
@@ -396,14 +431,28 @@ class SequenceWindowBuilder:
             is_future: Whether to get future data (lead) or current data (lag)
         """
         try:
+            print(f"🔍 DEBUG get_timeframe_data: Getting {timeframe} data for instrument_id={instrument_id} at {center_datetime}, is_future={is_future}")
+            
             if is_future:
                 # Get current future data point (1 interval ahead)
+                print(f"📈 DEBUG: Getting lead prices for future data")
                 data_df = self.universe_manager.get_lead_prices(instrument_id, center_datetime, 1)
             else:
                 # Get current historical data point
+                print(f"📊 DEBUG: Getting lag prices for current data")
                 ohlcv_df = self.universe_manager.get_lag_prices(instrument_id, center_datetime, 1)
+                print(f"📊 DEBUG: Retrieved OHLCV data: {len(ohlcv_df) if not ohlcv_df.empty else 0} records")
+                
+                if not ohlcv_df.empty:
+                    print(f"📊 DEBUG OHLCV data sample:")
+                    print(f"   Columns: {list(ohlcv_df.columns)}")
+                    if 'open' in ohlcv_df.columns and 'close' in ohlcv_df.columns:
+                        print(f"   Latest record: O={ohlcv_df['open'].iloc[-1]:.2f}, H={ohlcv_df['high'].iloc[-1]:.2f}, L={ohlcv_df['low'].iloc[-1]:.2f}, C={ohlcv_df['close'].iloc[-1]:.2f}")
+                        if 'volume' in ohlcv_df.columns:
+                            print(f"   Volume: {ohlcv_df['volume'].iloc[-1]}")
 
                 # Get technical indicators for current point
+                print(f"📊 DEBUG: Getting lagged signals")
                 signals_df = await self.universe_manager.get_lagged_signals(
                     instrument_id=instrument_id,
                     cur_datetime=center_datetime,
@@ -411,9 +460,11 @@ class SequenceWindowBuilder:
                     time_interval=timeframe,
                     signal_names=self.config.signal_names
                 )
+                print(f"📊 DEBUG: Retrieved signals data: {len(signals_df) if not signals_df.empty else 0} records")
 
                 # Merge OHLCV and signals data
                 if not ohlcv_df.empty and not signals_df.empty:
+                    print(f"📊 DEBUG: Merging OHLCV and signals data")
                     data_df = ohlcv_df.copy()
 
                     # Add technical indicators columns
@@ -423,16 +474,26 @@ class SequenceWindowBuilder:
                             if '_value' in col:
                                 data_df[signal_col] = signals_df[col].iloc[-1] if len(signals_df) >= 1 else np.nan
                 else:
+                    print(f"📊 DEBUG: Using only OHLCV data (no signals to merge)")
                     data_df = ohlcv_df
 
+            print(f"📊 DEBUG: Final data_df: {len(data_df) if not data_df.empty else 0} records")
             if data_df.empty:
+                print(f"❌ DEBUG: No data found, returning empty features")
                 return {}
 
+            print(f"📊 DEBUG: Final data sample before feature extraction:")
+            print(f"   Columns: {list(data_df.columns)}")
+            if 'open' in data_df.columns and 'close' in data_df.columns:
+                print(f"   Final record: O={data_df['open'].iloc[-1]:.2f}, H={data_df['high'].iloc[-1]:.2f}, L={data_df['low'].iloc[-1]:.2f}, C={data_df['close'].iloc[-1]:.2f}")
+
             # Extract features for the single data point
+            print(f"🔄 DEBUG: Extracting features from data")
             single_point_features = self.feature_extractor.extract_all_features(
                 data_df, timeframe
             )
-
+            
+            print(f"✅ DEBUG: Extracted {len(single_point_features)} features: {list(single_point_features.keys())}")
             return single_point_features
 
         except Exception as e:

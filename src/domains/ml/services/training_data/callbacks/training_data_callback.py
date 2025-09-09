@@ -140,25 +140,56 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                 
                 # Extract timeframe features per QR4 requirements
                 if 'timeframe_features' in example and isinstance(example['timeframe_features'], dict):
+                    print(f"🔍 DEBUG QR4: Processing timeframe_features: {list(example['timeframe_features'].keys())}")
+                    
                     for timeframe, features in example['timeframe_features'].items():
+                        print(f"🔍 DEBUG QR4: Processing timeframe '{timeframe}' with {len(features) if features else 0} features")
+                        print(f"📊 DEBUG QR4: Features content: {features}")
+                        
                         if not features:
+                            print(f"❌ DEBUG QR4: Skipping empty features for timeframe {timeframe}")
                             continue
                             
                         # Create timeframe directory
                         timeframe_dir = dataset_dir / timeframe
                         timeframe_dir.mkdir(parents=True, exist_ok=True)
                         
-                        # Create QR4-compliant row with scalar values only
+                        print(f"🔍 DEBUG QR4: Extracting OHLCV values from features:")
+                        print(f"   Available feature keys: {list(features.keys())}")
+                        
+                        # ✅ CRITICAL FIX: Use prefixed feature keys from feature extraction
+                        # Features are extracted with timeframe prefix (e.g., '5m_open', '5m_high')
+                        open_key = f"{timeframe}_open"
+                        high_key = f"{timeframe}_high"
+                        low_key = f"{timeframe}_low"
+                        close_key = f"{timeframe}_close"
+                        volume_key = f"{timeframe}_volume"
+                        vwap_key = f"{timeframe}_vwap"
+                        
+                        print(f"   🔧 Using prefixed keys:")
+                        print(f"   {open_key} value: {features.get(open_key, 'NOT_FOUND')} (type: {type(features.get(open_key, 'NOT_FOUND'))})")
+                        print(f"   {high_key} value: {features.get(high_key, 'NOT_FOUND')} (type: {type(features.get(high_key, 'NOT_FOUND'))})")  
+                        print(f"   {low_key} value: {features.get(low_key, 'NOT_FOUND')} (type: {type(features.get(low_key, 'NOT_FOUND'))})")
+                        print(f"   {close_key} value: {features.get(close_key, 'NOT_FOUND')} (type: {type(features.get(close_key, 'NOT_FOUND'))})")
+                        print(f"   {volume_key} value: {features.get(volume_key, 'NOT_FOUND')} (type: {type(features.get(volume_key, 'NOT_FOUND'))})")
+                        print(f"   {vwap_key} value: {features.get(vwap_key, 'NOT_FOUND')} (type: {type(features.get(vwap_key, 'NOT_FOUND'))})")
+                        
+                        # Create QR4-compliant row with scalar values using correct prefixed keys
                         qr4_row = {
                             'timestamp': prediction_timestamp,
                             'symbol': symbol,
-                            'open': float(features.get('open', 0.0)),
-                            'high': float(features.get('high', 0.0)), 
-                            'low': float(features.get('low', 0.0)),
-                            'close': float(features.get('close', 0.0)),
-                            'volume': float(features.get('volume', 0.0)),
-                            'vwap': float(features.get('vwap', 0.0))
+                            'open': float(features.get(open_key, 0.0)),
+                            'high': float(features.get(high_key, 0.0)), 
+                            'low': float(features.get(low_key, 0.0)),
+                            'close': float(features.get(close_key, 0.0)),
+                            'volume': float(features.get(volume_key, 0.0)),
+                            'vwap': float(features.get(vwap_key, 0.0))
                         }
+                        
+                        print(f"✅ DEBUG QR4: Created QR4 row:")
+                        for key, value in qr4_row.items():
+                            if key not in ['timestamp', 'symbol']:
+                                print(f"   {key}: {value} (type: {type(value)})")
                         
                         # Save as ArrayRecord file per PRD/DRD
                         # File naming: SYMBOL_STARTDATETIME_ENDDATETIME.arrayrecord

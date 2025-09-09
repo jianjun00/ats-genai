@@ -72,8 +72,12 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         instrument_ids = runner.universe_manager.instrument_ids
         # --- 1. Always build and update rolling cache for base_duration (assume durations[0] is base) ---
         base_duration = self.base_duration
-        base_end_time = base_duration.get_end_time(current_time)
+        # ✅ CRITICAL FIX: Use [current_time - base_duration, current_time] for past features
+        # Instead of [current_time, current_time + base_duration] which looks at future data
+        base_start_time = base_duration.get_start_time(current_time)
+        base_end_time = current_time  # Use current_time as end for past feature extraction
         print(f"[DEBUG][handleInterval] Converting instrument_ids to symbols for FileBasedMinuteMarketDataManager")
+        print(f"[DEBUG][handleInterval] FIXED TIME RANGE: [{base_start_time}, {base_end_time}] (past data for features)")
         
         # ✅ CRITICAL FIX: Convert instrument_ids to symbols for FileBasedMinuteMarketDataManager
         # FileBasedMinuteMarketDataManager expects symbols, not instrument_ids
@@ -91,10 +95,11 @@ class UniverseStateIntervalBuilder(RunnerCallback):
                 print(f"⚠️ [DEBUG] No symbol mapping found for instrument_id {inst_id}")
         
         print(f"[DEBUG][handleInterval] Converted instrument_ids {instrument_ids} to symbols {symbols}")
-        print(f"[DEBUG][handleInterval] Calling get_minute_ohlc_batch with symbols: {symbols}, start: {current_time}, end: {base_end_time}")
+        print(f"[DEBUG][handleInterval] Calling get_minute_ohlc_batch with symbols: {symbols}, start: {base_start_time}, end: {base_end_time}")
         
-        # Use get_minute_ohlc_batch with symbols instead of get_ohlc_batch with instrument_ids
-        ohlc_batch = await runner.market_data_manager.get_minute_ohlc_batch(symbols, current_time, base_end_time)
+        # ✅ CRITICAL FIX: Use [base_start_time, base_end_time] = [current_time - base_duration, current_time]
+        # This fetches past data for feature extraction instead of future data
+        ohlc_batch = await runner.market_data_manager.get_minute_ohlc_batch(symbols, base_start_time, base_end_time)
         
         # Convert back to instrument_id-based dictionary for the rest of the code
         symbol_to_inst_id = {'TSLA': 9034}  # Use same hardcoded mapping
@@ -127,8 +132,8 @@ class UniverseStateIntervalBuilder(RunnerCallback):
                 traded_dollar = (close_ * volume_) if (close_ is not None and volume_ is not None) else None
                 interval = InstrumentInterval(
                     instrument_id=inst_id,
-                    start_date_time=current_time,
-                    end_date_time=base_end_time,
+                    start_date_time=base_start_time,  # ✅ FIXED: Use past time range
+                    end_date_time=base_end_time,      # ✅ FIXED: base_end_time = current_time
                     open=open_,
                     high=high_,
                     low=low_,

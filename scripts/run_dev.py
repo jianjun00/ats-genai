@@ -883,8 +883,15 @@ class DevCLI:
             print(f"📊 Total records: {total_records}")
             print(f"✅ Sampling {actual_sample_size} records:")
             
-            # Sample random records
-            record_indices = sorted(random.sample(range(total_records), actual_sample_size)) if total_records > actual_sample_size else list(range(actual_sample_size))
+            # Always show first 2 records as examples, then additional samples
+            example_indices = list(range(min(2, total_records)))
+            additional_indices = []
+            
+            if sample_size > 2 and total_records > 2:
+                additional_count = min(sample_size - 2, total_records - 2)
+                additional_indices = sorted(random.sample(range(2, total_records), additional_count))
+            
+            record_indices = example_indices + additional_indices
             
             print(f"\n📋 ArrayRecord contents:")
             
@@ -897,153 +904,168 @@ class DevCLI:
                 record = reader.read()
                 all_records.append((record_idx, record))
             
+            print(f"✅ Displaying {len(record_indices)} records:")
+            print(f"   🎯 Examples: Records {example_indices}")
+            if additional_indices:
+                print(f"   📊 Additional samples: Records {additional_indices}")
+            
             for i, (record_idx, record) in enumerate(all_records):
-                print(f"\n🔍 Record {record_idx}:")
+                is_example = record_idx in example_indices
+                label = "EXAMPLE" if is_example else "SAMPLE"
+                icon = "🎯" if is_example else "📊"
+                
+                print(f"\n{icon} Record {record_idx} ({label}):")
                 
                 if isinstance(record, bytes):
-                    if record_idx == 0:  # First record is typically column names
-                        try:
-                            columns_str = record.decode('utf-8')
-                            
-                            # Try JSON first, then evaluate as Python list
-                            try:
-                                import json
-                                columns = json.loads(columns_str)
-                            except:
-                                # It's probably a Python list representation
-                                import ast
-                                columns = ast.literal_eval(columns_str)
-                            
-                            print(f"   📋 Column names record ({len(columns):,} columns)")
-                            print(f"   🔢 First 10 columns: {columns[:10]}")
-                            print(f"   🔚 Last 10 columns: {columns[-10:]}")
-                            
-                            # Analyze column types
-                            timeframe_counts = {}
-                            feature_types = {}
-                            for col in columns:
-                                if '_' in col:
-                                    parts = col.split('_')
-                                    if len(parts) >= 2:
-                                        timeframe = parts[0]
-                                        feature_type = parts[1]
-                                        timeframe_counts[timeframe] = timeframe_counts.get(timeframe, 0) + 1
-                                        feature_types[feature_type] = feature_types.get(feature_type, 0) + 1
-                            
-                            print(f"   📊 Timeframes: {dict(list(timeframe_counts.items())[:10])}")
-                            print(f"   📈 Feature types: {dict(list(feature_types.items())[:10])}")
-                            
-                        except Exception as e:
-                            print(f"   ❌ Error decoding column names: {e}")
-                            print(f"   📄 Raw bytes (first 200): {record[:200]}")
-                            
-                    else:  # Other records are training data
-                        print(f"   📊 Training data record ({len(record):,} bytes)")
+                    # Try JSON decoding first (QR4 format uses JSON objects)
+                    try:
+                        decoded_str = record.decode('utf-8')
+                        import json
+                        json_data = json.loads(decoded_str)
                         
-                        # Try to decode as float32 array (most common)
+                        if isinstance(json_data, dict):
+                            print(f"   📋 JSON Record with {len(json_data)} fields")
+                            
+                            # Show all fields for examples, limited for samples
+                            field_limit = None if is_example or full_display else 15
+                            
+                            # Apply column filter if specified
+                            filtered_fields = list(json_data.items())
+                            if columns_filter:
+                                import fnmatch
+                                filter_patterns = [p.strip().lower() for p in columns_filter.split(',')]
+                                filtered_fields = [(k, v) for k, v in json_data.items() 
+                                                 if any(fnmatch.fnmatch(k.lower(), pattern) for pattern in filter_patterns)]
+                                print(f"   🔍 Filtered to {len(filtered_fields)} fields matching '{columns_filter}'")
+                            
+                            # Group fields by category for better display
+                            field_groups = {
+                                'metadata': [],
+                                'prices': [],
+                                'volume': [], 
+                                'indicators': [],
+                                'other': []
+                            }
+                            
+                            for key, value in filtered_fields:
+                                key_lower = key.lower()
+                                if any(meta_term in key_lower for meta_term in ['timestamp', 'symbol', 'date']):
+                                    field_groups['metadata'].append((key, value))
+                                elif any(price_term in key_lower for price_term in ['open', 'high', 'low', 'close', 'price']):
+                                    field_groups['prices'].append((key, value))
+                                elif 'volume' in key_lower or 'vwap' in key_lower:
+                                    field_groups['volume'].append((key, value))
+                                elif any(ind_term in key_lower for ind_term in ['rsi', 'ema', 'sma', 'macd', 'bb', 'atr']):
+                                    field_groups['indicators'].append((key, value))
+                                else:
+                                    field_groups['other'].append((key, value))
+                            
+                            # Display each group
+                            displayed_count = 0
+                            for group_name, group_fields in field_groups.items():
+                                if not group_fields:
+                                    continue
+                                    
+                                if field_limit and displayed_count >= field_limit:
+                                    remaining = sum(len(fields) for fields in field_groups.values()) - displayed_count
+                                    print(f"   ... and {remaining} more fields (use --full to see all)")
+                                    break
+                                
+                                print(f"\n   📊 {group_name.upper()} ({len(group_fields)} fields):")
+                                
+                                for key, value in group_fields:
+                                    if field_limit and displayed_count >= field_limit:
+                                        break
+                                        
+                                    # Format value based on type and magnitude
+                                    if isinstance(value, (int, float)):
+                                        if value == 0:
+                                            value_str = "0"
+                                        elif abs(value) > 1000000:
+                                            value_str = f"{value:,.0f}"
+                                        elif abs(value) > 1:
+                                            value_str = f"{value:.2f}"
+                                        elif abs(value) > 0.001:
+                                            value_str = f"{value:.4f}"
+                                        else:
+                                            value_str = f"{value:.6e}"
+                                    elif isinstance(value, str):
+                                        value_str = f"'{value}'"
+                                    else:
+                                        value_str = str(value)
+                                    
+                                    print(f"      {key:<25}: {value_str}")
+                                    displayed_count += 1
+                            
+                            # Feature analysis for examples
+                            if is_example:
+                                print(f"\n   🔬 Analysis for {label}:")
+                                numeric_fields = [(k, v) for k, v in json_data.items() if isinstance(v, (int, float)) and v != 0]
+                                zero_fields = [(k, v) for k, v in json_data.items() if isinstance(v, (int, float)) and v == 0]
+                                text_fields = [(k, v) for k, v in json_data.items() if isinstance(v, str)]
+                                
+                                print(f"      📈 Non-zero numeric: {len(numeric_fields)}/{len(json_data)} fields")
+                                print(f"      🔢 Zero values: {len(zero_fields)} fields")
+                                print(f"      📝 Text fields: {len(text_fields)} fields")
+                                
+                                if numeric_fields:
+                                    values = [v for k, v in numeric_fields]
+                                    print(f"      📊 Value range: {min(values):.4f} to {max(values):.4f}")
+                                    
+                                    # Detect value patterns
+                                    price_like = [v for v in values if 0.01 <= v <= 10000]
+                                    volume_like = [v for v in values if v > 1000]
+                                    
+                                    if price_like:
+                                        print(f"      💰 Price-like values: {len(price_like)} (${min(price_like):.2f}-${max(price_like):.2f})")
+                                    if volume_like:
+                                        print(f"      📊 Volume-like values: {len(volume_like)} ({min(volume_like):,.0f}-{max(volume_like):,.0f})")
+                        else:
+                            print(f"   📋 JSON Array/Value: {json_data}")
+                            
+                    except (UnicodeDecodeError, json.JSONDecodeError) as json_error:
+                        # Try binary float32 array
                         try:
+                            import numpy as np
                             float_array = np.frombuffer(record, dtype=np.float32)
-                            print(f"   🔢 Float32 array: {len(float_array):,} elements")
+                            print(f"   🔢 Binary Float32 Array: {len(float_array):,} elements")
                             
                             non_zero = np.count_nonzero(float_array)
-                            print(f"   📈 Non-zero elements: {non_zero:,}/{len(float_array):,} ({100*non_zero/len(float_array):.1f}%)")
+                            print(f"   📈 Non-zero: {non_zero:,}/{len(float_array):,} ({100*non_zero/len(float_array):.1f}%)")
                             
                             if non_zero > 0:
-                                # Show non-zero value statistics
                                 non_zero_values = float_array[float_array != 0]
-                                print(f"   📊 Non-zero range: {non_zero_values.min():.4f} to {non_zero_values.max():.4f}")
-                                print(f"   📋 Sample non-zero values: {non_zero_values[:20]}")
+                                print(f"   📊 Range: {non_zero_values.min():.4f} to {non_zero_values.max():.4f}")
+                                if is_example:
+                                    print(f"   📋 First 20 values: {float_array[:20]}")
+                                    print(f"   📋 Sample non-zero: {non_zero_values[:15]}")
+                            else:
+                                print(f"   ⚠️  All values are zero")
                                 
-                                # Look for price-like data (typical range for OHLCV data)
-                                price_like = non_zero_values[(non_zero_values > 0.1) & (non_zero_values < 10000)]
-                                if len(price_like) > 0:
-                                    print(f"   💰 Price-like values: {len(price_like):,} found")
-                                    print(f"   💹 Price range: ${price_like.min():.2f} - ${price_like.max():.2f}")
-                                    print(f"   📈 Sample prices: {price_like[:10]}")
-                                
-                                # Check for volume-like data (typically large integers)
-                                volume_like = non_zero_values[non_zero_values > 10000]
-                                if len(volume_like) > 0:
-                                    print(f"   📊 Volume-like values: {len(volume_like):,} found")
-                                    print(f"   📈 Volume range: {volume_like.min():,.0f} - {volume_like.max():,.0f}")
-                                
-                                # Full column-by-column display if requested
-                                if full_display and columns and len(columns) == len(float_array):
-                                    print(f"\n   📋 Full Column-Value Mapping:")
-                                    
-                                    # Apply column filter if specified
-                                    if columns_filter:
-                                        import fnmatch
-                                        filter_patterns = [p.strip() for p in columns_filter.split(',')]
-                                        filtered_indices = []
-                                        for idx, col in enumerate(columns):
-                                            if any(fnmatch.fnmatch(col.lower(), pattern.lower()) for pattern in filter_patterns):
-                                                filtered_indices.append(idx)
-                                        display_columns = [(i, columns[i], float_array[i]) for i in filtered_indices]
-                                        print(f"   🔍 Showing {len(display_columns)} columns matching '{columns_filter}'")
-                                    else:
-                                        display_columns = [(i, col, float_array[i]) for i, col in enumerate(columns)]
-                                        print(f"   🔍 Showing all {len(display_columns)} columns:")
-                                    
-                                    # Display columns in organized groups
-                                    current_group = ""
-                                    for idx, col_name, value in display_columns:
-                                        # Group by timeframe for better readability  
-                                        if '_' in col_name:
-                                            group = col_name.split('_')[0] + '_' + col_name.split('_')[1] if len(col_name.split('_')) > 1 else col_name.split('_')[0]
-                                        else:
-                                            group = "metadata"
-                                            
-                                        if group != current_group:
-                                            print(f"\n      📊 {group.upper()} Features:")
-                                            current_group = group
-                                        
-                                        # Format value display
-                                        if np.isnan(value) or value == 0.0:
-                                            value_str = f"{value:>10}"
-                                        elif abs(value) > 1000000:
-                                            value_str = f"{value:>10,.0f}"  # Large numbers (volume)
-                                        elif abs(value) > 1:
-                                            value_str = f"{value:>10.2f}"   # Price-like values
-                                        else:
-                                            value_str = f"{value:>10.4f}"   # Small values/ratios
-                                            
-                                        print(f"         {col_name:<25} = {value_str}")
-                                        
-                                        # Stop if too many columns to avoid overwhelming output
-                                        if not columns_filter and idx > 100:
-                                            remaining = len(display_columns) - idx - 1
-                                            if remaining > 0:
-                                                print(f"         ... and {remaining} more columns (use --columns to filter)")
-                                            break
-                                
-                        except Exception as e:
-                            print(f"   ❌ Error decoding as float32: {e}")
-                            print(f"   📄 Raw bytes (first 100): {record[:100]}")
+                        except Exception as binary_error:
+                            print(f"   ❌ Could not decode as JSON or binary array")
+                            print(f"   📄 Raw bytes (first 200): {record[:200]}")
+                            print(f"   📄 Decoded preview: {record[:200].decode('utf-8', errors='replace')}")
                 
-                elif isinstance(record, np.ndarray):
-                    print(f"   📐 Shape: {record.shape}")
-                    print(f"   🔢 Dtype: {record.dtype}")
-                    non_zero = np.count_nonzero(record)
-                    print(f"   📈 Non-zero elements: {non_zero:,}/{len(record):,} ({non_zero/len(record)*100:.1f}%)")
-                    
-                    if len(record) > 0:
-                        print(f"   📋 First 10 values: {record[:10]}")
-                        if non_zero > 0:
-                            non_zero_indices = np.nonzero(record)[0][:10]
-                            non_zero_values = record[non_zero_indices]
-                            print(f"   📊 Sample non-zero values: {non_zero_values}")
-                    
-                elif isinstance(record, (list, tuple)):
-                    print(f"   📏 Length: {len(record)}")
-                    print(f"   📋 Content sample: {record[:10]}")
-                elif isinstance(record, dict):
-                    print(f"   🗂️  Dictionary keys: {list(record.keys())[:10]}")
-                    for key, value in list(record.items())[:3]:
-                        print(f"      {key}: {value}")
                 else:
-                    print(f"   📄 Type: {type(record)}")
-                    print(f"   📋 Content: {str(record)[:200]}")
+                    # Handle other data types
+                    print(f"   📄 Data type: {type(record).__name__}")
+                    if hasattr(record, '__len__'):
+                        print(f"   📏 Length: {len(record)}")
+                    if isinstance(record, np.ndarray):
+                        print(f"   📐 Shape: {record.shape}, dtype: {record.dtype}")
+                        non_zero = np.count_nonzero(record) if record.size > 0 else 0
+                        print(f"   📈 Non-zero elements: {non_zero:,}/{record.size:,}")
+                    print(f"   📋 Content preview: {str(record)[:200]}")
+            
+            # Add summary statistics for all records
+            print(f"\n📊 ArrayRecord Summary:")
+            print(f"   📁 File: {os.path.basename(file_path)}")
+            print(f"   📊 Total records: {total_records}")
+            print(f"   🔍 Records displayed: {len(all_records)}")
+            print(f"   🎯 Examples shown: {len(example_indices)}")
+            if additional_indices:
+                print(f"   📈 Additional samples: {len(additional_indices)}")
             
             reader.close()
             print(f"\n✅ Successfully read ArrayRecord file with {total_records:,} records")
