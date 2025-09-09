@@ -384,10 +384,199 @@ class UnifiedAnalyticsService:
                     // Implementation would load EDA interface
                 }
 
-                function loadUniverseAnalytics() {
+                async function loadUniverseAnalytics() {
                     document.getElementById('analysis-content').innerHTML =
-                        '<h3>🌐 Universe Analytics</h3><p>Loading cross-instrument analysis...</p>';
-                    // Implementation would load universe analytics
+                        '<h3>🌐 Universe Analytics</h3><p>Loading universe selection menu...</p>';
+                    
+                    try {
+                        // Load available universes
+                        const universesResponse = await fetch('/api/universes');
+                        const universesData = await universesResponse.json();
+                        
+                        if (universesData.success) {
+                            let html = `
+                                <h3>🌐 Universe Analytics</h3>
+                                <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
+                                    <h4>🔍 Universe Selection</h4>
+                                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 15px; align-items: end; margin-bottom: 15px;">
+                                        <div>
+                                            <label for="universe-selector" style="display: block; margin-bottom: 5px; font-weight: bold;">Select Universe:</label>
+                                            <select id="universe-selector" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                <option value="">-- Select a universe --</option>
+                            `;
+                            
+                            universesData.universes.forEach(universe => {
+                                html += `<option value="${universe.id}">${universe.name} - ${universe.description}</option>`;
+                            });
+                            
+                            html += `
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="universe-date-from" style="display: block; margin-bottom: 5px; font-weight: bold;">From Date:</label>
+                                            <input type="date" id="universe-date-from" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                        </div>
+                                        <div>
+                                            <label for="universe-date-to" style="display: block; margin-bottom: 5px; font-weight: bold;">To Date:</label>
+                                            <input type="date" id="universe-date-to" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                        </div>
+                                        <div>
+                                            <button onclick="loadUniverseMembers()" style="padding: 8px 16px; background: #4285f4; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                                Load Members
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p style="color: #666; font-size: 0.9em; margin: 0;">
+                                        <strong>Available Universes:</strong> ${universesData.universes.length} total
+                                    </p>
+                                </div>
+                                
+                                <div id="universe-members-content" style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+                                    <h4>📊 Universe Members</h4>
+                                    <p style="color: #666;">Select a universe and date range above to view members.</p>
+                                </div>
+                            `;
+                            
+                            document.getElementById('analysis-content').innerHTML = html;
+                            
+                            // Set default date range (last 30 days)
+                            const today = new Date();
+                            const thirtyDaysAgo = new Date(today);
+                            thirtyDaysAgo.setDate(today.getDate() - 30);
+                            
+                            document.getElementById('universe-date-from').value = thirtyDaysAgo.toISOString().split('T')[0];
+                            document.getElementById('universe-date-to').value = today.toISOString().split('T')[0];
+                        }
+                    } catch (error) {
+                        document.getElementById('analysis-content').innerHTML =
+                            '<h3>🌐 Universe Analytics</h3><p style="color: red;">Error loading universe analytics: ' + error.message + '</p>';
+                    }
+                }
+
+                async function loadUniverseMembers() {
+                    const universeId = document.getElementById('universe-selector').value;
+                    const dateFrom = document.getElementById('universe-date-from').value;
+                    const dateTo = document.getElementById('universe-date-to').value;
+                    
+                    if (!universeId) {
+                        alert('Please select a universe first.');
+                        return;
+                    }
+                    
+                    if (!dateFrom || !dateTo) {
+                        alert('Please select both from and to dates.');
+                        return;
+                    }
+                    
+                    const membersContent = document.getElementById('universe-members-content');
+                    membersContent.innerHTML = '<h4>📊 Universe Members</h4><p>Loading universe members...</p>';
+                    
+                    try {
+                        const response = await fetch(`/api/universe-members/${universeId}?date_from=${dateFrom}&date_to=${dateTo}`);
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            let html = `
+                                <h4>📊 Universe Members</h4>
+                                <div style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                                    <strong>Universe:</strong> ${data.universe_info.name}<br>
+                                    <strong>Description:</strong> ${data.universe_info.description}<br>
+                                    <strong>Date Range:</strong> ${dateFrom} to ${dateTo}<br>
+                                    <strong>Total Members:</strong> ${data.members.length} symbols
+                                </div>
+                            `;
+                            
+                            if (data.members.length > 0) {
+                                // Group members by status (active vs historical)
+                                const activeMembers = data.members.filter(member => !member.end_at);
+                                const historicalMembers = data.members.filter(member => member.end_at);
+                                
+                                html += `
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                        <div>
+                                            <h5 style="color: #388e3c;">✅ Active Members (${activeMembers.length})</h5>
+                                            <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
+                                                <table style="width: 100%; border-collapse: collapse;">
+                                                    <thead style="background: #f5f5f5; position: sticky; top: 0;">
+                                                        <tr>
+                                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Symbol</th>
+                                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Start Date</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                `;
+                                
+                                activeMembers.forEach(member => {
+                                    const startDate = new Date(member.start_at).toISOString().split('T')[0];
+                                    html += `
+                                        <tr>
+                                            <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: #1976d2;">${member.symbol}</td>
+                                            <td style="padding: 8px; border: 1px solid #ddd;">${startDate}</td>
+                                        </tr>
+                                    `;
+                                });
+                                
+                                html += `
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                        
+                                        <div>
+                                            <h5 style="color: #f57c00;">📋 Historical Members (${historicalMembers.length})</h5>
+                                            <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
+                                                <table style="width: 100%; border-collapse: collapse;">
+                                                    <thead style="background: #f5f5f5; position: sticky; top: 0;">
+                                                        <tr>
+                                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Symbol</th>
+                                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Start Date</th>
+                                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">End Date</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                `;
+                                
+                                historicalMembers.forEach(member => {
+                                    const startDate = new Date(member.start_at).toISOString().split('T')[0];
+                                    const endDate = member.end_at ? new Date(member.end_at).toISOString().split('T')[0] : 'Active';
+                                    html += `
+                                        <tr>
+                                            <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: #666;">${member.symbol}</td>
+                                            <td style="padding: 8px; border: 1px solid #ddd;">${startDate}</td>
+                                            <td style="padding: 8px; border: 1px solid #ddd;">${endDate}</td>
+                                        </tr>
+                                    `;
+                                });
+                                
+                                html += `
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                html += `
+                                    <div style="text-align: center; padding: 40px; color: #666;">
+                                        <p><strong>No members found</strong></p>
+                                        <p>The selected universe has no members in the specified date range.</p>
+                                    </div>
+                                `;
+                            }
+                            
+                            membersContent.innerHTML = html;
+                        } else {
+                            membersContent.innerHTML = `
+                                <h4>📊 Universe Members</h4>
+                                <p style="color: red;">Error: ${data.error}</p>
+                            `;
+                        }
+                    } catch (error) {
+                        membersContent.innerHTML = `
+                            <h4>📊 Universe Members</h4>
+                            <p style="color: red;">Error loading universe members: ${error.message}</p>
+                        `;
+                    }
                 }
 
                 async function loadTrainingDatasets() {
@@ -649,6 +838,10 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_bar_collection_metrics()
             elif self.path.startswith('/api/multi-panel-viz'):
                 self._serve_multi_panel_viz()
+            elif self.path == '/api/universes':
+                self._serve_universes_list()
+            elif self.path.startswith('/api/universe-members/'):
+                self._serve_universe_members()
             else:
                 self._serve_404()
 
@@ -845,6 +1038,142 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             "charts": ["ohlc", "volume", "indicators"],
             "data": {"message": "Multi-panel visualization ready"}
         }
+        self.wfile.write(json.dumps(response).encode('utf-8'))
+
+    def _serve_universes_list(self):
+        """Serve list of available universes."""
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        
+        try:
+            from core.platform.database.connection_manager import get_raw_connection
+            from psycopg2.extras import RealDictCursor
+            
+            with get_raw_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute("""
+                        SELECT id, name, description, created_at, updated_at 
+                        FROM dev_universe 
+                        ORDER BY name
+                    """)
+                    
+                    universes = []
+                    for row in cursor.fetchall():
+                        universes.append({
+                            "id": row['id'],
+                            "name": row['name'],
+                            "description": row['description'],
+                            "created_at": row['created_at'].isoformat() if row['created_at'] else None,
+                            "updated_at": row['updated_at'].isoformat() if row['updated_at'] else None
+                        })
+                    
+                    response = {
+                        "success": True,
+                        "universes": universes,
+                        "count": len(universes)
+                    }
+                    
+        except Exception as e:
+            response = {
+                "success": False,
+                "error": f"Failed to load universes: {str(e)}",
+                "universes": [],
+                "count": 0
+            }
+        
+        self.wfile.write(json.dumps(response).encode('utf-8'))
+
+    def _serve_universe_members(self):
+        """Serve universe members for a specific universe and date range."""
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        
+        try:
+            from urllib.parse import urlparse, parse_qs
+            from core.platform.database.connection_manager import get_raw_connection
+            from psycopg2.extras import RealDictCursor
+            
+            # Parse universe ID from URL path
+            universe_id = self.path.split('/')[-1].split('?')[0]
+            
+            # Parse query parameters
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+            date_from = query_params.get('date_from', [None])[0]
+            date_to = query_params.get('date_to', [None])[0]
+            
+            if not universe_id or not date_from or not date_to:
+                response = {
+                    "success": False,
+                    "error": "Missing required parameters: universe_id, date_from, date_to"
+                }
+                self.wfile.write(json.dumps(response).encode('utf-8'))
+                return
+            
+            with get_raw_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    # Get universe information
+                    cursor.execute("""
+                        SELECT id, name, description 
+                        FROM dev_universe 
+                        WHERE id = %s
+                    """, (universe_id,))
+                    
+                    universe_info = cursor.fetchone()
+                    if not universe_info:
+                        response = {
+                            "success": False,
+                            "error": f"Universe with ID {universe_id} not found"
+                        }
+                        self.wfile.write(json.dumps(response).encode('utf-8'))
+                        return
+                    
+                    # Get universe members within date range
+                    cursor.execute("""
+                        SELECT um.universe_id, um.symbol, um.start_at, um.end_at, um.instrument_id
+                        FROM dev_universe_membership um
+                        WHERE um.universe_id = %s
+                        AND (
+                            (um.start_at <= %s AND (um.end_at IS NULL OR um.end_at >= %s))
+                            OR (um.start_at >= %s AND um.start_at <= %s)
+                            OR (um.end_at IS NOT NULL AND um.end_at >= %s AND um.end_at <= %s)
+                        )
+                        ORDER BY um.symbol, um.start_at
+                    """, (universe_id, date_to, date_from, date_from, date_to, date_from, date_to))
+                    
+                    members = []
+                    for row in cursor.fetchall():
+                        members.append({
+                            "universe_id": row['universe_id'],
+                            "symbol": row['symbol'],
+                            "start_at": row['start_at'].isoformat() if row['start_at'] else None,
+                            "end_at": row['end_at'].isoformat() if row['end_at'] else None,
+                            "instrument_id": row['instrument_id']
+                        })
+                    
+                    response = {
+                        "success": True,
+                        "universe_info": {
+                            "id": universe_info['id'],
+                            "name": universe_info['name'],
+                            "description": universe_info['description']
+                        },
+                        "members": members,
+                        "date_range": {
+                            "from": date_from,
+                            "to": date_to
+                        },
+                        "count": len(members)
+                    }
+                    
+        except Exception as e:
+            response = {
+                "success": False,
+                "error": f"Failed to load universe members: {str(e)}"
+            }
+        
         self.wfile.write(json.dumps(response).encode('utf-8'))
 
 
