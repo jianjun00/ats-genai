@@ -302,6 +302,26 @@ ls -lah /mnt/d/ats-logs/     # Log directory usage
 30 2 * * * cd /home/jianjun/ats-genai-data && PYTHONPATH=src uv run python scripts/firstrate_daily_download.py --all >> /mnt/d/ats-logs/firstrate-daily.log 2>> /mnt/d/ats-logs/firstrate-daily-error.log
 
 # ===============================================================================
+# NEWS INGESTION AUTOMATION (Kubernetes-based)
+# ===============================================================================
+
+# Daily News Backfill (30 days) - 5:00 AM EST daily (10:00 UTC)
+# Managed by: kubectl get cronjobs -n ats-intg news-backfill-30days
+# Script: scripts/multi_vendor_news_backfill.py --vendors tiingo,polygon,eodhd --days 30
+
+# Weekly Comprehensive News Backfill (90 days) - Sundays 2:00 AM EST (07:00 UTC) 
+# Managed by: kubectl get cronjobs -n ats-intg news-backfill-comprehensive
+# Script: scripts/multi_vendor_news_backfill.py --vendors tiingo,polygon,eodhd --days 90
+
+# Real-Time News Ingestion - Continuous 24/7 operation
+# Managed by: kubectl get deployments -n ats-intg realtime-news-ingestion
+# Script: scripts/realtime_news_ingestion.py --vendors tiingo,polygon,eodhd --interval 300 --daemon
+
+# News Health Monitoring - Every 4 hours during business days
+# Managed by: kubectl get cronjobs -n ats-intg news-health-monitoring
+# Script: scripts/news_health_monitor.py
+
+# ===============================================================================
 # ATS PLATFORM MAINTENANCE
 # ===============================================================================
 
@@ -408,6 +428,256 @@ ls -la /home/jianjun/ats-genai-data/scripts/  # Check execute permissions
 
 ---
 
+## 📰 **NEWS INGESTION OPERATIONS**
+
+### **🎯 News Data Collection System**
+**Multi-vendor news ingestion with 30-day backfill, real-time collection, and comprehensive monitoring**
+
+```bash
+🌐 Dashboard: http://10.0.0.79:4002/d/news-monitoring/ats-news-ingestion-dashboard
+📊 Login: admin/admin (Grafana)
+🔧 Data Sources: ATS-INTG-PostgreSQL + Prometheus metrics
+📈 Auto-refresh: 1-minute intervals for real-time monitoring
+```
+
+### **📥 News Backfill Operations**
+
+**Daily 30-Day Backfill (Automated):**
+```bash
+# AUTOMATED - Runs daily at 5:00 AM EST via Kubernetes CronJob
+kubectl get cronjobs -n ats-intg | grep news-backfill
+
+# Manual execution for testing or recovery
+PYTHONPATH=src python3 scripts/multi_vendor_news_backfill.py \
+    --vendors tiingo,polygon,eodhd \
+    --days 30 \
+    --debug
+
+# Status and logs
+kubectl logs -n ats-intg cronjob/news-backfill-30days
+docker logs ats-intg-news-backfill --tail 50
+```
+
+**Comprehensive Weekly Backfill (90 days):**
+```bash
+# AUTOMATED - Runs Sundays at 2:00 AM EST via Kubernetes CronJob
+kubectl get cronjobs -n ats-intg | grep news-backfill-comprehensive
+
+# Manual execution for major data recovery
+PYTHONPATH=src python3 scripts/multi_vendor_news_backfill.py \
+    --vendors tiingo,polygon,eodhd \
+    --days 90 \
+    --debug
+```
+
+### **📡 Real-Time News Ingestion**
+
+**Real-Time Collection Service:**
+```bash
+# AUTOMATED - Runs continuously via Kubernetes Deployment
+kubectl get deployments -n ats-intg | grep realtime-news-ingestion
+
+# Manual execution for development/testing
+PYTHONPATH=src python3 scripts/realtime_news_ingestion.py \
+    --vendors tiingo,polygon,eodhd \
+    --interval 300 \
+    --daemon
+
+# Service monitoring
+kubectl logs -n ats-intg deployment/realtime-news-ingestion --tail 100
+curl -f http://realtime-news-ingestion-svc:8080/metrics
+```
+
+**Rate Limits & Collection Intervals:**
+- **Tiingo**: 1-second delays between requests
+- **Polygon**: 12-second delays (5 calls/minute limit)  
+- **EODHD**: 3-second delays between requests
+- **Collection Cycle**: Every 5 minutes (300 seconds)
+
+### **📊 News Monitoring Dashboard**
+
+**Key Metrics Available:**
+```bash
+# Real-time collection metrics (Prometheus)
+curl -s http://localhost:4080/metrics | grep "ats_news"
+
+# Core news metrics:
+ats_news_articles_collected_total{vendor="tiingo"}    # Total articles collected
+ats_news_collection_duration_seconds{vendor="polygon"} # Collection time per vendor
+ats_news_api_calls_total{vendor="eodhd",status="200"}  # API call success/failure
+ats_news_processing_errors_total{vendor="tiingo"}      # Processing error count
+ats_news_duplicate_articles_total{vendor="polygon"}    # Duplicate detection count
+```
+
+**Database Queries for Status:**
+```bash
+# Connect to ATS-INTG database
+PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db
+
+# Current news data by vendor
+SELECT vendor, COUNT(*) as articles, MAX(published_utc) as latest_article
+FROM intg_realtime_news 
+GROUP BY vendor 
+ORDER BY latest_article DESC;
+
+# Today's news collection activity
+SELECT vendor, COUNT(*) as articles_today, 
+       AVG(sentiment_score) as avg_sentiment
+FROM intg_realtime_news 
+WHERE DATE(published_utc) = CURRENT_DATE
+GROUP BY vendor;
+
+# API call status for news endpoints
+SELECT vendor, status_code, COUNT(*) as calls, 
+       AVG(response_time_ms)::int as avg_response_ms
+FROM intg_news_api_calls 
+WHERE created_at >= CURRENT_DATE - INTERVAL '24 hours'
+GROUP BY vendor, status_code 
+ORDER BY vendor, calls DESC;
+```
+
+### **🔧 News System Management**
+
+**Management Interface:**
+```bash
+# Complete news system management tool
+python3 scripts/manage_news_ingestion.py --help
+
+# Deploy news services to Kubernetes
+python3 scripts/manage_news_ingestion.py deploy
+
+# Check system status
+python3 scripts/manage_news_ingestion.py status
+
+# View service logs
+python3 scripts/manage_news_ingestion.py logs --service realtime-news
+python3 scripts/manage_news_ingestion.py logs --service news-backfill
+
+# Manual backfill execution
+python3 scripts/manage_news_ingestion.py backfill --days 7 --vendors tiingo,polygon
+
+# Health check and diagnostics
+python3 scripts/manage_news_ingestion.py health-check --detailed
+```
+
+### **🏥 News Health Monitoring**
+
+**Automated Health Checks:**
+```bash
+# AUTOMATED - Runs every 4 hours during business days via Kubernetes CronJob
+kubectl get cronjobs -n ats-intg | grep news-health-monitoring
+
+# Manual health assessment
+PYTHONPATH=src python3 scripts/news_health_monitor.py
+
+# Health check output includes:
+# - Vendor-specific collection rates and freshness
+# - API response times and error rates  
+# - Data quality scores and recommendations
+# - Slack alerts for critical issues
+```
+
+**Health Metrics & Thresholds:**
+- **Critical Freshness**: >60 minutes without new articles
+- **Warning Freshness**: >30 minutes without new articles
+- **Low Collection Rate**: <2 articles/hour during business hours
+- **API Errors**: >20% error rate in recent calls
+- **Overall Health Score**: 0.0-1.0 (weighted by freshness, volume, errors)
+
+### **🚨 News System Troubleshooting**
+
+**Common Issues & Solutions:**
+```bash
+# Issue 1: No new articles being collected
+# Check real-time ingestion service status
+kubectl get pods -n ats-intg | grep realtime-news
+kubectl logs -n ats-intg deployment/realtime-news-ingestion --tail 50
+
+# Verify API keys are configured
+kubectl get secrets -n ats-intg | grep vendor-api-keys
+kubectl describe secret vendor-api-keys -n ats-intg
+
+# Issue 2: Parsing errors in news collection
+# Common with Tiingo API - check logs for null value handling
+docker logs ats-intg-news-realtime --tail 100 | grep -i error
+
+# Issue 3: Database connection issues  
+# Verify PostgreSQL connectivity from news services
+kubectl exec -n ats-intg deployment/realtime-news-ingestion -- \
+    python3 -c "import asyncpg; import asyncio; asyncio.run(asyncpg.connect('postgresql://postgres:intg_password@ats-intg-postgres:5432/intg_db').execute('SELECT 1'))"
+
+# Issue 4: High API error rates
+# Check rate limiting and API key validity
+PYTHONPATH=src python3 scripts/test_news_api_keys.py --vendors tiingo,polygon,eodhd
+```
+
+**Manual Recovery Procedures:**
+```bash
+# Restart real-time collection service
+kubectl rollout restart deployment/realtime-news-ingestion -n ats-intg
+
+# Force manual backfill for missing data
+python3 scripts/manage_news_ingestion.py backfill \
+    --days 3 \
+    --vendors tiingo,polygon \
+    --force-override
+
+# Clear and rebuild news metrics
+PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db \
+    -c "DELETE FROM intg_news_collection_metrics WHERE DATE(created_at) = CURRENT_DATE"
+python3 scripts/news_health_monitor.py --rebuild-metrics
+```
+
+### **📈 News Data Quality Monitoring**
+
+**Data Quality Checks:**
+```bash
+# Article completeness and quality metrics
+SELECT vendor,
+       COUNT(*) as total_articles,
+       COUNT(CASE WHEN title IS NOT NULL AND LENGTH(title) > 10 THEN 1 END) as articles_with_title,
+       COUNT(CASE WHEN summary IS NOT NULL AND LENGTH(summary) > 50 THEN 1 END) as articles_with_summary,
+       COUNT(CASE WHEN sentiment_score IS NOT NULL THEN 1 END) as articles_with_sentiment,
+       AVG(CASE WHEN sentiment_score IS NOT NULL THEN sentiment_score END) as avg_sentiment
+FROM intg_realtime_news 
+WHERE DATE(published_utc) >= CURRENT_DATE - INTERVAL '7 days'
+GROUP BY vendor;
+
+# Duplicate detection effectiveness
+SELECT vendor,
+       COUNT(*) as total_processed,
+       COUNT(DISTINCT article_id) as unique_articles,
+       (COUNT(*) - COUNT(DISTINCT article_id)) as duplicates_removed
+FROM intg_realtime_news 
+WHERE DATE(published_utc) >= CURRENT_DATE - INTERVAL '7 days'
+GROUP BY vendor;
+```
+
+### **🔄 News System Automation (Kubernetes)**
+
+**Deployed CronJobs & Services:**
+```bash
+# View all news-related Kubernetes resources
+kubectl get all -n ats-intg | grep news
+
+# CronJob schedules:
+# - news-backfill-30days: Daily at 5:00 AM EST (10:00 UTC)
+# - news-backfill-comprehensive: Sundays at 2:00 AM EST (07:00 UTC)  
+# - news-health-monitoring: Every 4 hours, Mon-Fri
+
+# Deployment services:
+# - realtime-news-ingestion: Continuous 24/7 operation
+# - Service endpoint: realtime-news-ingestion-svc:8080/metrics
+```
+
+**Resource Requirements:**
+- **Daily Backfill**: 2Gi RAM, 1000m CPU (scales to 4Gi/2000m)
+- **Weekly Comprehensive**: 4Gi RAM, 2000m CPU (scales to 8Gi/4000m)
+- **Real-time Ingestion**: 1Gi RAM, 500m CPU (scales to 2Gi/1000m)  
+- **Health Monitoring**: 512Mi RAM, 250m CPU (scales to 1Gi/500m)
+
+---
+
 ## 🔑 **API Keys & Authentication**
 
 ### **Market Data Vendor API Keys**
@@ -483,6 +753,11 @@ curl -s http://localhost:4080/metrics | grep "ats_daily_minute_backfill"  # Proc
 docker logs ats-intg-minute-bars-scheduler --tail 20  # Recent processing
 ls -la /mnt/d/ats-data/firstrate-data/daily/$(date +%Y/%m/%d)/ | wc -l  # Files count today
 
+# News ingestion health check (ATS-INTG)
+curl -s http://localhost:4080/metrics | grep "ats_news"  # News collection metrics
+kubectl get pods -n ats-intg | grep news  # News service status
+python3 scripts/news_health_monitor.py --quick  # News system health assessment
+
 # Weekly maintenance
 ./scripts/manage_backups.sh cleanup     # Clean old backups
 docker system prune -f                  # Clean unused containers/images
@@ -507,6 +782,12 @@ ls -la /mnt/d/ats-backup/ | grep $(date +%Y-%m-%d)
 
 # Confirm WSL monitoring is sending alerts
 # (Check Slack #ats-alerts channel for hourly updates)
+
+# Verify news collection is operational
+kubectl get cronjobs -n ats-intg | grep news  # Check news CronJob status
+kubectl get deployments -n ats-intg | grep realtime-news  # Check real-time service
+PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db \
+  -c "SELECT vendor, COUNT(*) as articles_today FROM intg_realtime_news WHERE DATE(published_utc) = CURRENT_DATE GROUP BY vendor"  # Today's articles
 ```
 
 ---

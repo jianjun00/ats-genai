@@ -1,0 +1,414 @@
+---
+# News Backfill CronJob - 30 days historical
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: news-backfill-30days
+  namespace: ats-intg
+  labels:
+    app: news-backfill
+    component: data-collection
+    version: v1.0.0
+spec:
+  # Run daily at 5:00 AM EST (after daily price collection)
+  schedule: "0 10 * * *"  # 10:00 UTC = 5:00 AM EST
+  timeZone: "America/New_York"
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 1800
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 7200  # 2 hours timeout
+      template:
+        metadata:
+          labels:
+            app: news-backfill
+            component: data-collection
+        spec:
+          serviceAccountName: ats-service-account
+          restartPolicy: Never
+          containers:
+          - name: news-backfill
+            image: ats-genai:latest
+            command: ["python3", "scripts/multi_vendor_news_backfill.py"]
+            args: ["--vendors", "tiingo,polygon,eodhd", "--days", "30"]
+            env:
+            # Application configuration
+            - name: PYTHONPATH
+              value: "src"
+            - name: ENVIRONMENT
+              value: "intg"
+            - name: LOG_LEVEL
+              value: "INFO"
+            
+            # Database configuration
+            - name: DB_HOST
+              value: "ats-intg-postgres"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: "intg_password"
+            - name: DB_NAME
+              value: "intg_db"
+            
+            # Vendor API keys
+            - name: TIINGO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vendor-api-keys
+                  key: tiingo-api-key
+            - name: POLYGON_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vendor-api-keys
+                  key: polygon-api-key
+            - name: EODHD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vendor-api-keys
+                  key: eodhd-api-key
+            
+            # Monitoring and notifications
+            - name: PROMETHEUS_GATEWAY
+              value: "prometheus-pushgateway:9091"
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: notification-secrets
+                  key: slack-webhook-url
+                  optional: true
+            
+            resources:
+              requests:
+                memory: "2Gi"
+                cpu: "1000m"
+              limits:
+                memory: "4Gi"
+                cpu: "2000m"
+            
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 1000
+              runAsGroup: 1000
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+
+---
+# Real-time News Ingestion Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: realtime-news-ingestion
+  namespace: ats-intg
+  labels:
+    app: realtime-news-ingestion
+    component: data-streaming
+    version: v1.0.0
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: realtime-news-ingestion
+  template:
+    metadata:
+      labels:
+        app: realtime-news-ingestion
+        component: data-streaming
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8080"
+    spec:
+      serviceAccountName: ats-service-account
+      restartPolicy: Always
+      containers:
+      - name: news-ingestion
+        image: ats-genai:latest
+        command: ["python3", "scripts/realtime_news_ingestion.py"]
+        args: ["--vendors", "tiingo,polygon,eodhd", "--interval", "300", "--daemon"]
+        env:
+        # Application configuration
+        - name: PYTHONPATH
+          value: "src"
+        - name: ENVIRONMENT
+          value: "intg"
+        - name: LOG_LEVEL
+          value: "INFO"
+        
+        # Database configuration
+        - name: DB_HOST
+          value: "ats-intg-postgres"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "intg_password"
+        - name: DB_NAME
+          value: "intg_db"
+        
+        # Vendor API keys
+        - name: TIINGO_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: vendor-api-keys
+              key: tiingo-api-key
+        - name: POLYGON_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: vendor-api-keys
+              key: polygon-api-key
+        - name: EODHD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: vendor-api-keys
+              key: eodhd-api-key
+        
+        # Monitoring
+        - name: PROMETHEUS_GATEWAY
+          value: "prometheus-pushgateway:9091"
+        - name: METRICS_PORT
+          value: "8080"
+        
+        ports:
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
+        
+        # Health checks
+        livenessProbe:
+          exec:
+            command:
+            - python3
+            - -c
+            - "import psutil; import sys; sys.exit(0 if any('realtime_news_ingestion' in p.name() for p in psutil.process_iter()) else 1)"
+          initialDelaySeconds: 60
+          periodSeconds: 60
+          failureThreshold: 3
+        
+        readinessProbe:
+          exec:
+            command:
+            - python3
+            - -c
+            - "import asyncpg; import asyncio; asyncio.run(asyncpg.connect('postgresql://postgres:intg_password@ats-intg-postgres:5432/intg_db').execute('SELECT 1'))"
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          failureThreshold: 2
+        
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+
+---
+# Service for real-time news ingestion metrics
+apiVersion: v1
+kind: Service
+metadata:
+  name: realtime-news-ingestion-svc
+  namespace: ats-intg
+  labels:
+    app: realtime-news-ingestion
+spec:
+  selector:
+    app: realtime-news-ingestion
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: metrics
+
+---
+# Weekly comprehensive news backfill
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: news-backfill-comprehensive
+  namespace: ats-intg
+  labels:
+    app: news-backfill-comprehensive
+    component: data-validation
+    version: v1.0.0
+spec:
+  # Run every Sunday at 2:00 AM EST (comprehensive cleanup)
+  schedule: "0 7 * * 0"  # 07:00 UTC = 2:00 AM EST on Sunday
+  timeZone: "America/New_York"
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 2
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 1800
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 14400  # 4 hours timeout
+      template:
+        metadata:
+          labels:
+            app: news-backfill-comprehensive
+            component: data-validation
+        spec:
+          serviceAccountName: ats-service-account
+          restartPolicy: Never
+          containers:
+          - name: comprehensive-news-backfill
+            image: ats-genai:latest
+            command: ["python3", "scripts/multi_vendor_news_backfill.py"]
+            args: ["--vendors", "tiingo,polygon,eodhd", "--days", "90", "--debug"]
+            env:
+            # Application configuration
+            - name: PYTHONPATH
+              value: "src"
+            - name: ENVIRONMENT
+              value: "intg"
+            - name: LOG_LEVEL
+              value: "DEBUG"
+            
+            # Database configuration
+            - name: DB_HOST
+              value: "ats-intg-postgres"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: "intg_password"
+            - name: DB_NAME
+              value: "intg_db"
+            
+            # Vendor API keys
+            - name: TIINGO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vendor-api-keys
+                  key: tiingo-api-key
+            - name: POLYGON_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vendor-api-keys
+                  key: polygon-api-key
+            - name: EODHD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vendor-api-keys
+                  key: eodhd-api-key
+            
+            # Monitoring and notifications
+            - name: PROMETHEUS_GATEWAY
+              value: "prometheus-pushgateway:9091"
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: notification-secrets
+                  key: slack-webhook-url
+                  optional: true
+            
+            resources:
+              requests:
+                memory: "4Gi"
+                cpu: "2000m"
+              limits:
+                memory: "8Gi"
+                cpu: "4000m"
+            
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 1000
+              runAsGroup: 1000
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+
+---
+# News monitoring and health check job
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: news-health-monitoring
+  namespace: ats-intg
+  labels:
+    app: news-health-monitoring
+    component: monitoring
+    version: v1.0.0
+spec:
+  # Run every 4 hours during business days
+  schedule: "0 */4 * * 1-5"  # Every 4 hours, Mon-Fri
+  timeZone: "America/New_York"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 2
+  concurrencyPolicy: Allow
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 1800  # 30 minutes timeout
+      template:
+        metadata:
+          labels:
+            app: news-health-monitoring
+            component: monitoring
+        spec:
+          serviceAccountName: ats-service-account
+          restartPolicy: Never
+          containers:
+          - name: news-health-monitor
+            image: ats-genai:latest
+            command: ["python3", "scripts/news_health_monitor.py"]
+            env:
+            # Application configuration
+            - name: PYTHONPATH
+              value: "src"
+            - name: ENVIRONMENT
+              value: "intg"
+            - name: LOG_LEVEL
+              value: "INFO"
+            
+            # Database configuration
+            - name: DB_HOST
+              value: "ats-intg-postgres"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: "intg_password"
+            - name: DB_NAME
+              value: "intg_db"
+            
+            # Monitoring
+            - name: PROMETHEUS_GATEWAY
+              value: "prometheus-pushgateway:9091"
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: notification-secrets
+                  key: slack-webhook-url
+                  optional: true
+            
+            resources:
+              requests:
+                memory: "512Mi"
+                cpu: "250m"
+              limits:
+                memory: "1Gi"
+                cpu: "500m"
+            
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 1000
+              runAsGroup: 1000
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
