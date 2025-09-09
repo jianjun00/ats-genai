@@ -20,7 +20,7 @@ from infrastructure.vendor.eodhd.services.eodhd_database_sync import sync_vendor
 
 async def main():
     parser = argparse.ArgumentParser(description='Vendor Database Sync CLI')
-    parser.add_argument('--vendor', type=str, default='eodhd', choices=['eodhd', 'tiingo'], help='Vendor to sync (eodhd, tiingo)')
+    parser.add_argument('--vendor', type=str, default='eodhd', choices=['eodhd', 'tiingo', 'polygon'], help='Vendor to sync (eodhd, tiingo, polygon)')
     parser.add_argument('--source-port', type=int, default=3432, help='Source database port')
     parser.add_argument('--target-port', type=int, default=4432, help='Target database port')
     parser.add_argument('--source-db', type=str, default='dev_db', help='Source database name')

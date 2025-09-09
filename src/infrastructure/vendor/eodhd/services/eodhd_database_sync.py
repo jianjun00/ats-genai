@@ -84,6 +84,14 @@ class VendorDatabaseSync:
                         ORDER BY date, instrument_id
                         LIMIT $1 OFFSET $2
                     """, self.batch_size, offset)
+                elif vendor == 'polygon':
+                    batch_data = await source_conn.fetch(f"""
+                        SELECT date, symbol, open, high, low, close, volume, market_cap, instrument_id
+                        FROM {source_table} 
+                        WHERE instrument_id IN (SELECT id FROM dev_instruments)
+                        ORDER BY date, instrument_id
+                        LIMIT $1 OFFSET $2
+                    """, self.batch_size, offset)
                 else:  # tiingo and other vendors
                     batch_data = await source_conn.fetch(f"""
                         SELECT date, symbol, open, high, low, close, volume, instrument_id
@@ -106,6 +114,17 @@ class VendorDatabaseSync:
                     """, [
                         (row['date'], row['symbol'], row['open'], row['high'], 
                          row['low'], row['close'], row['adjusted_close'], row['volume'], row['instrument_id'])
+                        for row in batch_data
+                    ])
+                elif vendor == 'polygon':
+                    result = await target_conn.executemany(f"""
+                        INSERT INTO {target_table} 
+                        (date, symbol, open, high, low, close, volume, market_cap, instrument_id)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                        ON CONFLICT (date, instrument_id) DO NOTHING
+                    """, [
+                        (row['date'], row['symbol'], row['open'], row['high'], 
+                         row['low'], row['close'], row['volume'], row['market_cap'], row['instrument_id'])
                         for row in batch_data
                     ])
                 else:  # tiingo and other vendors
@@ -182,6 +201,15 @@ async def sync_tiingo_daily_prices(
     Convenience function to sync Tiingo daily prices.
     """
     return await sync_vendor_daily_prices('tiingo', source_config, target_config)
+
+async def sync_polygon_daily_prices(
+    source_config: Dict[str, Any] = None,
+    target_config: Dict[str, Any] = None
+) -> Dict[str, Any]:
+    """
+    Convenience function to sync Polygon daily prices.
+    """
+    return await sync_vendor_daily_prices('polygon', source_config, target_config)
 
 async def sync_vendor_daily_prices(
     vendor: str,
