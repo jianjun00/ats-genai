@@ -94,7 +94,10 @@ class UniverseMembershipManager:
                 return result
     
     def _get_current_qualifiers(self, cursor, evaluation_date: datetime) -> Dict[str, Dict]:
-        """Get stocks that currently qualify based on volume criteria"""
+        """Get stocks that currently qualify based on volume criteria
+        
+        FIXED: Now includes first_qualification_date to fix start_at bug
+        """
         
         # Calculate date range for 50-day rolling average
         start_date = evaluation_date - timedelta(days=70)  # Extra buffer for weekends/holidays
@@ -127,32 +130,51 @@ class UniverseMembershipManager:
                     ) as window_size
                 FROM daily_volumes
             ),
-            latest_qualifiers AS (
-                SELECT DISTINCT ON (symbol)
+            qualification_timeline AS (
+                SELECT 
                     symbol,
+                    date,
                     rolling_avg,
                     window_size,
-                    date as last_evaluation_date
+                    CASE WHEN rolling_avg >= %s AND window_size >= 30 THEN 1 ELSE 0 END as qualifies
                 FROM rolling_averages
-                WHERE date <= %s
-                    AND window_size >= %s  -- Require minimum trading days
-                    AND rolling_avg >= %s  -- Volume threshold
-                ORDER BY symbol, date DESC
+                WHERE window_size >= 30
+            ),
+            first_qualifications AS (
+                SELECT 
+                    symbol,
+                    MIN(date) as first_qualification_date
+                FROM qualification_timeline
+                WHERE qualifies = 1
+                GROUP BY symbol
+            ),
+            latest_qualifiers AS (
+                SELECT DISTINCT ON (symbol)
+                    qt.symbol,
+                    qt.rolling_avg,
+                    qt.window_size,
+                    qt.date as last_evaluation_date,
+                    fq.first_qualification_date
+                FROM qualification_timeline qt
+                INNER JOIN first_qualifications fq ON qt.symbol = fq.symbol
+                WHERE qt.date <= %s
+                    AND qt.qualifies = 1  -- Currently qualifying
+                ORDER BY qt.symbol, qt.date DESC
             )
             SELECT 
                 lq.symbol,
                 lq.rolling_avg as avg_volume,
                 lq.window_size,
                 lq.last_evaluation_date,
+                lq.first_qualification_date,
                 i.id as instrument_id
             FROM latest_qualifiers lq
             INNER JOIN {self.instruments_table} i ON lq.symbol = i.symbol
         """, (
             start_date, evaluation_date,
             self.rolling_window_days - 1, self.rolling_window_days - 1,  # ROWS BETWEEN params
-            evaluation_date,
-            30,  # Minimum 30 trading days required
-            self.volume_threshold
+            self.volume_threshold,  # Volume threshold for qualification check
+            evaluation_date
         ))
         
         qualifiers = {}
@@ -161,7 +183,8 @@ class UniverseMembershipManager:
                 'avg_volume': row['avg_volume'],
                 'window_size': row['window_size'],
                 'instrument_id': row['instrument_id'],
-                'last_evaluation_date': row['last_evaluation_date']
+                'last_evaluation_date': row['last_evaluation_date'],
+                'first_qualification_date': row['first_qualification_date']  # FIXED: Include historical date
             }
         
         return qualifiers
@@ -195,7 +218,25 @@ class UniverseMembershipManager:
     
     def _process_member_entry(self, cursor, universe_id: int, symbol: str, 
                             volume_data: Dict, evaluation_date: datetime):
-        """Process member entry - create new membership record"""
+        """Process member entry - create new membership record
+        
+        FIXED: Uses historical first_qualification_date as start_at, not evaluation_date
+        """
+        # CRITICAL FIX: Use historical qualification date, not job run date
+        if 'first_qualification_date' in volume_data:
+            historical_start_date = volume_data['first_qualification_date']
+            # Handle both date and datetime objects
+            if hasattr(historical_start_date, 'date'):
+                hist_date = historical_start_date.date()
+            else:
+                hist_date = historical_start_date
+            days_ago = (evaluation_date.date() - hist_date).days
+            logger.info(f"Member entry: {symbol} (volume: ${volume_data['avg_volume']:,.0f}) - start_at: {historical_start_date} ({days_ago} days ago)")
+        else:
+            # Fallback for legacy calls - this should trigger a warning
+            historical_start_date = evaluation_date
+            logger.warning(f"BUG DETECTED: {symbol} entry using evaluation_date as start_at (missing first_qualification_date)")
+        
         cursor.execute(f"""
             INSERT INTO {self.membership_table} 
             (universe_id, symbol, start_at, end_at, instrument_id)
@@ -203,11 +244,9 @@ class UniverseMembershipManager:
         """, (
             universe_id, 
             symbol, 
-            evaluation_date, 
+            historical_start_date,  # FIXED: Use historical date when available
             volume_data['instrument_id']
         ))
-        
-        logger.info(f"Member entry: {symbol} (volume: ${volume_data['avg_volume']:,.0f})")
     
     def analyze_historical_qualification_events(self, symbol: str, 
                                                start_date: datetime, 
