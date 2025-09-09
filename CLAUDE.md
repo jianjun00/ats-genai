@@ -4,6 +4,88 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 
 ## 🚨 **CRITICAL DEVELOPMENT PRINCIPLES** ⚡
 
+### **🔍 DEBUG-FIRST: NO WORKAROUNDS WITHOUT ROOT CAUSE ANALYSIS**
+- **❌ NEVER use workarounds** without understanding the underlying issue
+- **❌ NEVER restart services** without investigating why they failed
+- **❌ NEVER switch environments** when current environment has problems
+- **❌ NEVER use manual SQL** when migration manager fails - fix migration manager
+- **❌ NEVER create new infrastructure** when existing infrastructure is broken
+- **✅ ALWAYS investigate logs** when commands fail
+- **✅ ALWAYS understand WHY** before implementing solutions
+- **✅ ALWAYS fix root causes** - not symptoms
+- **✅ ALWAYS document findings** in issues/commits for future reference
+
+**Debugging Requirements:**
+- Read error messages completely and understand them
+- Check service logs before restarting services
+- Investigate git history when encountering similar issues
+- Review related documentation before trying alternative approaches
+- Test hypotheses systematically rather than trying random fixes
+
+### **📋 MANDATORY ROOT CAUSE ANALYSIS PROCESS**
+
+**When ANY command/service fails, follow this exact sequence:**
+
+#### 1. **🔍 GATHER EVIDENCE** 
+```bash
+# NEVER restart or switch environments first - investigate!
+# Check service status
+python scripts/run_dev.py status
+docker ps -a | grep -E "(ats|postgres)"
+
+# Get detailed logs (MANDATORY before any fixes)
+python scripts/run_dev.py logs --service <failed_service>
+docker logs <container_id> --tail 100
+
+# Check system resources
+df -h                                    # Disk space
+docker system df                         # Docker space usage
+free -h                                 # Memory usage
+```
+
+#### 2. **📖 READ DOCUMENTATION & CODE**
+```bash
+# Check related documentation FIRST
+grep -r "error_message" docs/
+git log --grep="similar_issue" --oneline -10
+
+# Examine relevant source code
+find src/ -name "*.py" -exec grep -l "error_pattern" {} \;
+grep -n "failed_function" src/path/to/relevant/file.py
+```
+
+#### 3. **🕵️ SYSTEMATIC INVESTIGATION**
+```bash
+# Test isolated components
+python scripts/run_dev.py query --query "SELECT version()"  # DB connectivity
+curl -f http://localhost:3000/health                        # Service health
+docker exec <container> ps aux                              # Process status inside container
+
+# Check configuration consistency
+diff config/dev.yaml config/current.yaml                    # Config drift
+env | grep -E "(POSTGRES|DOCKER)"                          # Environment variables
+```
+
+#### 4. **💡 HYPOTHESIS-DRIVEN DEBUGGING**
+- **Form specific hypothesis** about the root cause
+- **Test hypothesis** with minimal reproduction case  
+- **Document findings** - what worked, what didn't, why
+- **Implement targeted fix** based on understanding
+- **Verify fix** solves root cause, not just symptoms
+
+#### 5. **📝 DOCUMENT ROOT CAUSE**
+```bash
+# Document findings in commit/issue
+git commit -m "fix: resolve postgres connection issue
+
+Root cause: Connection pool exhaustion due to unclosed connections in analytics service
+Investigation: Checked docker logs, found 'too many connections' error  
+Solution: Added proper connection cleanup in analytics_service.py:245
+Verification: Service now maintains <10 connections vs previous 100+
+
+Refs: #123"
+```
+
 ### **🚫 NO MOCK/SYNTHETIC DATA IN NON-TEST CODE**
 - **❌ NEVER use mock data, fake data, synthetic data, demo data** outside of unit tests
 - **❌ NEVER create fallbacks to demo data** when real data is unavailable  
@@ -266,6 +348,16 @@ python scripts/run_dev.py query --query "SELECT run_type, parameters, command_li
 - ❌ **CRITICAL: Claiming UX/frontend changes work without Playwright testing**
 - ❌ **Modifying APIs without testing complete user workflow end-to-end**
 
+**Debugging & Problem Solving:**
+- ❌ **Using workarounds without understanding root cause**
+- ❌ **Restarting services without checking logs first**
+- ❌ **Switching environments when current environment fails**
+- ❌ **Manual SQL when migration manager has issues**
+- ❌ **Creating new infrastructure when existing is broken**
+- ❌ **Ignoring error messages and trying random fixes**
+- ❌ **Not documenting investigation findings**
+- ❌ **Fixing symptoms instead of root causes**
+
 ## 🎯 **Success Criteria**
 
 **You're following best practices when:**
@@ -286,6 +378,16 @@ python scripts/run_dev.py query --query "SELECT run_type, parameters, command_li
 - [ ] **Verifying training dataset quality with run_dev training_dataset get command**
 - [ ] **CRITICAL: Testing ALL UX changes with Playwright before claiming success**
 - [ ] **Verifying complete user workflows work end-to-end via browser automation**
+
+**Debugging & Problem Solving:**
+- [ ] **Investigating logs before restarting services**
+- [ ] **Understanding root causes before implementing fixes**
+- [ ] **Reading documentation and code when encountering issues**
+- [ ] **Following systematic debugging process when commands fail**
+- [ ] **Documenting investigation findings in commits/issues**
+- [ ] **Testing hypotheses systematically rather than random fixes**
+- [ ] **Fixing broken infrastructure instead of creating new infrastructure**
+- [ ] **Using proper debugging tools instead of switching environments**
 
 ## 🚨 **CRITICAL: Training Data Generation Flow**
 
@@ -342,4 +444,4 @@ For comprehensive operational procedures, infrastructure details, and developmen
 
 ---
 
-**🔥 This is a Docker-first, test-driven development platform. Every change must be validated end-to-end with REAL DATA ONLY.**
+**🔥 This is a Docker-first, test-driven, DEBUG-FIRST development platform. Every change must be validated end-to-end with REAL DATA ONLY. When systems fail, investigate and understand before implementing workarounds.**
