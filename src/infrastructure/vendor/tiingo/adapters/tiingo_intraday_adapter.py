@@ -15,8 +15,8 @@ from dataclasses import dataclass
 import logging
 import pandas as pd
 
-from .base_adapter import VendorAdapter
-from .models import InstrumentMetadata
+# Removed base adapter dependency for simplified incremental backfill
+from domains.market_data.services.core.agent.config.models import InstrumentMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class TiingoMinuteBar:
     vendor: str = "tiingo"
 
 
-class TiingoIntradayAdapter(VendorAdapter):
+class TiingoIntradayAdapter:
     """
     Tiingo adapter for intraday data ingestion.
 
@@ -347,6 +347,130 @@ class TiingoIntradayAdapter(VendorAdapter):
             raise ValueError("Only 1-minute intervals supported")
 
         return self.fetch_minute_bars_sync(symbol, start_dt, end_dt)
+
+    async def incremental_backfill_to_files(
+        self,
+        symbols: List[str],
+        days_back: int = 30,
+        output_path: str = "/mnt/d/ats-data/minute-bars/tiingo"
+    ) -> Dict[str, Any]:
+        """
+        Incremental backfill to parquet files with change detection.
+        
+        Fetches past N days of data, merges with existing monthly files,
+        and writes only if data changed (hash-based detection).
+        """
+        import hashlib
+        from pathlib import Path
+        
+        results = {'symbols_processed': [], 'files_written': 0, 'files_skipped': 0}
+        
+        for symbol in symbols:
+            try:
+                # Fetch new data
+                end_date = datetime.now()
+                start_date = end_date - timedelta(days=days_back)
+                bars = await self.fetch_minute_bars_async(symbol, start_date, end_date)
+                
+                if not bars:
+                    continue
+                    
+                # Convert to DataFrame
+                data = []
+                for bar in bars:
+                    data.append({
+                        'timestamp': bar.timestamp,
+                        'open': bar.open, 'high': bar.high, 'low': bar.low, 'close': bar.close,
+                        'volume': bar.volume, 'vwap': None, 'trade_count': None,
+                        'vendor': 'tiingo', 'quality_score': 1.0
+                    })
+                
+                if not data:
+                    continue
+                    
+                df = pd.DataFrame(data)
+                df = df.drop_duplicates(subset=['timestamp']).sort_values('timestamp')
+                
+                # Process last 2 months
+                now = datetime.now()
+                months = [
+                    (now.year, now.month),
+                    ((now.replace(day=1) - timedelta(days=1)).year, (now.replace(day=1) - timedelta(days=1)).month)
+                ]
+                
+                for year, month in months:
+                    month_data = self._filter_month_data(df, year, month)
+                    if month_data.empty:
+                        continue
+                        
+                    file_path = self._get_monthly_file_path(symbol, year, month, output_path)
+                    existing_data = self._read_existing_data(file_path)
+                    
+                    # Merge with existing data
+                    if existing_data.empty:
+                        merged = month_data
+                    else:
+                        combined = pd.concat([existing_data, month_data], ignore_index=True)
+                        merged = combined.drop_duplicates(subset=['timestamp']).sort_values('timestamp')
+                    
+                    # Write if changed (hash-based detection)
+                    if self._write_if_changed(file_path, merged, existing_data):
+                        results['files_written'] += 1
+                    else:
+                        results['files_skipped'] += 1
+                
+                results['symbols_processed'].append(symbol)
+                await asyncio.sleep(1)  # Rate limiting
+                
+            except Exception as e:
+                logger.error(f"Error processing {symbol}: {e}")
+                
+        return results
+    
+    def _filter_month_data(self, df: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
+        """Filter DataFrame to specific month."""
+        if df.empty:
+            return df
+        month_start = pd.Timestamp(year, month, 1, tz='UTC')
+        month_end = pd.Timestamp(year + 1, 1, 1, tz='UTC') if month == 12 else pd.Timestamp(year, month + 1, 1, tz='UTC')
+        mask = (df['timestamp'] >= month_start) & (df['timestamp'] < month_end)
+        return df[mask].copy()
+    
+    def _get_monthly_file_path(self, symbol: str, year: int, month: int, base_path: str):
+        """Get monthly file path."""
+        from pathlib import Path
+        first_letter = symbol[0]
+        return Path(base_path) / first_letter / symbol / str(year) / f"{month:02d}" / f"{symbol}_{year}_{month:02d}.parquet"
+    
+    def _read_existing_data(self, file_path):
+        """Read existing parquet file."""
+        if file_path.exists():
+            try:
+                return pd.read_parquet(file_path)
+            except Exception as e:
+                logger.error(f"Error reading {file_path}: {e}")
+        return pd.DataFrame()
+    
+    def _write_if_changed(self, file_path, new_data: pd.DataFrame, existing_data: pd.DataFrame) -> bool:
+        """Write file only if data changed."""
+        import hashlib
+        
+        def calculate_hash(df):
+            if df.empty:
+                return "empty"
+            return hashlib.md5(f"{len(df)}|{df['timestamp'].min()}|{df['timestamp'].max()}|{df['volume'].sum()}".encode()).hexdigest()
+        
+        new_hash = calculate_hash(new_data)
+        existing_hash = calculate_hash(existing_data)
+        
+        if new_hash != existing_hash:
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            new_data.to_parquet(file_path, index=False)
+            logger.info(f"✅ Updated {file_path.name} with {len(new_data)} records")
+            return True
+        else:
+            logger.info(f"⏭️ No changes for {file_path.name}")
+            return False
 
 
 # Convenience functions
