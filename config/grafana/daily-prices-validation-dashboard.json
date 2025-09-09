@@ -582,6 +582,202 @@
           }
         },
         "gridPos": {"h": 8, "w": 24, "x": 0, "y": 56}
+      },
+      {
+        "id": 14,
+        "title": "Daily File Updates - Today vs Yesterday",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_minute_bars_daily_updated_today{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} Today",
+            "refId": "A"
+          },
+          {
+            "expr": "ats_minute_bars_daily_updated_yesterday{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} Yesterday", 
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 100},
+                {"color": "green", "value": 1000}
+              ]
+            },
+            "unit": "none"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value"
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 64}
+      },
+      {
+        "id": 15,
+        "title": "Daily Coverage Percentage",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "ats_minute_bars_daily_today_coverage_percentage{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} Today",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 30},
+                {"color": "green", "value": 50}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "options": {
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 64}
+      },
+      {
+        "id": 16,
+        "title": "File Update Activity Trend (Last 15 Days)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "ats_minute_bars_daily_updated_today{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} Daily Updates",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisLabel": "Files Updated",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "bars",
+              "fillOpacity": 80,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 2,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": 900000,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "unit": "none",
+            "min": 0
+          }
+        },
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 72}
+      },
+      {
+        "id": 17,
+        "title": "Data Freshness by Vendor",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "ats_minute_bars_daily_total_symbols{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "A",
+            "format": "table"
+          },
+          {
+            "expr": "ats_minute_bars_daily_updated_today{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "B",
+            "format": "table"
+          },
+          {
+            "expr": "ats_minute_bars_daily_updated_yesterday{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "C",
+            "format": "table"
+          },
+          {
+            "expr": "ats_minute_bars_daily_recent_coverage_percentage{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "D",
+            "format": "table"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 20},
+                {"color": "red", "value": 50}
+              ]
+            },
+            "unit": "none",
+            "custom": {
+              "align": "center",
+              "displayMode": "auto"
+            }
+          }
+        },
+        "options": {
+          "showHeader": true
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 80}
       }
     ],
     "time": {
