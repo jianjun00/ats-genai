@@ -97,6 +97,73 @@ tail -50 /mnt/d/ats-logs/minute-bars-backfill.log  # Recent processing activity
 
 ---
 
+## ⏰ **Complete ATS Cron Schedule**
+
+### **Daily Automation Overview**
+```bash
+# Complete ATS Platform Cron Configuration
+# Install with: crontab scripts/cron/ats-complete-crontab
+
+# 1:00 AM - Daily prices sync (Mon-Fri, DEV → INTG)
+0 1 * * 1-5   EODHD database sync (dev_db → intg_db)
+5 1 * * 1-5   Tiingo database sync (dev_db → intg_db)  
+10 1 * * 1-5  Polygon database sync (dev_db → intg_db)
+
+# 2:00 AM - Database backups
+0 2 * * *     ATS-DEV database backup
+15 2 * * *    ATS-INTG database backup
+
+# 2:30 AM - FirstRate minute bar downloads
+30 2 * * *    FirstRate daily download (stock, etf, fx)
+0 8 * * *     FirstRate retry job (if morning failed)
+
+# 4:00 AM - Data backups
+0 1 * * 0     Full snapshot backup (Sundays)
+0 4 * * *     Incremental data sync backup
+0 5 * * *     Backup cleanup and management
+
+# 6:00 AM - System maintenance
+0 6 * * 0     Log rotation (compress large logs)
+30 6 * * *    Daily health check (all services)
+45 6 * * *    Daily prices validation (90-day analysis)
+```
+
+### **Cron Job Management**
+```bash
+# Install complete ATS cron configuration
+crontab scripts/cron/ats-complete-crontab
+
+# View current cron jobs
+crontab -l
+
+# Edit cron jobs
+crontab -e
+
+# Check cron service status
+systemctl status cron
+
+# View cron execution logs
+journalctl _COMM=cron -f
+sudo tail -f /var/log/cron    # varies by distribution
+```
+
+### **Daily Health Monitoring**
+```bash
+# Manual health check (runs daily at 6:30 AM)
+./scripts/cron/daily_health_check.sh
+
+# View health check history
+tail -50 /mnt/d/ats-logs/health-check.log
+
+# Health check components:
+# ✅ ATS-DEV/INTG service endpoints
+# ✅ Database connections (dev/intg)
+# ✅ FirstRate daily downloads
+# ✅ Backup system status
+# ✅ Disk space monitoring
+# ✅ Docker container status
+```
+
 ## 📊 **Real-Time Minute Bar Collection Monitoring**
 
 ### **🎯 Primary Dashboard: Grafana**

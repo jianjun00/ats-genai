@@ -27,13 +27,11 @@ Processing & Integration with ATS Platform
 
 ### Quick Setup
 ```bash
-# Make setup script executable
+# Install complete ATS cron configuration (recommended)
+crontab scripts/cron/ats-complete-crontab
+
+# Or install using individual setup script
 chmod +x scripts/setup_firstrate_daily_jobs.sh
-
-# Install using systemd timer (recommended)
-./scripts/setup_firstrate_daily_jobs.sh --method systemd
-
-# Or install using cron
 ./scripts/setup_firstrate_daily_jobs.sh --method cron
 
 # Test the setup
@@ -54,12 +52,14 @@ cd /home/jianjun/ats-genai-pm
 PYTHONPATH=src uv run python scripts/firstrate_daily_download.py --test
 ```
 
-3. **Install systemd timer:**
+3. **Install cron jobs:**
 ```bash
-sudo cp scripts/systemd/firstrate-daily.* /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable firstrate-daily.timer
-sudo systemctl start firstrate-daily.timer
+# Install complete ATS cron configuration
+crontab scripts/cron/ats-complete-crontab
+
+# Or add individual entries to existing crontab
+crontab -e
+# Add: 30 2 * * * cd /home/jianjun/ats-genai-data && PYTHONPATH=src uv run python scripts/firstrate_daily_download.py --all
 ```
 
 ## Usage
@@ -81,16 +81,20 @@ PYTHONPATH=src uv run python scripts/firstrate_daily_download.py --all --debug
 
 ### Automated Scheduling
 
-**Systemd Timer (Recommended):**
-- Runs at 2:30 AM EST/EDT daily
-- Automatic retry on failure
-- Persistent across reboots
-- Resource-limited execution
-
-**Cron Job Alternative:**
+**Cron Jobs (Recommended):**
 - Runs at 2:30 AM EST/EDT daily
 - Backup retry at 8:00 AM if first attempt failed
-- Simple text-based scheduling
+- Simple, reliable text-based scheduling
+- Integrated with complete ATS platform scheduling
+- Easy monitoring via standard cron logs
+
+**Complete ATS Schedule:**
+- 1:00 AM: Daily prices sync (DEV → INTG)
+- 2:00 AM: Database backups
+- 2:30 AM: FirstRate minute bar downloads
+- 4:00 AM: Data backups
+- 5:00 AM: Backup cleanup
+- 6:30 AM: Health monitoring
 
 ## Data Organization
 
@@ -127,24 +131,27 @@ PYTHONPATH=src uv run python scripts/firstrate_daily_download.py --all --debug
 
 ### Job Status
 ```bash
-# Check current status
-./scripts/setup_firstrate_daily_jobs.sh --status
-
-# View systemd timer status
-systemctl status firstrate-daily.timer
-systemctl list-timers firstrate-daily.timer
-
-# View recent job logs
-journalctl -u firstrate-daily.service -n 50
-
-# Check cron job status
+# Check current cron job status
 crontab -l | grep firstrate
+
+# View recent cron logs (varies by system)
+sudo tail -f /var/log/cron
+# or
+journalctl _COMM=cron -f
+
+# Check job execution status
+./scripts/cron/daily_health_check.sh
+
+# Manual status check
+./scripts/setup_firstrate_daily_jobs.sh --status
 ```
 
 ### Log Files
 - **Main Log:** `/mnt/d/ats-logs/firstrate-daily.log`
 - **Error Log:** `/mnt/d/ats-logs/firstrate-daily-error.log`
-- **Systemd Journal:** `journalctl -u firstrate-daily.service`
+- **Retry Log:** `/mnt/d/ats-logs/firstrate-daily-retry.log`
+- **Health Check:** `/mnt/d/ats-logs/health-check.log`
+- **System Cron:** `/var/log/cron` (varies by distribution)
 
 ### Log Sample
 ```

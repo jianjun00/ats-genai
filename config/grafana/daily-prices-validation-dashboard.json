@@ -1,0 +1,387 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "ATS Daily Prices Validation",
+    "tags": ["ats", "data-quality", "daily-prices", "validation"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Missing Prices Count by Vendor",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_missing_count{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 100},
+                {"color": "red", "value": 1000}
+              ]
+            },
+            "unit": "none"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value"
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Missing Prices Percentage by Vendor", 
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_missing_percentage{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 5},
+                {"color": "red", "value": 10}
+              ]
+            },
+            "unit": "percent"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "orientation": "auto", 
+          "textMode": "auto",
+          "colorMode": "value"
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Abnormal Prices Count by Vendor",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_abnormal_count{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 50},
+                {"color": "red", "value": 200}
+              ]
+            },
+            "unit": "none"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "orientation": "auto",
+          "textMode": "auto", 
+          "colorMode": "value"
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Abnormal Prices Percentage by Vendor",
+        "type": "stat", 
+        "targets": [
+          {
+            "expr": "ats_daily_prices_abnormal_percentage{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 2},
+                {"color": "red", "value": 5}
+              ]
+            },
+            "unit": "percent"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value"
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "Missing Prices Trend (Past 30 Days)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_missing_count{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} Missing",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 2,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": 900000,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "unit": "none",
+            "min": 0
+          }
+        },
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16}
+      },
+      {
+        "id": 6,
+        "title": "Abnormal Prices Breakdown by Type",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (vendor) (ats_daily_prices_negative_count{environment=\"intg\"})",
+            "legendFormat": "Negative Prices",
+            "refId": "A"
+          },
+          {
+            "expr": "sum by (vendor) (ats_daily_prices_zero_volume_count{environment=\"intg\"})",
+            "legendFormat": "Zero Volume",
+            "refId": "B"
+          },
+          {
+            "expr": "sum by (vendor) (ats_daily_prices_price_spike_count{environment=\"intg\"})",
+            "legendFormat": "Price Spikes",
+            "refId": "C"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              }
+            },
+            "unit": "none"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "pieType": "pie",
+          "tooltip": {
+            "mode": "single"
+          },
+          "legend": {
+            "displayMode": "visible",
+            "placement": "right",
+            "values": ["value", "percent"]
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "id": 7,
+        "title": "Expected vs Actual Price Records",
+        "type": "barchart",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_expected_total{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} Expected",
+            "refId": "A"
+          },
+          {
+            "expr": "ats_daily_prices_expected_total{environment=\"intg\"} - ats_daily_prices_missing_count{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} Actual",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "fillOpacity": 80,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              },
+              "orientation": "auto",
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              }
+            },
+            "unit": "none"
+          }
+        },
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "single"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      },
+      {
+        "id": 8,
+        "title": "Data Quality Score by Vendor",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "100 - ats_daily_prices_missing_percentage{environment=\"intg\"} - ats_daily_prices_abnormal_percentage{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 85},
+                {"color": "green", "value": 95}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "options": {
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 32}
+      }
+    ],
+    "time": {
+      "from": "now-7d",
+      "to": "now"
+    },
+    "timepicker": {},
+    "templating": {
+      "list": []
+    },
+    "annotations": {
+      "list": []
+    },
+    "refresh": "5m",
+    "schemaVersion": 30,
+    "version": 1,
+    "links": [
+      {
+        "title": "ATS Vendor Monitoring",
+        "url": "/d/f9afe708-9be9-4c39-b901-f5c43a0a479f/ats-vendor-monitoring-dashboard-fixed",
+        "type": "dashboards"
+      }
+    ],
+    "description": "Daily prices validation metrics showing missing and abnormal price data across EODHD, Tiingo, and Polygon vendors for the past 90 days."
+  }
+}
