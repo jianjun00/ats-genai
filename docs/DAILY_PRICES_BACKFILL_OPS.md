@@ -437,6 +437,83 @@ SELECT 'POLYGON' as vendor, MAX(created_at) as last_update FROM intg_daily_price
 "
 ```
 
+## 📊 **Monitoring and Metrics**
+
+### **Prometheus Metrics Setup**
+
+**Setup monitoring dependencies:**
+```bash
+# Install and configure monitoring
+./scripts/setup_monitoring.sh
+
+# Start Prometheus metrics server
+python scripts/prometheus_metrics_server.py --port 8080
+
+# Start Pushgateway for batch job metrics (Docker)
+docker run -d --name pushgateway -p 9091:9091 prom/pushgateway
+```
+
+### **Available Metrics**
+
+**Database Sync Metrics:**
+- `ats_daily_prices_sync_symbols_processed_total` - Symbols processed per vendor
+- `ats_daily_prices_sync_prices_processed_total` - Price records synced per vendor
+- `ats_daily_prices_sync_duration_seconds` - Sync operation duration
+- `ats_daily_prices_sync_success_rate` - Sync success rate (0.0 to 1.0)
+
+**Backfill Metrics:**
+- `ats_daily_prices_backfill_symbols_processed_total` - Symbols backfilled per vendor
+- `ats_daily_prices_backfill_prices_collected_total` - Price records collected
+- `ats_daily_prices_backfill_api_calls_total` - API calls made (by status)
+- `ats_daily_prices_backfill_duration_seconds` - Backfill duration
+- `ats_daily_prices_backfill_success_rate` - Backfill success rate
+
+### **Grafana Dashboard**
+
+**Import batch jobs dashboard:**
+```bash
+# Dashboard configuration located at:
+config/grafana/ats-batch-jobs-dashboard.json
+
+# Import via Grafana UI:
+# 1. Go to Grafana: http://localhost:3000
+# 2. Navigate to "+" → "Import"
+# 3. Upload ats-batch-jobs-dashboard.json
+# 4. Configure Prometheus datasource
+```
+
+**Dashboard Features:**
+- Real-time symbols and prices processed by vendor
+- Success rate gauges for sync and backfill operations
+- API call rates and status tracking
+- Duration histograms for performance monitoring
+- 24-hour totals tables
+
+### **Test Monitoring Setup**
+
+**Test metrics collection:**
+```bash
+# Test database sync with metrics
+python scripts/test_batch_job_metrics.py
+
+# Check metrics endpoint
+curl http://localhost:8080/metrics | grep ats_daily_prices
+
+# View Pushgateway metrics
+curl http://localhost:9091/metrics
+```
+
+### **Environment Variables**
+
+**Required for metrics:**
+```bash
+# Optional: Prometheus Pushgateway location
+export PROMETHEUS_GATEWAY=localhost:9091
+
+# Environment type for metrics labeling
+export ENV_TYPE=intg  # or 'dev'
+```
+
 ## 🚀 **Performance Optimization**
 
 ### **Database Tuning**

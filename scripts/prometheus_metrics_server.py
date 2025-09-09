@@ -321,6 +321,37 @@ class PrometheusMetricsServer:
                     "# TYPE ats_price_coverage_percentage gauge"
                 ]
 
+                # Add batch job metrics help text
+                batch_jobs_help = [
+                    "",
+                    "# HELP ats_daily_prices_sync_symbols_processed_total Total number of symbols processed during daily prices sync",
+                    "# TYPE ats_daily_prices_sync_symbols_processed_total counter",
+                    "",
+                    "# HELP ats_daily_prices_sync_prices_processed_total Total number of price records processed during sync",
+                    "# TYPE ats_daily_prices_sync_prices_processed_total counter",
+                    "",
+                    "# HELP ats_daily_prices_sync_duration_seconds Duration of daily prices sync operations in seconds",
+                    "# TYPE ats_daily_prices_sync_duration_seconds histogram",
+                    "",
+                    "# HELP ats_daily_prices_sync_success_rate Success rate of daily prices sync operations (0.0 to 1.0)",
+                    "# TYPE ats_daily_prices_sync_success_rate gauge",
+                    "",
+                    "# HELP ats_daily_prices_backfill_symbols_processed_total Total number of symbols processed during daily prices backfill",
+                    "# TYPE ats_daily_prices_backfill_symbols_processed_total counter",
+                    "",
+                    "# HELP ats_daily_prices_backfill_prices_collected_total Total number of price records collected during backfill",
+                    "# TYPE ats_daily_prices_backfill_prices_collected_total counter",
+                    "",
+                    "# HELP ats_daily_prices_backfill_api_calls_total Total number of API calls made during backfill",
+                    "# TYPE ats_daily_prices_backfill_api_calls_total counter",
+                    "",
+                    "# HELP ats_daily_prices_backfill_duration_seconds Duration of daily prices backfill operations in seconds",
+                    "# TYPE ats_daily_prices_backfill_duration_seconds histogram",
+                    "",
+                    "# HELP ats_daily_prices_backfill_success_rate Success rate of daily prices backfill operations (0.0 to 1.0)",
+                    "# TYPE ats_daily_prices_backfill_success_rate gauge"
+                ]
+                
                 # Add minute bars metrics
                 minute_bars_help = [
                     "",
@@ -346,6 +377,7 @@ class PrometheusMetricsServer:
                 final_metrics.extend(missing_help)
                 final_metrics.extend(freshness_help)
                 final_metrics.extend(coverage_pct_help)
+                final_metrics.extend(batch_jobs_help)
                 final_metrics.extend(minute_bars_help)
                 final_metrics.append("")
                 final_metrics.extend(metrics_lines[3:])  # All vendor metrics
@@ -528,6 +560,16 @@ ats_metrics_collection_errors 1 {error_timestamp}
         <li><code class="metric">ats_missing_price_data_alerts</code> - Instruments missing recent data (by vendor)</li>
         <li><code class="metric">ats_data_freshness_hours</code> - Hours since most recent data (by vendor)</li>
         <li><code class="metric">ats_price_coverage_percentage</code> - Coverage % over last 30 days (by vendor)</li>
+    </ul>
+    <h3>Batch Job Metrics</h3>
+    <ul>
+        <li><code class="metric">ats_daily_prices_sync_symbols_processed_total</code> - Symbols processed in sync jobs (by vendor)</li>
+        <li><code class="metric">ats_daily_prices_sync_prices_processed_total</code> - Price records processed in sync jobs (by vendor)</li>
+        <li><code class="metric">ats_daily_prices_sync_success_rate</code> - Success rate of sync operations (by vendor)</li>
+        <li><code class="metric">ats_daily_prices_backfill_symbols_processed_total</code> - Symbols processed in backfill jobs (by vendor)</li>
+        <li><code class="metric">ats_daily_prices_backfill_prices_collected_total</code> - Price records collected in backfill jobs (by vendor)</li>
+        <li><code class="metric">ats_daily_prices_backfill_api_calls_total</code> - API calls made during backfill (by vendor, status)</li>
+        <li><code class="metric">ats_daily_prices_backfill_success_rate</code> - Success rate of backfill operations (by vendor)</li>
     </ul>
 
     <h2>Usage</h2>
