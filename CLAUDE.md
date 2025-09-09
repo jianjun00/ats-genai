@@ -143,6 +143,213 @@ python scripts/run_dev.py test                     # Run tests
 # ✅ ALWAYS use python scripts/run_dev.py
 ```
 
+## 🐳 **CRITICAL DEPLOYMENT ARCHITECTURE**
+
+### **🚨 Docker Network Architecture - CRITICAL FOR SERVICE COMMUNICATION**
+
+**ALL services MUST use `ats-network` for inter-service communication:**
+
+```bash
+# Create network (done automatically by run_dev/run_intg)
+docker network create ats-network
+
+# CRITICAL: All containers must be on same network
+docker run --network ats-network ...   # ✅ CORRECT
+docker run ...                         # ❌ WRONG - uses bridge network, can't communicate
+```
+
+**Network Troubleshooting:**
+```bash
+# Check container networks (MANDATORY when services can't communicate)
+docker inspect <container_name> | grep NetworkMode
+docker network ls
+docker network inspect ats-network    # See which containers are connected
+
+# Fix network issues
+docker stop <container>
+docker rm <container>
+# Restart with correct network via run_dev/run_intg scripts
+```
+
+### **🔌 Port Architecture - Environment Isolation**
+
+| Service | DEV Environment | INTG Environment | Internal Port | 
+|---------|----------------|------------------|---------------|
+| **Analytics** | `localhost:3000` | `localhost:4000` | `3000` |
+| **PostgreSQL** | `localhost:5432` | `localhost:4432` | `5432` |
+| **API** | `localhost:8000` | `localhost:8001` | `8000` |
+| **Grafana** | `localhost:3001` | `localhost:4002` | `3000` |
+
+**Critical Port Rules:**
+- **External ports differ** between environments to avoid conflicts
+- **Internal container ports stay same** (analytics always uses 3000 internally)
+- **Database connections use internal ports** (ats-dev-postgres:5432, ats-intg-postgres:5432)
+
+### **📦 Container Architecture - Naming & Dependencies**
+
+**Container Naming Pattern:**
+- **DEV**: `ats-dev-{service}` (e.g., `ats-dev-analytics`, `ats-dev-postgres`)  
+- **INTG**: `ats-intg-{service}` (e.g., `ats-intg-analytics`, `ats-intg-postgres`)
+
+**Service Dependencies (Start Order Critical):**
+```bash
+# 1. Database FIRST (other services depend on it)
+python scripts/run_dev.py start --service postgres
+python scripts/run_intg.py start --service postgres
+
+# 2. Analytics service (depends on database)  
+python scripts/run_dev.py start --service analytics
+python scripts/run_intg.py start --service analytics
+
+# 3. API service (depends on database)
+python scripts/run_dev.py start --service api
+python scripts/run_intg.py start --service api
+```
+
+### **💾 Volume Architecture - Data Persistence**
+
+**Critical Volume Mounts (NEVER change these):**
+```bash
+# Core application volumes
+-v /home/jianjun/ats-genai-admin:/workspace                    # Source code
+-v /mnt/d/ats-data:/data                                       # Training data, minute bars
+-v /mnt/d/ats-backup:/backup                                   # Database backups  
+-v /mnt/d/ats-logs:/logs                                       # Service logs
+
+# Database volumes (persistent data)
+-v postgres-dev-data:/var/lib/postgresql/data                  # DEV database
+-v postgres-intg-data:/var/lib/postgresql/data                 # INTG database
+
+# Working directory (MANDATORY)
+-w /workspace                                                  # All containers work from here
+```
+
+**Data Structure (READ-ONLY - Do not modify):**
+```
+/mnt/d/ats-data/
+├── minute-bars/firstrate/           # Raw OHLCV data INPUT (parquet files)
+├── training-data/                   # ML-ready datasets OUTPUT (arrayrecord)
+├── checkpoints/                     # API rate limiting checkpoints
+└── temp/                           # Temporary processing files
+```
+
+### **🔧 Environment Variables - Service Configuration**
+
+**DEV Environment Variables:**
+```bash
+# Database connection (internal docker network)
+DB_HOST=ats-dev-postgres             # Container name, NOT localhost
+DB_PORT=5432                        # Internal port, NOT external 5432
+DB_USER=postgres
+DB_PASSWORD=dev_password  
+DB_NAME=dev_db
+ENVIRONMENT=dev
+
+# File paths (container perspective)
+ATS_DATA_PATH=/data                 # Maps to /mnt/d/ats-data
+ATS_BACKUP_PATH=/backup            # Maps to /mnt/d/ats-backup
+ATS_LOGS_PATH=/logs                # Maps to /mnt/d/ats-logs
+PYTHONPATH=/workspace/src          # Critical for Python imports
+```
+
+**INTG Environment Variables:**
+```bash
+# Database connection (internal docker network)  
+DB_HOST=ats-intg-postgres           # Container name, NOT localhost
+DB_PORT=5432                       # Internal port, NOT external 4432
+DB_USER=postgres
+DB_PASSWORD=intg_password
+DB_NAME=intg_db
+ENVIRONMENT=intg
+
+# Same file paths as DEV (same volume mounts)
+ATS_DATA_PATH=/data
+ATS_BACKUP_PATH=/backup
+ATS_LOGS_PATH=/logs
+PYTHONPATH=/workspace/src
+```
+
+### **⚡ Service Commands - Exact Startup Commands**
+
+**Analytics Service:**
+```bash
+# DEV
+python src/services/analytics_service.py    # Port 3000 internally
+# INTG  
+python src/services/analytics_service.py    # Port 3000 internally, exposed as 4000
+```
+
+**Database Service:**
+```bash
+# Both environments use same image
+timescale/timescaledb:latest-pg13
+```
+
+**API Service:**
+```bash
+# Both environments
+python src/api/main.py               # Port 8000 internally
+```
+
+### **🚨 COMMON DEPLOYMENT ISSUES & FIXES**
+
+**Issue 1: "Connection refused" errors**
+```bash
+# Symptom: Services can't reach database
+# Root Cause: Containers on different networks
+# Fix: Ensure both containers use --network ats-network
+
+# Debug:
+docker inspect <container> | grep NetworkMode
+# Should show "ats-network", not "bridge"
+```
+
+**Issue 2: "Loading database tables..." (dummy content)**
+```bash
+# Symptom: Analytics shows loading screens instead of data
+# Root Cause: Database connection misconfigured  
+# Fix: Check DB_HOST uses container name, not localhost
+
+# Debug:
+docker logs ats-intg-analytics --tail 20
+# Look for connection errors to wrong host/port
+```
+
+**Issue 3: Character encoding issues (�� instead of emojis)**  
+```bash
+# Symptom: "ðŸš€" instead of "🚀" 
+# Root Cause: Missing charset=utf-8 in HTTP headers
+# Fix: Add charset to Content-Type header in analytics service
+```
+
+**Issue 4: Port conflicts**
+```bash
+# Symptom: "Port already in use" errors
+# Root Cause: Dev and intg services using same external ports
+# Fix: Use correct port mappings (3000 vs 4000, 5432 vs 4432)
+
+# Debug:
+docker ps | grep -E "(3000|4000|5432|4432)"
+netstat -tulpn | grep -E "(3000|4000|5432|4432)"
+```
+
+### **🔍 MANDATORY DEPLOYMENT VERIFICATION**
+
+**After starting any service, ALWAYS verify:**
+```bash
+# 1. Container is running on correct network
+docker inspect <container> | grep -A 5 NetworkMode
+
+# 2. Database connectivity works  
+curl -f http://localhost:<port>/health
+
+# 3. Service logs show no connection errors
+docker logs <container> --tail 10
+
+# 4. Port mappings are correct
+docker ps | grep <service_name>
+```
+
 ## 🧪 **Test-Driven Development (MANDATORY)**
 
 ### MANDATORY sequence for ALL code changes:

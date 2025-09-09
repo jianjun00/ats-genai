@@ -165,8 +165,23 @@ class IntgCLI:
             },
             "analytics": {
                 "image": "dragonflyer762/ats-genai:latest",
-                "port": "4000:4000",  # Consistent with ATS-DEV analytics on 3000
-                "command": "python src/analytics/server.py"
+                "port": "4000:3000",  # Integration analytics on external port 4000, internal port 3000
+                "command": "python src/services/analytics_service.py",
+                "env": {
+                    "DB_HOST": "ats-intg-postgres",
+                    "DB_PORT": "5432",
+                    "DB_USER": "postgres",
+                    "DB_PASSWORD": "intg_password",
+                    "DB_NAME": "intg_db",
+                    "ENVIRONMENT": "intg",
+                    "POLYGON_API_KEY": os.getenv('POLYGON_API_KEY', 'wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD'),
+                    "TIINGO_API_KEY": os.getenv('TIINGO_API_KEY', '5f40b4f36e171405746304ec0e5a6f3aa9ca77e5'),
+                    "EODHD_API_KEY": os.getenv('EODHD_API_KEY', '675b5a33b36f43.67825763'),
+                    "FMP_API_KEY": os.getenv('FMP_API_KEY', 'Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr'),
+                    "ALPHA_VANTAGE_API_KEY": os.getenv('ALPHA_VANTAGE_API_KEY', '9GI0NZ3V4VNFX271'),
+                    "FIRSTRATE_USER_ID": os.getenv('FIRSTRATE_USER_ID', 'ats-genai-user'),
+                    "OPENAI_API_KEY": os.getenv('OPENAI_API_KEY', '')
+                }
             },
             "api": {
                 "image": "dragonflyer762/ats-genai:latest",
@@ -208,6 +223,7 @@ class IntgCLI:
                 volume_mounts += f" -v {volume}"
 
         cmd = f"""docker run -d --name {container_name} {gpu_flag} \\
+            --network ats-network \\
             {volume_mounts} \\
             -w /workspace \\
             {port_flag} \\
