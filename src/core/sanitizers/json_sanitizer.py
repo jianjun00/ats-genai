@@ -45,6 +45,14 @@ class JSONSanitizer:
         elif hasattr(value, 'isoformat'):
             return value.isoformat()
 
+        # Handle Decimal types (from PostgreSQL numeric columns)
+        elif isinstance(value, Decimal):
+            return float(value)
+
+        # Handle datetime objects
+        elif hasattr(value, 'isoformat'):
+            return value.isoformat()
+
         # Handle dictionaries
         elif isinstance(value, dict):
             return {key: JSONSanitizer.sanitize_value(val) for key, val in value.items()}
