@@ -1,0 +1,336 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: daily-multi-vendor-backfill
+  namespace: ats-intg
+  labels:
+    app: multi-vendor-backfill
+    component: data-collection
+    version: v1.0.0
+spec:
+  # Run daily at 7:00 AM EST (after market data is available)
+  schedule: "0 12 * * *"  # 12:00 UTC = 7:00 AM EST
+  timeZone: "America/New_York"
+  successfulJobsHistoryLimit: 7
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 1800  # 30 minutes
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 7200  # 2 hours timeout
+      template:
+        metadata:
+          labels:
+            app: multi-vendor-backfill
+            component: data-collection
+        spec:
+          serviceAccountName: ats-service-account
+          restartPolicy: Never
+          containers:
+          - name: multi-vendor-collector
+            image: ats-genai:latest
+            command: ["python3", "scripts/multi_vendor_daily_collector.py"]
+            args: ["--vendors", "tiingo,polygon,eodhd", "--days", "7", "--symbols", "500"]
+            env:
+            # Application configuration
+            - name: PYTHONPATH
+              value: "src"
+            - name: ENVIRONMENT
+              value: "intg"
+            - name: LOG_LEVEL
+              value: "INFO"
+            
+            # Database configuration
+            - name: DB_HOST
+              value: "ats-intg-postgres"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: "intg_password"
+            - name: DB_NAME
+              value: "intg_db"
+            
+            # Vendor API keys
+            - name: TIINGO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vendor-api-keys
+                  key: tiingo-api-key
+            - name: POLYGON_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vendor-api-keys
+                  key: polygon-api-key
+            - name: EODHD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vendor-api-keys
+                  key: eodhd-api-key
+            
+            # Slack notifications
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: notification-secrets
+                  key: slack-webhook-url
+                  optional: true
+            
+            resources:
+              requests:
+                memory: "2Gi"
+                cpu: "1000m"
+              limits:
+                memory: "4Gi"
+                cpu: "2000m"
+            
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 1000
+              runAsGroup: 1000
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+
+---
+# Tiingo-specific daily job (fallback)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: daily-tiingo-backfill
+  namespace: ats-intg
+  labels:
+    app: tiingo-backfill
+    component: data-collection
+    version: v1.0.0
+spec:
+  # Run daily at 8:00 AM EST (1 hour after multi-vendor job)
+  schedule: "0 13 * * *"  # 13:00 UTC = 8:00 AM EST
+  timeZone: "America/New_York"
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 900
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 3600  # 1 hour timeout
+      template:
+        metadata:
+          labels:
+            app: tiingo-backfill
+            component: data-collection
+        spec:
+          serviceAccountName: ats-service-account
+          restartPolicy: Never
+          containers:
+          - name: tiingo-collector
+            image: ats-genai:latest
+            command: ["python3", "scripts/tiingo_data_collector_intg.py"]
+            args: ["--days", "7", "--symbols", "200"]
+            env:
+            # Application configuration
+            - name: PYTHONPATH
+              value: "src"
+            - name: ENVIRONMENT
+              value: "intg"
+            - name: LOG_LEVEL
+              value: "INFO"
+            
+            # Database configuration
+            - name: DB_HOST
+              value: "ats-intg-postgres"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: "intg_password"
+            - name: DB_NAME
+              value: "intg_db"
+            
+            # API key
+            - name: TIINGO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vendor-api-keys
+                  key: tiingo-api-key
+            
+            resources:
+              requests:
+                memory: "1Gi"
+                cpu: "500m"
+              limits:
+                memory: "2Gi"
+                cpu: "1000m"
+            
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 1000
+              runAsGroup: 1000
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+
+---
+# Weekly comprehensive backfill
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: weekly-comprehensive-vendor-backfill
+  namespace: ats-intg
+  labels:
+    app: comprehensive-backfill
+    component: data-collection
+    version: v1.0.0
+spec:
+  # Run every Sunday at 3:00 AM EST
+  schedule: "0 8 * * 0"  # 08:00 UTC = 3:00 AM EST on Sunday
+  timeZone: "America/New_York"
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 2
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 1800
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 14400  # 4 hours timeout
+      template:
+        metadata:
+          labels:
+            app: comprehensive-backfill
+            component: data-collection
+        spec:
+          serviceAccountName: ats-service-account
+          restartPolicy: Never
+          containers:
+          - name: comprehensive-collector
+            image: ats-genai:latest
+            command: ["python3", "scripts/multi_vendor_daily_collector.py"]
+            args: ["--vendors", "tiingo,polygon,eodhd", "--days", "30", "--debug"]
+            env:
+            # Application configuration
+            - name: PYTHONPATH
+              value: "src"
+            - name: ENVIRONMENT
+              value: "intg"
+            - name: LOG_LEVEL
+              value: "DEBUG"
+            
+            # Database configuration
+            - name: DB_HOST
+              value: "ats-intg-postgres"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: "intg_password"
+            - name: DB_NAME
+              value: "intg_db"
+            
+            # Vendor API keys
+            - name: TIINGO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vendor-api-keys
+                  key: tiingo-api-key
+            - name: POLYGON_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vendor-api-keys
+                  key: polygon-api-key
+            - name: EODHD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vendor-api-keys
+                  key: eodhd-api-key
+            
+            # Slack notifications
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: notification-secrets
+                  key: slack-webhook-url
+                  optional: true
+            
+            resources:
+              requests:
+                memory: "4Gi"
+                cpu: "2000m"
+              limits:
+                memory: "8Gi"
+                cpu: "4000m"
+            
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 1000
+              runAsGroup: 1000
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+
+---
+# ServiceAccount for the jobs (if not already exists)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ats-service-account
+  namespace: ats-intg
+
+---
+# Role for the service account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: ats-intg
+  name: ats-data-collection-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["batch"]
+  resources: ["jobs", "cronjobs"]
+  verbs: ["get", "list", "watch"]
+
+---
+# RoleBinding for the service account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ats-data-collection-role-binding
+  namespace: ats-intg
+subjects:
+- kind: ServiceAccount
+  name: ats-service-account
+  namespace: ats-intg
+roleRef:
+  kind: Role
+  name: ats-data-collection-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Secret for vendor API keys (template - values need to be added)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vendor-api-keys
+  namespace: ats-intg
+type: Opaque
+data:
+  # These are base64 encoded values - replace with actual keys
+  tiingo-api-key: NWY0MGI0ZjM2ZTE3MTQwNTc0NjMwNGVjMGU1YTZmM2FhOWNhNzdlNQ==  # 5f40b4f36e171405746304ec0e5a6f3aa9ca77e5
+  polygon-api-key: d2ZyY1pOWDNaSkp0NTVPcl9DbUJYZGE4RzhlOHRBQkQ=  # wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD
+  eodhd-api-key: Njc1YjVhMzNiMzZmNDMuNjc4MjU3NjM=  # 675b5a33b36f43.67825763
+
+---
+# Secret for Slack notifications (optional)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: notification-secrets
+  namespace: ats-intg
+type: Opaque
+data:
+  # Replace with actual Slack webhook URL (base64 encoded)
+  slack-webhook-url: ""  # Optional - add if Slack notifications desired
