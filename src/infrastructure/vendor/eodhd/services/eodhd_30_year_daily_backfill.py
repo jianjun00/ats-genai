@@ -50,6 +50,9 @@ class EODHD30YearBackfiller:
         # Use enhanced BackfillStats for comprehensive monitoring
         self.stats = BackfillStats()
 
+        # Rate limiting configuration
+        self.request_delay = 3.0  # 3 seconds = 20 requests/minute for EODHD free tier
+
         # Legacy stats for compatibility
         self.legacy_stats = {
             'total_instruments': 0,
@@ -64,26 +67,46 @@ class EODHD30YearBackfiller:
         logger.info(f"   Rate limit: {60/self.request_delay:.1f} requests/minute")
 
     async def get_database_connection(self):
-        """Get database connection (Docker-compatible)."""
+        """Get database connection (Docker-compatible and localhost-compatible)."""
         # Auto-detect environment based on available databases
         env = os.getenv('ENV_TYPE', 'intg').lower()
 
         if env == 'intg':
-            return await asyncpg.connect(
-                host='ats-intg-postgres',  # INTG PostgreSQL container name
-                port=5432,                 # Internal Docker port
-                user='postgres',
-                password='intg_password',
-                database='intg_db'
-            )
+            # Try Docker first, fallback to localhost
+            try:
+                return await asyncpg.connect(
+                    host='ats-intg-postgres',  # INTG PostgreSQL container name
+                    port=5432,                 # Internal Docker port
+                    user='postgres',
+                    password='intg_password',
+                    database='intg_db'
+                )
+            except:
+                return await asyncpg.connect(
+                    host='localhost',
+                    port=4432,                 # External host port for intg
+                    user='postgres',
+                    password='intg_password',
+                    database='intg_db'
+                )
         else:
-            return await asyncpg.connect(
-                host='ats-dev-postgres',   # DEV PostgreSQL container name
-                port=5432,                 # Internal Docker port
-                user='postgres',
-                password='dev_password',
-                database='dev_db'
-            )
+            # Try Docker first, fallback to localhost
+            try:
+                return await asyncpg.connect(
+                    host='ats-dev-postgres',   # DEV PostgreSQL container name
+                    port=5432,                 # Internal Docker port
+                    user='postgres',
+                    password='dev_password',
+                    database='dev_db'
+                )
+            except:
+                return await asyncpg.connect(
+                    host='localhost',
+                    port=3432,                 # External host port for dev
+                    user='postgres',
+                    password='dev_password',
+                    database='dev_db'
+                )
 
     async def ensure_table_exists(self, conn):
         """Ensure EODHD table exists."""
@@ -131,7 +154,7 @@ class EODHD30YearBackfiller:
             {limit_clause}
         """)
 
-        self.stats['total_instruments'] = len(instruments)
+        self.legacy_stats['total_instruments'] = len(instruments)
         logger.info(f"📊 Found {len(instruments)} instruments for 30-year backfill")
         return instruments
 
@@ -148,7 +171,7 @@ class EODHD30YearBackfiller:
 
         try:
             response = requests.get(url, params=params)
-            self.stats['api_calls'] += 1
+            self.legacy_stats['api_calls'] += 1
 
             if response.status_code == 200:
                 data = response.json()
@@ -167,12 +190,12 @@ class EODHD30YearBackfiller:
                 return self.download_eodhd_daily_prices(symbol, start_date, end_date)
             else:
                 logger.error(f"❌ EODHD API error for {symbol}: {response.status_code}")
-                self.stats['errors'] += 1
+                self.legacy_stats['errors'] += 1
                 return []
 
         except Exception as e:
             logger.error(f"❌ Error downloading {symbol}: {e}")
-            self.stats['errors'] += 1
+            self.legacy_stats['errors'] += 1
             return []
 
     async def insert_daily_prices_idempotent(self, conn, instrument_id, symbol, prices):
@@ -226,12 +249,12 @@ class EODHD30YearBackfiller:
             """, rows)
 
             logger.info(f"💾 Inserted {len(rows)} price records for {symbol}")
-            self.stats['total_records'] += len(rows)
+            self.legacy_stats['total_records'] += len(rows)
             return len(rows)
 
         except Exception as e:
             logger.error(f"❌ Database error inserting prices for {symbol}: {e}")
-            self.stats['errors'] += 1
+            self.legacy_stats['errors'] += 1
             return 0
 
     async def check_existing_data(self, conn, instrument_id, start_date, end_date):
@@ -257,7 +280,7 @@ class EODHD30YearBackfiller:
                 existing_count = await self.check_existing_data(conn, instrument_id, start_date, end_date)
                 if existing_count > 0:
                     logger.info(f"⏭️ Skipping {symbol} - already has {existing_count} records")
-                    self.stats['skipped_instruments'] += 1
+                    self.legacy_stats['skipped_instruments'] += 1
                     return 0
 
             logger.info(f"📈 Processing {symbol} (ID: {instrument_id}) for 30-year backfill...")
@@ -273,7 +296,7 @@ class EODHD30YearBackfiller:
             inserted_count = await self.insert_daily_prices_idempotent(conn, instrument_id, symbol, prices)
 
             logger.info(f"✅ Completed {symbol}: {inserted_count} records inserted")
-            self.stats['processed_instruments'] += 1
+            self.legacy_stats['processed_instruments'] += 1
 
             # Rate limiting delay
             time.sleep(self.request_delay)
@@ -282,7 +305,7 @@ class EODHD30YearBackfiller:
 
         except Exception as e:
             logger.error(f"❌ Failed to process {symbol}: {e}")
-            self.stats['errors'] += 1
+            self.legacy_stats['errors'] += 1
             return 0
 
     async def run_backfill(self, start_date, end_date, limit=None, skip_existing=True):
@@ -321,7 +344,7 @@ class EODHD30YearBackfiller:
                     if i % 100 == 0 or i == len(instruments):
                         progress = (i / len(instruments)) * 100
                         logger.info(f"📊 Progress: {i:,}/{len(instruments):,} ({progress:.1f}%) - "
-                                  f"{self.stats['total_records']:,} total records")
+                                  f"{self.legacy_stats['total_records']:,} total records")
 
                 except Exception as e:
                     logger.error(f"❌ Critical error processing instrument {instrument.get('symbol', 'unknown')}: {e}")
@@ -336,18 +359,18 @@ class EODHD30YearBackfiller:
         logger.info("🎉 EODHD 30-YEAR DAILY PRICE BACKFILL COMPLETE")
         logger.info("=" * 80)
         logger.info(f"📊 PROCESSING SUMMARY:")
-        logger.info(f"  Total Instruments: {self.stats['total_instruments']:,}")
-        logger.info(f"  Processed Instruments: {self.stats['processed_instruments']:,}")
-        logger.info(f"  Skipped Instruments: {self.stats['skipped_instruments']:,}")
-        logger.info(f"  Total Records Inserted: {self.stats['total_records']:,}")
-        logger.info(f"  API Calls Made: {self.stats['api_calls']:,}")
-        logger.info(f"  Errors: {self.stats['errors']:,}")
+        logger.info(f"  Total Instruments: {self.legacy_stats['total_instruments']:,}")
+        logger.info(f"  Processed Instruments: {self.legacy_stats['processed_instruments']:,}")
+        logger.info(f"  Skipped Instruments: {self.legacy_stats['skipped_instruments']:,}")
+        logger.info(f"  Total Records Inserted: {self.legacy_stats['total_records']:,}")
+        logger.info(f"  API Calls Made: {self.legacy_stats['api_calls']:,}")
+        logger.info(f"  Errors: {self.legacy_stats['errors']:,}")
         logger.info("")
 
-        success_rate = ((self.stats['processed_instruments']) / self.stats['total_instruments'] * 100) if self.stats['total_instruments'] > 0 else 0
+        success_rate = ((self.legacy_stats['processed_instruments']) / self.legacy_stats['total_instruments'] * 100) if self.legacy_stats['total_instruments'] > 0 else 0
         logger.info(f"✅ Success Rate: {success_rate:.1f}%")
 
-        avg_records = self.stats['total_records'] / max(1, self.stats['processed_instruments'])
+        avg_records = self.legacy_stats['total_records'] / max(1, self.legacy_stats['processed_instruments'])
         logger.info(f"📈 Average Records per Instrument: {avg_records:.1f}")
         logger.info("=" * 80)
 
