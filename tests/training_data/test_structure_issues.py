@@ -3,7 +3,7 @@
 Tests to detect training data structure issues and hardcoded mappings
 
 Issues to detect:
-1. dataset_metadata.json should be under /data/training/<dataset_id>/ not /data/training/
+1. dataset_metadata.json should be under /data/training_data/<dataset_id>/ not /data/training_data/
 2. Training data should have one directory per symbol (not per day)
 3. Hardcoded symbol-to-ID mappings (TSLA=6, AAPL=1, etc.)
 """

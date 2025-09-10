@@ -59,7 +59,7 @@ pre-commit run schema-anti-patterns
 ```python
 # File 1: Inconsistent path generation
 def get_training_path_v1(symbol, date_range):
-    return f"/data/training/{symbol}_{date_range}"
+    return f"/data/training_data/{symbol}_{date_range}"
 
 # File 2: Slightly different path generation  
 def get_training_path_v2(symbol, start, end):
@@ -76,7 +76,7 @@ def create_dataset_dir(symbol, dates):
 @staticmethod
 def get_training_dataset_basedir(run_id: str, symbol: str, date_range: str) -> str:
     """Canonical training dataset directory structure per PRD/DRD requirements"""
-    return f"/data/training/{run_id}/{symbol}_{date_range}"
+    return f"/data/training_data/{run_id}/{symbol}_{date_range}"
 
 def get_timeframe_file_path(basedir: str, timeframe: str, symbol: str) -> str:
     """Canonical ArrayRecord file path per QR4 requirements"""

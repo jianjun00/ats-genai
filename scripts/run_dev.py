@@ -686,7 +686,7 @@ class DevCLI:
         training_data_paths = [
             f"/mnt/d/ats-data/training/{run_id}",
             f"/mnt/d/ats-data/training_data",
-            f"/data/training/{run_id}",
+            f"/data/training_data/{run_id}",
             f"./training_data_output"
         ]
         

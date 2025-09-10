@@ -290,10 +290,14 @@ async def register_training_dataset(environment: Environment, symbols: List[str]
     dataset_name = f"callback_training_{symbols_str}_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}"
 
     # Calculate estimated feature count based on config
+    # FIX: Use actual TrainingDataConfig attributes (timeframes, feature_types)
     total_features = 0
-    for timeframe, length in config.sequence_lengths.items():
-        features_per_interval = 7  # OHLCV + technical indicators (etop, ebot, pldot)
-        total_features += length * features_per_interval
+    timeframes = config.timeframes if hasattr(config, 'timeframes') else ['5m', '15m', '1h', '1d']
+    feature_types = config.feature_types if hasattr(config, 'feature_types') else ['ohlcv', 'technical']
+    
+    # Rough estimation: features per timeframe * number of timeframes
+    features_per_timeframe = 7  # OHLCV + volume + basic technical
+    total_features = len(timeframes) * features_per_timeframe * len(feature_types)
 
     # Calculate estimated total sequences (rough approximation)
     days_range = (end_date - start_date).days
@@ -305,31 +309,30 @@ async def register_training_dataset(environment: Environment, symbols: List[str]
         dataset_name=dataset_name,
         run_id=run_id,
         total_sequences=estimated_sequences,
-        sequence_length=sum(config.sequence_lengths.values()),  # Total sequence length across timeframes
+        sequence_length=len(timeframes),  # Use number of timeframes as sequence length
         feature_count=total_features,
-        label_count=sum(config.prediction_horizons.values()),  # Total prediction horizons
+        label_count=1,  # FIX: Default to 1 label (price prediction)
         symbols=symbols,
         date_range_start=start_date,
         date_range_end=end_date,
         features_file_path=str(Path(output_dir) / f"{dataset_name}_features.{storage_format}"),
         labels_file_path=str(Path(output_dir) / f"{dataset_name}_labels.{storage_format}"),
         metadata_file_path=str(Path(output_dir) / f"{dataset_name}_metadata.json"),
-        prediction_horizon=max(config.prediction_horizons.values()) if config.prediction_horizons else 0,
+        prediction_horizon=1,  # FIX: Default to 1-day prediction horizon
         status="generating",
         created_by="training_data_callback_runner",
         data_sources=["universe_state_manager"],
         generation_parameters={
             "base_interval_minutes": config.base_interval_minutes,
             "training_interval_minutes": config.training_interval_minutes,
-            "sequence_lengths": config.sequence_lengths,
-            "prediction_horizons": config.prediction_horizons,
+            "timeframes": timeframes,  # FIX: Use actual timeframes list
             "storage_format": storage_format,
             "output_directory": output_dir
         },
         technical_indicators=','.join(get_technical_indicators()),
         feature_metadata=json.dumps({
-            "timeframes": list(config.sequence_lengths.keys()),
-            "features_per_timeframe": {tf: length * 7 for tf, length in config.sequence_lengths.items()},
+            "timeframes": timeframes,  # FIX: Use actual timeframes list
+            "features_per_timeframe": {tf: 7 for tf in timeframes},  # FIX: Simple mapping
             "total_features": total_features,
             "feature_types": ["open", "high", "low", "close", "volume", "etop", "ebot", "pldot"]
         })
@@ -587,11 +590,63 @@ async def main():
         
         print(f"📊 Updated dataset metadata with completion info")
 
+    # 🗄️ CRITICAL FIX: Register training dataset in database
+    print(f"\n🗄️ Registering training dataset in database...")
+    
+    try:
+        # Register the dataset in the database
+        db_dataset_id = await register_training_dataset(
+            environment=environment,
+            symbols=args.symbols,
+            start_date=start_date,
+            end_date=end_date,
+            config=config,
+            output_dir=args.output_dir,
+            storage_format=args.storage_format
+        )
+        
+        print(f"✅ Dataset registered in database with ID: {db_dataset_id}")
+        
+        # Update the completion status with actual file information
+        await update_training_dataset_completion(
+            environment=environment,
+            dataset_id=db_dataset_id,
+            actual_sequences=estimated_actual_sequences,
+            generation_duration_seconds=generation_duration,
+            file_size_mb=0.0  # TODO: Calculate actual file size
+        )
+        
+        print(f"✅ Dataset completion status updated in database")
+        
+        # Add database info to metadata file
+        if os.path.exists(metadata_file):
+            with open(metadata_file, 'r') as f:
+                metadata = json.load(f)
+            
+            metadata.update({
+                "database_id": db_dataset_id,
+                "database_registered": True,
+                "database_table": environment.get_table_name("training_dataset")
+            })
+            
+            with open(metadata_file, 'w') as f:
+                json.dump(metadata, f, indent=2)
+            
+            print(f"📊 Added database registration info to metadata file")
+        
+    except Exception as e:
+        print(f"❌ Failed to register dataset in database: {e}")
+        print(f"⚠️ Training data files created successfully, but database registration failed")
+        print(f"   Dataset will not appear in UI until manually registered")
+        # Don't fail the entire process - files are still created successfully
+
     print(f"\n✅ Training data generation completed!")
     print(f"   Dataset directory: {args.output_dir}")
     print(f"   Metadata file: {metadata_file}")
     print(f"   Gin config: {args.output_dir}/gin_config.gin")
     print(f"   Command line preserved in metadata for reproducibility")
+    if 'db_dataset_id' in locals():
+        print(f"   Database ID: {db_dataset_id} (registered in {environment.get_table_name('training_dataset')})")
 
     return 0
 

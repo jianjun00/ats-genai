@@ -361,10 +361,10 @@ class UnifiedAnalyticsService:
                             # New structure: /data/training_data/<run_id>/<timeframe>/<symbol>_<startdatetime>_<enddatetime>.arrayrecord
                             f"/data/training_data/*/{timeframe}/{symbol_lower}_*.arrayrecord",
                             f"/data/training_data/*/*/{symbol_lower}_*.arrayrecord",
-                            # Legacy numpy files (existing structure)
-                            f"/data/training/arrayrecord_aapl_tsla_2025/{symbol_lower}_features.npy",
-                            f"/data/training/{dataset_info['dataset_name'].lower()}/{symbol_lower}_features.npy",
-                            f"/data/training/{dataset_id}/{symbol_lower}_features.npy",
+                            # Legacy numpy files (existing structure) - FIXED: Use correct path
+                            f"/data/training_data/arrayrecord_aapl_tsla_2025/{symbol_lower}_features.npy",
+                            f"/data/training_data/{dataset_info['dataset_name'].lower()}/{symbol_lower}_features.npy",
+                            f"/data/training_data/{dataset_id}/{symbol_lower}_features.npy",
                         ]
 
                         logger.info(f"Checking file paths for timeframe {timeframe}: {possible_file_paths}")

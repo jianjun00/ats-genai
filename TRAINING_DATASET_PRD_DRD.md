@@ -425,8 +425,8 @@ The **TRIPLE FIX** enables the complete training data generation pipeline with r
 #### **🚨 CRITICAL FIXES IMPLEMENTED (September 10, 2025)**
 
 **Issue #1: dataset_metadata.json Location** ✅ **FIXED**
-- **Problem**: Metadata placed at `/data/training/dataset_metadata.json` (root level)
-- **Solution**: Moved to `/data/training/{dataset_id}/dataset_metadata.json` (inside dataset directory)
+- **Problem**: Metadata placed at `/data/training_data/dataset_metadata.json` (root level)
+- **Solution**: Moved to `/data/training_data/{dataset_id}/dataset_metadata.json` (inside dataset directory)
 - **File**: `training_data_callback_runner.py:501` - Fixed metadata file path
 - **Impact**: Each dataset now has its own metadata file for proper isolation
 

@@ -769,7 +769,7 @@ def get_training_dataset_visualization_data(self, dataset_id: int, ...):
     
     # 2. Multi-path search strategy
     training_base_paths = [
-        Path("/data/training"),                    # Container: /data/training
+        Path("/data/training_data"),                    # Container: /data/training_data
         Path("/data/training_data"),               # Container: /data/training_data  
         Path("/mnt/d/ats-data/training_data")      # Host: /mnt/d/ats-data/training_data
     ]
