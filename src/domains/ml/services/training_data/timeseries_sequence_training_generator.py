@@ -56,7 +56,9 @@ class TrainingDataConfig:
         self.base_interval_minutes = base_interval_minutes
         self.training_interval_minutes = training_interval_minutes
 
-        self.timeframes = timeframes or ['1m', '5m', '15m', '1h', '1d', '1w', '1M']
+        self.timeframes = timeframes
+        if self.timeframes is None:
+            raise ValueError("timeframes parameter is required. Please configure via gin config or pass as parameter.")
 
         self.feature_types = feature_types or [
             'ohlcv',           # Open, High, Low, Close, Volume

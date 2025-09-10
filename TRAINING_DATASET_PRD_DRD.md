@@ -411,6 +411,183 @@ The **TRIPLE FIX** enables the complete training data generation pipeline with r
 │           └── TSLA_20250701_000000_20250909_235959.arrayrecord
 ```
 
+**🚨 CRITICAL REQUIREMENT: Single File Per Symbol/Timeframe Across Multiple Days**
+
+**MANDATORY: Each ArrayRecord file MUST contain ALL intervals across the ENTIRE date range**
+
+### **📁 Single File Architecture Requirements**
+
+**File Structure (FIXED September 2025):**
+```
+/data/training_data/
+├── dataset_20250910_123456/                              ← Dataset ID with timestamp
+│   ├── schema_metadata.json                             ← Schema metadata for technical indicators
+│   └── TSLA_20250701_000000_20250909_235959/            ← ONE directory per symbol (full range)
+│       ├── 5m/
+│       │   └── TSLA_20250701_000000_20250909_235959.arrayrecord   ← Single file for 5m timeframe
+│       ├── 15m/
+│       │   └── TSLA_20250701_000000_20250909_235959.arrayrecord  ← Single file for 15m timeframe  
+│       ├── 1h/
+│       │   └── TSLA_20250701_000000_20250909_235959.arrayrecord   ← Single file for 1h timeframe
+│       └── 1d/
+│           └── TSLA_20250701_000000_20250909_235959.arrayrecord   ← Single file for 1d timeframe
+```
+
+### **🎯 Single File Implementation Requirements**
+
+**1. Streaming Architecture (September 2025)**
+- **ArrayRecordWriter created ONCE** per symbol/timeframe at initialization
+- **Writers remain OPEN** throughout entire date range processing
+- **Intervals streamed immediately** as they are processed (no memory accumulation)
+- **Writers closed ONLY** in `handleEnd()` method to finalize files
+- **Memory efficient**: Prevents OOM issues with large date ranges
+
+**2. File Naming Convention**
+- **Pattern**: `{SYMBOL}_{START_DATETIME}_{END_DATETIME}.arrayrecord`
+- **Example**: `TSLA_20250701_000000_20250703_235959.arrayrecord`
+- **Date format**: `YYYYMMDD_HHMMSS` (24-hour format)
+- **Range coverage**: Filename MUST reflect complete date range processed
+
+**3. Data Consolidation Rules**
+- **Multi-day processing**: ALL days written to SAME file per symbol/timeframe
+- **Chronological order**: Records MUST be in timestamp order across all days
+- **NO daily files**: Forbidden to create separate files per day
+- **Single write operation**: File written continuously during processing, not post-processed
+
+### **📊 Expected Record Counts**
+
+**Market Hours Coverage** (9:30 AM - 4:00 PM EST = 6.5 hours):
+- **1 day**: ~78 records (6.5 hours × 12 five-minute intervals per hour)
+- **3 days**: ~234 records (78 intervals/day × 3 days) 
+- **1 week**: ~390 records (78 × 5 trading days)
+- **1 month**: ~1,560 records (78 × 20 trading days)
+
+**Record Count by Timeframe** (per trading day):
+- **5m timeframe**: ~78 records/day
+- **15m timeframe**: ~26 records/day (78 ÷ 3)  
+- **1h timeframe**: ~6.5 records/day (6.5 trading hours)
+- **1d timeframe**: 1 record/day
+
+### **🔧 Technical Implementation Details**
+
+**Streaming Writer Pattern:**
+```python
+# ✅ CORRECT: Single writer per file, streaming approach
+class IntervalBasedTrainingDataCallback:
+    def __init__(self):
+        self.array_record_writers = {}  # Store writers for streaming
+        
+    async def _initialize_dataset_structure(self):
+        # Create writers ONCE for entire date range
+        for symbol in self.symbols:
+            for timeframe in ['5m', '15m', '1h', '1d']:
+                file_key = f"{symbol}_{timeframe}"
+                writer = ArrayRecordWriter(str(arrayrecord_file), 'group_size:1')
+                self.array_record_writers[file_key] = writer
+                
+    async def _stream_intervals_to_writers(self, examples, current_time):
+        # Stream intervals immediately (no accumulation)
+        for symbol in symbols:
+            for timeframe in timeframes:
+                writer = self.array_record_writers[f"{symbol}_{timeframe}"]
+                for interval in intervals:
+                    binary_record = self.binary_schema.pack_interval(symbol, interval)
+                    writer.write(binary_record)  # Write immediately
+                    
+    async def handleEnd(self, runner, current_time):
+        # Close all writers to finalize files
+        for writer in self.array_record_writers.values():
+            writer.close()
+        self.array_record_writers.clear()
+```
+
+### **🚨 Dynamic Schema Integration** 
+
+**Technical Indicator Support:**
+- **Schema metadata**: `schema_metadata.json` saved alongside ArrayRecord files
+- **Configurable indicators**: Via gin config or auto-detection from data
+- **Binary format**: Dynamic struct packing based on available indicators
+- **Example indicators**: `envelope_top`, `envelope_bot`, `pldot`, `sma_20`, `ema_12`, `rsi_14`, etc.
+
+**Schema Templates:**
+- **`ohlcv_only`**: 36 bytes, backward compatible
+- **`basic_envelopes`**: 48 bytes, includes envelope indicators
+- **`traditional_ta`**: 60 bytes, includes traditional technical analysis
+- **`auto_detect`**: Variable bytes, includes all available indicators
+
+### **❌ FORBIDDEN PATTERNS**
+
+**Daily File Creation (WRONG):**
+```
+❌ TSLA_20250701_000000_20250701_235959/  ← Daily directory
+❌ TSLA_20250702_000000_20250702_235959/  ← Daily directory  
+❌ TSLA_20250703_000000_20250703_235959/  ← Daily directory
+```
+
+**Memory Accumulation (WRONG):**
+```python
+❌ # Accumulate all intervals in memory, then write
+all_intervals = []
+for day in date_range:
+    daily_intervals = process_day(day)
+    all_intervals.extend(daily_intervals)  # OOM risk!
+write_all_at_once(all_intervals)
+```
+
+**Multiple Writers Per File (WRONG):**
+```python
+❌ # Create new writer for each day  
+for day in date_range:
+    writer = ArrayRecordWriter(f"file_{day}.arrayrecord")  # Multiple files!
+```
+
+### **✅ IMPLEMENTATION VERIFICATION**
+
+**Test Requirements:**
+- **Single file validation**: Verify only ONE file created per symbol/timeframe
+- **Record count validation**: Verify expected record counts per date range
+- **Chronological order**: Verify timestamps are sequential across multiple days
+- **Binary format validation**: Verify protobuf binary format, NOT JSON
+- **Schema validation**: Verify technical indicators are properly included
+- **Memory efficiency**: Verify no OOM issues with large date ranges
+
+**Testing Coverage:**
+- `test_single_file_multi_day_arrayrecord.py`: 5 critical tests (100% passing)
+- `test_dynamic_technical_indicators.py`: 6 schema tests (100% passing)
+- `test_streaming_writer_lifecycle`: Streaming approach validation
+
+### **⚙️ Configuration Management**
+
+**Gin Configuration (September 2025)**
+All timeframe defaults moved from Python code to gin configuration files:
+
+**File**: `config/training_data.gin`
+```gin
+# Available timeframes for training data generation  
+domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.timeframes = ['1m', '5m', '15m', '1h', '1d', '1w', '1M']
+
+# Timeframes for smart money zones analysis
+domains.trading.services.indicators.smart_money_zones.MultiTimeframeAnalysis.timeframes = ['5m', '15m', '1h', '4h']
+
+# Dynamic schema configuration
+domains.ml.services.training_data.callbacks.training_data_callback.IntervalBasedTrainingDataCallback.binary_schema = 'auto_detect'
+```
+
+**Configuration Requirements:**
+- **No hardcoded defaults**: Python classes MUST be configured via gin or explicit parameters
+- **Required validation**: Classes throw `ValueError` if timeframes not configured
+- **Centralized config**: All timeframe defaults consolidated in `training_data.gin`
+- **Environment separation**: Different configs for dev/intg/prod environments
+
+**Schema Configuration Options:**
+```gin
+# Schema configuration options:
+binary_schema = 'ohlcv_only'       # Backward compatible, 36 bytes
+binary_schema = 'basic_envelopes'   # Include envelope indicators, 48 bytes  
+binary_schema = 'traditional_ta'    # Include traditional TA, 60 bytes
+binary_schema = 'auto_detect'       # Include all available indicators, variable bytes
+```
+
 **❌ PREVIOUS BUGGY STRUCTURE (Fixed)**:
 ```
 /data/training_data/

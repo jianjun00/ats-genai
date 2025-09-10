@@ -5,8 +5,11 @@
 domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.base_interval_minutes = 1
 domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.training_interval_minutes = 60
 
-# Available timeframes
-domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.timeframes = ['5m', '15m', '1h', '1d']
+# Available timeframes for training data generation
+domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.timeframes = ['1m', '5m', '15m', '1h', '1d', '1w', '1M']
+
+# Timeframes for smart money zones analysis
+domains.trading.services.indicators.smart_money_zones.MultiTimeframeAnalysis.timeframes = ['5m', '15m', '1h', '4h']
 
 # Technical Indicators Configuration
 domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.signal_names = [

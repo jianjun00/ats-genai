@@ -13,6 +13,7 @@ This module implements the complete SMZ trading methodology including:
 
 import pandas as pd
 import numpy as np
+import gin
 from typing import Dict, Any, Optional, List, Tuple, Literal
 from datetime import datetime
 from dataclasses import dataclass
@@ -1102,6 +1103,7 @@ class SMZEntryConfirmation(Indicator):
         }
 
 
+@gin.configurable
 class MultiTimeframeAnalysis:
     """Multi-timeframe confluence analysis for Smart Money Zones."""
 
@@ -1112,7 +1114,9 @@ class MultiTimeframeAnalysis:
         Args:
             timeframes: List of timeframe strings (e.g., ['1m', '5m', '15m', '1h'])
         """
-        self.timeframes = timeframes or ['5m', '15m', '1h', '4h']
+        self.timeframes = timeframes
+        if self.timeframes is None:
+            raise ValueError("timeframes parameter is required. Please configure via gin config or pass as parameter.")
         self.detectors = {tf: SmartMoneyZoneDetector() for tf in self.timeframes}
 
     def analyze_confluence(self, price_data: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
